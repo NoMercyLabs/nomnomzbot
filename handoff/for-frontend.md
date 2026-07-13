@@ -61,27 +61,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** picking a voice for a viewer persists and survives reload; the picker only offers synthesizable
   voices; clearing returns the viewer to the default; picker disabled (not hidden) below the manage floor; en + nl.
 
-### 2026-07-12 — TTS moderator approval QUEUE PAGE (item 16) — toggle already shipped
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **NOTE (2026-07-13):** the two TTS config switches — **"Filter profanity"** (`profanityCensorEnabled`,
-  opt-OUT/default ON) and **"Require moderator approval"** (`modApprovalRequired`, opt-IN/default OFF) — are
-  DONE on the TTS settings page (mirror the skip-bot-messages toggle; both round-trip; `TtsConfig` guarded in
-  `ApiContractTest`). What REMAINS below is only the **queue review page**.
-- **What:** a **TTS approval queue** panel/page where a moderator reviews pending utterances and approves or rejects each:
-  - `GET  /api/v1/channels/{channelId}/tts/queue?page=1&pageSize=25` → `PaginatedResponse<TtsQueueEntryDto>`
-    (`id`, `requestedByTwitchUserId`, `requestedByDisplayName`, `originalText`, `censoredText`, `voiceId`,
-    `wasCensored`, `status`, `createdAt`, `expiresAt`, `sourceMessageId`) — pending only, newest-first.
-  - `POST /api/v1/channels/{channelId}/tts/queue/{entryId}/approve` → 200 (it's then synthesized + played).
-  - `POST /api/v1/channels/{channelId}/tts/queue/{entryId}/reject` → 200 (discarded, nothing plays).
-  Show `censoredText` (fall back to `originalText`) as the text that WILL be spoken; flag `wasCensored`; entries
-  auto-expire after ~10 min (show `expiresAt`). A live push for new entries is a later enhancement — poll for now.
-- **Why:** item 16 P.1a. A cautious streamer can gate every TTS message behind a mod's yes/no.
-- **Where:** TTS settings (the toggle) + a moderator queue surface (list + approve/reject buttons). All three queue
-  endpoints gate on `tts:queue:review` (Mod); the toggle uses the TTS config write gate. Register `TtsQueueEntryDto`
-  + the new config field in `ApiContractTest`; committed `server/openapi/v1.json` already carries them. i18n en + nl.
-- **Done when:** with approval on, a triggered TTS shows in the queue and does NOT play until approved; approve plays
-  it; reject discards it; the toggle persists across reload; en + nl.
-
 ### 2026-07-11 — Viewer reports + moderator triage queue — new endpoints
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** viewers report a chatter; mods triage. Three endpoints (in `server/openapi/v1.json`, tag "Moderation",

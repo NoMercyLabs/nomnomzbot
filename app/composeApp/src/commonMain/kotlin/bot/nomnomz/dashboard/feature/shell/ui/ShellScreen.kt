@@ -504,7 +504,12 @@ private fun ShellContent(
                 )
             ShellRoute.SoundClips ->
                 SoundScreen(controller = graph.soundController, role = role)
-            ShellRoute.Tts -> TtsScreen(controller = graph.ttsController, role = role)
+            ShellRoute.Tts ->
+                TtsScreen(
+                    controller = graph.ttsController,
+                    queueController = graph.ttsQueueController,
+                    role = role,
+                )
             ShellRoute.Games -> GamesScreen(controller = graph.gamesController, role = role)
             ShellRoute.Giveaways ->
                 GiveawaysScreen(controller = graph.giveawaysController, heldActionKeys = heldActionKeys)

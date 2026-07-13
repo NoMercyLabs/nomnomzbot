@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -62,12 +63,16 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.TtsConfig
+import bot.nomnomz.dashboard.core.network.TtsQueueEntry
 import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsVoice
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import bot.nomnomz.dashboard.feature.tts.state.TtsController
+import bot.nomnomz.dashboard.feature.tts.state.TtsQueueController
+import bot.nomnomz.dashboard.feature.tts.state.TtsQueueState
 import bot.nomnomz.dashboard.feature.tts.state.TtsState
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
@@ -103,6 +108,14 @@ import nomnomzbot.composeapp.generated.resources.tts_voices_use_action
 import nomnomzbot.composeapp.generated.resources.tts_voices_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_tts
 import nomnomzbot.composeapp.generated.resources.tts_test_error
+import nomnomzbot.composeapp.generated.resources.tts_queue_action_error
+import nomnomzbot.composeapp.generated.resources.tts_queue_approve
+import nomnomzbot.composeapp.generated.resources.tts_queue_censored
+import nomnomzbot.composeapp.generated.resources.tts_queue_empty
+import nomnomzbot.composeapp.generated.resources.tts_queue_error
+import nomnomzbot.composeapp.generated.resources.tts_queue_loading
+import nomnomzbot.composeapp.generated.resources.tts_queue_reject
+import nomnomzbot.composeapp.generated.resources.tts_queue_title
 import nomnomzbot.composeapp.generated.resources.tts_test_play
 import nomnomzbot.composeapp.generated.resources.tts_test_prompt
 import nomnomzbot.composeapp.generated.resources.tts_test_success
@@ -115,7 +128,11 @@ import org.jetbrains.compose.resources.stringResource
 // controller's loaded config; Save persists the whole config and the controller echoes the saved values
 // back. It loads on first composition and offers a retry on failure.
 @Composable
-fun TtsScreen(controller: TtsController, role: ManagementRole?) {
+fun TtsScreen(
+    controller: TtsController,
+    queueController: TtsQueueController,
+    role: ManagementRole?,
+) {
     val state: TtsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -124,6 +141,10 @@ fun TtsScreen(controller: TtsController, role: ManagementRole?) {
     // (frontend-ia.md §3). A caller below it reads the current config but every field, toggle, and Save renders
     // disabled with "Requires Editor" (§7); the backend re-checks every write regardless.
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Tts)
+    // The approval queue is a MODERATOR surface (tts:queue:review) — a lower floor than config editing. The page
+    // is already visible to Moderator+ (its read floor), so this decision is Allowed for every viewer here; it
+    // stays as an explicit gate so the backend's Mod re-check is mirrored in the UI.
+    val queueManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Moderator)
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -136,6 +157,8 @@ fun TtsScreen(controller: TtsController, role: ManagementRole?) {
                 ReadyContent(
                     state = current,
                     manage = manage,
+                    queueController = queueController,
+                    queueManage = queueManage,
                     onSave = { edited -> scope.launch { controller.save(edited) } },
                     onTestSpeak = { voiceId, text -> scope.launch { controller.testSpeak(voiceId, text) } },
                 )
@@ -158,6 +181,8 @@ private val PERMISSIONS: List<Pair<String, StringResource>> =
 private fun ReadyContent(
     state: TtsState.Ready,
     manage: ManageDecision,
+    queueController: TtsQueueController,
+    queueManage: ManageDecision,
     onSave: (TtsConfig) -> Unit,
     onTestSpeak: (voiceId: String, text: String) -> Unit,
 ) {
@@ -249,6 +274,133 @@ private fun ReadyContent(
             manage = manage,
             onTest = { voiceId, text -> onTestSpeak(voiceId, text) },
         )
+
+        TtsQueueSection(controller = queueController, manage = queueManage)
+    }
+}
+
+// The moderator approval queue (item 16 P.1a) — shown below the config on the same page (the page's read floor
+// is Moderator, matching tts:queue:review). When "Require moderator approval" is on, each TTS utterance waits
+// here until a mod approves it (played) or rejects it (discarded). It renders the text that WILL be spoken (the
+// censored version when the message was masked) and who requested it; approve/reject act immediately and reload.
+// Loads its own state; nothing shows a queue when approval is off (the list is simply empty).
+@Composable
+private fun TtsQueueSection(controller: TtsQueueController, manage: ManageDecision) {
+    val state: TtsQueueState by controller.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    LaunchedEffect(Unit) { controller.load() }
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        Text(
+            text = stringResource(Res.string.tts_queue_title),
+            style = typography.lg,
+            color = tokens.cardForeground,
+        )
+        when (val current: TtsQueueState = state) {
+            is TtsQueueState.Loading ->
+                Text(
+                    text = stringResource(Res.string.tts_queue_loading),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+            is TtsQueueState.Empty ->
+                Text(
+                    text = stringResource(Res.string.tts_queue_empty),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+            is TtsQueueState.Error ->
+                Text(
+                    text = stringResource(Res.string.tts_queue_error, current.detail),
+                    style = typography.sm,
+                    color = tokens.destructive,
+                )
+            is TtsQueueState.Ready -> {
+                current.actionError?.let { detail ->
+                    ActionErrorBanner(
+                        message = stringResource(Res.string.tts_queue_action_error, detail)
+                    )
+                }
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    current.entries.forEachIndexed { index, entry ->
+                        if (index > 0) Separator()
+                        TtsQueueRow(
+                            entry = entry,
+                            manage = manage,
+                            onApprove = { scope.launch { controller.approve(entry.id) } },
+                            onReject = { scope.launch { controller.reject(entry.id) } },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TtsQueueRow(
+    entry: TtsQueueEntry,
+    manage: ManageDecision,
+    onApprove: () -> Unit,
+    onReject: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    // The text that WILL be spoken: the censored version when the message was masked, else the original.
+    val spokenText: String =
+        if (entry.wasCensored) entry.censoredText ?: entry.originalText else entry.originalText
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = entry.requestedByDisplayName,
+                style = typography.sm,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (entry.wasCensored) {
+                Badge(selected = false, onClick = {}) {
+                    Text(stringResource(Res.string.tts_queue_censored), style = typography.xs)
+                }
+            }
+        }
+        Text(
+            text = spokenText,
+            style = typography.sm,
+            color = tokens.mutedForeground,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            ManageGate(decision = manage) { enabled ->
+                Button(onClick = onApprove, enabled = enabled) {
+                    Text(stringResource(Res.string.tts_queue_approve))
+                }
+            }
+            ManageGate(decision = manage) { enabled ->
+                TextButton(onClick = onReject, enabled = enabled) {
+                    Text(
+                        text = stringResource(Res.string.tts_queue_reject),
+                        color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                    )
+                }
+            }
+        }
     }
 }
 

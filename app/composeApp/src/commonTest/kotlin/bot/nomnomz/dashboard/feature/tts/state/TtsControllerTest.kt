@@ -20,6 +20,7 @@ import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
 import bot.nomnomz.dashboard.core.network.TtsTestRequest
 import bot.nomnomz.dashboard.core.network.TtsTestResult
+import bot.nomnomz.dashboard.core.network.TtsQueueEntry
 import bot.nomnomz.dashboard.core.network.TtsVoice
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -251,4 +252,12 @@ private class FakeTtsApi(
 
     override suspend fun testSpeak(channelId: String, request: TtsTestRequest): ApiResult<TtsTestResult> =
         ApiResult.Ok(TtsTestResult())
+
+    override suspend fun queue(channelId: String) = ApiResult.Ok(emptyList<TtsQueueEntry>())
+
+    override suspend fun approveQueueEntry(channelId: String, entryId: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun rejectQueueEntry(channelId: String, entryId: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
 }

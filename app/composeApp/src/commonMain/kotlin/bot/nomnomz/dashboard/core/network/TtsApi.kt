@@ -35,6 +35,15 @@ interface TtsApi {
      * base64-encoded audio and the provider's reported duration so the dashboard can play it back inline.
      */
     suspend fun testSpeak(channelId: String, request: TtsTestRequest): ApiResult<TtsTestResult>
+
+    /** Pending TTS utterances awaiting moderator approval (newest-first). Empty when approval is off / none held. */
+    suspend fun queue(channelId: String): ApiResult<List<TtsQueueEntry>>
+
+    /** Approve a pending utterance ([entryId]) — the backend then synthesises and plays it on the overlay. */
+    suspend fun approveQueueEntry(channelId: String, entryId: String): ApiResult<Unit>
+
+    /** Reject a pending utterance ([entryId]) — it is discarded and nothing plays. */
+    suspend fun rejectQueueEntry(channelId: String, entryId: String): ApiResult<Unit>
 }
 
 class RestTtsApi(private val client: ApiClient) : TtsApi {
@@ -54,6 +63,23 @@ class RestTtsApi(private val client: ApiClient) : TtsApi {
     // The test response is a StatusResponseDto<TtsTestResultDto> envelope — getEnvelope unwraps `data`.
     override suspend fun testSpeak(channelId: String, request: TtsTestRequest): ApiResult<TtsTestResult> =
         client.postEnvelope("api/v1/channels/$channelId/tts/test", request)
+
+    // The queue is a PaginatedResponse (flat `{ data: [...] }`) — getDirect deserializes the whole body, same
+    // as the widgets / commands lists. Pending, newest-first; one page is plenty for a review panel.
+    override suspend fun queue(channelId: String): ApiResult<List<TtsQueueEntry>> =
+        when (
+            val page: ApiResult<PaginatedEnvelope<TtsQueueEntry>> =
+                client.getDirect("api/v1/channels/$channelId/tts/queue?page=1&pageSize=25")
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
+
+    override suspend fun approveQueueEntry(channelId: String, entryId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/tts/queue/$entryId/approve")
+
+    override suspend fun rejectQueueEntry(channelId: String, entryId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/tts/queue/$entryId/reject")
 }
 
 /** The channel's TTS configuration (backend `TtsConfigDto`). Field names mirror the DTO camelCase exactly. */
@@ -87,6 +113,25 @@ data class TtsConfigUpdate(
     val readUsernames: Boolean? = null,
     val profanityCensorEnabled: Boolean? = null,
     val modApprovalRequired: Boolean? = null,
+)
+
+/**
+ * A pending TTS utterance awaiting moderator approval (backend `TtsQueueEntryDto`). The mod reviews the text
+ * that WILL be spoken — [censoredText] when [wasCensored], else [originalText] — and approves or rejects it.
+ * Entries auto-expire (~10 min); [expiresAt] lets the panel show the remaining window. A subset of the DTO
+ * (requestedByTwitchUserId / sourceMessageId are not rendered and omitted).
+ */
+@Serializable
+data class TtsQueueEntry(
+    val id: String = "",
+    val requestedByDisplayName: String = "",
+    val originalText: String = "",
+    val censoredText: String? = null,
+    val wasCensored: Boolean = false,
+    val voiceId: String = "",
+    val status: String = "",
+    val createdAt: String = "",
+    val expiresAt: String? = null,
 )
 
 /** The test-speak request body (backend `TtsTestRequestDto`). camelCase; [voiceId] is the full provider voice id. */

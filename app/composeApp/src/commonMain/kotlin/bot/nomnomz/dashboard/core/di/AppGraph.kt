@@ -161,6 +161,7 @@ import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsControll
 import bot.nomnomz.dashboard.feature.songrequests.state.SongRequestsController
 import bot.nomnomz.dashboard.feature.timers.state.TimersController
 import bot.nomnomz.dashboard.feature.tts.state.TtsController
+import bot.nomnomz.dashboard.feature.tts.state.TtsQueueController
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsController
 import bot.nomnomz.dashboard.core.network.LiveOpsApi
 import bot.nomnomz.dashboard.core.network.RestLiveOpsApi
@@ -382,6 +383,8 @@ class AppGraph {
         SongRequestsController(channelsApi = channelsApi, songRequestsApi = songRequestsApi)
 
     val ttsController: TtsController = TtsController(channelsApi = channelsApi, ttsApi = ttsApi)
+    val ttsQueueController: TtsQueueController =
+        TtsQueueController(channelsApi = channelsApi, ttsApi = ttsApi)
 
     val gamesController: GamesController =
         GamesController(channelsApi = channelsApi, gamesApi = gamesApi)
