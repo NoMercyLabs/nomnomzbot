@@ -160,49 +160,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   (panes or merged, each line clearly tagged with its channel), add/remove a channel without dropping the
   others, and scrollback loads per channel.
 
-### 2026-07-05 — Standing rule: users never see numeric permission levels (names only)
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** owner rule — **no user-facing surface ever renders the numeric ladder value** of a role.
-  Users see the role **name** only (`Moderator`, `Editor`, `Broadcaster`, `VIP`, `Subscriber`,
-  `Artist`, `Everyone`), never the number, never `Moderator (10)` / `Editor30`. The unified ladder
-  (`Everyone 0 · Subscriber 2 · Vip 4 · Artist 6 · Moderator 10 · SuperMod/LeadModerator 20 ·
-  Editor 30 · Broadcaster 40`, roles-permissions §0) is an **internal** `≥`-comparison mechanism only.
-- **Already applied (this commit, backend track made the code-only frontend edit with owner's OK):**
-  `feature/roles/ui/RolesScreen.kt` — the action-permission **row** now shows the role name
-  ("Default: Moderator"), and the override **dialog** is a role **picker** (reuses `DropdownMenu`,
-  offers named rungs ≥ the action's floor) instead of a free-form numeric field. New en+nl rung
-  strings added; numeric-entry strings retired. API contract unchanged (`setOverride` still sends the
-  rung's `Int` level).
-- **What you own going forward:** apply the same on **any** role/permission surface you build or
-  touch. The effective-role DTO (`ResolvedAccess` / backend `ResolvedAccessDto`, `GET
-  /roles/effective/me`) already carries **both**: names (`communityStanding`/`managementRole` — render
-  these) AND `*Level` ints (`effectiveLevel`/`communityLevel`/`managementLevel` — internal `≥` gating
-  only, never render). `ActionPermission` currently exposes only ints; map a level→name with the same
-  ladder table `RolesScreen` uses (§0) — or ask backend to add a name field to `ActionPermissionDto`
-  if you'd rather not mirror the table.
-- **Where:** `docs/bot-capabilities.md` §1.3 (new third golden rule) + §1.5; `RolesScreen.kt`.
-- **Done when:** no dashboard surface renders a permission number; role pickers/badges/gates read by name.
-
-### 2026-07-05 — Owned ids are now ULID strings on the wire (refresh openapi + confirm ApiContractTest)
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** every **owned** identifier is now encoded as a 26-char Crockford base32 **ULID string** at the API
-  boundary (was a raw GUID string). Storage is unchanged (UUIDv7 `Guid`) — this is purely the wire form. It is
-  fully round-trip tolerant: the backend **accepts BOTH** a ULID and a raw GUID string inbound (route, query,
-  JSON body, and the `channelId` path segment / `X-Channel-Id` header), so nothing breaks during the transition.
-  The refreshed `server/openapi/v1.json` snapshot now renders every id field as `"type":"string","format":"ulid"`
-  (was `"format":"uuid"`) — 242 fields, format-only change, no paths/operations/schemas added or removed.
-- **Why:** shorter, URL-safe, sortable public ids that never expose the raw UUIDv7. External ids (Twitch/Spotify/
-  Discord/YouTube ids, `{userId}` = Twitch user id, `{rewardId}`/`{redemptionId}`/`{pollId}`/`{messageId}`) are
-  **unchanged** — they were always `string`-typed and are not owned ids.
-- **Where:** re-sync KMP `core/network` DTOs from the refreshed `server/openapi/v1.json` and run `ApiContractTest`
-  (`jvmTest`). Kotlin ids are already `String`, so the `uuid→ulid` format change should map to `String`
-  identically and require no DTO type changes — but **confirm** `ApiContractTest` still passes and update its
-  expectations if it asserts on the `uuid` format string specifically. Treat all ids as **opaque strings**: do not
-  parse, validate as UUID, or lower/upper-case them; string-compare as received. Ids read from one response can be
-  sent back verbatim in any path/query/body.
-- **Done when:** `ApiContractTest` (`jvmTest`) is green against the refreshed snapshot and no client code assumes
-  a UUID shape for an id (no `UUID.fromString`, no uuid regex) — ids flow through as opaque strings.
-
 ### 2026-07-04 — Send channel context on user lookups; use analytics endpoints for participant stats
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** two client changes in the KMP network layer. (1) When the dashboard is operating on a
