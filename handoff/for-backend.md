@@ -16,21 +16,6 @@ The frontend track (`aaoa-dev`) leaves backend work orders here. The backend tra
 
 ## Open
 
-### 2026-07-13 — Chat feed can't tag by provider — `ChannelSummaryDto` has no `provider` field
-- **From:** aaoa-dev (via Claude, frontend track)
-- **What:** the Kick ("chat feed provider tag") and YouTube ("tag the feed by channel provider") handoff
-  entries both say to key each chat line's source tag off `provider` from `GET /api/v1/channels`. But the
-  committed `server/openapi/v1.json` `ChannelSummaryDto` exposes no `provider` (fields: chatColor, displayName,
-  id, isLive, login, overlayToken, profileImageUrl, role, viewerCount) — and neither does `ChannelDto`. The
-  backend source (`ChannelSummaryDto` in `Application/Identity/Dtos/ChannelDtos.cs`) has no Provider member.
-- **Why:** the frontend routes/renders per channel by `channelId` (works today), but cannot show a per-channel
-  platform tag (twitch / youtube / kick) without the channel's provider on the wire. `ApiContractTest` would
-  reject a Kotlin `provider` field that isn't in the schema, so the client can't add it speculatively.
-- **Where:** add `Provider` (string: "twitch" | "youtube" | "kick") to `ChannelSummaryDto` (and ideally
-  `ChannelDto`), populated when the channel is provisioned per platform; refresh `server/openapi/v1.json`.
-- **Done when:** `GET /api/v1/channels` rows carry `provider`; the frontend then tags each chat line + the
-  multi-watch panes by it (the Kick + YouTube feed-tag entries unblock).
-
 ### 2026-07-13 — Community per-viewer stats can't reach the analytics endpoint (id-type mismatch)
 - **From:** aaoa-dev (via Claude, frontend track)
 - **What:** the 2026-07-04 handoff ("Send channel context on user lookups") asked the frontend to stop calling
@@ -83,7 +68,3 @@ The frontend track (`aaoa-dev`) leaves backend work orders here. The backend tra
   `server/openapi/v1.json`; the frontend then adds a pipeline picker to the reward form (like the timer one).
 - **Done when:** a reward can be bound to a pipeline and redeeming it runs the pipeline (so a `play_sound`
   step fires on redemption).
-
-## Done
-
-_(completed entries move here, with their commit hashes)_
