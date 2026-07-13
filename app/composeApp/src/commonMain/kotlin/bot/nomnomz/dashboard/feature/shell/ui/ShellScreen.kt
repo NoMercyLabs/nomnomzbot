@@ -99,6 +99,7 @@ import bot.nomnomz.dashboard.feature.giveaways.ui.GiveawaysScreen
 import bot.nomnomz.dashboard.feature.supporters.ui.SupportersScreen
 import bot.nomnomz.dashboard.feature.home.ui.HomeScreen
 import bot.nomnomz.dashboard.feature.integrations.ui.IntegrationsScreen
+import bot.nomnomz.dashboard.feature.liveops.ui.ScheduleScreen
 import bot.nomnomz.dashboard.feature.moderation.ui.ModerationScreen
 import bot.nomnomz.dashboard.feature.music.ui.MusicScreen
 import bot.nomnomz.dashboard.feature.pipelines.ui.PipelinesScreen
@@ -158,6 +159,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_integrations
 import nomnomzbot.composeapp.generated.resources.shell_nav_menu_open
 import nomnomzbot.composeapp.generated.resources.shell_nav_moderation
 import nomnomzbot.composeapp.generated.resources.shell_nav_music
+import nomnomzbot.composeapp.generated.resources.shell_nav_schedule
 import nomnomzbot.composeapp.generated.resources.shell_nav_sound
 import nomnomzbot.composeapp.generated.resources.shell_nav_overlays
 import nomnomzbot.composeapp.generated.resources.shell_nav_pipelines
@@ -515,6 +517,7 @@ private fun ShellContent(
                 GiveawaysScreen(controller = graph.giveawaysController, heldActionKeys = heldActionKeys)
             ShellRoute.Discord -> DiscordScreen(controller = graph.discordController, role = role)
             ShellRoute.Pipelines -> PipelinesScreen(controller = graph.pipelinesController, role = role)
+            ShellRoute.Schedule -> ScheduleScreen(controller = graph.scheduleController, role = role)
             ShellRoute.Roles -> RolesScreen(controller = graph.rolesController, role = role)
             ShellRoute.Integrations ->
                 IntegrationsScreen(
@@ -1232,6 +1235,7 @@ private fun ShellRoute.icon(): ImageVector =
         ShellRoute.Tts -> TtsGlyph
         ShellRoute.Widgets -> WidgetsGlyph
         ShellRoute.Alerts -> AlertsGlyph
+        ShellRoute.Schedule -> TimersGlyph
         ShellRoute.Analytics -> AnalyticsGlyph
         ShellRoute.Community -> CommunityGlyph
         ShellRoute.Discord -> DiscordGlyph
@@ -1269,6 +1273,7 @@ private fun ShellRoute.label(): String =
             ShellRoute.Widgets -> Res.string.shell_nav_overlays
             ShellRoute.Alerts -> Res.string.shell_nav_alerts
             ShellRoute.Discord -> Res.string.shell_nav_discord
+            ShellRoute.Schedule -> Res.string.shell_nav_schedule
             ShellRoute.Analytics -> Res.string.shell_nav_analytics
             ShellRoute.Pipelines -> Res.string.shell_nav_pipelines
             ShellRoute.Community -> Res.string.shell_nav_community

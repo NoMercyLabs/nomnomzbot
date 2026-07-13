@@ -16,6 +16,20 @@ The frontend track (`aaoa-dev`) leaves backend work orders here. The backend tra
 
 ## Open
 
+### 2026-07-13 — Dev: `GET /live-ops/schedule` returns 502 (handler crash / gateway timeout)
+- **From:** aaoa-dev (via Claude, frontend track)
+- **What:** on dev (`dev.nomnomz.bot`, owner channel `019f146e-8303-71ef-b698-18d1098d7d7e`),
+  `GET /api/v1/channels/{channelId}/live-ops/schedule` returns **502** while `/health` and other channel
+  endpoints (e.g. `/moderation/reports`) return 200 — so the server is up; the schedule handler specifically
+  fails (an unhandled exception or an upstream Twitch call timing out into a 502, rather than a structured 4xx).
+- **Why:** the new schedule PAGE (shipped this session) reads this endpoint. It degrades to an error state (no
+  crash), but can't render the schedule until the endpoint returns 200. Not a client issue — the typed client
+  matches the committed contract and is green in `ApiContractTest` + `compileKotlinWasmJs`.
+- **Where:** `LiveOpsController` schedule read on the backend (whatever calls Twitch's Get Channel Stream
+  Schedule). Prefer returning a structured error (e.g. 404 "no schedule" / a needs-scope 4xx) over a raw 502
+  so the client can show a meaningful message.
+- **Done when:** `GET /live-ops/schedule` returns 200 (or a structured 4xx) on dev for that channel.
+
 ### 2026-07-13 — Chat feed can't tag by provider — `ChannelSummaryDto` has no `provider` field
 - **From:** aaoa-dev (via Claude, frontend track)
 - **What:** the Kick ("chat feed provider tag") and YouTube ("tag the feed by channel provider") handoff

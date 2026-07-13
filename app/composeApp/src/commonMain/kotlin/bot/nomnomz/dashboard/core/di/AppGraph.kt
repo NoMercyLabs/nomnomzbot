@@ -171,6 +171,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsController
+import bot.nomnomz.dashboard.feature.liveops.state.ScheduleController
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
 
 // The composition root for this slice — one instance of each engine singleton (frontend-structure.md
@@ -496,6 +497,9 @@ class AppGraph {
 
     val liveOpsController: LiveOpsController =
         LiveOpsController(channelsApi = channelsApi, liveOpsApi = liveOpsApi)
+
+    val scheduleController: ScheduleController =
+        ScheduleController(channelsApi = channelsApi, liveOpsApi = liveOpsApi)
 
     // The PARTICIPANT rung's controller is built PER resolved access (channel + caller's own user GUID + community
     // standing + permit capabilities), which the shell resolves at entry via /effective/me — unlike the management
