@@ -471,6 +471,11 @@
     <string name="timers_dialog_edit_title">Timer bewerken</string>
     <string name="timers_dialog_name">Naam</string>
     <string name="timers_dialog_message">Bericht</string>
+    <string name="timers_dialog_messages">Berichten (rotatie)</string>
+    <string name="timers_dialog_add_message">Bericht toevoegen</string>
+    <string name="timers_dialog_message_remove">Bericht verwijderen</string>
+    <string name="timers_dialog_pipeline">Pijplijn uitvoeren (optioneel)</string>
+    <string name="timers_dialog_pipeline_none">Geen</string>
     <string name="timers_dialog_interval">Interval (minuten)</string>
     <string name="timers_dialog_enabled">Ingeschakeld</string>
     <string name="timers_dialog_create">Aanmaken</string>

@@ -15,9 +15,15 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
+import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.CreateTimerRequest
+import bot.nomnomz.dashboard.core.network.PipelineDetail
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.TimerDetail
 import bot.nomnomz.dashboard.core.network.TimerSummary
 import bot.nomnomz.dashboard.core.network.TimersApi
+import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
 import bot.nomnomz.dashboard.core.network.UpdateTimerRequest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -36,7 +42,7 @@ class TimersControllerTest {
     @Test
     fun load_surfaces_the_channels_timers_on_success() = runTest {
         val controller =
-            TimersController(
+            timersController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeTimersApi(
                     listOf(
@@ -68,7 +74,7 @@ class TimersControllerTest {
     @Test
     fun load_reports_empty_when_the_channel_has_no_timers() = runTest {
         val controller =
-            TimersController(
+            timersController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeTimersApi(emptyList()),
             )
@@ -81,7 +87,7 @@ class TimersControllerTest {
     @Test
     fun load_errors_when_no_channel_resolves() = runTest {
         val controller =
-            TimersController(
+            timersController(
                 FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
                 FakeTimersApi(emptyList()),
             )
@@ -94,7 +100,7 @@ class TimersControllerTest {
     @Test
     fun load_errors_when_the_timers_call_fails() = runTest {
         val controller =
-            TimersController(
+            timersController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeTimersApi(emptyList(), listFailure = ApiError(500, "ERR", "boom")),
             )
@@ -107,10 +113,10 @@ class TimersControllerTest {
     @Test
     fun createTimer_persists_the_request_and_reloads_the_list() = runTest {
         val api = FakeTimersApi(emptyList())
-        val controller = TimersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        controller.createTimer(name = "Discord", message = "Join the Discord!", intervalMinutes = 20, enabled = true)
+        controller.createTimer(name = "Discord", messages = listOf("Join the Discord!"), intervalMinutes = 20, enabled = true, pipelineId = null)
 
         // The write hit the backend with exactly the dialog's fields, single message folded into the list.
         assertEquals(1, api.created.size)
@@ -135,10 +141,10 @@ class TimersControllerTest {
             FakeTimersApi(
                 listOf(TimerSummary(id = "00000003-0000-0000-0000-000000000003", name = "Old", intervalMinutes = 5, isEnabled = false, messageCount = 1))
             )
-        val controller = TimersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        controller.updateTimer(id = "00000003-0000-0000-0000-000000000003", name = "New", message = "Updated", intervalMinutes = 15, enabled = true)
+        controller.updateTimer(id = "00000003-0000-0000-0000-000000000003", name = "New", messages = listOf("Updated"), intervalMinutes = 15, enabled = true, pipelineId = null)
 
         val updatedId = "00000003-0000-0000-0000-000000000003"
         val update: UpdateTimerRequest = api.updated.getValue(updatedId)
@@ -161,7 +167,7 @@ class TimersControllerTest {
             FakeTimersApi(
                 listOf(TimerSummary(id = "00000009-0000-0000-0000-000000000009", name = "Ad", intervalMinutes = 30, isEnabled = true, messageCount = 2))
             )
-        val controller = TimersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
         controller.toggleTimer(id = "00000009-0000-0000-0000-000000000009", enabled = false)
@@ -179,7 +185,7 @@ class TimersControllerTest {
             FakeTimersApi(
                 listOf(TimerSummary(id = "00000004-0000-0000-0000-000000000004", name = "Solo", intervalMinutes = 10, isEnabled = true, messageCount = 1))
             )
-        val controller = TimersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
         controller.deleteTimer(id = "00000004-0000-0000-0000-000000000004")
@@ -195,10 +201,10 @@ class TimersControllerTest {
         val existing: List<TimerSummary> =
             listOf(TimerSummary(id = "00000001-0000-0000-0000-000000000001", name = "Keep", intervalMinutes = 10, isEnabled = true, messageCount = 1))
         val api = FakeTimersApi(existing, writeFailure = ApiError(403, "FORBIDDEN", "not allowed"))
-        val controller = TimersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        controller.createTimer(name = "Nope", message = "blocked", intervalMinutes = 30, enabled = true)
+        controller.createTimer(name = "Nope", messages = listOf("blocked"), intervalMinutes = 30, enabled = true, pipelineId = null)
 
         // The error is surfaced verbatim, the list never reloaded, and the original row is still on the page.
         assertEquals("not allowed", controller.writeError.value)
@@ -211,7 +217,7 @@ class TimersControllerTest {
     @Test
     fun clearWriteError_dismisses_the_banner() = runTest {
         val api = FakeTimersApi(emptyList(), writeFailure = ApiError(500, "ERR", "boom"))
-        val controller = TimersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
         controller.deleteTimer(id = "00000001-0000-0000-0000-000000000001")
         assertEquals("boom", controller.writeError.value)
@@ -220,6 +226,26 @@ class TimersControllerTest {
 
         assertNull(controller.writeError.value)
     }
+}
+
+// Builds a controller with an empty-pipeline fake so the tests that don't exercise the picker stay unchanged.
+private fun timersController(
+    channelsApi: ChannelsApi,
+    timersApi: TimersApi,
+    pipelinesApi: PipelinesApi = FakePipelinesApi(),
+): TimersController = TimersController(channelsApi, timersApi, pipelinesApi)
+
+private class FakePipelinesApi(private val pipelines: List<PipelineSummary> = emptyList()) : PipelinesApi {
+    override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> = ApiResult.Ok(pipelines)
+
+    override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> = error("stub")
+
+    override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> = error("stub")
+
+    override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> =
+        error("stub")
+
+    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = error("stub")
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -309,5 +335,19 @@ private class FakeTimersApi(
         val index: Int = rows.indexOfFirst { it.id == id }
         if (index >= 0) rows[index] = rows[index].copy(isEnabled = !rows[index].isEnabled)
         return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun detail(channelId: String, id: String): ApiResult<TimerDetail> {
+        val row: TimerSummary? = rows.firstOrNull { it.id == id }
+        return if (row != null)
+            ApiResult.Ok(
+                TimerDetail(
+                    id = row.id,
+                    name = row.name,
+                    intervalMinutes = row.intervalMinutes,
+                    isEnabled = row.isEnabled,
+                )
+            )
+        else ApiResult.Failure(ApiError(404, "NOT_FOUND", "no timer"))
     }
 }

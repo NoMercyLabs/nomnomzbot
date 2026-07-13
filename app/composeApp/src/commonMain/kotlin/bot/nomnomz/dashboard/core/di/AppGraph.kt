@@ -368,7 +368,11 @@ class AppGraph {
         )
 
     val timersController: TimersController =
-        TimersController(channelsApi = channelsApi, timersApi = timersApi)
+        TimersController(
+            channelsApi = channelsApi,
+            timersApi = timersApi,
+            pipelinesApi = pipelinesApi,
+        )
 
     val moderationController: ModerationController =
         ModerationController(channelsApi = channelsApi, moderationApi = moderationApi, feedback = feedbackController)

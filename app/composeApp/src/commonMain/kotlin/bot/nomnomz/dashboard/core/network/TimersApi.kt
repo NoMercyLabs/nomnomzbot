@@ -39,6 +39,9 @@ interface TimersApi {
 
     /** Flip a timer's enabled state server-side (the dedicated toggle endpoint, no body). */
     suspend fun toggle(channelId: String, id: String): ApiResult<Unit>
+
+    /** The full timer detail (pipeline binding + full message rotation) — for pre-filling the edit dialog. */
+    suspend fun detail(channelId: String, id: String): ApiResult<TimerDetail>
 }
 
 class RestTimersApi(private val client: ApiClient) : TimersApi {
@@ -69,6 +72,10 @@ class RestTimersApi(private val client: ApiClient) : TimersApi {
 
     override suspend fun toggle(channelId: String, id: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/timers/$id/toggle")
+
+    // GET one timer — StatusResponseDto<TimerDto>; getEnvelope unwraps `.data` to the full detail.
+    override suspend fun detail(channelId: String, id: String): ApiResult<TimerDetail> =
+        client.getEnvelope("api/v1/channels/$channelId/timers/$id")
 }
 
 /**
@@ -99,6 +106,9 @@ data class CreateTimerRequest(
     val intervalMinutes: Int,
     val minChatActivity: Int = 0,
     val isEnabled: Boolean = true,
+    // Optional pipeline to run every interval (the current rotation message rides as `{timer.message}`). Null =
+    // message-only timer. Maps to CreateTimerDto.pipelineId.
+    val pipelineId: String? = null,
 )
 
 /**
@@ -112,4 +122,22 @@ data class UpdateTimerRequest(
     val messages: List<String>? = null,
     val intervalMinutes: Int? = null,
     val isEnabled: Boolean? = null,
+    // Bind (or rebind) the timer's pipeline. Null = leave unchanged (partial patch); a non-empty id sets it.
+    // Clearing a binding back to none is a follow-up (the DTO can't distinguish "clear" from "unchanged" here).
+    val pipelineId: String? = null,
+)
+
+/**
+ * A timer's full detail (backend `TimerDto`) — fetched via `GET /timers/{id}` when opening the edit dialog so
+ * it can pre-fill the current pipeline binding and the full message rotation (the list projection
+ * [TimerSummary] carries neither). A subset of the DTO: the fields the edit form owns.
+ */
+@Serializable
+data class TimerDetail(
+    val id: String = "",
+    val name: String = "",
+    val messages: List<String> = emptyList(),
+    val intervalMinutes: Int = 0,
+    val isEnabled: Boolean = false,
+    val pipelineId: String? = null,
 )

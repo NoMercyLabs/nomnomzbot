@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.timers.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,6 +60,8 @@ import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.TimerDetail
 import bot.nomnomz.dashboard.core.network.TimerSummary
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
@@ -77,7 +82,12 @@ import nomnomzbot.composeapp.generated.resources.timers_dialog_create_title
 import nomnomzbot.composeapp.generated.resources.timers_dialog_edit_title
 import nomnomzbot.composeapp.generated.resources.timers_dialog_enabled
 import nomnomzbot.composeapp.generated.resources.timers_dialog_interval
+import nomnomzbot.composeapp.generated.resources.timers_dialog_add_message
 import nomnomzbot.composeapp.generated.resources.timers_dialog_message
+import nomnomzbot.composeapp.generated.resources.timers_dialog_message_remove
+import nomnomzbot.composeapp.generated.resources.timers_dialog_messages
+import nomnomzbot.composeapp.generated.resources.timers_dialog_pipeline
+import nomnomzbot.composeapp.generated.resources.timers_dialog_pipeline_none
 import nomnomzbot.composeapp.generated.resources.timers_dialog_name
 import nomnomzbot.composeapp.generated.resources.timers_dialog_save
 import nomnomzbot.composeapp.generated.resources.timers_disabled
@@ -100,6 +110,7 @@ import org.jetbrains.compose.resources.stringResource
 fun TimersScreen(controller: TimersController, role: ManagementRole?) {
     val state: TimersState by controller.state.collectAsStateWithLifecycle()
     val writeError: String? by controller.writeError.collectAsStateWithLifecycle()
+    val pipelines: List<PipelineSummary> by controller.pipelines.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
@@ -141,17 +152,25 @@ fun TimersScreen(controller: TimersController, role: ManagementRole?) {
     }
 
     editTarget?.let { target ->
+        // Editing pulls the full timer (its pipeline binding + the whole message rotation) — the list row
+        // carries neither. New timers start blank. `detail` is null while loading / for a new timer.
+        var editDetail: TimerDetail? by remember(target) { mutableStateOf(null) }
+        LaunchedEffect(target) {
+            if (target is TimerEditTarget.Edit) editDetail = controller.timerDetail(target.timer.id)
+        }
         TimerEditDialog(
             target = target,
+            detail = editDetail,
+            pipelines = pipelines,
             onDismiss = { editTarget = null },
-            onConfirm = { name, message, interval, enabled ->
+            onConfirm = { name, messages, interval, enabled, pipelineId ->
                 editTarget = null
                 scope.launch {
                     when (target) {
                         is TimerEditTarget.New ->
-                            controller.createTimer(name, message, interval, enabled)
+                            controller.createTimer(name, messages, interval, enabled, pipelineId)
                         is TimerEditTarget.Edit ->
-                            controller.updateTimer(target.timer.id, name, message, interval, enabled)
+                            controller.updateTimer(target.timer.id, name, messages, interval, enabled, pipelineId)
                     }
                 }
             },
@@ -338,27 +357,46 @@ private fun TimerTableRow(
 @Composable
 private fun TimerEditDialog(
     target: TimerEditTarget,
+    detail: TimerDetail?,
+    pipelines: List<PipelineSummary>,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, message: String, intervalMinutes: Int, enabled: Boolean) -> Unit,
+    onConfirm: (name: String, messages: List<String>, intervalMinutes: Int, enabled: Boolean, pipelineId: String?) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
 
     val existing: TimerSummary? = (target as? TimerEditTarget.Edit)?.timer
-    var name: String by remember { mutableStateOf(existing?.name ?: "") }
-    var message: String by remember { mutableStateOf("") }
-    var interval: String by remember {
-        mutableStateOf(existing?.intervalMinutes?.toString() ?: DEFAULT_INTERVAL_MINUTES.toString())
+    // Seed the form from the loaded detail the moment it arrives (Edit) — keyed on `detail` so the fields
+    // re-seed once the full timer (its pipeline + whole message rotation) loads. A New timer / the loading
+    // window starts from the summary / defaults.
+    var name: String by remember(detail) { mutableStateOf(detail?.name ?: existing?.name ?: "") }
+    var messages: List<String> by remember(detail) {
+        mutableStateOf(detail?.messages?.takeIf { it.isNotEmpty() } ?: listOf(""))
     }
-    var enabled: Boolean by remember { mutableStateOf(existing?.isEnabled ?: true) }
+    var interval: String by remember(detail) {
+        mutableStateOf(
+            (detail?.intervalMinutes ?: existing?.intervalMinutes ?: DEFAULT_INTERVAL_MINUTES).toString()
+        )
+    }
+    var enabled: Boolean by remember(detail) { mutableStateOf(detail?.isEnabled ?: existing?.isEnabled ?: true) }
+    var pipelineId: String? by remember(detail) { mutableStateOf(detail?.pipelineId) }
+    var pipelineMenuOpen: Boolean by remember { mutableStateOf(false) }
 
     val intervalMinutes: Int? = interval.toIntOrNull()?.takeIf { it in 1..MAX_INTERVAL_MINUTES }
-    val canSubmit: Boolean = name.isNotBlank() && message.isNotBlank() && intervalMinutes != null
+    // Blank rows are dropped; at least one real message is required.
+    val cleanedMessages: List<String> = messages.map { it.trim() }.filter { it.isNotEmpty() }
+    val canSubmit: Boolean = name.isNotBlank() && cleanedMessages.isNotEmpty() && intervalMinutes != null
 
     val isCreate: Boolean = target is TimerEditTarget.New
     val titleRes =
         if (isCreate) Res.string.timers_dialog_create_title else Res.string.timers_dialog_edit_title
     val confirmRes = if (isCreate) Res.string.timers_dialog_create else Res.string.timers_dialog_save
+    val pipelineNoneLabel: String = stringResource(Res.string.timers_dialog_pipeline_none)
+    val selectedPipelineName: String =
+        pipelineId?.let { id -> pipelines.firstOrNull { it.id == id }?.name } ?: pipelineNoneLabel
+    val messageLabel: String = stringResource(Res.string.timers_dialog_message)
+    val removeLabel: String = stringResource(Res.string.timers_dialog_message_remove)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -371,12 +409,78 @@ private fun TimerEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.timers_dialog_name),
                 )
-                AppTextField(
-                    value = message,
-                    onValueChange = { message = it },
-                    label = stringResource(Res.string.timers_dialog_message),
-                    modifier = Modifier.fillMaxWidth(),
+
+                // Rotation list — each message fires in turn on successive intervals. Add / remove rows.
+                Text(
+                    text = stringResource(Res.string.timers_dialog_messages),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
                 )
+                messages.forEachIndexed { index, msg ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        AppTextField(
+                            value = msg,
+                            onValueChange = { updated ->
+                                messages = messages.toMutableList().also { it[index] = updated }
+                            },
+                            modifier = Modifier.weight(1f),
+                            label = messageLabel,
+                        )
+                        if (messages.size > 1) {
+                            GlyphButton(
+                                imageVector = TrashGlyph,
+                                label = removeLabel,
+                                onClick = { messages = messages.filterIndexed { i, _ -> i != index } },
+                                tint = tokens.destructive,
+                            )
+                        }
+                    }
+                }
+                TextButton(onClick = { messages = messages + "" }) {
+                    Text(
+                        text = stringResource(Res.string.timers_dialog_add_message),
+                        color = tokens.primary,
+                    )
+                }
+
+                // Optional pipeline to run every interval (e.g. a shoutout using {timer.message}). Reuses the
+                // Commands dialog's picker shape. Only shown when the channel has pipelines to bind.
+                if (pipelines.isNotEmpty()) {
+                    Box {
+                        AppTextField(
+                            value = selectedPipelineName,
+                            onValueChange = {},
+                            modifier = Modifier.fillMaxWidth().clickable { pipelineMenuOpen = true },
+                            label = stringResource(Res.string.timers_dialog_pipeline),
+                        )
+                        DropdownMenu(
+                            expanded = pipelineMenuOpen,
+                            onDismissRequest = { pipelineMenuOpen = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(pipelineNoneLabel, color = tokens.mutedForeground) },
+                                onClick = {
+                                    pipelineId = null
+                                    pipelineMenuOpen = false
+                                },
+                            )
+                            pipelines.forEach { pipeline ->
+                                DropdownMenuItem(
+                                    text = { Text(pipeline.name, color = tokens.cardForeground) },
+                                    onClick = {
+                                        pipelineId = pipeline.id
+                                        pipelineMenuOpen = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
                 AppTextField(
                     value = interval,
                     onValueChange = { interval = it.filter { ch -> ch.isDigit() } },
@@ -402,7 +506,9 @@ private fun TimerEditDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { intervalMinutes?.let { onConfirm(name, message, it, enabled) } },
+                onClick = {
+                    intervalMinutes?.let { onConfirm(name.trim(), cleanedMessages, it, enabled, pipelineId) }
+                },
                 enabled = canSubmit,
             ) {
                 Text(

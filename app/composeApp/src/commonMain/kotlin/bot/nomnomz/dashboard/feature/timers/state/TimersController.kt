@@ -14,6 +14,9 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateTimerRequest
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.TimerDetail
 import bot.nomnomz.dashboard.core.network.TimerSummary
 import bot.nomnomz.dashboard.core.network.TimersApi
 import bot.nomnomz.dashboard.core.network.UpdateTimerRequest
@@ -28,11 +31,17 @@ import kotlinx.coroutines.flow.asStateFlow
 class TimersController(
     private val channelsApi: ChannelsApi,
     private val timersApi: TimersApi,
+    private val pipelinesApi: PipelinesApi,
 ) {
     private val _state: MutableStateFlow<TimersState> = MutableStateFlow(TimersState.Loading)
 
     /** The page render state: loading / ready (with the rows) / empty / error. */
     val state: StateFlow<TimersState> = _state.asStateFlow()
+
+    private val _pipelines: MutableStateFlow<List<PipelineSummary>> = MutableStateFlow(emptyList())
+
+    /** The channel's pipelines — populates the "run this pipeline" picker in the timer dialog (supplementary). */
+    val pipelines: StateFlow<List<PipelineSummary>> = _pipelines.asStateFlow()
 
     private val _writeError: MutableStateFlow<String?> = MutableStateFlow(null)
 
@@ -54,6 +63,14 @@ class TimersController(
                 is ApiResult.Ok -> result.value
             }
 
+        // Pipelines are supplementary (they only feed the dialog's picker) — a failure just leaves the picker
+        // empty, never fails the page.
+        _pipelines.value =
+            when (val result: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.id)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> emptyList()
+            }
+
         when (val result: ApiResult<List<TimerSummary>> = timersApi.list(channel.id)) {
             is ApiResult.Failure -> _state.value = TimersState.Error(result.error.message)
             is ApiResult.Ok ->
@@ -63,20 +80,39 @@ class TimersController(
         }
     }
 
+    /** Fetch a timer's full detail (pipeline + full message list) to pre-fill the edit dialog. Null on failure. */
+    suspend fun timerDetail(id: String): TimerDetail? {
+        val channelId: String = resolveChannelId() ?: return null
+        return when (val result: ApiResult<TimerDetail> = timersApi.detail(channelId, id)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> null
+        }
+    }
+
     /** Dismiss the current write-error banner (e.g. after the user reads it). */
     fun clearWriteError() {
         _writeError.value = null
     }
 
-    /** Create a new timer from the dialog's fields, then reload the list on success. */
-    suspend fun createTimer(name: String, message: String, intervalMinutes: Int, enabled: Boolean) {
+    /**
+     * Create a new timer from the dialog's fields, then reload the list on success. [messages] is the rotation
+     * list (each fires in turn); [pipelineId] optionally binds a pipeline the timer runs each interval.
+     */
+    suspend fun createTimer(
+        name: String,
+        messages: List<String>,
+        intervalMinutes: Int,
+        enabled: Boolean,
+        pipelineId: String?,
+    ) {
         val channelId: String = resolveChannelId() ?: return
         val request =
             CreateTimerRequest(
                 name = name,
-                messages = listOf(message),
+                messages = messages,
                 intervalMinutes = intervalMinutes,
                 isEnabled = enabled,
+                pipelineId = pipelineId,
             )
         runWrite { timersApi.create(channelId, request) }
     }
@@ -85,17 +121,19 @@ class TimersController(
     suspend fun updateTimer(
         id: String,
         name: String,
-        message: String,
+        messages: List<String>,
         intervalMinutes: Int,
         enabled: Boolean,
+        pipelineId: String?,
     ) {
         val channelId: String = resolveChannelId() ?: return
         val request =
             UpdateTimerRequest(
                 name = name,
-                messages = listOf(message),
+                messages = messages,
                 intervalMinutes = intervalMinutes,
                 isEnabled = enabled,
+                pipelineId = pipelineId,
             )
         runWrite { timersApi.update(channelId, id, request) }
     }

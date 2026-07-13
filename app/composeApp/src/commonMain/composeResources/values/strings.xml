@@ -474,6 +474,11 @@
     <string name="timers_dialog_edit_title">Edit timer</string>
     <string name="timers_dialog_name">Name</string>
     <string name="timers_dialog_message">Message</string>
+    <string name="timers_dialog_messages">Messages (rotation)</string>
+    <string name="timers_dialog_add_message">Add message</string>
+    <string name="timers_dialog_message_remove">Remove message</string>
+    <string name="timers_dialog_pipeline">Run pipeline (optional)</string>
+    <string name="timers_dialog_pipeline_none">None</string>
     <string name="timers_dialog_interval">Interval (minutes)</string>
     <string name="timers_dialog_enabled">Enabled</string>
     <string name="timers_dialog_create">Create</string>

@@ -291,28 +291,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   dashboard feed under the YouTube channel, visually tagged as YouTube, and the composer is
   read-only for that channel.
 
-### 2026-07-11 — qtkitte: Timers page pipeline binding + rotation list (parts 2 & 3 shipped)
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **DONE (2026-07-13):** (2) **sound-bearing responses** — the `play_sound` action is now in the pipeline
-  builder palette (`PipelineCatalogue`, fields `clip`/`volume`/`wait_for_finish`/`handle`), so any
-  event-response / command pipeline can play a sound clip; and (3) **overlay URL** — `feature/widgets`
-  already shows each overlay's copy-paste OBS URL (`WidgetDetail.overlayUrl`) via a copy chip. NOTE: a
-  reward cannot reference a pipeline (rewards have no `pipelineId` — that would need a backend change),
-  so the "attach a sound to a specific channel-point reward" half is not reachable from the client yet.
-- **REMAINING — part 1: Timers page pipeline binding + rotation list.** `CreateTimerDto`/`UpdateTimerDto`
-  carry `pipelineId` (the LIST projection `TimerListItem` does NOT — the Kotlin `TimerSummary` maps to
-  it, so add `pipelineId` to `CreateTimerRequest`/`UpdateTimerRequest` only, and fetch the full timer via
-  `GET /timers/{id}` → `TimerDto` (has `pipelineId` + the full `messages` array) to pre-fill the edit
-  dialog). UI: let the user bind a pipeline to a timer (reuse the pipeline-picker DropdownMenu block from
-  `CommandsScreen.kt` ~L518-548, fed by `PipelinesApi.list`), and present the `messages` list as the
-  "rotation list" (the current edit dialog edits only a single message). A rotating auto-shoutout = timer
-  with channel names in messages + a pipeline containing `shoutout(user_id="{timer.message}")`; the
-  shoutout action accepts logins (leading @ ok). Consider a one-click "Auto-shoutout" preset.
-- **Where:** `feature/timers/` (inject `PipelinesApi` into `TimersController` like `CommandsController`;
-  add the picker + rotation-list editor to `TimerEditDialog`). No `v1.json` change.
-- **Done when:** a streamer can, without raw JSON, create a rotating auto-shoutout from a list of names +
-  an interval (pipeline bound, messages as a rotation list), and it fires live.
-
 ### 2026-07-10 — Multi-channel chat watch: let a mod monitor several channels at once
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** build the **multi-watch** chat surface — the operator picks several channels and watches all
