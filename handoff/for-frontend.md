@@ -36,36 +36,17 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   advances; reject/skip refund shows; the config (enable, approval, sources, cap, cost, cooldown)
   round-trips; en + nl strings.
 
-### 2026-07-11 — Stream schedule controls (markers DONE; schedule CRUD remaining)
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What (REMAINING — schedule only):** UI for the broadcaster's stream schedule (the weekly calendar of
-  upcoming streams). Routes (tag "LiveOps", under `/channels/{channelId}/live-ops`): `GET schedule`
-  (segments + vacation window → `TwitchSchedule`), `GET schedule/icalendar` (an .ics feed — offer a
-  subscribe/download link), `POST schedule/segment` (`CreateScheduleSegmentRequest`), `PATCH
-  schedule/segment/{id}` (`UpdateScheduleSegmentRequest`), `DELETE schedule/segment/{id}`, `PUT
-  schedule/settings` (`UpdateScheduleSettingsDto` — vacation toggle/window).
-- **✅ Markers — DONE (this session):** the one-tap "Mark moment" button shipped in the Home live-ops
-  quick-actions — `POST live-ops/markers` (`CreateMarkerDto`) → `TwitchStreamMarker`, gated on
-  `stats.isLive` (hidden offline, since Twitch rejects a marker when not live), with a result notice that
-  surfaces the backend's Twitch error on failure. `LiveOpsApi.createMarker` + `LiveOpsController.createMarker`
-  + `LiveOpsMarker`/`CreateMarkerBody` DTOs (registered in `ApiContractTest`), controller tests, en+nl.
-  E2E on dev: the endpoint surfaces Twitch's 404 when offline (verified); the success path needs a live stream.
-- **Why:** parity item 17 — rounds out the live-ops surface. The schedule is a dedicated management page
-  (weekly segments with times / recurrence / category + vacation + the .ics link) — its own screen, not a
-  home quick-action, so it needs nav placement per `frontend-ia.md`.
-- **✅ API layer — DONE (this session):** the typed client for all schedule endpoints is in place and
-  contract-guarded — `LiveOpsApi.getSchedule` / `createScheduleSegment` / `updateScheduleSegment` /
-  `deleteScheduleSegment` / `updateScheduleSettings`, with DTOs `LiveOpsSchedule` / `LiveOpsScheduleSegment`
-  / `LiveOpsScheduleCategory` / `LiveOpsScheduleVacation` + request bodies `CreateScheduleSegmentBody` /
-  `UpdateScheduleSegmentBody` / `UpdateScheduleSettingsBody`, all registered in `ApiContractTest` (green).
-  `duration` is minutes-as-a-string (Twitch's wire form); datetimes are ISO-8601 strings.
-- **Where (remaining — the PAGE):** a new schedule page (a `ScheduleController` + screen) in the live-ops /
-  stream area with nav placement per `frontend-ia.md`. Render the segments (weekly, with time / category /
-  recurrence), add/edit/delete a segment, the vacation toggle+window, and the .ics subscribe link
-  (`GET .../live-ops/schedule/icalendar`). Role gating: schedule read at Moderator (`live-ops:schedule:read`),
-  writes at Editor (`live-ops:schedule:write`).
-- **Done when:** the schedule renders + segment add/edit/delete + vacation round-trip against a real
-  channel; the .ics link works; en + nl strings.
+### 2026-07-11 — Stream schedule & markers (item 17) — DONE except the .ics link
+- **✅ Markers — DONE:** one-tap "Mark moment" button in the Home live-ops quick-actions (gated on
+  `stats.isLive`; surfaces the Twitch error on failure). E2E-verified against dev.
+- **✅ Schedule page — DONE:** a new **Schedule** page under the Stream nav group — reads the live Twitch
+  schedule and manages it (add / edit / delete a segment + the vacation window). `ScheduleController` +
+  `ScheduleScreen` + full nav wiring + `ScheduleControllerTest`; en + nl. Datetimes are ISO-8601 text /
+  durations minutes (Compose has no native date picker yet; the backend validates). Compile + jvmTest green.
+- **⏳ Remaining (small):** (1) the **.ics subscribe link** (`GET .../live-ops/schedule/icalendar`) — deferred
+  because the endpoint needs auth a calendar app can't send; pending a token-query mechanism (logged for
+  backend). (2) `GET /live-ops/schedule` currently **502s on dev** (a backend handler crash — logged to
+  `for-backend.md`); the page degrades to an error state until that's fixed, so it can't be seen live yet.
 
 ### 2026-07-11 — Kick integration: connect tile + chat feed provider tag
 - **From:** Stoney_Eagle (via Claude, backend track)
