@@ -180,11 +180,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             );
 
             if (builtinResult.IsSuccess && !string.IsNullOrEmpty(builtinResult.Value))
-                await _chat.SendMessageAsync(
-                    @event.BroadcasterId,
-                    builtinResult.Value,
-                    cancellationToken
-                );
+                await SendResponseAsync(@event, builtinResult.Value, cancellationToken);
 
             await PublishExecutedAsync(
                 @event,
@@ -331,8 +327,8 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                         builtinFallbackResult.IsSuccess
                         && !string.IsNullOrEmpty(builtinFallbackResult.Value)
                     )
-                        await _chat.SendMessageAsync(
-                            @event.BroadcasterId,
+                        await SendResponseAsync(
+                            @event,
                             builtinFallbackResult.Value,
                             cancellationToken
                         );
@@ -357,7 +353,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
                 // IChatProvider takes the tenant Guid and resolves it to the Twitch channel string id
                 // internally (the invariant boundary lives in HelixChatProvider).
-                await _chat.SendMessageAsync(@event.BroadcasterId, resolved, cancellationToken);
+                await SendResponseAsync(@event, resolved, cancellationToken);
 
                 await PublishExecutedAsync(@event, command.Name, true, cancellationToken);
             }
@@ -373,6 +369,24 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             );
             await PublishExecutedAsync(@event, command.Name, false, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Sends a command / built-in RESPONSE back to the caller as a native reply threaded under their triggering
+    /// message (Twitch reply), rather than a separate message that @-mentions them — the reply header already
+    /// names the recipient, so built-ins no longer prefix "@user". Falls back to a plain send only when there is
+    /// no parent message id to reply to (e.g. a non-Twitch source that doesn't carry one).
+    /// </summary>
+    private async Task SendResponseAsync(
+        ChatMessageReceivedEvent @event,
+        string text,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrEmpty(@event.MessageId))
+            await _chat.SendMessageAsync(@event.BroadcasterId, text, ct);
+        else
+            await _chat.SendReplyAsync(@event.BroadcasterId, @event.MessageId, text, ct);
     }
 
     /// <summary>

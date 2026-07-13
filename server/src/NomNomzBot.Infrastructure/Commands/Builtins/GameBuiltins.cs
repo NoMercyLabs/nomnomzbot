@@ -49,11 +49,10 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
         CancellationToken ct = default
     )
     {
-        string mention = $"@{context.TriggeringUserDisplayName}";
-
+        // The response is sent as a reply to the caller's message, so no "@user" prefix is needed.
         string betArg = context.Args.Trim().Split(' ', 2)[0];
         if (!long.TryParse(betArg, out long bet) || bet <= 0)
-            return Result.Success($"{mention} Usage: !{GameType} <bet>");
+            return Result.Success($"Usage: !{GameType} <bet>");
 
         Result<UserDto> user = await _users.GetOrCreateAsync(
             context.TriggeringUserId,
@@ -62,7 +61,7 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
             cancellationToken: ct
         );
         if (user.IsFailure || !Guid.TryParse(user.Value.Id, out Guid playerUserId))
-            return Result.Success($"{mention} Could not resolve your account — try again.");
+            return Result.Success("Could not resolve your account — try again.");
 
         // ListGamesAsync lazily seeds the default catalog, so a fresh channel resolves its config here too.
         Result<IReadOnlyList<GameConfigDto>> games = await _games.ListGamesAsync(
@@ -70,13 +69,13 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
             ct
         );
         if (games.IsFailure)
-            return Result.Success($"{mention} Games are unavailable right now.");
+            return Result.Success("Games are unavailable right now.");
 
         GameConfigDto? game = games.Value.FirstOrDefault(g =>
             string.Equals(g.GameType, GameType, StringComparison.OrdinalIgnoreCase)
         );
         if (game is null || !game.IsEnabled)
-            return Result.Success($"{mention} {GameType} is not enabled on this channel.");
+            return Result.Success($"{GameType} is not enabled on this channel.");
 
         Result<GamePlayResultDto> played = await _games.PlayAsync(
             context.BroadcasterId,
@@ -86,13 +85,13 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
 
         // The service's failure messages are already chat-friendly ("Bet is outside the allowed range.", …).
         if (played.IsFailure)
-            return Result.Success($"{mention} {played.ErrorMessage}");
+            return Result.Success(played.ErrorMessage ?? "That didn't work — try again.");
 
         GamePlayResultDto outcome = played.Value;
         return Result.Success(
             outcome.PayoutAmount > 0
-                ? $"{mention} WON {outcome.PayoutAmount} on {GameType} (bet {outcome.BetAmount})! Balance: {outcome.BalanceAfter}"
-                : $"{mention} lost {outcome.BetAmount} on {GameType}. Balance: {outcome.BalanceAfter}"
+                ? $"You won {outcome.PayoutAmount} on {GameType} (bet {outcome.BetAmount})! Balance: {outcome.BalanceAfter}"
+                : $"You lost {outcome.BetAmount} on {GameType}. Balance: {outcome.BalanceAfter}"
         );
     }
 }

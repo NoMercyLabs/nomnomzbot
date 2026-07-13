@@ -51,6 +51,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default);
     }
 
     [Fact]
@@ -65,7 +66,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendMessageAsync(Broadcaster, BuiltinResponse, Arg.Any<CancellationToken>());
+            .SendReplyAsync(Broadcaster, "msg-1", BuiltinResponse, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -82,7 +83,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendMessageAsync(Broadcaster, BuiltinResponse, Arg.Any<CancellationToken>());
+            .SendReplyAsync(Broadcaster, "msg-1", BuiltinResponse, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -109,6 +110,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default);
     }
 
     [Fact]
@@ -185,7 +187,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(youtube, CancellationToken.None);
 
         await chat.Received(1)
-            .SendMessageAsync(Broadcaster, BuiltinResponse, Arg.Any<CancellationToken>());
+            .SendReplyAsync(Broadcaster, "yt-msg-1", BuiltinResponse, Arg.Any<CancellationToken>());
         await bus.Received(1)
             .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>

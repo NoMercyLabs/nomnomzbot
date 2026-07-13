@@ -144,7 +144,7 @@ public sealed class GameBuiltinsTests
 
         Result<string> reply = await sut.ExecuteAsync(Context("50"));
 
-        reply.Value.Should().Contain("WON 95").And.Contain("Balance: 1045");
+        reply.Value.Should().Contain("won 95").And.Contain("Balance: 1045");
         await games
             .Received(1)
             .PlayAsync(

@@ -42,10 +42,8 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
     {
         string query = context.Args.Trim();
         if (string.IsNullOrWhiteSpace(query))
-            // Pure usage string — functional, never personality.
-            return Result.Success(
-                $"@{context.TriggeringUserDisplayName} Usage: !sr <song name or URL>"
-            );
+            // Pure usage string — functional, never personality. Sent as a reply, so no "@user" prefix.
+            return Result.Success("Usage: !sr <song name or URL>");
 
         IReadOnlyList<MusicTrack> results = await _music.SearchAsync(
             context.BroadcasterId.ToString(),
@@ -63,7 +61,7 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                     Personality = context.Personality,
                     BuiltinKey = BuiltinKey,
                     Slot = BuiltinResponseSlots.SongRequest.NotFound,
-                    NeutralFallback = "@{user} No tracks found for \"{query}\".",
+                    NeutralFallback = "No tracks found for \"{query}\".",
                     Variables = new Dictionary<string, string>
                     {
                         ["user"] = context.TriggeringUserDisplayName,
@@ -84,10 +82,8 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
         );
 
         if (!added)
-            // Functional failure — stays neutral.
-            return Result.Success(
-                $"@{context.TriggeringUserDisplayName} Could not add \"{track.Name}\" to the queue."
-            );
+            // Functional failure — stays neutral. Sent as a reply, so no "@user" prefix.
+            return Result.Success($"Could not add \"{track.Name}\" to the queue.");
 
         string message = await _composer.ComposeAsync(
             new BuiltinResponseRequest
@@ -97,7 +93,7 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                 BuiltinKey = BuiltinKey,
                 Slot = BuiltinResponseSlots.SongRequest.Added,
                 OverrideTemplate = context.CustomResponseTemplate,
-                NeutralFallback = "@{user} Added {track.name} by {track.artist} to the queue.",
+                NeutralFallback = "Added {track.name} by {track.artist} to the queue.",
                 Variables = new Dictionary<string, string>
                 {
                     ["user"] = context.TriggeringUserDisplayName,
