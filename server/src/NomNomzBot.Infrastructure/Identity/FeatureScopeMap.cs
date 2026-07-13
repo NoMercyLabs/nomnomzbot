@@ -36,9 +36,6 @@ public static class FeatureScopeMap
         ["vips"] = ["channel:read:vips", "channel:manage:vips"],
         ["chat_read"] = ["user:read:chat"],
         ["chat_send"] = ["user:write:chat"],
-        // The chatbot badge rides an app-token send, which needs the sending (bot/streamer-as-bot) account to
-        // grant user:bot; a missing grant just means no badge (chat still sends), so this names that gap.
-        ["bot_badge"] = ["user:bot"],
         ["chat_emotes"] = ["user:read:emotes"],
         // Core proactive management jobs (roles-permissions §4): editor-role sync reads channel editors, and the
         // bot self-mod on join makes the bot a channel moderator. Both scopes ride the base streamer grant now,
@@ -76,7 +73,6 @@ public static class FeatureScopeMap
         ["vips"] = "read and manage your VIPs",
         ["chat_read"] = "read your chat",
         ["chat_send"] = "send messages in your chat",
-        ["bot_badge"] = "show the chatbot badge next to your bot's messages",
         ["chat_emotes"] = "show the emotes you can use across every channel you're subscribed to",
         ["management_roles"] = "sync your Twitch channel editors into dashboard roles",
         ["bot_moderator"] = "let your bot moderate chat by making it a channel moderator",
