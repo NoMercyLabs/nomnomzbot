@@ -32,6 +32,7 @@ import bot.nomnomz.dashboard.core.network.NetworkBanResult
 import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.core.network.UserModerationContext
+import bot.nomnomz.dashboard.core.network.UserNote
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -95,11 +96,8 @@ class ModerationControllerTest {
                         )
                     ),
             )
-        val api =
-            FakeModerationApi(
-                bansResults = listOf(ApiResult.Ok(emptyList())),
-                userContextResult = ApiResult.Ok(context),
-            )
+        val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        api.userContextResult = ApiResult.Ok(context)
         val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load() // resolves the channel so the per-user lookup targets it
 
@@ -560,6 +558,64 @@ class ModerationControllerTest {
         assertEquals(listOf("rep1" to "escalate"), api.resolvedReports)
         assertEquals(2, api.reportsCalls)
     }
+
+    @Test
+    fun open_user_context_loads_notes_alongside_the_rap_sheet() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
+        api.notesResult =
+            ApiResult.Ok(listOf(UserNote(id = 1, subjectUserId = "u1", content = "watch this one", pinned = true)))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.openUserContext("u1")
+
+        val ctx: UserContextState? = controller.userContext.value
+        assertTrue(ctx is UserContextState.Ready)
+        assertEquals(listOf(1), (ctx as UserContextState.Ready).notes.map { it.id })
+    }
+
+    @Test
+    fun add_note_posts_the_content_and_reloads_the_panel() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+        controller.openUserContext("u1")
+
+        controller.addNote("u1", "first warning noted", pinned = true)
+
+        // The note carried the subject + content + pinned, and the panel reloaded (open once + reload once).
+        assertEquals(listOf(Triple("u1", "first warning noted", true)), api.createdNotes)
+        assertEquals(2, api.userContextCalls.size)
+    }
+
+    @Test
+    fun pin_note_edits_only_the_pinned_flag_and_leaves_content_untouched() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.editNote("u1", "n1", content = null, pinned = true)
+
+        // Pinning sends the flag with a null content (leave-unchanged), matching the backend's partial update.
+        assertEquals(listOf(Triple("n1", null as String?, true as Boolean?)), api.updatedNotes)
+    }
+
+    @Test
+    fun delete_note_removes_it_and_reloads_the_panel() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+        controller.openUserContext("u1")
+
+        controller.deleteNote("u1", "n1")
+
+        assertEquals(listOf("n1"), api.deletedNotes)
+        assertEquals(2, api.userContextCalls.size)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -589,7 +645,6 @@ private class FakeModerationApi(
     private val blockedTermsResult: ApiResult<List<String>> = ApiResult.Ok(emptyList()),
     private val automodResult: ApiResult<AutomodConfig> = ApiResult.Ok(AutomodConfig()),
     private val rulesResult: ApiResult<List<ModerationRule>> = ApiResult.Ok(emptyList()),
-    private val userContextResult: ApiResult<UserModerationContext> = ApiResult.Ok(UserModerationContext()),
 ) : ModerationApi {
     // Single-result convenience for the read-only tests (one bans() result, default-OK unban).
     constructor(
@@ -616,10 +671,43 @@ private class FakeModerationApi(
     override suspend fun modLog(channelId: String): ApiResult<List<ModLogEntry>> = modLogResult
 
     val userContextCalls: MutableList<Pair<String, String>> = mutableListOf()
+    var userContextResult: ApiResult<UserModerationContext> = ApiResult.Ok(UserModerationContext())
 
     override suspend fun userContext(channelId: String, userId: String): ApiResult<UserModerationContext> {
         userContextCalls.add(channelId to userId)
         return userContextResult
+    }
+
+    var notesResult: ApiResult<List<UserNote>> = ApiResult.Ok(emptyList<UserNote>())
+    val createdNotes: MutableList<Triple<String, String, Boolean>> = mutableListOf()
+    val updatedNotes: MutableList<Triple<String, String?, Boolean?>> = mutableListOf()
+    val deletedNotes: MutableList<String> = mutableListOf()
+
+    override suspend fun notesFor(channelId: String, userId: String): ApiResult<List<UserNote>> = notesResult
+
+    override suspend fun createNote(
+        channelId: String,
+        userId: String,
+        content: String,
+        pinned: Boolean,
+    ): ApiResult<Unit> {
+        createdNotes.add(Triple(userId, content, pinned))
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun updateNote(
+        channelId: String,
+        noteId: String,
+        content: String?,
+        pinned: Boolean?,
+    ): ApiResult<Unit> {
+        updatedNotes.add(Triple(noteId, content, pinned))
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun deleteNote(channelId: String, noteId: String): ApiResult<Unit> {
+        deletedNotes.add(noteId)
+        return ApiResult.Ok(Unit)
     }
 
     var lastShieldToggle: Boolean? = null

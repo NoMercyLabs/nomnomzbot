@@ -66,6 +66,7 @@ import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationStats
 import bot.nomnomz.dashboard.core.network.UserModerationContext
+import bot.nomnomz.dashboard.core.network.UserNote
 import bot.nomnomz.dashboard.feature.moderation.state.AutomodFilter
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationState
@@ -98,6 +99,19 @@ import nomnomzbot.composeapp.generated.resources.moderation_bans_title
 import nomnomzbot.composeapp.generated.resources.moderation_log_by
 import nomnomzbot.composeapp.generated.resources.moderation_log_row_description
 import nomnomzbot.composeapp.generated.resources.moderation_log_title
+import nomnomzbot.composeapp.generated.resources.moderation_notes_add_action
+import nomnomzbot.composeapp.generated.resources.moderation_notes_add_label
+import nomnomzbot.composeapp.generated.resources.moderation_notes_cancel
+import nomnomzbot.composeapp.generated.resources.moderation_notes_delete
+import nomnomzbot.composeapp.generated.resources.moderation_notes_delete_message
+import nomnomzbot.composeapp.generated.resources.moderation_notes_delete_title
+import nomnomzbot.composeapp.generated.resources.moderation_notes_edit
+import nomnomzbot.composeapp.generated.resources.moderation_notes_empty
+import nomnomzbot.composeapp.generated.resources.moderation_notes_meta
+import nomnomzbot.composeapp.generated.resources.moderation_notes_pin
+import nomnomzbot.composeapp.generated.resources.moderation_notes_save
+import nomnomzbot.composeapp.generated.resources.moderation_notes_title
+import nomnomzbot.composeapp.generated.resources.moderation_notes_unpin
 import nomnomzbot.composeapp.generated.resources.moderation_shield_disable
 import nomnomzbot.composeapp.generated.resources.moderation_shield_disable_action
 import nomnomzbot.composeapp.generated.resources.moderation_shield_enable
@@ -299,6 +313,13 @@ fun ModerationScreen(
             onWarn = { userId, reason -> scope.launch { controller.warn(userId, reason) } },
             onSuspicious = { userId, status -> scope.launch { controller.setSuspicious(userId, status) } },
             onClearSuspicious = { userId -> scope.launch { controller.clearSuspicious(userId) } },
+            onAddNote = { userId, content, pinned ->
+                scope.launch { controller.addNote(userId, content, pinned) }
+            },
+            onEditNote = { userId, noteId, content, pinned ->
+                scope.launch { controller.editNote(userId, noteId, content, pinned) }
+            },
+            onDeleteNote = { userId, noteId -> scope.launch { controller.deleteNote(userId, noteId) } },
             onDismiss = { controller.closeUserContext() },
         )
     }
@@ -1044,6 +1065,9 @@ private fun UserModerationContextDialog(
     onWarn: (userId: String, reason: String) -> Unit,
     onSuspicious: (userId: String, status: String) -> Unit,
     onClearSuspicious: (userId: String) -> Unit,
+    onAddNote: (userId: String, content: String, pinned: Boolean) -> Unit,
+    onEditNote: (userId: String, noteId: String, content: String?, pinned: Boolean?) -> Unit,
+    onDeleteNote: (userId: String, noteId: String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -1088,6 +1112,14 @@ private fun UserModerationContextDialog(
                             onWarn = onWarn,
                             onSuspicious = onSuspicious,
                             onClearSuspicious = onClearSuspicious,
+                        )
+                        UserModerationNotes(
+                            userId = state.context.userId,
+                            notes = state.notes,
+                            manage = manage,
+                            onAddNote = onAddNote,
+                            onEditNote = onEditNote,
+                            onDeleteNote = onDeleteNote,
                         )
                     }
                 }
@@ -1191,6 +1223,182 @@ private fun UserModerationActions(
                 onSuspicious(userId, "restricted")
             },
             onDismiss = { confirmRestrict = false },
+        )
+    }
+}
+
+// The mod-team notes on this viewer (gated at the page's Moderator floor): a list with pin/edit/delete plus an
+// add field. Pinned notes float to the top (the backend orders them). Editing a note swaps its row into an inline
+// field; deleting confirms first. Each mutation reloads the panel above via the controller.
+@Composable
+private fun UserModerationNotes(
+    userId: String,
+    notes: List<UserNote>,
+    manage: ManageDecision,
+    onAddNote: (userId: String, content: String, pinned: Boolean) -> Unit,
+    onEditNote: (userId: String, noteId: String, content: String?, pinned: Boolean?) -> Unit,
+    onDeleteNote: (userId: String, noteId: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    // The note being edited inline (its id), and the working copy of its text; both reset when the panel re-targets.
+    var editingNoteId: Int? by remember(userId) { mutableStateOf(null) }
+    var editingText: String by remember(userId) { mutableStateOf("") }
+    // The note awaiting a delete confirmation, if any.
+    var pendingDelete: UserNote? by remember(userId) { mutableStateOf(null) }
+    // The add-note draft + whether it should be pinned.
+    var newNote: String by remember(userId) { mutableStateOf("") }
+    var newPinned: Boolean by remember(userId) { mutableStateOf(false) }
+
+    Separator()
+    Text(
+        text = stringResource(Res.string.moderation_notes_title),
+        style = typography.sm,
+        color = tokens.mutedForeground,
+    )
+
+    if (notes.isEmpty()) {
+        Text(
+            text = stringResource(Res.string.moderation_notes_empty),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+    }
+
+    notes.forEach { note ->
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            if (editingNoteId == note.id) {
+                AppTextField(
+                    value = editingText,
+                    onValueChange = { editingText = it },
+                    label = stringResource(Res.string.moderation_notes_add_label),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    ManageGate(decision = manage) { enabled ->
+                        Button(
+                            onClick = {
+                                onEditNote(userId, note.id.toString(), editingText.trim(), null)
+                                editingNoteId = null
+                            },
+                            enabled = enabled && editingText.isNotBlank(),
+                        ) {
+                            Text(stringResource(Res.string.moderation_notes_save))
+                        }
+                    }
+                    TextButton(onClick = { editingNoteId = null }) {
+                        Text(
+                            text = stringResource(Res.string.moderation_notes_cancel),
+                            color = tokens.mutedForeground,
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    text = note.content,
+                    style = typography.sm,
+                    color = tokens.cardForeground,
+                )
+                val meta: String =
+                    stringResource(
+                        Res.string.moderation_notes_meta,
+                        note.authorName?.takeIf { it.isNotBlank() } ?: "—",
+                        note.createdAt.takeIf { it.isNotBlank() }?.let { datePart(it) } ?: "",
+                    )
+                Text(
+                    text = if (note.pinned) "📌 $meta" else meta,
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    ManageGate(decision = manage) { enabled ->
+                        TextButton(
+                            onClick = { onEditNote(userId, note.id.toString(), null, !note.pinned) },
+                            enabled = enabled,
+                        ) {
+                            Text(
+                                text =
+                                    if (note.pinned) {
+                                        stringResource(Res.string.moderation_notes_unpin)
+                                    } else {
+                                        stringResource(Res.string.moderation_notes_pin)
+                                    },
+                                color = if (enabled) tokens.primary else tokens.mutedForeground,
+                            )
+                        }
+                    }
+                    ManageGate(decision = manage) { enabled ->
+                        TextButton(
+                            onClick = {
+                                editingText = note.content
+                                editingNoteId = note.id
+                            },
+                            enabled = enabled,
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.moderation_notes_edit),
+                                color = if (enabled) tokens.primary else tokens.mutedForeground,
+                            )
+                        }
+                    }
+                    ManageGate(decision = manage) { enabled ->
+                        TextButton(onClick = { pendingDelete = note }, enabled = enabled) {
+                            Text(
+                                text = stringResource(Res.string.moderation_notes_delete),
+                                color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                            )
+                        }
+                    }
+                }
+            }
+            Separator()
+        }
+    }
+
+    // Add a new note: the text field, a pin toggle, and the add button (enabled once non-blank).
+    AppTextField(
+        value = newNote,
+        onValueChange = { newNote = it },
+        label = stringResource(Res.string.moderation_notes_add_label),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Badge(selected = newPinned, onClick = { newPinned = !newPinned }) {
+            Text(stringResource(Res.string.moderation_notes_pin), style = typography.sm)
+        }
+        ManageGate(decision = manage) { enabled ->
+            Button(
+                onClick = {
+                    onAddNote(userId, newNote.trim(), newPinned)
+                    newNote = ""
+                    newPinned = false
+                },
+                enabled = enabled && newNote.isNotBlank(),
+            ) {
+                Text(stringResource(Res.string.moderation_notes_add_action))
+            }
+        }
+    }
+
+    pendingDelete?.let { note ->
+        ConfirmDialog(
+            title = stringResource(Res.string.moderation_notes_delete_title),
+            message = stringResource(Res.string.moderation_notes_delete_message),
+            confirmLabel = stringResource(Res.string.moderation_notes_delete),
+            dismissLabel = stringResource(Res.string.moderation_notes_cancel),
+            destructive = true,
+            onConfirm = {
+                onDeleteNote(userId, note.id.toString())
+                pendingDelete = null
+            },
+            onDismiss = { pendingDelete = null },
         )
     }
 }

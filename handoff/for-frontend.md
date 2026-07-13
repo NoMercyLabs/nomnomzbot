@@ -61,23 +61,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** picking a voice for a viewer persists and survives reload; the picker only offers synthesizable
   voices; clearing returns the viewer to the default; picker disabled (not hidden) below the manage floor; en + nl.
 
-### 2026-07-11 — Moderator notes on a viewer (mod panel write side) — new endpoints
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** free-text notes the mod team shares about a viewer. `GET /channels/{channelId}/moderation/users/{userId}/notes`
-  → `List<UserNoteDto>` (`id`, `subjectUserId`, `content`, `pinned`, `authorName?`, `createdAt`, `updatedAt`; pinned
-  first then newest); `POST /channels/{channelId}/moderation/users/{userId}/notes` (`CreateUserNoteRequest` =
-  `content`, `pinned`) → the created `UserNoteDto`; `PUT /channels/{channelId}/moderation/notes/{noteId}`
-  (`UpdateUserNoteRequest` = `content?`, `pinned?`) → updated note; `DELETE /channels/{channelId}/moderation/notes/{noteId}`
-  → 204. Content trimmed, non-empty, ≤2000 chars (backend rejects otherwise).
-- **Why:** item 15 (§3.7 per-user panel, write side) — pairs with the per-user context (read side) from the sibling
-  entry. Notes + history + the warn/suspicious/ban actions = a complete per-user mod panel.
-- **Where:** the per-user panel — a notes list with add/edit/pin/delete. Register `UserNoteDto`,
-  `CreateUserNoteRequest`, `UpdateUserNoteRequest` in `ApiContractTest` (v1.json refreshed). Role gate: read at
-  Moderator (`moderation:usercontext:read`), write/edit/delete at Moderator (`moderation:note:write`). Confirm
-  delete. Pinned notes float to the top.
-- **Done when:** add a note → appears in the list; pin → floats to top; edit content persists; delete removes it;
-  empty/too-long content shows the validation error; en + nl strings.
-
 ### 2026-07-11 — Moderation page now shows/controls REAL Twitch state — handle the regrant/error path
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** three moderation endpoints changed behaviour (NOT their contract — no `v1.json` change, no DTO

@@ -27,6 +27,7 @@ import bot.nomnomz.dashboard.core.network.NetworkBanResult
 import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.UserModerationContext
+import bot.nomnomz.dashboard.core.network.UserNote
 import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -212,9 +213,51 @@ class ModerationController(
         _userContext.value = UserContextState.Loading
         _userContext.value =
             when (val result: ApiResult<UserModerationContext> = moderationApi.userContext(channel, userId)) {
-                is ApiResult.Ok -> UserContextState.Ready(result.value)
+                is ApiResult.Ok -> {
+                    // The mod-team notes load alongside the rap sheet; a notes failure degrades to an empty list
+                    // rather than failing the whole panel (the history is still worth showing).
+                    val notes: List<UserNote> =
+                        when (val n: ApiResult<List<UserNote>> = moderationApi.notesFor(channel, userId)) {
+                            is ApiResult.Ok -> n.value
+                            is ApiResult.Failure -> emptyList()
+                        }
+                    UserContextState.Ready(result.value, notes)
+                }
                 is ApiResult.Failure -> UserContextState.Error(result.error.message)
             }
+    }
+
+    /**
+     * Add a note on [userId] with [content] ([pinned] floats it to the top), then reload the panel so it appears.
+     * On failure surfaces the message on the page (the panel stays open). No-ops when no channel is loaded.
+     */
+    suspend fun addNote(userId: String, content: String, pinned: Boolean) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<Unit> = moderationApi.createNote(channel, userId, content, pinned)) {
+            is ApiResult.Ok -> openUserContext(userId)
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /**
+     * Edit note [noteId] on [userId]'s panel — new [content] and/or [pinned] — then reload so the change shows.
+     * Surfaces the error on failure. No-ops when no channel is loaded.
+     */
+    suspend fun editNote(userId: String, noteId: String, content: String?, pinned: Boolean?) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<Unit> = moderationApi.updateNote(channel, noteId, content, pinned)) {
+            is ApiResult.Ok -> openUserContext(userId)
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /** Delete note [noteId] from [userId]'s panel, then reload. Surfaces the error on failure. */
+    suspend fun deleteNote(userId: String, noteId: String) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<Unit> = moderationApi.deleteNote(channel, noteId)) {
+            is ApiResult.Ok -> openUserContext(userId)
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
     }
 
     /** Close the per-user moderation panel. */
@@ -517,7 +560,10 @@ enum class AutomodFilter {
 sealed interface UserContextState {
     data object Loading : UserContextState
 
-    data class Ready(val context: UserModerationContext) : UserContextState
+    data class Ready(
+        val context: UserModerationContext,
+        val notes: List<UserNote> = emptyList(),
+    ) : UserContextState
 
     data class Error(val detail: String) : UserContextState
 }

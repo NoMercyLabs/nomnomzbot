@@ -90,6 +90,28 @@ interface ModerationApi {
      */
     suspend fun userContext(channelId: String, userId: String): ApiResult<UserModerationContext>
 
+    /** The mod team's shared free-text notes on [userId] — pinned first, then newest (backend orders). */
+    suspend fun notesFor(channelId: String, userId: String): ApiResult<List<UserNote>>
+
+    /** Add a note on [userId] with [content] (trimmed, non-empty, ≤2000 chars) and [pinned]. */
+    suspend fun createNote(
+        channelId: String,
+        userId: String,
+        content: String,
+        pinned: Boolean,
+    ): ApiResult<Unit>
+
+    /** Edit note [noteId]: [content] and/or [pinned] (null leaves that field unchanged on the backend). */
+    suspend fun updateNote(
+        channelId: String,
+        noteId: String,
+        content: String?,
+        pinned: Boolean?,
+    ): ApiResult<Unit>
+
+    /** Delete note [noteId]. */
+    suspend fun deleteNote(channelId: String, noteId: String): ApiResult<Unit>
+
     /**
      * Send a chat announcement to [channelId]. [color] is one of `"blue"`, `"green"`, `"orange"`, `"purple"`,
      * or `"primary"` (= the channel's accent) — defaults to `"primary"` when omitted. Requires
@@ -239,6 +261,34 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
     // Single-value StatusResponseDto envelope ({ data: { … } }) — getEnvelope reads the context object.
     override suspend fun userContext(channelId: String, userId: String): ApiResult<UserModerationContext> =
         client.getEnvelope("api/v1/channels/$channelId/moderation/users/$userId/context")
+
+    override suspend fun notesFor(channelId: String, userId: String): ApiResult<List<UserNote>> =
+        client.getEnvelope("api/v1/channels/$channelId/moderation/users/$userId/notes")
+
+    override suspend fun createNote(
+        channelId: String,
+        userId: String,
+        content: String,
+        pinned: Boolean,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/moderation/users/$userId/notes",
+            CreateNoteBody(content = content, pinned = pinned),
+        )
+
+    override suspend fun updateNote(
+        channelId: String,
+        noteId: String,
+        content: String?,
+        pinned: Boolean?,
+    ): ApiResult<Unit> =
+        client.putUnit(
+            "api/v1/channels/$channelId/moderation/notes/$noteId",
+            UpdateNoteBody(content = content, pinned = pinned),
+        )
+
+    override suspend fun deleteNote(channelId: String, noteId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/moderation/notes/$noteId")
 
     // The POST body is a ChatController.AnnounceRequest (message, color?); the backend calls Helix on the tenant's behalf.
     override suspend fun announce(channelId: String, message: String, color: String?): ApiResult<Unit> =
@@ -546,3 +596,27 @@ data class ViewerReport(
 /** Request body to resolve a report (backend `ResolveViewerReportRequest`). [action] is `dismiss` or `escalate`. */
 @Serializable
 data class ResolveReportBody(val action: String)
+
+/**
+ * A mod-team note on a viewer (backend `UserNoteDto`). Free-text the moderators share about [subjectUserId];
+ * [pinned] notes float to the top. [authorName] is null when the author isn't resolvable.
+ */
+@Serializable
+data class UserNote(
+    // The backend PK is an int32 (serialized as a JSON number), NOT a string id like the ULID-keyed DTOs.
+    val id: Int = 0,
+    val subjectUserId: String = "",
+    val content: String = "",
+    val pinned: Boolean = false,
+    val authorName: String? = null,
+    val createdAt: String = "",
+    val updatedAt: String = "",
+)
+
+/** Request body to add a note (backend `CreateUserNoteRequest`). [content] trimmed, non-empty, ≤2000 chars. */
+@Serializable
+data class CreateNoteBody(val content: String, val pinned: Boolean)
+
+/** Request body to edit a note (backend `UpdateUserNoteRequest`). A null field leaves that value unchanged. */
+@Serializable
+data class UpdateNoteBody(val content: String? = null, val pinned: Boolean? = null)
