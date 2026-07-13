@@ -36,6 +36,9 @@ public static class FeatureScopeMap
         ["vips"] = ["channel:read:vips", "channel:manage:vips"],
         ["chat_read"] = ["user:read:chat"],
         ["chat_send"] = ["user:write:chat"],
+        // Broadcaster-side half of the chatbot badge: channel:bot lets the bot appear as a bot in this channel
+        // (the bot-side half, user:bot, rides the bot's own grant, not the streamer's).
+        ["bot_badge"] = ["channel:bot"],
         ["chat_emotes"] = ["user:read:emotes"],
         // Core proactive management jobs (roles-permissions §4): editor-role sync reads channel editors, and the
         // bot self-mod on join makes the bot a channel moderator. Both scopes ride the base streamer grant now,
@@ -73,6 +76,7 @@ public static class FeatureScopeMap
         ["vips"] = "read and manage your VIPs",
         ["chat_read"] = "read your chat",
         ["chat_send"] = "send messages in your chat",
+        ["bot_badge"] = "let your bot appear with the chatbot badge in your chat",
         ["chat_emotes"] = "show the emotes you can use across every channel you're subscribed to",
         ["management_roles"] = "sync your Twitch channel editors into dashboard roles",
         ["bot_moderator"] = "let your bot moderate chat by making it a channel moderator",

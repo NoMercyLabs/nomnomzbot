@@ -72,9 +72,13 @@ public sealed class AuthService : IAuthService
         // streamer grant must carry the Helix chat-send scope — `HelixChatProvider` sends via
         // `POST /helix/chat/messages` (`user:write:chat`) on every profile (scaling-qos.md §6).
         "user:write:chat",
-        // NOTE: `user:bot` (the chatbot-badge scope) rides the BOT grant (BotScopes) ONLY, never here — the
-        // streamer's own account is not the chat sender on a dedicated-bot deployment, so requesting it on the
-        // streamer grant would add a confusing "appear as a bot" consent + a phantom missing-scope for no gain.
+        // The chatbot badge: the broadcaster grants `channel:bot` to let the bot appear WITH THE BOT BADGE in
+        // THEIR channel — the broadcaster-side half of the app-token send. The bot-side half (`user:bot`) rides
+        // BotScopes. This is the proven recipe (the reference bot uses channel:bot on the broadcaster + user:bot
+        // on the bot + an app-token send). `user:bot` deliberately does NOT ride this streamer grant: the
+        // streamer's own account is not the chat sender on a dedicated-bot deployment, so requesting it here
+        // only adds a confusing "appear as a bot" consent for no gain.
+        "channel:bot",
         // The chat composer's emote picker shows the operator's own usable emotes across every channel they're
         // subscribed to (Get User Emotes, chat-client.md §3.2). It's an always-on part of the chat page, not a
         // feature toggle, so — like the rest of this full-set-at-login grant — its scope rides the base grant
