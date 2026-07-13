@@ -69,6 +69,7 @@ data class BlockType(
 //   song_volume               SongVolumeAction               — "volume" (int 0-100)
 //   song_current              SongCurrentAction              — (no params)
 //   song_queue                SongQueueAction                — "max" (int, default 5)?
+//   play_sound                PlaySoundAction                — "clip", "volume" (int)?, "wait_for_finish"?, "handle"?
 //   grant_currency            GrantCurrencyAction            — "amount" (int), "reason"?
 //   deduct_currency           DeductCurrencyAction           — "amount" (int), "reason"?
 //   check_balance             CheckBalanceAction             — "set_var"?, "min" (int)?
@@ -164,6 +165,20 @@ object PipelineCatalogue {
                 role = BlockRole.Action,
                 labelKey = "song_queue",
                 fields = listOf(BlockField("max", "song_queue_max", required = false, kind = FieldKind.Number)),
+            ),
+            // ── Sound / overlay ──────────────────────────────────────────────
+            BlockType(
+                type = "play_sound",
+                role = BlockRole.Action,
+                labelKey = "play_sound",
+                fields =
+                    listOf(
+                        // The sound clip to play — its slug/name or id (SoundClip.name is the value the action reads).
+                        BlockField("clip", "clip", required = true),
+                        BlockField("volume", "volume", required = false, kind = FieldKind.Number),
+                        BlockField("wait_for_finish", "wait_for_finish", required = false),
+                        BlockField("handle", "handle", required = false),
+                    ),
             ),
             // ── Economy ──────────────────────────────────────────────────────
             BlockType(

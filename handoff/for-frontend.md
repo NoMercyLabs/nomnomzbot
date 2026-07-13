@@ -291,39 +291,27 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   dashboard feed under the YouTube channel, visually tagged as YouTube, and the composer is
   read-only for that channel.
 
-### 2026-07-11 — Streamer-requested features (qtkitte): config surfaces for auto-shoutouts + walk-in sounds + overlay URLs
+### 2026-07-11 — qtkitte: Timers page pipeline binding + rotation list (parts 2 & 3 shipped)
 - **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** three small dashboard affordances that turn freshly-shipped backend capabilities into
-  one-click streamer features (requested live by qtkitte):
-  1. **Timers page — pipeline binding + "auto-shoutout" shape.** `TimerDto`/`CreateTimerDto`/
-     `UpdateTimerDto` have always carried `pipelineId`; the backend NOW actually dispatches it
-     (previously only the message leg worked). When `pipelineId` is set, the timer executes that
-     pipeline every interval with the current `Messages[...]` rotation entry riding as the pipeline
-     variable `{timer.message}`. UI: let the user bind a pipeline to a timer, and present the
-     Messages list as the "rotation list" in that mode. A rotating auto-shoutout = timer with
-     channel names in Messages + a pipeline containing `shoutout(user_id="{timer.message}")` —
-     the shoutout action now accepts logins/channel names (leading @ ok), not just numeric ids.
-     Consider a one-click "Auto-shoutout" preset that creates both.
-  2. **Event responses / rewards — sound-bearing responses.** The overlay audio bus is now REAL:
-     the bot serves the OBS browser-source page at `/overlay?token={overlayToken}` (same URL shape
-     the widgets API returns), and `play_sound` pipeline steps are audible end-to-end. UI: on the
-     event-responses page (e.g. channel.subscribe) and on a reward's pipeline, make "play a sound
-     clip" easy to add (the `play_sound` action takes `clip` = sound-clip id or name, optional
-     `volume`, `wait_for_finish`, `handle`).
-  3. **Widgets/overlays page — surface the overlay URL.** `WidgetDetail.overlayUrl` (from
-     `GET /api/v1/channels/{channelId}/widgets`) is the copy-paste OBS browser-source URL; show it
-     with a copy button + "add this in OBS as a Browser Source" hint. A base URL without a widget
-     (`/overlay?token=…`) is the channel-wide audio bus — every overlay page for the channel plays
-     walk-in sounds, with or without a widgetId.
-- **Why:** qtkitte asked for rotating auto-shoutouts, walk-in sounds on subs + point redeems, and
-  overlay management. The backend halves shipped (commits `80d9c936`, `cbb7c8de`); only the config
-  UX remains. No API contract change — all DTOs already carried these fields.
-- **Where:** `feature/timers/` (pipeline binding + rotation-list presentation), `feature/eventresponses/`
-  + `feature/rewards/` (pipeline/sound affordance), `feature/widgets/` (overlay URL + copy). No
-  `v1.json` change.
-- **Done when:** a streamer can, without touching raw JSON: (a) create a rotating auto-shoutout from a
-  list of names + an interval; (b) attach a sound clip to subs and to a specific channel-point reward;
-  (c) copy their overlay URL for OBS — and all three demonstrably work live.
+- **DONE (2026-07-13):** (2) **sound-bearing responses** — the `play_sound` action is now in the pipeline
+  builder palette (`PipelineCatalogue`, fields `clip`/`volume`/`wait_for_finish`/`handle`), so any
+  event-response / command pipeline can play a sound clip; and (3) **overlay URL** — `feature/widgets`
+  already shows each overlay's copy-paste OBS URL (`WidgetDetail.overlayUrl`) via a copy chip. NOTE: a
+  reward cannot reference a pipeline (rewards have no `pipelineId` — that would need a backend change),
+  so the "attach a sound to a specific channel-point reward" half is not reachable from the client yet.
+- **REMAINING — part 1: Timers page pipeline binding + rotation list.** `CreateTimerDto`/`UpdateTimerDto`
+  carry `pipelineId` (the LIST projection `TimerListItem` does NOT — the Kotlin `TimerSummary` maps to
+  it, so add `pipelineId` to `CreateTimerRequest`/`UpdateTimerRequest` only, and fetch the full timer via
+  `GET /timers/{id}` → `TimerDto` (has `pipelineId` + the full `messages` array) to pre-fill the edit
+  dialog). UI: let the user bind a pipeline to a timer (reuse the pipeline-picker DropdownMenu block from
+  `CommandsScreen.kt` ~L518-548, fed by `PipelinesApi.list`), and present the `messages` list as the
+  "rotation list" (the current edit dialog edits only a single message). A rotating auto-shoutout = timer
+  with channel names in messages + a pipeline containing `shoutout(user_id="{timer.message}")`; the
+  shoutout action accepts logins (leading @ ok). Consider a one-click "Auto-shoutout" preset.
+- **Where:** `feature/timers/` (inject `PipelinesApi` into `TimersController` like `CommandsController`;
+  add the picker + rotation-list editor to `TimerEditDialog`). No `v1.json` change.
+- **Done when:** a streamer can, without raw JSON, create a rotating auto-shoutout from a list of names +
+  an interval (pipeline bound, messages as a rotation list), and it fires live.
 
 ### 2026-07-10 — Multi-channel chat watch: let a mod monitor several channels at once
 - **From:** Stoney_Eagle (via Claude, backend track)
