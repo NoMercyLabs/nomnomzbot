@@ -86,6 +86,8 @@ public sealed class ChannelAnalyticsDailyProjectionTests
         await sut.ApplyAsync(Event("FollowEvent", Channel));
         await sut.ApplyAsync(Event("NewFollowerEvent", Channel));
         await sut.ApplyAsync(Event("NewSubscriptionEvent", Channel));
+        // A resub is sub activity too — previously dropped entirely, so renewals showed 0 subscribers.
+        await sut.ApplyAsync(Event("ResubscriptionEvent", Channel));
         await sut.ApplyAsync(Event("GiftSubscriptionEvent", Channel));
         await sut.ApplyAsync(Event("CommandExecutedEvent", Channel, "{\"Succeeded\":true}"));
         await sut.ApplyAsync(Event("RewardRedeemedEvent", Channel));
@@ -101,7 +103,7 @@ public sealed class ChannelAnalyticsDailyProjectionTests
         row.ActivityDate.Should().Be(new DateOnly(2026, 6, 22));
         row.TotalMessages.Should().Be(3);
         row.NewFollowers.Should().Be(2); // live FollowEvent + legacy NewFollowerEvent
-        row.NewSubscribers.Should().Be(2); // sub + gift
+        row.NewSubscribers.Should().Be(3); // new sub + resub + gift
         row.CommandsRun.Should().Be(1);
         row.RedemptionsCount.Should().Be(1);
         row.BitsCheered.Should().Be(100);

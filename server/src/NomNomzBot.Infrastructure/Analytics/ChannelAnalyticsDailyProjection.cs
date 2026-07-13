@@ -43,6 +43,7 @@ public sealed class ChannelAnalyticsDailyProjection(
         "FollowEvent",
         "NewFollowerEvent",
         "NewSubscriptionEvent",
+        "ResubscriptionEvent",
         "GiftSubscriptionEvent",
         "CheerEvent",
         "CommandExecutedEvent",
@@ -90,7 +91,10 @@ public sealed class ChannelAnalyticsDailyProjection(
                 row.NewFollowers++;
                 break;
             case "NewSubscriptionEvent":
+            case "ResubscriptionEvent":
             case "GiftSubscriptionEvent":
+                // All sub activity counts — new, resub (channel.subscription.message), and gift. A resub was
+                // previously dropped entirely, so a channel with only renewals showed 0 despite active subs.
                 row.NewSubscribers++;
                 break;
             case "CommandExecutedEvent":
