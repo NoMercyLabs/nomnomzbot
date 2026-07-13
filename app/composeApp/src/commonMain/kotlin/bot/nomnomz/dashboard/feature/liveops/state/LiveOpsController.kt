@@ -18,6 +18,7 @@ import bot.nomnomz.dashboard.core.network.CreatePredictionBody
 import bot.nomnomz.dashboard.core.network.LiveOpsAdSchedule
 import bot.nomnomz.dashboard.core.network.LiveOpsApi
 import bot.nomnomz.dashboard.core.network.LiveOpsClipStub
+import bot.nomnomz.dashboard.core.network.LiveOpsMarker
 import bot.nomnomz.dashboard.core.network.LiveOpsPoll
 import bot.nomnomz.dashboard.core.network.LiveOpsPrediction
 import bot.nomnomz.dashboard.core.network.LiveOpsRaid
@@ -134,6 +135,19 @@ class LiveOpsController(
     suspend fun createClip(): LiveOpsClipStub? {
         val ch: String = channelId ?: return null
         return when (val r: ApiResult<LiveOpsClipStub> = liveOpsApi.createClip(ch)) {
+            is ApiResult.Ok -> r.value
+            is ApiResult.Failure -> { setActionError(r.error.message); null }
+        }
+    }
+
+    /**
+     * Drop a stream marker (a VOD bookmark) at the current live position with an optional [description]. Returns
+     * the created marker on success, or null on failure (Twitch rejects when the channel isn't live — its error
+     * surfaces on the panel). No-ops with no channel.
+     */
+    suspend fun createMarker(description: String?): LiveOpsMarker? {
+        val ch: String = channelId ?: return null
+        return when (val r: ApiResult<LiveOpsMarker> = liveOpsApi.createMarker(ch, description?.ifBlank { null })) {
             is ApiResult.Ok -> r.value
             is ApiResult.Failure -> { setActionError(r.error.message); null }
         }

@@ -36,6 +36,13 @@ interface LiveOpsApi {
 
     // ─── Clips ──────────────────────────────────────────────────────────────
     suspend fun createClip(channelId: String): ApiResult<LiveOpsClipStub>
+
+    // ─── Stream markers ───────────────────────────────────────────────────────
+    /**
+     * Drop a stream marker at the current live position (a VOD bookmark for later editing) with an optional
+     * [description]. Twitch requires the channel to be LIVE — a failure surfaces the backend's Twitch error.
+     */
+    suspend fun createMarker(channelId: String, description: String?): ApiResult<LiveOpsMarker>
 }
 
 class RestLiveOpsApi(private val client: ApiClient) : LiveOpsApi {
@@ -74,6 +81,12 @@ class RestLiveOpsApi(private val client: ApiClient) : LiveOpsApi {
 
     override suspend fun snoozeNextAd(channelId: String): ApiResult<LiveOpsAdSnooze> =
         client.postEnvelope("api/v1/channels/$channelId/live-ops/ads/snooze")
+
+    override suspend fun createMarker(channelId: String, description: String?): ApiResult<LiveOpsMarker> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/live-ops/markers",
+            CreateMarkerBody(description = description),
+        )
 
     override suspend fun createClip(channelId: String): ApiResult<LiveOpsClipStub> =
         client.postEnvelope("api/v1/channels/$channelId/live-ops/clips")
@@ -132,7 +145,23 @@ data class LiveOpsAdSnooze(val snoozeCount: Int, val snoozeRefreshAt: Int, val n
 @Serializable
 data class LiveOpsClipStub(val id: String, val editUrl: String)
 
+/**
+ * A stream marker just dropped (backend `TwitchStreamMarker`): a VOD bookmark at [positionSeconds] into the
+ * live stream, with the operator's optional [description]. Shown as a confirmation after the "mark moment" tap.
+ */
+@Serializable
+data class LiveOpsMarker(
+    val id: String = "",
+    val description: String? = null,
+    val positionSeconds: Int = 0,
+    val createdAt: String = "",
+)
+
 // ─── Request bodies ──────────────────────────────────────────────────────────
+
+/** Drop a stream marker (backend `CreateMarkerDto`) — an optional [description] for the VOD bookmark. */
+@Serializable
+data class CreateMarkerBody(val description: String? = null)
 
 @Serializable
 data class CreatePollBody(

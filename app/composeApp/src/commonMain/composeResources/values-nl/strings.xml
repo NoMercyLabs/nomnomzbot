@@ -231,6 +231,9 @@
     <string name="home_live_ops_start_raid">Raiden…</string>
     <string name="home_live_ops_cancel_raid">Raid annuleren</string>
     <string name="home_live_ops_create_clip">Clip maken</string>
+    <string name="home_live_ops_mark_moment">Moment markeren</string>
+    <string name="home_live_ops_mark_moment_done">Moment gemarkeerd — het staat als bladwijzer in je VOD.</string>
+    <string name="home_live_ops_mark_moment_failed">Kon de markering niet toevoegen.</string>
     <string name="home_live_ops_snooze_ad">Advertentie uitstellen</string>
     <string name="home_live_ops_start_commercial">Advertentie afspelen</string>
     <string name="home_live_ops_poll_title_label">Vraag</string>

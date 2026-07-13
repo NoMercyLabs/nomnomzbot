@@ -137,6 +137,8 @@ class ApiContractTest {
             DiscordGuildInfo.serializer() to "DiscordGuildInfoDto",
             DiscordGuildRole.serializer() to "DiscordGuildRoleDto",
             DiscordGuildChannel.serializer() to "DiscordGuildChannelDto",
+            LiveOpsMarker.serializer() to "TwitchStreamMarker",
+            CreateMarkerBody.serializer() to "CreateMarkerDto",
         )
 
     @Test

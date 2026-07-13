@@ -36,25 +36,28 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   advances; reject/skip refund shows; the config (enable, approval, sources, cap, cost, cooldown)
   round-trips; en + nl strings.
 
-### 2026-07-11 — Stream schedule + markers controls (completes the live-ops surface)
+### 2026-07-11 — Stream schedule controls (markers DONE; schedule CRUD remaining)
 - **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** UI for the broadcaster's stream schedule (the weekly calendar of upcoming streams) and a
-  one-tap "mark this moment" button for the live VOD. New `LiveOpsController` routes (in
-  `server/openapi/v1.json`, tag "LiveOps", under `/channels/{channelId}/live-ops`): `GET schedule`
-  (segments + vacation window), `GET schedule/icalendar` (an .ics feed — offer a subscribe/download
-  link), `POST schedule/segment` (`CreateScheduleSegmentRequest`), `PATCH schedule/segment/{id}`
-  (`UpdateScheduleSegmentRequest`), `DELETE schedule/segment/{id}`, `PUT schedule/settings`
-  (vacation toggle/window), `POST markers` (`{ description? }`).
-- **Why:** parity item 17 — rounds out the live-ops surface (polls/predictions/raids/ads/clips already
-  had pages; schedule + markers were the gap). Markers are a streamer favourite: one button during the
-  stream drops a VOD bookmark for later editing.
-- **Where:** the live-ops / stream area. Register the new request DTOs in `ApiContractTest`. Role
-  gating: schedule read at Moderator (`live-ops:schedule:read`), schedule writes at Editor
-  (`live-ops:schedule:write`), marker create at Moderator (`live-ops:marker:create`). Markers require
-  the channel to be LIVE (Twitch rejects otherwise) — disable/hide the button when offline and surface
-  the backend's Twitch error if it fails.
+- **What (REMAINING — schedule only):** UI for the broadcaster's stream schedule (the weekly calendar of
+  upcoming streams). Routes (tag "LiveOps", under `/channels/{channelId}/live-ops`): `GET schedule`
+  (segments + vacation window → `TwitchSchedule`), `GET schedule/icalendar` (an .ics feed — offer a
+  subscribe/download link), `POST schedule/segment` (`CreateScheduleSegmentRequest`), `PATCH
+  schedule/segment/{id}` (`UpdateScheduleSegmentRequest`), `DELETE schedule/segment/{id}`, `PUT
+  schedule/settings` (`UpdateScheduleSettingsDto` — vacation toggle/window).
+- **✅ Markers — DONE (this session):** the one-tap "Mark moment" button shipped in the Home live-ops
+  quick-actions — `POST live-ops/markers` (`CreateMarkerDto`) → `TwitchStreamMarker`, gated on
+  `stats.isLive` (hidden offline, since Twitch rejects a marker when not live), with a result notice that
+  surfaces the backend's Twitch error on failure. `LiveOpsApi.createMarker` + `LiveOpsController.createMarker`
+  + `LiveOpsMarker`/`CreateMarkerBody` DTOs (registered in `ApiContractTest`), controller tests, en+nl.
+  E2E on dev: the endpoint surfaces Twitch's 404 when offline (verified); the success path needs a live stream.
+- **Why:** parity item 17 — rounds out the live-ops surface. The schedule is a dedicated management page
+  (weekly segments with times / recurrence / category + vacation + the .ics link) — its own screen, not a
+  home quick-action, so it needs nav placement per `frontend-ia.md`.
+- **Where (remaining):** a new schedule page in the live-ops / stream area. Register the new request DTOs
+  in `ApiContractTest`. Role gating: schedule read at Moderator (`live-ops:schedule:read`), schedule writes
+  at Editor (`live-ops:schedule:write`).
 - **Done when:** the schedule renders + segment add/edit/delete + vacation round-trip against a real
-  channel; the marker button posts and confirms while live; the .ics link works; en + nl strings.
+  channel; the .ics link works; en + nl strings.
 
 ### 2026-07-11 — Kick integration: connect tile + chat feed provider tag
 - **From:** Stoney_Eagle (via Claude, backend track)

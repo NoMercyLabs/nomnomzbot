@@ -56,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.ArrowUpGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckGlyph
@@ -70,6 +71,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.DashboardStats
+import bot.nomnomz.dashboard.core.network.LiveOpsMarker
 import bot.nomnomz.dashboard.core.network.LiveOpsPoll
 import bot.nomnomz.dashboard.core.network.LiveOpsPrediction
 import bot.nomnomz.dashboard.core.network.StreamInfo
@@ -108,6 +110,9 @@ import nomnomzbot.composeapp.generated.resources.home_live_ops_create_clip
 import nomnomzbot.composeapp.generated.resources.home_live_ops_create_poll
 import nomnomzbot.composeapp.generated.resources.home_live_ops_create_prediction
 import nomnomzbot.composeapp.generated.resources.home_live_ops_end_poll
+import nomnomzbot.composeapp.generated.resources.home_live_ops_mark_moment
+import nomnomzbot.composeapp.generated.resources.home_live_ops_mark_moment_done
+import nomnomzbot.composeapp.generated.resources.home_live_ops_mark_moment_failed
 import nomnomzbot.composeapp.generated.resources.home_live_ops_outcome_pick
 import nomnomzbot.composeapp.generated.resources.home_live_ops_poll_choices_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_poll_confirm
@@ -218,6 +223,11 @@ private fun ReadyContent(
     var showRaidDialog: Boolean by remember { mutableStateOf(false) }
     var showCommercialDialog: Boolean by remember { mutableStateOf(false) }
     var showResolvePredictionDialog: Boolean by remember { mutableStateOf(false) }
+    // A transient result line after "Mark moment" — the success confirmation, or the backend's Twitch error.
+    var markerNotice: String? by remember { mutableStateOf(null) }
+    // Resolved at composition (stringResource is @Composable) so the mark-moment coroutine can set the notice.
+    val markSuccessMsg: String = stringResource(Res.string.home_live_ops_mark_moment_done)
+    val markFailMsg: String = stringResource(Res.string.home_live_ops_mark_moment_failed)
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
@@ -248,8 +258,21 @@ private fun ReadyContent(
             ) {
                 QuickActionsCard(
                     ready = ready,
+                    isLive = stats.isLive,
                     onChangeTitle = { showChangeTitleDialog = true },
                     onCreateClip = { scope.launch { liveOpsController.createClip() } },
+                    onMarkMoment = {
+                        scope.launch {
+                            val marker: LiveOpsMarker? = liveOpsController.createMarker(null)
+                            markerNotice =
+                                if (marker != null) {
+                                    markSuccessMsg
+                                } else {
+                                    (liveOpsController.state.value as? LiveOpsState.Ready)?.actionError
+                                        ?: markFailMsg
+                                }
+                        }
+                    },
                     onStartPoll = { showPollDialog = true },
                     onEndPoll = { scope.launch { liveOpsController.endPoll("TERMINATED") } },
                     onStartPrediction = { showPredictionDialog = true },
@@ -259,6 +282,14 @@ private fun ReadyContent(
                     onStartCommercial = { showCommercialDialog = true },
                     onSnoozeAd = { scope.launch { liveOpsController.snoozeNextAd() } },
                 )
+
+                markerNotice?.let { notice ->
+                    Text(
+                        text = notice,
+                        style = LocalTypography.current.xs,
+                        color = LocalTokens.current.mutedForeground,
+                    )
+                }
 
                 if (topCommands.isNotEmpty()) {
                     TopCommandsCard(commands = topCommands)
@@ -590,8 +621,10 @@ private fun ActivityRow(event: ActivityEvent) {
 @Composable
 private fun QuickActionsCard(
     ready: LiveOpsState.Ready?,
+    isLive: Boolean,
     onChangeTitle: () -> Unit,
     onCreateClip: () -> Unit,
+    onMarkMoment: () -> Unit,
     onStartPoll: () -> Unit,
     onEndPoll: () -> Unit,
     onStartPrediction: () -> Unit,
@@ -697,6 +730,17 @@ private fun QuickActionsCard(
                 onClick = onCreateClip,
                 modifier = Modifier.weight(1f),
             )
+
+            // "Mark this moment" — a VOD bookmark. Twitch only accepts markers while LIVE, so the button is
+            // shown only when the channel is live (rather than offering a tap that would always fail offline).
+            if (isLive) {
+                QuickActionButton(
+                    icon = AddGlyph,
+                    label = stringResource(Res.string.home_live_ops_mark_moment),
+                    onClick = onMarkMoment,
+                    modifier = Modifier.weight(1f),
+                )
+            }
 
             QuickActionButton(
                 icon = ArrowUpGlyph,

@@ -234,6 +234,9 @@
     <string name="home_live_ops_start_raid">Raid…</string>
     <string name="home_live_ops_cancel_raid">Cancel Raid</string>
     <string name="home_live_ops_create_clip">Create Clip</string>
+    <string name="home_live_ops_mark_moment">Mark moment</string>
+    <string name="home_live_ops_mark_moment_done">Moment marked — it\'s bookmarked in your VOD.</string>
+    <string name="home_live_ops_mark_moment_failed">Couldn\'t add the marker.</string>
     <string name="home_live_ops_snooze_ad">Snooze Ad</string>
     <string name="home_live_ops_start_commercial">Run Ad</string>
     <string name="home_live_ops_poll_title_label">Question</string>
