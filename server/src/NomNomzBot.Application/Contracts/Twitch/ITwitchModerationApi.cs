@@ -73,6 +73,24 @@ public interface ITwitchModerationApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Timeout User AS THE OPERATOR — times out <paramref name="targetTwitchUserId"/> for
+    /// <paramref name="durationSeconds"/> in <paramref name="broadcasterTwitchId"/>'s chat using the logged-in
+    /// operator's OWN token (<c>moderator_id</c> = the operator), so the timeout is attributed to THEM and works in
+    /// ANY channel Twitch has made the operator a moderator of (chat-client.md §3.5).
+    /// <paramref name="broadcasterTwitchId"/> is a raw Twitch id, never a tenant Guid. Requires the operator token
+    /// to carry <c>moderator:manage:banned_users</c>; Twitch enforces the operator actually moderates the channel,
+    /// so there is no privilege escalation.
+    /// </summary>
+    Task<Result<TwitchBanResult>> TimeoutAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string targetTwitchUserId,
+        int durationSeconds,
+        string? reason,
+        CancellationToken ct = default
+    );
+
     /// <summary>Unban User — lifts the ban or timeout on <paramref name="targetTwitchUserId"/>. Requires <c>moderator:manage:banned_users</c>.</summary>
     Task<Result> UnbanUserAsync(
         Guid broadcasterId,
@@ -95,9 +113,42 @@ public interface ITwitchModerationApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Get Unban Requests AS THE OPERATOR — one page of <paramref name="broadcasterTwitchId"/>'s unban requests
+    /// filtered by <paramref name="status"/>, read with the logged-in operator's OWN token (<c>moderator_id</c> =
+    /// the operator), so the queue works in ANY channel Twitch has made the operator a moderator of
+    /// (chat-client.md §3.5). <paramref name="broadcasterTwitchId"/> is a raw Twitch id, never a tenant Guid.
+    /// Requires the operator token to carry <c>moderator:read:unban_requests</c>; Twitch enforces the operator
+    /// actually moderates the channel, so there is no privilege escalation.
+    /// </summary>
+    Task<Result<TwitchPage<TwitchUnbanRequest>>> GetUnbanRequestsAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string status,
+        TwitchPageRequest page,
+        CancellationToken ct = default
+    );
+
     /// <summary>Resolve Unban Request — approves or denies <paramref name="unbanRequestId"/>, optionally with resolution text. Requires <c>moderator:manage:unban_requests</c>.</summary>
     Task<Result<TwitchUnbanRequest>> ResolveUnbanRequestAsync(
         Guid broadcasterId,
+        string unbanRequestId,
+        string status,
+        string? resolutionText,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Resolve Unban Request AS THE OPERATOR — approves or denies <paramref name="unbanRequestId"/> in
+    /// <paramref name="broadcasterTwitchId"/>'s channel using the logged-in operator's OWN token
+    /// (<c>moderator_id</c> = the operator), so the resolution is attributed to THEM and works in ANY channel Twitch
+    /// has made the operator a moderator of (chat-client.md §3.5). <paramref name="broadcasterTwitchId"/> is a raw
+    /// Twitch id, never a tenant Guid. Requires the operator token to carry <c>moderator:manage:unban_requests</c>;
+    /// Twitch enforces the operator actually moderates the channel, so there is no privilege escalation.
+    /// </summary>
+    Task<Result<TwitchUnbanRequest>> ResolveUnbanRequestAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
         string unbanRequestId,
         string status,
         string? resolutionText,
@@ -111,6 +162,21 @@ public interface ITwitchModerationApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Get Blocked Terms AS THE OPERATOR — one page of <paramref name="broadcasterTwitchId"/>'s blocked words /
+    /// phrases read with the logged-in operator's OWN token (<c>moderator_id</c> = the operator), so the list works
+    /// in ANY channel Twitch has made the operator a moderator of (chat-client.md §3.5).
+    /// <paramref name="broadcasterTwitchId"/> is a raw Twitch id, never a tenant Guid. Requires the operator token
+    /// to carry <c>moderator:read:blocked_terms</c>; Twitch enforces the operator actually moderates the channel, so
+    /// there is no privilege escalation.
+    /// </summary>
+    Task<Result<TwitchPage<TwitchBlockedTerm>>> GetBlockedTermsAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        TwitchPageRequest page,
+        CancellationToken ct = default
+    );
+
     /// <summary>Add Blocked Term — adds <paramref name="text"/> to the block list and returns the created term. Requires <c>moderator:manage:blocked_terms</c>.</summary>
     Task<Result<TwitchBlockedTerm>> AddBlockedTermAsync(
         Guid broadcasterId,
@@ -118,9 +184,39 @@ public interface ITwitchModerationApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Add Blocked Term AS THE OPERATOR — adds <paramref name="text"/> to <paramref name="broadcasterTwitchId"/>'s
+    /// block list using the logged-in operator's OWN token (<c>moderator_id</c> = the operator), so it works in ANY
+    /// channel Twitch has made the operator a moderator of (chat-client.md §3.5).
+    /// <paramref name="broadcasterTwitchId"/> is a raw Twitch id, never a tenant Guid. Requires the operator token
+    /// to carry <c>moderator:manage:blocked_terms</c>; Twitch enforces the operator actually moderates the channel,
+    /// so there is no privilege escalation.
+    /// </summary>
+    Task<Result<TwitchBlockedTerm>> AddBlockedTermAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string text,
+        CancellationToken ct = default
+    );
+
     /// <summary>Remove Blocked Term — removes the term identified by <paramref name="blockedTermId"/>. Requires <c>moderator:manage:blocked_terms</c>.</summary>
     Task<Result> RemoveBlockedTermAsync(
         Guid broadcasterId,
+        string blockedTermId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Remove Blocked Term AS THE OPERATOR — removes the term identified by <paramref name="blockedTermId"/> from
+    /// <paramref name="broadcasterTwitchId"/>'s block list using the logged-in operator's OWN token
+    /// (<c>moderator_id</c> = the operator), so it works in ANY channel Twitch has made the operator a moderator of
+    /// (chat-client.md §3.5). <paramref name="broadcasterTwitchId"/> is a raw Twitch id, never a tenant Guid.
+    /// Requires the operator token to carry <c>moderator:manage:blocked_terms</c>; Twitch enforces the operator
+    /// actually moderates the channel, so there is no privilege escalation.
+    /// </summary>
+    Task<Result> RemoveBlockedTermAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
         string blockedTermId,
         CancellationToken ct = default
     );
@@ -156,6 +252,20 @@ public interface ITwitchModerationApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Get Shield Mode Status AS THE OPERATOR — <paramref name="broadcasterTwitchId"/>'s current Shield Mode
+    /// activation read with the logged-in operator's OWN token (<c>moderator_id</c> = the operator), so it works in
+    /// ANY channel Twitch has made the operator a moderator of (chat-client.md §3.5).
+    /// <paramref name="broadcasterTwitchId"/> is a raw Twitch id, never a tenant Guid. Requires the operator token
+    /// to carry <c>moderator:read:shield_mode</c>; Twitch enforces the operator actually moderates the channel, so
+    /// there is no privilege escalation.
+    /// </summary>
+    Task<Result<TwitchShieldModeStatus>> GetShieldModeStatusAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        CancellationToken ct = default
+    );
+
     /// <summary>Update Shield Mode Status — activates or deactivates Shield Mode and returns the new status. Requires <c>moderator:manage:shield_mode</c>.</summary>
     Task<Result<TwitchShieldModeStatus>> UpdateShieldModeStatusAsync(
         Guid broadcasterId,
@@ -163,9 +273,40 @@ public interface ITwitchModerationApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Update Shield Mode Status AS THE OPERATOR — activates or deactivates Shield Mode on
+    /// <paramref name="broadcasterTwitchId"/>'s channel using the logged-in operator's OWN token
+    /// (<c>moderator_id</c> = the operator), so the change is attributed to THEM and works in ANY channel Twitch has
+    /// made the operator a moderator of (chat-client.md §3.5). <paramref name="broadcasterTwitchId"/> is a raw Twitch
+    /// id, never a tenant Guid. Requires the operator token to carry <c>moderator:manage:shield_mode</c>; Twitch
+    /// enforces the operator actually moderates the channel, so there is no privilege escalation.
+    /// </summary>
+    Task<Result<TwitchShieldModeStatus>> UpdateShieldModeStatusAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        bool isActive,
+        CancellationToken ct = default
+    );
+
     /// <summary>Warn Chat User — warns <paramref name="targetTwitchUserId"/>, gating their chat until they acknowledge it. Requires <c>moderator:manage:warnings</c>.</summary>
     Task<Result<TwitchWarningResult>> WarnChatUserAsync(
         Guid broadcasterId,
+        string targetTwitchUserId,
+        string reason,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Warn Chat User AS THE OPERATOR — warns <paramref name="targetTwitchUserId"/> in
+    /// <paramref name="broadcasterTwitchId"/>'s chat using the logged-in operator's OWN token (<c>moderator_id</c> =
+    /// the operator), so the warning is attributed to THEM and works in ANY channel Twitch has made the operator a
+    /// moderator of (chat-client.md §3.5). <paramref name="broadcasterTwitchId"/> is a raw Twitch id, never a tenant
+    /// Guid. Requires the operator token to carry <c>moderator:manage:warnings</c>; Twitch enforces the operator
+    /// actually moderates the channel, so there is no privilege escalation.
+    /// </summary>
+    Task<Result<TwitchWarningResult>> WarnChatUserAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
         string targetTwitchUserId,
         string reason,
         CancellationToken ct = default
@@ -179,9 +320,40 @@ public interface ITwitchModerationApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Add Suspicious Status AS THE OPERATOR — flags <paramref name="targetTwitchUserId"/> as
+    /// <c>ACTIVE_MONITORING</c> or <c>RESTRICTED</c> in <paramref name="broadcasterTwitchId"/>'s channel using the
+    /// logged-in operator's OWN token (<c>moderator_id</c> = the operator), so it works in ANY channel Twitch has
+    /// made the operator a moderator of (chat-client.md §3.5). <paramref name="broadcasterTwitchId"/> is a raw Twitch
+    /// id, never a tenant Guid. Requires the operator token to carry <c>moderator:manage:suspicious_users</c>; Twitch
+    /// enforces the operator actually moderates the channel, so there is no privilege escalation.
+    /// </summary>
+    Task<Result<TwitchSuspiciousUserStatus>> AddSuspiciousStatusAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string targetTwitchUserId,
+        string status,
+        CancellationToken ct = default
+    );
+
     /// <summary>Remove Suspicious Status — clears the suspicious-user flag from <paramref name="targetTwitchUserId"/>. Requires <c>moderator:manage:suspicious_users</c>.</summary>
     Task<Result<TwitchSuspiciousUserStatus>> RemoveSuspiciousStatusAsync(
         Guid broadcasterId,
+        string targetTwitchUserId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Remove Suspicious Status AS THE OPERATOR — clears the suspicious-user flag from
+    /// <paramref name="targetTwitchUserId"/> in <paramref name="broadcasterTwitchId"/>'s channel using the logged-in
+    /// operator's OWN token (<c>moderator_id</c> = the operator), so it works in ANY channel Twitch has made the
+    /// operator a moderator of (chat-client.md §3.5). <paramref name="broadcasterTwitchId"/> is a raw Twitch id,
+    /// never a tenant Guid. Requires the operator token to carry <c>moderator:manage:suspicious_users</c>; Twitch
+    /// enforces the operator actually moderates the channel, so there is no privilege escalation.
+    /// </summary>
+    Task<Result<TwitchSuspiciousUserStatus>> RemoveSuspiciousStatusAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
         string targetTwitchUserId,
         CancellationToken ct = default
     );

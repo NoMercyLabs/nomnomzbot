@@ -80,11 +80,11 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
         if (request.Scope == "all_moderated")
         {
-            if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
-                return UnauthenticatedResponse();
-
             Result<NetworkBanResult> fanOut = await _networkBan.BanAcrossModeratedAsync(
                 operatorUserId,
                 request.TargetTwitchUserId,
@@ -101,6 +101,7 @@ public class ModerationController : BaseController
         Result<ModerationActionResult> single = request.DurationSeconds is int seconds
             ? await _moderationService.TimeoutAsync(
                 channelId,
+                operatorUserId,
                 request.TargetTwitchUserId,
                 seconds,
                 request.Reason,
@@ -108,6 +109,7 @@ public class ModerationController : BaseController
             )
             : await _moderationService.BanAsync(
                 channelId,
+                operatorUserId,
                 request.TargetTwitchUserId,
                 request.Reason,
                 cancellationToken: ct
@@ -135,11 +137,11 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
         if (request.Scope == "all_moderated")
         {
-            if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
-                return UnauthenticatedResponse();
-
             Result<NetworkBanResult> fanOut = await _networkBan.UnbanAcrossModeratedAsync(
                 operatorUserId,
                 request.TargetTwitchUserId,
@@ -155,6 +157,7 @@ public class ModerationController : BaseController
         string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         Result<ModerationActionResult> single = await _moderationService.UnbanAsync(
             channelId,
+            operatorUserId,
             request.TargetTwitchUserId,
             actorId,
             ct
@@ -335,9 +338,13 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
         string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         Result<ModerationActionResult> result = await _moderationService.UnbanAsync(
             channelId,
+            operatorUserId,
             userId,
             actorId,
             ct
@@ -393,7 +400,14 @@ public class ModerationController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetShieldMode(string channelId, CancellationToken ct)
     {
-        Result<bool> result = await _moderationService.GetShieldModeAsync(channelId, ct);
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
+        Result<bool> result = await _moderationService.GetShieldModeAsync(
+            channelId,
+            operatorUserId,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<object> { Data = new { enabled = result.Value } });
@@ -409,8 +423,12 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
         Result<bool> result = await _moderationService.SetShieldModeAsync(
             channelId,
+            operatorUserId,
             request.Enabled,
             ct
         );
@@ -429,7 +447,14 @@ public class ModerationController : BaseController
     [ProducesResponseType<StatusResponseDto<List<string>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBlockedTerms(string channelId, CancellationToken ct)
     {
-        Result<List<string>> result = await _moderationService.GetBlockedTermsAsync(channelId, ct);
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
+        Result<List<string>> result = await _moderationService.GetBlockedTermsAsync(
+            channelId,
+            operatorUserId,
+            ct
+        );
         return ResultResponse(result);
     }
 
@@ -443,8 +468,12 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
         Result<List<string>> result = await _moderationService.AddBlockedTermAsync(
             channelId,
+            operatorUserId,
             request.Term,
             ct
         );
@@ -461,8 +490,12 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
         Result<List<string>> result = await _moderationService.RemoveBlockedTermAsync(
             channelId,
+            operatorUserId,
             term,
             ct
         );
@@ -483,8 +516,12 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
         Result<List<UnbanRequestDto>> result = await _moderationService.GetUnbanRequestsAsync(
             channelId,
+            operatorUserId,
             string.IsNullOrWhiteSpace(status) ? "pending" : status,
             ct
         );
@@ -502,8 +539,12 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
         Result<UnbanRequestDto> result = await _moderationService.ResolveUnbanRequestAsync(
             channelId,
+            operatorUserId,
             unbanRequestId,
             request.Approve,
             request.Note,
@@ -526,9 +567,13 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
         string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         Result<ModerationActionResult> result = await _moderationService.WarnUserAsync(
             channelId,
+            operatorUserId,
             request.TargetUserId,
             request.Reason,
             actorId,
@@ -549,8 +594,12 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
         Result<SuspiciousStatusDto> result = await _moderationService.SetSuspiciousStatusAsync(
             channelId,
+            operatorUserId,
             request.TargetUserId,
             request.Status,
             ct
@@ -570,8 +619,12 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
         Result<SuspiciousStatusDto> result = await _moderationService.ClearSuspiciousStatusAsync(
             channelId,
+            operatorUserId,
             userId,
             ct
         );
@@ -826,11 +879,15 @@ public class ModerationController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
         string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         Result<ModerationActionResult> result = request.Action switch
         {
             "timeout" => await _moderationService.TimeoutAsync(
                 channelId,
+                operatorUserId,
                 request.TargetUserId,
                 request.DurationSeconds ?? 600,
                 request.Reason,
@@ -840,6 +897,7 @@ public class ModerationController : BaseController
 
             "ban" => await _moderationService.BanAsync(
                 channelId,
+                operatorUserId,
                 request.TargetUserId,
                 request.Reason,
                 actorId,
@@ -848,6 +906,7 @@ public class ModerationController : BaseController
 
             "unban" => await _moderationService.UnbanAsync(
                 channelId,
+                operatorUserId,
                 request.TargetUserId,
                 actorId,
                 ct

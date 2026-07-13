@@ -24,24 +24,47 @@ using Record = NomNomzBot.Domain.Platform.Entities.Record;
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
 
 /// <summary>
-/// Proves the moderation page reflects and controls REAL Twitch state rather than a local mirror. Before this
-/// fix the banned-users list read only the bans the bot itself recorded, and the blocked-terms + Shield-Mode
-/// controls read and wrote a local config Twitch never saw (cosmetic switches). Every test asserts the exact
-/// Helix call made and the shape of what is returned — and that a Helix failure surfaces as an honest error,
-/// never a silently-empty success.
+/// Proves the moderation page reflects and controls REAL Twitch state rather than a local mirror, and that every
+/// dashboard call is signed AS THE OPERATOR: the service resolves the channel's raw broadcaster Twitch id and
+/// routes each read/write through the <c>…AsOperatorAsync</c> variant, passing the logged-in operator's own user id
+/// (moderator_id) and that raw broadcaster id (never the tenant Guid). Every test asserts the exact operator Helix
+/// call made and the shape of what is returned — and that a Helix failure surfaces as an honest error, never a
+/// silently-empty success.
 /// </summary>
 public sealed class ModerationServiceTwitchReadsTests
 {
     private static readonly Guid Tenant = Guid.Parse("019f2802-5c77-7dc8-b6f6-b4b98e624b8a");
+
+    // The logged-in operator whose OWN Twitch token now signs every dashboard moderation call (moderator_id = them).
+    private static readonly Guid Operator = Guid.Parse("019f2802-5c77-7dc8-b6f6-000000000999");
+    private const string BroadcasterTwitchId = "1001";
     private static string BroadcasterId => Tenant.ToString();
 
-    private static ModerationService NewService(ITwitchModerationApi moderation) =>
-        new(
-            ModerationServiceTestDbContext.New(),
+    /// <summary>
+    /// A service over a DB seeded with the tenant channel (TwitchChannelId = <see cref="BroadcasterTwitchId"/>), so
+    /// the operator routing can resolve the raw broadcaster id it must pass to Helix.
+    /// </summary>
+    private static ModerationService NewService(ITwitchModerationApi moderation)
+    {
+        ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
+        db.Channels.Add(
+            new Channel
+            {
+                Id = Tenant,
+                TwitchChannelId = BroadcasterTwitchId,
+                OwnerUserId = Guid.NewGuid(),
+                Name = "c",
+                NameNormalized = "c",
+            }
+        );
+        db.SaveChanges();
+        return new ModerationService(
+            db,
             moderation,
             NullLogger<ModerationService>.Instance,
             Substitute.For<IEventBus>()
         );
+    }
 
     private static TwitchBannedUser Banned(
         string id,
@@ -64,8 +87,8 @@ public sealed class ModerationServiceTwitchReadsTests
 
     private static TwitchBlockedTerm Term(string id, string text) =>
         new(
-            BroadcasterId: "1001",
-            ModeratorId: "1001",
+            BroadcasterId: BroadcasterTwitchId,
+            ModeratorId: BroadcasterTwitchId,
             Id: id,
             Text: text,
             CreatedAt: DateTimeOffset.UnixEpoch,
@@ -82,7 +105,7 @@ public sealed class ModerationServiceTwitchReadsTests
     ) =>
         new(
             Id: id,
-            BroadcasterId: "1001",
+            BroadcasterId: BroadcasterTwitchId,
             BroadcasterLogin: "owner",
             BroadcasterName: "Owner",
             ModeratorId: moderatorName == "" ? "" : "9000",
@@ -136,6 +159,15 @@ public sealed class ModerationServiceTwitchReadsTests
         ban.Username.Should().Be("Griefer");
         ban.Reason.Should().Be("spam");
         ban.BannedBy.Should().Be("ModAlice"); // the REAL moderator from Twitch, not the bot
+        // Get Banned Users stays on the BROADCASTER token (Twitch requires broadcaster_id == the token's user and
+        // takes no moderator_id), so it is read against the tenant Guid, not delegated to the operator.
+        await moderation
+            .Received(1)
+            .GetBannedUsersAsync(
+                Tenant,
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -195,8 +227,9 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .GetBlockedTermsAsync(
-                Tenant,
+            .GetBlockedTermsAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
                 Arg.Any<TwitchPageRequest>(),
                 Arg.Any<CancellationToken>()
             )
@@ -211,7 +244,7 @@ public sealed class ModerationServiceTwitchReadsTests
             );
 
         Result<List<string>> result = await NewService(moderation)
-            .GetBlockedTermsAsync(BroadcasterId);
+            .GetBlockedTermsAsync(BroadcasterId, Operator);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeEquivalentTo(["badword", "worse*"]);
@@ -222,11 +255,17 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .AddBlockedTermAsync(Tenant, "newterm", Arg.Any<CancellationToken>())
+            .AddBlockedTermAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                "newterm",
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Success(Term("t9", "newterm")));
         moderation
-            .GetBlockedTermsAsync(
-                Tenant,
+            .GetBlockedTermsAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
                 Arg.Any<TwitchPageRequest>(),
                 Arg.Any<CancellationToken>()
             )
@@ -241,14 +280,19 @@ public sealed class ModerationServiceTwitchReadsTests
             );
 
         Result<List<string>> result = await NewService(moderation)
-            .AddBlockedTermAsync(BroadcasterId, "  newterm  ");
+            .AddBlockedTermAsync(BroadcasterId, Operator, "  newterm  ");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().ContainSingle().Which.Should().Be("newterm");
-        // The term reached Twitch (trimmed), not a local store.
+        // The term reached Twitch (trimmed) AS THE OPERATOR, not a local store.
         await moderation
             .Received(1)
-            .AddBlockedTermAsync(Tenant, "newterm", Arg.Any<CancellationToken>());
+            .AddBlockedTermAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                "newterm",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -256,8 +300,9 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .GetBlockedTermsAsync(
-                Tenant,
+            .GetBlockedTermsAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
                 Arg.Any<TwitchPageRequest>(),
                 Arg.Any<CancellationToken>()
             )
@@ -271,20 +316,35 @@ public sealed class ModerationServiceTwitchReadsTests
                 )
             );
         moderation
-            .RemoveBlockedTermAsync(Tenant, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .RemoveBlockedTermAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Success());
 
         Result<List<string>> result = await NewService(moderation)
-            .RemoveBlockedTermAsync(BroadcasterId, "BADWORD"); // case-insensitive match
+            .RemoveBlockedTermAsync(BroadcasterId, Operator, "BADWORD"); // case-insensitive match
 
         result.IsSuccess.Should().BeTrue();
-        // Deleted the matching term BY ITS TWITCH ID, and left the other alone.
+        // Deleted the matching term BY ITS TWITCH ID as the operator, and left the other alone.
         await moderation
             .Received(1)
-            .RemoveBlockedTermAsync(Tenant, "kill-id", Arg.Any<CancellationToken>());
+            .RemoveBlockedTermAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                "kill-id",
+                Arg.Any<CancellationToken>()
+            );
         await moderation
             .DidNotReceive()
-            .RemoveBlockedTermAsync(Tenant, "keep-id", Arg.Any<CancellationToken>());
+            .RemoveBlockedTermAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                "keep-id",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -292,8 +352,9 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .GetBlockedTermsAsync(
-                Tenant,
+            .GetBlockedTermsAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
                 Arg.Any<TwitchPageRequest>(),
                 Arg.Any<CancellationToken>()
             )
@@ -308,14 +369,15 @@ public sealed class ModerationServiceTwitchReadsTests
             );
 
         Result<List<string>> result = await NewService(moderation)
-            .RemoveBlockedTermAsync(BroadcasterId, "not-present");
+            .RemoveBlockedTermAsync(BroadcasterId, Operator, "not-present");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeEquivalentTo(["keeper"]);
         await moderation
             .DidNotReceive()
-            .RemoveBlockedTermAsync(
+            .RemoveBlockedTermAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             );
@@ -328,12 +390,16 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .GetShieldModeStatusAsync(Tenant, Arg.Any<CancellationToken>())
+            .GetShieldModeStatusAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                Arg.Any<CancellationToken>()
+            )
             .Returns(
                 Result.Success(
                     new TwitchShieldModeStatus(
                         IsActive: true,
-                        ModeratorId: "1001",
+                        ModeratorId: BroadcasterTwitchId,
                         ModeratorLogin: "owner",
                         ModeratorName: "Owner",
                         LastActivatedAt: DateTimeOffset.UnixEpoch
@@ -341,7 +407,8 @@ public sealed class ModerationServiceTwitchReadsTests
                 )
             );
 
-        Result<bool> result = await NewService(moderation).GetShieldModeAsync(BroadcasterId);
+        Result<bool> result = await NewService(moderation)
+            .GetShieldModeAsync(BroadcasterId, Operator);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeTrue();
@@ -352,12 +419,17 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .UpdateShieldModeStatusAsync(Tenant, true, Arg.Any<CancellationToken>())
+            .UpdateShieldModeStatusAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                true,
+                Arg.Any<CancellationToken>()
+            )
             .Returns(
                 Result.Success(
                     new TwitchShieldModeStatus(
                         IsActive: true,
-                        ModeratorId: "1001",
+                        ModeratorId: BroadcasterTwitchId,
                         ModeratorLogin: "owner",
                         ModeratorName: "Owner",
                         LastActivatedAt: DateTimeOffset.UnixEpoch
@@ -365,14 +437,20 @@ public sealed class ModerationServiceTwitchReadsTests
                 )
             );
 
-        Result<bool> result = await NewService(moderation).SetShieldModeAsync(BroadcasterId, true);
+        Result<bool> result = await NewService(moderation)
+            .SetShieldModeAsync(BroadcasterId, Operator, true);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeTrue();
-        // The toggle actually armed Shield Mode ON TWITCH — not a local flag.
+        // The toggle actually armed Shield Mode ON TWITCH as the operator — not a local flag.
         await moderation
             .Received(1)
-            .UpdateShieldModeStatusAsync(Tenant, true, Arg.Any<CancellationToken>());
+            .UpdateShieldModeStatusAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                true,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -380,10 +458,16 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .UpdateShieldModeStatusAsync(Tenant, true, Arg.Any<CancellationToken>())
+            .UpdateShieldModeStatusAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                true,
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Failure<TwitchShieldModeStatus>("Missing scope.", "missing_scope"));
 
-        Result<bool> result = await NewService(moderation).SetShieldModeAsync(BroadcasterId, true);
+        Result<bool> result = await NewService(moderation)
+            .SetShieldModeAsync(BroadcasterId, Operator, true);
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("missing_scope");
@@ -396,8 +480,9 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .GetUnbanRequestsAsync(
-                Tenant,
+            .GetUnbanRequestsAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
                 "pending",
                 Arg.Any<TwitchPageRequest>(),
                 Arg.Any<CancellationToken>()
@@ -413,7 +498,7 @@ public sealed class ModerationServiceTwitchReadsTests
             );
 
         Result<List<UnbanRequestDto>> result = await NewService(moderation)
-            .GetUnbanRequestsAsync(BroadcasterId, "pending");
+            .GetUnbanRequestsAsync(BroadcasterId, Operator, "pending");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().HaveCount(2);
@@ -431,14 +516,15 @@ public sealed class ModerationServiceTwitchReadsTests
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
 
         Result<List<UnbanRequestDto>> result = await NewService(moderation)
-            .GetUnbanRequestsAsync(BroadcasterId, "bogus");
+            .GetUnbanRequestsAsync(BroadcasterId, Operator, "bogus");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
         await moderation
             .DidNotReceive()
-            .GetUnbanRequestsAsync(
+            .GetUnbanRequestsAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<TwitchPageRequest>(),
                 Arg.Any<CancellationToken>()
@@ -450,8 +536,9 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .ResolveUnbanRequestAsync(
-                Tenant,
+            .ResolveUnbanRequestAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
                 "req-7",
                 "approved",
                 "welcome back",
@@ -470,17 +557,24 @@ public sealed class ModerationServiceTwitchReadsTests
             );
 
         Result<UnbanRequestDto> result = await NewService(moderation)
-            .ResolveUnbanRequestAsync(BroadcasterId, "req-7", approve: true, note: "welcome back");
+            .ResolveUnbanRequestAsync(
+                BroadcasterId,
+                Operator,
+                "req-7",
+                approve: true,
+                note: "welcome back"
+            );
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be("approved");
         result.Value.ResolvedBy.Should().Be("ModAlice");
         result.Value.ResolutionText.Should().Be("welcome back");
-        // The APPROVED status reached Twitch (not a local flag).
+        // The APPROVED status reached Twitch as the operator (not a local flag).
         await moderation
             .Received(1)
-            .ResolveUnbanRequestAsync(
-                Tenant,
+            .ResolveUnbanRequestAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
                 "req-7",
                 "approved",
                 "welcome back",
@@ -493,18 +587,26 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .ResolveUnbanRequestAsync(Tenant, "req-9", "denied", null, Arg.Any<CancellationToken>())
+            .ResolveUnbanRequestAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                "req-9",
+                "denied",
+                null,
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Success(Unban("9", "Nope", "denied", moderatorName: "ModBob")));
 
         Result<UnbanRequestDto> result = await NewService(moderation)
-            .ResolveUnbanRequestAsync(BroadcasterId, "req-9", approve: false, note: null);
+            .ResolveUnbanRequestAsync(BroadcasterId, Operator, "req-9", approve: false, note: null);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be("denied");
         await moderation
             .Received(1)
-            .ResolveUnbanRequestAsync(
-                Tenant,
+            .ResolveUnbanRequestAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
                 "req-9",
                 "denied",
                 null,
@@ -517,8 +619,9 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .ResolveUnbanRequestAsync(
-                Tenant,
+            .ResolveUnbanRequestAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
                 "req-1",
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
@@ -527,7 +630,7 @@ public sealed class ModerationServiceTwitchReadsTests
             .Returns(Result.Failure<TwitchUnbanRequest>("Missing scope.", "missing_scope"));
 
         Result<UnbanRequestDto> result = await NewService(moderation)
-            .ResolveUnbanRequestAsync(BroadcasterId, "req-1", approve: true, note: null);
+            .ResolveUnbanRequestAsync(BroadcasterId, Operator, "req-1", approve: true, note: null);
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("missing_scope");
@@ -545,7 +648,7 @@ public sealed class ModerationServiceTwitchReadsTests
             new Channel
             {
                 Id = Tenant,
-                TwitchChannelId = "1001",
+                TwitchChannelId = BroadcasterTwitchId,
                 OwnerUserId = Guid.NewGuid(),
                 Name = "c",
                 NameNormalized = "c",
@@ -568,22 +671,39 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .WarnChatUserAsync(Tenant, "5005", "be nice", Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new TwitchWarningResult("1001", "5005", "1001", "be nice")));
+            .WarnChatUserAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                "5005",
+                "be nice",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchWarningResult(BroadcasterTwitchId, "5005", "1001", "be nice")
+                )
+            );
         (ModerationService service, ModerationServiceTestDbContext db) =
             await NewServiceWithChannelAsync(moderation);
 
         Result<ModerationActionResult> result = await service.WarnUserAsync(
             BroadcasterId,
+            Operator,
             "5005",
             "be nice"
         );
 
         result.IsSuccess.Should().BeTrue();
-        // Twitch actually issued the warning…
+        // Twitch actually issued the warning AS THE OPERATOR…
         await moderation
             .Received(1)
-            .WarnChatUserAsync(Tenant, "5005", "be nice", Arg.Any<CancellationToken>());
+            .WarnChatUserAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                "5005",
+                "be nice",
+                Arg.Any<CancellationToken>()
+            );
         // …and exactly one "warn" action was recorded to the mod log afterwards.
         List<Record> records = await db.Records.Where(r => r.Data.Contains("warn")).ToListAsync();
         records.Should().ContainSingle();
@@ -596,14 +716,15 @@ public sealed class ModerationServiceTwitchReadsTests
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
 
         Result<ModerationActionResult> result = await NewService(moderation)
-            .WarnUserAsync(BroadcasterId, "5005", "   ");
+            .WarnUserAsync(BroadcasterId, Operator, "5005", "   ");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
         await moderation
             .DidNotReceive()
-            .WarnChatUserAsync(
+            .WarnChatUserAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
@@ -615,13 +736,20 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .WarnChatUserAsync(Tenant, "5005", "be nice", Arg.Any<CancellationToken>())
+            .WarnChatUserAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                "5005",
+                "be nice",
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Failure<TwitchWarningResult>("Missing scope.", "missing_scope"));
         (ModerationService service, ModerationServiceTestDbContext db) =
             await NewServiceWithChannelAsync(moderation);
 
         Result<ModerationActionResult> result = await service.WarnUserAsync(
             BroadcasterId,
+            Operator,
             "5005",
             "be nice"
         );
@@ -638,13 +766,19 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .AddSuspiciousStatusAsync(Tenant, "5005", "restricted", Arg.Any<CancellationToken>())
+            .AddSuspiciousStatusAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                "5005",
+                "restricted",
+                Arg.Any<CancellationToken>()
+            )
             .Returns(
                 Result.Success(
                     new TwitchSuspiciousUserStatus(
                         "5005",
-                        "1001",
-                        "1001",
+                        BroadcasterTwitchId,
+                        BroadcasterTwitchId,
                         new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
                         "restricted",
                         ["ban_evader"]
@@ -653,14 +787,20 @@ public sealed class ModerationServiceTwitchReadsTests
             );
 
         Result<SuspiciousStatusDto> result = await NewService(moderation)
-            .SetSuspiciousStatusAsync(BroadcasterId, "5005", "RESTRICTED");
+            .SetSuspiciousStatusAsync(BroadcasterId, Operator, "5005", "RESTRICTED");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be("restricted");
         result.Value.Types.Should().ContainSingle().Which.Should().Be("ban_evader");
         await moderation
             .Received(1)
-            .AddSuspiciousStatusAsync(Tenant, "5005", "restricted", Arg.Any<CancellationToken>());
+            .AddSuspiciousStatusAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                "5005",
+                "restricted",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -669,14 +809,15 @@ public sealed class ModerationServiceTwitchReadsTests
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
 
         Result<SuspiciousStatusDto> result = await NewService(moderation)
-            .SetSuspiciousStatusAsync(BroadcasterId, "5005", "banned");
+            .SetSuspiciousStatusAsync(BroadcasterId, Operator, "5005", "banned");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
         await moderation
             .DidNotReceive()
-            .AddSuspiciousStatusAsync(
+            .AddSuspiciousStatusAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
@@ -688,13 +829,18 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .RemoveSuspiciousStatusAsync(Tenant, "5005", Arg.Any<CancellationToken>())
+            .RemoveSuspiciousStatusAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                "5005",
+                Arg.Any<CancellationToken>()
+            )
             .Returns(
                 Result.Success(
                     new TwitchSuspiciousUserStatus(
                         "5005",
-                        "1001",
-                        "1001",
+                        BroadcasterTwitchId,
+                        BroadcasterTwitchId,
                         new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
                         "none",
                         []
@@ -703,13 +849,18 @@ public sealed class ModerationServiceTwitchReadsTests
             );
 
         Result<SuspiciousStatusDto> result = await NewService(moderation)
-            .ClearSuspiciousStatusAsync(BroadcasterId, "5005");
+            .ClearSuspiciousStatusAsync(BroadcasterId, Operator, "5005");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be("none");
         await moderation
             .Received(1)
-            .RemoveSuspiciousStatusAsync(Tenant, "5005", Arg.Any<CancellationToken>());
+            .RemoveSuspiciousStatusAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                "5005",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     // ─── Per-user context ─────────────────────────────────────────────────────

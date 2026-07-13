@@ -18,9 +18,14 @@ namespace NomNomzBot.Application.Moderation.Services;
 /// </summary>
 public interface IModerationService
 {
-    /// <summary>Timeout a user in a channel.</summary>
+    /// <summary>
+    /// Timeout a user in a channel. Signed with the acting <paramref name="operatorUserId"/>'s OWN Twitch token
+    /// (Twitch's mod ledger attributes it to them, and it works on any channel they moderate), while the local
+    /// mod-log record is attributed to <paramref name="moderatorId"/>.
+    /// </summary>
     Task<Result<ModerationActionResult>> TimeoutAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string targetUserId,
         int durationSeconds,
         string? reason = null,
@@ -28,18 +33,28 @@ public interface IModerationService
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Ban a user from a channel.</summary>
+    /// <summary>
+    /// Ban a user from a channel. Signed with the acting <paramref name="operatorUserId"/>'s OWN Twitch token
+    /// (Twitch's mod ledger attributes it to them, and it works on any channel they moderate), while the local
+    /// mod-log record is attributed to <paramref name="moderatorId"/>.
+    /// </summary>
     Task<Result<ModerationActionResult>> BanAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string targetUserId,
         string? reason = null,
         string? moderatorId = null,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Unban a user in a channel.</summary>
+    /// <summary>
+    /// Unban a user in a channel. Signed with the acting <paramref name="operatorUserId"/>'s OWN Twitch token
+    /// (Twitch's mod ledger attributes it to them, and it works on any channel they moderate), while the local
+    /// mod-log record is attributed to <paramref name="moderatorId"/>.
+    /// </summary>
     Task<Result<ModerationActionResult>> UnbanAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string targetUserId,
         string? moderatorId = null,
         CancellationToken cancellationToken = default
@@ -100,78 +115,92 @@ public interface IModerationService
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>List the channel's blocked terms (text only), read live from the Twitch moderation API.</summary>
+    /// <summary>List the channel's blocked terms (text only), read live from the Twitch moderation API as the operator.</summary>
     Task<Result<List<string>>> GetBlockedTermsAsync(
         string broadcasterId,
+        Guid operatorUserId,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Add a blocked term on Twitch and return the refreshed list.</summary>
+    /// <summary>Add a blocked term on Twitch as the operator and return the refreshed list.</summary>
     Task<Result<List<string>>> AddBlockedTermAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string text,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Remove a blocked term (matched by its text) on Twitch and return the refreshed list.</summary>
+    /// <summary>Remove a blocked term (matched by its text) on Twitch as the operator and return the refreshed list.</summary>
     Task<Result<List<string>>> RemoveBlockedTermAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string text,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>The channel's current Shield Mode activation, read live from the Twitch moderation API.</summary>
+    /// <summary>The channel's current Shield Mode activation, read live from the Twitch moderation API as the operator.</summary>
     Task<Result<bool>> GetShieldModeAsync(
         string broadcasterId,
+        Guid operatorUserId,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Activate or deactivate Shield Mode on Twitch and return the applied state.</summary>
+    /// <summary>Activate or deactivate Shield Mode on Twitch as the operator and return the applied state.</summary>
     Task<Result<bool>> SetShieldModeAsync(
         string broadcasterId,
+        Guid operatorUserId,
         bool isActive,
         CancellationToken cancellationToken = default
     );
 
     /// <summary>
     /// List the channel's unban requests filtered by <paramref name="status"/> (pending / approved / denied /
-    /// acknowledged / canceled), read live from the Twitch moderation API.
+    /// acknowledged / canceled), read live from the Twitch moderation API as the operator.
     /// </summary>
     Task<Result<List<UnbanRequestDto>>> GetUnbanRequestsAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string status,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Approve or deny an unban request on Twitch, returning the resolved request.</summary>
+    /// <summary>Approve or deny an unban request on Twitch as the operator, returning the resolved request.</summary>
     Task<Result<UnbanRequestDto>> ResolveUnbanRequestAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string unbanRequestId,
         bool approve,
         string? note,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Warn a chatter on Twitch (gating their chat until they acknowledge it) and record it to the mod log.</summary>
+    /// <summary>
+    /// Warn a chatter on Twitch (gating their chat until they acknowledge it) and record it to the mod log. Signed
+    /// with the acting <paramref name="operatorUserId"/>'s OWN Twitch token, while the local record is attributed to
+    /// <paramref name="moderatorId"/>.
+    /// </summary>
     Task<Result<ModerationActionResult>> WarnUserAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string targetUserId,
         string reason,
         string? moderatorId = null,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Flag a chatter as suspicious on Twitch (<c>active_monitoring</c> or <c>restricted</c>), returning the applied status.</summary>
+    /// <summary>Flag a chatter as suspicious on Twitch as the operator (<c>active_monitoring</c> or <c>restricted</c>), returning the applied status.</summary>
     Task<Result<SuspiciousStatusDto>> SetSuspiciousStatusAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string targetUserId,
         string status,
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Clear a chatter's suspicious-user flag on Twitch, returning the resulting status.</summary>
+    /// <summary>Clear a chatter's suspicious-user flag on Twitch as the operator, returning the resulting status.</summary>
     Task<Result<SuspiciousStatusDto>> ClearSuspiciousStatusAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string targetUserId,
         CancellationToken cancellationToken = default
     );

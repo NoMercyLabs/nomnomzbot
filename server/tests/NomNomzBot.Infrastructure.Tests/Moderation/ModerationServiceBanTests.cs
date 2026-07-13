@@ -38,6 +38,9 @@ public sealed class ModerationServiceBanTests
     private const string ViewerTwitchId = "5005";
 
     private static readonly Guid Tenant = Guid.Parse("019f2802-5c77-7dc8-b6f6-b4b98e624b8a");
+
+    // The logged-in operator whose OWN Twitch token now signs every dashboard moderation call (moderator_id = them).
+    private static readonly Guid Operator = Guid.Parse("019f2802-5c77-7dc8-b6f6-000000000999");
     private static string BroadcasterId => Tenant.ToString();
 
     private static ModerationService NewService(
@@ -83,7 +86,7 @@ public sealed class ModerationServiceBanTests
 
         // Target id == the channel's own broadcaster Twitch id.
         Result<ModerationActionResult> result = await NewService(db, moderation)
-            .BanAsync(BroadcasterId, BroadcasterTwitchId);
+            .BanAsync(BroadcasterId, Operator, BroadcasterTwitchId);
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("CANNOT_MODERATE_BROADCASTER");
@@ -92,11 +95,12 @@ public sealed class ModerationServiceBanTests
         (await db.Records.CountAsync())
             .Should()
             .Be(0);
-        // …and Twitch was never asked to ban the owner.
+        // …and Twitch was never asked to ban the owner (guard short-circuits before the operator Helix call).
         await moderation
             .Received(0)
-            .BanUserAsync(
+            .BanAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
@@ -111,7 +115,7 @@ public sealed class ModerationServiceBanTests
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
 
         Result<ModerationActionResult> result = await NewService(db, moderation)
-            .TimeoutAsync(BroadcasterId, BroadcasterTwitchId, durationSeconds: 600);
+            .TimeoutAsync(BroadcasterId, Operator, BroadcasterTwitchId, durationSeconds: 600);
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("CANNOT_MODERATE_BROADCASTER");
@@ -119,8 +123,9 @@ public sealed class ModerationServiceBanTests
         (await db.Records.CountAsync()).Should().Be(0);
         await moderation
             .Received(0)
-            .TimeoutUserAsync(
+            .TimeoutAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<int>(),
                 Arg.Any<string?>(),
@@ -138,8 +143,9 @@ public sealed class ModerationServiceBanTests
 
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .BanUserAsync(
+            .BanAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
@@ -147,14 +153,21 @@ public sealed class ModerationServiceBanTests
             .Returns(TwitchSuccess(ViewerTwitchId));
 
         Result<ModerationActionResult> result = await NewService(db, moderation)
-            .BanAsync(BroadcasterId, ViewerTwitchId, reason: "spam");
+            .BanAsync(BroadcasterId, Operator, ViewerTwitchId, reason: "spam");
 
         result.IsSuccess.Should().BeTrue();
 
-        // Twitch was actually asked to ban this viewer (enforcement happens, not just recording).
+        // Twitch was actually asked to ban this viewer AS THE OPERATOR — signed with the operator's own id
+        // (moderator_id) against the channel's RAW broadcaster Twitch id, not the tenant Guid.
         await moderation
             .Received(1)
-            .BanUserAsync(Tenant, ViewerTwitchId, "spam", Arg.Any<CancellationToken>());
+            .BanAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                ViewerTwitchId,
+                "spam",
+                Arg.Any<CancellationToken>()
+            );
 
         // Exactly one action record, of the right type, naming the ban and the target id — this feeds the mod
         // action log. (The dashboard's *banned-users* list is read live from Twitch, not from these rows; that
@@ -179,8 +192,9 @@ public sealed class ModerationServiceBanTests
 
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
-            .BanUserAsync(
+            .BanAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
@@ -190,7 +204,7 @@ public sealed class ModerationServiceBanTests
             );
 
         Result<ModerationActionResult> result = await NewService(db, moderation)
-            .BanAsync(BroadcasterId, ViewerTwitchId, reason: "spam");
+            .BanAsync(BroadcasterId, Operator, ViewerTwitchId, reason: "spam");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorMessage.Should().Be("Twitch request failed (400).");

@@ -50,6 +50,7 @@ public class ModerationService : IModerationService
 
     public async Task<Result<ModerationActionResult>> TimeoutAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string targetUserId,
         int durationSeconds,
         string? reason = null,
@@ -69,11 +70,21 @@ public class ModerationService : IModerationService
         if (guard.IsFailure)
             return Result.Failure<ModerationActionResult>(guard.ErrorMessage!, guard.ErrorCode!);
 
+        Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
+            tenantId,
+            cancellationToken
+        );
+        if (broadcaster.IsFailure)
+            return broadcaster.WithValue<ModerationActionResult>(default!);
+
         // Enforce on Twitch FIRST, and only record the action once Twitch actually applied it. The dashboard's
         // action log and banned-viewers list are built from these local records, so recording before (or
-        // regardless of) the Helix call is what let a timeout Twitch rejected show up as if it had happened.
-        Result<TwitchBanResult> twitchResult = await _moderation.TimeoutUserAsync(
-            tenantId,
+        // regardless of) the Helix call is what let a timeout Twitch rejected show up as if it had happened. The
+        // call is signed with the OPERATOR's own token (moderator_id = operator), so Twitch attributes the timeout
+        // to them and it works on any channel they moderate.
+        Result<TwitchBanResult> twitchResult = await _moderation.TimeoutAsOperatorAsync(
+            operatorUserId,
+            broadcaster.Value,
             targetUserId,
             durationSeconds,
             reason,
@@ -98,6 +109,7 @@ public class ModerationService : IModerationService
 
     public async Task<Result<ModerationActionResult>> BanAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string targetUserId,
         string? reason = null,
         string? moderatorId = null,
@@ -116,11 +128,21 @@ public class ModerationService : IModerationService
         if (guard.IsFailure)
             return Result.Failure<ModerationActionResult>(guard.ErrorMessage!, guard.ErrorCode!);
 
+        Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
+            tenantId,
+            cancellationToken
+        );
+        if (broadcaster.IsFailure)
+            return broadcaster.WithValue<ModerationActionResult>(default!);
+
         // Enforce on Twitch FIRST, and only record the ban once Twitch actually applied it. The dashboard's
         // banned-viewers list is built from these local records, so recording before (or regardless of) the
-        // Helix result is exactly what let a ban Twitch rejected — e.g. banning the broadcaster — show as real.
-        Result<TwitchBanResult> twitchResult = await _moderation.BanUserAsync(
-            tenantId,
+        // Helix result is exactly what let a ban Twitch rejected — e.g. banning the broadcaster — show as real. The
+        // call is signed with the OPERATOR's own token (moderator_id = operator), so Twitch attributes the ban to
+        // them and it works on any channel they moderate.
+        Result<TwitchBanResult> twitchResult = await _moderation.BanAsOperatorAsync(
+            operatorUserId,
+            broadcaster.Value,
             targetUserId,
             reason,
             cancellationToken
@@ -144,6 +166,7 @@ public class ModerationService : IModerationService
 
     public async Task<Result<ModerationActionResult>> UnbanAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string targetUserId,
         string? moderatorId = null,
         CancellationToken cancellationToken = default
@@ -164,18 +187,36 @@ public class ModerationService : IModerationService
 
         if (result.IsSuccess)
         {
-            Result twitchResult = await _moderation.UnbanUserAsync(
+            // Sign the unban with the OPERATOR's own token (moderator_id = operator) so Twitch attributes it to them
+            // and it works on any channel they moderate. Best-effort: a resolve/Helix failure only warns — the local
+            // record already stands.
+            Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
                 tenantId,
-                targetUserId,
                 cancellationToken
             );
-            if (twitchResult.IsFailure)
+            if (broadcaster.IsFailure)
                 _logger.LogWarning(
-                    "Twitch API unban failed for {UserId} in {Channel}: {Error}",
+                    "Twitch API unban skipped for {UserId} in {Channel}: {Error}",
                     targetUserId,
                     tenantId,
-                    twitchResult.ErrorMessage
+                    broadcaster.ErrorMessage
                 );
+            else
+            {
+                Result twitchResult = await _moderation.UnbanAsOperatorAsync(
+                    operatorUserId,
+                    broadcaster.Value,
+                    targetUserId,
+                    cancellationToken
+                );
+                if (twitchResult.IsFailure)
+                    _logger.LogWarning(
+                        "Twitch API unban failed for {UserId} in {Channel}: {Error}",
+                        targetUserId,
+                        tenantId,
+                        twitchResult.ErrorMessage
+                    );
+            }
         }
 
         return result;
@@ -450,6 +491,23 @@ public class ModerationService : IModerationService
         return Result.Success();
     }
 
+    // The dashboard moderation surface acts AS THE OPERATOR, so every Helix call needs the RAW Twitch id of the
+    // channel being moderated (never a tenant Guid) as broadcaster_id. Resolve it from the tenant once and reuse it.
+    private async Task<Result<string>> ResolveBroadcasterTwitchIdAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken
+    )
+    {
+        string? broadcasterTwitchId = await _db
+            .Channels.Where(c => c.Id == tenantId)
+            .Select(c => c.TwitchChannelId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return string.IsNullOrEmpty(broadcasterTwitchId)
+            ? Errors.ChannelNotFound<string>(tenantId.ToString())
+            : Result.Success(broadcasterTwitchId);
+    }
+
     private async Task<Result<ModerationActionResult>> RecordActionAsync(
         Guid tenantId,
         string action,
@@ -709,8 +767,10 @@ public class ModerationService : IModerationService
 
         // Read the LIVE banned list from Twitch, not just the bans the bot itself recorded — a viewer banned
         // through Twitch's own UI or by another moderator must appear here too, and Twitch's payload carries the
-        // real reason, moderator and timestamp. A failure (missing scope / no broadcaster token for a channel we
-        // don't manage) surfaces as an honest error, never a silently-empty "no bans" list.
+        // real reason, moderator and timestamp. Unlike the write/other-read paths, this stays on the BROADCASTER
+        // token: Twitch's Get Banned Users requires broadcaster_id == the token's user and takes no moderator_id, so
+        // it cannot be delegated to the operator. A channel with a stale/absent broadcaster connection surfaces an
+        // honest error, never a silently-empty "no bans" list.
         List<BannedUserDto> banned = [];
         string? cursor = null;
         int pageGuard = 0;
@@ -755,14 +815,23 @@ public class ModerationService : IModerationService
 
     public async Task<Result<List<string>>> GetBlockedTermsAsync(
         string broadcasterId,
+        Guid operatorUserId,
         CancellationToken cancellationToken = default
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return Errors.ChannelNotFound<List<string>>(broadcasterId);
 
-        Result<List<TwitchBlockedTerm>> terms = await ReadAllBlockedTermsAsync(
+        Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
             tenantId,
+            cancellationToken
+        );
+        if (broadcaster.IsFailure)
+            return broadcaster.WithValue<List<string>>(default!);
+
+        Result<List<TwitchBlockedTerm>> terms = await ReadAllBlockedTermsAsync(
+            operatorUserId,
+            broadcaster.Value,
             cancellationToken
         );
         if (terms.IsFailure)
@@ -773,6 +842,7 @@ public class ModerationService : IModerationService
 
     public async Task<Result<List<string>>> AddBlockedTermAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string text,
         CancellationToken cancellationToken = default
     )
@@ -785,10 +855,19 @@ public class ModerationService : IModerationService
                 "VALIDATION_FAILED"
             );
 
-        // Add the term ON TWITCH — the block list is Twitch's, so a dashboard-added term that never reached
-        // Helix would be a phantom control. Twitch owns validation (length, wildcard rules) and reports it back.
-        Result<TwitchBlockedTerm> added = await _moderation.AddBlockedTermAsync(
+        Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
             tenantId,
+            cancellationToken
+        );
+        if (broadcaster.IsFailure)
+            return broadcaster.WithValue<List<string>>(default!);
+
+        // Add the term ON TWITCH as the OPERATOR — the block list is Twitch's, so a dashboard-added term that never
+        // reached Helix would be a phantom control. Twitch owns validation (length, wildcard rules) and reports it
+        // back; the operator's own token means it works on any channel they moderate.
+        Result<TwitchBlockedTerm> added = await _moderation.AddBlockedTermAsOperatorAsync(
+            operatorUserId,
+            broadcaster.Value,
             text.Trim(),
             cancellationToken
         );
@@ -802,11 +881,12 @@ public class ModerationService : IModerationService
             "created",
             cancellationToken
         );
-        return await GetBlockedTermsAsync(broadcasterId, cancellationToken);
+        return await GetBlockedTermsAsync(broadcasterId, operatorUserId, cancellationToken);
     }
 
     public async Task<Result<List<string>>> RemoveBlockedTermAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string text,
         CancellationToken cancellationToken = default
     )
@@ -814,10 +894,19 @@ public class ModerationService : IModerationService
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return Errors.ChannelNotFound<List<string>>(broadcasterId);
 
-        // Helix removes a blocked term by its id, but the dashboard only knows the text the moderator sees.
-        // Resolve the current list, then delete every entry whose text matches (Twitch permits duplicates).
-        Result<List<TwitchBlockedTerm>> current = await ReadAllBlockedTermsAsync(
+        Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
             tenantId,
+            cancellationToken
+        );
+        if (broadcaster.IsFailure)
+            return broadcaster.WithValue<List<string>>(default!);
+
+        // Helix removes a blocked term by its id, but the dashboard only knows the text the moderator sees.
+        // Resolve the current list, then delete every entry whose text matches (Twitch permits duplicates). Both the
+        // read and the deletes ride the OPERATOR's own token, so they work on any channel they moderate.
+        Result<List<TwitchBlockedTerm>> current = await ReadAllBlockedTermsAsync(
+            operatorUserId,
+            broadcaster.Value,
             cancellationToken
         );
         if (current.IsFailure)
@@ -833,8 +922,9 @@ public class ModerationService : IModerationService
 
         foreach (TwitchBlockedTerm term in matches)
         {
-            Result removal = await _moderation.RemoveBlockedTermAsync(
-                tenantId,
+            Result removal = await _moderation.RemoveBlockedTermAsOperatorAsync(
+                operatorUserId,
+                broadcaster.Value,
                 term.Id,
                 cancellationToken
             );
@@ -849,21 +939,31 @@ public class ModerationService : IModerationService
             "deleted",
             cancellationToken
         );
-        return await GetBlockedTermsAsync(broadcasterId, cancellationToken);
+        return await GetBlockedTermsAsync(broadcasterId, operatorUserId, cancellationToken);
     }
 
     public async Task<Result<bool>> GetShieldModeAsync(
         string broadcasterId,
+        Guid operatorUserId,
         CancellationToken cancellationToken = default
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return Errors.ChannelNotFound<bool>(broadcasterId);
 
-        Result<TwitchShieldModeStatus> status = await _moderation.GetShieldModeStatusAsync(
+        Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
             tenantId,
             cancellationToken
         );
+        if (broadcaster.IsFailure)
+            return broadcaster.WithValue<bool>(default!);
+
+        Result<TwitchShieldModeStatus> status =
+            await _moderation.GetShieldModeStatusAsOperatorAsync(
+                operatorUserId,
+                broadcaster.Value,
+                cancellationToken
+            );
         if (status.IsFailure)
             return Result.Failure<bool>(status.ErrorMessage!, status.ErrorCode!);
 
@@ -872,6 +972,7 @@ public class ModerationService : IModerationService
 
     public async Task<Result<bool>> SetShieldModeAsync(
         string broadcasterId,
+        Guid operatorUserId,
         bool isActive,
         CancellationToken cancellationToken = default
     )
@@ -879,13 +980,23 @@ public class ModerationService : IModerationService
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return Errors.ChannelNotFound<bool>(broadcasterId);
 
-        // Toggle Shield Mode ON TWITCH — storing the flag locally without calling Helix (the previous behavior)
-        // was a cosmetic switch that never armed the real protection. Twitch returns the applied state.
-        Result<TwitchShieldModeStatus> updated = await _moderation.UpdateShieldModeStatusAsync(
+        Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
             tenantId,
-            isActive,
             cancellationToken
         );
+        if (broadcaster.IsFailure)
+            return broadcaster.WithValue<bool>(default!);
+
+        // Toggle Shield Mode ON TWITCH as the OPERATOR — storing the flag locally without calling Helix (the
+        // previous behavior) was a cosmetic switch that never armed the real protection. Twitch returns the applied
+        // state; the operator's own token means it works on any channel they moderate.
+        Result<TwitchShieldModeStatus> updated =
+            await _moderation.UpdateShieldModeStatusAsOperatorAsync(
+                operatorUserId,
+                broadcaster.Value,
+                isActive,
+                cancellationToken
+            );
         if (updated.IsFailure)
             return Result.Failure<bool>(updated.ErrorMessage!, updated.ErrorCode!);
 
@@ -914,6 +1025,7 @@ public class ModerationService : IModerationService
 
     public async Task<Result<List<UnbanRequestDto>>> GetUnbanRequestsAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string status,
         CancellationToken cancellationToken = default
     )
@@ -926,17 +1038,26 @@ public class ModerationService : IModerationService
                 "VALIDATION_FAILED"
             );
 
+        Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
+            tenantId,
+            cancellationToken
+        );
+        if (broadcaster.IsFailure)
+            return broadcaster.WithValue<List<UnbanRequestDto>>(default!);
+
         List<UnbanRequestDto> requests = [];
         string? cursor = null;
         int pageGuard = 0;
         do
         {
-            Result<TwitchPage<TwitchUnbanRequest>> page = await _moderation.GetUnbanRequestsAsync(
-                tenantId,
-                status,
-                new TwitchPageRequest(After: cursor),
-                cancellationToken
-            );
+            Result<TwitchPage<TwitchUnbanRequest>> page =
+                await _moderation.GetUnbanRequestsAsOperatorAsync(
+                    operatorUserId,
+                    broadcaster.Value,
+                    status,
+                    new TwitchPageRequest(After: cursor),
+                    cancellationToken
+                );
             if (page.IsFailure)
                 return Result.Failure<List<UnbanRequestDto>>(
                     page.ErrorMessage ?? "Twitch rejected the unban-requests read.",
@@ -952,6 +1073,7 @@ public class ModerationService : IModerationService
 
     public async Task<Result<UnbanRequestDto>> ResolveUnbanRequestAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string unbanRequestId,
         bool approve,
         string? note,
@@ -961,11 +1083,21 @@ public class ModerationService : IModerationService
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return Errors.ChannelNotFound<UnbanRequestDto>(broadcasterId);
 
-        // Twitch's Resolve Unban Request takes the terminal status verbatim — approving lifts the ban, denying
-        // leaves it. The write actually happens on Twitch; we return the resolved request Twitch echoes back.
-        string resolvedStatus = approve ? "approved" : "denied";
-        Result<TwitchUnbanRequest> resolved = await _moderation.ResolveUnbanRequestAsync(
+        Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
             tenantId,
+            cancellationToken
+        );
+        if (broadcaster.IsFailure)
+            return broadcaster.WithValue<UnbanRequestDto>(default!);
+
+        // Twitch's Resolve Unban Request takes the terminal status verbatim — approving lifts the ban, denying
+        // leaves it. The write actually happens on Twitch as the OPERATOR (moderator_id = operator), so it is
+        // attributed to them and works on any channel they moderate; we return the resolved request Twitch echoes
+        // back.
+        string resolvedStatus = approve ? "approved" : "denied";
+        Result<TwitchUnbanRequest> resolved = await _moderation.ResolveUnbanRequestAsOperatorAsync(
+            operatorUserId,
+            broadcaster.Value,
             unbanRequestId,
             resolvedStatus,
             note,
@@ -1003,6 +1135,7 @@ public class ModerationService : IModerationService
 
     public async Task<Result<ModerationActionResult>> WarnUserAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string targetUserId,
         string reason,
         string? moderatorId = null,
@@ -1017,10 +1150,20 @@ public class ModerationService : IModerationService
                 "VALIDATION_FAILED"
             );
 
-        // Warn on Twitch FIRST; only record it to the mod log once Twitch actually issued the warning — the same
-        // enforce-then-record discipline as ban/timeout, so a warning Twitch rejected never shows up as history.
-        Result<TwitchWarningResult> warned = await _moderation.WarnChatUserAsync(
+        Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
             tenantId,
+            cancellationToken
+        );
+        if (broadcaster.IsFailure)
+            return broadcaster.WithValue<ModerationActionResult>(default!);
+
+        // Warn on Twitch FIRST; only record it to the mod log once Twitch actually issued the warning — the same
+        // enforce-then-record discipline as ban/timeout, so a warning Twitch rejected never shows up as history. The
+        // warning is signed with the OPERATOR's own token (moderator_id = operator), so Twitch attributes it to them
+        // and it works on any channel they moderate.
+        Result<TwitchWarningResult> warned = await _moderation.WarnChatUserAsOperatorAsync(
+            operatorUserId,
+            broadcaster.Value,
             targetUserId,
             reason,
             cancellationToken
@@ -1053,6 +1196,7 @@ public class ModerationService : IModerationService
 
     public async Task<Result<SuspiciousStatusDto>> SetSuspiciousStatusAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string targetUserId,
         string status,
         CancellationToken cancellationToken = default
@@ -1066,12 +1210,23 @@ public class ModerationService : IModerationService
                 "VALIDATION_FAILED"
             );
 
-        Result<TwitchSuspiciousUserStatus> applied = await _moderation.AddSuspiciousStatusAsync(
+        Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
             tenantId,
-            targetUserId,
-            status.ToLowerInvariant(),
             cancellationToken
         );
+        if (broadcaster.IsFailure)
+            return broadcaster.WithValue<SuspiciousStatusDto>(default!);
+
+        // Flag the user on Twitch as the OPERATOR (moderator_id = operator), so it is attributed to them and works
+        // on any channel they moderate.
+        Result<TwitchSuspiciousUserStatus> applied =
+            await _moderation.AddSuspiciousStatusAsOperatorAsync(
+                operatorUserId,
+                broadcaster.Value,
+                targetUserId,
+                status.ToLowerInvariant(),
+                cancellationToken
+            );
         if (applied.IsFailure)
             return Result.Failure<SuspiciousStatusDto>(applied.ErrorMessage!, applied.ErrorCode!);
 
@@ -1080,6 +1235,7 @@ public class ModerationService : IModerationService
 
     public async Task<Result<SuspiciousStatusDto>> ClearSuspiciousStatusAsync(
         string broadcasterId,
+        Guid operatorUserId,
         string targetUserId,
         CancellationToken cancellationToken = default
     )
@@ -1087,11 +1243,22 @@ public class ModerationService : IModerationService
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return Errors.ChannelNotFound<SuspiciousStatusDto>(broadcasterId);
 
-        Result<TwitchSuspiciousUserStatus> cleared = await _moderation.RemoveSuspiciousStatusAsync(
+        Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
             tenantId,
-            targetUserId,
             cancellationToken
         );
+        if (broadcaster.IsFailure)
+            return broadcaster.WithValue<SuspiciousStatusDto>(default!);
+
+        // Clear the flag on Twitch as the OPERATOR (moderator_id = operator), so it works on any channel they
+        // moderate.
+        Result<TwitchSuspiciousUserStatus> cleared =
+            await _moderation.RemoveSuspiciousStatusAsOperatorAsync(
+                operatorUserId,
+                broadcaster.Value,
+                targetUserId,
+                cancellationToken
+            );
         if (cleared.IsFailure)
             return Result.Failure<SuspiciousStatusDto>(cleared.ErrorMessage!, cleared.ErrorCode!);
 
@@ -1386,7 +1553,8 @@ public class ModerationService : IModerationService
     /// cursor loop.
     /// </summary>
     private async Task<Result<List<TwitchBlockedTerm>>> ReadAllBlockedTermsAsync(
-        Guid tenantId,
+        Guid operatorUserId,
+        string broadcasterTwitchId,
         CancellationToken cancellationToken
     )
     {
@@ -1395,11 +1563,13 @@ public class ModerationService : IModerationService
         int pageGuard = 0;
         do
         {
-            Result<TwitchPage<TwitchBlockedTerm>> page = await _moderation.GetBlockedTermsAsync(
-                tenantId,
-                new TwitchPageRequest(After: cursor),
-                cancellationToken
-            );
+            Result<TwitchPage<TwitchBlockedTerm>> page =
+                await _moderation.GetBlockedTermsAsOperatorAsync(
+                    operatorUserId,
+                    broadcasterTwitchId,
+                    new TwitchPageRequest(After: cursor),
+                    cancellationToken
+                );
             if (page.IsFailure)
                 return Result.Failure<List<TwitchBlockedTerm>>(
                     page.ErrorMessage ?? "Twitch rejected the blocked-terms read.",

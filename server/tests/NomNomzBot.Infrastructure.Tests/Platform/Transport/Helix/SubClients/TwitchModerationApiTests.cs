@@ -28,6 +28,11 @@ public class TwitchModerationApiTests
     private const string TwitchId = "44322889";
     private const string TargetId = "9999";
 
+    // The RAW Twitch id of a DIFFERENT channel the operator moderates — proves broadcaster_id is passed straight
+    // through (never resolved from a Guid) while moderator_id is the operator's own resolved id (TwitchId). The stub
+    // identity resolver maps the operator's user Guid (Tenant) to TwitchId, so Tenant doubles as the operator here.
+    private const string OperatorChannel = "55443322";
+
     private static TwitchModerationApi Build(
         CapturingHelixTransport transport,
         params string[] scopes
@@ -876,5 +881,423 @@ public class TwitchModerationApiTests
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);
         transport.CallCount.Should().Be(0);
+    }
+
+    // ── Operator variants (dashboard moderation path) ──
+    // Each asserts the built request rides the OPERATOR's own token: Auth.Operator, OperatorUserId set, broadcaster_id
+    // = the RAW channel id passed straight through, and (where the endpoint takes one) moderator_id = the operator's
+    // OWN resolved Twitch id. No scope pre-check runs — Twitch is the authority the operator moderates the channel —
+    // so an empty scope set is fine.
+
+    [Fact]
+    public async Task TimeoutAsOperator_BuildsOperatorTokenPost_WithOperatorAsModeratorId_AndDuration()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            SingleResult = new TwitchBanResult(
+                OperatorChannel,
+                TwitchId,
+                TargetId,
+                DateTimeOffset.UnixEpoch,
+                DateTimeOffset.UnixEpoch.AddSeconds(600)
+            ),
+        };
+        TwitchModerationApi api = Build(transport);
+
+        Result<TwitchBanResult> result = await api.TimeoutAsOperatorAsync(
+            Tenant,
+            OperatorChannel,
+            TargetId,
+            600,
+            "cool off"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.EndTime.Should().NotBeNull();
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Post);
+        transport.LastRequest.Path.Should().Be("moderation/bans");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.Operator);
+        transport.LastRequest.OperatorUserId.Should().Be(Tenant);
+        transport.LastRequest.Priority.Should().Be(TwitchCallPriority.UserInteractive);
+        transport.LastRequest.Body.Should().NotBeNull();
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "broadcaster_id" && q.Value == OperatorChannel);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "moderator_id" && q.Value == TwitchId);
+    }
+
+    [Fact]
+    public async Task TimeoutAsOperator_NoLinkedIdentity_FailsNoToken_WithoutCallingTransport()
+    {
+        CapturingHelixTransport transport = new();
+        TwitchModerationApi api = Build(transport);
+        // A user the stub identity resolver doesn't know → no Twitch id to act as.
+        Guid unknownOperator = Guid.Parse("0195e0d2-9999-7999-8999-000000000099");
+
+        Result<TwitchBanResult> result = await api.TimeoutAsOperatorAsync(
+            unknownOperator,
+            OperatorChannel,
+            TargetId,
+            600,
+            "cool off"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.NoToken);
+        transport.CallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetUnbanRequestsAsOperator_BuildsOperatorTokenGet_WithOperatorAsModeratorId_AndStatus()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            PageResult = new TwitchPage<TwitchUnbanRequest>([], null, 0),
+        };
+        TwitchModerationApi api = Build(transport);
+
+        Result<TwitchPage<TwitchUnbanRequest>> result = await api.GetUnbanRequestsAsOperatorAsync(
+            Tenant,
+            OperatorChannel,
+            "pending",
+            new TwitchPageRequest(PageSize: 25)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Get);
+        transport.LastRequest.Path.Should().Be("moderation/unban_requests");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.Operator);
+        transport.LastRequest.OperatorUserId.Should().Be(Tenant);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "broadcaster_id" && q.Value == OperatorChannel);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "moderator_id" && q.Value == TwitchId);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "status" && q.Value == "pending");
+    }
+
+    [Fact]
+    public async Task ResolveUnbanRequestAsOperator_BuildsOperatorTokenPatch_WithOperatorAsModeratorId()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            SingleResult = new TwitchUnbanRequest(
+                "ubr-1",
+                OperatorChannel,
+                "login",
+                "Name",
+                TwitchId,
+                "mod",
+                "Mod",
+                TargetId,
+                "target",
+                "Target",
+                "please",
+                "approved",
+                DateTimeOffset.UnixEpoch,
+                DateTimeOffset.UnixEpoch,
+                "ok"
+            ),
+        };
+        TwitchModerationApi api = Build(transport);
+
+        Result<TwitchUnbanRequest> result = await api.ResolveUnbanRequestAsOperatorAsync(
+            Tenant,
+            OperatorChannel,
+            "ubr-1",
+            "approved",
+            "ok"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Patch);
+        transport.LastRequest.Path.Should().Be("moderation/unban_requests");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.Operator);
+        transport.LastRequest.OperatorUserId.Should().Be(Tenant);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "broadcaster_id" && q.Value == OperatorChannel);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "moderator_id" && q.Value == TwitchId);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "unban_request_id" && q.Value == "ubr-1");
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "resolution_text" && q.Value == "ok");
+    }
+
+    [Fact]
+    public async Task GetBlockedTermsAsOperator_BuildsOperatorTokenGet_WithOperatorAsModeratorId()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            PageResult = new TwitchPage<TwitchBlockedTerm>([], null, 0),
+        };
+        TwitchModerationApi api = Build(transport);
+
+        Result<TwitchPage<TwitchBlockedTerm>> result = await api.GetBlockedTermsAsOperatorAsync(
+            Tenant,
+            OperatorChannel,
+            new TwitchPageRequest(After: "c", PageSize: 10)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Get);
+        transport.LastRequest.Path.Should().Be("moderation/blocked_terms");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.Operator);
+        transport.LastRequest.OperatorUserId.Should().Be(Tenant);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "broadcaster_id" && q.Value == OperatorChannel);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "moderator_id" && q.Value == TwitchId);
+    }
+
+    [Fact]
+    public async Task AddBlockedTermAsOperator_BuildsOperatorTokenPost_WithBody_AndOperatorAsModeratorId()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            SingleResult = new TwitchBlockedTerm(
+                OperatorChannel,
+                TwitchId,
+                "term-1",
+                "bad word",
+                DateTimeOffset.UnixEpoch,
+                DateTimeOffset.UnixEpoch,
+                null
+            ),
+        };
+        TwitchModerationApi api = Build(transport);
+
+        Result<TwitchBlockedTerm> result = await api.AddBlockedTermAsOperatorAsync(
+            Tenant,
+            OperatorChannel,
+            "bad word"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Id.Should().Be("term-1");
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Post);
+        transport.LastRequest.Path.Should().Be("moderation/blocked_terms");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.Operator);
+        transport.LastRequest.OperatorUserId.Should().Be(Tenant);
+        transport.LastRequest.Body.Should().NotBeNull();
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "broadcaster_id" && q.Value == OperatorChannel);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "moderator_id" && q.Value == TwitchId);
+    }
+
+    [Fact]
+    public async Task RemoveBlockedTermAsOperator_BuildsOperatorTokenDelete_WithIdAndOperatorAsModeratorId()
+    {
+        CapturingHelixTransport transport = new();
+        TwitchModerationApi api = Build(transport);
+
+        Result result = await api.RemoveBlockedTermAsOperatorAsync(
+            Tenant,
+            OperatorChannel,
+            "term-1"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Delete);
+        transport.LastRequest.Path.Should().Be("moderation/blocked_terms");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.Operator);
+        transport.LastRequest.OperatorUserId.Should().Be(Tenant);
+        transport.LastRequest.Query.Should().Contain(q => q.Key == "id" && q.Value == "term-1");
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "broadcaster_id" && q.Value == OperatorChannel);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "moderator_id" && q.Value == TwitchId);
+    }
+
+    [Fact]
+    public async Task GetShieldModeStatusAsOperator_BuildsOperatorTokenGet_WithOperatorAsModeratorId()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            SingleResult = new TwitchShieldModeStatus(
+                true,
+                TwitchId,
+                "mod",
+                "Mod",
+                DateTimeOffset.UnixEpoch
+            ),
+        };
+        TwitchModerationApi api = Build(transport);
+
+        Result<TwitchShieldModeStatus> result = await api.GetShieldModeStatusAsOperatorAsync(
+            Tenant,
+            OperatorChannel
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.IsActive.Should().BeTrue();
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Get);
+        transport.LastRequest.Path.Should().Be("moderation/shield_mode");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.Operator);
+        transport.LastRequest.OperatorUserId.Should().Be(Tenant);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "broadcaster_id" && q.Value == OperatorChannel);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "moderator_id" && q.Value == TwitchId);
+    }
+
+    [Fact]
+    public async Task UpdateShieldModeStatusAsOperator_BuildsOperatorTokenPut_WithBody_AndOperatorAsModeratorId()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            SingleResult = new TwitchShieldModeStatus(
+                false,
+                TwitchId,
+                "mod",
+                "Mod",
+                DateTimeOffset.UnixEpoch
+            ),
+        };
+        TwitchModerationApi api = Build(transport);
+
+        Result<TwitchShieldModeStatus> result = await api.UpdateShieldModeStatusAsOperatorAsync(
+            Tenant,
+            OperatorChannel,
+            false
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.IsActive.Should().BeFalse();
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Put);
+        transport.LastRequest.Path.Should().Be("moderation/shield_mode");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.Operator);
+        transport.LastRequest.OperatorUserId.Should().Be(Tenant);
+        transport.LastRequest.Body.Should().NotBeNull();
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "broadcaster_id" && q.Value == OperatorChannel);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "moderator_id" && q.Value == TwitchId);
+    }
+
+    [Fact]
+    public async Task WarnChatUserAsOperator_BuildsOperatorTokenPost_WithBody_AndOperatorAsModeratorId()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            SingleResult = new TwitchWarningResult(OperatorChannel, TargetId, TwitchId, "be nice"),
+        };
+        TwitchModerationApi api = Build(transport);
+
+        Result<TwitchWarningResult> result = await api.WarnChatUserAsOperatorAsync(
+            Tenant,
+            OperatorChannel,
+            TargetId,
+            "be nice"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.UserId.Should().Be(TargetId);
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Post);
+        transport.LastRequest.Path.Should().Be("moderation/warnings");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.Operator);
+        transport.LastRequest.OperatorUserId.Should().Be(Tenant);
+        transport.LastRequest.Body.Should().NotBeNull();
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "broadcaster_id" && q.Value == OperatorChannel);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "moderator_id" && q.Value == TwitchId);
+    }
+
+    [Fact]
+    public async Task AddSuspiciousStatusAsOperator_BuildsOperatorTokenPost_WithBody_AndOperatorAsModeratorId()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            SingleResult = new TwitchSuspiciousUserStatus(
+                TargetId,
+                OperatorChannel,
+                TwitchId,
+                DateTimeOffset.UnixEpoch,
+                "RESTRICTED",
+                ["manually_added"]
+            ),
+        };
+        TwitchModerationApi api = Build(transport);
+
+        Result<TwitchSuspiciousUserStatus> result = await api.AddSuspiciousStatusAsOperatorAsync(
+            Tenant,
+            OperatorChannel,
+            TargetId,
+            "RESTRICTED"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Post);
+        transport.LastRequest.Path.Should().Be("moderation/suspicious_users");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.Operator);
+        transport.LastRequest.OperatorUserId.Should().Be(Tenant);
+        transport.LastRequest.Body.Should().NotBeNull();
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "broadcaster_id" && q.Value == OperatorChannel);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "moderator_id" && q.Value == TwitchId);
+    }
+
+    [Fact]
+    public async Task RemoveSuspiciousStatusAsOperator_BuildsOperatorTokenDelete_WithUserIdAndOperatorAsModeratorId()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            SingleResult = new TwitchSuspiciousUserStatus(
+                TargetId,
+                OperatorChannel,
+                TwitchId,
+                DateTimeOffset.UnixEpoch,
+                "NO_TREATMENT",
+                []
+            ),
+        };
+        TwitchModerationApi api = Build(transport);
+
+        Result<TwitchSuspiciousUserStatus> result = await api.RemoveSuspiciousStatusAsOperatorAsync(
+            Tenant,
+            OperatorChannel,
+            TargetId
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Delete);
+        transport.LastRequest.Path.Should().Be("moderation/suspicious_users");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.Operator);
+        transport.LastRequest.OperatorUserId.Should().Be(Tenant);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "user_id" && q.Value == TargetId);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "broadcaster_id" && q.Value == OperatorChannel);
+        transport
+            .LastRequest.Query.Should()
+            .Contain(q => q.Key == "moderator_id" && q.Value == TwitchId);
     }
 }

@@ -116,6 +116,42 @@ public sealed class TwitchModerationApi(
         return await transport.SendWithResultAsync<TwitchBanResult>(request, ct);
     }
 
+    public async Task<Result<TwitchBanResult>> TimeoutAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string targetTwitchUserId,
+        int durationSeconds,
+        string? reason,
+        CancellationToken ct = default
+    )
+    {
+        // Same shape as BanAsOperatorAsync but with a duration — the operator's OWN token signs the timeout and
+        // their Twitch id is the moderator_id. broadcasterTwitchId is a raw Twitch id, never a tenant Guid; Twitch
+        // enforces the operator actually moderates the channel, so there is no privilege escalation.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure<TwitchBanResult>(
+                "You have no linked Twitch identity to moderate as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Post,
+            "moderation/bans",
+            TwitchHelixAuth.Operator,
+            Query:
+            [
+                new("broadcaster_id", broadcasterTwitchId),
+                new("moderator_id", operatorTwitchId),
+            ],
+            Body: new BanUserBody(new BanUserData(targetTwitchUserId, durationSeconds, reason)),
+            Priority: TwitchCallPriority.UserInteractive,
+            OperatorUserId: operatorUserId
+        );
+
+        return await transport.SendWithResultAsync<TwitchBanResult>(request, ct);
+    }
+
     public async Task<Result> UnbanAsOperatorAsync(
         Guid operatorUserId,
         string broadcasterTwitchId,
@@ -258,6 +294,46 @@ public sealed class TwitchModerationApi(
         return await transport.GetPageAsync<TwitchUnbanRequest>(request, ct);
     }
 
+    public async Task<Result<TwitchPage<TwitchUnbanRequest>>> GetUnbanRequestsAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string status,
+        TwitchPageRequest page,
+        CancellationToken ct = default
+    )
+    {
+        // The operator's OWN token reads the unban-request queue and their Twitch id is the moderator_id. No local
+        // scope pre-check is possible (that inspects the tenant token, not the operator's) — Twitch is the authority
+        // that the operator moderates the channel and holds moderator:read:unban_requests. broadcasterTwitchId is a
+        // raw Twitch id, never a tenant Guid.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure<TwitchPage<TwitchUnbanRequest>>(
+                "You have no linked Twitch identity to moderate as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        List<KeyValuePair<string, string>> query =
+        [
+            new("broadcaster_id", broadcasterTwitchId),
+            new("moderator_id", operatorTwitchId),
+            new("status", status),
+            new("first", page.PageSize.ToString()),
+        ];
+        if (page.After is not null)
+            query.Add(new("after", page.After));
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Get,
+            "moderation/unban_requests",
+            TwitchHelixAuth.Operator,
+            Query: query,
+            OperatorUserId: operatorUserId
+        );
+
+        return await transport.GetPageAsync<TwitchUnbanRequest>(request, ct);
+    }
+
     public async Task<Result<TwitchUnbanRequest>> ResolveUnbanRequestAsync(
         Guid broadcasterId,
         string unbanRequestId,
@@ -295,6 +371,48 @@ public sealed class TwitchModerationApi(
             broadcasterId,
             Query: query,
             Priority: TwitchCallPriority.UserInteractive
+        );
+
+        return await transport.SendWithResultAsync<TwitchUnbanRequest>(request, ct);
+    }
+
+    public async Task<Result<TwitchUnbanRequest>> ResolveUnbanRequestAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string unbanRequestId,
+        string status,
+        string? resolutionText,
+        CancellationToken ct = default
+    )
+    {
+        // The operator's OWN token resolves the request and their Twitch id is the moderator_id, so Twitch records
+        // the operator as the resolver. No local scope pre-check is possible (that inspects the tenant token) —
+        // Twitch is the authority that the operator moderates the channel and holds moderator:manage:unban_requests.
+        // broadcasterTwitchId is a raw Twitch id, never a tenant Guid.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure<TwitchUnbanRequest>(
+                "You have no linked Twitch identity to moderate as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        List<KeyValuePair<string, string>> query =
+        [
+            new("broadcaster_id", broadcasterTwitchId),
+            new("moderator_id", operatorTwitchId),
+            new("unban_request_id", unbanRequestId),
+            new("status", status),
+        ];
+        if (resolutionText is not null)
+            query.Add(new("resolution_text", resolutionText));
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Patch,
+            "moderation/unban_requests",
+            TwitchHelixAuth.Operator,
+            Query: query,
+            Priority: TwitchCallPriority.UserInteractive,
+            OperatorUserId: operatorUserId
         );
 
         return await transport.SendWithResultAsync<TwitchUnbanRequest>(request, ct);
@@ -338,6 +456,44 @@ public sealed class TwitchModerationApi(
         return await transport.GetPageAsync<TwitchBlockedTerm>(request, ct);
     }
 
+    public async Task<Result<TwitchPage<TwitchBlockedTerm>>> GetBlockedTermsAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        TwitchPageRequest page,
+        CancellationToken ct = default
+    )
+    {
+        // The operator's OWN token reads the block list and their Twitch id is the moderator_id. No local scope
+        // pre-check is possible (that inspects the tenant token) — Twitch is the authority that the operator
+        // moderates the channel and holds moderator:read:blocked_terms. broadcasterTwitchId is a raw Twitch id,
+        // never a tenant Guid.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure<TwitchPage<TwitchBlockedTerm>>(
+                "You have no linked Twitch identity to moderate as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        List<KeyValuePair<string, string>> query =
+        [
+            new("broadcaster_id", broadcasterTwitchId),
+            new("moderator_id", operatorTwitchId),
+            new("first", page.PageSize.ToString()),
+        ];
+        if (page.After is not null)
+            query.Add(new("after", page.After));
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Get,
+            "moderation/blocked_terms",
+            TwitchHelixAuth.Operator,
+            Query: query,
+            OperatorUserId: operatorUserId
+        );
+
+        return await transport.GetPageAsync<TwitchBlockedTerm>(request, ct);
+    }
+
     public async Task<Result<TwitchBlockedTerm>> AddBlockedTermAsync(
         Guid broadcasterId,
         string text,
@@ -364,6 +520,41 @@ public sealed class TwitchModerationApi(
             Query: [new("broadcaster_id", channel.Value), new("moderator_id", channel.Value)],
             Body: new AddBlockedTermBody(text),
             Priority: TwitchCallPriority.UserInteractive
+        );
+
+        return await transport.SendWithResultAsync<TwitchBlockedTerm>(request, ct);
+    }
+
+    public async Task<Result<TwitchBlockedTerm>> AddBlockedTermAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string text,
+        CancellationToken ct = default
+    )
+    {
+        // The operator's OWN token adds the term and their Twitch id is the moderator_id. No local scope pre-check
+        // is possible (that inspects the tenant token) — Twitch is the authority that the operator moderates the
+        // channel and holds moderator:manage:blocked_terms. broadcasterTwitchId is a raw Twitch id, never a tenant
+        // Guid.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure<TwitchBlockedTerm>(
+                "You have no linked Twitch identity to moderate as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Post,
+            "moderation/blocked_terms",
+            TwitchHelixAuth.Operator,
+            Query:
+            [
+                new("broadcaster_id", broadcasterTwitchId),
+                new("moderator_id", operatorTwitchId),
+            ],
+            Body: new AddBlockedTermBody(text),
+            Priority: TwitchCallPriority.UserInteractive,
+            OperatorUserId: operatorUserId
         );
 
         return await transport.SendWithResultAsync<TwitchBlockedTerm>(request, ct);
@@ -399,6 +590,41 @@ public sealed class TwitchModerationApi(
                 new("id", blockedTermId),
             ],
             Priority: TwitchCallPriority.UserInteractive
+        );
+
+        return await transport.SendAsync(request, ct);
+    }
+
+    public async Task<Result> RemoveBlockedTermAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string blockedTermId,
+        CancellationToken ct = default
+    )
+    {
+        // The operator's OWN token removes the term and their Twitch id is the moderator_id. No local scope
+        // pre-check is possible (that inspects the tenant token) — Twitch is the authority that the operator
+        // moderates the channel and holds moderator:manage:blocked_terms. broadcasterTwitchId is a raw Twitch id,
+        // never a tenant Guid.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure(
+                "You have no linked Twitch identity to moderate as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Delete,
+            "moderation/blocked_terms",
+            TwitchHelixAuth.Operator,
+            Query:
+            [
+                new("broadcaster_id", broadcasterTwitchId),
+                new("moderator_id", operatorTwitchId),
+                new("id", blockedTermId),
+            ],
+            Priority: TwitchCallPriority.UserInteractive,
+            OperatorUserId: operatorUserId
         );
 
         return await transport.SendAsync(request, ct);
@@ -518,6 +744,38 @@ public sealed class TwitchModerationApi(
         return await transport.GetSingleAsync<TwitchShieldModeStatus>(request, ct);
     }
 
+    public async Task<Result<TwitchShieldModeStatus>> GetShieldModeStatusAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        CancellationToken ct = default
+    )
+    {
+        // The operator's OWN token reads Shield Mode and their Twitch id is the moderator_id. No local scope
+        // pre-check is possible (that inspects the tenant token) — Twitch is the authority that the operator
+        // moderates the channel and holds moderator:read:shield_mode. broadcasterTwitchId is a raw Twitch id, never
+        // a tenant Guid.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure<TwitchShieldModeStatus>(
+                "You have no linked Twitch identity to moderate as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Get,
+            "moderation/shield_mode",
+            TwitchHelixAuth.Operator,
+            Query:
+            [
+                new("broadcaster_id", broadcasterTwitchId),
+                new("moderator_id", operatorTwitchId),
+            ],
+            OperatorUserId: operatorUserId
+        );
+
+        return await transport.GetSingleAsync<TwitchShieldModeStatus>(request, ct);
+    }
+
     public async Task<Result<TwitchShieldModeStatus>> UpdateShieldModeStatusAsync(
         Guid broadcasterId,
         bool isActive,
@@ -544,6 +802,41 @@ public sealed class TwitchModerationApi(
             Query: [new("broadcaster_id", channel.Value), new("moderator_id", channel.Value)],
             Body: new UpdateShieldModeBody(isActive),
             Priority: TwitchCallPriority.UserInteractive
+        );
+
+        return await transport.SendWithResultAsync<TwitchShieldModeStatus>(request, ct);
+    }
+
+    public async Task<Result<TwitchShieldModeStatus>> UpdateShieldModeStatusAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        bool isActive,
+        CancellationToken ct = default
+    )
+    {
+        // The operator's OWN token toggles Shield Mode and their Twitch id is the moderator_id, so Twitch records
+        // the operator as who armed it. No local scope pre-check is possible (that inspects the tenant token) —
+        // Twitch is the authority that the operator moderates the channel and holds moderator:manage:shield_mode.
+        // broadcasterTwitchId is a raw Twitch id, never a tenant Guid.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure<TwitchShieldModeStatus>(
+                "You have no linked Twitch identity to moderate as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Put,
+            "moderation/shield_mode",
+            TwitchHelixAuth.Operator,
+            Query:
+            [
+                new("broadcaster_id", broadcasterTwitchId),
+                new("moderator_id", operatorTwitchId),
+            ],
+            Body: new UpdateShieldModeBody(isActive),
+            Priority: TwitchCallPriority.UserInteractive,
+            OperatorUserId: operatorUserId
         );
 
         return await transport.SendWithResultAsync<TwitchShieldModeStatus>(request, ct);
@@ -576,6 +869,42 @@ public sealed class TwitchModerationApi(
             Query: [new("broadcaster_id", channel.Value), new("moderator_id", channel.Value)],
             Body: new WarnUserBody(new WarnUserData(targetTwitchUserId, reason)),
             Priority: TwitchCallPriority.UserInteractive
+        );
+
+        return await transport.SendWithResultAsync<TwitchWarningResult>(request, ct);
+    }
+
+    public async Task<Result<TwitchWarningResult>> WarnChatUserAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string targetTwitchUserId,
+        string reason,
+        CancellationToken ct = default
+    )
+    {
+        // The operator's OWN token issues the warning and their Twitch id is the moderator_id, so Twitch attributes
+        // it to the operator. No local scope pre-check is possible (that inspects the tenant token) — Twitch is the
+        // authority that the operator moderates the channel and holds moderator:manage:warnings. broadcasterTwitchId
+        // is a raw Twitch id, never a tenant Guid.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure<TwitchWarningResult>(
+                "You have no linked Twitch identity to moderate as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Post,
+            "moderation/warnings",
+            TwitchHelixAuth.Operator,
+            Query:
+            [
+                new("broadcaster_id", broadcasterTwitchId),
+                new("moderator_id", operatorTwitchId),
+            ],
+            Body: new WarnUserBody(new WarnUserData(targetTwitchUserId, reason)),
+            Priority: TwitchCallPriority.UserInteractive,
+            OperatorUserId: operatorUserId
         );
 
         return await transport.SendWithResultAsync<TwitchWarningResult>(request, ct);
@@ -620,6 +949,42 @@ public sealed class TwitchModerationApi(
         return await transport.SendWithResultAsync<TwitchSuspiciousUserStatus>(request, ct);
     }
 
+    public async Task<Result<TwitchSuspiciousUserStatus>> AddSuspiciousStatusAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string targetTwitchUserId,
+        string status,
+        CancellationToken ct = default
+    )
+    {
+        // The operator's OWN token flags the user and their Twitch id is the moderator_id. No local scope pre-check
+        // is possible (that inspects the tenant token) — Twitch is the authority that the operator moderates the
+        // channel and holds moderator:manage:suspicious_users. broadcasterTwitchId is a raw Twitch id, never a
+        // tenant Guid.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure<TwitchSuspiciousUserStatus>(
+                "You have no linked Twitch identity to moderate as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Post,
+            "moderation/suspicious_users",
+            TwitchHelixAuth.Operator,
+            Query:
+            [
+                new("broadcaster_id", broadcasterTwitchId),
+                new("moderator_id", operatorTwitchId),
+            ],
+            Body: new SuspiciousUserStatusRequest(targetTwitchUserId, status),
+            Priority: TwitchCallPriority.UserInteractive,
+            OperatorUserId: operatorUserId
+        );
+
+        return await transport.SendWithResultAsync<TwitchSuspiciousUserStatus>(request, ct);
+    }
+
     public async Task<Result<TwitchSuspiciousUserStatus>> RemoveSuspiciousStatusAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
@@ -650,6 +1015,41 @@ public sealed class TwitchModerationApi(
                 new("user_id", targetTwitchUserId),
             ],
             Priority: TwitchCallPriority.UserInteractive
+        );
+
+        return await transport.SendWithResultAsync<TwitchSuspiciousUserStatus>(request, ct);
+    }
+
+    public async Task<Result<TwitchSuspiciousUserStatus>> RemoveSuspiciousStatusAsOperatorAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string targetTwitchUserId,
+        CancellationToken ct = default
+    )
+    {
+        // The operator's OWN token clears the flag and their Twitch id is the moderator_id. No local scope
+        // pre-check is possible (that inspects the tenant token) — Twitch is the authority that the operator
+        // moderates the channel and holds moderator:manage:suspicious_users. broadcasterTwitchId is a raw Twitch id,
+        // never a tenant Guid.
+        string? operatorTwitchId = await identity.GetTwitchUserIdAsync(operatorUserId, ct);
+        if (string.IsNullOrEmpty(operatorTwitchId))
+            return Result.Failure<TwitchSuspiciousUserStatus>(
+                "You have no linked Twitch identity to moderate as.",
+                TwitchErrorCodes.NoToken
+            );
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Delete,
+            "moderation/suspicious_users",
+            TwitchHelixAuth.Operator,
+            Query:
+            [
+                new("broadcaster_id", broadcasterTwitchId),
+                new("moderator_id", operatorTwitchId),
+                new("user_id", targetTwitchUserId),
+            ],
+            Priority: TwitchCallPriority.UserInteractive,
+            OperatorUserId: operatorUserId
         );
 
         return await transport.SendWithResultAsync<TwitchSuspiciousUserStatus>(request, ct);
