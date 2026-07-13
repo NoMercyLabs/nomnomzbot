@@ -90,6 +90,23 @@ public class TwitchScheduleApiTests
     }
 
     [Fact]
+    public async Task GetSchedule_ClampsPageSizeToTwitchMaxOf25()
+    {
+        CapturingHelixTransport transport = new() { SingleResult = Schedule(Segment()) };
+        TwitchScheduleApi api = Build(transport);
+
+        // The controller default (100) exceeds Twitch's schedule cap of 25 — Twitch rejects that with 400 (the
+        // bug that made the page 502). The sub-client must clamp `first` to 25 so the request succeeds.
+        Result<TwitchSchedule> result = await api.GetScheduleAsync(
+            Tenant,
+            new TwitchPageRequest(PageSize: 100)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        transport.LastRequest!.Query.Should().Contain(q => q.Key == "first" && q.Value == "25");
+    }
+
+    [Fact]
     public async Task GetSchedule_UnknownTenant_ReturnsNotFound_WithoutCallingTransport()
     {
         CapturingHelixTransport transport = new();

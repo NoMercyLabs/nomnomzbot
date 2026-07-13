@@ -39,10 +39,12 @@ public sealed class TwitchScheduleApi(
         if (channel.IsFailure)
             return channel.WithValue<TwitchSchedule>(default!);
 
+        // Get Channel Stream Schedule caps `first` at 25 (unlike most Helix lists) — a larger value makes Twitch
+        // reject the whole request with 400, so clamp it here rather than surface a spurious upstream error.
         List<KeyValuePair<string, string>> query =
         [
             new("broadcaster_id", channel.Value),
-            new("first", page.PageSize.ToString()),
+            new("first", Math.Clamp(page.PageSize, 1, 25).ToString()),
         ];
         if (page.After is not null)
             query.Add(new("after", page.After));

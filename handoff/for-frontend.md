@@ -43,10 +43,10 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   schedule and manages it (add / edit / delete a segment + the vacation window). `ScheduleController` +
   `ScheduleScreen` + full nav wiring + `ScheduleControllerTest`; en + nl. Datetimes are ISO-8601 text /
   durations minutes (Compose has no native date picker yet; the backend validates). Compile + jvmTest green.
-- **⏳ Remaining (small):** (1) the **.ics subscribe link** (`GET .../live-ops/schedule/icalendar`) — deferred
+- **⏳ Remaining (small):** the **.ics subscribe link** (`GET .../live-ops/schedule/icalendar`) — deferred
   because the endpoint needs auth a calendar app can't send; pending a token-query mechanism (logged for
-  backend). (2) `GET /live-ops/schedule` currently **502s on dev** (a backend handler crash — logged to
-  `for-backend.md`); the page degrades to an error state until that's fixed, so it can't be seen live yet.
+  backend). (The earlier dev 502 on `GET /live-ops/schedule` is **fixed** — it was the page-size default
+  exceeding Twitch's schedule cap of 25; the page now renders the real schedule.)
 
 ### 2026-07-11 — Kick integration: connect tile + chat feed provider tag
 - **From:** Stoney_Eagle (via Claude, backend track)
