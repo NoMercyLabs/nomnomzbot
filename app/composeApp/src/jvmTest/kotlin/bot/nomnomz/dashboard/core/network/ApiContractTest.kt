@@ -118,6 +118,7 @@ class ApiContractTest {
             SetPersonalityBody.serializer() to "SetChannelPersonalityRequest",
             EngagementConfig.serializer() to "EngagementConfigDto",
             UpdateEngagementConfigBody.serializer() to "UpdateEngagementConfigRequest",
+            SetViewerDatumBody.serializer() to "SetViewerDatumRequest",
         )
 
     @Test

@@ -18,6 +18,7 @@ import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.UserStats
 import bot.nomnomz.dashboard.core.network.UsersApi
+import bot.nomnomz.dashboard.core.network.ViewerDataApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +32,7 @@ class CommunityController(
     private val channelsApi: ChannelsApi,
     private val communityApi: CommunityApi,
     private val usersApi: UsersApi,
+    private val viewerDataApi: ViewerDataApi,
 ) {
     private val _state: MutableStateFlow<CommunityState> = MutableStateFlow(CommunityState.Loading)
 
@@ -125,6 +127,34 @@ class CommunityController(
         when (val result: ApiResult<UserStats> = usersApi.stats(userId)) {
             is ApiResult.Ok -> result.value
             is ApiResult.Failure -> null
+        }
+
+    /**
+     * Load a viewer's custom key/value data (the per-viewer store pipelines write). Returns the map on success
+     * (empty when the viewer has none) or null on failure. [userId] is the community member's Twitch id — the
+     * backend resolves it to the viewer. The caller drives its own loading/error state for the detail panel.
+     */
+    suspend fun getViewerData(userId: String): Map<String, String>? =
+        when (val result: ApiResult<Map<String, String>> = viewerDataApi.getData(userId)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> null
+        }
+
+    /**
+     * Upsert one custom-data [key]=[value] for [userId]. Returns null on success, or the backend's error message
+     * on failure (e.g. an over-cap value, which the backend rejects rather than truncates — surface it verbatim).
+     */
+    suspend fun setViewerDatum(userId: String, key: String, value: String): String? =
+        when (val result: ApiResult<Unit> = viewerDataApi.setDatum(userId, key, value)) {
+            is ApiResult.Ok -> null
+            is ApiResult.Failure -> result.error.message
+        }
+
+    /** Delete one custom-data [key] for [userId]. Returns null on success, or the error message on failure. */
+    suspend fun deleteViewerDatum(userId: String, key: String): String? =
+        when (val result: ApiResult<Unit> = viewerDataApi.deleteDatum(userId, key)) {
+            is ApiResult.Ok -> null
+            is ApiResult.Failure -> result.error.message
         }
 
     /**

@@ -570,6 +570,16 @@
     <string name="songrequests_token_rotate_confirm">Vernieuwen</string>
     <string name="songrequests_token_rotate_dismiss">Annuleren</string>
     <string name="community_action_error">Kon die actie niet voltooien: %1$s</string>
+    <string name="community_data_section">Aangepaste gegevens</string>
+    <string name="community_data_empty">Nog geen aangepaste gegevens.</string>
+    <string name="community_data_key">Sleutel</string>
+    <string name="community_data_value">Waarde</string>
+    <string name="community_data_add">Toevoegen</string>
+    <string name="community_data_key_required">Voer een sleutel in</string>
+    <string name="community_data_delete">%1$s verwijderen</string>
+    <string name="community_data_delete_title">Aangepaste gegevens verwijderen</string>
+    <string name="community_data_delete_message">&#8220;%1$s&#8221; uit de aangepaste gegevens van deze kijker verwijderen?</string>
+    <string name="community_data_delete_confirm">Verwijderen</string>
     <string name="community_trust_picker">Vertrouwensniveau voor %1$s, nu %2$s</string>
     <string name="community_trust_label">Stel vertrouwensniveau in op %1$s</string>
     <string name="community_ban_action">Verban %1$s</string>

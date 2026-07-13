@@ -252,24 +252,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** the schedule renders + segment add/edit/delete + vacation round-trip against a real
   channel; the marker button posts and confirms while live; the .ics link works; en + nl strings.
 
-### 2026-07-11 — Viewer custom-data map on the viewer detail card (small)
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** show + edit a viewer's custom key/value data (per-viewer death counters, quest flags,
-  "favorite game" — whatever the streamer's pipelines write). Three endpoints (in
-  `server/openapi/v1.json`, tag "Viewer Data"): `GET /viewers/{viewerId}/data` (map of key→value),
-  `PUT /viewers/{viewerId}/data/{key}` (body `{ "value": "…" }`), `DELETE /viewers/{viewerId}/data/{key}`.
-  Keys are lowercase slugs ≤50 chars; values ≤500 chars — the backend rejects (never truncates) over-cap
-  writes, so surface its error message on save.
-- **Why:** parity item 14 — pipelines can now store per-viewer state (`set_viewer_data`/
-  `adjust_viewer_data` actions, `{viewer.data.*}` template vars, `!stats` builtin); mods need to see and
-  fix what got written.
-- **Where:** the existing community/viewer detail surface — render the map as a small key/value table
-  beside the profile stats. Register `SetViewerDatumRequest` in `ApiContractTest`. Role gating: read
-  floors at Moderator (`viewerdata:read`); edit/delete at Editor (`viewerdata:write`) — disable with
-  reason below the floor per frontend-ia §7.
-- **Done when:** a viewer with stored data shows the map; add/edit/delete round-trips and survives
-  reload; over-cap values surface the backend error; destructive delete confirms; en + nl strings.
-
 ### 2026-07-11 — Kick integration: connect tile + chat feed provider tag
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** Kick is now a full chat platform on the backend. Two frontend touches:

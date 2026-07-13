@@ -52,6 +52,7 @@ class CommunityControllerTest {
                     )
                 ),
                 FakeUsersApi(),
+                FakeViewerDataApi(),
             )
 
         controller.load()
@@ -72,6 +73,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
                 FakeUsersApi(),
+                FakeViewerDataApi(),
             )
 
         controller.load()
@@ -88,6 +90,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeCommunityApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
                 FakeUsersApi(),
+                FakeViewerDataApi(),
             )
 
         controller.load()
@@ -104,6 +107,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
                 FakeUsersApi(),
+                FakeViewerDataApi(),
             )
 
         controller.load()
@@ -124,7 +128,7 @@ class CommunityControllerTest {
                     )
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi())
 
         controller.load()
         controller.setTrust("u1", CommunityTrustLevel.Vip)
@@ -147,7 +151,7 @@ class CommunityControllerTest {
                 trustResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi())
 
         controller.load()
         controller.setTrust("u1", CommunityTrustLevel.Moderator)
@@ -175,7 +179,7 @@ class CommunityControllerTest {
                     )
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi())
 
         controller.load()
         controller.ban("u1", "Spamming links")
@@ -198,7 +202,7 @@ class CommunityControllerTest {
                 banResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi())
 
         controller.load()
         controller.ban("u1", "Spamming links")
@@ -224,7 +228,7 @@ class CommunityControllerTest {
                     )
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi())
 
         controller.load()
         controller.unban("u1")
@@ -247,7 +251,7 @@ class CommunityControllerTest {
                 unbanResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi())
 
         controller.load()
         controller.unban("u1")
@@ -259,6 +263,55 @@ class CommunityControllerTest {
         assertTrue((state as CommunityState.Ready).members.first().isBanned)
         assertEquals("Missing scope.", state.actionError)
         assertEquals(1, communityApi.membersCalls)
+    }
+
+    @Test
+    fun set_viewer_datum_returns_null_on_success() = runTest {
+        val controller =
+            CommunityController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeCommunityApi(ApiResult.Ok(emptyList())),
+                FakeUsersApi(),
+                FakeViewerDataApi(),
+            )
+
+        // A successful upsert returns null (no error to surface) — the consequence the dialog keys off.
+        assertNull(controller.setViewerDatum("u1", "deaths", "5"))
+    }
+
+    @Test
+    fun set_viewer_datum_surfaces_the_backend_error_on_failure() = runTest {
+        val controller =
+            CommunityController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeCommunityApi(ApiResult.Ok(emptyList())),
+                FakeUsersApi(),
+                FakeViewerDataApi(
+                    setResult =
+                        ApiResult.Failure(ApiError(400, "TOO_LONG", "Value exceeds 500 characters."))
+                ),
+            )
+
+        // An over-cap value is rejected by the backend; the controller returns its verbatim message so the
+        // dialog can show WHY the save failed rather than a generic error.
+        assertEquals(
+            "Value exceeds 500 characters.",
+            controller.setViewerDatum("u1", "deaths", "x"),
+        )
+    }
+
+    @Test
+    fun get_viewer_data_returns_the_stored_map() = runTest {
+        val controller =
+            CommunityController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeCommunityApi(ApiResult.Ok(emptyList())),
+                FakeUsersApi(),
+                FakeViewerDataApi(data = mapOf("deaths" to "12", "favorite_game" to "Elden Ring")),
+            )
+
+        val data: Map<String, String>? = controller.getViewerData("u1")
+        assertEquals(mapOf("deaths" to "12", "favorite_game" to "Elden Ring"), data)
     }
 }
 
@@ -336,4 +389,16 @@ private class FakeUsersApi : bot.nomnomz.dashboard.core.network.UsersApi {
     override suspend fun export(userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
     override suspend fun erase(userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+private class FakeViewerDataApi(
+    private val data: Map<String, String> = emptyMap(),
+    private val setResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val deleteResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+) : bot.nomnomz.dashboard.core.network.ViewerDataApi {
+    override suspend fun getData(viewerId: String): ApiResult<Map<String, String>> = ApiResult.Ok(data)
+
+    override suspend fun setDatum(viewerId: String, key: String, value: String): ApiResult<Unit> = setResult
+
+    override suspend fun deleteDatum(viewerId: String, key: String): ApiResult<Unit> = deleteResult
 }

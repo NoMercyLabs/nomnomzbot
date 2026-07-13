@@ -22,9 +22,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.DotsVerticalGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,10 +72,21 @@ import bot.nomnomz.dashboard.feature.community.state.CommunityState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_community
 import nomnomzbot.composeapp.generated.resources.community_action_error
+import nomnomzbot.composeapp.generated.resources.community_data_add
+import nomnomzbot.composeapp.generated.resources.community_data_delete
+import nomnomzbot.composeapp.generated.resources.community_data_delete_confirm
+import nomnomzbot.composeapp.generated.resources.community_data_delete_message
+import nomnomzbot.composeapp.generated.resources.community_data_delete_title
+import nomnomzbot.composeapp.generated.resources.community_data_empty
+import nomnomzbot.composeapp.generated.resources.community_data_key
+import nomnomzbot.composeapp.generated.resources.community_data_key_required
+import nomnomzbot.composeapp.generated.resources.community_data_section
+import nomnomzbot.composeapp.generated.resources.community_data_value
 import nomnomzbot.composeapp.generated.resources.community_ban_action
 import nomnomzbot.composeapp.generated.resources.community_ban_action_short
 import nomnomzbot.composeapp.generated.resources.community_ban_confirm
@@ -146,24 +160,34 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
     // are disabled with "Requires Moderator" (§7); the backend re-checks every write regardless.
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Community)
     val isBroadcaster: Boolean = role == ManagementRole.Broadcaster
+    // Viewer custom-data WRITE floor is Editor (handoff: read Moderator, write Editor) — higher than the page's
+    // Moderator manage floor, so the add/delete controls get their own decision, disabled-with-reason below it.
+    val dataWrite: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Editor)
 
     // Per-user stats dialog state — null means closed.
     var statsTarget: CommunityMember? by remember { mutableStateOf(null) }
     var statsData: UserStats? by remember { mutableStateOf(null) }
     var statsLoading: Boolean by remember { mutableStateOf(false) }
     var statsError: Boolean by remember { mutableStateOf(false) }
+    // The selected viewer's custom key/value data (null until loaded; empty map = loaded, none). Independent of
+    // the stats load so the data section shows even when the self-only stats call fails for a foreign viewer.
+    var viewerData: Map<String, String>? by remember { mutableStateOf(null) }
+    var viewerDataError: String? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) { controller.load() }
 
-    // When a stats target is selected, load their stats.
+    // When a stats target is selected, load their stats and their custom data.
     LaunchedEffect(statsTarget) {
         val target: CommunityMember = statsTarget ?: return@LaunchedEffect
         statsData = null
         statsError = false
         statsLoading = true
+        viewerData = null
+        viewerDataError = null
         statsData = controller.getUserStats(target.id)
         statsError = statsData == null
         statsLoading = false
+        viewerData = controller.getViewerData(target.id)
     }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
@@ -201,6 +225,23 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
             loading = statsLoading,
             error = statsError,
             isBroadcaster = isBroadcaster,
+            viewerData = viewerData,
+            dataWrite = dataWrite,
+            dataError = viewerDataError,
+            onSetDatum = { key, value ->
+                scope.launch {
+                    val err: String? = controller.setViewerDatum(target.id, key, value)
+                    viewerDataError = err
+                    if (err == null) viewerData = controller.getViewerData(target.id)
+                }
+            },
+            onDeleteDatum = { key ->
+                scope.launch {
+                    val err: String? = controller.deleteViewerDatum(target.id, key)
+                    viewerDataError = err
+                    if (err == null) viewerData = controller.getViewerData(target.id)
+                }
+            },
             onExport = {
                 scope.launch {
                     controller.exportUserData(target.id)
@@ -673,6 +714,11 @@ private fun ViewerStatsDialog(
     loading: Boolean,
     error: Boolean,
     isBroadcaster: Boolean,
+    viewerData: Map<String, String>?,
+    dataWrite: ManageDecision,
+    dataError: String?,
+    onSetDatum: (key: String, value: String) -> Unit,
+    onDeleteDatum: (key: String) -> Unit,
     onExport: () -> Unit,
     onErase: () -> Unit,
     onDismiss: () -> Unit,
@@ -754,6 +800,17 @@ private fun ViewerStatsDialog(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(spacing.s2))
+                Separator()
+                Spacer(modifier = Modifier.height(spacing.s2))
+                ViewerDataSection(
+                    data = viewerData,
+                    write = dataWrite,
+                    saveError = dataError,
+                    onSet = onSetDatum,
+                    onDelete = onDeleteDatum,
+                )
             }
         },
         confirmButton = {
@@ -807,6 +864,139 @@ private fun StatRow(label: String, value: String) {
     ) {
         Text(text = label, style = typography.sm, color = tokens.mutedForeground, modifier = Modifier.padding(end = spacing.s2))
         Text(text = value, style = typography.sm, color = tokens.foreground)
+    }
+}
+
+// The viewer's custom key/value data (per-viewer-data.md) — the map pipelines write (death counters, quest
+// flags, "favorite game"). Read is shown to anyone who can open the dialog; add/delete are gated at [write]
+// (Editor) and disabled-with-reason below it. Values over the backend cap are rejected (not truncated) — the
+// backend's message surfaces in [saveError]. Delete confirms first (destructive). [data] is null until loaded.
+@Composable
+private fun ViewerDataSection(
+    data: Map<String, String>?,
+    write: ManageDecision,
+    saveError: String?,
+    onSet: (key: String, value: String) -> Unit,
+    onDelete: (key: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var newKey: String by remember { mutableStateOf("") }
+    var newValue: String by remember { mutableStateOf("") }
+    var keyError: Boolean by remember { mutableStateOf(false) }
+    var pendingDelete: String? by remember { mutableStateOf(null) }
+
+    Text(
+        text = stringResource(Res.string.community_data_section),
+        style = typography.xs,
+        color = tokens.mutedForeground,
+    )
+
+    val entries: List<Map.Entry<String, String>> =
+        (data ?: emptyMap()).entries.sortedBy { it.key }
+
+    if (entries.isEmpty()) {
+        Text(
+            text = stringResource(Res.string.community_data_empty),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+    } else {
+        entries.forEach { entry ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = entry.key,
+                        style = typography.sm,
+                        color = tokens.foreground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = entry.value,
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (write.isAllowed) {
+                    GlyphButton(
+                        imageVector = TrashGlyph,
+                        label = stringResource(Res.string.community_data_delete, entry.key),
+                        onClick = { pendingDelete = entry.key },
+                        tint = tokens.destructive,
+                    )
+                }
+            }
+        }
+    }
+
+    if (write.isAllowed) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+            verticalAlignment = Alignment.Top,
+        ) {
+            AppTextField(
+                value = newKey,
+                onValueChange = { newKey = it; keyError = false },
+                label = stringResource(Res.string.community_data_key),
+                isError = keyError,
+                errorText = if (keyError) stringResource(Res.string.community_data_key_required) else null,
+                modifier = Modifier.weight(1f),
+            )
+            AppTextField(
+                value = newValue,
+                onValueChange = { newValue = it },
+                label = stringResource(Res.string.community_data_value),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Button(
+            onClick = {
+                val key: String = newKey.trim().lowercase()
+                if (key.isEmpty()) {
+                    keyError = true
+                    return@Button
+                }
+                onSet(key, newValue)
+                newKey = ""
+                newValue = ""
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(Res.string.community_data_add))
+        }
+    } else {
+        write.deniedReason?.let { reason ->
+            Text(text = reason, style = typography.xs, color = tokens.mutedForeground)
+        }
+    }
+
+    saveError?.let { detail ->
+        Text(text = detail, style = typography.xs, color = tokens.destructive)
+    }
+
+    pendingDelete?.let { key ->
+        ConfirmDialog(
+            title = stringResource(Res.string.community_data_delete_title),
+            message = stringResource(Res.string.community_data_delete_message, key),
+            confirmLabel = stringResource(Res.string.community_data_delete_confirm),
+            dismissLabel = stringResource(Res.string.community_stats_close),
+            destructive = true,
+            onConfirm = {
+                pendingDelete = null
+                onDelete(key)
+            },
+            onDismiss = { pendingDelete = null },
+        )
     }
 }
 
