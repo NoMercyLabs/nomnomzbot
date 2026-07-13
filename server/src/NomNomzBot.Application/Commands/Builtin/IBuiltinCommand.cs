@@ -50,6 +50,19 @@ public sealed class BuiltinCommandContext
     public string Args { get; init; } = string.Empty;
 
     /// <summary>
+    /// When the triggering message is a reply, the parent message's plain text — lets a built-in capture the
+    /// replied-to line directly (e.g. reply with <c>!quote add</c> to quote that message). Null for a
+    /// non-reply message. Populated by the chat handler; a built-in only reads it.
+    /// </summary>
+    public string? ReplyParentMessageBody { get; init; }
+
+    /// <summary>
+    /// When the triggering message is a reply, the display name of the user being replied to — the natural
+    /// attribution for a reply-capture built-in. Null for a non-reply message. Populated by the chat handler.
+    /// </summary>
+    public string? ReplyParentUserName { get; init; }
+
+    /// <summary>
     /// The channel's explicit per-command response-template override, parsed from
     /// <c>ChannelBuiltinCommand.OverridesJson</c> by the chat handler. When set (non-blank) it WINS over the
     /// personality tone template; when null the built-in falls back to its tone template, then its neutral

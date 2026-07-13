@@ -162,6 +162,9 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 TriggeringUserLogin = @event.UserLogin,
                 RoleLevel = BadgeLevel(@event),
                 Args = args,
+                // A reply carries the parent message + author so a built-in can capture it (e.g. !quote add).
+                ReplyParentMessageBody = @event.ReplyParentMessageBody,
+                ReplyParentUserName = @event.ReplyParentUserName,
                 // Personality tone + explicit per-command override (OverridesJson) drive the built-in's
                 // response phrasing: override wins, else the tone template, else the built-in's neutral.
                 Personality = ctx.Personality,
@@ -313,6 +316,8 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                         TriggeringUserLogin = @event.UserLogin,
                         RoleLevel = BadgeLevel(@event),
                         Args = args,
+                        ReplyParentMessageBody = @event.ReplyParentMessageBody,
+                        ReplyParentUserName = @event.ReplyParentUserName,
                         Personality = ctx.Personality,
                         CustomResponseTemplate = ctx.BuiltinResponseOverrides.GetValueOrDefault(
                             commandName
