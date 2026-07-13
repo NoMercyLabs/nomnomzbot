@@ -31,18 +31,14 @@ import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
+import bot.nomnomz.dashboard.core.designsystem.component.RevealableSecretField
 import bot.nomnomz.dashboard.core.designsystem.component.LinkedText
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.StepState
@@ -63,8 +59,6 @@ import nomnomzbot.composeapp.generated.resources.setup_action_connect_bot
 import nomnomzbot.composeapp.generated.resources.setup_action_continue
 import nomnomzbot.composeapp.generated.resources.setup_action_retry
 import nomnomzbot.composeapp.generated.resources.setup_action_save
-import nomnomzbot.composeapp.generated.resources.setup_secret_hide
-import nomnomzbot.composeapp.generated.resources.setup_secret_show
 import nomnomzbot.composeapp.generated.resources.setup_copy_action
 import nomnomzbot.composeapp.generated.resources.setup_copy_done
 import nomnomzbot.composeapp.generated.resources.setup_error_bot
@@ -495,36 +489,30 @@ private fun CredentialField(
     // show none — so a field with no help anywhere simply renders without a supporting line.
     val help: String? = SetupCopy.fieldHelp(stepKey, field.key)?.let { stringResource(it) } ?: field.help
 
-    // Secret fields (client secrets, tokens) render masked by default so a streamer can't leak a key on camera,
-    // with a joined Show/Hide toggle to reveal it when they need to check what they pasted.
+    // Secret fields (client secrets, tokens) render masked with a Show/Hide reveal via the shared
+    // RevealableSecretField — the same affordance the integrations credential card uses — so a streamer can't
+    // leak a key on camera but can check what they pasted. Non-secret fields are a plain text field.
     val isSecret: Boolean = field.type == FIELD_TYPE_PASSWORD
-    var revealed: Boolean by remember(field.key) { mutableStateOf(false) }
 
-    AppTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = label,
-        modifier = Modifier.fillMaxWidth(),
-        enabled = enabled,
-        supportingText = help,
-        visualTransformation =
-            if (isSecret && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
-        trailingIcon =
-            if (isSecret) {
-                {
-                    TextButton(onClick = { revealed = !revealed }, enabled = enabled) {
-                        Text(
-                            stringResource(
-                                if (revealed) Res.string.setup_secret_hide
-                                else Res.string.setup_secret_show,
-                            ),
-                        )
-                    }
-                }
-            } else {
-                null
-            },
-    )
+    if (isSecret) {
+        RevealableSecretField(
+            value = value,
+            onValueChange = onValueChange,
+            label = label,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = enabled,
+            supportingText = help,
+        )
+    } else {
+        AppTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = label,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = enabled,
+            supportingText = help,
+        )
+    }
 }
 
 // ── Localization + copy helpers ────────────────────────────────────────────────

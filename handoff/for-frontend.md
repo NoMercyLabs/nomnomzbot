@@ -74,17 +74,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** the Kick tile connects end-to-end against a real Kick account and a Kick chat message
   renders in the feed with its provider tag.
 
-### 2026-07-11 — Credential component DRY unification (item 24c hand-off)
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** the client-setup credential components (BYOC client-id/secret entry used by the setup
-  wizard and the integrations screens) are still duplicated — unify into one shared component.
-- **Why:** ROADMAP "Small decided items"; duplicated forms drift (validation, paste-trimming, masked
-  reveal) and every fix lands twice.
-- **Where:** `app/composeApp/src/commonMain/.../feature/setup/` + `feature/integrations/` (find the
-  duplicated credential input blocks); design-system components only.
-- **Done when:** one shared credential component renders in both places, behavior identical, no
-  duplicated credential-form code remains.
-
 ### 2026-07-11 — Optional: adopt render-manifest + hub event classes for a lighter dashboard
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** two backend surfaces exist that the client can adopt when convenient (both optional —

@@ -18,9 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.RevealableSecretField
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import androidx.compose.material3.Text
-import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,8 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -47,8 +45,6 @@ import nomnomzbot.composeapp.generated.resources.provider_credentials_save
 import nomnomzbot.composeapp.generated.resources.provider_credentials_saving
 import nomnomzbot.composeapp.generated.resources.setup_copy_action
 import nomnomzbot.composeapp.generated.resources.setup_copy_done
-import nomnomzbot.composeapp.generated.resources.setup_secret_hide
-import nomnomzbot.composeapp.generated.resources.setup_secret_show
 import org.jetbrains.compose.resources.stringResource
 
 // The generic per-provider BYOC app-credential form — the register-client step of the register-then-login
@@ -148,7 +144,8 @@ private fun ClientIdField(
     )
 }
 
-// The client secret, masked by default with a Show/Hide reveal so it can't leak on camera.
+// The client secret — the shared masked-with-Show/Hide field (RevealableSecretField), so the reveal behaviour
+// is identical here and in the setup wizard.
 @Composable
 private fun ClientSecretField(
     value: String,
@@ -156,26 +153,13 @@ private fun ClientSecretField(
     providerDisplayName: String,
     enabled: Boolean,
 ) {
-    var revealed: Boolean by remember { mutableStateOf(false) }
-
-    AppTextField(
+    RevealableSecretField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
         modifier = Modifier.fillMaxWidth(),
         label = stringResource(Res.string.provider_credentials_clientSecret_label),
         supportingText = stringResource(Res.string.provider_credentials_clientSecret_help, providerDisplayName),
-        visualTransformation =
-            if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
-        trailingIcon = {
-            TextButton(onClick = { revealed = !revealed }, enabled = enabled) {
-                Text(
-                    stringResource(
-                        if (revealed) Res.string.setup_secret_hide else Res.string.setup_secret_show
-                    )
-                )
-            }
-        },
     )
 }
 
