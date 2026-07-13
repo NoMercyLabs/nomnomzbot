@@ -183,6 +183,32 @@ public sealed class PostQuoteActionTests
     }
 
     [Fact]
+    public async Task PostQuote_HonorsChatArgument_WhenNoConfigNumber()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+
+        await using QuoteTestDbContext db = database.NewContext();
+        IQuoteService quotes = NewQuoteService(db);
+        await quotes.AddAsync(channel, new AddQuoteRequest("first", null, null, null, null));
+        await quotes.AddAsync(channel, new AddQuoteRequest("second", null, null, null, null));
+
+        RecordingChatProvider chat = new();
+        PostQuoteAction action = new(quotes, chat);
+
+        // No config number, but the triggering "!quote 2" put "2" in the pipeline args — the step must post #2,
+        // not a random quote (the latent bug: the chat argument was dropped).
+        PipelineExecutionContext ctx = Context(channel);
+        ctx.Variables["args.0"] = "2";
+
+        ActionResult result = await action.ExecuteAsync(ctx, Action(null));
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        result.Output.Should().Be("#2: \"second\"");
+        chat.Sent.Should().ContainSingle().Which.Message.Should().Be("#2: \"second\"");
+    }
+
+    [Fact]
     public async Task PostQuote_FailsClosed_WhenChannelHasNoQuotes()
     {
         using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();

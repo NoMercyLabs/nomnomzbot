@@ -671,6 +671,10 @@ public static class DependencyInjection
         >();
         services.AddScoped<
             IBuiltinCommand,
+            NomNomzBot.Infrastructure.Quotes.Builtins.QuoteBuiltin
+        >();
+        services.AddScoped<
+            IBuiltinCommand,
             NomNomzBot.Infrastructure.Commands.Builtins.SongRequestBuiltin
         >();
         services.AddScoped<

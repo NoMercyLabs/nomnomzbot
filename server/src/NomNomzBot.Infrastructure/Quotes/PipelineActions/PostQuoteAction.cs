@@ -41,7 +41,7 @@ public sealed class PostQuoteAction : ICommandAction
         ActionDefinition action
     )
     {
-        int? number = ReadNumber(action);
+        int? number = ReadNumber(ctx, action);
 
         Result<QuoteDto> result = number is null
             ? await _quotes.GetRandomAsync(ctx.BroadcasterId, ctx.CancellationToken)
@@ -52,7 +52,7 @@ public sealed class PostQuoteAction : ICommandAction
                 result.ErrorMessage ?? "post_quote could not resolve a quote"
             );
 
-        string line = Render(result.Value);
+        string line = QuoteFormatter.Format(result.Value);
         ctx.Variables["quote"] = line;
 
         await _chat.SendMessageAsync(ctx.BroadcasterId, line, ctx.CancellationToken);
@@ -60,31 +60,27 @@ public sealed class PostQuoteAction : ICommandAction
     }
 
     /// <summary>
-    /// Reads the optional <c>number</c> config value. A present numeric value selects that quote; an absent
-    /// key (or null) means "random". A present-but-non-numeric value is treated as random rather than failing.
+    /// Resolves which quote to post. A static <c>number</c> config value wins (a quote-of-the-day timer). With no
+    /// config number, the triggering chat argument is honored — so a <c>!quote 5</c> command whose pipeline has a
+    /// <c>post_quote</c> step posts quote #5 (the arg lands in <c>ctx.Variables["args.0"]</c>). Neither present
+    /// (or a non-numeric value) means "random".
     /// </summary>
-    private static int? ReadNumber(ActionDefinition action)
+    private static int? ReadNumber(PipelineExecutionContext ctx, ActionDefinition action)
     {
-        if (action.Parameters is null)
-            return null;
-        if (!action.Parameters.TryGetValue("number", out JsonElement element))
-            return null;
-        return element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out int value)
-            ? value
-            : null;
-    }
+        if (
+            action.Parameters is not null
+            && action.Parameters.TryGetValue("number", out JsonElement element)
+            && element.ValueKind == JsonValueKind.Number
+            && element.TryGetInt32(out int configured)
+        )
+            return configured;
 
-    /// <summary>Renders <c>#{number}: "{text}" — {displayName} ({game})</c>, omitting empty attribution parts.</summary>
-    private static string Render(QuoteDto quote)
-    {
-        string line = $"#{quote.Number}: \"{quote.Text}\"";
+        if (
+            ctx.Variables.TryGetValue("args.0", out string? arg)
+            && int.TryParse(arg, out int fromArg)
+        )
+            return fromArg;
 
-        if (!string.IsNullOrWhiteSpace(quote.QuotedDisplayName))
-            line += $" — {quote.QuotedDisplayName}";
-
-        if (!string.IsNullOrWhiteSpace(quote.ContextGame))
-            line += $" ({quote.ContextGame})";
-
-        return line;
+        return null;
     }
 }
