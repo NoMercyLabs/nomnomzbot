@@ -23,6 +23,7 @@ import bot.nomnomz.dashboard.core.network.ModerationActionResult
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationStats
+import bot.nomnomz.dashboard.core.network.NetworkBanResult
 import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.UserModerationContext
@@ -258,6 +259,19 @@ class ModerationController(
     suspend fun resolveUnbanRequest(requestId: String, approve: Boolean, note: String?) {
         val channel: String = channelId ?: return
         afterWrite(moderationApi.resolveUnbanRequest(channel, requestId, approve, note))
+    }
+
+    /**
+     * Un-nuke [userId] (a [BannedUser.id] = Twitch id): lift the ban in this channel ([scope] = "this_channel")
+     * or across every channel the operator moderates ([scope] = "all_moderated"). Reloads on success so the
+     * unbanned viewer drops off; surfaces the error on the current list on failure. No-ops with no channel.
+     */
+    suspend fun networkUnban(userId: String, scope: String) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<NetworkBanResult> = moderationApi.networkUnban(channel, userId, scope)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
     }
 
     // Surface a write error on the current Ready list without disturbing it (same shape as the other writes).

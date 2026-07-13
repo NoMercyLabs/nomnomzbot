@@ -504,6 +504,10 @@
     <string name="moderation_unban_deny">Afwijzen</string>
     <string name="moderation_unban_deny_title">Beroep afwijzen</string>
     <string name="moderation_unban_deny_message">Beroep van %1$s afwijzen? De ban blijft van kracht.</string>
+    <string name="moderation_unban_everywhere_short">Overal ontbannen</string>
+    <string name="moderation_unban_everywhere_title">Ontbannen in alle kanalen</string>
+    <string name="moderation_unban_everywhere_message">De ban van %1$s in elk kanaal dat je modereert opheffen? Dit gebeurt met je eigen account, naar beste vermogen.</string>
+    <string name="moderation_unban_everywhere_confirm">Overal ontbannen</string>
     <string name="moderation_stats_bans_today">Bans vandaag</string>
     <string name="moderation_stats_timeouts">Time-outs</string>
     <string name="moderation_stats_deleted">Verwijderde berichten</string>

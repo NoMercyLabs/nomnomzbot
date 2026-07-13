@@ -507,6 +507,10 @@
     <string name="moderation_unban_deny">Deny</string>
     <string name="moderation_unban_deny_title">Deny appeal</string>
     <string name="moderation_unban_deny_message">Deny %1$s’s appeal? Their ban stays in place.</string>
+    <string name="moderation_unban_everywhere_short">Unban everywhere</string>
+    <string name="moderation_unban_everywhere_title">Unban across all channels</string>
+    <string name="moderation_unban_everywhere_message">Lift %1$s’s ban in every channel you moderate? This acts as your own account, best-effort.</string>
+    <string name="moderation_unban_everywhere_confirm">Unban everywhere</string>
     <string name="moderation_stats_bans_today">Bans today</string>
     <string name="moderation_stats_timeouts">Timeouts</string>
     <string name="moderation_stats_deleted">Deleted msgs</string>

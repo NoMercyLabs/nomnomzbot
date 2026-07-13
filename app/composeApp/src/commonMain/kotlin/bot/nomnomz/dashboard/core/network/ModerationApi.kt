@@ -127,6 +127,17 @@ interface ModerationApi {
         approve: Boolean,
         note: String?,
     ): ApiResult<Unit>
+
+    /**
+     * Lift a ban on [targetTwitchUserId] — in THIS channel ([scope] = "this_channel") or across EVERY channel the
+     * operator moderates ([scope] = "all_moderated"; the reverse of the network ban, issued as the operator's own
+     * token, best-effort). Returns the per-channel outcome (one row for "this_channel").
+     */
+    suspend fun networkUnban(
+        channelId: String,
+        targetTwitchUserId: String,
+        scope: String,
+    ): ApiResult<NetworkBanResult>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -279,6 +290,17 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
         client.postUnit(
             "api/v1/channels/$channelId/moderation/unban-requests/$requestId/resolve",
             ResolveUnbanBody(approve = approve, note = note),
+        )
+
+    // Mirror of the network ban: POST /moderation/actions/unban -> StatusResponseDto<NetworkBanResultDto>.
+    override suspend fun networkUnban(
+        channelId: String,
+        targetTwitchUserId: String,
+        scope: String,
+    ): ApiResult<NetworkBanResult> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/moderation/actions/unban",
+            UnbanUserBody(targetTwitchUserId = targetTwitchUserId, scope = scope),
         )
 }
 
@@ -475,3 +497,10 @@ data class UnbanRequest(
 /** Request body to resolve an unban request (backend `ResolveUnbanRequestRequest`). */
 @Serializable
 data class ResolveUnbanBody(val approve: Boolean, val note: String? = null)
+
+/**
+ * Request body for a network un-nuke (backend `UnbanUserRequest`). [scope] is `this_channel` or
+ * `all_moderated`. Mirrors `BanUserBody` (which lives in ChatApi.kt for the ban side).
+ */
+@Serializable
+data class UnbanUserBody(val targetTwitchUserId: String, val scope: String)

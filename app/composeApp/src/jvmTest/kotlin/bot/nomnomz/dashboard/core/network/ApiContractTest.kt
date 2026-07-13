@@ -101,6 +101,7 @@ class ApiContractTest {
             ChatMessage.serializer() to "DashboardChatMessageDto",
             ChatEmoteCatalogue.serializer() to "ChatEmoteCatalogueDto",
             BanUserBody.serializer() to "BanUserRequest",
+            UnbanUserBody.serializer() to "UnbanUserRequest",
             NetworkBanResult.serializer() to "NetworkBanResultDto",
             ChannelBanOutcome.serializer() to "ChannelBanOutcomeDto",
             ResolvedAccess.serializer() to "ResolvedAccessDto",

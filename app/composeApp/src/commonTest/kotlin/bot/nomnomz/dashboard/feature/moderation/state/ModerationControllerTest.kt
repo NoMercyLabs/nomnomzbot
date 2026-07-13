@@ -28,6 +28,7 @@ import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationActionResult
+import bot.nomnomz.dashboard.core.network.NetworkBanResult
 import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.UserModerationContext
 import kotlin.test.Test
@@ -504,6 +505,19 @@ class ModerationControllerTest {
         // The resolve hit the API with exactly the decision (approve + note).
         assertEquals(listOf(Triple("r1", true, null as String?)), api.resolvedUnban)
     }
+
+    @Test
+    fun network_unban_records_the_target_and_scope_then_reloads() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(listOf(BannedUser(id = "u1", username = "troll"))))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.networkUnban("u1", "all_moderated")
+
+        // The un-nuke hit the API with the target + scope, and the list reloaded (initial + post-write).
+        assertEquals(listOf("u1" to "all_moderated"), api.networkUnbanned)
+        assertEquals(2, api.bansCalls)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -677,5 +691,16 @@ private class FakeModerationApi(
     ): ApiResult<Unit> {
         resolvedUnban.add(Triple(requestId, approve, note))
         return ApiResult.Ok(Unit)
+    }
+
+    val networkUnbanned: MutableList<Pair<String, String>> = mutableListOf()
+
+    override suspend fun networkUnban(
+        channelId: String,
+        targetTwitchUserId: String,
+        scope: String,
+    ): ApiResult<NetworkBanResult> {
+        networkUnbanned.add(targetTwitchUserId to scope)
+        return ApiResult.Ok(NetworkBanResult(attempted = 1, succeeded = 1))
     }
 }

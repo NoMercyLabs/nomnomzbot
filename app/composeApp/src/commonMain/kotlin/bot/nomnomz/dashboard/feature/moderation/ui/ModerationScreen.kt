@@ -191,6 +191,10 @@ import nomnomzbot.composeapp.generated.resources.moderation_unban_deny
 import nomnomzbot.composeapp.generated.resources.moderation_unban_deny_message
 import nomnomzbot.composeapp.generated.resources.moderation_unban_deny_title
 import nomnomzbot.composeapp.generated.resources.moderation_unban_dismiss
+import nomnomzbot.composeapp.generated.resources.moderation_unban_everywhere_confirm
+import nomnomzbot.composeapp.generated.resources.moderation_unban_everywhere_message
+import nomnomzbot.composeapp.generated.resources.moderation_unban_everywhere_short
+import nomnomzbot.composeapp.generated.resources.moderation_unban_everywhere_title
 import nomnomzbot.composeapp.generated.resources.moderation_unban_requests_title
 import nomnomzbot.composeapp.generated.resources.moderation_unban_message
 import nomnomzbot.composeapp.generated.resources.moderation_unban_title
@@ -255,6 +259,9 @@ fun ModerationScreen(
                         scope.launch { controller.resolveUnbanRequest(requestId, approve, note) }
                     },
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
+                    onNetworkUnban = { userId ->
+                        scope.launch { controller.networkUnban(userId, "all_moderated") }
+                    },
                     onViewContext = { userId -> scope.launch { controller.openUserContext(userId) } },
                     onPerformAction = { action, userId, duration, reason ->
                         scope.launch { controller.performAction(action, userId, duration, reason) }
@@ -303,6 +310,7 @@ private fun BansList(
     suspiciousManage: ManageDecision,
     onResolveUnban: (requestId: String, approve: Boolean, note: String?) -> Unit,
     onUnban: (userId: String) -> Unit,
+    onNetworkUnban: (userId: String) -> Unit,
     onViewContext: (userId: String) -> Unit,
     onPerformAction: (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> Unit,
     onToggleShield: (Boolean) -> Unit,
@@ -322,6 +330,8 @@ private fun BansList(
     var pendingUnban: BannedUser? by remember { mutableStateOf(null) }
     // The unban-request appeal awaiting a deny confirmation, if any.
     var pendingDeny: UnbanRequest? by remember { mutableStateOf(null) }
+    // The banned viewer awaiting an "unban everywhere" (all-moderated) confirmation, if any.
+    var pendingNetworkUnban: BannedUser? by remember { mutableStateOf(null) }
     // The filter rule awaiting delete confirmation, if any.
     var pendingDeleteRule: ModerationRule? by remember { mutableStateOf(null) }
     // Whether the "moderate a viewer" action dialog is open.
@@ -397,6 +407,7 @@ private fun BansList(
                                 ban = ban,
                                 manage = manage,
                                 onUnban = { pendingUnban = ban },
+                                onNetworkUnban = { pendingNetworkUnban = ban },
                                 onViewContext = { onViewContext(ban.id) },
                             )
                             if (index < bans.lastIndex) {
@@ -609,6 +620,22 @@ private fun BansList(
         )
     }
 
+    pendingNetworkUnban?.let { ban ->
+        val name: String = ban.displayName.takeIf { it.isNotBlank() } ?: ban.username
+        ConfirmDialog(
+            title = stringResource(Res.string.moderation_unban_everywhere_title),
+            message = stringResource(Res.string.moderation_unban_everywhere_message, name),
+            confirmLabel = stringResource(Res.string.moderation_unban_everywhere_confirm),
+            dismissLabel = stringResource(Res.string.moderation_unban_dismiss),
+            destructive = true,
+            onConfirm = {
+                onNetworkUnban(ban.id)
+                pendingNetworkUnban = null
+            },
+            onDismiss = { pendingNetworkUnban = null },
+        )
+    }
+
     pendingDeleteRule?.let { rule ->
         ConfirmDialog(
             title = stringResource(Res.string.moderation_rules_delete_title),
@@ -757,6 +784,7 @@ private fun BanRow(
     ban: BannedUser,
     manage: ManageDecision,
     onUnban: () -> Unit,
+    onNetworkUnban: () -> Unit,
     onViewContext: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -836,6 +864,15 @@ private fun BanRow(
             ) {
                 Text(
                     text = stringResource(Res.string.moderation_unban_action_short),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(onClick = onNetworkUnban, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.moderation_unban_everywhere_short),
                     color = if (enabled) tokens.primary else tokens.mutedForeground,
                     maxLines = 1,
                 )

@@ -99,22 +99,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** add a note → appears in the list; pin → floats to top; edit content persists; delete removes it;
   empty/too-long content shows the validation error; en + nl strings.
 
-### 2026-07-11 — Network un-nuke: reverse a mass ban across moderated channels — new endpoint
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** the reversal of the existing network ban. `POST /channels/{channelId}/moderation/actions/unban` with
-  `UnbanUserRequest` (`targetTwitchUserId`, `scope` = `this_channel` (default) | `all_moderated`) →
-  `NetworkBanResultDto` (`attempted`, `succeeded`, `channels[]` = per-channel `broadcasterLogin`/`succeeded`/
-  `error`), exactly mirroring the ban endpoint (`POST actions/ban`) shape you already consume. `all_moderated`
-  lifts the ban in every channel Twitch says the operator moderates, as the operator (their own token), best-effort.
-- **Why:** item 15 — the network ban (`all_moderated`) had no undo. Same "act on any channel you moderate, no
-  install required" model; the per-channel result lets the UI show which channels the un-nuke reached.
-- **Where:** wherever the network-ban action lives (moderation actions / user context). Register `UnbanUserRequest`
-  in `ApiContractTest` (`NetworkBanResultDto` is already registered from the ban side; v1.json refreshed). Role
-  gate: `moderation:unban` (Mod), same as the single-channel unban. `all_moderated` is consequential — confirm it
-  and show the per-channel outcome list on return.
-- **Done when:** an `all_moderated` un-nuke returns the per-channel outcomes and a `this_channel` unban returns the
-  one-row result; en + nl strings.
-
 ### 2026-07-11 — Moderation page now shows/controls REAL Twitch state — handle the regrant/error path
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** three moderation endpoints changed behaviour (NOT their contract — no `v1.json` change, no DTO
