@@ -71,6 +71,7 @@ import bot.nomnomz.dashboard.feature.moderation.state.UserContextState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.moderation_action_error
@@ -109,7 +110,15 @@ import nomnomzbot.composeapp.generated.resources.moderation_banned_by
 import nomnomzbot.composeapp.generated.resources.moderation_banned_on
 import nomnomzbot.composeapp.generated.resources.moderation_context_action_short
 import nomnomzbot.composeapp.generated.resources.moderation_context_bans
+import nomnomzbot.composeapp.generated.resources.moderation_actions_title
 import nomnomzbot.composeapp.generated.resources.moderation_context_close
+import nomnomzbot.composeapp.generated.resources.moderation_suspicious_clear
+import nomnomzbot.composeapp.generated.resources.moderation_suspicious_label
+import nomnomzbot.composeapp.generated.resources.moderation_suspicious_monitor
+import nomnomzbot.composeapp.generated.resources.moderation_suspicious_restrict
+import nomnomzbot.composeapp.generated.resources.moderation_suspicious_restrict_confirm
+import nomnomzbot.composeapp.generated.resources.moderation_warn_action
+import nomnomzbot.composeapp.generated.resources.moderation_warn_reason
 import nomnomzbot.composeapp.generated.resources.moderation_context_disclaimer
 import nomnomzbot.composeapp.generated.resources.moderation_context_error
 import nomnomzbot.composeapp.generated.resources.moderation_context_last
@@ -203,6 +212,9 @@ fun ModerationScreen(
     // floor (frontend-ia.md §3). A caller below it sees the ban list but the Unban control is disabled with
     // "Requires Moderator" (§7); the backend re-checks every write regardless.
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Moderation)
+    // Marking a viewer suspicious (monitor / restrict) is a Lead-Moderator (SuperMod) action — a higher floor
+    // than the page's Moderator gate (warn / bans). The backend re-checks regardless.
+    val suspiciousManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.SuperMod)
 
     LaunchedEffect(Unit) { controller.load() }
     if (hubEvents != null) {
@@ -253,7 +265,15 @@ fun ModerationScreen(
     }
 
     userContext?.let { ctx ->
-        UserModerationContextDialog(state = ctx, onDismiss = { controller.closeUserContext() })
+        UserModerationContextDialog(
+            state = ctx,
+            manage = manage,
+            suspiciousManage = suspiciousManage,
+            onWarn = { userId, reason -> scope.launch { controller.warn(userId, reason) } },
+            onSuspicious = { userId, status -> scope.launch { controller.setSuspicious(userId, status) } },
+            onClearSuspicious = { userId -> scope.launch { controller.clearSuspicious(userId) } },
+            onDismiss = { controller.closeUserContext() },
+        )
     }
 }
 
@@ -769,7 +789,15 @@ private fun BanRow(
 // shows the viewer's rap sheet — the bot's OWN recorded ban/timeout/warn/unban history, explicitly NOT the full
 // Twitch record (the disclaimer says so). Read-only; the mod then acts via the existing ban/timeout/unban tools.
 @Composable
-private fun UserModerationContextDialog(state: UserContextState, onDismiss: () -> Unit) {
+private fun UserModerationContextDialog(
+    state: UserContextState,
+    manage: ManageDecision,
+    suspiciousManage: ManageDecision,
+    onWarn: (userId: String, reason: String) -> Unit,
+    onSuspicious: (userId: String, status: String) -> Unit,
+    onClearSuspicious: (userId: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -803,7 +831,17 @@ private fun UserModerationContextDialog(state: UserContextState, onDismiss: () -
                             style = typography.sm,
                             color = tokens.destructive,
                         )
-                    is UserContextState.Ready -> UserModerationContextBody(state.context)
+                    is UserContextState.Ready -> {
+                        UserModerationContextBody(state.context)
+                        UserModerationActions(
+                            userId = state.context.userId,
+                            manage = manage,
+                            suspiciousManage = suspiciousManage,
+                            onWarn = onWarn,
+                            onSuspicious = onSuspicious,
+                            onClearSuspicious = onClearSuspicious,
+                        )
+                    }
                 }
             }
         },
@@ -813,6 +851,100 @@ private fun UserModerationContextDialog(state: UserContextState, onDismiss: () -
             }
         },
     )
+}
+
+// The write side of the per-user mod panel (gated at the page's Moderator floor): issue a Twitch warning (needs
+// a reason) and set/clear a suspicious flag (monitor = watch, restrict = hold their messages — confirmed). Each
+// acts immediately and the controller reloads the rap sheet above. Below the manage floor the controls disable
+// with the standard reason.
+@Composable
+private fun UserModerationActions(
+    userId: String,
+    manage: ManageDecision,
+    suspiciousManage: ManageDecision,
+    onWarn: (userId: String, reason: String) -> Unit,
+    onSuspicious: (userId: String, status: String) -> Unit,
+    onClearSuspicious: (userId: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var reason: String by remember(userId) { mutableStateOf("") }
+    var confirmRestrict: Boolean by remember(userId) { mutableStateOf(false) }
+
+    Separator()
+    Text(
+        text = stringResource(Res.string.moderation_actions_title),
+        style = typography.sm,
+        color = tokens.mutedForeground,
+    )
+
+    AppTextField(
+        value = reason,
+        onValueChange = { reason = it },
+        label = stringResource(Res.string.moderation_warn_reason),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    ManageGate(decision = manage) { enabled ->
+        Button(
+            onClick = {
+                onWarn(userId, reason.trim())
+                reason = ""
+            },
+            enabled = enabled && reason.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(Res.string.moderation_warn_action))
+        }
+    }
+
+    Text(
+        text = stringResource(Res.string.moderation_suspicious_label),
+        style = typography.xs,
+        color = tokens.mutedForeground,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        ManageGate(decision = suspiciousManage) { enabled ->
+            TextButton(onClick = { onSuspicious(userId, "active_monitoring") }, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.moderation_suspicious_monitor),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                )
+            }
+        }
+        ManageGate(decision = suspiciousManage) { enabled ->
+            TextButton(onClick = { confirmRestrict = true }, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.moderation_suspicious_restrict),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                )
+            }
+        }
+        ManageGate(decision = suspiciousManage) { enabled ->
+            TextButton(onClick = { onClearSuspicious(userId) }, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.moderation_suspicious_clear),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                )
+            }
+        }
+    }
+
+    if (confirmRestrict) {
+        ConfirmDialog(
+            title = stringResource(Res.string.moderation_suspicious_restrict),
+            message = stringResource(Res.string.moderation_suspicious_restrict_confirm),
+            confirmLabel = stringResource(Res.string.moderation_suspicious_restrict),
+            dismissLabel = stringResource(Res.string.moderation_context_close),
+            destructive = true,
+            onConfirm = {
+                confirmRestrict = false
+                onSuspicious(userId, "restricted")
+            },
+            onDismiss = { confirmRestrict = false },
+        )
+    }
 }
 
 // The loaded rap sheet: the viewer's counters + last action + the recent recorded actions.

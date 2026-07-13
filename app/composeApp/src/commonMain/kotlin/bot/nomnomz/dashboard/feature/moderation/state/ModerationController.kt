@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.CreateModerationRuleBody
+import bot.nomnomz.dashboard.core.network.ModerationActionResult
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationStats
@@ -189,6 +190,53 @@ class ModerationController(
     /** Close the per-user moderation panel. */
     fun closeUserContext() {
         _userContext.value = null
+    }
+
+    /**
+     * Issue a Twitch warning to [userId] with [reason], then reload their rap sheet so the warn count + recent
+     * actions reflect it. A backend success=false (the channel's grant can't warn) surfaces its message on the
+     * page. No-ops when no channel is loaded.
+     */
+    suspend fun warn(userId: String, reason: String) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<ModerationActionResult> = moderationApi.warn(channel, userId, reason)) {
+            is ApiResult.Ok -> {
+                if (!result.value.success) {
+                    setActionError(result.value.message ?: "The warning could not be issued.")
+                }
+                openUserContext(userId)
+            }
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /**
+     * Flag [userId] as suspicious ([status] = `active_monitoring` or `restricted`), then reload their rap sheet.
+     * Surfaces the error on failure; no-ops when no channel is loaded.
+     */
+    suspend fun setSuspicious(userId: String, status: String) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<Unit> = moderationApi.setSuspicious(channel, userId, status)) {
+            is ApiResult.Ok -> openUserContext(userId)
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /** Clear the suspicious flag on [userId], then reload their rap sheet. Surfaces the error on failure. */
+    suspend fun clearSuspicious(userId: String) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<Unit> = moderationApi.clearSuspicious(channel, userId)) {
+            is ApiResult.Ok -> openUserContext(userId)
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    // Surface a write error on the current Ready list without disturbing it (same shape as the other writes).
+    private fun setActionError(message: String) {
+        val current: ModerationState = _state.value
+        if (current is ModerationState.Ready) {
+            _state.value = current.copy(actionError = message)
+        }
     }
 
     /**

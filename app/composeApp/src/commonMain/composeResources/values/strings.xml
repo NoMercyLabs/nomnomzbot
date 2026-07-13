@@ -342,6 +342,14 @@
     <string name="moderation_context_recent">Recent actions</string>
     <string name="moderation_context_recent_empty">No recorded actions.</string>
     <string name="moderation_context_close">Close</string>
+    <string name="moderation_actions_title">Moderator actions</string>
+    <string name="moderation_warn_reason">Warning reason</string>
+    <string name="moderation_warn_action">Issue warning</string>
+    <string name="moderation_suspicious_label">Suspicious status</string>
+    <string name="moderation_suspicious_monitor">Monitor</string>
+    <string name="moderation_suspicious_restrict">Restrict</string>
+    <string name="moderation_suspicious_clear">Clear flag</string>
+    <string name="moderation_suspicious_restrict_confirm">Restricting holds all of this viewer’s messages for a moderator to review until you clear it. Continue?</string>
     <string name="moderation_banned_on">Banned on %1$s</string>
     <string name="moderation_banned_by">Banned by %1$s</string>
     <string name="moderation_error">Could not load bans: %1$s</string>

@@ -339,6 +339,14 @@
     <string name="moderation_context_recent">Recente acties</string>
     <string name="moderation_context_recent_empty">Geen geregistreerde acties.</string>
     <string name="moderation_context_close">Sluiten</string>
+    <string name="moderation_actions_title">Moderatoracties</string>
+    <string name="moderation_warn_reason">Reden voor waarschuwing</string>
+    <string name="moderation_warn_action">Waarschuwing geven</string>
+    <string name="moderation_suspicious_label">Verdachte status</string>
+    <string name="moderation_suspicious_monitor">Volgen</string>
+    <string name="moderation_suspicious_restrict">Beperken</string>
+    <string name="moderation_suspicious_clear">Markering wissen</string>
+    <string name="moderation_suspicious_restrict_confirm">Bij beperken worden alle berichten van deze kijker vastgehouden voor beoordeling door een moderator totdat je dit opheft. Doorgaan?</string>
     <string name="moderation_banned_on">Verbannen op %1$s</string>
     <string name="moderation_banned_by">Verbannen door %1$s</string>
     <string name="moderation_error">Kon bans niet laden: %1$s</string>

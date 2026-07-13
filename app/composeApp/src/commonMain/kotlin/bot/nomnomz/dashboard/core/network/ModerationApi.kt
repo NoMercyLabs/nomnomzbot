@@ -96,6 +96,23 @@ interface ModerationApi {
      * `moderator:manage:announcements`.
      */
     suspend fun announce(channelId: String, message: String, color: String?): ApiResult<Unit>
+
+    /**
+     * Issue a Twitch warning to [userId] with [reason] (they must acknowledge it before chatting again).
+     * Returns the action result — [ModerationActionResult.success] is false with a [ModerationActionResult.message]
+     * when the channel's grant can't warn (honest degradation, still HTTP 200). Requires
+     * `moderator:manage:warnings`.
+     */
+    suspend fun warn(channelId: String, userId: String, reason: String): ApiResult<ModerationActionResult>
+
+    /**
+     * Flag [userId] as suspicious — [status] is `active_monitoring` (watch) or `restricted` (hold all their
+     * messages). Requires `moderator:manage:suspicious_users`.
+     */
+    suspend fun setSuspicious(channelId: String, userId: String, status: String): ApiResult<Unit>
+
+    /** Clear the suspicious flag on [userId]. */
+    suspend fun clearSuspicious(channelId: String, userId: String): ApiResult<Unit>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -206,6 +223,32 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
             "api/v1/channels/$channelId/moderation/actions",
             ModerationActionBody(action, targetUserId, durationSeconds, reason),
         )
+
+    // POST /moderation/warn — StatusResponseDto<ModerationActionResult>; postEnvelope reads `.data` so the
+    // caller can surface a success=false / message (missing-scope degradation) rather than assume it worked.
+    override suspend fun warn(
+        channelId: String,
+        userId: String,
+        reason: String,
+    ): ApiResult<ModerationActionResult> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/moderation/warn",
+            WarnBody(targetUserId = userId, reason = reason),
+        )
+
+    // POST /moderation/suspicious — the caller reloads the user context after, so any 2xx is success here.
+    override suspend fun setSuspicious(
+        channelId: String,
+        userId: String,
+        status: String,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/moderation/suspicious",
+            SetSuspiciousBody(targetUserId = userId, status = status),
+        )
+
+    override suspend fun clearSuspicious(channelId: String, userId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/moderation/suspicious/$userId")
 }
 
 /** Today's moderation counters (backend `GET /moderation/stats` anonymous object). */
@@ -364,3 +407,21 @@ data class CreateModerationRuleBody(
 /** Request body for the announce action (backend `ChatController.AnnounceRequest`). */
 @Serializable
 data class AnnounceBody(val message: String, val color: String? = null)
+
+/** Request body for a warning (backend `WarnUserRequest`). [targetUserId] is the viewer's Twitch id. */
+@Serializable
+data class WarnBody(val targetUserId: String, val reason: String)
+
+/**
+ * Request body to flag a viewer (backend `SetSuspiciousStatusRequest`). [status] is `active_monitoring` or
+ * `restricted`.
+ */
+@Serializable
+data class SetSuspiciousBody(val targetUserId: String, val status: String)
+
+/**
+ * The outcome of a moderation action (backend `ModerationActionResult`): [success], plus a [message] the UI
+ * surfaces when it is false (e.g. the channel's grant can't perform the action — honest degradation).
+ */
+@Serializable
+data class ModerationActionResult(val success: Boolean = false, val message: String? = null)

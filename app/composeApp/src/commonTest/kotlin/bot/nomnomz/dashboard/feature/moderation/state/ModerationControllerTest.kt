@@ -27,6 +27,7 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationApi
+import bot.nomnomz.dashboard.core.network.ModerationActionResult
 import bot.nomnomz.dashboard.core.network.UserModerationContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -429,6 +430,49 @@ class ModerationControllerTest {
         assertEquals(Res.string.feedback_unban_failed, feedback.only.label)
         assertEquals(listOf<Any>("Missing scope."), feedback.only.formatArgs)
     }
+
+    @Test
+    fun warn_records_the_reason_and_reloads_the_rap_sheet() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(listOf(BannedUser(id = "u1", username = "troll"))))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+        controller.openUserContext("123")
+
+        controller.warn("123", "spamming links")
+
+        // The warn hit the API with exactly the reason, and the rap sheet reloaded (the open + the reload).
+        assertEquals(listOf("123" to "spamming links"), api.warned)
+        assertEquals(2, api.userContextCalls.size)
+    }
+
+    @Test
+    fun warn_surfaces_the_backend_message_when_the_action_is_refused() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(listOf(BannedUser(id = "u1"))))
+        api.warnResult = ApiResult.Ok(ModerationActionResult(success = false, message = "Missing scope."))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.warn("123", "spamming links")
+
+        // A success=false result surfaces the backend's message rather than silently pretending it worked.
+        assertEquals(
+            "Missing scope.",
+            (controller.state.value as? ModerationState.Ready)?.actionError,
+        )
+    }
+
+    @Test
+    fun set_suspicious_records_the_status_and_reloads_the_rap_sheet() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(listOf(BannedUser(id = "u1"))))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+        controller.openUserContext("123")
+
+        controller.setSuspicious("123", "restricted")
+
+        assertEquals(listOf("123" to "restricted"), api.suspiciousSet)
+        assertEquals(2, api.userContextCalls.size)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -563,4 +607,29 @@ private class FakeModerationApi(
     override suspend fun stats(channelId: String): ApiResult<ModerationStats> = ApiResult.Ok(ModerationStats())
 
     override suspend fun announce(channelId: String, message: String, color: String?): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    val warned: MutableList<Pair<String, String>> = mutableListOf()
+    var warnResult: ApiResult<ModerationActionResult> = ApiResult.Ok(ModerationActionResult(success = true))
+
+    override suspend fun warn(
+        channelId: String,
+        userId: String,
+        reason: String,
+    ): ApiResult<ModerationActionResult> {
+        warned.add(userId to reason)
+        return warnResult
+    }
+
+    val suspiciousSet: MutableList<Pair<String, String>> = mutableListOf()
+    val suspiciousCleared: MutableList<String> = mutableListOf()
+
+    override suspend fun setSuspicious(channelId: String, userId: String, status: String): ApiResult<Unit> {
+        suspiciousSet.add(userId to status)
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun clearSuspicious(channelId: String, userId: String): ApiResult<Unit> {
+        suspiciousCleared.add(userId)
+        return ApiResult.Ok(Unit)
+    }
 }
