@@ -855,6 +855,8 @@
     <string name="widgets_clone_message">Een kopie van &#8220;%1$s&#8221; aanmaken met hetzelfde overlaytype?</string>
     <string name="widgets_clone_action_short">Klonen</string>
     <string name="widgets_clone_dismiss">Annuleren</string>
+    <string name="widgets_edit_code_action">Code bewerken voor overlay %1$s</string>
+    <string name="widgets_edit_code_action_short">Code bewerken</string>
     <string name="journal_section_title">Gebeurtenissenlogboek</string>
     <string name="journal_section_description">Exporteer het volledige gebeurtenissenlogboek van je kanaal als bestand dat je kunt bewaren of naar een andere installatie kunt verplaatsen, of importeer een eerder geëxporteerd logboek. Bij het importeren worden alleen gebeurtenissen toegevoegd die er nog niet zijn.</string>
     <string name="journal_export">Logboek exporteren</string>

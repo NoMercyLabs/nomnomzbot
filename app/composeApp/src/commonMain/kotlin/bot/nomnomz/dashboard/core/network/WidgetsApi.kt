@@ -43,6 +43,12 @@ interface WidgetsApi {
     suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit>
 
     /**
+     * Save a custom widget's authored source ([code]) via a partial PUT carrying only `customCode`. An empty
+     * string clears the widget's code; every other field stays untouched.
+     */
+    suspend fun saveCode(channelId: String, widgetId: String, code: String): ApiResult<Unit>
+
+    /**
      * Clone a widget by creating a new one with the same [type] and "Copy of [sourceName]" as the name.
      * The backend has no clone route, so the client re-issues a POST with the derived values.
      */
@@ -86,6 +92,13 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
     override suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit> =
         client.putUnit("api/v1/channels/$channelId/widgets/$widgetId", UpdateWidgetBody(name = name))
 
+    // Partial PUT — only customCode changes; the backend leaves every other field of the widget as-is.
+    override suspend fun saveCode(channelId: String, widgetId: String, code: String): ApiResult<Unit> =
+        client.putUnit(
+            "api/v1/channels/$channelId/widgets/$widgetId",
+            UpdateWidgetBody(customCode = code),
+        )
+
     // Clone = POST with "Copy of <sourceName>" and the same type.
     override suspend fun clone(channelId: String, sourceType: String, sourceName: String): ApiResult<WidgetSummary> =
         client.postEnvelope("api/v1/channels/$channelId/widgets", CreateWidgetBody("Copy of $sourceName", sourceType))
@@ -97,7 +110,11 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
  * the wire body (`explicitNulls = false` on the shared Json).
  */
 @Serializable
-data class UpdateWidgetBody(val name: String? = null, val isEnabled: Boolean? = null)
+data class UpdateWidgetBody(
+    val name: String? = null,
+    val isEnabled: Boolean? = null,
+    val customCode: String? = null,
+)
 
 /** The create-widget request body (backend `CreateWidgetRequest`). Only [name] and [type] are required. */
 @Serializable
@@ -116,4 +133,7 @@ data class WidgetSummary(
     val type: String = "",
     val isEnabled: Boolean = false,
     val overlayUrl: String? = null,
+    // The widget's authored source, for the custom-widget code editor. Null for template-driven widgets that
+    // carry no hand-written code. The backend returns it on `WidgetDetail`; the editor reads and rewrites it.
+    val customCode: String? = null,
 )

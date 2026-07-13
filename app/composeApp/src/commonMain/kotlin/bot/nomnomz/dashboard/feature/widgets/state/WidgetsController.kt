@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.widgets.state
 
+import bot.nomnomz.dashboard.core.editor.CustomCodeEditorIO
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class WidgetsController(
     private val channelsApi: ChannelsApi,
     private val widgetsApi: WidgetsApi,
+    private val codeEditor: CustomCodeEditorIO,
 ) {
     private val _state: MutableStateFlow<WidgetsState> = MutableStateFlow(WidgetsState.Loading)
 
@@ -93,6 +95,18 @@ class WidgetsController(
     suspend fun renameWidget(widgetId: String, newName: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(widgetsApi.rename(channel, widgetId, newName))
+    }
+
+    /**
+     * Open the VS Code-style editor on a custom widget's authored source, seeded with its current code, then
+     * persist the result on save. A cancelled edit is a no-op (returns without a write). Reloads on success;
+     * surfaces the error over the kept list on failure.
+     */
+    suspend fun editWidgetCode(widget: WidgetSummary) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val edited: String =
+            codeEditor.edit(widget.name, widget.customCode ?: "", language = "html") ?: return
+        afterWrite(widgetsApi.saveCode(channel, widget.id, edited))
     }
 
     /** Clone a widget by creating "Copy of [sourceName]" with the same [sourceType]. Reloads on success. */

@@ -858,6 +858,8 @@
     <string name="widgets_clone_message">Create a copy of &#8220;%1$s&#8221; with the same overlay type?</string>
     <string name="widgets_clone_action_short">Clone</string>
     <string name="widgets_clone_dismiss">Cancel</string>
+    <string name="widgets_edit_code_action">Edit code for overlay %1$s</string>
+    <string name="widgets_edit_code_action_short">Edit code</string>
     <string name="journal_section_title">Event journal</string>
     <string name="journal_section_description">Export your channel's full event ledger as a file you can back up or move to another deployment, or import a ledger you exported before. Importing only adds events that aren't already there.</string>
     <string name="journal_export">Export ledger</string>

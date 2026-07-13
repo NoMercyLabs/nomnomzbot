@@ -87,6 +87,8 @@ import nomnomzbot.composeapp.generated.resources.widgets_url_copy
 import nomnomzbot.composeapp.generated.resources.widgets_url_label
 import nomnomzbot.composeapp.generated.resources.widgets_clone_action
 import nomnomzbot.composeapp.generated.resources.widgets_clone_action_short
+import nomnomzbot.composeapp.generated.resources.widgets_edit_code_action
+import nomnomzbot.composeapp.generated.resources.widgets_edit_code_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_clone_dismiss
 import nomnomzbot.composeapp.generated.resources.widgets_clone_message
 import nomnomzbot.composeapp.generated.resources.widgets_create_action
@@ -162,6 +164,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
                     onDelete = { widget -> pendingDelete = PendingDelete(widget.id, widget.name) },
                     onRename = { widget -> pendingRename = widget },
                     onClone = { widget -> pendingClone = widget },
+                    onEditCode = { widget -> scope.launch { controller.editWidgetCode(widget) } },
                 )
         }
     }
@@ -229,6 +232,7 @@ private fun ReadyContent(
     onDelete: (WidgetSummary) -> Unit,
     onRename: (WidgetSummary) -> Unit,
     onClone: (WidgetSummary) -> Unit,
+    onEditCode: (WidgetSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -244,6 +248,7 @@ private fun ReadyContent(
             onDelete = onDelete,
             onRename = onRename,
             onClone = onClone,
+            onEditCode = onEditCode,
         )
     }
 }
@@ -256,6 +261,7 @@ private fun WidgetList(
     onDelete: (WidgetSummary) -> Unit,
     onRename: (WidgetSummary) -> Unit,
     onClone: (WidgetSummary) -> Unit,
+    onEditCode: (WidgetSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -275,6 +281,7 @@ private fun WidgetList(
                     onDelete = { onDelete(widget) },
                     onRename = { onRename(widget) },
                     onClone = { onClone(widget) },
+                    onEditCode = { onEditCode(widget) },
                 )
             }
         }
@@ -292,6 +299,7 @@ private fun WidgetRow(
     onDelete: () -> Unit,
     onRename: () -> Unit,
     onClone: () -> Unit,
+    onEditCode: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -306,7 +314,12 @@ private fun WidgetRow(
     val deleteLabel: String = stringResource(Res.string.widgets_delete_action, widget.name)
     val renameLabel: String = stringResource(Res.string.widgets_rename_action, widget.name)
     val cloneLabel: String = stringResource(Res.string.widgets_clone_action, widget.name)
+    val editCodeLabel: String = stringResource(Res.string.widgets_edit_code_action, widget.name)
     val urlLabel: String = stringResource(Res.string.widgets_url_label)
+
+    // Only custom widgets carry hand-written code; the Edit code action is meaningless on template-driven
+    // overlays (alerts, now-playing, …), so it appears for the "custom" type alone.
+    val isCustom: Boolean = widget.type.equals("custom", ignoreCase = true)
 
     Column(
         modifier = Modifier
@@ -349,6 +362,21 @@ private fun WidgetRow(
                     enabled = enabled,
                     modifier = Modifier.semantics { contentDescription = toggleLabel },
                 )
+            }
+            if (isCustom) {
+                ManageGate(decision = manage) { enabled ->
+                    TextButton(
+                        onClick = onEditCode,
+                        enabled = enabled,
+                        modifier = Modifier.semantics { contentDescription = editCodeLabel },
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.widgets_edit_code_action_short),
+                            color = if (enabled) tokens.primary else tokens.mutedForeground,
+                            maxLines = 1,
+                        )
+                    }
+                }
             }
             ManageGate(decision = manage) { enabled ->
                 TextButton(

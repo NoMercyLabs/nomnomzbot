@@ -94,6 +94,7 @@ import bot.nomnomz.dashboard.core.network.RestSongRequestsApi
 import bot.nomnomz.dashboard.core.network.RestStreamApi
 import bot.nomnomz.dashboard.core.network.RestTimersApi
 import bot.nomnomz.dashboard.core.network.RestTtsApi
+import bot.nomnomz.dashboard.core.editor.CustomCodeEditor
 import bot.nomnomz.dashboard.core.network.RestWidgetsApi
 import bot.nomnomz.dashboard.core.network.RewardsApi
 import bot.nomnomz.dashboard.core.network.RolesApi
@@ -419,7 +420,11 @@ class AppGraph {
         AlertsController(channelsApi = channelsApi, alertsApi = alertsApi)
 
     val widgetsController: WidgetsController =
-        WidgetsController(channelsApi = channelsApi, widgetsApi = widgetsApi)
+        WidgetsController(
+            channelsApi = channelsApi,
+            widgetsApi = widgetsApi,
+            codeEditor = CustomCodeEditor(),
+        )
 
     val chatController: ChatController =
         ChatController(channelsApi = channelsApi, chatApi = chatApi)

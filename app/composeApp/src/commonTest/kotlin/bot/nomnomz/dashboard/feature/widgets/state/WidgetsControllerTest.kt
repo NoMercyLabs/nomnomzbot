@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.widgets.state
 
+import bot.nomnomz.dashboard.core.editor.CustomCodeEditorIO
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -34,7 +35,7 @@ class WidgetsControllerTest {
     @Test
     fun load_surfaces_the_channel_widgets_with_their_overlay_urls() = runTest {
         val controller =
-            WidgetsController(
+            widgetsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 RecordingWidgetsApi(
                     ApiResult.Ok(
@@ -69,7 +70,7 @@ class WidgetsControllerTest {
     @Test
     fun load_is_empty_when_the_channel_has_no_widgets() = runTest {
         val controller =
-            WidgetsController(
+            widgetsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 RecordingWidgetsApi(ApiResult.Ok(emptyList())),
             )
@@ -82,7 +83,7 @@ class WidgetsControllerTest {
     @Test
     fun load_errors_when_no_channel_resolves() = runTest {
         val controller =
-            WidgetsController(
+            widgetsController(
                 FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
                 RecordingWidgetsApi(ApiResult.Ok(emptyList())),
             )
@@ -95,7 +96,7 @@ class WidgetsControllerTest {
     @Test
     fun load_errors_when_the_list_call_fails() = runTest {
         val controller =
-            WidgetsController(
+            widgetsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 RecordingWidgetsApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
             )
@@ -112,7 +113,7 @@ class WidgetsControllerTest {
                 ApiResult.Ok(listOf(WidgetSummary(id = "w-1", name = "Alerts", isEnabled = true)))
             )
         val controller =
-            WidgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
         controller.load()
 
         controller.toggleWidget(widgetId = "w-1", enabled = false)
@@ -137,7 +138,7 @@ class WidgetsControllerTest {
                 ApiResult.Ok(listOf(WidgetSummary(id = "w-1", name = "Alerts", isEnabled = true)))
             )
         val controller =
-            WidgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
         controller.load()
         assertTrue(controller.state.value is WidgetsState.Ready)
 
@@ -156,7 +157,7 @@ class WidgetsControllerTest {
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
         val controller =
-            WidgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
         controller.load()
 
         controller.deleteWidget(widgetId = "w-1")
@@ -166,6 +167,91 @@ class WidgetsControllerTest {
         assertTrue(state is WidgetsState.Ready)
         assertEquals(1, (state as WidgetsState.Ready).widgets.size)
         assertEquals("no permission", state.actionError)
+    }
+
+    @Test
+    fun edit_widget_code_opens_seeded_saves_the_edited_source_then_reloads_with_it() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(
+                    listOf(
+                        WidgetSummary(
+                            id = "w-1",
+                            name = "Timer",
+                            type = "custom",
+                            isEnabled = true,
+                            customCode = "<old/>",
+                        )
+                    )
+                )
+            )
+        val editor = FakeCodeEditor(result = "<new>hi</new>")
+        val controller =
+            widgetsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                widgetsApi,
+                editor,
+            )
+        controller.load()
+
+        controller.editWidgetCode(
+            WidgetSummary(id = "w-1", name = "Timer", type = "custom", customCode = "<old/>")
+        )
+
+        // The editor was opened seeded with the widget's current source (title + code) — proving the round-trip
+        // reads the real stored code, not a blank buffer.
+        assertEquals("Timer" to "<old/>", editor.openedWith)
+        // The edited source was persisted for exactly that widget.
+        assertEquals(listOf("w-1" to "<new>hi</new>"), widgetsApi.savedCode)
+        // The reload reflects the saved code — the consequence of the action, not merely the call.
+        val state: WidgetsState = controller.state.value
+        assertTrue(state is WidgetsState.Ready)
+        assertEquals("<new>hi</new>", (state as WidgetsState.Ready).widgets.first().customCode)
+    }
+
+    @Test
+    fun edit_widget_code_cancelled_persists_nothing() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(
+                    listOf(
+                        WidgetSummary(id = "w-1", name = "Timer", type = "custom", customCode = "<x/>")
+                    )
+                )
+            )
+        val controller =
+            widgetsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                widgetsApi,
+                FakeCodeEditor(result = null), // the operator cancelled the editor
+            )
+        controller.load()
+
+        controller.editWidgetCode(
+            WidgetSummary(id = "w-1", name = "Timer", type = "custom", customCode = "<x/>")
+        )
+
+        // A cancelled edit writes nothing — the widget's stored code is left untouched.
+        assertTrue(widgetsApi.savedCode.isEmpty())
+    }
+}
+
+// Builds a controller with a default (cancelling) code editor so the tests that don't exercise the editor stay
+// unchanged; the editor tests pass an explicit [FakeCodeEditor].
+private fun widgetsController(
+    channelsApi: ChannelsApi,
+    widgetsApi: WidgetsApi,
+    editor: CustomCodeEditorIO = FakeCodeEditor(),
+): WidgetsController = WidgetsController(channelsApi, widgetsApi, editor)
+
+// A fake editor that returns [result] from edit() (null = cancelled) and records what it was opened with, so a
+// test can assert the editor is seeded with the widget's real current source.
+private class FakeCodeEditor(private val result: String? = null) : CustomCodeEditorIO {
+    var openedWith: Pair<String, String>? = null
+
+    override suspend fun edit(title: String, initialCode: String, language: String): String? {
+        openedWith = title to initialCode
+        return result
     }
 }
 
@@ -204,6 +290,7 @@ private class RecordingWidgetsApi(
     val toggled: MutableList<Pair<String, Boolean>> = mutableListOf()
     var toggledChannelId: String? = null
     val deleted: MutableList<String> = mutableListOf()
+    val savedCode: MutableList<Pair<String, String>> = mutableListOf()
 
     override suspend fun list(channelId: String): ApiResult<List<WidgetSummary>> =
         listFailure?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(store.toList())
@@ -233,6 +320,17 @@ private class RecordingWidgetsApi(
 
     override suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit> =
         ApiResult.Ok(Unit)
+
+    // Records the saved code and, on success, writes it back to the store so the controller's post-write reload
+    // observes the persisted source (a real consequence), not merely that the call happened.
+    override suspend fun saveCode(channelId: String, widgetId: String, code: String): ApiResult<Unit> {
+        savedCode += widgetId to code
+        if (writeResult is ApiResult.Ok) {
+            val index: Int = store.indexOfFirst { it.id == widgetId }
+            if (index >= 0) store[index] = store[index].copy(customCode = code)
+        }
+        return writeResult
+    }
 
     override suspend fun clone(channelId: String, sourceType: String, sourceName: String): ApiResult<WidgetSummary> =
         ApiResult.Ok(WidgetSummary(id = "cloned-widget", type = sourceType, name = "$sourceName (copy)"))
