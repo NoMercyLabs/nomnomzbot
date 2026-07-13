@@ -828,6 +828,11 @@ public static class DependencyInjection
         // services that consume it.
         services.AddSingleton<DeviceCodePollThrottle>();
 
+        // Remembers each in-flight device code's REQUESTED scope set so the (separate-request) poll re-sends it.
+        // MUST be a singleton for the same reason as the throttle — the scoped auth service that reads it lives
+        // for one request, but the start and the polls are different requests (see DeviceCodeScopeMemory).
+        services.AddSingleton<Platform.Auth.DeviceCodeScopeMemory>();
+
         // ── Helix transport plumbing (twitch-helix.md §3, §7) ────────────────
         // The named "twitch-helix" client carries the full Helix request pipeline:
         //   resilience (retry+breaker+timeout, no 4xx retry) → adaptive header-driven rate limiter →

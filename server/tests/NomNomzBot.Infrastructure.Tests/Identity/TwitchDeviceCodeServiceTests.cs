@@ -214,25 +214,21 @@ public sealed class TwitchDeviceCodeServiceTests
     }
 
     [Fact]
-    public async Task Poll_ReSendsTheScopesTheCodeWasRequestedWith_NotWhateverTheCallerPasses()
+    public async Task Poll_ReSendsTheWidenedScopes_EvenWhenTheStartAndPollAreSeparateInstances()
     {
-        // The scope-regrant bug: RequestDeviceCodeAsync was called with the WIDENED set (granted ∪ missing),
-        // but the poll re-sent only the base login scopes, so Twitch never issued the extra scopes and the
-        // "permissions needed" banner never cleared. The poll must re-send exactly what the code authorized.
+        // The scope-regrant bug: RequestDeviceCodeAsync is called with the WIDENED set (granted ∪ missing) on
+        // the START request, but the poll re-sent only the base login scopes, so Twitch never issued the extra
+        // scopes and the "permissions needed" banner never cleared. The requested set MUST survive to the poll —
+        // and in production the start and the polls are SEPARATE HTTP requests, so a scoped (per-request) memory
+        // loses it. This proves it survives across two instances sharing the SINGLETON DeviceCodeScopeMemory
+        // (the real production shape); with a per-instance dict this test fails, exactly as production did.
         AuthDbContext context = AuthTestBuilder.NewContext();
         ITokenProtector protector = AuthTestBuilder.RealTokenProtector(context, out _);
         RoutingHandler wire = new(DeviceResponseJson, TokenResponseJson);
-        TwitchDeviceCodeService service = new(
-            AuthTestBuilder.CredentialsProvider(
-                context,
-                protector,
-                ConfigWith("nomnomz-public-id")
-            ),
-            new DeviceCodePollThrottle(TimeProvider.System),
-            new SingleClientFactory(wire),
-            NullLogger<TwitchDeviceCodeService>.Instance,
-            TimeProvider.System
-        );
+        DeviceCodeScopeMemory sharedMemory = new();
+
+        TwitchDeviceCodeService starter = NewService(context, protector, wire, sharedMemory);
+        TwitchDeviceCodeService poller = NewService(context, protector, wire, sharedMemory);
         string[] widened =
         [
             "user:read:chat",
@@ -241,11 +237,11 @@ public sealed class TwitchDeviceCodeServiceTests
             "user:read:emotes",
         ];
 
-        DeviceCodeResult? code = await service.RequestDeviceCodeAsync(widened);
+        DeviceCodeResult? code = await starter.RequestDeviceCodeAsync(widened);
         code!.DeviceCode.Should().Be("DEV-ABC-123");
 
-        // Poll with only the BASE set — the service must ignore it and re-send the widened set it stored.
-        DevicePollOutcome outcome = await service.PollOnceAsync(
+        // A SEPARATE instance polls with only the BASE set — it must recall + re-send the widened set.
+        DevicePollOutcome outcome = await poller.PollOnceAsync(
             "DEV-ABC-123",
             ["user:read:chat", "user:write:chat"]
         );
@@ -283,12 +279,33 @@ public sealed class TwitchDeviceCodeServiceTests
         TwitchDeviceCodeService service = new(
             credentials,
             new DeviceCodePollThrottle(TimeProvider.System),
+            new DeviceCodeScopeMemory(),
             new SingleClientFactory(wire),
             NullLogger<TwitchDeviceCodeService>.Instance,
             TimeProvider.System
         );
         return (service, wire);
     }
+
+    /// <summary>Builds one service instance over a shared wire + scope memory — models one HTTP request's scope.</summary>
+    private static TwitchDeviceCodeService NewService(
+        AuthDbContext context,
+        ITokenProtector protector,
+        HttpMessageHandler wire,
+        DeviceCodeScopeMemory scopeMemory
+    ) =>
+        new(
+            AuthTestBuilder.CredentialsProvider(
+                context,
+                protector,
+                ConfigWith("nomnomz-public-id")
+            ),
+            new DeviceCodePollThrottle(TimeProvider.System),
+            scopeMemory,
+            new SingleClientFactory(wire),
+            NullLogger<TwitchDeviceCodeService>.Instance,
+            TimeProvider.System
+        );
 
     /// <summary>Records the request URI + body and returns one canned response (status + JSON).</summary>
     private sealed class StubHandler(HttpStatusCode status, string body) : HttpMessageHandler

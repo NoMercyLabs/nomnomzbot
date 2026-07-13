@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
@@ -29,6 +28,7 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
 {
     private readonly ISystemCredentialsProvider _credentials;
     private readonly DeviceCodePollThrottle _throttle;
+    private readonly DeviceCodeScopeMemory _scopeMemory;
     private readonly HttpClient _http;
     private readonly ILogger<TwitchDeviceCodeService> _logger;
     private readonly TimeProvider _timeProvider;
@@ -41,16 +41,14 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
     // Twitch's device-flow poll interval is 5s; never forward a poll to Twitch faster than this per code.
     private static readonly TimeSpan MinPollInterval = TimeSpan.FromSeconds(5);
 
-    // The scopes each device code was REQUESTED with, so the token poll re-sends EXACTLY the same set. Twitch's
-    // device token endpoint takes a `scopes` field; polling with a set narrower than the authorization (which is
-    // what happened when a scope RE-GRANT — requesting granted∪missing — was polled with only the base login
-    // scopes) meant the widened scopes were never issued and the "permissions needed" banner could never clear.
-    // Same single-instance assumption as the poll throttle (both keyed by device code).
-    private readonly ConcurrentDictionary<string, string[]> _requestedScopes = new();
-
     public TwitchDeviceCodeService(
         ISystemCredentialsProvider credentials,
         DeviceCodePollThrottle throttle,
+        // The scopes each device code was REQUESTED with live in a SINGLETON (this service is scoped, so the
+        // start request and the token polls are different instances) — the poll re-sends EXACTLY the set the
+        // code was authorized for. Polling a scope RE-GRANT (granted ∪ missing) with only the narrower base
+        // login scopes is what stopped the widened scopes from ever landing, so the banner never cleared.
+        DeviceCodeScopeMemory scopeMemory,
         IHttpClientFactory httpClientFactory,
         ILogger<TwitchDeviceCodeService> logger,
         TimeProvider timeProvider
@@ -58,6 +56,7 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
     {
         _credentials = credentials;
         _throttle = throttle;
+        _scopeMemory = scopeMemory;
         _http = httpClientFactory.CreateClient("twitch-auth");
         _logger = logger;
         _timeProvider = timeProvider;
@@ -96,7 +95,7 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
             return null;
 
         // Remember what THIS code was authorized for, so the poll re-sends the same set (widened for a regrant).
-        _requestedScopes[json.DeviceCode] = [.. scopes];
+        _scopeMemory.Remember(json.DeviceCode, scopes);
 
         return new DeviceCodeResult(
             json.DeviceCode,
@@ -124,10 +123,9 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
             return new DevicePollOutcome(DevicePollStatus.Error);
 
         // Re-send the scopes the code was REQUESTED with — not whatever the caller passed. A regrant's widened
-        // set lives here; polling with the narrower base set is what stopped the extra scopes from ever landing.
-        string[] pollScopes = _requestedScopes.TryGetValue(deviceCode, out string[]? stored)
-            ? stored
-            : [.. scopes];
+        // set lives in the singleton; polling with the narrower base set is what stopped the extra scopes from
+        // ever landing.
+        string[] pollScopes = _scopeMemory.Recall(deviceCode) ?? [.. scopes];
 
         FormUrlEncodedContent form = new(
             new Dictionary<string, string>
@@ -148,12 +146,30 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
             if (json is null)
                 return new DevicePollOutcome(DevicePollStatus.Error);
 
-            _requestedScopes.TryRemove(deviceCode, out _);
+            // Diagnostic (identity-auth): compare what we asked Twitch for against what it actually issued, so a
+            // scope that was requested but NOT granted is visible instead of silently vanishing (the "permissions
+            // needed" banner can never clear for a scope Twitch keeps refusing to hand back).
+            string[] granted = json.Scope ?? [];
+            string[] notGranted = [.. pollScopes.Except(granted, StringComparer.OrdinalIgnoreCase)];
+            if (notGranted.Length > 0)
+                _logger.LogWarning(
+                    "Device grant: Twitch issued {GrantedCount}/{RequestedCount} scopes; NOT granted: {NotGranted}",
+                    granted.Length,
+                    pollScopes.Length,
+                    string.Join(", ", notGranted)
+                );
+            else
+                _logger.LogInformation(
+                    "Device grant: all {Count} requested scopes were issued",
+                    pollScopes.Length
+                );
+
+            _scopeMemory.Forget(deviceCode);
             TokenResult tokens = new(
                 json.AccessToken,
                 json.RefreshToken,
                 _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(json.ExpiresIn),
-                json.Scope ?? []
+                granted
             );
             return new DevicePollOutcome(DevicePollStatus.Authorized, tokens);
         }
@@ -166,7 +182,7 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
         // Drop the remembered scopes once the flow reaches a terminal state (declined/expired) so abandoned
         // codes don't accumulate; a still-pending poll keeps them for the next attempt.
         if (outcome.Status is not DevicePollStatus.Pending)
-            _requestedScopes.TryRemove(deviceCode, out _);
+            _scopeMemory.Forget(deviceCode);
         return outcome;
     }
 
