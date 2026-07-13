@@ -411,6 +411,14 @@
     <string name="tts_voices_use">Gebruiken</string>
     <string name="tts_voices_use_action">%1$s gebruiken</string>
     <string name="tts_voices_more">Verfijn je zoekopdracht om %1$d resultaten te beperken</string>
+    <string name="tts_viewer_voice_title">Stem per kijker</string>
+    <string name="tts_viewer_voice_description">Geef één kijker een eigen stem — hun berichten worden altijd in die stem voorgelezen, ongeacht de standaardstem van het kanaal. Voer hun Twitch-gebruikers-ID in en zoek ze op.</string>
+    <string name="tts_viewer_voice_id_label">Twitch-gebruikers-ID van kijker</string>
+    <string name="tts_viewer_voice_lookup">Opzoeken</string>
+    <string name="tts_viewer_voice_default">Deze kijker gebruikt de standaardstem van het kanaal.</string>
+    <string name="tts_viewer_voice_current">Huidige stem: %1$s</string>
+    <string name="tts_viewer_voice_assign">Stem toewijzen</string>
+    <string name="tts_viewer_voice_clear">Overschrijving wissen</string>
     <string name="tts_test_title">Stem testen</string>
     <string name="tts_test_prompt">Typ iets om voor te lezen…</string>
     <string name="tts_test_play">Afspelen</string>

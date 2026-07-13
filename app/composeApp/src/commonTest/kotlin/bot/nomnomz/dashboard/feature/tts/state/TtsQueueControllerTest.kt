@@ -22,6 +22,7 @@ import bot.nomnomz.dashboard.core.network.TtsQueueEntry
 import bot.nomnomz.dashboard.core.network.TtsTestRequest
 import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsVoice
+import bot.nomnomz.dashboard.core.network.UserTtsVoice
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -191,4 +192,17 @@ private class FakeQueueTtsApi(
         if (writeResult is ApiResult.Ok) store.removeAll { it.id == entryId }
         return writeResult
     }
+
+    // Not exercised by the queue tests — the per-viewer voice endpoints belong to the config controller.
+    override suspend fun userVoice(channelId: String, userId: String): ApiResult<UserTtsVoice?> =
+        ApiResult.Ok(null)
+
+    override suspend fun setUserVoice(
+        channelId: String,
+        userId: String,
+        voiceId: String,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun clearUserVoice(channelId: String, userId: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
 }

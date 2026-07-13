@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
 import bot.nomnomz.dashboard.core.network.TtsTestRequest
 import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsVoice
+import bot.nomnomz.dashboard.core.network.UserTtsVoice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -97,6 +98,67 @@ class TtsController(
     }
 
     /**
+     * Look up the per-viewer voice override for [userId] and open the viewer-voice panel on it. A 404 (no
+     * override) is not an error — it resolves to "uses the channel default" (a null voice). Surfaces a real
+     * error on the panel. No-ops when no channel is loaded.
+     */
+    suspend fun loadUserVoice(userId: String) {
+        val channel: String = channelId ?: return
+        val current: TtsState = _state.value
+        if (current !is TtsState.Ready) return
+
+        _state.value = current.copy(viewerVoice = ViewerVoiceState(userId = userId, busy = true))
+        val next: ViewerVoiceState =
+            when (val result: ApiResult<UserTtsVoice?> = ttsApi.userVoice(channel, userId)) {
+                is ApiResult.Ok -> ViewerVoiceState(userId = userId, currentVoiceId = result.value?.voiceId)
+                is ApiResult.Failure -> ViewerVoiceState(userId = userId, error = result.error.message)
+            }
+        (_state.value as? TtsState.Ready)?.let { _state.value = it.copy(viewerVoice = next) }
+    }
+
+    /**
+     * Assign [voiceId] to [userId], then reload the viewer-voice panel so it reflects the new override. A failure
+     * (e.g. a voice the channel can't synthesise) surfaces on the panel. No-ops when no channel is loaded.
+     */
+    suspend fun setUserVoice(userId: String, voiceId: String) {
+        val channel: String = channelId ?: return
+        val current: TtsState = _state.value
+        if (current !is TtsState.Ready) return
+
+        _state.value =
+            current.copy(viewerVoice = (current.viewerVoice ?: ViewerVoiceState(userId)).copy(busy = true, error = null))
+        when (val result: ApiResult<Unit> = ttsApi.setUserVoice(channel, userId, voiceId)) {
+            is ApiResult.Ok -> loadUserVoice(userId)
+            is ApiResult.Failure -> surfaceViewerVoiceError(userId, result.error.message)
+        }
+    }
+
+    /** Clear [userId]'s voice override, then reload the panel so it shows "uses the channel default". */
+    suspend fun clearUserVoice(userId: String) {
+        val channel: String = channelId ?: return
+        val current: TtsState = _state.value
+        if (current !is TtsState.Ready) return
+
+        _state.value =
+            current.copy(viewerVoice = (current.viewerVoice ?: ViewerVoiceState(userId)).copy(busy = true, error = null))
+        when (val result: ApiResult<Unit> = ttsApi.clearUserVoice(channel, userId)) {
+            is ApiResult.Ok -> loadUserVoice(userId)
+            is ApiResult.Failure -> surfaceViewerVoiceError(userId, result.error.message)
+        }
+    }
+
+    // Put a viewer-voice write error back on the panel without losing the queried viewer.
+    private fun surfaceViewerVoiceError(userId: String, message: String) {
+        val current: TtsState = _state.value
+        if (current is TtsState.Ready) {
+            _state.value =
+                current.copy(
+                    viewerVoice = (current.viewerVoice ?: ViewerVoiceState(userId)).copy(busy = false, error = message)
+                )
+        }
+    }
+
+    /**
      * Persist [config] for the loaded channel. Sends the whole configuration as the update; the backend
      * echoes the saved values, which become the new loaded baseline ([TtsState.Ready.justSaved] flags the
      * confirmation). A failure surfaces on the current Ready state without discarding the in-progress edit.
@@ -154,7 +216,20 @@ sealed interface TtsState {
         val testing: Boolean = false,
         val testResult: TtsTestResult? = null,
         val testError: String? = null,
+        // The per-viewer voice panel's state, or null until the operator looks up a viewer.
+        val viewerVoice: ViewerVoiceState? = null,
     ) : TtsState
 
     data class Error(val detail: String) : TtsState
 }
+
+/**
+ * The per-viewer voice panel's state: the looked-up [userId], their [currentVoiceId] (null = uses the channel
+ * default), whether a read/write is in flight ([busy]), and the last [error]. Loaded on demand from a viewer id.
+ */
+data class ViewerVoiceState(
+    val userId: String,
+    val currentVoiceId: String? = null,
+    val busy: Boolean = false,
+    val error: String? = null,
+)

@@ -414,6 +414,14 @@
     <string name="tts_voices_use">Use</string>
     <string name="tts_voices_use_action">Use %1$s</string>
     <string name="tts_voices_more">Refine your search to narrow %1$d matches</string>
+    <string name="tts_viewer_voice_title">Per-viewer voice</string>
+    <string name="tts_viewer_voice_description">Give one viewer their own voice — their messages are always read in it, overriding the channel default. Enter their Twitch user ID and look them up.</string>
+    <string name="tts_viewer_voice_id_label">Viewer Twitch user ID</string>
+    <string name="tts_viewer_voice_lookup">Look up</string>
+    <string name="tts_viewer_voice_default">This viewer uses the channel default voice.</string>
+    <string name="tts_viewer_voice_current">Current voice: %1$s</string>
+    <string name="tts_viewer_voice_assign">Assign voice</string>
+    <string name="tts_viewer_voice_clear">Clear override</string>
     <string name="tts_test_title">Test voice</string>
     <string name="tts_test_prompt">Type something to speak…</string>
     <string name="tts_test_play">Play</string>

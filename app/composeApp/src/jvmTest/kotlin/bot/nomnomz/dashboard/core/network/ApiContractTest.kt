@@ -88,6 +88,8 @@ class ApiContractTest {
             CreateNoteBody.serializer() to "CreateUserNoteRequest",
             UpdateNoteBody.serializer() to "UpdateUserNoteRequest",
             TtsVoice.serializer() to "TtsVoiceDto",
+            UserTtsVoice.serializer() to "UserTtsVoiceDto",
+            SetUserVoiceBody.serializer() to "SetUserVoiceDto",
             TtsConfig.serializer() to "TtsConfigDto",
             TtsQueueEntry.serializer() to "TtsQueueEntryDto",
             UserStats.serializer() to "UserStatsDto",

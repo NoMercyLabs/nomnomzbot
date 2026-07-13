@@ -44,6 +44,18 @@ interface TtsApi {
 
     /** Reject a pending utterance ([entryId]) — it is discarded and nothing plays. */
     suspend fun rejectQueueEntry(channelId: String, entryId: String): ApiResult<Unit>
+
+    /**
+     * The per-viewer voice override for [userId], or `null` when the viewer has none (uses the channel default).
+     * The backend answers 404 for "no override" — this maps that to `Ok(null)`, so only a real error is a Failure.
+     */
+    suspend fun userVoice(channelId: String, userId: String): ApiResult<UserTtsVoice?>
+
+    /** Assign [voiceId] as [userId]'s voice (must be one the channel can synthesise). */
+    suspend fun setUserVoice(channelId: String, userId: String, voiceId: String): ApiResult<Unit>
+
+    /** Clear [userId]'s voice override (they fall back to the channel default). A 404 (nothing set) is a success. */
+    suspend fun clearUserVoice(channelId: String, userId: String): ApiResult<Unit>
 }
 
 class RestTtsApi(private val client: ApiClient) : TtsApi {
@@ -80,6 +92,35 @@ class RestTtsApi(private val client: ApiClient) : TtsApi {
 
     override suspend fun rejectQueueEntry(channelId: String, entryId: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/tts/queue/$entryId/reject")
+
+    // 404 = "no override, uses the channel default" — a normal answer, not an error; map it to Ok(null).
+    override suspend fun userVoice(channelId: String, userId: String): ApiResult<UserTtsVoice?> =
+        when (
+            val result: ApiResult<UserTtsVoice> =
+                client.getEnvelope("api/v1/channels/$channelId/tts/users/$userId/voice")
+        ) {
+            is ApiResult.Ok -> ApiResult.Ok(result.value)
+            is ApiResult.Failure ->
+                if (result.error.status == 404) ApiResult.Ok(null) else ApiResult.Failure(result.error)
+        }
+
+    override suspend fun setUserVoice(
+        channelId: String,
+        userId: String,
+        voiceId: String,
+    ): ApiResult<Unit> =
+        client.putUnit(
+            "api/v1/channels/$channelId/tts/users/$userId/voice",
+            SetUserVoiceBody(voiceId = voiceId),
+        )
+
+    // A 404 on clear means there was nothing set — the end state (no override) is exactly what was asked, so OK.
+    override suspend fun clearUserVoice(channelId: String, userId: String): ApiResult<Unit> =
+        when (val result: ApiResult<Unit> = client.deleteUnit("api/v1/channels/$channelId/tts/users/$userId/voice")) {
+            is ApiResult.Ok -> ApiResult.Ok(Unit)
+            is ApiResult.Failure ->
+                if (result.error.status == 404) ApiResult.Ok(Unit) else ApiResult.Failure(result.error)
+        }
 }
 
 /** The channel's TTS configuration (backend `TtsConfigDto`). Field names mirror the DTO camelCase exactly. */
@@ -166,3 +207,11 @@ data class TtsVoice(
     val provider: String = "",
     val isDefault: Boolean = false,
 )
+
+/** A viewer's per-viewer voice override (backend `UserTtsVoiceDto`): [userId] reads in [voiceId]. */
+@Serializable
+data class UserTtsVoice(val userId: String = "", val voiceId: String = "")
+
+/** Request body to set a viewer's voice (backend `SetUserVoiceDto`). [voiceId] must be a synthesisable voice. */
+@Serializable
+data class SetUserVoiceBody(val voiceId: String)

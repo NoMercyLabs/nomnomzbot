@@ -22,6 +22,7 @@ import bot.nomnomz.dashboard.core.network.TtsTestRequest
 import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsQueueEntry
 import bot.nomnomz.dashboard.core.network.TtsVoice
+import bot.nomnomz.dashboard.core.network.UserTtsVoice
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -205,6 +206,49 @@ class TtsControllerTest {
         assertEquals(false, ready.saving)
         assertEquals(false, ready.justSaved)
     }
+
+    @Test
+    fun look_up_viewer_with_no_override_shows_the_channel_default() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+
+        controller.loadUserVoice("viewer-1")
+
+        // No override recorded → the panel resolves to "uses the channel default" (a null voice), not an error.
+        val viewer: ViewerVoiceState? = (controller.state.value as? TtsState.Ready)?.viewerVoice
+        assertEquals("viewer-1", viewer?.userId)
+        assertNull(viewer?.currentVoiceId)
+        assertNull(viewer?.error)
+    }
+
+    @Test
+    fun assign_viewer_voice_persists_and_the_panel_reflects_it() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+        controller.loadUserVoice("viewer-1")
+
+        controller.setUserVoice("viewer-1", "en-US-Brian")
+
+        // The assign hit the API with the viewer + voice, and the reloaded panel now shows that voice.
+        assertEquals(listOf("viewer-1" to "en-US-Brian"), ttsApi.setUserVoiceCalls)
+        assertEquals("en-US-Brian", (controller.state.value as? TtsState.Ready)?.viewerVoice?.currentVoiceId)
+    }
+
+    @Test
+    fun clear_viewer_voice_returns_them_to_the_channel_default() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+        controller.setUserVoice("viewer-1", "en-US-Brian")
+
+        controller.clearUserVoice("viewer-1")
+
+        // The clear hit the API and the reloaded panel shows no override (back to the channel default).
+        assertEquals(listOf("viewer-1"), ttsApi.clearedUserVoices)
+        assertNull((controller.state.value as? TtsState.Ready)?.viewerVoice?.currentVoiceId)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -260,4 +304,30 @@ private class FakeTtsApi(
 
     override suspend fun rejectQueueEntry(channelId: String, entryId: String): ApiResult<Unit> =
         ApiResult.Ok(Unit)
+
+    // Per-viewer voice override, keyed by userId. null value = "no override" (the impl maps a 404 to Ok(null)).
+    val userVoices: MutableMap<String, String?> = mutableMapOf()
+    val setUserVoiceCalls: MutableList<Pair<String, String>> = mutableListOf()
+    val clearedUserVoices: MutableList<String> = mutableListOf()
+
+    override suspend fun userVoice(channelId: String, userId: String): ApiResult<UserTtsVoice?> {
+        val voiceId: String? = userVoices[userId]
+        return ApiResult.Ok(voiceId?.let { UserTtsVoice(userId = userId, voiceId = it) })
+    }
+
+    override suspend fun setUserVoice(
+        channelId: String,
+        userId: String,
+        voiceId: String,
+    ): ApiResult<Unit> {
+        setUserVoiceCalls.add(userId to voiceId)
+        userVoices[userId] = voiceId
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun clearUserVoice(channelId: String, userId: String): ApiResult<Unit> {
+        clearedUserVoices.add(userId)
+        userVoices[userId] = null
+        return ApiResult.Ok(Unit)
+    }
 }

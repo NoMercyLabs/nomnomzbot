@@ -39,28 +39,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   reads the args aloud on the overlay when triggered (TTS enabled on the channel); a disabled channel / too-long
   text shows the pipeline step's failure reason; en + nl strings.
 
-### 2026-07-12 — Per-viewer TTS voice picker (item 16)
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** on the TTS settings page (`feature/tts` / wherever the TTS config lives), add a **per-viewer voice
-  override** control — pick a specific voice for a named viewer, so that viewer's messages are always read in
-  their chosen voice (overrides the channel default). Three new endpoints, all under the existing TTS controller:
-  - `GET  /api/v1/channels/{channelId}/tts/users/{userId}/voice` → `StatusResponseDtoOfUserTtsVoiceDto`
-    (`userId`, `voiceId`) — **404** when the viewer has no override (i.e. uses the channel default; treat 404 as
-    "default", not an error to surface).
-  - `PUT  /api/v1/channels/{channelId}/tts/users/{userId}/voice` — body `SetUserVoiceDto { voiceId }` → 200 with
-    the `UserTtsVoiceDto`. **400/404** if the voice id isn't one the channel can synthesize (validated against the
-    same `GET .../tts/voices` list you already populate the voice dropdown from — so reuse that list for the picker).
-  - `DELETE /api/v1/channels/{channelId}/tts/users/{userId}/voice` — clears the override (viewer falls back to
-    channel default). 200 on success, 404 if there was nothing set.
-- **Why:** item 16. The dispatch already RESOLVES a per-viewer voice when reading a message; this exposes the
-  WRITE side so streamers can actually assign one. Closes the loop end-to-end.
-- **Where:** TTS settings surface. Read gate = `tts:voice:read` (same as the voices list), write gate =
-  `tts:uservoice:write` — disable the picker (with a reason tooltip) below the write floor per `frontend-ia.md` §7.
-  New DTOs `UserTtsVoiceDto` / `SetUserVoiceDto` → register in `ApiContractTest`; refresh `server/openapi/v1.json`
-  is already committed on the backend side (this snapshot has the new path + schemas).
-- **Done when:** picking a voice for a viewer persists and survives reload; the picker only offers synthesizable
-  voices; clearing returns the viewer to the default; picker disabled (not hidden) below the manage floor; en + nl.
-
 ### 2026-07-11 — Media-share page: mod queue + overlay widget (viewer clip/video queue)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** two surfaces. (1) A **mod queue** page: list submissions (filter by status), approve/reject/

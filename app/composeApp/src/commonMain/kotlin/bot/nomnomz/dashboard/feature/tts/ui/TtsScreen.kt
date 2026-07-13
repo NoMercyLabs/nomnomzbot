@@ -74,6 +74,7 @@ import bot.nomnomz.dashboard.feature.tts.state.TtsController
 import bot.nomnomz.dashboard.feature.tts.state.TtsQueueController
 import bot.nomnomz.dashboard.feature.tts.state.TtsQueueState
 import bot.nomnomz.dashboard.feature.tts.state.TtsState
+import bot.nomnomz.dashboard.feature.tts.state.ViewerVoiceState
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.tts_error
@@ -99,6 +100,14 @@ import nomnomzbot.composeapp.generated.resources.tts_saving
 import nomnomzbot.composeapp.generated.resources.tts_status_disabled
 import nomnomzbot.composeapp.generated.resources.tts_status_enabled
 import nomnomzbot.composeapp.generated.resources.tts_toggle_enabled
+import nomnomzbot.composeapp.generated.resources.tts_viewer_voice_assign
+import nomnomzbot.composeapp.generated.resources.tts_viewer_voice_clear
+import nomnomzbot.composeapp.generated.resources.tts_viewer_voice_current
+import nomnomzbot.composeapp.generated.resources.tts_viewer_voice_default
+import nomnomzbot.composeapp.generated.resources.tts_viewer_voice_description
+import nomnomzbot.composeapp.generated.resources.tts_viewer_voice_id_label
+import nomnomzbot.composeapp.generated.resources.tts_viewer_voice_lookup
+import nomnomzbot.composeapp.generated.resources.tts_viewer_voice_title
 import nomnomzbot.composeapp.generated.resources.tts_voices_count
 import nomnomzbot.composeapp.generated.resources.tts_voices_default
 import nomnomzbot.composeapp.generated.resources.tts_voices_more
@@ -161,6 +170,11 @@ fun TtsScreen(
                     queueManage = queueManage,
                     onSave = { edited -> scope.launch { controller.save(edited) } },
                     onTestSpeak = { voiceId, text -> scope.launch { controller.testSpeak(voiceId, text) } },
+                    onLookupViewerVoice = { userId -> scope.launch { controller.loadUserVoice(userId) } },
+                    onAssignViewerVoice = { userId, voiceId ->
+                        scope.launch { controller.setUserVoice(userId, voiceId) }
+                    },
+                    onClearViewerVoice = { userId -> scope.launch { controller.clearUserVoice(userId) } },
                 )
         }
     }
@@ -185,6 +199,9 @@ private fun ReadyContent(
     queueManage: ManageDecision,
     onSave: (TtsConfig) -> Unit,
     onTestSpeak: (voiceId: String, text: String) -> Unit,
+    onLookupViewerVoice: (userId: String) -> Unit,
+    onAssignViewerVoice: (userId: String, voiceId: String) -> Unit,
+    onClearViewerVoice: (userId: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val loaded: TtsConfig = state.config
@@ -273,6 +290,15 @@ private fun ReadyContent(
             testError = state.testError,
             manage = manage,
             onTest = { voiceId, text -> onTestSpeak(voiceId, text) },
+        )
+
+        ViewerVoiceSection(
+            voices = state.voices,
+            viewerVoice = state.viewerVoice,
+            manage = manage,
+            onLookup = onLookupViewerVoice,
+            onAssign = onAssignViewerVoice,
+            onClear = onClearViewerVoice,
         )
 
         TtsQueueSection(controller = queueController, manage = queueManage)
@@ -490,6 +516,115 @@ private fun VoicePicker(
                 modifier = Modifier.padding(horizontal = spacing.s4, vertical = spacing.s3),
             )
         }
+    }
+}
+
+// The per-viewer voice override (item 16): assign one viewer a specific voice so their messages always read in
+// it (overriding the channel default). The operator enters the viewer's Twitch user id and looks them up; the
+// panel then shows their current voice (or "channel default"), a picker to choose a synthesisable voice, Assign,
+// and Clear. The reused [VoicePicker] below drives the pick. Write actions gate at the page's manage floor.
+@Composable
+private fun ViewerVoiceSection(
+    voices: List<TtsVoice>,
+    viewerVoice: ViewerVoiceState?,
+    manage: ManageDecision,
+    onLookup: (userId: String) -> Unit,
+    onAssign: (userId: String, voiceId: String) -> Unit,
+    onClear: (userId: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var viewerId: String by remember { mutableStateOf("") }
+    // The voice picked for this viewer — re-seeded from their current override each time a fresh lookup lands, so
+    // the picker starts on the voice they already have (or blank when they use the default).
+    var pickedVoiceId: String by remember(viewerVoice?.userId, viewerVoice?.currentVoiceId) {
+        mutableStateOf(viewerVoice?.currentVoiceId ?: "")
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            Text(
+                text = stringResource(Res.string.tts_viewer_voice_title),
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+            Text(
+                text = stringResource(Res.string.tts_viewer_voice_description),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppTextField(
+                    value = viewerId,
+                    onValueChange = { viewerId = it },
+                    label = stringResource(Res.string.tts_viewer_voice_id_label),
+                    modifier = Modifier.weight(1f),
+                )
+                Button(
+                    onClick = { onLookup(viewerId.trim()) },
+                    enabled = viewerId.isNotBlank() && viewerVoice?.busy != true,
+                ) {
+                    Text(stringResource(Res.string.tts_viewer_voice_lookup))
+                }
+            }
+
+            viewerVoice?.let { vv ->
+                vv.error?.let { detail ->
+                    Text(text = detail, style = typography.sm, color = tokens.destructive)
+                }
+                val currentLabel: String? =
+                    voices.firstOrNull { it.id == vv.currentVoiceId }?.let { "${it.displayName} (${it.locale})" }
+                Text(
+                    text =
+                        if (vv.currentVoiceId == null) {
+                            stringResource(Res.string.tts_viewer_voice_default)
+                        } else {
+                            stringResource(Res.string.tts_viewer_voice_current, currentLabel ?: vv.currentVoiceId)
+                        },
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    ManageGate(decision = manage) { enabled ->
+                        Button(
+                            onClick = { onAssign(vv.userId, pickedVoiceId) },
+                            enabled = enabled && pickedVoiceId.isNotBlank() && !vv.busy,
+                        ) {
+                            Text(stringResource(Res.string.tts_viewer_voice_assign))
+                        }
+                    }
+                    if (vv.currentVoiceId != null) {
+                        ManageGate(decision = manage) { enabled ->
+                            TextButton(onClick = { onClear(vv.userId) }, enabled = enabled && !vv.busy) {
+                                Text(
+                                    text = stringResource(Res.string.tts_viewer_voice_clear),
+                                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // The picker only appears once a viewer is looked up — it drives [pickedVoiceId] for the Assign above.
+    if (viewerVoice != null) {
+        VoicePicker(
+            voices = voices,
+            currentVoiceId = pickedVoiceId,
+            manage = manage,
+            onSelect = { pickedVoiceId = it },
+        )
     }
 }
 
