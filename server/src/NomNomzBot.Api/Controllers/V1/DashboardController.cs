@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -199,6 +200,11 @@ public class DashboardController : BaseController
                 if (e.UserId is not null && users.TryGetValue(e.UserId.Value, out User? user))
                     username = user.DisplayName;
 
+                // Most events carry no local User row (a follower or raider who never chatted), so the name only
+                // ever lived in the event payload — resolving it from there is what turns a wall of "— followed"
+                // back into real names.
+                username ??= ResolveActorNameFromData(e.Data);
+
                 // Normalize legacy event types imported from the previous bot to their canonical
                 // EventSub equivalents so the frontend only needs one switch on the modern names.
                 string normalizedType = e.Type switch
@@ -222,5 +228,55 @@ public class DashboardController : BaseController
             .ToList();
 
         return Ok(new StatusResponseDto<List<ActivityEventDto>> { Data = result });
+    }
+
+    // The actor's name is carried in the event payload — modern EventSub events store it under
+    // actorDisplay/actorLogin (raids also fromDisplayName/fromLogin), legacy imported events under user/user.name.
+    // Display-name fields are tried before login fields so the feed shows "R2_ADHD2", not "r2_adhd2".
+    private static readonly string[] ActorNameFields =
+    [
+        "actorDisplay",
+        "userDisplayName",
+        "fromDisplayName",
+        "user",
+        "actorLogin",
+        "userLogin",
+        "fromLogin",
+        "user.name",
+    ];
+
+    /// <summary>
+    /// Extracts the actor's display name (falling back to login) from a channel event's JSON payload, so an event
+    /// whose actor has no local <see cref="User"/> row still resolves a name. Returns null for a missing/blank
+    /// payload, a non-object payload, or one with none of the known name fields.
+    /// </summary>
+    internal static string? ResolveActorNameFromData(string? data)
+    {
+        if (string.IsNullOrWhiteSpace(data))
+            return null;
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(data);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return null;
+
+            foreach (string field in ActorNameFields)
+                if (
+                    document.RootElement.TryGetProperty(field, out JsonElement value)
+                    && value.ValueKind == JsonValueKind.String
+                )
+                {
+                    string? name = value.GetString();
+                    if (!string.IsNullOrWhiteSpace(name))
+                        return name;
+                }
+
+            return null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 }

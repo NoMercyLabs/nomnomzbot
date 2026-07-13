@@ -36,6 +36,12 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
 
+  <!-- Expose internal helpers (e.g. the dashboard activity actor-name resolver) to the Api test project so their
+       behaviour can be unit-tested directly without exposing them on the public controller surface. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="NomNomzBot.Api.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\NomNomzBot.Application\NomNomzBot.Application.csproj" />
     <ProjectReference Include="..\NomNomzBot.Infrastructure\NomNomzBot.Infrastructure.csproj" />
