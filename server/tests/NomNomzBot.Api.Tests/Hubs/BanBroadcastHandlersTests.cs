@@ -158,7 +158,7 @@ public sealed class BanBroadcastHandlersTests
             );
         Widget widget = new()
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = Guid.NewGuid(),
             BroadcasterId = channel,
             Name = "Mod log",
             IsEnabled = true,
@@ -196,7 +196,7 @@ public sealed class BanBroadcastHandlersTests
             .Received(1)
             .SendWidgetEventAsync(
                 channel.ToString(),
-                widget.Id,
+                widget.Id.ToString(),
                 Arg.Is<WidgetEventDto>(evt =>
                     evt.EventType == "ban"
                     && evt.Data is ModActionDto

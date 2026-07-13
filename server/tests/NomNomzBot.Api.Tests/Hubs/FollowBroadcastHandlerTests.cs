@@ -119,7 +119,7 @@ public sealed class FollowBroadcastHandlerTests
         // A widget that subscribes to "follow" must receive the decorated dto too.
         Widget widget = new()
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = Guid.NewGuid(),
             BroadcasterId = channel,
             Name = "Follow alert",
             IsEnabled = true,
@@ -149,7 +149,7 @@ public sealed class FollowBroadcastHandlerTests
             .Received(1)
             .SendWidgetEventAsync(
                 channel.ToString(),
-                widget.Id,
+                widget.Id.ToString(),
                 Arg.Is<WidgetEventDto>(evt =>
                     evt.EventType == "follow"
                     && evt.Data is FollowAlertDto

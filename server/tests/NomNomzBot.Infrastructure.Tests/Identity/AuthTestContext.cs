@@ -219,6 +219,9 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         // getter bodies, then tries to map their jsonb-of-complex-type columns (unsupported on InMemory).
         // Ignore every entity these tests do not exercise so the model stays minimal and provider-agnostic.
         b.Ignore<NomNomzBot.Domain.Widgets.Entities.Widget>();
+        b.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetVersion>();
+        b.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem>();
+        b.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent>();
 
         // Command: mapped scalar-only (both navs ignored; Aliases/TemplateResponses are primitive
         // collections that materialize on InMemory) so CommandUseCountHandler tests can prove the
@@ -320,6 +323,12 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.Widget> Widgets =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetVersion> WidgetVersions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem> WidgetGalleryItems =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>
         throw new NotSupportedException();

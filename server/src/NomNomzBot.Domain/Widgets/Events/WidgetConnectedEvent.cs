@@ -14,6 +14,6 @@ namespace NomNomzBot.Domain.Widgets.Events;
 
 public sealed class WidgetConnectedEvent : DomainEventBase
 {
-    public required string WidgetId { get; init; }
-    public required string ConnectionId { get; init; }
+    public required Guid WidgetId { get; init; }
+    public required string ConnectionId { get; init; } // SignalR connection id
 }

@@ -20,11 +20,12 @@ namespace NomNomzBot.Api.Tests.Hubs;
 /// </summary>
 public sealed class WidgetAlertRoutingTests
 {
-    private static Widget Widget(string id, bool enabled, params string[] subscriptions) =>
+    // The id argument is a readable label for the assertions; routing keys off EventSubscriptions + IsEnabled,
+    // never the (now Guid) Id, so the label lives on Name and the assertions compare Name.
+    private static Widget Widget(string name, bool enabled, params string[] subscriptions) =>
         new()
         {
-            Id = id,
-            Name = "w",
+            Name = name,
             IsEnabled = enabled,
             EventSubscriptions = [.. subscriptions],
         };
@@ -41,7 +42,7 @@ public sealed class WidgetAlertRoutingTests
 
         List<string> selected = WidgetAlertRouting
             .Subscribers(widgets, "subscription")
-            .Select(w => w.Id)
+            .Select(w => w.Name)
             .ToList();
 
         selected.Should().Equal("a");

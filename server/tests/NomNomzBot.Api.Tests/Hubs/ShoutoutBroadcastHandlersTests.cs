@@ -151,7 +151,7 @@ public sealed class ShoutoutBroadcastHandlersTests
             .Returns(new HubUserEnrichment("SourceStreamer", "https://cdn/avatar.png", null, null));
         Widget widget = new()
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = Guid.NewGuid(),
             BroadcasterId = channel,
             Name = "Shoutout alert",
             IsEnabled = true,
@@ -188,7 +188,7 @@ public sealed class ShoutoutBroadcastHandlersTests
             .Received(1)
             .SendWidgetEventAsync(
                 channel.ToString(),
-                widget.Id,
+                widget.Id.ToString(),
                 Arg.Is<WidgetEventDto>(evt =>
                     evt.EventType == "shoutout_received" && evt.Data is ShoutoutReceivedAlertDto
                 ),

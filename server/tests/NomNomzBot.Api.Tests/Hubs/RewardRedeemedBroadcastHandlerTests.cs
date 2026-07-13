@@ -103,7 +103,7 @@ public sealed class RewardRedeemedBroadcastHandlerTests
             .Returns(new HubUserEnrichment("Stoney", "https://cdn/avatar.png", "she/her", "Vip"));
         Widget widget = new()
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = Guid.NewGuid(),
             BroadcasterId = channel,
             Name = "Redemption alert",
             IsEnabled = true,
@@ -132,7 +132,7 @@ public sealed class RewardRedeemedBroadcastHandlerTests
             .Received(1)
             .SendWidgetEventAsync(
                 channel.ToString(),
-                widget.Id,
+                widget.Id.ToString(),
                 Arg.Is<WidgetEventDto>(evt =>
                     evt.EventType == "reward_redeemed"
                     && evt.Data is RewardRedeemedDto

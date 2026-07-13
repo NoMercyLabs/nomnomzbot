@@ -10,50 +10,47 @@
 
 namespace NomNomzBot.Application.Widgets.Dtos;
 
-public sealed record WidgetListItem(
-    string Id,
-    string Name,
-    string Type,
-    bool IsEnabled,
-    DateTime CreatedAt
-);
-
+/// <summary>
+/// A widget's full detail. The authored source and compiled bundle are NOT here — they live on append-only
+/// <c>WidgetVersion</c> rows; <see cref="ActiveVersionId"/> names the version the overlay currently serves.
+/// <c>Framework</c> is the source language (vue|react|svelte|vanilla); <c>Source</c> is the provenance
+/// (first_party|verified_gallery|custom).
+/// </summary>
 public sealed record WidgetDetail(
-    string Id,
+    Guid Id,
     string Name,
-    string Type,
+    string? Description,
+    string Framework,
+    string Source,
     bool IsEnabled,
     string? OverlayUrl,
+    Guid? ActiveVersionId,
+    Guid? GalleryItemId,
     Dictionary<string, object?> Settings,
     List<string> EventSubscriptions,
+    string? LastRuntimeError,
+    DateTime? LastRanAt,
     DateTime CreatedAt,
-    DateTime UpdatedAt,
-    // The widget's authored source (HTML/CSS/JS for a custom overlay). Null for template-driven widgets that
-    // carry no hand-written code. Read and written by the dashboard's custom-widget code editor.
-    string? CustomCode
+    DateTime UpdatedAt
 );
 
 public sealed record CreateWidgetRequest
 {
     public required string Name { get; init; }
-    public required string Type { get; init; }
+
+    /// <summary>Source language of the widget: <c>vanilla</c> | <c>vue</c> | <c>react</c> | <c>svelte</c>.</summary>
+    public required string Framework { get; init; }
+
+    public string? Description { get; init; }
     public Dictionary<string, object?>? Settings { get; init; }
     public List<string>? EventSubscriptions { get; init; }
-
-    /// <summary>Optional starter source for a custom widget; null leaves the widget code-less.</summary>
-    public string? CustomCode { get; init; }
 }
 
 public sealed record UpdateWidgetRequest
 {
     public string? Name { get; init; }
+    public string? Description { get; init; }
     public Dictionary<string, object?>? Settings { get; init; }
     public List<string>? EventSubscriptions { get; init; }
     public bool? IsEnabled { get; init; }
-
-    /// <summary>
-    /// The widget's authored source. A partial patch: null leaves the stored code untouched (so a rename or
-    /// toggle never clears it); a non-null value — including an empty string — replaces it.
-    /// </summary>
-    public string? CustomCode { get; init; }
 }

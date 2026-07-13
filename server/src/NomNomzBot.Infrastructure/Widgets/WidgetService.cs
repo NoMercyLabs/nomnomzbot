@@ -56,18 +56,19 @@ public class WidgetService : IWidgetService
         if (channel is null)
             return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
 
+        // Create always produces a self-authored `custom` widget — the only Source create can yield (gallery
+        // installs go through InstallFromGalleryAsync). No version exists yet: the authored source arrives on the
+        // first compile-on-save, which appends the widget's first WidgetVersion and sets ActiveVersionId.
         Widget widget = new()
         {
-            Id = Guid.NewGuid().ToString(),
             BroadcasterId = broadcasterGuid,
             Name = request.Name,
-            Framework = request.Type,
+            Description = request.Description,
+            Framework = request.Framework,
+            Source = "custom",
             IsEnabled = true,
             EventSubscriptions = request.EventSubscriptions ?? [],
-            Settings =
-                request.Settings?.ToDictionary(k => k.Key, v => v.Value ?? (object)"")
-                ?? new Dictionary<string, object>(),
-            CustomCode = request.CustomCode,
+            Settings = ToSettingsStore(request.Settings),
         };
 
         _db.Widgets.Add(widget);
@@ -84,13 +85,16 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+        )
             return Errors.NotFound<WidgetDetail>("Widget", widgetId);
 
         Widget? widget = await _db
             .Widgets.Include(w => w.Channel)
             .FirstOrDefaultAsync(
-                w => w.Id == widgetId && w.BroadcasterId == broadcasterGuid,
+                w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
                 cancellationToken
             );
 
@@ -99,16 +103,14 @@ public class WidgetService : IWidgetService
 
         if (request.Name is not null)
             widget.Name = request.Name;
+        if (request.Description is not null)
+            widget.Description = request.Description;
         if (request.IsEnabled.HasValue)
             widget.IsEnabled = request.IsEnabled.Value;
         if (request.EventSubscriptions is not null)
             widget.EventSubscriptions = request.EventSubscriptions;
         if (request.Settings is not null)
-            widget.Settings = request.Settings.ToDictionary(k => k.Key, v => v.Value ?? (object)"");
-        // Partial patch: null leaves the stored code intact (a rename/toggle never wipes it); a non-null
-        // value — empty string included — replaces it, so the editor can clear a widget's code.
-        if (request.CustomCode is not null)
-            widget.CustomCode = request.CustomCode;
+            widget.Settings = ToSettingsStore(request.Settings);
 
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "updated", cancellationToken);
@@ -122,11 +124,14 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+        )
             return Result.Failure($"Widget '{widgetId}' was not found.", "NOT_FOUND");
 
         Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
-            w => w.Id == widgetId && w.BroadcasterId == broadcasterGuid,
+            w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
             cancellationToken
         );
 
@@ -135,7 +140,7 @@ public class WidgetService : IWidgetService
 
         _db.Widgets.Remove(widget);
         await _db.SaveChangesAsync(cancellationToken);
-        await PublishConfigChangedAsync(broadcasterGuid, widgetId, "deleted", cancellationToken);
+        await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "deleted", cancellationToken);
 
         return Result.Success();
     }
@@ -178,13 +183,16 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+        )
             return Errors.NotFound<WidgetDetail>("Widget", widgetId);
 
         Widget? widget = await _db
             .Widgets.Include(w => w.Channel)
             .FirstOrDefaultAsync(
-                w => w.Id == widgetId && w.BroadcasterId == broadcasterGuid,
+                w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
                 cancellationToken
             );
 
@@ -227,7 +235,7 @@ public class WidgetService : IWidgetService
     /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>
     private Task PublishConfigChangedAsync(
         Guid broadcasterId,
-        string widgetId,
+        Guid widgetId,
         string action,
         CancellationToken ct
     ) =>
@@ -236,23 +244,36 @@ public class WidgetService : IWidgetService
             {
                 BroadcasterId = broadcasterId,
                 Domain = "widgets",
-                EntityId = widgetId,
+                EntityId = widgetId.ToString(),
                 Action = action,
             },
             ct
         );
 
+    // The DTO carries nullable values (Dictionary<string, object?>); the store column is non-null
+    // (Dictionary<string, object>). Coalesce a null override to "" so a key is never dropped on the round-trip.
+    private static Dictionary<string, object> ToSettingsStore(
+        Dictionary<string, object?>? settings
+    ) =>
+        settings?.ToDictionary(k => k.Key, v => v.Value ?? (object)"")
+        ?? new Dictionary<string, object>();
+
     private static WidgetDetail ToDetail(Widget w, string overlayToken, string overlayBaseUrl) =>
         new(
             w.Id,
             w.Name,
+            w.Description,
             w.Framework,
+            w.Source,
             w.IsEnabled,
             $"{overlayBaseUrl}/overlay?widgetId={w.Id}&token={overlayToken}",
+            w.ActiveVersionId,
+            w.GalleryItemId,
             w.Settings.ToDictionary(k => k.Key, v => (object?)v.Value),
             w.EventSubscriptions,
+            w.LastRuntimeError,
+            w.LastRanAt,
             w.CreatedAt,
-            w.UpdatedAt,
-            w.CustomCode
+            w.UpdatedAt
         );
 }

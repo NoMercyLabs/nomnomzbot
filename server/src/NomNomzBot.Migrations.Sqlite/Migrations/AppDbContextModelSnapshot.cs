@@ -7067,16 +7067,22 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
             modelBuilder.Entity("NomNomzBot.Domain.Widgets.Entities.Widget", b =>
                 {
-                    b.Property<string>("Id")
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ActiveVersionId")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("BroadcasterId")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("ConfigSchemaVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
 
-                    b.Property<string>("CustomCode")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("DeletedAt")
@@ -7086,7 +7092,7 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
-                    b.PrimitiveCollection<string>("EventSubscriptions")
+                    b.Property<string>("EventSubscriptions")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -7097,10 +7103,19 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue("vanilla");
 
+                    b.Property<Guid?>("GalleryItemId")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsEnabled")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(true);
+
+                    b.Property<DateTime?>("LastRanAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastRuntimeError")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -7111,25 +7126,239 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("TemplateId")
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("custom");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActiveVersionId");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("GalleryItemId");
+
+                    b.HasIndex("Source");
+
+                    b.ToTable("Widgets");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("AvailableInSaaS")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DefaultEventSubscriptions")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DefaultSettings")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Framework")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GitHubRepoUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("InstallCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NaturalKey")
                         .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PinnedCommitSha")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PinnedTag")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReviewNotes")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReviewStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceCode")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SubmitterDisplayNameSnapshot")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SubmitterTwitchUserId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SubmitterUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrustTier")
+                        .IsRequired()
+                        .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Version")
-                        .IsRequired()
+                    b.HasKey("Id");
+
+                    b.HasIndex("NaturalKey")
+                        .IsUnique();
+
+                    b.HasIndex("ReviewStatus");
+
+                    b.HasIndex("SubmitterTwitchUserId");
+
+                    b.HasIndex("TrustTier");
+
+                    b.HasIndex("GitHubRepoUrl", "PinnedCommitSha")
+                        .IsUnique();
+
+                    b.ToTable("WidgetGalleryItems");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent", b =>
+                {
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ChangedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FromStatus")
                         .HasMaxLength(20)
-                        .HasColumnType("TEXT")
-                        .HasDefaultValue("1.0.0");
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("GalleryItemId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NewPinnedCommitSha")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GalleryItemId");
+
+                    b.HasIndex("OccurredAt");
+
+                    b.ToTable("WidgetGallerySubmissionEvents");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Widgets.Entities.WidgetVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BuildError")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BuildLog")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BuildStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CompiledAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CompiledBundle")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ContentHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceCode")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("WidgetId")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.HasIndex("BroadcasterId");
 
-                    b.ToTable("Widgets");
+                    b.HasIndex("ContentHash");
+
+                    b.HasIndex("WidgetId");
+
+                    b.HasIndex("WidgetId", "VersionNumber")
+                        .IsUnique();
+
+                    b.ToTable("WidgetVersions");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Chat.Entities.ChatMessage", b =>

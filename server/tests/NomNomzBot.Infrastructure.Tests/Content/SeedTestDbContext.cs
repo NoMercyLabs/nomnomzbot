@@ -62,6 +62,12 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<Widget> Widgets => Set<Widget>();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetVersion> WidgetVersions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem> WidgetGalleryItems =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
+        throw new NotSupportedException();
     public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
     public DbSet<EventSubConduit> EventSubConduits => Set<EventSubConduit>();
     public DbSet<EventSubConduitShard> EventSubConduitShards => Set<EventSubConduitShard>();
@@ -272,6 +278,9 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Quotes.Entities.Quote>();
         modelBuilder.Ignore<NomNomzBot.Domain.PickLists.Entities.PickList>();
         modelBuilder.Ignore<Widget>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetVersion>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent>();
         modelBuilder.Ignore<EventSubSubscription>();
         modelBuilder.Ignore<EventSubConduit>();
         modelBuilder.Ignore<EventSubConduitShard>();

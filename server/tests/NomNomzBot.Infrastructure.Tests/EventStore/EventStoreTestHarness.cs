@@ -171,6 +171,9 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.Command>();
         modelBuilder.Ignore<NomNomzBot.Domain.Rewards.Entities.Reward>();
         modelBuilder.Ignore<NomNomzBot.Domain.Widgets.Entities.Widget>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetVersion>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubSubscription>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduit>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard>();
@@ -258,6 +261,12 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.Widget> Widgets =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetVersion> WidgetVersions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem> WidgetGalleryItems =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>
         throw new NotSupportedException();

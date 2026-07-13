@@ -51,6 +51,9 @@ public interface IApplicationDbContext
     DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCodePool> GiveawayCodePools { get; }
     DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes { get; }
     DbSet<Widget> Widgets { get; }
+    DbSet<WidgetVersion> WidgetVersions { get; }
+    DbSet<WidgetGalleryItem> WidgetGalleryItems { get; }
+    DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents { get; }
     DbSet<EventSubSubscription> EventSubSubscriptions { get; }
     DbSet<EventSubConduit> EventSubConduits { get; }
     DbSet<EventSubConduitShard> EventSubConduitShards { get; }

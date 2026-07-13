@@ -90,7 +90,7 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         Guid channel = Guid.CreateVersion7();
         Widget widget = new()
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = Guid.NewGuid(),
             BroadcasterId = channel,
             Name = "Sub alert",
             IsEnabled = true,
@@ -114,7 +114,7 @@ public sealed class SubscriptionCheerRaidBroadcastTests
             .Received(1)
             .SendWidgetEventAsync(
                 channel.ToString(),
-                widget.Id,
+                widget.Id.ToString(),
                 Arg.Is<WidgetEventDto>(evt =>
                     evt.EventType == "subscription"
                     && evt.Data is SubscriptionAlertDto

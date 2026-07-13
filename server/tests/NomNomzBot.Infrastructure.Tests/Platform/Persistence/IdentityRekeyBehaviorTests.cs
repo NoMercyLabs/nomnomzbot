@@ -364,6 +364,12 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Widgets.Entities.Widget> Widgets =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetVersion> WidgetVersions =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem> WidgetGalleryItems =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
+            throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduit> EventSubConduits =>

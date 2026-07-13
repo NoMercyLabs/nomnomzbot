@@ -47,8 +47,8 @@ internal static class WidgetAlertDispatch
         foreach (Widget widget in WidgetAlertRouting.Subscribers(widgets, eventType))
             await notifier.SendWidgetEventAsync(
                 broadcasterId.ToString(),
-                widget.Id,
-                new WidgetEventDto(widget.Id, eventType, data),
+                widget.Id.ToString(),
+                new WidgetEventDto(widget.Id.ToString(), eventType, data),
                 cancellationToken
             );
     }

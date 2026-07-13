@@ -53,6 +53,12 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         );
 
     public DbSet<Widget> Widgets => Set<Widget>();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetVersion> WidgetVersions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem> WidgetGalleryItems =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
+        throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

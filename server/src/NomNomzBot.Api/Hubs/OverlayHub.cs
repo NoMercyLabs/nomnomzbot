@@ -86,9 +86,13 @@ public class OverlayHub : Hub<IOverlayClient>
 
         // Hand the browser-source its saved appearance settings up front, so it can style itself
         // before the first event arrives (the page applies the keys it understands, ignores the rest).
-        Widget? widget = await _db
-            .Widgets.AsNoTracking()
-            .FirstOrDefaultAsync(w => w.Id == widgetId && w.BroadcasterId == broadcasterId);
+        Widget? widget = Guid.TryParse(widgetId, out Guid parsedWidgetId)
+            ? await _db
+                .Widgets.AsNoTracking()
+                .FirstOrDefaultAsync(w =>
+                    w.Id == parsedWidgetId && w.BroadcasterId == broadcasterId
+                )
+            : null;
         return new(true, null, widget?.Settings);
     }
 

@@ -35,7 +35,7 @@ public sealed class HypeTrainBroadcastHandlersTests
     private static Widget SubscribedWidget(Guid broadcasterId, string eventType) =>
         new()
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = Guid.NewGuid(),
             BroadcasterId = broadcasterId,
             Name = "Hype train meter",
             IsEnabled = true,
@@ -245,7 +245,7 @@ public sealed class HypeTrainBroadcastHandlersTests
             .Received(1)
             .SendWidgetEventAsync(
                 channel.ToString(),
-                widget.Id,
+                widget.Id.ToString(),
                 Arg.Is<WidgetEventDto>(evt =>
                     evt.EventType == "hype_train_begin"
                     && evt.Data is HypeTrainBeganAlertDto

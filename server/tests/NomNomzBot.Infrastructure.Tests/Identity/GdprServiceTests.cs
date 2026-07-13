@@ -358,6 +358,9 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Quotes.Entities.Quote>();
         b.Ignore<NomNomzBot.Domain.PickLists.Entities.PickList>();
         b.Ignore<Widget>();
+        b.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetVersion>();
+        b.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem>();
+        b.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent>();
         b.Ignore<EventSubSubscription>();
         b.Ignore<EventSubConduit>();
         b.Ignore<EventSubConduitShard>();
@@ -403,6 +406,12 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<Widget> Widgets => Set<Widget>();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetVersion> WidgetVersions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem> WidgetGalleryItems =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
+        throw new NotSupportedException();
     public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
     public DbSet<EventSubConduit> EventSubConduits => Set<EventSubConduit>();
     public DbSet<EventSubConduitShard> EventSubConduitShards => Set<EventSubConduitShard>();

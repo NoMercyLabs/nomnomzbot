@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Converters;
 
 namespace NomNomzBot.Infrastructure.Widgets.Persistence;
 
@@ -23,23 +24,34 @@ public class WidgetConfiguration : IEntityTypeConfiguration<Widget>
         builder.Property(e => e.BroadcasterId).IsRequired();
 
         builder.Property(e => e.Name).IsRequired().HasMaxLength(255);
-
         builder.Property(e => e.Description).HasMaxLength(500);
 
-        builder.Property(e => e.Version).IsRequired().HasMaxLength(20).HasDefaultValue("1.0.0");
-
         builder.Property(e => e.Framework).IsRequired().HasMaxLength(20).HasDefaultValue("vanilla");
+        builder.Property(e => e.Source).IsRequired().HasMaxLength(20).HasDefaultValue("custom");
 
         builder.Property(e => e.IsEnabled).HasDefaultValue(true);
+        builder.Property(e => e.ConfigSchemaVersion).HasDefaultValue(1);
 
-        builder.Property(e => e.TemplateId).HasMaxLength(100);
-
+        // [VC:JSON] — hand-rolled Newtonsoft converters (never jsonb / HasDefaultValueSql), so the same TEXT-as-JSON
+        // mapping runs on Postgres and SQLite alike.
         builder
             .Property(e => e.EventSubscriptions)
-            .HasColumnType("jsonb")
-            .HasDefaultValueSql("'[]'::jsonb");
+            .HasConversion(
+                JsonValueConverter.Converter<List<string>>(),
+                JsonValueConverter.Comparer<List<string>>()
+            );
 
-        builder.Property(e => e.Settings).HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb");
+        builder
+            .Property(e => e.Settings)
+            .HasConversion(
+                JsonValueConverter.Converter<Dictionary<string, object>>(),
+                JsonValueConverter.Comparer<Dictionary<string, object>>()
+            );
+
+        builder.HasIndex(e => e.BroadcasterId);
+        builder.HasIndex(e => e.Source);
+        builder.HasIndex(e => e.GalleryItemId);
+        builder.HasIndex(e => e.ActiveVersionId);
 
         builder
             .HasOne(e => e.Channel)

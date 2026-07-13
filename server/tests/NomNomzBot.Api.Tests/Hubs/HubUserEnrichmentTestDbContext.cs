@@ -108,6 +108,12 @@ internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDb
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<Widget> Widgets => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetVersion> WidgetVersions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem> WidgetGalleryItems =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
+        throw new NotSupportedException();
     public DbSet<DiscordGuildConnection> DiscordGuildConnections =>
         throw new NotSupportedException();
     public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();

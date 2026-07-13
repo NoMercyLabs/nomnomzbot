@@ -26,7 +26,7 @@ public class WidgetRepository : GenericRepository<Widget>
     ) => Set.Where(w => w.BroadcasterId == broadcasterId).OrderBy(w => w.Name).ToListAsync(ct);
 
     public Task<Widget?> GetByIdAndBroadcasterAsync(
-        string id,
+        Guid id,
         Guid broadcasterId,
         CancellationToken ct = default
     ) => Set.FirstOrDefaultAsync(w => w.Id == id && w.BroadcasterId == broadcasterId, ct);
