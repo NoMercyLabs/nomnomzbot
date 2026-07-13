@@ -42,6 +42,14 @@ class RestFeaturesApi(private val client: ApiClient) : FeaturesApi {
  * [label] is the human-readable display name; [description] explains what the feature does;
  * [isEnabled] is the current state; [enabledAt] is the timestamp the flag was turned on (null when off);
  * [requiredScopes] lists the Twitch OAuth scopes the backend needs to activate this feature.
+ *
+ * Entitlement is a SEPARATE axis from [isEnabled] (the channel's own opt-in): [entitled] is whether the
+ * channel's tier / deployment / platform flag actually ALLOWS the feature. A feature is usable only when
+ * `entitled && isEnabled`; never treat [isEnabled] alone as "available". When [entitled] is false the toggle
+ * is disabled (not shown live) with a reason from [entitlementReason] (`REQUIRES_TIER` — pair with
+ * [requiredTier]; `DEPLOYMENT`; `UNAVAILABLE`). Self-host resolves every tier to unlimited, so [entitled] is
+ * always true there. Defaults are nullable-safe (entitled = true) so an older backend that omits them reads as
+ * fully entitled.
  */
 @Serializable
 data class FeatureStatus(
@@ -51,4 +59,7 @@ data class FeatureStatus(
     val isEnabled: Boolean = false,
     val enabledAt: String? = null,
     val requiredScopes: List<String> = emptyList(),
+    val entitled: Boolean = true,
+    val entitlementReason: String? = null,
+    val requiredTier: String? = null,
 )

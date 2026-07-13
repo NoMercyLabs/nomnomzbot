@@ -1725,6 +1725,8 @@
     <!-- Features page -->
     <string name="features_title">Functies</string>
     <string name="features_subtitle">Schakel optionele botfuncties in of uit voor jouw kanaal.</string>
+    <string name="features_entitlement_upgrade">Upgrade naar %1$s om te ontgrendelen</string>
+    <string name="features_entitlement_unavailable">Niet beschikbaar in dit abonnement</string>
     <string name="features_loading">Functies laden…</string>
     <string name="features_empty">Geen functievlaggen gevonden voor dit kanaal.</string>
     <string name="features_error">Functies laden mislukt: %1$s</string>

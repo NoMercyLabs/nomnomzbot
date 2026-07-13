@@ -1738,6 +1738,8 @@
     <!-- Features page -->
     <string name="features_title">Features</string>
     <string name="features_subtitle">Enable or disable optional bot capabilities for your channel.</string>
+    <string name="features_entitlement_upgrade">Upgrade to %1$s to unlock</string>
+    <string name="features_entitlement_unavailable">Not available on this plan</string>
     <string name="features_loading">Loading features…</string>
     <string name="features_empty">No feature flags found for this channel.</string>
     <string name="features_error">Failed to load features: %1$s</string>

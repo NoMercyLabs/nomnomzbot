@@ -58,6 +58,8 @@ import nomnomzbot.composeapp.generated.resources.features_error
 import nomnomzbot.composeapp.generated.resources.features_loading
 import nomnomzbot.composeapp.generated.resources.features_retry
 import nomnomzbot.composeapp.generated.resources.features_enabled_at
+import nomnomzbot.composeapp.generated.resources.features_entitlement_unavailable
+import nomnomzbot.composeapp.generated.resources.features_entitlement_upgrade
 import nomnomzbot.composeapp.generated.resources.features_scopes_label
 import nomnomzbot.composeapp.generated.resources.features_subtitle
 import nomnomzbot.composeapp.generated.resources.shell_nav_features
@@ -177,10 +179,14 @@ private fun FeatureRow(
                 }
             }
             ManageGate(decision = manage) { enabled ->
+                // Entitlement is a separate axis from the manage floor: a feature the channel's tier/deployment
+                // doesn't allow is shown DISABLED (not a live switch) even to a Broadcaster, so it can't be
+                // flipped on (the backend would 403 NOT_ENTITLED anyway). Turning OFF a stale-ON feature is still
+                // allowed, so keep the switch interactive when it is currently enabled.
                 Switch(
                     checked = feature.isEnabled,
                     onCheckedChange = { onToggle() },
-                    enabled = enabled,
+                    enabled = enabled && (feature.entitled || feature.isEnabled),
                     modifier = Modifier.semantics { contentDescription = toggleLabel },
                 )
             }
@@ -190,6 +196,19 @@ private fun FeatureRow(
                 text = "$scopesLabel: ${feature.requiredScopes.joinToString(", ")}",
                 style = typography.xs,
                 color = tokens.mutedForeground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (!feature.entitled) {
+            val reason: String =
+                if (feature.entitlementReason == "REQUIRES_TIER" && feature.requiredTier != null)
+                    stringResource(Res.string.features_entitlement_upgrade, feature.requiredTier)
+                else stringResource(Res.string.features_entitlement_unavailable)
+            Text(
+                text = reason,
+                style = typography.xs,
+                color = tokens.primary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )

@@ -121,6 +121,7 @@ class ApiContractTest {
             EngagementConfig.serializer() to "EngagementConfigDto",
             UpdateEngagementConfigBody.serializer() to "UpdateEngagementConfigRequest",
             SetViewerDatumBody.serializer() to "SetViewerDatumRequest",
+            FeatureStatus.serializer() to "FeatureStatusDto",
         )
 
     @Test
