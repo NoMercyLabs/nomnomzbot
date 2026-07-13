@@ -54,6 +54,20 @@ public sealed class GameService(
         ("duel", GameCategory.Minigame, null, null, null),
     ];
 
+    // Safe baseline (limits-safety-baseline-then-tier): a GAMBLING game always has at least this per-user
+    // cooldown, even if configured to 0 — otherwise a chat command that debits/credits the wallet is a
+    // machine-gun (the "!coinflip spam" the owner hit). The streamer can raise it, never lower it below the
+    // floor. Minigames are not floored (no economy loop to abuse). Enforced in PlayAsync and reported through
+    // ToDto so the dashboard shows the value that is actually enforced.
+    private const int GamblingCooldownFloorSeconds = 3;
+
+    /// <summary>The per-user cooldown actually enforced: the configured value for a minigame, or at least the
+    /// gambling floor for a gambling game.</summary>
+    private static int EffectiveCooldownSeconds(GameConfig game) =>
+        game.Category == GameCategory.Gambling
+            ? Math.Max(game.CooldownSeconds, GamblingCooldownFloorSeconds)
+            : game.CooldownSeconds;
+
     public async Task<Result<IReadOnlyList<GameConfigDto>>> ListGamesAsync(
         Guid broadcasterId,
         CancellationToken ct = default
@@ -86,7 +100,9 @@ public sealed class GameService(
                 WinChancePercent = g.WinChance,
                 HouseEdgePercent = g.HouseEdge,
                 PayoutMultiplier = g.PayoutMultiplier,
-                CooldownSeconds = 0,
+                // Gambling seeds at the safe floor (never 0); minigames need no cooldown.
+                CooldownSeconds =
+                    g.Category == GameCategory.Gambling ? GamblingCooldownFloorSeconds : 0,
                 Permission = "Everyone",
             })
             .ToList();
@@ -215,9 +231,10 @@ public sealed class GameService(
                 "BET_OUT_OF_RANGE"
             );
 
-        if (game.CooldownSeconds > 0)
+        int cooldownSeconds = EffectiveCooldownSeconds(game);
+        if (cooldownSeconds > 0)
         {
-            DateTime cutoff = clock.GetUtcNow().UtcDateTime.AddSeconds(-game.CooldownSeconds);
+            DateTime cutoff = clock.GetUtcNow().UtcDateTime.AddSeconds(-cooldownSeconds);
             bool onCooldown = await db.GamePlays.AnyAsync(
                 p =>
                     p.BroadcasterId == broadcasterId
@@ -401,7 +418,9 @@ public sealed class GameService(
             g.HouseEdgePercent,
             g.WinChancePercent,
             g.PayoutMultiplier,
-            g.CooldownSeconds,
+            // Report the ENFORCED cooldown (gambling is floored) so the dashboard never shows a value below
+            // what the bot actually applies.
+            EffectiveCooldownSeconds(g),
             g.MaxPlaysPerStream,
             g.Permission,
             g.ConfigJson is null

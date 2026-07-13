@@ -82,14 +82,16 @@ public sealed class GameServiceTests
         decimal payout = 2,
         long? min = null,
         long? max = null,
-        int? maxPlays = null
+        int? maxPlays = null,
+        GameCategory category = GameCategory.Gambling,
+        int cooldown = 0
     )
     {
         GameConfig game = new()
         {
             BroadcasterId = Channel,
-            GameType = "coinflip",
-            Category = GameCategory.Gambling,
+            GameType = category == GameCategory.Gambling ? "coinflip" : "duel",
+            Category = category,
             IsEnabled = enabled,
             Requires18Plus = requires18,
             WinChancePercent = winChance,
@@ -97,6 +99,7 @@ public sealed class GameServiceTests
             MinBet = min,
             MaxBet = max,
             MaxPlaysPerStream = maxPlays,
+            CooldownSeconds = cooldown,
             Permission = "Everyone",
         };
         db.GameConfigs.Add(game);
@@ -234,7 +237,15 @@ public sealed class GameServiceTests
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         (GameService sut, EventStoreTestDbContext db, _) = New(database, roll: 0.1);
         SeedStream(db);
-        Guid game = SeedGame(db, winChance: 50, payout: 2, maxPlays: 1);
+        // A minigame so the per-user gambling-cooldown floor doesn't shadow the second play — this test
+        // isolates the per-stream cap.
+        Guid game = SeedGame(
+            db,
+            winChance: 50,
+            payout: 2,
+            maxPlays: 1,
+            category: GameCategory.Minigame
+        );
 
         (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 10, 0)))
             .IsSuccess.Should()
@@ -242,5 +253,67 @@ public sealed class GameServiceTests
         (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 10, 0)))
             .ErrorCode.Should()
             .Be("PER_STREAM_LIMIT");
+    }
+
+    [Fact]
+    public async Task A_gambling_game_enforces_a_per_user_cooldown_floor_even_when_configured_to_zero()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (GameService sut, EventStoreTestDbContext db, _) = New(database, roll: 0.1);
+        // Gambling, cooldown explicitly 0 — the floor must still bite so !coinflip can't be machine-gunned.
+        Guid game = SeedGame(db, category: GameCategory.Gambling, cooldown: 0);
+
+        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 10, 0)))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 10, 0)))
+            .ErrorCode.Should()
+            .Be("ON_COOLDOWN");
+    }
+
+    [Fact]
+    public async Task A_minigame_with_zero_cooldown_is_not_floored()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (GameService sut, EventStoreTestDbContext db, _) = New(database, roll: 0.1);
+        // A minigame has no economy-loop abuse to guard, so a 0 cooldown means back-to-back plays are allowed.
+        Guid game = SeedGame(db, category: GameCategory.Minigame, cooldown: 0);
+
+        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 10, 0)))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 10, 0)))
+            .IsSuccess.Should()
+            .BeTrue();
+    }
+
+    [Fact]
+    public async Task Upsert_reports_the_gambling_cooldown_floor_when_a_lower_value_is_requested()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (GameService sut, _, _) = New(database, roll: 0.1);
+
+        Result<GameConfigDto> result = await sut.UpsertGameAsync(
+            Channel,
+            new UpsertGameConfigRequest(
+                "dice",
+                "gambling",
+                IsEnabled: false,
+                Requires18Plus: false,
+                MinBet: 1,
+                MaxBet: 100,
+                HouseEdgePercent: 5,
+                WinChancePercent: 45,
+                PayoutMultiplier: 2,
+                CooldownSeconds: 0, // requested 0 …
+                MaxPlaysPerStream: null,
+                Permission: "Everyone",
+                Config: null
+            )
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        // … but the dashboard is told the value actually enforced (the floor), never a misleading 0.
+        result.Value.CooldownSeconds.Should().Be(3);
     }
 }
