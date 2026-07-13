@@ -252,24 +252,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** the schedule renders + segment add/edit/delete + vacation round-trip against a real
   channel; the marker button posts and confirms while live; the .ics link works; en + nl strings.
 
-### 2026-07-11 — Engagement triggers config page (auto-greet / loyalty)
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** a small settings surface for the three auto-engagement triggers (welcome a first-time
-  chatter, shout out a returning regular, celebrate a watch-streak milestone). Two endpoints (in
-  `server/openapi/v1.json`, tag "Engagement"): `GET /engagement/config`, `PUT /engagement/config`
-  (`UpdateEngagementConfigRequest`: three enable toggles, a `streakMilestones` int list, a
-  `greetCooldownSeconds`). All three default OFF (opt-in).
-- **Why:** parity item 18. The detector is live; toggling a trigger on makes the bot fire an
-  `engagement.first_time_chatter` / `engagement.returning_chatter` / `engagement.watch_streak`
-  event-response. Those event-responses are configured on the EXISTING event-responses page (they were
-  added to its seeded event-type list) — so this page is just the detector's on/off + tuning, and the
-  actual greeting message/pipeline is bound where the other event responses are.
-- **Where:** Settings (or the event-responses area). Register `EngagementConfigDto` +
-  `UpdateEngagementConfigRequest` in `ApiContractTest`. Role gating: read at Moderator
-  (`engagement:read`), edit at Editor (`engagement:write`) — disable below the floor with a reason.
-- **Done when:** the toggles + milestone list + cooldown round-trip and survive reload; the copy
-  points the user to the event-responses page to set the actual greeting; en + nl strings.
-
 ### 2026-07-11 — Viewer custom-data map on the viewer detail card (small)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** show + edit a viewer's custom key/value data (per-viewer death counters, quest flags,
