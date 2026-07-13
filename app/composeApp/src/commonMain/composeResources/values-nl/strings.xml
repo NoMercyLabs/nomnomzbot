@@ -1431,6 +1431,7 @@
     <string name="discord_roles_add">Rol toevoegen</string>
     <string name="discord_roles_create_title">Meldingsrol toevoegen</string>
     <string name="discord_roles_discord_role_id">Discord rol-ID</string>
+    <string name="discord_roles_role_picker">Discord-rol</string>
     <string name="discord_roles_role_name">Rolnaam (optioneel)</string>
     <string name="discord_roles_self_assign">Zelftoewijs ingeschakeld</string>
     <string name="discord_roles_role_id_required">Discord rol-ID is verplicht</string>
@@ -1444,6 +1445,7 @@
     <string name="discord_roles_post_button">Opt-in knop plaatsen</string>
     <string name="discord_roles_post_button_title">Opt-in knop plaatsen</string>
     <string name="discord_roles_button_channel_id">Discord kanaal-ID</string>
+    <string name="discord_roles_channel_picker">Discord-kanaal</string>
     <string name="discord_roles_button_channel_required">Kanaal-ID is verplicht</string>
     <string name="discord_roles_button_post">Plaatsen</string>
     <string name="discord_roles_opt_in_count">%1$d aangemeld</string>

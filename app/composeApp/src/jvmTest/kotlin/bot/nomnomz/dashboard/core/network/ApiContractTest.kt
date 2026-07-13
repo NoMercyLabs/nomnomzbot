@@ -134,6 +134,9 @@ class ApiContractTest {
             UpdateEngagementConfigBody.serializer() to "UpdateEngagementConfigRequest",
             SetViewerDatumBody.serializer() to "SetViewerDatumRequest",
             FeatureStatus.serializer() to "FeatureStatusDto",
+            DiscordGuildInfo.serializer() to "DiscordGuildInfoDto",
+            DiscordGuildRole.serializer() to "DiscordGuildRoleDto",
+            DiscordGuildChannel.serializer() to "DiscordGuildChannelDto",
         )
 
     @Test

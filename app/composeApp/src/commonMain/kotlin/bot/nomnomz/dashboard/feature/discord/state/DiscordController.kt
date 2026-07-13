@@ -18,7 +18,9 @@ import bot.nomnomz.dashboard.core.network.CreateDiscordRoleBody
 import bot.nomnomz.dashboard.core.network.DiscordApi
 import bot.nomnomz.dashboard.core.network.DiscordConfigPreview
 import bot.nomnomz.dashboard.core.network.DiscordDispatchLogEntry
+import bot.nomnomz.dashboard.core.network.DiscordGuildChannel
 import bot.nomnomz.dashboard.core.network.DiscordGuildConnection
+import bot.nomnomz.dashboard.core.network.DiscordGuildRole
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.DiscordNotificationConfig
 import bot.nomnomz.dashboard.core.network.DiscordNotificationRole
@@ -187,6 +189,24 @@ class DiscordController(
                 CreateDiscordRoleBody(discordRoleId = discordRoleId, roleName = roleName?.ifBlank { null }, selfAssignEnabled = selfAssign),
             )
         )
+    }
+
+    /**
+     * The guild's assignable roles for [connectionId] — populates the role picker so the operator picks a role
+     * instead of pasting a snowflake. Returned directly (the dialog stores them in UI state, like [roles]).
+     */
+    suspend fun guildRoles(connectionId: String): ApiResult<List<DiscordGuildRole>> {
+        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, null, NoChannelError))
+        return discordApi.guildRoles(channel, connectionId)
+    }
+
+    /**
+     * The guild's channels for [connectionId] — populates the channel picker for posting the opt-in button.
+     * Returned directly (the dialog stores them in UI state, like [roles]).
+     */
+    suspend fun guildChannels(connectionId: String): ApiResult<List<DiscordGuildChannel>> {
+        val channel: String = channelId ?: return ApiResult.Failure(ApiError(0, null, NoChannelError))
+        return discordApi.guildChannels(channel, connectionId)
     }
 
     /** Delete the notification role [roleId]. Reloads on success; surfaces the error on failure. */

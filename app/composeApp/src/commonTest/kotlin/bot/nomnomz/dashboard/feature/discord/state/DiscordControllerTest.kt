@@ -21,7 +21,10 @@ import bot.nomnomz.dashboard.core.network.DiscordApi
 import bot.nomnomz.dashboard.core.network.DiscordConfigPreview
 import bot.nomnomz.dashboard.core.network.DiscordDispatchLogEntry
 import bot.nomnomz.dashboard.core.network.DiscordEmbed
+import bot.nomnomz.dashboard.core.network.DiscordGuildChannel
 import bot.nomnomz.dashboard.core.network.DiscordGuildConnection
+import bot.nomnomz.dashboard.core.network.DiscordGuildInfo
+import bot.nomnomz.dashboard.core.network.DiscordGuildRole
 import bot.nomnomz.dashboard.core.network.DiscordNotificationConfig
 import bot.nomnomz.dashboard.core.network.DiscordNotificationRole
 import bot.nomnomz.dashboard.core.network.UpdateDiscordRoleBody
@@ -107,6 +110,35 @@ class DiscordControllerTest {
         controller.load()
 
         assertTrue(controller.state.value is DiscordState.Error)
+    }
+
+    @Test
+    fun guild_roles_and_channels_return_the_api_lists_for_the_resolved_channel() = runTest {
+        val api = RecordingDiscordApi(connections = listOf(guild("g1", "My Server")))
+        api.guildRolesResult =
+            ApiResult.Ok(listOf(DiscordGuildRole(id = "r1", name = "VIP"), DiscordGuildRole(id = "r2", name = "bot", managed = true)))
+        api.guildChannelsResult =
+            ApiResult.Ok(listOf(DiscordGuildChannel(id = "c1", name = "general", type = 0)))
+        val controller = DiscordController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        val roles: ApiResult<List<DiscordGuildRole>> = controller.guildRoles("g1")
+        val channels: ApiResult<List<DiscordGuildChannel>> = controller.guildChannels("g1")
+
+        // The controller surfaces the guild's roles + channels (the picker filters managed/non-text; that's UI).
+        assertTrue(roles is ApiResult.Ok)
+        assertEquals(listOf("r1", "r2"), (roles as ApiResult.Ok).value.map { it.id })
+        assertTrue(channels is ApiResult.Ok)
+        assertEquals(listOf("c1"), (channels as ApiResult.Ok).value.map { it.id })
+    }
+
+    @Test
+    fun guild_roles_fails_before_a_channel_is_resolved() = runTest {
+        val controller =
+            DiscordController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), RecordingDiscordApi(connections = emptyList()))
+
+        // No load() yet → no resolved channel → the guard returns a Failure rather than calling with a null channel.
+        assertTrue(controller.guildRoles("g1") is ApiResult.Failure)
     }
 
     @Test
@@ -481,4 +513,18 @@ private class RecordingDiscordApi(
 
     override suspend fun dispatchLog(channelId: String, connectionId: String): ApiResult<List<DiscordDispatchLogEntry>> =
         ApiResult.Ok(emptyList())
+
+    var guildRolesResult: ApiResult<List<DiscordGuildRole>> = ApiResult.Ok(emptyList())
+    var guildChannelsResult: ApiResult<List<DiscordGuildChannel>> = ApiResult.Ok(emptyList())
+
+    override suspend fun guildInfo(channelId: String, connectionId: String): ApiResult<DiscordGuildInfo> =
+        ApiResult.Ok(DiscordGuildInfo())
+
+    override suspend fun guildRoles(channelId: String, connectionId: String): ApiResult<List<DiscordGuildRole>> =
+        guildRolesResult
+
+    override suspend fun guildChannels(
+        channelId: String,
+        connectionId: String,
+    ): ApiResult<List<DiscordGuildChannel>> = guildChannelsResult
 }

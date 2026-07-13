@@ -203,22 +203,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** `ApiContractTest` (`jvmTest`) is green against the refreshed snapshot and no client code assumes
   a UUID shape for an id (no `UUID.fromString`, no uuid regex) — ids flow through as opaque strings.
 
-### 2026-07-05 — Discord guild pickers: 3 new endpoints + DTOs for role/channel selection
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** the Discord config screens can now populate real role/channel pickers instead of asking the
-  streamer to paste raw snowflake ids. Three new GETs on `DiscordController` (snapshot refreshed):
-  `.../discord/connections/{connectionId}/guild` → `DiscordGuildInfoDto`, `.../guild/roles` →
-  `DiscordGuildRoleDto[]`, `.../guild/channels` → `DiscordGuildChannelDto[]`. Gated `discord:role:read`
-  (roles) / `discord:connection:read` (guild + channels).
-- **Why:** the opt-in-role feature is now fully live end-to-end — Discord's interactions webhook (backend,
-  Ed25519-verified) makes the opt-in **buttons actually work** when a viewer clicks them; the pickers let
-  the streamer configure which role/channel a button targets without hunting for ids in Discord.
-- **Where:** add `DiscordGuildInfoDto`, `DiscordGuildRoleDto`, `DiscordGuildChannelDto` to the KMP
-  `core/network` DTOs + register each in `ApiContractTest` (guarded against `server/openapi/v1.json`,
-  just refreshed). Field names are in the snapshot schemas.
-- **Done when:** the Discord role/channel config UI offers dropdowns sourced from these endpoints, and
-  `ApiContractTest` passes with the three DTOs registered.
-
 ### 2026-07-04 — Send channel context on user lookups; use analytics endpoints for participant stats
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** two client changes in the KMP network layer. (1) When the dashboard is operating on a

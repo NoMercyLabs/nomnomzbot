@@ -44,6 +44,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -58,9 +60,12 @@ import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.DiscordConfigPreview
 import bot.nomnomz.dashboard.core.network.DiscordDispatchLogEntry
+import bot.nomnomz.dashboard.core.network.DiscordGuildChannel
 import bot.nomnomz.dashboard.core.network.DiscordGuildConnection
+import bot.nomnomz.dashboard.core.network.DiscordGuildRole
 import bot.nomnomz.dashboard.core.network.DiscordNotificationConfig
 import bot.nomnomz.dashboard.core.network.DiscordNotificationRole
 import bot.nomnomz.dashboard.feature.discord.state.DiscordController
@@ -121,6 +126,7 @@ import nomnomzbot.composeapp.generated.resources.discord_preview_title
 import nomnomzbot.composeapp.generated.resources.discord_retry
 import nomnomzbot.composeapp.generated.resources.discord_roles_add
 import nomnomzbot.composeapp.generated.resources.discord_roles_button_channel_id
+import nomnomzbot.composeapp.generated.resources.discord_roles_channel_picker
 import nomnomzbot.composeapp.generated.resources.discord_roles_button_channel_required
 import nomnomzbot.composeapp.generated.resources.discord_roles_button_post
 import nomnomzbot.composeapp.generated.resources.discord_roles_cancel
@@ -132,6 +138,7 @@ import nomnomzbot.composeapp.generated.resources.discord_roles_delete_confirm
 import nomnomzbot.composeapp.generated.resources.discord_roles_delete_message
 import nomnomzbot.composeapp.generated.resources.discord_roles_delete_title
 import nomnomzbot.composeapp.generated.resources.discord_roles_discord_role_id
+import nomnomzbot.composeapp.generated.resources.discord_roles_role_picker
 import nomnomzbot.composeapp.generated.resources.discord_roles_empty
 import nomnomzbot.composeapp.generated.resources.discord_roles_opt_in_count
 import nomnomzbot.composeapp.generated.resources.discord_roles_post_button
@@ -171,7 +178,7 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
     var pendingConsentRevoke: String? by remember { mutableStateOf(null) }   // connectionId
     var pendingRoleCreate: String? by remember { mutableStateOf(null) }      // connectionId
     var pendingRoleDelete: PendingRoleDelete? by remember { mutableStateOf(null) }
-    var pendingPostButton: String? by remember { mutableStateOf(null) }      // roleId
+    var pendingPostButton: PendingPostButton? by remember { mutableStateOf(null) }  // roleId + its guild connection
     var preview: DiscordConfigPreview? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) { controller.load() }
@@ -212,7 +219,9 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
                     onDeleteRole = { role ->
                         pendingRoleDelete = PendingRoleDelete(role.id, role.roleName ?: role.discordRoleId)
                     },
-                    onPostRoleButton = { role -> pendingPostButton = role.id },
+                    onPostRoleButton = { role ->
+                        pendingPostButton = PendingPostButton(role.id, role.guildConnectionId)
+                    },
                 )
         }
     }
@@ -276,6 +285,8 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
 
     pendingRoleCreate?.let { connectionId ->
         CreateRoleDialog(
+            connectionId = connectionId,
+            loadRoles = { cid -> controller.guildRoles(cid) },
             onDismiss = { pendingRoleCreate = null },
             onCreate = { discordRoleId, roleName, selfAssign ->
                 pendingRoleCreate = null
@@ -299,12 +310,14 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
         )
     }
 
-    pendingPostButton?.let { roleId ->
+    pendingPostButton?.let { target ->
         PostButtonDialog(
+            connectionId = target.connectionId,
+            loadChannels = { cid -> controller.guildChannels(cid) },
             onDismiss = { pendingPostButton = null },
             onPost = { channelId ->
                 pendingPostButton = null
-                scope.launch { controller.postRoleButton(roleId, channelId) }
+                scope.launch { controller.postRoleButton(target.roleId, channelId) }
             },
         )
     }
@@ -991,6 +1004,8 @@ private fun ApproveConsentDialog(onDismiss: () -> Unit, onApprove: (discordUserI
 
 @Composable
 private fun CreateRoleDialog(
+    connectionId: String,
+    loadRoles: suspend (connectionId: String) -> ApiResult<List<DiscordGuildRole>>,
     onDismiss: () -> Unit,
     onCreate: (discordRoleId: String, roleName: String?, selfAssign: Boolean) -> Unit,
 ) {
@@ -1002,19 +1017,46 @@ private fun CreateRoleDialog(
     var selfAssign: Boolean by remember { mutableStateOf(false) }
     val roleIdError: Boolean = discordRoleId.isBlank()
 
+    // The guild's assignable roles, so the operator picks instead of pasting a snowflake. Managed (bot/integration)
+    // roles are filtered out — they can't be self-assigned. Empty until loaded, or when the fetch fails (missing
+    // permission / bot not in the guild) — in which case the dialog falls back to manual id entry.
+    var guildRoles: List<DiscordGuildRole> by remember(connectionId) { mutableStateOf(emptyList()) }
+    LaunchedEffect(connectionId) {
+        guildRoles =
+            when (val result: ApiResult<List<DiscordGuildRole>> = loadRoles(connectionId)) {
+                is ApiResult.Ok -> result.value.filter { !it.managed }
+                is ApiResult.Failure -> emptyList()
+            }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.discord_roles_create_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = discordRoleId,
-                    onValueChange = { discordRoleId = it },
-                    label = stringResource(Res.string.discord_roles_discord_role_id),
-                    isError = roleIdError && discordRoleId.isNotEmpty(),
-                    errorText = stringResource(Res.string.discord_roles_role_id_required),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                if (guildRoles.isNotEmpty()) {
+                    GuildPickerField(
+                        label = stringResource(Res.string.discord_roles_role_picker),
+                        options = guildRoles.map { it.id to it.name },
+                        selectedId = discordRoleId,
+                        onSelect = { id ->
+                            discordRoleId = id
+                            // Seed the display name from the picked role unless the operator already typed one.
+                            if (roleName.isBlank()) {
+                                roleName = guildRoles.firstOrNull { it.id == id }?.name.orEmpty()
+                            }
+                        },
+                    )
+                } else {
+                    AppTextField(
+                        value = discordRoleId,
+                        onValueChange = { discordRoleId = it },
+                        label = stringResource(Res.string.discord_roles_discord_role_id),
+                        isError = roleIdError && discordRoleId.isNotEmpty(),
+                        errorText = stringResource(Res.string.discord_roles_role_id_required),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 AppTextField(
                     value = roleName,
                     onValueChange = { roleName = it },
@@ -1053,26 +1095,51 @@ private fun CreateRoleDialog(
 }
 
 @Composable
-private fun PostButtonDialog(onDismiss: () -> Unit, onPost: (channelId: String) -> Unit) {
+private fun PostButtonDialog(
+    connectionId: String,
+    loadChannels: suspend (connectionId: String) -> ApiResult<List<DiscordGuildChannel>>,
+    onDismiss: () -> Unit,
+    onPost: (channelId: String) -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
     var channelId: String by remember { mutableStateOf("") }
     val channelError: Boolean = channelId.isBlank()
 
+    // The guild's TEXT channels (type 0) — the button can only be posted to a text channel. Empty until loaded,
+    // or when the fetch fails — then the dialog falls back to manual channel-id entry.
+    var textChannels: List<DiscordGuildChannel> by remember(connectionId) { mutableStateOf(emptyList()) }
+    LaunchedEffect(connectionId) {
+        textChannels =
+            when (val result: ApiResult<List<DiscordGuildChannel>> = loadChannels(connectionId)) {
+                is ApiResult.Ok -> result.value.filter { it.type == 0 }
+                is ApiResult.Failure -> emptyList()
+            }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.discord_roles_post_button_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = channelId,
-                    onValueChange = { channelId = it },
-                    label = stringResource(Res.string.discord_roles_button_channel_id),
-                    isError = channelError && channelId.isNotEmpty(),
-                    errorText = stringResource(Res.string.discord_roles_button_channel_required),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                if (textChannels.isNotEmpty()) {
+                    GuildPickerField(
+                        label = stringResource(Res.string.discord_roles_channel_picker),
+                        options = textChannels.map { it.id to ("# " + (it.name ?: it.id)) },
+                        selectedId = channelId,
+                        onSelect = { channelId = it },
+                    )
+                } else {
+                    AppTextField(
+                        value = channelId,
+                        onValueChange = { channelId = it },
+                        label = stringResource(Res.string.discord_roles_button_channel_id),
+                        isError = channelError && channelId.isNotEmpty(),
+                        errorText = stringResource(Res.string.discord_roles_button_channel_required),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         },
         confirmButton = {
@@ -1089,6 +1156,46 @@ private fun PostButtonDialog(onDismiss: () -> Unit, onPost: (channelId: String) 
             }
         },
     )
+}
+
+// A labelled dropdown over guild [options] (id to display label) — the shared affordance behind the role and
+// channel pickers. Shows the selected option's label, or the [label] prompt when nothing is picked yet.
+@Composable
+private fun GuildPickerField(
+    label: String,
+    options: List<Pair<String, String>>,
+    selectedId: String,
+    onSelect: (String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var expanded: Boolean by remember { mutableStateOf(false) }
+    val selectedLabel: String? = options.firstOrNull { it.first == selectedId }?.second
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        Text(text = label, style = typography.sm, color = tokens.mutedForeground)
+        Box {
+            TextButton(onClick = { expanded = true }) {
+                Text(
+                    text = selectedLabel ?: label,
+                    color = if (selectedLabel != null) tokens.cardForeground else tokens.mutedForeground,
+                )
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                options.forEach { (id, optionLabel) ->
+                    DropdownMenuItem(
+                        text = { Text(text = optionLabel, style = typography.sm, color = tokens.cardForeground) },
+                        onClick = {
+                            onSelect(id)
+                            expanded = false
+                        },
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -1233,3 +1340,7 @@ private data class PendingDelete(val configId: String, val triggerType: String)
 
 // Pending role-delete confirm target.
 private data class PendingRoleDelete(val roleId: String, val displayName: String)
+
+// The role whose opt-in button is being posted, plus its guild connection id — needed so the channel picker can
+// fetch that guild's channels.
+private data class PendingPostButton(val roleId: String, val connectionId: String)

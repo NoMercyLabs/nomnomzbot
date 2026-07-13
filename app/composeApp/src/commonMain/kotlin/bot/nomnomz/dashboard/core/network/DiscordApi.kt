@@ -105,6 +105,15 @@ interface DiscordApi {
         channelId: String,
         connectionId: String,
     ): ApiResult<List<DiscordDispatchLogEntry>>
+
+    /** The connected guild's info (name/icon) — shown as the header of the role/channel pickers. */
+    suspend fun guildInfo(channelId: String, connectionId: String): ApiResult<DiscordGuildInfo>
+
+    /** The guild's assignable roles — populates the role picker (so the streamer picks, not pastes a snowflake). */
+    suspend fun guildRoles(channelId: String, connectionId: String): ApiResult<List<DiscordGuildRole>>
+
+    /** The guild's channels — populates the channel picker for posting the opt-in button. */
+    suspend fun guildChannels(channelId: String, connectionId: String): ApiResult<List<DiscordGuildChannel>>
 }
 
 class RestDiscordApi(private val client: ApiClient) : DiscordApi {
@@ -218,7 +227,58 @@ class RestDiscordApi(private val client: ApiClient) : DiscordApi {
             is ApiResult.Failure -> ApiResult.Failure(page.error)
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
+
+    // StatusResponseDto<DiscordGuildInfoDto> — getEnvelope unwraps `data`.
+    override suspend fun guildInfo(channelId: String, connectionId: String): ApiResult<DiscordGuildInfo> =
+        client.getEnvelope("api/v1/channels/$channelId/discord/connections/$connectionId/guild")
+
+    // StatusResponseDto<IReadOnlyList<DiscordGuildRoleDto>> — getEnvelope unwraps the `data` list.
+    override suspend fun guildRoles(channelId: String, connectionId: String): ApiResult<List<DiscordGuildRole>> =
+        client.getEnvelope("api/v1/channels/$channelId/discord/connections/$connectionId/guild/roles")
+
+    override suspend fun guildChannels(
+        channelId: String,
+        connectionId: String,
+    ): ApiResult<List<DiscordGuildChannel>> =
+        client.getEnvelope("api/v1/channels/$channelId/discord/connections/$connectionId/guild/channels")
 }
+
+/** A connected Discord guild's basic info (backend `DiscordGuildInfoDto`) — the picker header. */
+@Serializable
+data class DiscordGuildInfo(
+    val id: String = "",
+    val name: String = "",
+    val icon: String? = null,
+    val description: String? = null,
+)
+
+/**
+ * One assignable Discord role (backend `DiscordGuildRoleDto`). [managed] roles are bot/integration-owned and
+ * can't be self-assigned, so the picker filters them out. [position] is Discord's ordering; [color] is an int RGB.
+ */
+@Serializable
+data class DiscordGuildRole(
+    val id: String = "",
+    val name: String = "",
+    val color: Int = 0,
+    val position: Int = 0,
+    val managed: Boolean = false,
+)
+
+/**
+ * One Discord channel (backend `DiscordGuildChannelDto`). [type] is Discord's numeric channel type (0 = text);
+ * [parentId] is the category it sits under. The picker offers text channels for posting the opt-in button.
+ */
+@Serializable
+data class DiscordGuildChannel(
+    val id: String = "",
+    // Nullable in the contract (the shared Json doesn't coerce a null to ""), so mirror it; the UI shows the id
+    // as a fallback when a channel has no resolvable name.
+    val name: String? = null,
+    val type: Int = 0,
+    val position: Int = 0,
+    val parentId: String? = null,
+)
 
 /**
  * A linked Discord guild (backend `DiscordGuildConnectionDto`). [guildName] is null until the bot resolves it.
