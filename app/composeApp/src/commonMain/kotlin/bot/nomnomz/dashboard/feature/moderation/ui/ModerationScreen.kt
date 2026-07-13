@@ -96,6 +96,7 @@ import nomnomzbot.composeapp.generated.resources.moderation_automod_on
 import nomnomzbot.composeapp.generated.resources.moderation_automod_phrases
 import nomnomzbot.composeapp.generated.resources.moderation_automod_title
 import nomnomzbot.composeapp.generated.resources.moderation_bans_title
+import nomnomzbot.composeapp.generated.resources.moderation_bans_unavailable
 import nomnomzbot.composeapp.generated.resources.moderation_log_by
 import nomnomzbot.composeapp.generated.resources.moderation_log_row_description
 import nomnomzbot.composeapp.generated.resources.moderation_log_title
@@ -117,11 +118,13 @@ import nomnomzbot.composeapp.generated.resources.moderation_shield_disable_actio
 import nomnomzbot.composeapp.generated.resources.moderation_shield_enable
 import nomnomzbot.composeapp.generated.resources.moderation_shield_enable_action
 import nomnomzbot.composeapp.generated.resources.moderation_shield_title
+import nomnomzbot.composeapp.generated.resources.moderation_shield_unavailable
 import nomnomzbot.composeapp.generated.resources.moderation_terms_add
 import nomnomzbot.composeapp.generated.resources.moderation_terms_add_label
 import nomnomzbot.composeapp.generated.resources.moderation_terms_remove
 import nomnomzbot.composeapp.generated.resources.moderation_terms_remove_action
 import nomnomzbot.composeapp.generated.resources.moderation_terms_title
+import nomnomzbot.composeapp.generated.resources.moderation_terms_unavailable
 import nomnomzbot.composeapp.generated.resources.moderation_banned_by
 import nomnomzbot.composeapp.generated.resources.moderation_banned_on
 import nomnomzbot.composeapp.generated.resources.moderation_context_action_short
@@ -273,6 +276,9 @@ fun ModerationScreen(
                     actionError = current.actionError,
                     unbanRequests = current.unbanRequests,
                     reports = current.reports,
+                    bansAvailable = current.bansAvailable,
+                    blockedTermsAvailable = current.blockedTermsAvailable,
+                    shieldAvailable = current.shieldAvailable,
                     manage = manage,
                     suspiciousManage = suspiciousManage,
                     onResolveUnban = { requestId, approve, note ->
@@ -337,6 +343,9 @@ private fun BansList(
     actionError: String?,
     unbanRequests: List<UnbanRequest>,
     reports: List<ViewerReport>,
+    bansAvailable: Boolean,
+    blockedTermsAvailable: Boolean,
+    shieldAvailable: Boolean,
     manage: ManageDecision,
     suspiciousManage: ManageDecision,
     onResolveUnban: (requestId: String, approve: Boolean, note: String?) -> Unit,
@@ -392,7 +401,11 @@ private fun BansList(
         }
         item(key = "shield-toggle") {
             Card(modifier = Modifier.fillMaxWidth()) {
-                ShieldToggle(enabled = shieldEnabled, manage = manage, onToggle = onToggleShield)
+                if (shieldAvailable) {
+                    ShieldToggle(enabled = shieldEnabled, manage = manage, onToggle = onToggleShield)
+                } else {
+                    SectionUnavailable(stringResource(Res.string.moderation_shield_unavailable))
+                }
             }
         }
         // "Moderate a viewer" and "Send Announcement" quick-action buttons.
@@ -422,7 +435,7 @@ private fun BansList(
                 }
             }
         }
-        if (bans.isNotEmpty()) {
+        if (!bansAvailable || bans.isNotEmpty()) {
             item(key = "bans-header") {
                 Text(
                     text = stringResource(Res.string.moderation_bans_title),
@@ -433,17 +446,22 @@ private fun BansList(
             }
             item(key = "bans-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    Column {
-                        bans.forEachIndexed { index, ban ->
-                            BanRow(
-                                ban = ban,
-                                manage = manage,
-                                onUnban = { pendingUnban = ban },
-                                onNetworkUnban = { pendingNetworkUnban = ban },
-                                onViewContext = { onViewContext(ban.id) },
-                            )
-                            if (index < bans.lastIndex) {
-                                Separator()
+                    if (!bansAvailable) {
+                        // A read failure is NOT "no bans" — the live Twitch list is unavailable here.
+                        SectionUnavailable(stringResource(Res.string.moderation_bans_unavailable))
+                    } else {
+                        Column {
+                            bans.forEachIndexed { index, ban ->
+                                BanRow(
+                                    ban = ban,
+                                    manage = manage,
+                                    onUnban = { pendingUnban = ban },
+                                    onNetworkUnban = { pendingNetworkUnban = ban },
+                                    onViewContext = { onViewContext(ban.id) },
+                                )
+                                if (index < bans.lastIndex) {
+                                    Separator()
+                                }
                             }
                         }
                     }
@@ -535,15 +553,24 @@ private fun BansList(
                 maxLines = 1,
             )
         }
-        item(key = "terms-add") { AddTermRow(manage = manage, onAdd = onAddTerm) }
-        if (blockedTerms.isNotEmpty()) {
-            item(key = "terms-card") {
+        if (!blockedTermsAvailable) {
+            // The live blocked-terms list is unavailable here — don't offer an add input that would just fail.
+            item(key = "terms-unavailable") {
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    Column {
-                        blockedTerms.forEachIndexed { index, term ->
-                            BlockedTermRow(term = term, manage = manage, onRemove = { onRemoveTerm(term) })
-                            if (index < blockedTerms.lastIndex) {
-                                Separator()
+                    SectionUnavailable(stringResource(Res.string.moderation_terms_unavailable))
+                }
+            }
+        } else {
+            item(key = "terms-add") { AddTermRow(manage = manage, onAdd = onAddTerm) }
+            if (blockedTerms.isNotEmpty()) {
+                item(key = "terms-card") {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column {
+                            blockedTerms.forEachIndexed { index, term ->
+                                BlockedTermRow(term = term, manage = manage, onRemove = { onRemoveTerm(term) })
+                                if (index < blockedTerms.lastIndex) {
+                                    Separator()
+                                }
                             }
                         }
                     }
@@ -1783,6 +1810,25 @@ private fun StatChip(label: String, value: Int) {
         Text(text = value.toString(), style = typography.xl, color = tokens.primary)
         Text(text = label, style = typography.xs, color = tokens.mutedForeground)
     }
+}
+
+// A live-Twitch section that couldn't be read here (missing scope / bot not installed). Shown INSTEAD of the
+// section's empty/off state so the page never phantom-lies "no bans / no terms / shield off" when the truth is
+// "you can't see or control this here". The global scope banner is where the streamer re-grants.
+@Composable
+private fun SectionUnavailable(message: String) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Text(
+        text = message,
+        style = typography.sm,
+        color = tokens.mutedForeground,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+    )
 }
 
 @Composable

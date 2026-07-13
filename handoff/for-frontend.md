@@ -61,27 +61,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** picking a voice for a viewer persists and survives reload; the picker only offers synthesizable
   voices; clearing returns the viewer to the default; picker disabled (not hidden) below the manage floor; en + nl.
 
-### 2026-07-11 — Moderation page now shows/controls REAL Twitch state — handle the regrant/error path
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** three moderation endpoints changed behaviour (NOT their contract — no `v1.json` change, no DTO
-  change, nothing to re-sync): `GET /channels/{id}/moderation/bans`, the `blocked-terms` GET/POST/DELETE,
-  and the `shield` GET/PATCH now read and write **live Twitch state** instead of a local mirror. The bans
-  list can now be much larger (it includes bans made outside the bot — Twitch UI, other mods) and carries the
-  real reason/moderator. Blocked-terms + Shield toggles now actually take effect on Twitch. **The only UI work:**
-  these endpoints can now legitimately **fail** where before they always returned a value — when the channel's
-  Twitch grant is missing a scope, or (for a channel you moderate but the bot isn't installed on) there's no
-  broadcaster token. Treat a failure as "needs permission / not available here" and show the existing regrant
-  prompt, **not** a blank "no bans / no terms" state (that would be the old phantom lie).
-- **Why:** the page was cosmetic — the bans list showed only bot-recorded bans, and adding a blocked term or
-  flipping Shield Mode wrote a local flag Twitch never saw. Now it's truthful (item 15 groundwork; owner-reported
-  "moderation page is empty and useless").
-- **Where:** the moderation feature page. Two new streamer scopes are requested on next auth/regrant
-  (`moderator:manage:blocked_terms`, `moderator:manage:shield_mode`) — existing streamers will see the
-  standard "permissions needed" prompt until they re-grant; that's expected and self-heals via the progressive
-  scope flow (no logout). No `ApiContractTest` change (shapes identical).
-- **Done when:** the bans/blocked-terms/shield sections render live Twitch data on a fully-granted channel, and
-  a missing-scope / no-token channel shows a regrant/unavailable state instead of an empty list.
-
 ### 2026-07-11 — Media-share page: mod queue + overlay widget (viewer clip/video queue)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** two surfaces. (1) A **mod queue** page: list submissions (filter by status), approve/reject/

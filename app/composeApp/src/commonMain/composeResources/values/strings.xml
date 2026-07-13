@@ -282,6 +282,7 @@
     <string name="moderation_loading">Loading bans…</string>
     <string name="moderation_empty">No active bans</string>
     <string name="moderation_bans_title">Banned viewers</string>
+    <string name="moderation_bans_unavailable">The live ban list isn\'t available here. Re-grant the moderation permissions, or check the bot is installed on this channel.</string>
     <string name="moderation_log_title">Recent actions</string>
     <string name="moderation_log_by">by %1$s</string>
     <string name="moderation_log_row_description">%1$s %2$s, by %3$s</string>
@@ -290,7 +291,9 @@
     <string name="moderation_shield_disable">Disable</string>
     <string name="moderation_shield_enable_action">Enable Shield Mode</string>
     <string name="moderation_shield_disable_action">Disable Shield Mode</string>
+    <string name="moderation_shield_unavailable">Shield Mode isn\'t available here. Re-grant the moderation permissions, or check the bot is installed on this channel.</string>
     <string name="moderation_terms_title">Blocked terms</string>
+    <string name="moderation_terms_unavailable">Blocked terms aren\'t available here. Re-grant the moderation permissions, or check the bot is installed on this channel.</string>
     <string name="moderation_terms_remove">Remove</string>
     <string name="moderation_terms_remove_action">Remove %1$s</string>
     <string name="moderation_terms_add_label">Add a term</string>

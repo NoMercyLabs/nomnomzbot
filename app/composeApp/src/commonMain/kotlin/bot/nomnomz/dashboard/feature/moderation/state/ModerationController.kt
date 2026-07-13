@@ -79,11 +79,17 @@ class ModerationController(
 
         channelId = channel.id
 
+        // Bans / blocked-terms / shield read LIVE Twitch state, so they can legitimately fail where a local mirror
+        // never did — a missing scope, or a channel you moderate but the bot isn't installed on (no broadcaster
+        // token). A failure is NOT an empty list (that would be the old phantom lie: "no bans"); it means the
+        // section is unavailable here. Track availability per section so the UI shows a needs-permission notice
+        // instead of a blank state. A bans failure no longer errors the whole page — the rest still renders.
+        var bansAvailable: Boolean = true
         val bans: List<BannedUser> =
             when (val result: ApiResult<List<BannedUser>> = moderationApi.bans(channel.id)) {
                 is ApiResult.Failure -> {
-                    _state.value = ModerationState.Error(result.error.message)
-                    return
+                    bansAvailable = false
+                    emptyList()
                 }
                 is ApiResult.Ok -> result.value
             }
@@ -96,17 +102,27 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
-        // Emergency Shield Mode (resilient — a failure leaves it reported off rather than blanking the page).
+        // Emergency Shield Mode (live Twitch state). A failure means unavailable here — NOT "off" (a phantom lie);
+        // the UI shows a needs-permission notice instead of an off toggle.
+        var shieldAvailable: Boolean = true
         val shieldEnabled: Boolean =
             when (val result: ApiResult<ShieldStatus> = moderationApi.shieldMode(channel.id)) {
-                is ApiResult.Failure -> false
+                is ApiResult.Failure -> {
+                    shieldAvailable = false
+                    false
+                }
                 is ApiResult.Ok -> result.value.enabled
             }
 
-        // Blocked terms (auto-removed words/phrases). Resilient — a failure degrades to an empty list.
+        // Blocked terms (live Twitch state). A failure means unavailable here — NOT "no terms"; the UI shows a
+        // needs-permission notice instead of the empty state.
+        var blockedTermsAvailable: Boolean = true
         val blockedTerms: List<String> =
             when (val result: ApiResult<List<String>> = moderationApi.blockedTerms(channel.id)) {
-                is ApiResult.Failure -> emptyList()
+                is ApiResult.Failure -> {
+                    blockedTermsAvailable = false
+                    emptyList()
+                }
                 is ApiResult.Ok -> result.value
             }
 
@@ -151,8 +167,9 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
-        // Empty only when there is genuinely nothing to show AND every always-on control (shield, automod) is off;
-        // if any is active, or there are rules / pending appeals / open reports, the page renders so state stays visible.
+        // Empty only when there is genuinely nothing to show AND every always-on control (shield, automod) is off
+        // AND every live-Twitch section is available (an unavailable section must render Ready so its needs-permission
+        // notice shows — never Empty, which would read as "nothing here" rather than "you can't see this here").
         _state.value =
             if (
                 bans.isEmpty() &&
@@ -162,7 +179,10 @@ class ModerationController(
                     unbanRequests.isEmpty() &&
                     reports.isEmpty() &&
                     !shieldEnabled &&
-                    !anyAutomodEnabled
+                    !anyAutomodEnabled &&
+                    bansAvailable &&
+                    blockedTermsAvailable &&
+                    shieldAvailable
             ) {
                 ModerationState.Empty
             } else {
@@ -176,6 +196,9 @@ class ModerationController(
                     stats = stats,
                     unbanRequests = unbanRequests,
                     reports = reports,
+                    bansAvailable = bansAvailable,
+                    blockedTermsAvailable = blockedTermsAvailable,
+                    shieldAvailable = shieldAvailable,
                 )
             }
     }
@@ -541,6 +564,11 @@ sealed interface ModerationState {
         val actionError: String? = null,
         val unbanRequests: List<UnbanRequest> = emptyList(),
         val reports: List<ViewerReport> = emptyList(),
+        // Live-Twitch sections: false when the section's read failed (missing scope / bot not installed here), so
+        // the UI shows a needs-permission notice instead of an empty/off state. See load().
+        val bansAvailable: Boolean = true,
+        val blockedTermsAvailable: Boolean = true,
+        val shieldAvailable: Boolean = true,
     ) : ModerationState
 
     data object Empty : ModerationState

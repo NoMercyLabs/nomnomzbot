@@ -279,6 +279,7 @@
     <string name="moderation_loading">Bans laden…</string>
     <string name="moderation_empty">Geen actieve bans</string>
     <string name="moderation_bans_title">Verbannen kijkers</string>
+    <string name="moderation_bans_unavailable">De live banlijst is hier niet beschikbaar. Verleen de moderatierechten opnieuw, of controleer of de bot op dit kanaal is geïnstalleerd.</string>
     <string name="moderation_log_title">Recente acties</string>
     <string name="moderation_log_by">door %1$s</string>
     <string name="moderation_log_row_description">%1$s %2$s, door %3$s</string>
@@ -287,7 +288,9 @@
     <string name="moderation_shield_disable">Uitschakelen</string>
     <string name="moderation_shield_enable_action">Schildmodus inschakelen</string>
     <string name="moderation_shield_disable_action">Schildmodus uitschakelen</string>
+    <string name="moderation_shield_unavailable">Schildmodus is hier niet beschikbaar. Verleen de moderatierechten opnieuw, of controleer of de bot op dit kanaal is geïnstalleerd.</string>
     <string name="moderation_terms_title">Geblokkeerde termen</string>
+    <string name="moderation_terms_unavailable">Geblokkeerde termen zijn hier niet beschikbaar. Verleen de moderatierechten opnieuw, of controleer of de bot op dit kanaal is geïnstalleerd.</string>
     <string name="moderation_terms_remove">Verwijderen</string>
     <string name="moderation_terms_remove_action">%1$s verwijderen</string>
     <string name="moderation_terms_add_label">Term toevoegen</string>

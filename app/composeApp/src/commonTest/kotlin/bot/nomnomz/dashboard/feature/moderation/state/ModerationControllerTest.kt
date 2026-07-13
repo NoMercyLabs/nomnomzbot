@@ -35,6 +35,7 @@ import bot.nomnomz.dashboard.core.network.UserModerationContext
 import bot.nomnomz.dashboard.core.network.UserNote
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -319,16 +320,42 @@ class ModerationControllerTest {
     }
 
     @Test
-    fun load_errors_when_the_bans_call_fails() = runTest {
+    fun bans_read_failure_renders_unavailable_not_an_empty_or_errored_page() = runTest {
+        // Bans read LIVE Twitch state, so a failure (missing scope / bot not installed here) is NOT a page error
+        // and NOT "no bans" — it's an unavailable section. The page still renders (Ready) so the rest is usable and
+        // the needs-permission notice shows in place of the ban list.
         val controller =
             ModerationController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeModerationApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
+                FakeModerationApi(ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope."))),
             )
 
         controller.load()
 
-        assertTrue(controller.state.value is ModerationState.Error)
+        val state: ModerationState = controller.state.value
+        assertTrue(state is ModerationState.Ready)
+        assertFalse((state as ModerationState.Ready).bansAvailable)
+    }
+
+    @Test
+    fun shield_and_blocked_terms_read_failures_render_unavailable_not_off_or_empty() = runTest {
+        // A shield/terms read failure must not phantom-lie "off"/"no terms" — it flags the section unavailable.
+        val api =
+            FakeModerationApi(
+                bansResults = listOf(ApiResult.Ok(emptyList())),
+                shieldResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
+                blockedTermsResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
+            )
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+
+        controller.load()
+
+        // Even though every list is empty and shield reads off, the page renders Ready (not Empty) with the two
+        // sections marked unavailable so their notices show.
+        val state: ModerationState = controller.state.value
+        assertTrue(state is ModerationState.Ready)
+        assertFalse((state as ModerationState.Ready).shieldAvailable)
+        assertFalse(state.blockedTermsAvailable)
     }
 
     @Test
