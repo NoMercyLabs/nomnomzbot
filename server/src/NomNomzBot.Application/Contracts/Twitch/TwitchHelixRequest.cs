@@ -11,16 +11,19 @@
 namespace NomNomzBot.Application.Contracts.Twitch;
 
 /// <summary>
-/// Which bearer a Helix call rides on. <see cref="App"/> uses the bot/app token (subject-agnostic
-/// reads); <see cref="User"/> uses the broadcaster's user token (tenant-scoped reads/writes);
+/// Which bearer a Helix call rides on. <see cref="App"/> uses the bot token (the bot's own user token, for
+/// subject-agnostic reads); <see cref="User"/> uses the broadcaster's user token (tenant-scoped reads/writes);
 /// <see cref="Operator"/> uses the logged-in operator's OWN user token (resolved by <c>OperatorUserId</c>),
-/// for acting AS the dashboard operator rather than the tenant broadcaster (chat-client.md §3.1).
+/// for acting AS the dashboard operator rather than the tenant broadcaster (chat-client.md §3.1);
+/// <see cref="BotApp"/> uses a real <c>client_credentials</c> app access token (subject-agnostic) — the
+/// badge-bearing token the chat send rides so Twitch awards the bot its chatbot badge.
 /// </summary>
 public enum TwitchHelixAuth
 {
     App = 0,
     User = 1,
     Operator = 2,
+    BotApp = 3,
 }
 
 /// <summary>

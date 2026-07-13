@@ -72,6 +72,11 @@ public sealed class AuthService : IAuthService
         // streamer grant must carry the Helix chat-send scope — `HelixChatProvider` sends via
         // `POST /helix/chat/messages` (`user:write:chat`) on every profile (scaling-qos.md §6).
         "user:write:chat",
+        // The chatbot badge: Twitch awards it only for a send on an APP access token, which requires the
+        // SENDING account to have granted `user:bot`. In the single-account model the streamer's own account
+        // IS the bot, so this grant lets that account's messages earn the badge (HelixChatProvider prefers the
+        // app-token send when it's present). A dedicated bot account carries the same scope in BotScopes below.
+        "user:bot",
         // The chat composer's emote picker shows the operator's own usable emotes across every channel they're
         // subscribed to (Get User Emotes, chat-client.md §3.2). It's an always-on part of the chat page, not a
         // feature toggle, so — like the rest of this full-set-at-login grant — its scope rides the base grant
@@ -150,6 +155,10 @@ public sealed class AuthService : IAuthService
     [
         "user:read:chat",
         "user:write:chat",
+        // The chatbot badge: a send on the platform's APP access token earns the bot its badge only when the
+        // bot account has granted `user:bot`. With it (and bot-is-mod, which BotJoinOnOnboardingHandler ensures)
+        // HelixChatProvider rides the badge-bearing app token; without it, it falls back to this user token.
+        "user:bot",
         "chat:read",
         "chat:edit",
         // The bot's own whisper inbox: user.whisper.message is a bot-owned EventSub topic riding the bot's

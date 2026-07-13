@@ -147,13 +147,58 @@ public sealed class HelixChatProvider : IChatPlatform
             return false;
         }
 
+        // Prefer the app-access-token send when the bot has granted `user:bot`: Twitch shows the chatbot badge
+        // ONLY for a message sent on an app token (bot `user:bot` + bot-is-mod / broadcaster `channel:bot`),
+        // never on a user token. If that send fails (e.g. the bot lost its moderator status and the broadcaster
+        // never granted `channel:bot`), fall back to the user-token send so the message still goes out — just
+        // without the badge. When the grant is absent there's no badge to earn, so we go straight to fallback.
+        if (
+            sender.CanUseAppToken
+            && await TrySendAsync(
+                broadcasterId,
+                twitchBroadcasterId,
+                sender,
+                message,
+                replyToMessageId,
+                TwitchHelixAuth.BotApp,
+                ct
+            )
+        )
+            return true;
+
+        return await TrySendAsync(
+            broadcasterId,
+            twitchBroadcasterId,
+            sender,
+            message,
+            replyToMessageId,
+            sender.FallbackAuth,
+            ct
+        );
+    }
+
+    /// <summary>
+    /// Posts one chat message on the given <paramref name="auth"/>. Only the <see cref="TwitchHelixAuth.User"/>
+    /// (owner-as-bot) path is tenant-scoped — it rides THIS channel's broadcaster token, so the transport needs
+    /// the tenant to resolve it; the shared-bot (<c>App</c>) and app-token (<c>BotApp</c>) paths ride a
+    /// subject-agnostic token, so they carry no tenant. Returns false on any transport failure (the caller
+    /// decides whether to retry on a different token).
+    /// </summary>
+    private async Task<bool> TrySendAsync(
+        Guid broadcasterId,
+        string twitchBroadcasterId,
+        BotSenderIdentity sender,
+        string message,
+        string? replyToMessageId,
+        TwitchHelixAuth auth,
+        CancellationToken ct
+    )
+    {
         TwitchHelixRequest request = new(
             HttpMethod.Post,
             "chat/messages",
-            sender.Auth,
-            // The owner-as-bot path rides THIS channel's broadcaster token, so the transport needs the tenant
-            // to resolve it; the shared-bot path rides the subject-agnostic app/bot token (no tenant).
-            BroadcasterId: sender.Auth == TwitchHelixAuth.User ? broadcasterId : null,
+            auth,
+            BroadcasterId: auth == TwitchHelixAuth.User ? broadcasterId : null,
             Body: new
             {
                 BroadcasterId = twitchBroadcasterId,
@@ -168,7 +213,8 @@ public sealed class HelixChatProvider : IChatPlatform
         if (result.IsFailure)
         {
             _logger.LogWarning(
-                "HelixChatProvider: send to {BroadcasterId} failed: {Error}",
+                "HelixChatProvider: {Auth} send to {BroadcasterId} failed: {Error}",
+                auth,
                 broadcasterId,
                 result.ErrorMessage
             );
@@ -219,10 +265,8 @@ public sealed class HelixChatProvider : IChatPlatform
         if (_senderByBroadcaster.TryGetValue(broadcasterId, out BotSenderIdentity? cached))
             return cached;
 
-        string? sharedBotUserId = await SharedBotUserIdAsync(ct);
-        BotSenderIdentity? sender = sharedBotUserId is not null
-            ? new BotSenderIdentity(TwitchHelixAuth.App, sharedBotUserId)
-            : await OwnerSenderAsync(broadcasterId, ct);
+        BotSenderIdentity? sender =
+            await SharedBotSenderAsync(ct) ?? await OwnerSenderAsync(broadcasterId, ct);
 
         if (sender is not null)
             _senderByBroadcaster[broadcasterId] = sender;
@@ -230,27 +274,43 @@ public sealed class HelixChatProvider : IChatPlatform
         return sender;
     }
 
-    /// <summary>The shared platform bot account's Twitch user id (<c>twitch_bot</c>, no broadcaster), or null.</summary>
-    private Task<string?> SharedBotUserIdAsync(CancellationToken ct) =>
-        _db
+    /// <summary>
+    /// The shared platform bot account as the bot sender (<c>twitch_bot</c>, no broadcaster) — its fallback
+    /// send rides the bot's own user token (<see cref="TwitchHelixAuth.App"/>). Null when no shared bot with a
+    /// real account id exists. <c>CanUseAppToken</c> is set when the bot granted <c>user:bot</c>, so the send
+    /// can ride the badge-bearing app token.
+    /// </summary>
+    private async Task<BotSenderIdentity?> SharedBotSenderAsync(CancellationToken ct)
+    {
+        var row = await _db
             .IntegrationConnections.IgnoreQueryFilters()
             .Where(c => c.Provider == BotProvider && c.BroadcasterId == null && c.DeletedAt == null)
             .OrderBy(c => c.CreatedAt)
-            .Select(c => c.ProviderAccountId)
+            .Select(c => new { c.ProviderAccountId, c.Scopes })
             .FirstOrDefaultAsync(ct);
 
+        return row is null || string.IsNullOrEmpty(row.ProviderAccountId)
+            ? null
+            : new BotSenderIdentity(
+                TwitchHelixAuth.App,
+                row.ProviderAccountId,
+                HasBotScope(row.Scopes)
+            );
+    }
+
     /// <summary>
-    /// The channel's OWN owner account as the bot sender (<c>twitch</c>, this broadcaster) — the send rides
-    /// the same channel's broadcaster user token, so <c>sender_id</c> and the token always belong to one
-    /// account. Scoped strictly to <paramref name="broadcasterId"/>, never the oldest connection across all
-    /// tenants. Null when this channel has no owner connection.
+    /// The channel's OWN owner account as the bot sender (<c>twitch</c>, this broadcaster) — the fallback send
+    /// rides the same channel's broadcaster user token (<see cref="TwitchHelixAuth.User"/>), so <c>sender_id</c>
+    /// and the token always belong to one account. Scoped strictly to <paramref name="broadcasterId"/>, never
+    /// the oldest connection across all tenants. Null when this channel has no owner connection. <c>CanUseAppToken</c>
+    /// is set when the owner-as-bot grant carries <c>user:bot</c> (the single-account model still earns the badge).
     /// </summary>
     private async Task<BotSenderIdentity?> OwnerSenderAsync(
         Guid broadcasterId,
         CancellationToken ct
     )
     {
-        string? ownerUserId = await _db
+        var row = await _db
             .IntegrationConnections.IgnoreQueryFilters()
             .Where(c =>
                 c.Provider == UserProvider
@@ -258,14 +318,29 @@ public sealed class HelixChatProvider : IChatPlatform
                 && c.DeletedAt == null
             )
             .OrderBy(c => c.CreatedAt)
-            .Select(c => c.ProviderAccountId)
+            .Select(c => new { c.ProviderAccountId, c.Scopes })
             .FirstOrDefaultAsync(ct);
 
-        return ownerUserId is null
+        return row is null || string.IsNullOrEmpty(row.ProviderAccountId)
             ? null
-            : new BotSenderIdentity(TwitchHelixAuth.User, ownerUserId);
+            : new BotSenderIdentity(
+                TwitchHelixAuth.User,
+                row.ProviderAccountId,
+                HasBotScope(row.Scopes)
+            );
     }
 
-    /// <summary>The resolved bot sender for one channel: which token the send rides and the account id on it.</summary>
-    private sealed record BotSenderIdentity(TwitchHelixAuth Auth, string TwitchUserId);
+    /// <summary>True when the sender's granted scope set carries <c>user:bot</c> — the prerequisite for the
+    /// app-token (badge) send. The other side (<c>channel:bot</c> / bot-is-mod) is proven only by the send
+    /// itself, so a false attempt gracefully falls back to the user-token send.</summary>
+    private static bool HasBotScope(IEnumerable<string> scopes) =>
+        scopes.Contains(TwitchScopes.UserBot, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The resolved bot sender for one channel: the fallback token the send rides, the account id on
+    /// it, and whether the badge-bearing app-token send is available (<c>user:bot</c> granted).</summary>
+    private sealed record BotSenderIdentity(
+        TwitchHelixAuth FallbackAuth,
+        string TwitchUserId,
+        bool CanUseAppToken
+    );
 }

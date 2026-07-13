@@ -30,6 +30,11 @@ public sealed class FakeTwitchTokenResolver : ITwitchTokenResolver
             Result.Success(new TwitchAccessContext(CurrentToken, null, "twitch_bot", "helix:bot"))
         );
 
+    public Task<Result<TwitchAccessContext>> GetAppTokenAsync(CancellationToken ct = default) =>
+        Task.FromResult(
+            Result.Success(new TwitchAccessContext(CurrentToken, null, "twitch_app", "helix:app"))
+        );
+
     public Task<Result<TwitchAccessContext>> GetBroadcasterTokenAsync(
         Guid broadcasterId,
         CancellationToken ct = default

@@ -60,6 +60,7 @@ public sealed class TwitchTokenResolverTests
             db,
             vault,
             Substitute.For<ITwitchAuthService>(),
+            Substitute.For<ITwitchAppTokenProvider>(),
             new RecordingEventBus()
         );
         return (resolver, vault, db);

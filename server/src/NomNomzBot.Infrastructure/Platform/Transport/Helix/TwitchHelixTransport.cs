@@ -202,6 +202,7 @@ public sealed class TwitchHelixTransport(
                 await tokenResolver.GetUserTokenAsync(op, ct),
             TwitchHelixAuth.User when request.BroadcasterId is { } tenant =>
                 await tokenResolver.GetBroadcasterTokenAsync(tenant, ct),
+            TwitchHelixAuth.BotApp => await tokenResolver.GetAppTokenAsync(ct),
             _ => await tokenResolver.GetBotTokenAsync(ct),
         };
 
@@ -370,13 +371,17 @@ public sealed class TwitchHelixTransport(
         string? missingScope,
         CancellationToken ct
     ) =>
-        PublishReauthCoreAsync(
-            context.BroadcasterId,
-            context.ServiceName,
-            reason,
-            missingScope,
-            ct
-        );
+        // The app access token has no user connection to reauth — a 401 on it is a config/permission gap the
+        // chat send simply falls back over, not a stale grant. Never nag.
+        context.ServiceName == TwitchTokenResolver.AppServiceName
+            ? Task.CompletedTask
+            : PublishReauthCoreAsync(
+                context.BroadcasterId,
+                context.ServiceName,
+                reason,
+                missingScope,
+                ct
+            );
 
     private Task PublishReauthAsync(
         TwitchHelixRequest request,
@@ -384,13 +389,15 @@ public sealed class TwitchHelixTransport(
         string? missingScope,
         CancellationToken ct
     ) =>
-        PublishReauthCoreAsync(
-            request.BroadcasterId,
-            request.Auth == TwitchHelixAuth.App ? "twitch_bot" : "twitch",
-            reason,
-            missingScope,
-            ct
-        );
+        request.Auth == TwitchHelixAuth.BotApp
+            ? Task.CompletedTask
+            : PublishReauthCoreAsync(
+                request.BroadcasterId,
+                request.Auth == TwitchHelixAuth.App ? "twitch_bot" : "twitch",
+                reason,
+                missingScope,
+                ct
+            );
 
     private Task PublishReauthCoreAsync(
         Guid? broadcasterId,

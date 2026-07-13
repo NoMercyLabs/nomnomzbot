@@ -22,6 +22,10 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix.SubClients.Fa
 public sealed class CapturingHelixTransport : ITwitchHelixTransport
 {
     public TwitchHelixRequest? LastRequest { get; private set; }
+
+    // Every request built, in order — lets a test assert a MULTI-call flow (e.g. the chat-send app-token
+    // attempt followed by its user-token fallback), not just the last one.
+    public List<TwitchHelixRequest> Requests { get; } = [];
     public int CallCount { get; private set; }
 
     public object? SingleResult { get; set; }
@@ -30,6 +34,10 @@ public sealed class CapturingHelixTransport : ITwitchHelixTransport
     public int TotalResult { get; set; }
     public string RawResult { get; set; } = "";
     public Result SendResult { get; set; } = Result.Success();
+
+    // Per-call send results consumed in order; falls back to SendResult once empty. Drives a first-attempt
+    // failure then a second-attempt success (the app-token → user-token chat-send fallback).
+    public Queue<Result> SendResults { get; } = new();
 
     public Task<Result<T>> GetSingleAsync<T>(
         TwitchHelixRequest request,
@@ -79,7 +87,7 @@ public sealed class CapturingHelixTransport : ITwitchHelixTransport
     public Task<Result> SendAsync(TwitchHelixRequest request, CancellationToken ct = default)
     {
         Capture(request);
-        return Task.FromResult(SendResult);
+        return Task.FromResult(SendResults.Count > 0 ? SendResults.Dequeue() : SendResult);
     }
 
     public Task<Result<T>> SendWithResultAsync<T>(
@@ -94,6 +102,7 @@ public sealed class CapturingHelixTransport : ITwitchHelixTransport
     private void Capture(TwitchHelixRequest request)
     {
         LastRequest = request;
+        Requests.Add(request);
         CallCount++;
     }
 }
@@ -137,6 +146,9 @@ public sealed class StubScopeTokenResolver(params string[] grantedScopes) : ITwi
     ) => Task.FromResult(_scopes.Contains(scope));
 
     public Task<Result<TwitchAccessContext>> GetBotTokenAsync(CancellationToken ct = default) =>
+        throw new NotSupportedException();
+
+    public Task<Result<TwitchAccessContext>> GetAppTokenAsync(CancellationToken ct = default) =>
         throw new NotSupportedException();
 
     public Task<Result<TwitchAccessContext>> GetBroadcasterTokenAsync(

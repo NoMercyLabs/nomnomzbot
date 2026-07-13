@@ -41,11 +41,17 @@ public sealed class TwitchTokenResolver(
     IApplicationDbContext db,
     IIntegrationTokenVault vault,
     ITwitchAuthService authService,
+    ITwitchAppTokenProvider appTokenProvider,
     IEventBus eventBus
 ) : ITwitchTokenResolver
 {
     private const string UserProvider = AuthEnums.IntegrationProvider.Twitch;
     private const string BotProvider = AuthEnums.IntegrationProvider.Twitch + "_bot";
+
+    // The synthetic service name for the app access token — it belongs to no tenant/user connection, so it
+    // needs a stable, non-tenant identity for the bucket key and for the transport to recognise it (a 401
+    // re-mints instead of refreshing, and never nags a reauth).
+    internal const string AppServiceName = "twitch_app";
     private const string PlatformSubject = "_platform";
 
     public async Task<Result<TwitchAccessContext>> GetBotTokenAsync(CancellationToken ct = default)
@@ -69,6 +75,23 @@ public sealed class TwitchTokenResolver(
         }
 
         return await BuildContextAsync(connection, ct);
+    }
+
+    public async Task<Result<TwitchAccessContext>> GetAppTokenAsync(CancellationToken ct = default)
+    {
+        Result<string> token = await appTokenProvider.GetAppTokenAsync(ct);
+        if (token.IsFailure)
+            return token.WithValue<TwitchAccessContext>(default!);
+
+        // Subject-agnostic: no tenant, so BroadcasterId is null and the bucket key hashes the app subject.
+        return Result.Success(
+            new TwitchAccessContext(
+                token.Value,
+                BroadcasterId: null,
+                AppServiceName,
+                DeriveBucketKey(AppServiceName, null)
+            )
+        );
     }
 
     public async Task<Result<TwitchAccessContext>> GetBroadcasterTokenAsync(
@@ -133,6 +156,14 @@ public sealed class TwitchTokenResolver(
         CancellationToken ct = default
     )
     {
+        // The app access token is not refreshable — it is re-minted. A 401 means the cached one lapsed early
+        // or was revoked, so drop it and mint a fresh one for the retry.
+        if (context.ServiceName == AppServiceName)
+        {
+            appTokenProvider.Invalidate();
+            return await GetAppTokenAsync(ct);
+        }
+
         TokenResult? refreshed = await authService.RefreshTokenAsync(
             context.BroadcasterId,
             context.ServiceName,

@@ -67,7 +67,8 @@ public sealed class HelixChatProviderTests
         Guid? broadcasterId,
         string provider,
         string providerAccountId,
-        DateTime createdAt
+        DateTime createdAt,
+        params string[] scopes
     )
     {
         db.IntegrationConnections.Add(
@@ -78,6 +79,7 @@ public sealed class HelixChatProviderTests
                 ProviderAccountId = providerAccountId,
                 Status = "connected",
                 CreatedAt = createdAt,
+                Scopes = [.. scopes],
             }
         );
         await db.SaveChangesAsync();
@@ -230,6 +232,127 @@ public sealed class HelixChatProviderTests
         sentB.Auth.Should().Be(TwitchHelixAuth.User);
         sentA.BroadcasterId.Should().Be(channelA, "A's send resolves A's broadcaster token");
         sentB.BroadcasterId.Should().Be(channelB, "B's send resolves B's broadcaster token");
+    }
+
+    /// <summary>
+    /// The chatbot badge: when the bot account has granted <c>user:bot</c>, the send rides the app access token
+    /// (<see cref="TwitchHelixAuth.BotApp"/>) — the only token Twitch awards the badge on — carrying the bot's
+    /// <c>sender_id</c> and no tenant (the app token is subject-agnostic). One call, no fallback needed.
+    /// </summary>
+    [Fact]
+    public async Task SendMessage_WhenBotGrantedUserBot_SendsOnTheAppTokenForTheBadge()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await AddConnectionAsync(
+            db,
+            Owner,
+            AuthEnums.IntegrationProvider.Twitch,
+            OwnerTwitchUserId,
+            DateTime.UtcNow
+        );
+        await AddConnectionAsync(
+            db,
+            null,
+            AuthEnums.IntegrationProvider.Twitch + "_bot",
+            BotTwitchUserId,
+            DateTime.UtcNow,
+            "user:bot"
+        );
+        (HelixChatProvider provider, CapturingHelixTransport transport) = Build(db);
+
+        bool sent = await provider.SendMessageAsync(Owner, "hi with a badge");
+
+        sent.Should().BeTrue();
+        transport
+            .CallCount.Should()
+            .Be(1, "the app-token send succeeded, so no fallback was needed");
+        TwitchHelixRequest req = transport.LastRequest!;
+        req.Auth.Should()
+            .Be(
+                TwitchHelixAuth.BotApp,
+                "user:bot is granted, so the send rides the badge-bearing app token"
+            );
+        req.BroadcasterId.Should()
+            .BeNull("the app token is subject-agnostic — not scoped to a tenant");
+        (string SenderId, string BroadcasterId, string Message) body = ReadBody(req.Body!);
+        body.SenderId.Should().Be(BotTwitchUserId);
+        body.BroadcasterId.Should().Be(OwnerTwitchChannelId);
+    }
+
+    /// <summary>
+    /// Graceful degradation: when the app-token send is rejected (e.g. the bot lost its moderator status and the
+    /// broadcaster never granted <c>channel:bot</c>), the provider falls back to the user-token send so the
+    /// message still goes out — just without the badge. Two attempts: <c>BotApp</c> then the shared bot's token.
+    /// </summary>
+    [Fact]
+    public async Task SendMessage_WhenAppTokenSendFails_FallsBackToTheUserTokenSend()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await AddConnectionAsync(
+            db,
+            Owner,
+            AuthEnums.IntegrationProvider.Twitch,
+            OwnerTwitchUserId,
+            DateTime.UtcNow
+        );
+        await AddConnectionAsync(
+            db,
+            null,
+            AuthEnums.IntegrationProvider.Twitch + "_bot",
+            BotTwitchUserId,
+            DateTime.UtcNow,
+            "user:bot"
+        );
+        (HelixChatProvider provider, CapturingHelixTransport transport) = Build(db);
+        transport.SendResults.Enqueue(Result.Failure("forbidden", "TWITCH_ERROR")); // app-token attempt
+        transport.SendResults.Enqueue(Result.Success()); // user-token fallback
+
+        bool sent = await provider.SendMessageAsync(Owner, "still delivered");
+
+        sent.Should()
+            .BeTrue("the fallback send delivered the message despite the app-token rejection");
+        transport.Requests.Should().HaveCount(2, "app-token attempt, then the user-token fallback");
+        transport.Requests[0].Auth.Should().Be(TwitchHelixAuth.BotApp);
+        transport
+            .Requests[1]
+            .Auth.Should()
+            .Be(TwitchHelixAuth.App, "the fallback rides the shared bot's own user token");
+        // Both attempts carry the SAME sender + message — the fallback is the same send on a different token.
+        ReadBody(transport.Requests[1].Body!).Message.Should().Be("still delivered");
+    }
+
+    /// <summary>
+    /// No <c>user:bot</c> grant ⇒ there is no badge to earn, so the provider never attempts the app-token send —
+    /// it goes straight to the user-token send (one call, <see cref="TwitchHelixAuth.App"/>). This keeps every
+    /// pre-badge install working exactly as before with no wasted round-trip.
+    /// </summary>
+    [Fact]
+    public async Task SendMessage_WithoutUserBotGrant_NeverAttemptsTheAppTokenSend()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await AddConnectionAsync(
+            db,
+            Owner,
+            AuthEnums.IntegrationProvider.Twitch,
+            OwnerTwitchUserId,
+            DateTime.UtcNow
+        );
+        await AddConnectionAsync(
+            db,
+            null,
+            AuthEnums.IntegrationProvider.Twitch + "_bot",
+            BotTwitchUserId,
+            DateTime.UtcNow
+        // no user:bot scope
+        );
+        (HelixChatProvider provider, CapturingHelixTransport transport) = Build(db);
+
+        await provider.SendMessageAsync(Owner, "no badge");
+
+        transport
+            .Requests.Should()
+            .ContainSingle("without user:bot there is no badge to earn, so no app-token attempt");
+        transport.Requests[0].Auth.Should().Be(TwitchHelixAuth.App);
     }
 
     /// <summary>The send reports its REAL outcome: when Helix accepts the message, it returns <c>true</c>.</summary>

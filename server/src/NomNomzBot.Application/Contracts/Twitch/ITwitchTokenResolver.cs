@@ -27,6 +27,15 @@ public interface ITwitchTokenResolver
     Task<Result<TwitchAccessContext>> GetBotTokenAsync(CancellationToken ct = default);
 
     /// <summary>
+    /// Returns the platform's app access token (<c>client_credentials</c>, service <c>twitch_app</c>, no
+    /// broadcaster) — the subject-agnostic, badge-bearing token the chat send rides so the bot gets its
+    /// chatbot badge. Minted and cached by <see cref="ITwitchAppTokenProvider"/>; on a 401 the transport
+    /// calls <see cref="RefreshAsync"/>, which re-mints (an app token is not refreshable). Fails with
+    /// <c>no_token</c> when the platform app secret is not configured.
+    /// </summary>
+    Task<Result<TwitchAccessContext>> GetAppTokenAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// Returns the broadcaster's user token (service <c>twitch</c>) for tenant <paramref name="broadcasterId"/>,
     /// falling back to the bot token when no user token exists. Fails with <c>no_token</c> when neither is present.
     /// </summary>

@@ -833,6 +833,11 @@ public static class DependencyInjection
         // for one request, but the start and the polls are different requests (see DeviceCodeScopeMemory).
         services.AddSingleton<Platform.Auth.DeviceCodeScopeMemory>();
 
+        // The platform app access token (client_credentials) — a process-wide singleton so the long-lived token
+        // is minted once and shared by every badge-bearing chat send that rides it. Re-mints on expiry / 401.
+        // It resolves the scoped credentials provider in its own scope, so it safely outlives the request scope.
+        services.AddSingleton<ITwitchAppTokenProvider, Platform.Auth.TwitchAppTokenProvider>();
+
         // ── Helix transport plumbing (twitch-helix.md §3, §7) ────────────────
         // The named "twitch-helix" client carries the full Helix request pipeline:
         //   resilience (retry+breaker+timeout, no 4xx retry) → adaptive header-driven rate limiter →
