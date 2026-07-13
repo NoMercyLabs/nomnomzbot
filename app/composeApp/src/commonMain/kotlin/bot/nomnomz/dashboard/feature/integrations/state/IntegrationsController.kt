@@ -65,9 +65,10 @@ class IntegrationsController(
     private val connectLauncher: ConnectLauncher,
     private val diagnosticsApi: TwitchDiagnosticsApi,
     private val authApi: AuthApi,
-    // Read to choose the bot connect method off the SAME secret-present signal the streamer login uses
-    // (twitchApp.ok): a configured client secret unlocks the one-tap redirect bot flow; without one, the
-    // bot connects via the secret-free device-code flow. A Twitch client secret is optional throughout.
+    // Read for the per-provider app-client registration signal (checks.spotify/discord) AND to choose the
+    // streamer SCOPE-REGRANT method off the secret-present signal (twitchApp.ok): a configured client secret
+    // unlocks the one-tap redirect re-grant (the streamer is the logged-in account); without one, the
+    // secret-free device-code re-grant is used. A Twitch client secret is optional throughout.
     private val systemApi: SystemApi,
     private val feedback: Feedback = NoOpFeedback,
 ) {
@@ -224,31 +225,13 @@ class IntegrationsController(
     }
 
     /**
-     * Connect the platform-shared bot account, picking the method off the SAME secret-present signal the
-     * streamer login uses (frontend.md §6 — a Twitch client secret is OPTIONAL). With a secret configured
-     * (twitchApp.ok) the one-tap redirect bot flow runs — a clean tap → Twitch → loopback. Without one (the
-     * shared public client / BYOC client id), only the device-code flow can authorize the bot, so it is used:
-     * the operator approves a short user code at twitch.tv/activate and the controller polls until connected.
-     * A failed readiness probe falls back to the redirect attempt, which surfaces a clean backend error.
+     * Connect the platform-shared bot account. The bot is a SEPARATE Twitch account, so this ALWAYS uses the
+     * device-code flow — never the redirect. A redirect would authorize whatever account is logged into the
+     * browser (the streamer, whose name then wrongly shows on the consent), not the bot; the device-code flow
+     * is account-agnostic, so the operator approves the short code at twitch.tv/activate on a session logged
+     * in as the bot. (The streamer's OWN re-grant is the opposite — a seamless redirect; see [regrantScopes].)
      */
-    suspend fun connectBot() {
-        val redirectAvailable: Boolean =
-            when (val status: ApiResult<SystemStatus> = systemApi.status()) {
-                is ApiResult.Ok -> status.value.checks.twitchApp.ok
-                is ApiResult.Failure -> false // no secret signal ⇒ take the always-available device path
-            }
-
-        if (redirectAvailable) connectBotViaRedirect() else connectBotViaDevice()
-    }
-
-    /** The one-tap redirect bot connect (a client secret is configured): open the authorize URL, then refresh. */
-    private suspend fun connectBotViaRedirect() {
-        withBusy(BusyTarget.Bot) {
-            connectLauncher.awaitConnect { redirect ->
-                botAuthApi.start(redirect).mapToAuthorizeUrl()
-            }
-        }
-    }
+    suspend fun connectBot() = connectBotViaDevice()
 
     /**
      * The secret-free bot connect: mint a device code, surface it (the screen opens twitch.tv/activate), and
@@ -373,16 +356,43 @@ class IntegrationsController(
     }
 
     /**
-     * Start the one-click additive scope re-grant. The backend mints a Device Code Flow handle requesting
-     * (granted ∪ missing); we surface the user code + verification URL (the screen opens it) and poll the
-     * normal streamer device poll until the operator approves at twitch.tv/activate — on approval the widened
-     * grant reconciles server-side, so we re-read the gaps (they clear) and dismiss the panel. A failure to
-     * START (e.g. nothing missing) leaves the screen unchanged; the poll loop tolerates the code expiring.
+     * Start the one-click additive scope re-grant for the streamer's OWN account. Dispatches by whether a
+     * client secret is configured: the seamless REDIRECT re-grant when it is (the streamer is the logged-in
+     * account — one tap, no code), else the secret-free DEVICE-CODE re-grant. Single-flight against an
+     * in-flight device panel. Either way the widened grant reconciles server-side and the gaps re-read clear.
      */
     suspend fun regrantScopes() {
         val ready: IntegrationsState.Ready = _state.value as? IntegrationsState.Ready ?: return
-        if (ready.regrant != null) return // single-flight: a re-grant is already in progress.
+        if (ready.regrant != null) return // single-flight: a device re-grant is already in progress.
 
+        // The streamer IS the logged-in account, so prefer the seamless REDIRECT re-grant when a client secret
+        // is configured (twitchApp.ok): one tap → Twitch → back, re-vaulting the full scope set with no code to
+        // type. Only the secret-less public client (which can't exchange a code) falls back to device code.
+        if (ready.checks?.twitchApp?.ok == true) regrantScopesViaRedirect()
+        else regrantScopesViaDevice(ready)
+    }
+
+    /**
+     * The seamless re-grant for a secret-configured client: run the streamer authorize REDIRECT — the same
+     * flow login/reconnect use — which re-vaults the streamer token with the full scope set, covering every
+     * gap, then re-read the now-cleared gaps. On web the page navigates to Twitch and the widened grant
+     * re-establishes on return; on desktop the loopback resolves and we refresh here. A declined attempt just
+     * leaves the gaps intact (the re-read reflects that).
+     */
+    private suspend fun regrantScopesViaRedirect() {
+        val base: String = sessionStore.baseUrl() ?: return
+        connectLauncher.authorizeStreamer(base)
+        refresh()
+    }
+
+    /**
+     * The secret-free re-grant: the backend mints a Device Code Flow handle requesting (granted ∪ missing); we
+     * surface the user code + verification URL (the screen opens it) and poll the normal streamer device poll
+     * until the operator approves at twitch.tv/activate — on approval the widened grant reconciles server-side,
+     * so we re-read the gaps (they clear) and dismiss the panel. A failed START (e.g. nothing missing) leaves
+     * the screen unchanged; the poll loop tolerates the code expiring.
+     */
+    private suspend fun regrantScopesViaDevice(ready: IntegrationsState.Ready) {
         when (val start: ApiResult<ScopeRegrantStart> = diagnosticsApi.startRegrant()) {
             is ApiResult.Failure -> return // e.g. NO_MISSING_SCOPES / no connection — nothing to grant.
             is ApiResult.Ok -> {

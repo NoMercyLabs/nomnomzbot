@@ -11,6 +11,8 @@
 package bot.nomnomz.dashboard.feature.integrations.state
 
 import bot.nomnomz.dashboard.core.connection.ConnectLauncher
+import bot.nomnomz.dashboard.core.connection.ConnectionProfile
+import bot.nomnomz.dashboard.core.connection.ProfileSource
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -68,6 +70,16 @@ class IntegrationsControllerTest {
         system: SystemApi = FakeSystemApi(twitchSecretConfigured = true),
     ): IntegrationsController {
         val session = SessionStore(FakeVault())
+        // Pin an active backend so baseUrl()-dependent flows (the redirect re-grant) resolve a URL — exactly as
+        // they would once the dashboard is connected in the app.
+        session.pin(
+            ConnectionProfile(
+                id = "test-profile",
+                displayName = "test",
+                baseUrl = "http://localhost:5080",
+                source = ProfileSource.Manual,
+            )
+        )
         return IntegrationsController(
             session,
             channels,
@@ -151,8 +163,15 @@ class IntegrationsControllerTest {
     }
 
     @Test
-    fun connect_bot_uses_the_redirect_flow_when_a_secret_is_configured() = runTest {
-        val bot = FakeBotAuthApi(status = BotStatus(connected = false), authorizeUrl = "https://id.twitch.tv/authorize?bot")
+    fun connect_bot_uses_the_device_flow_even_when_a_secret_is_configured() = runTest {
+        // The bot is a SEPARATE account, so the redirect (which would grab the streamer's browser session and
+        // wrongly wire the streamer in as the bot) is never used — even WITH a client secret configured, the
+        // bot connects via the account-agnostic device-code flow: mint a code, poll, re-read connected status.
+        val bot =
+            FakeBotAuthApi(
+                status = BotStatus(connected = false),
+                devicePollStatuses = listOf("pending", "authorized"),
+            )
         val launcher = FakeConnectLauncher()
         val controller =
             controller(
@@ -160,21 +179,21 @@ class IntegrationsControllerTest {
                 bot = bot,
                 integrations = FakeIntegrationsApi(emptyList()),
                 launcher = launcher,
-                // A secret is configured ⇒ the one-tap redirect bot flow.
+                // A secret IS configured — but the bot still uses device code (it's a separate account).
                 system = FakeSystemApi(twitchSecretConfigured = true),
             )
         controller.load()
         assertFalse((controller.state.value as IntegrationsState.Ready).bot.connected)
 
-        // The backend flips the bot to connected once the dance completes (the loopback signal carries no
-        // token — the connection is proven by the status re-read).
+        // The backend connects the shared bot server-side once the device login is approved (status re-read).
         bot.status = BotStatus(connected = true, displayName = "NomNomzBot")
         controller.connectBot()
 
-        // The redirect path ran: the launcher opened the exact URL the backend issued; no device login started.
-        assertEquals("https://id.twitch.tv/authorize?bot", launcher.openedUrl)
-        assertEquals("http://127.0.0.1:5757/cb", bot.startedWithRedirect)
-        assertFalse(bot.deviceStartCalled)
+        // The DEVICE path ran (a code was minted + polled); the redirect launcher was never opened.
+        assertTrue(bot.deviceStartCalled)
+        assertEquals("BOT-DEV-1", bot.polledDeviceCode)
+        assertNull(launcher.openedUrl)
+        assertNull(bot.startedWithRedirect)
         // The row now reflects the backend's connected status (re-read, not optimistic).
         val ready: IntegrationsState.Ready = controller.state.value as IntegrationsState.Ready
         assertTrue(ready.bot.connected)
@@ -482,6 +501,8 @@ class IntegrationsControllerTest {
                 launcher = FakeConnectLauncher(),
                 diagnostics = diagnostics,
                 auth = auth,
+                // No secret ⇒ the secret-free DEVICE-CODE re-grant (the redirect path needs a secret).
+                system = FakeSystemApi(twitchSecretConfigured = false),
             )
         controller.load()
         assertEquals(1, (controller.state.value as IntegrationsState.Ready).missingScopes.size)
@@ -513,6 +534,8 @@ class IntegrationsControllerTest {
                 integrations = FakeIntegrationsApi(emptyList()),
                 launcher = FakeConnectLauncher(),
                 diagnostics = diagnostics,
+                // No secret ⇒ the device-code re-grant, whose START is what no-ops when nothing is missing.
+                system = FakeSystemApi(twitchSecretConfigured = false),
             )
         controller.load()
 
@@ -520,6 +543,39 @@ class IntegrationsControllerTest {
 
         // No device-code panel is shown when there is nothing to grant.
         assertNull((controller.state.value as IntegrationsState.Ready).regrant)
+    }
+
+    @Test
+    fun regrant_uses_the_streamer_redirect_when_a_secret_is_configured() = runTest {
+        // The streamer is the logged-in account, so with a client secret the re-grant is the seamless REDIRECT
+        // (the same streamer authorize flow login/reconnect use) — no device code panel. It re-vaults the full
+        // scope set; the backend then reports the gap cleared, proven by the status re-read.
+        val diagnostics =
+            FakeTwitchDiagnosticsApi(
+                missing = MissingScopes(scopes = listOf(MissingScope("channel:bot", listOf("bot_badge"))))
+            )
+        val launcher = FakeConnectLauncher()
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = true)),
+                integrations = FakeIntegrationsApi(emptyList()),
+                launcher = launcher,
+                diagnostics = diagnostics,
+                system = FakeSystemApi(twitchSecretConfigured = true), // secret ⇒ redirect re-grant
+            )
+        controller.load()
+        assertEquals(1, (controller.state.value as IntegrationsState.Ready).missingScopes.size)
+
+        // The redirect re-vaults the widened token; the backend then reports the gap cleared (status re-read).
+        diagnostics.missingAfter = MissingScopes(scopes = emptyList())
+        controller.regrantScopes()
+
+        // The streamer authorize REDIRECT ran (never a device-code panel), and the gaps re-read as cleared.
+        assertTrue(launcher.authorizeStreamerCalled)
+        val ready: IntegrationsState.Ready = controller.state.value as IntegrationsState.Ready
+        assertNull(ready.regrant)
+        assertTrue(ready.missingScopes.isEmpty())
     }
 }
 
@@ -728,13 +784,17 @@ private class FakeIntegrationsApi(
 // records the URL it was asked to open, so a test can assert the exact URL the browser is sent to.
 private class FakeConnectLauncher : ConnectLauncher {
     var openedUrl: String? = null
+    var authorizeStreamerCalled: Boolean = false
 
     override suspend fun authorizeStreamer(
         baseUrl: String
-    ): ApiResult<bot.nomnomz.dashboard.core.connection.SessionTokens> =
-        ApiResult.Failure(
-            bot.nomnomz.dashboard.core.network.ApiError(0, "UNUSED", "streamer login not used here")
+    ): ApiResult<bot.nomnomz.dashboard.core.connection.SessionTokens> {
+        // The redirect re-grant drives this (the streamer authorize redirect that re-vaults the widened token).
+        authorizeStreamerCalled = true
+        return ApiResult.Ok(
+            bot.nomnomz.dashboard.core.connection.SessionTokens(accessToken = "a", refreshToken = "r")
         )
+    }
 
     override suspend fun authorizeProvider(
         baseUrl: String,
