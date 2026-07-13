@@ -76,7 +76,7 @@ public sealed class ChatCommandEffectiveLevelTests
         await sut.HandleAsync(BadgelessEvent($"!{CommandKey}"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendMessageAsync(Broadcaster, CommandResponse, Arg.Any<CancellationToken>());
+            .SendReplyAsync(Broadcaster, "msg-9", CommandResponse, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public sealed class ChatCommandEffectiveLevelTests
         await sut.HandleAsync(BadgelessEvent($"!{CommandKey}"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendMessageAsync(Broadcaster, CommandResponse, Arg.Any<CancellationToken>());
+            .SendReplyAsync(Broadcaster, "msg-9", CommandResponse, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -126,6 +126,7 @@ public sealed class ChatCommandEffectiveLevelTests
         await sut.HandleAsync(BadgelessEvent($"!{CommandKey}"), CancellationToken.None);
 
         await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default);
     }
 
     [Fact]
@@ -138,6 +139,7 @@ public sealed class ChatCommandEffectiveLevelTests
         await sut.HandleAsync(BadgelessEvent($"!{CommandKey}"), CancellationToken.None);
 
         await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default);
     }
 
     // ── no regression + the hot-path short-circuit ─────────────────────────────
@@ -153,7 +155,7 @@ public sealed class ChatCommandEffectiveLevelTests
         await sut.HandleAsync(ModeratorEvent($"!{CommandKey}"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendMessageAsync(Broadcaster, CommandResponse, Arg.Any<CancellationToken>());
+            .SendReplyAsync(Broadcaster, "msg-10", CommandResponse, Arg.Any<CancellationToken>());
         // The short-circuit: the badge already met the floor, so the DB seam was never touched.
         await users
             .DidNotReceiveWithAnyArgs()
@@ -172,7 +174,7 @@ public sealed class ChatCommandEffectiveLevelTests
         await sut.HandleAsync(BadgelessEvent($"!{CommandKey}"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendMessageAsync(Broadcaster, CommandResponse, Arg.Any<CancellationToken>());
+            .SendReplyAsync(Broadcaster, "msg-9", CommandResponse, Arg.Any<CancellationToken>());
         await users
             .DidNotReceiveWithAnyArgs()
             .GetOrCreateAsync(default!, default!, default!, default!, default);
