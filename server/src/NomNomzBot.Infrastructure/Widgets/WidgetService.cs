@@ -67,6 +67,7 @@ public class WidgetService : IWidgetService
             Settings =
                 request.Settings?.ToDictionary(k => k.Key, v => v.Value ?? (object)"")
                 ?? new Dictionary<string, object>(),
+            CustomCode = request.CustomCode,
         };
 
         _db.Widgets.Add(widget);
@@ -104,6 +105,10 @@ public class WidgetService : IWidgetService
             widget.EventSubscriptions = request.EventSubscriptions;
         if (request.Settings is not null)
             widget.Settings = request.Settings.ToDictionary(k => k.Key, v => v.Value ?? (object)"");
+        // Partial patch: null leaves the stored code intact (a rename/toggle never wipes it); a non-null
+        // value — empty string included — replaces it, so the editor can clear a widget's code.
+        if (request.CustomCode is not null)
+            widget.CustomCode = request.CustomCode;
 
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "updated", cancellationToken);
@@ -247,6 +252,7 @@ public class WidgetService : IWidgetService
             w.Settings.ToDictionary(k => k.Key, v => (object?)v.Value),
             w.EventSubscriptions,
             w.CreatedAt,
-            w.UpdatedAt
+            w.UpdatedAt,
+            w.CustomCode
         );
 }

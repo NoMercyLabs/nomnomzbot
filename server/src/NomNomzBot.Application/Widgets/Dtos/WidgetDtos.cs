@@ -27,7 +27,10 @@ public sealed record WidgetDetail(
     Dictionary<string, object?> Settings,
     List<string> EventSubscriptions,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    // The widget's authored source (HTML/CSS/JS for a custom overlay). Null for template-driven widgets that
+    // carry no hand-written code. Read and written by the dashboard's custom-widget code editor.
+    string? CustomCode
 );
 
 public sealed record CreateWidgetRequest
@@ -36,6 +39,9 @@ public sealed record CreateWidgetRequest
     public required string Type { get; init; }
     public Dictionary<string, object?>? Settings { get; init; }
     public List<string>? EventSubscriptions { get; init; }
+
+    /// <summary>Optional starter source for a custom widget; null leaves the widget code-less.</summary>
+    public string? CustomCode { get; init; }
 }
 
 public sealed record UpdateWidgetRequest
@@ -44,4 +50,10 @@ public sealed record UpdateWidgetRequest
     public Dictionary<string, object?>? Settings { get; init; }
     public List<string>? EventSubscriptions { get; init; }
     public bool? IsEnabled { get; init; }
+
+    /// <summary>
+    /// The widget's authored source. A partial patch: null leaves the stored code untouched (so a rename or
+    /// toggle never clears it); a non-null value — including an empty string — replaces it.
+    /// </summary>
+    public string? CustomCode { get; init; }
 }
