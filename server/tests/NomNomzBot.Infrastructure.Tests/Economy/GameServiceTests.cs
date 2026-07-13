@@ -313,7 +313,7 @@ public sealed class GameServiceTests
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
-        // … but the dashboard is told the value actually enforced (the floor), never a misleading 0.
-        result.Value.CooldownSeconds.Should().Be(3);
+        // … but the dashboard is told the value actually enforced (the 5-minute floor), never a misleading 0.
+        result.Value.CooldownSeconds.Should().Be(300);
     }
 }

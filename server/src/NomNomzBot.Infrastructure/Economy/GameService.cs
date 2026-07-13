@@ -56,10 +56,12 @@ public sealed class GameService(
 
     // Safe baseline (limits-safety-baseline-then-tier): a GAMBLING game always has at least this per-user
     // cooldown, even if configured to 0 — otherwise a chat command that debits/credits the wallet is a
-    // machine-gun (the "!coinflip spam" the owner hit). The streamer can raise it, never lower it below the
-    // floor. Minigames are not floored (no economy loop to abuse). Enforced in PlayAsync and reported through
-    // ToDto so the dashboard shows the value that is actually enforced.
-    private const int GamblingCooldownFloorSeconds = 3;
+    // machine-gun (the "!coinflip spam" the owner hit). Rate limiting is measured in MINUTES, not seconds:
+    // a 5-minute per-user floor the streamer can raise but never lower below. Minigames are not floored (no
+    // economy loop to abuse). Enforced in PlayAsync and reported through ToDto so the dashboard shows the
+    // value that is actually enforced. (Stored in the universal CooldownSeconds unit as minutes × 60.)
+    private const int GamblingCooldownFloorMinutes = 5;
+    private const int GamblingCooldownFloorSeconds = GamblingCooldownFloorMinutes * 60;
 
     /// <summary>The per-user cooldown actually enforced: the configured value for a minigame, or at least the
     /// gambling floor for a gambling game.</summary>
