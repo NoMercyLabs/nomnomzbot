@@ -2020,4 +2020,20 @@
     <string name="personality_tone_hype_desc">High-energy, caps and emotes.</string>
     <string name="personality_tone_chill">Chill</string>
     <string name="personality_tone_chill_desc">Laid-back and minimal.</string>
+    <!-- Engagement triggers (Settings → Engagement triggers card). Detector on/off + tuning; the greeting message lives on the Event Responses page. -->
+    <string name="engagement_section_title">Engagement triggers</string>
+    <string name="engagement_section_subtitle">Automatic reactions to chat activity. Set the actual greeting on the Event Responses page.</string>
+    <string name="engagement_load_error">Could not load engagement settings: %1$s</string>
+    <string name="engagement_first_time">Welcome first-time chatters</string>
+    <string name="engagement_first_time_desc">Greet a viewer the first time they ever chat.</string>
+    <string name="engagement_returning">Shout out returning regulars</string>
+    <string name="engagement_returning_desc">Acknowledge a regular returning after time away.</string>
+    <string name="engagement_watch_streak">Celebrate watch streaks</string>
+    <string name="engagement_watch_streak_desc">Fire at the milestone stream counts below.</string>
+    <string name="engagement_milestones">Streak milestones</string>
+    <string name="engagement_milestones_hint">Comma-separated stream counts, e.g. 5, 10, 25, 50.</string>
+    <string name="engagement_cooldown">Greet cooldown (seconds)</string>
+    <string name="engagement_cooldown_hint">Minimum gap before greeting the same viewer again.</string>
+    <string name="engagement_cooldown_invalid">Enter a whole number of seconds (0 or more).</string>
+    <string name="shell_channel_moderate_hint">Moderate — click to open</string>
 </resources>

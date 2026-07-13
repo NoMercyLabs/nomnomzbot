@@ -187,6 +187,7 @@ import nomnomzbot.composeapp.generated.resources.shell_role_supermod
 import nomnomzbot.composeapp.generated.resources.shell_role_viewer
 import nomnomzbot.composeapp.generated.resources.hub_alert
 import nomnomzbot.composeapp.generated.resources.shell_channel_bot_not_installed
+import nomnomzbot.composeapp.generated.resources.shell_channel_moderate_hint
 import nomnomzbot.composeapp.generated.resources.shell_channel_pick
 import nomnomzbot.composeapp.generated.resources.shell_topbar_channel_label
 import nomnomzbot.composeapp.generated.resources.shell_topbar_hub_label
@@ -523,6 +524,7 @@ private fun ShellContent(
                     channelBotController = graph.channelBotController,
                     billingController = graph.billingController,
                     personalityController = graph.personalityController,
+                    engagementController = graph.engagementController,
                     role = role,
                     onChannelDeleted = onChannelDeleted,
                 )
@@ -647,6 +649,7 @@ internal fun SidebarHeader(switcher: ChannelSwitcherController) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    val scope = rememberCoroutineScope()
     val unregisteredModerated: List<ModeratedChannel> =
         ready?.moderatedChannels?.filter { !it.isOnboarded } ?: emptyList()
     val active: ChannelSummary? = channels.firstOrNull { it.id == activeId } ?: channels.firstOrNull()
@@ -711,28 +714,34 @@ internal fun SidebarHeader(switcher: ChannelSwitcherController) {
                     },
                 )
             }
-            // Twitch channels the caller moderates but where the bot is not installed — shown for context,
-            // not selectable (onboarding them is a separate flow).
+            // Twitch channels the caller moderates but where the bot is not installed. Clicking one enters
+            // "moderator mode": the backend provisions a lightweight tenant + grants the caller Moderator, then
+            // we switch to the returned internal id — so a moderator can work ANY channel they have access to.
             if (unregisteredModerated.isNotEmpty()) {
                 Separator()
                 unregisteredModerated.forEach { channel ->
                     DropdownMenuItem(
-                        enabled = false,
                         text = {
                             Column {
                                 Text(
                                     text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
                                     style = typography.sm,
-                                    color = tokens.mutedForeground,
+                                    color = tokens.foreground,
                                 )
                                 Text(
-                                    text = stringResource(Res.string.shell_channel_bot_not_installed),
+                                    text = stringResource(Res.string.shell_channel_moderate_hint),
                                     style = typography.xs,
                                     color = tokens.mutedForeground,
                                 )
                             }
                         },
-                        onClick = {},
+                        onClick = {
+                            expanded = false
+                            scope.launch {
+                                val internalId: String? = switcher.enterModerated(channel.id)
+                                if (internalId != null) switcher.select(internalId)
+                            }
+                        },
                     )
                 }
             }

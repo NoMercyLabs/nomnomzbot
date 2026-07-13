@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.shell.state
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.ChannelProvisioningApi
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.asStateFlow
 // needing a direct reference here.
 class ChannelSwitcherController(
     private val channelsApi: ChannelsApi,
+    private val provisioningApi: ChannelProvisioningApi,
     private val sessionStore: SessionStore,
 ) {
     private val _state: MutableStateFlow<SwitcherState> = MutableStateFlow(SwitcherState.Loading)
@@ -73,6 +75,35 @@ class ChannelSwitcherController(
     fun select(channelId: String) {
         sessionStore.switchChannel(channelId)
     }
+
+    /**
+     * Provision + enter a moderated channel the bot isn't installed on ("moderator mode"). On success the channel
+     * becomes a real tenant: it is added to the switcher roster (and dropped from the unregistered list), and its
+     * INTERNAL id is returned so the caller can [select] it. Returns null on failure (the switch is skipped).
+     */
+    suspend fun enterModerated(twitchBroadcasterId: String): String? =
+        when (
+            val result: ApiResult<ChannelSummary> =
+                provisioningApi.enterModeratedChannel(twitchBroadcasterId)
+        ) {
+            is ApiResult.Failure -> null
+            is ApiResult.Ok -> {
+                val summary: ChannelSummary = result.value
+                val current: SwitcherState.Ready? = _state.value as? SwitcherState.Ready
+                if (current != null) {
+                    val roster: List<ChannelSummary> =
+                        if (current.channels.any { it.id == summary.id }) current.channels
+                        else current.channels + summary
+                    _state.value =
+                        current.copy(
+                            channels = roster,
+                            moderatedChannels =
+                                current.moderatedChannels.filterNot { it.id == twitchBroadcasterId },
+                        )
+                }
+                summary.id
+            }
+        }
 }
 
 sealed interface SwitcherState {

@@ -29,6 +29,8 @@ import bot.nomnomz.dashboard.core.network.AnalyticsApi
 import bot.nomnomz.dashboard.core.network.BuiltinsApi
 import bot.nomnomz.dashboard.core.network.RestBuiltinsApi
 import bot.nomnomz.dashboard.core.network.ChannelSettingsApi
+import bot.nomnomz.dashboard.core.network.ChannelProvisioningApi
+import bot.nomnomz.dashboard.core.network.EngagementApi
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChatApi
 import bot.nomnomz.dashboard.core.network.CommandsApi
@@ -105,6 +107,8 @@ import bot.nomnomz.dashboard.core.network.RestUsersApi
 import bot.nomnomz.dashboard.core.network.RestAuthApi
 import bot.nomnomz.dashboard.core.network.RestBotAuthApi
 import bot.nomnomz.dashboard.core.network.RestChannelSettingsApi
+import bot.nomnomz.dashboard.core.network.RestChannelProvisioningApi
+import bot.nomnomz.dashboard.core.network.RestEngagementApi
 import bot.nomnomz.dashboard.core.network.RestChannelsApi
 import bot.nomnomz.dashboard.core.network.RestDashboardApi
 import bot.nomnomz.dashboard.core.network.RestIntegrationsApi
@@ -145,6 +149,7 @@ import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.settings.state.BillingController
 import bot.nomnomz.dashboard.feature.settings.state.ChannelBotController
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
+import bot.nomnomz.dashboard.feature.settings.state.EngagementController
 import bot.nomnomz.dashboard.feature.settings.state.PersonalityController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
 import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
@@ -253,6 +258,7 @@ class AppGraph {
     val eventResponsesApi: EventResponsesApi = RestEventResponsesApi(apiClient)
     val streamApi: StreamApi = RestStreamApi(apiClient)
     val channelSettingsApi: ChannelSettingsApi = RestChannelSettingsApi(apiClient)
+    val engagementApi: EngagementApi = RestEngagementApi(apiClient)
     val economyApi: EconomyApi = RestEconomyApi(apiClient)
     val alertsApi: AlertsApi = RestAlertsApi(apiClient)
     val widgetsApi: WidgetsApi = RestWidgetsApi(apiClient)
@@ -318,8 +324,14 @@ class AppGraph {
             feedback = feedbackController,
         )
 
+    val channelProvisioningApi: ChannelProvisioningApi = RestChannelProvisioningApi(apiClient)
+
     val channelSwitcherController: ChannelSwitcherController =
-        ChannelSwitcherController(channelsApi = channelsApi, sessionStore = sessionStore)
+        ChannelSwitcherController(
+            channelsApi = channelsApi,
+            provisioningApi = channelProvisioningApi,
+            sessionStore = sessionStore,
+        )
 
     val homeController: HomeController =
         HomeController(
@@ -373,6 +385,8 @@ class AppGraph {
 
     val personalityController: PersonalityController =
         PersonalityController(channelsApi = channelsApi, settingsApi = channelSettingsApi)
+
+    val engagementController: EngagementController = EngagementController(api = engagementApi)
 
     val channelBotController: ChannelBotController = ChannelBotController(channelsApi = channelsApi)
 

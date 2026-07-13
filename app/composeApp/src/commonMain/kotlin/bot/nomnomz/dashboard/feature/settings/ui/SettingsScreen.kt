@@ -55,6 +55,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -66,6 +67,8 @@ import androidx.compose.ui.platform.LocalUriHandler
 import bot.nomnomz.dashboard.core.network.BillingInvoice
 import bot.nomnomz.dashboard.core.network.BillingSubscription
 import bot.nomnomz.dashboard.core.network.ChannelScope
+import bot.nomnomz.dashboard.core.network.EngagementConfig
+import bot.nomnomz.dashboard.core.network.UpdateEngagementConfigBody
 import bot.nomnomz.dashboard.core.network.InviteCodeValidation
 import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.feature.settings.state.BillingController
@@ -74,6 +77,8 @@ import bot.nomnomz.dashboard.feature.settings.state.ChannelBotController
 import bot.nomnomz.dashboard.feature.settings.state.ChannelBotState
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityState
+import bot.nomnomz.dashboard.feature.settings.state.EngagementController
+import bot.nomnomz.dashboard.feature.settings.state.EngagementState
 import bot.nomnomz.dashboard.feature.settings.state.PersonalityController
 import bot.nomnomz.dashboard.feature.settings.state.PersonalityState
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
@@ -199,6 +204,21 @@ import nomnomzbot.composeapp.generated.resources.personality_tone_hype
 import nomnomzbot.composeapp.generated.resources.personality_tone_hype_desc
 import nomnomzbot.composeapp.generated.resources.personality_tone_chill
 import nomnomzbot.composeapp.generated.resources.personality_tone_chill_desc
+import nomnomzbot.composeapp.generated.resources.engagement_section_title
+import nomnomzbot.composeapp.generated.resources.engagement_section_subtitle
+import nomnomzbot.composeapp.generated.resources.engagement_load_error
+import nomnomzbot.composeapp.generated.resources.engagement_first_time
+import nomnomzbot.composeapp.generated.resources.engagement_first_time_desc
+import nomnomzbot.composeapp.generated.resources.engagement_returning
+import nomnomzbot.composeapp.generated.resources.engagement_returning_desc
+import nomnomzbot.composeapp.generated.resources.engagement_watch_streak
+import nomnomzbot.composeapp.generated.resources.engagement_watch_streak_desc
+import nomnomzbot.composeapp.generated.resources.engagement_milestones
+import nomnomzbot.composeapp.generated.resources.engagement_milestones_hint
+import nomnomzbot.composeapp.generated.resources.engagement_cooldown
+import nomnomzbot.composeapp.generated.resources.engagement_cooldown_hint
+import nomnomzbot.composeapp.generated.resources.engagement_cooldown_invalid
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 // The Settings page: an editable form over the channel's stream metadata — the live status plus the editable
@@ -214,6 +234,7 @@ fun SettingsScreen(
     channelBotController: ChannelBotController,
     billingController: BillingController,
     personalityController: PersonalityController,
+    engagementController: EngagementController,
     role: ManagementRole?,
     onChannelDeleted: () -> Unit = {},
 ) {
@@ -270,6 +291,10 @@ fun SettingsScreen(
         // Bot personality — the built-in-command voice; readable to all, changeable at the Broadcaster
         // floor (the backend gates the write at setup:write). Independent of the stream-info load state.
         PersonalitySection(controller = personalityController, manage = ownerManage)
+
+        // Engagement triggers — auto-greet / loyalty; Editor floor (engagement:write). The actual greeting
+        // message is bound on the Event Responses page; this card is only the detector on/off + tuning.
+        EngagementSection(controller = engagementController, manage = streamInfoManage)
 
         // Channel management — join/leave/reset; Broadcaster floor (setup:write).
         if (state is SettingsState.Ready) {
@@ -882,6 +907,196 @@ private fun toneDescription(tone: String): String =
         "chill" -> stringResource(Res.string.personality_tone_chill_desc)
         else -> ""
     }
+
+// The Engagement triggers card: three opt-in auto-reaction toggles (welcome first-timers, shout out returning
+// regulars, celebrate watch-streak milestones) plus the milestone list and greet cooldown, all from
+// [EngagementController]. Gated at the Editor floor (engagement:write); below it the whole form disables with a
+// reason. Saved as one config (whole-form PUT); the card adopts the backend's echoed (clamped) config.
+@Composable
+private fun EngagementSection(controller: EngagementController, manage: ManageDecision) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+
+    val state: EngagementState by controller.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) { controller.load() }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Text(
+                text = stringResource(Res.string.engagement_section_title),
+                style = typography.xl,
+                color = tokens.cardForeground,
+            )
+            Text(
+                text = stringResource(Res.string.engagement_section_subtitle),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+
+            when (val current: EngagementState = state) {
+                EngagementState.Loading ->
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Spinner(modifier = Modifier.size(spacing.s6))
+                    }
+
+                is EngagementState.Error ->
+                    Text(
+                        text = stringResource(Res.string.engagement_load_error, current.detail),
+                        style = typography.sm,
+                        color = tokens.destructive,
+                    )
+
+                is EngagementState.Ready ->
+                    EngagementForm(
+                        state = current,
+                        manage = manage,
+                        onSave = { body -> scope.launch { controller.save(body) } },
+                    )
+            }
+        }
+    }
+}
+
+// The editable engagement form, re-seeded whenever new config loads. The whole form gates as one (ManageGate),
+// the milestone field is only relevant while watch-streak is on, and Save is offered only when the form is valid
+// (a non-negative whole-number cooldown) AND differs from the loaded config.
+@Composable
+private fun EngagementForm(
+    state: EngagementState.Ready,
+    manage: ManageDecision,
+    onSave: (UpdateEngagementConfigBody) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val config: EngagementConfig = state.config
+
+    var firstTime: Boolean by remember(config) { mutableStateOf(config.firstTimeChatterEnabled) }
+    var returning: Boolean by remember(config) { mutableStateOf(config.returningChatterEnabled) }
+    var watchStreak: Boolean by remember(config) { mutableStateOf(config.watchStreakEnabled) }
+    var milestonesText: String by remember(config) {
+        mutableStateOf(config.streakMilestones.joinToString(", "))
+    }
+    var cooldownText: String by remember(config) {
+        mutableStateOf(config.greetCooldownSeconds.toString())
+    }
+
+    val milestones: List<Int> = parseMilestones(milestonesText)
+    val cooldown: Int? = cooldownText.trim().toIntOrNull()
+    val cooldownValid: Boolean = cooldown != null && cooldown >= 0
+
+    val dirty: Boolean =
+        firstTime != config.firstTimeChatterEnabled ||
+            returning != config.returningChatterEnabled ||
+            watchStreak != config.watchStreakEnabled ||
+            milestones != config.streakMilestones ||
+            cooldown != config.greetCooldownSeconds
+    val canSave: Boolean = cooldownValid && dirty && !state.saving && manage.isAllowed
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
+        ManageGate(decision = manage) { enabled ->
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                EngagementToggleRow(
+                    label = Res.string.engagement_first_time,
+                    description = Res.string.engagement_first_time_desc,
+                    checked = firstTime,
+                    enabled = enabled && !state.saving,
+                    onCheckedChange = { firstTime = it },
+                )
+                EngagementToggleRow(
+                    label = Res.string.engagement_returning,
+                    description = Res.string.engagement_returning_desc,
+                    checked = returning,
+                    enabled = enabled && !state.saving,
+                    onCheckedChange = { returning = it },
+                )
+                EngagementToggleRow(
+                    label = Res.string.engagement_watch_streak,
+                    description = Res.string.engagement_watch_streak_desc,
+                    checked = watchStreak,
+                    enabled = enabled && !state.saving,
+                    onCheckedChange = { watchStreak = it },
+                )
+                AppTextField(
+                    value = milestonesText,
+                    onValueChange = { milestonesText = it },
+                    enabled = enabled && !state.saving && watchStreak,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.engagement_milestones),
+                    supportingText = stringResource(Res.string.engagement_milestones_hint),
+                )
+                AppTextField(
+                    value = cooldownText,
+                    onValueChange = { cooldownText = it },
+                    enabled = enabled && !state.saving,
+                    isError = !cooldownValid,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.engagement_cooldown),
+                    errorText = stringResource(Res.string.engagement_cooldown_invalid),
+                    supportingText = stringResource(Res.string.engagement_cooldown_hint),
+                )
+            }
+        }
+
+        SaveBar(
+            saving = state.saving,
+            justSaved = state.justSaved,
+            saveError = state.saveError,
+            manage = manage,
+            canSave = canSave && manage.isAllowed,
+            onSave = {
+                onSave(
+                    UpdateEngagementConfigBody(
+                        firstTimeChatterEnabled = firstTime,
+                        returningChatterEnabled = returning,
+                        watchStreakEnabled = watchStreak,
+                        streakMilestones = milestones,
+                        greetCooldownSeconds = cooldown ?: 0,
+                    )
+                )
+            },
+        )
+    }
+}
+
+// One label+description row with a trailing Switch — the shared shape for the three engagement toggles.
+@Composable
+private fun EngagementToggleRow(
+    label: StringResource,
+    description: StringResource,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
+            Text(text = stringResource(label), style = typography.base, color = tokens.cardForeground)
+            Text(text = stringResource(description), style = typography.sm, color = tokens.mutedForeground)
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = if (enabled) onCheckedChange else null,
+            enabled = enabled,
+        )
+    }
+}
+
+// Parse the comma-separated milestone field into the ascending, de-duplicated, positive stream-count list the
+// backend wants; non-numeric or non-positive tokens are dropped so a stray comma never blocks a save.
+private fun parseMilestones(raw: String): List<Int> =
+    raw.split(',').mapNotNull { it.trim().toIntOrNull() }.filter { it > 0 }.distinct().sorted()
 
 // The channel white-label bot card: shows the bot connection status and lets a Broadcaster connect or
 // disconnect the channel's own dedicated bot account. Also surfaces the broadcaster-token scope list so

@@ -116,6 +116,8 @@ class ApiContractTest {
             SupporterEvent.serializer() to "SupporterEventDto",
             ChannelPersonality.serializer() to "ChannelPersonalityDto",
             SetPersonalityBody.serializer() to "SetChannelPersonalityRequest",
+            EngagementConfig.serializer() to "EngagementConfigDto",
+            UpdateEngagementConfigBody.serializer() to "UpdateEngagementConfigRequest",
         )
 
     @Test

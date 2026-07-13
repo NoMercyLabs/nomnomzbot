@@ -2006,4 +2006,20 @@
     <string name="personality_tone_hype_desc">Vol energie, hoofdletters en emotes.</string>
     <string name="personality_tone_chill">Chill</string>
     <string name="personality_tone_chill_desc">Ontspannen en minimalistisch.</string>
+    <!-- Betrokkenheidstriggers (Instellingen). -->
+    <string name="engagement_section_title">Betrokkenheidstriggers</string>
+    <string name="engagement_section_subtitle">Automatische reacties op chatactiviteit. Stel de begroeting zelf in op de pagina Gebeurtenisreacties.</string>
+    <string name="engagement_load_error">Kon betrokkenheidsinstellingen niet laden: %1$s</string>
+    <string name="engagement_first_time">Verwelkom nieuwe chatters</string>
+    <string name="engagement_first_time_desc">Begroet een kijker de eerste keer dat die ooit chat.</string>
+    <string name="engagement_returning">Groet terugkerende vaste kijkers</string>
+    <string name="engagement_returning_desc">Erken een vaste kijker die na een tijd terugkomt.</string>
+    <string name="engagement_watch_streak">Vier kijkreeksen</string>
+    <string name="engagement_watch_streak_desc">Activeer bij de mijlpaal-streamaantallen hieronder.</string>
+    <string name="engagement_milestones">Reeksmijlpalen</string>
+    <string name="engagement_milestones_hint">Streamaantallen met komma gescheiden, bijv. 5, 10, 25, 50.</string>
+    <string name="engagement_cooldown">Begroetingscooldown (seconden)</string>
+    <string name="engagement_cooldown_hint">Minimale tussentijd voordat dezelfde kijker opnieuw wordt begroet.</string>
+    <string name="engagement_cooldown_invalid">Voer een heel aantal seconden in (0 of meer).</string>
+    <string name="shell_channel_moderate_hint">Modereren — klik om te openen</string>
 </resources>
