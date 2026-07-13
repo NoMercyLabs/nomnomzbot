@@ -28,7 +28,9 @@ public sealed record ChannelDto(
 );
 
 /// <summary>
-/// Lightweight channel info for lists and dropdowns. <c>ChatColor</c> is the streamer's Twitch chat color
+/// Lightweight channel info for lists and dropdowns. <c>Provider</c> is the streaming platform this channel
+/// lives on (<c>AuthEnums.Platform</c>: twitch / youtube / kick), letting the dashboard tag each channel — and
+/// each chat line / multi-watch pane — by its source. <c>ChatColor</c> is the streamer's Twitch chat color
 /// (#RRGGBB), populated from <c>User.Color</c> when known — null until the first login after the color-sync
 /// feature is deployed, or when the user has no color set; the dashboard uses it as the dynamic accent token
 /// (design-system §2).
@@ -42,6 +44,7 @@ public sealed record ChannelSummaryDto(
     string Role,
     int? ViewerCount,
     string? OverlayToken,
+    string Provider,
     string? ChatColor = null
 );
 

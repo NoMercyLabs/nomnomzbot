@@ -22,6 +22,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -307,6 +308,8 @@ public class ChannelsController : BaseController
             false,
             "moderator",
             null,
+            null,
+            AuthEnums.Platform.Twitch,
             null
         );
         return Ok(new StatusResponseDto<ChannelSummaryDto> { Data = summary });

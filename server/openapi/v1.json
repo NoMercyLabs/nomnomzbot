@@ -49252,7 +49252,8 @@
           "isLive",
           "role",
           "viewerCount",
-          "overlayToken"
+          "overlayToken",
+          "provider"
         ],
         "type": "object",
         "properties": {
@@ -49292,6 +49293,9 @@
               "string"
             ]
           },
+          "provider": {
+            "type": "string"
+          },
           "chatColor": {
             "type": [
               "null",
@@ -49299,7 +49303,7 @@
             ]
           }
         },
-        "description": "Lightweight channel info for lists and dropdowns. `ChatColor` is the streamer's Twitch chat color\r\n(#RRGGBB), populated from `User.Color` when known — null until the first login after the color-sync\r\nfeature is deployed, or when the user has no color set; the dashboard uses it as the dynamic accent token\r\n(design-system §2)."
+        "description": "Lightweight channel info for lists and dropdowns. `Provider` is the streaming platform this channel\r\nlives on (`AuthEnums.Platform`: twitch / youtube / kick), letting the dashboard tag each channel — and\r\neach chat line / multi-watch pane — by its source. `ChatColor` is the streamer's Twitch chat color\r\n(#RRGGBB), populated from `User.Color` when known — null until the first login after the color-sync\r\nfeature is deployed, or when the user has no color set; the dashboard uses it as the dynamic accent token\r\n(design-system §2)."
       },
       "ChatBadgeDto": {
         "required": [
