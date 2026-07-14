@@ -24,9 +24,10 @@ using NSubstitute;
 namespace NomNomzBot.Infrastructure.Tests.Widgets;
 
 /// <summary>
-/// Behavior tests for clone-to-edit: a fork is a NEW, fully-owned custom widget whose source is copied from the
-/// original and compiled (so it is immediately live), independent of the source. Invalid fork sources and the
-/// not-yet-available gallery path fail honestly.
+/// Behavior tests for clone-to-edit and install-from-gallery: a clone is a NEW, fully-detached custom widget whose
+/// source (from an installed widget OR a verified gallery item) is copied + compiled so it is immediately live; an
+/// install is a tracked instance linked to the gallery item (tier-inheriting, install-count-bumping). Invalid fork
+/// sources and unverified gallery items fail honestly.
 /// </summary>
 public sealed class WidgetServiceCloneTests
 {
@@ -167,22 +168,125 @@ public sealed class WidgetServiceCloneTests
         result.ErrorCode.Should().Be("WIDGET_CLONE_SOURCE_INVALID");
     }
 
+    private static async Task<Guid> SeedGalleryItemAsync(
+        WidgetSqliteTestDatabase database,
+        string reviewStatus = "verified",
+        string trustTier = "first_party"
+    )
+    {
+        Guid id = Guid.CreateVersion7();
+        await using WidgetTestDbContext db = database.NewContext();
+        db.WidgetGalleryItems.Add(
+            new WidgetGalleryItem
+            {
+                Id = id,
+                Name = "Alerts",
+                Description = "First-party alerts",
+                Framework = "vanilla",
+                TrustTier = trustTier,
+                SourceKind = "in_repo",
+                NaturalKey = "alerts",
+                SourceCode = "GALLERY_SRC",
+                ReviewStatus = reviewStatus,
+                AvailableInSaaS = true,
+                DefaultEventSubscriptions = ["follow", "cheer"],
+                DefaultSettings = new Dictionary<string, object> { ["durationMs"] = 6000 },
+            }
+        );
+        await db.SaveChangesAsync();
+        return id;
+    }
+
     [Fact]
-    public async Task Clone_from_the_gallery_fails_honestly_until_the_gallery_ships()
+    public async Task Clone_from_a_verified_gallery_item_creates_a_detached_live_custom_widget()
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
         Guid channel = Guid.CreateVersion7();
         await SeedChannelAsync(database, channel);
+        Guid galleryItem = await SeedGalleryItemAsync(database);
+
+        WidgetDetail clone;
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Result<WidgetDetail> result = await NewService(db)
+                .CloneToEditAsync(
+                    channel.ToString(),
+                    new CloneWidgetRequest { GalleryItemId = galleryItem }
+                );
+            result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+            clone = result.Value;
+        }
+
+        clone.Name.Should().Be("Copy of Alerts");
+        clone.Source.Should().Be("custom"); // a fork is detached + custom (=> unverified trust tier)
+        clone.Framework.Should().Be("vanilla");
+        clone.EventSubscriptions.Should().Contain("follow");
+        clone.ActiveVersionId.Should().NotBeNull(); // compiled -> immediately live
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            WidgetVersion version = await db.WidgetVersions.SingleAsync(v =>
+                v.WidgetId == clone.Id
+            );
+            version.SourceCode.Should().Be("GALLERY_SRC");
+            // A clone is fully detached — it never bumps the gallery item's install count.
+            WidgetGalleryItem item = await db.WidgetGalleryItems.SingleAsync(i =>
+                i.Id == galleryItem
+            );
+            item.InstallCount.Should().Be(0);
+        }
+    }
+
+    [Fact]
+    public async Task Install_from_gallery_creates_a_linked_live_widget_and_bumps_install_count()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        Guid galleryItem = await SeedGalleryItemAsync(database, trustTier: "first_party");
+
+        WidgetDetail installed;
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Result<WidgetDetail> result = await NewService(db)
+                .InstallFromGalleryAsync(channel.ToString(), galleryItem.ToString());
+            result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+            installed = result.Value;
+        }
+
+        installed.Name.Should().Be("Alerts");
+        installed.Source.Should().Be("first_party"); // drives the derived first_party trust tier
+        installed.ActiveVersionId.Should().NotBeNull(); // compiled on install -> live
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Widget widget = await db.Widgets.SingleAsync(w => w.Id == installed.Id);
+            widget.GalleryItemId.Should().Be(galleryItem); // a tracked instance linked to the catalogue entry
+            WidgetVersion version = await db.WidgetVersions.SingleAsync(v =>
+                v.WidgetId == installed.Id
+            );
+            version.SourceCode.Should().Be("GALLERY_SRC");
+            WidgetGalleryItem item = await db.WidgetGalleryItems.SingleAsync(i =>
+                i.Id == galleryItem
+            );
+            item.InstallCount.Should().Be(1);
+        }
+    }
+
+    [Fact]
+    public async Task Install_from_an_unverified_gallery_item_fails()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        Guid galleryItem = await SeedGalleryItemAsync(database, reviewStatus: "submitted");
 
         await using WidgetTestDbContext db = database.NewContext();
         Result<WidgetDetail> result = await NewService(db)
-            .CloneToEditAsync(
-                channel.ToString(),
-                new CloneWidgetRequest { GalleryItemId = Guid.CreateVersion7() }
-            );
+            .InstallFromGalleryAsync(channel.ToString(), galleryItem.ToString());
 
         result.IsFailure.Should().BeTrue();
-        result.ErrorCode.Should().Be("WIDGET_GALLERY_UNAVAILABLE");
+        result.ErrorCode.Should().Be("WIDGET_GALLERY_ITEM_NOT_VERIFIED");
     }
 
     [Fact]

@@ -57,6 +57,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         // the ones under test, not a test-only stand-in.
         modelBuilder.ApplyConfiguration(new WidgetConfiguration());
         modelBuilder.ApplyConfiguration(new WidgetVersionConfiguration());
+        modelBuilder.ApplyConfiguration(new WidgetGalleryItemConfiguration());
 
         // EF discovers an entity type from EVERY DbSet<T> property on the context (an IApplicationDbContext
         // requirement) — even the throwing ones — and would then try to map their jsonb-of-complex-type columns,
@@ -68,6 +69,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         // The production soft-delete global filter (schema §1.2) so a deleted widget disappears from reads while
         // its row survives. WidgetVersion is append-only (not soft-deletable), so no filter there.
         modelBuilder.ApplySoftDeleteFilter<Widget>();
+        modelBuilder.ApplySoftDeleteFilter<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem>();
     }
 
     /// <summary>
@@ -82,7 +84,12 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
             && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
         )
         .Select(p => p.PropertyType.GetGenericArguments()[0])
-        .Where(t => t != typeof(Widget) && t != typeof(WidgetVersion) && t != typeof(Channel))
+        .Where(t =>
+            t != typeof(Widget)
+            && t != typeof(WidgetVersion)
+            && t != typeof(Channel)
+            && t != typeof(NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem)
+        )
         .ToList();
 
     // ── Mapped widget slice ──
@@ -109,7 +116,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Reward> Rewards =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem> WidgetGalleryItems =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem>();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>

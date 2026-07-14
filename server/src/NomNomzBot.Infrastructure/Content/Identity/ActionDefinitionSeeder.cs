@@ -285,6 +285,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("widget:compile", Editor);
         MFloor("widget:version:read", Mod, Vip);
         M("widget:rollback", Editor);
+        M("widget:install", Editor);
         M("integration:read", Mod);
         M("integration:write", Editor);
         M("community:read", Mod);

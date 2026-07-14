@@ -175,6 +175,35 @@ public class WidgetsController : BaseController
         );
     }
 
+    /// <summary>Install a verified gallery widget into this channel (its source compiled into v1, immediately live).</summary>
+    [RequireAction("widget:install")]
+    [HttpPost("install/{galleryItemId}")]
+    [ProducesResponseType<StatusResponseDto<WidgetDetail>>(StatusCodes.Status201Created)]
+    public async Task<IActionResult> InstallWidget(
+        string channelId,
+        string galleryItemId,
+        CancellationToken ct
+    )
+    {
+        Result<WidgetDetail> result = await _widgetService.InstallFromGalleryAsync(
+            channelId,
+            galleryItemId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+
+        return CreatedAtAction(
+            nameof(GetWidget),
+            new { channelId, widgetId = result.Value.Id },
+            new StatusResponseDto<WidgetDetail>
+            {
+                Data = WithOverlayOrigin(result.Value),
+                Message = "Widget installed successfully.",
+            }
+        );
+    }
+
     /// <summary>Update an existing overlay widget's configuration.</summary>
     [RequireAction("widget:write")]
     [HttpPut("{widgetId}")]

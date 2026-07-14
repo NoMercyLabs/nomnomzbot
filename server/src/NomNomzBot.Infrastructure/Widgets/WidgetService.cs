@@ -108,13 +108,6 @@ public class WidgetService : IWidgetService
                 "WIDGET_CLONE_SOURCE_INVALID"
             );
 
-        // The gallery (and installing/cloning from it) is a later slice; fail honestly rather than pretend.
-        if (hasGallery)
-            return Result.Failure<WidgetDetail>(
-                "Cloning from the gallery is not available yet.",
-                "WIDGET_GALLERY_UNAVAILABLE"
-            );
-
         Channel? channel = await _db.Channels.FirstOrDefaultAsync(
             c => c.Id == broadcasterGuid,
             cancellationToken
@@ -122,26 +115,71 @@ public class WidgetService : IWidgetService
         if (channel is null)
             return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
 
-        Guid sourceWidgetId = request.InstalledWidgetId!.Value;
-        Widget? source = await _db.Widgets.FirstOrDefaultAsync(
-            w => w.Id == sourceWidgetId && w.BroadcasterId == broadcasterGuid,
-            cancellationToken
-        );
-        if (source is null)
-            return Errors.NotFound<WidgetDetail>("Widget", sourceWidgetId.ToString());
+        // Resolve the fork source — a verified gallery item or one of the caller's installed widgets — into the
+        // fields the clone copies. A clone is always a fully-detached custom widget: it takes only the source's shape
+        // + code, never a link back (GalleryItemId stays null; a gallery item's InstallCount is untouched).
+        string forkName;
+        string? forkDescription;
+        string forkFramework;
+        List<string> forkSubscriptions;
+        Dictionary<string, object> forkSettings;
+        string forkSource;
 
-        // Copy the LATEST authored source (what the editor shows), then recompile it into the clone.
-        WidgetVersion? latest = await _db
-            .WidgetVersions.Where(v => v.WidgetId == sourceWidgetId)
-            .OrderByDescending(v => v.VersionNumber)
-            .FirstOrDefaultAsync(cancellationToken);
-        if (latest?.SourceCode is null)
-            return Result.Failure<WidgetDetail>(
-                "The widget has no source to clone yet — compile it first.",
-                "WIDGET_NO_SOURCE"
+        if (hasGallery)
+        {
+            Guid galleryItemId = request.GalleryItemId!.Value;
+            WidgetGalleryItem? item = await _db.WidgetGalleryItems.FirstOrDefaultAsync(
+                i => i.Id == galleryItemId,
+                cancellationToken
             );
+            if (item is null)
+                return Errors.NotFound<WidgetDetail>("WidgetGalleryItem", galleryItemId.ToString());
+            if (item.ReviewStatus != "verified")
+                return Result.Failure<WidgetDetail>(
+                    "This gallery item is not verified and cannot be cloned.",
+                    "WIDGET_GALLERY_ITEM_NOT_VERIFIED"
+                );
+            if (item.SourceCode is null)
+                return Result.Failure<WidgetDetail>(
+                    "This gallery item has no source to clone.",
+                    "WIDGET_NO_SOURCE"
+                );
+            forkName = item.Name;
+            forkDescription = item.Description;
+            forkFramework = item.Framework;
+            forkSubscriptions = [.. item.DefaultEventSubscriptions];
+            forkSettings = new Dictionary<string, object>(item.DefaultSettings);
+            forkSource = item.SourceCode;
+        }
+        else
+        {
+            Guid sourceWidgetId = request.InstalledWidgetId!.Value;
+            Widget? source = await _db.Widgets.FirstOrDefaultAsync(
+                w => w.Id == sourceWidgetId && w.BroadcasterId == broadcasterGuid,
+                cancellationToken
+            );
+            if (source is null)
+                return Errors.NotFound<WidgetDetail>("Widget", sourceWidgetId.ToString());
 
-        string clonedName = "Copy of " + source.Name;
+            // Copy the LATEST authored source (what the editor shows), then recompile it into the clone.
+            WidgetVersion? latest = await _db
+                .WidgetVersions.Where(v => v.WidgetId == sourceWidgetId)
+                .OrderByDescending(v => v.VersionNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (latest?.SourceCode is null)
+                return Result.Failure<WidgetDetail>(
+                    "The widget has no source to clone yet — compile it first.",
+                    "WIDGET_NO_SOURCE"
+                );
+            forkName = source.Name;
+            forkDescription = source.Description;
+            forkFramework = source.Framework;
+            forkSubscriptions = [.. source.EventSubscriptions];
+            forkSettings = new Dictionary<string, object>(source.Settings);
+            forkSource = latest.SourceCode;
+        }
+
+        string clonedName = "Copy of " + forkName;
         if (clonedName.Length > 255)
             clonedName = clonedName[..255];
 
@@ -149,12 +187,12 @@ public class WidgetService : IWidgetService
         {
             BroadcasterId = broadcasterGuid,
             Name = clonedName,
-            Description = source.Description,
-            Framework = source.Framework,
+            Description = forkDescription,
+            Framework = forkFramework,
             Source = "custom", // a self-authored fork is always custom (=> unverified trust tier), fully detached
             IsEnabled = true,
-            EventSubscriptions = [.. source.EventSubscriptions],
-            Settings = new Dictionary<string, object>(source.Settings),
+            EventSubscriptions = forkSubscriptions,
+            Settings = forkSettings,
         };
         _db.Widgets.Add(clone);
         await _db.SaveChangesAsync(cancellationToken);
@@ -164,7 +202,7 @@ public class WidgetService : IWidgetService
         Result<WidgetVersionDetail> compiled = await CompileAsync(
             broadcasterId,
             clone.Id.ToString(),
-            new CompileWidgetRequest { SourceCode = latest.SourceCode },
+            new CompileWidgetRequest { SourceCode = forkSource },
             cancellationToken
         );
         if (compiled.IsFailure)
@@ -174,6 +212,83 @@ public class WidgetService : IWidgetService
             );
 
         return await GetAsync(broadcasterId, clone.Id.ToString(), cancellationToken);
+    }
+
+    public async Task<Result<WidgetDetail>> InstallFromGalleryAsync(
+        string broadcasterId,
+        string galleryItemId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
+        if (!Guid.TryParse(galleryItemId, out Guid galleryItemGuid))
+            return Errors.NotFound<WidgetDetail>("WidgetGalleryItem", galleryItemId);
+
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == broadcasterGuid,
+            cancellationToken
+        );
+        if (channel is null)
+            return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
+
+        WidgetGalleryItem? item = await _db.WidgetGalleryItems.FirstOrDefaultAsync(
+            i => i.Id == galleryItemGuid,
+            cancellationToken
+        );
+        if (item is null)
+            return Errors.NotFound<WidgetDetail>("WidgetGalleryItem", galleryItemId);
+
+        // Only a verified item installs. (On SaaS an item must also be AvailableInSaaS — first-party items always
+        // are; the SaaS-availability gate lands with the community-submission slice + the deployment-profile check.)
+        if (item.ReviewStatus != "verified")
+            return Result.Failure<WidgetDetail>(
+                "This gallery item is not verified and cannot be installed.",
+                "WIDGET_GALLERY_ITEM_NOT_VERIFIED"
+            );
+        if (item.SourceCode is null)
+            return Result.Failure<WidgetDetail>(
+                "This gallery item has no source to install.",
+                "WIDGET_NO_SOURCE"
+            );
+
+        // The installed widget's Source drives its (derived, never-stored) trust tier: a first-party item installs as
+        // first_party, a verified-community item as verified_gallery. GalleryItemId links it back to the catalogue.
+        string source = item.TrustTier == "first_party" ? "first_party" : "verified_gallery";
+
+        Widget widget = new()
+        {
+            BroadcasterId = broadcasterGuid,
+            Name = item.Name,
+            Description = item.Description,
+            Framework = item.Framework,
+            Source = source,
+            GalleryItemId = item.Id,
+            IsEnabled = true,
+            EventSubscriptions = [.. item.DefaultEventSubscriptions],
+            Settings = new Dictionary<string, object>(item.DefaultSettings),
+        };
+        _db.Widgets.Add(widget);
+        await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "created", cancellationToken);
+
+        // Compile the shipped source into the first version so the install is immediately live.
+        Result<WidgetVersionDetail> compiled = await CompileAsync(
+            broadcasterId,
+            widget.Id.ToString(),
+            new CompileWidgetRequest { SourceCode = item.SourceCode },
+            cancellationToken
+        );
+        if (compiled.IsFailure)
+            return Result.Failure<WidgetDetail>(
+                compiled.ErrorMessage ?? "The installed widget failed to compile.",
+                compiled.ErrorCode ?? "WIDGET_BUILD_FAILED"
+            );
+
+        item.InstallCount += 1;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return await GetAsync(broadcasterId, widget.Id.ToString(), cancellationToken);
     }
 
     public async Task<Result<WidgetDetail>> UpdateAsync(

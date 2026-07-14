@@ -141,4 +141,16 @@ public interface IWidgetService
         CloneWidgetRequest request,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Install a verified gallery item into the channel as a tracked instance: creates a widget linked to the item
+    /// (<c>Source</c> = first_party / verified_gallery → its derived trust tier), compiles the item's shipped source
+    /// into the first version so it is immediately live, and increments the item's install count. Fails if the item
+    /// is missing, not verified, or has no source. Contrast <see cref="CloneToEditAsync"/> (a detached editable copy).
+    /// </summary>
+    Task<Result<WidgetDetail>> InstallFromGalleryAsync(
+        string broadcasterId,
+        string galleryItemId,
+        CancellationToken cancellationToken = default
+    );
 }
