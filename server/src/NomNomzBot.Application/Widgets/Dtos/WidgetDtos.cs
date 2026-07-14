@@ -54,3 +54,37 @@ public sealed record UpdateWidgetRequest
     public List<string>? EventSubscriptions { get; init; }
     public bool? IsEnabled { get; init; }
 }
+
+/// <summary>The authored source to compile-on-save into the widget's next append-only version.</summary>
+public sealed record CompileWidgetRequest
+{
+    public required string SourceCode { get; init; }
+}
+
+/// <summary>A row in a widget's version history (rollback / debug list).</summary>
+public sealed record WidgetVersionSummary(
+    Guid Id,
+    int VersionNumber,
+    string BuildStatus,
+    string? ContentHash,
+    DateTime? CompiledAt,
+    DateTime CreatedAt
+);
+
+/// <summary>
+/// A single widget version in full. Carries <see cref="SourceCode"/> so the editor can load the current source to
+/// edit, and <see cref="BuildError"/>/<see cref="BuildLog"/> so a failed build is inspectable. The compiled bundle
+/// itself is served to overlays via the manifest, not returned here.
+/// </summary>
+public sealed record WidgetVersionDetail(
+    Guid Id,
+    Guid WidgetId,
+    int VersionNumber,
+    string BuildStatus,
+    string? SourceCode,
+    string? BuildError,
+    string? BuildLog,
+    string? ContentHash,
+    DateTime? CompiledAt,
+    DateTime CreatedAt
+);

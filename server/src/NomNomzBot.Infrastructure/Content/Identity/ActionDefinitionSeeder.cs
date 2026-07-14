@@ -282,6 +282,9 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("webhooks:outbound:write", Editor);
         MFloor("widget:read", Mod, Vip);
         M("widget:write", Editor);
+        M("widget:compile", Editor);
+        MFloor("widget:version:read", Mod, Vip);
+        M("widget:rollback", Editor);
         M("integration:read", Mod);
         M("integration:write", Editor);
         M("community:read", Mod);

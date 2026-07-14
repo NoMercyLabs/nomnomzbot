@@ -175,4 +175,96 @@ public class WidgetsController : BaseController
             return ResultResponse(result);
         return NoContent();
     }
+
+    /// <summary>
+    /// Compile-on-save: append the widget's next version, build it, and (on success) activate it. A failed build
+    /// is a persisted <c>error</c> version — the response carries the build status either way.
+    /// </summary>
+    [RequireAction("widget:compile")]
+    [HttpPost("{widgetId}/compile")]
+    [ProducesResponseType<StatusResponseDto<WidgetVersionDetail>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> CompileWidget(
+        string channelId,
+        string widgetId,
+        [FromBody] CompileWidgetRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<WidgetVersionDetail> result = await _widgetService.CompileAsync(
+            channelId,
+            widgetId,
+            request,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<WidgetVersionDetail> { Data = result.Value });
+    }
+
+    /// <summary>List a widget's build/version history, newest first.</summary>
+    [RequireAction("widget:version:read")]
+    [HttpGet("{widgetId}/versions")]
+    [ProducesResponseType<PaginatedResponse<WidgetVersionSummary>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListWidgetVersions(
+        string channelId,
+        string widgetId,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<WidgetVersionSummary>> result = await _widgetService.ListVersionsAsync(
+            channelId,
+            widgetId,
+            pagination,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    /// <summary>Get a single widget version in full (source + build log), for rollback/debug.</summary>
+    [RequireAction("widget:version:read")]
+    [HttpGet("{widgetId}/versions/{versionId}")]
+    [ProducesResponseType<StatusResponseDto<WidgetVersionDetail>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetWidgetVersion(
+        string channelId,
+        string widgetId,
+        string versionId,
+        CancellationToken ct
+    )
+    {
+        Result<WidgetVersionDetail> result = await _widgetService.GetVersionAsync(
+            channelId,
+            widgetId,
+            versionId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<WidgetVersionDetail> { Data = result.Value });
+    }
+
+    /// <summary>Roll the widget's active version back to an earlier successful build (no recompile).</summary>
+    [RequireAction("widget:rollback")]
+    [HttpPost("{widgetId}/rollback/{versionId}")]
+    [ProducesResponseType<StatusResponseDto<WidgetDetail>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RollbackWidget(
+        string channelId,
+        string widgetId,
+        string versionId,
+        CancellationToken ct
+    )
+    {
+        Result<WidgetDetail> result = await _widgetService.RollbackAsync(
+            channelId,
+            widgetId,
+            versionId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<WidgetDetail> { Data = WithOverlayOrigin(result.Value) });
+    }
 }

@@ -18,6 +18,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Domain.Widgets.Events;
 
 namespace NomNomzBot.Infrastructure.Widgets;
 
@@ -26,8 +27,16 @@ public class WidgetService : IWidgetService
     private readonly IApplicationDbContext _db;
     private readonly string _overlayBaseUrl;
     private readonly IEventBus _eventBus;
+    private readonly IWidgetBuildService _buildService;
+    private readonly TimeProvider _timeProvider;
 
-    public WidgetService(IApplicationDbContext db, IConfiguration configuration, IEventBus eventBus)
+    public WidgetService(
+        IApplicationDbContext db,
+        IConfiguration configuration,
+        IEventBus eventBus,
+        IWidgetBuildService buildService,
+        TimeProvider timeProvider
+    )
     {
         _db = db;
         // The overlay host page is served by this API (OverlayHostController) — the widget URL points
@@ -37,6 +46,8 @@ public class WidgetService : IWidgetService
             ?? configuration["App:BaseUrl"]
             ?? "http://localhost:5080";
         _eventBus = eventBus;
+        _buildService = buildService;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<WidgetDetail>> CreateAsync(
@@ -231,6 +242,263 @@ public class WidgetService : IWidgetService
 
         return Result.Success(ToDetail(widget, channel.OverlayToken, _overlayBaseUrl));
     }
+
+    public async Task<Result<WidgetVersionDetail>> CompileAsync(
+        string broadcasterId,
+        string widgetId,
+        CompileWidgetRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+        )
+            return Errors.NotFound<WidgetVersionDetail>("Widget", widgetId);
+
+        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
+            cancellationToken
+        );
+
+        if (widget is null)
+            return Errors.NotFound<WidgetVersionDetail>("Widget", widgetId);
+
+        // Append the next version (append-only: corrections are new versions, never edits). A failed build is a
+        // persisted `error` row, so the history is a complete, tamper-evident record of every save.
+        int nextNumber =
+            (
+                await _db
+                    .WidgetVersions.Where(v => v.WidgetId == widget.Id)
+                    .Select(v => (int?)v.VersionNumber)
+                    .MaxAsync(cancellationToken)
+            ) ?? 0;
+        nextNumber += 1;
+
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
+        WidgetVersion version = new()
+        {
+            WidgetId = widget.Id,
+            BroadcasterId = broadcasterGuid,
+            VersionNumber = nextNumber,
+            SourceCode = request.SourceCode,
+            BuildStatus = "pending",
+            CreatedAt = now,
+        };
+        _db.WidgetVersions.Add(version);
+
+        Result<WidgetBuildOutput> build = await _buildService.BuildAsync(
+            new WidgetBuildInput(widget.Framework, request.SourceCode),
+            cancellationToken
+        );
+
+        if (build.IsSuccess)
+        {
+            version.BuildStatus = "success";
+            version.CompiledBundle = build.Value.CompiledBundle;
+            version.ContentHash = build.Value.ContentHash;
+            version.BuildLog = build.Value.BuildLog;
+            version.CompiledAt = now;
+            widget.ActiveVersionId = version.Id;
+            await _db.SaveChangesAsync(cancellationToken);
+
+            await _eventBus.PublishAsync(
+                new WidgetBuildSucceededEvent
+                {
+                    BroadcasterId = broadcasterGuid,
+                    WidgetId = widget.Id,
+                    VersionId = version.Id,
+                    VersionNumber = version.VersionNumber,
+                    ContentHash = build.Value.ContentHash,
+                },
+                cancellationToken
+            );
+        }
+        else
+        {
+            version.BuildStatus = "error";
+            version.BuildError = build.ErrorMessage;
+            version.BuildLog = build.ErrorMessage;
+            await _db.SaveChangesAsync(cancellationToken);
+
+            await _eventBus.PublishAsync(
+                new WidgetBuildFailedEvent
+                {
+                    BroadcasterId = broadcasterGuid,
+                    WidgetId = widget.Id,
+                    VersionId = version.Id,
+                    VersionNumber = version.VersionNumber,
+                    BuildError = build.ErrorMessage ?? "The widget build failed.",
+                },
+                cancellationToken
+            );
+        }
+
+        return Result.Success(ToVersionDetail(version));
+    }
+
+    public async Task<Result<PagedList<WidgetVersionSummary>>> ListVersionsAsync(
+        string broadcasterId,
+        string widgetId,
+        PaginationParams pagination,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+        )
+            return Errors.NotFound<PagedList<WidgetVersionSummary>>("Widget", widgetId);
+
+        bool owned = await _db.Widgets.AnyAsync(
+            w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
+            cancellationToken
+        );
+        if (!owned)
+            return Errors.NotFound<PagedList<WidgetVersionSummary>>("Widget", widgetId);
+
+        IQueryable<WidgetVersion> query = _db.WidgetVersions.Where(v => v.WidgetId == widgetGuid);
+        int total = await query.CountAsync(cancellationToken);
+
+        List<WidgetVersion> versions = await query
+            .OrderByDescending(v => v.VersionNumber)
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .ToListAsync(cancellationToken);
+
+        List<WidgetVersionSummary> items = versions.Select(ToVersionSummary).ToList();
+        return Result.Success(
+            new PagedList<WidgetVersionSummary>(items, pagination.Page, pagination.PageSize, total)
+        );
+    }
+
+    public async Task<Result<WidgetVersionDetail>> GetVersionAsync(
+        string broadcasterId,
+        string widgetId,
+        string versionId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+            || !Guid.TryParse(versionId, out Guid versionGuid)
+        )
+            return Errors.NotFound<WidgetVersionDetail>("Widget version", versionId);
+
+        bool owned = await _db.Widgets.AnyAsync(
+            w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
+            cancellationToken
+        );
+        if (!owned)
+            return Errors.NotFound<WidgetVersionDetail>("Widget", widgetId);
+
+        WidgetVersion? version = await _db.WidgetVersions.FirstOrDefaultAsync(
+            v => v.Id == versionGuid && v.WidgetId == widgetGuid,
+            cancellationToken
+        );
+        if (version is null)
+            return Errors.NotFound<WidgetVersionDetail>("Widget version", versionId);
+
+        return Result.Success(ToVersionDetail(version));
+    }
+
+    public async Task<Result<WidgetDetail>> RollbackAsync(
+        string broadcasterId,
+        string widgetId,
+        string versionId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+            || !Guid.TryParse(versionId, out Guid versionGuid)
+        )
+            return Errors.NotFound<WidgetDetail>("Widget", widgetId);
+
+        Widget? widget = await _db
+            .Widgets.Include(w => w.Channel)
+            .FirstOrDefaultAsync(
+                w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
+                cancellationToken
+            );
+        if (widget is null)
+            return Errors.NotFound<WidgetDetail>("Widget", widgetId);
+
+        WidgetVersion? target = await _db.WidgetVersions.FirstOrDefaultAsync(
+            v => v.Id == versionGuid && v.WidgetId == widgetGuid,
+            cancellationToken
+        );
+        if (target is null)
+            return Errors.NotFound<WidgetDetail>("Widget version", versionId);
+        if (target.BuildStatus != "success")
+            return Result.Failure<WidgetDetail>(
+                "Can only roll back to a version that built successfully.",
+                "WIDGET_VERSION_NOT_SUCCESSFUL"
+            );
+
+        // Re-point at the earlier successful build — no recompile — then cache-bust the live overlay.
+        widget.ActiveVersionId = target.Id;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        await _eventBus.PublishAsync(
+            new WidgetBuildSucceededEvent
+            {
+                BroadcasterId = broadcasterGuid,
+                WidgetId = widget.Id,
+                VersionId = target.Id,
+                VersionNumber = target.VersionNumber,
+                ContentHash = target.ContentHash ?? string.Empty,
+            },
+            cancellationToken
+        );
+
+        return Result.Success(ToDetail(widget, widget.Channel.OverlayToken, _overlayBaseUrl));
+    }
+
+    public async Task<Result> RecordRuntimeErrorAsync(
+        string broadcasterId,
+        string widgetId,
+        string error,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+        )
+            return Result.Failure($"Widget '{widgetId}' was not found.", "NOT_FOUND");
+
+        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
+            cancellationToken
+        );
+        if (widget is null)
+            return Result.Failure($"Widget '{widgetId}' was not found.", "NOT_FOUND");
+
+        widget.LastRuntimeError = error;
+        widget.LastRanAt = _timeProvider.GetUtcNow().UtcDateTime;
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    private static WidgetVersionSummary ToVersionSummary(WidgetVersion v) =>
+        new(v.Id, v.VersionNumber, v.BuildStatus, v.ContentHash, v.CompiledAt, v.CreatedAt);
+
+    private static WidgetVersionDetail ToVersionDetail(WidgetVersion v) =>
+        new(
+            v.Id,
+            v.WidgetId,
+            v.VersionNumber,
+            v.BuildStatus,
+            v.SourceCode,
+            v.BuildError,
+            v.BuildLog,
+            v.ContentHash,
+            v.CompiledAt,
+            v.CreatedAt
+        );
 
     /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>
     private Task PublishConfigChangedAsync(

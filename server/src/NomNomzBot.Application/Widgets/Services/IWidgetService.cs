@@ -59,4 +59,51 @@ public interface IWidgetService
         string token,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Compile-on-save: append the widget's next <c>WidgetVersion</c>, build it, and (on success) point the widget
+    /// at it. A failed build is a persisted <c>error</c> version, not a discard; the returned detail carries the
+    /// build status either way, and the build lifecycle event is published for the overlay/editor to react to.
+    /// </summary>
+    Task<Result<WidgetVersionDetail>> CompileAsync(
+        string broadcasterId,
+        string widgetId,
+        CompileWidgetRequest request,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>List a widget's version history, newest first.</summary>
+    Task<Result<PagedList<WidgetVersionSummary>>> ListVersionsAsync(
+        string broadcasterId,
+        string widgetId,
+        PaginationParams pagination,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Get one version in full (source + build log), for rollback/debug.</summary>
+    Task<Result<WidgetVersionDetail>> GetVersionAsync(
+        string broadcasterId,
+        string widgetId,
+        string versionId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Re-point the widget's active version at an earlier <b>successful</b> build (no recompile) and publish a
+    /// cache-bust reload. Fails if the target version is not a successful build.
+    /// </summary>
+    Task<Result<WidgetDetail>> RollbackAsync(
+        string broadcasterId,
+        string widgetId,
+        string versionId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Record an overlay-reported runtime fault against the widget (audit B5); no event.</summary>
+    Task<Result> RecordRuntimeErrorAsync(
+        string broadcasterId,
+        string widgetId,
+        string error,
+        CancellationToken cancellationToken = default
+    );
 }
