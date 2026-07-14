@@ -16,6 +16,29 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-14 — Widget code editor: full Vue SFC + TypeScript IntelliSense (owner requirement)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the owner wants the in-dashboard widget code editor (the "VSCode-style" editor) to give
+  **full Vue SFC autocomplete + full TypeScript IntelliSense** when editing `.vue` widgets authored with
+  `<script setup lang="ts">` — Vue template autocomplete (component props, directives, bindings),
+  `<script setup>` type-checking, and TS completions/hover/diagnostics, all in-browser (the Wasm dashboard
+  has no server language backend). This is the editing DX for the first-party + custom Vue widgets.
+- **Recommended approach:** the **Vue language service (Volar)** in a Web Worker, wired to the editor over
+  LSP. Standard browser stack: **Monaco + `@volar/monaco` + `@vue/language-service`** (+ the TS worker for
+  `lang="ts"`); CodeMirror can host an LSP client too, but Monaco has first-class Volar integration. The
+  dashboard is Compose/Wasm (canvas-rendered), so the editor is a DOM-interop surface — architect the
+  Monaco/Volar embed within that interop (however the current CodeMirror editor is embedded is the
+  reference). Widgets have no `node_modules`, so the Vue + TS type environment (vue types, `lib.d.ts`) must
+  be supplied to the language service in-worker.
+- **Why:** the widget framework is moving to **Vue SFC** (`framework: "vue"`); the owner explicitly requires
+  parity with a real Vue editor. Frontend-only — it does NOT touch the backend compile path (the bot compiles
+  the SFC on save via `POST .../compile`, unchanged).
+- **Where:** `core/editor` (the existing CodeMirror editor) + `feature/widgets` editor screen. No backend
+  contract change. The server-side Vue SFC **compiler** engine is a separate backend decision in progress
+  (Jint vs ClearScript/V8) and does not affect this editor work.
+- **Done when:** editing a `.vue` widget with `<script setup lang="ts">` gives working Vue template + TS
+  autocomplete, hover types, and inline diagnostics in the dashboard editor (desktop + web).
+
 ### 2026-07-14 — Widgets/Overlays editor: rewire to compile-on-save (BREAKING contract change)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the widget subsystem was rebuilt to the `widgets-overlays.md` spec. The old
