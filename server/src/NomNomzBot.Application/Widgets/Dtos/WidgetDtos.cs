@@ -91,6 +91,18 @@ public sealed record OverlayWidgetEntry(
 /// <summary>A widget's compiled bundle, served to the overlay host page. <see cref="Framework"/> picks the MIME type.</summary>
 public sealed record OverlayBundle(string Content, string Framework, string ContentHash);
 
+/// <summary>
+/// A starter widget template the editor offers when creating a new custom widget — a working, SDK-using starting
+/// point (never a blank editor). <see cref="Source"/> is the authored source to seed into the editor + compile.
+/// </summary>
+public sealed record WidgetTemplate(
+    string Key,
+    string Name,
+    string Description,
+    string Framework,
+    string Source
+);
+
 /// <summary>A row in a widget's version history (rollback / debug list).</summary>
 public sealed record WidgetVersionSummary(
     Guid Id,

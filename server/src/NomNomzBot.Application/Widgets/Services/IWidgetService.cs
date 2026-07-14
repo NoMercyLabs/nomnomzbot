@@ -127,4 +127,7 @@ public interface IWidgetService
         string widgetId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>The starter templates offered when creating a new custom widget (static reference data).</summary>
+    IReadOnlyList<WidgetTemplate> GetTemplates();
 }

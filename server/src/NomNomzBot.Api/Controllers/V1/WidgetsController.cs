@@ -97,6 +97,18 @@ public class WidgetsController : BaseController
         return GetPaginatedResponse(withOrigin, request);
     }
 
+    /// <summary>List the starter templates offered when creating a new custom widget.</summary>
+    [RequireAction("widget:read")]
+    [HttpGet("templates")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<WidgetTemplate>>>(
+        StatusCodes.Status200OK
+    )]
+    public IActionResult ListWidgetTemplates(string channelId)
+    {
+        IReadOnlyList<WidgetTemplate> templates = _widgetService.GetTemplates();
+        return Ok(new StatusResponseDto<IReadOnlyList<WidgetTemplate>> { Data = templates });
+    }
+
     /// <summary>Get a single overlay widget's configuration.</summary>
     [RequireAction("widget:read")]
     [HttpGet("{widgetId}")]

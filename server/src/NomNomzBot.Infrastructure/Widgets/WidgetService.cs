@@ -597,6 +597,8 @@ public class WidgetService : IWidgetService
         );
     }
 
+    public IReadOnlyList<WidgetTemplate> GetTemplates() => WidgetTemplateCatalogue.All;
+
     // Derives the render-time trust tier from Source (widgets-overlays.md §1). Fail-closed: custom / anything
     // unexpected maps to `unverified`, never silently to a higher tier.
     private static string ResolveTrustTier(string source) =>
