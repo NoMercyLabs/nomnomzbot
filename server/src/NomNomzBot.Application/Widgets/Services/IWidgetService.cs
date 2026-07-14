@@ -106,4 +106,25 @@ public interface IWidgetService
         string error,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// The public, token-resolved overlay manifest: the channel's enabled, successfully-built widgets with their
+    /// bundle URLs, hashes, trust tiers, and settings. Token-auth only (never the user JWT); resolves the channel
+    /// by <c>Channels.OverlayToken</c>. This read intentionally bypasses the tenant query filter (the caller is
+    /// anonymous) and scopes to the resolved channel explicitly.
+    /// </summary>
+    Task<Result<OverlayManifest>> GetOverlayManifestAsync(
+        string overlayToken,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Serve one widget's active compiled bundle by overlay token — the content the host page injects. Fails unless
+    /// the widget is enabled, owned by the token's channel, and its active version built successfully.
+    /// </summary>
+    Task<Result<OverlayBundle>> GetOverlayBundleAsync(
+        string overlayToken,
+        string widgetId,
+        CancellationToken cancellationToken = default
+    );
 }

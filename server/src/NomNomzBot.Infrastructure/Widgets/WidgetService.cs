@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -482,6 +483,132 @@ public class WidgetService : IWidgetService
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
+
+    public async Task<Result<OverlayManifest>> GetOverlayManifestAsync(
+        string overlayToken,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.OverlayToken == overlayToken,
+            cancellationToken
+        );
+        if (channel is null)
+            return Result.Failure<OverlayManifest>(
+                "No channel found for the provided overlay token.",
+                "NOT_FOUND"
+            );
+
+        // The overlay is anonymous (token-authed, no JWT tenant), so CurrentBroadcasterId is empty and the tenant
+        // query filter would hide every row — bypass the filters and scope to the resolved channel + not-deleted
+        // explicitly. Only enabled widgets with an active, successfully-built version are served.
+        List<Widget> widgets = await _db
+            .Widgets.IgnoreQueryFilters()
+            .Where(w =>
+                w.BroadcasterId == channel.Id
+                && w.DeletedAt == null
+                && w.IsEnabled
+                && w.ActiveVersionId != null
+            )
+            .OrderBy(w => w.Name)
+            .ToListAsync(cancellationToken);
+
+        List<Guid> activeVersionIds = widgets.Select(w => w.ActiveVersionId!.Value).ToList();
+        Dictionary<Guid, WidgetVersion> versions = await _db
+            .WidgetVersions.IgnoreQueryFilters()
+            .Where(v => activeVersionIds.Contains(v.Id))
+            .ToDictionaryAsync(v => v.Id, cancellationToken);
+
+        List<OverlayWidgetEntry> entries = [];
+        foreach (Widget widget in widgets)
+        {
+            if (
+                !versions.TryGetValue(widget.ActiveVersionId!.Value, out WidgetVersion? version)
+                || version.BuildStatus != "success"
+                || string.IsNullOrEmpty(version.ContentHash)
+            )
+                continue;
+
+            entries.Add(
+                new OverlayWidgetEntry(
+                    widget.Id,
+                    widget.Name,
+                    widget.Framework,
+                    ResolveTrustTier(widget.Source),
+                    $"/api/v1/overlay/bundle/{widget.Id}?token={Uri.EscapeDataString(overlayToken)}&v={version.ContentHash}",
+                    version.ContentHash,
+                    widget.EventSubscriptions,
+                    widget.Settings.ToDictionary(k => k.Key, v => (object?)v.Value)
+                )
+            );
+        }
+
+        return Result.Success(new OverlayManifest(channel.Id, GenerateCspNonce(), entries));
+    }
+
+    public async Task<Result<OverlayBundle>> GetOverlayBundleAsync(
+        string overlayToken,
+        string widgetId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(widgetId, out Guid widgetGuid))
+            return Errors.NotFound<OverlayBundle>("Widget", widgetId);
+
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.OverlayToken == overlayToken,
+            cancellationToken
+        );
+        if (channel is null)
+            return Result.Failure<OverlayBundle>(
+                "No channel found for the provided overlay token.",
+                "NOT_FOUND"
+            );
+
+        Widget? widget = await _db
+            .Widgets.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                w =>
+                    w.Id == widgetGuid
+                    && w.BroadcasterId == channel.Id
+                    && w.DeletedAt == null
+                    && w.IsEnabled
+                    && w.ActiveVersionId != null,
+                cancellationToken
+            );
+        if (widget is null)
+            return Errors.NotFound<OverlayBundle>("Widget", widgetId);
+
+        WidgetVersion? version = await _db
+            .WidgetVersions.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                v => v.Id == widget.ActiveVersionId!.Value && v.BuildStatus == "success",
+                cancellationToken
+            );
+        if (version is null || version.CompiledBundle is null)
+            return Errors.NotFound<OverlayBundle>("Widget bundle", widgetId);
+
+        return Result.Success(
+            new OverlayBundle(
+                version.CompiledBundle,
+                widget.Framework,
+                version.ContentHash ?? string.Empty
+            )
+        );
+    }
+
+    // Derives the render-time trust tier from Source (widgets-overlays.md §1). Fail-closed: custom / anything
+    // unexpected maps to `unverified`, never silently to a higher tier.
+    private static string ResolveTrustTier(string source) =>
+        source switch
+        {
+            "first_party" => "first_party",
+            "verified_gallery" => "verified_community",
+            _ => "unverified",
+        };
+
+    private static string GenerateCspNonce() =>
+        Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
 
     private static WidgetVersionSummary ToVersionSummary(WidgetVersion v) =>
         new(v.Id, v.VersionNumber, v.BuildStatus, v.ContentHash, v.CompiledAt, v.CreatedAt);

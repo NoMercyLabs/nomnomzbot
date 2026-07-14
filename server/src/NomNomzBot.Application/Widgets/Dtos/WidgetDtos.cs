@@ -61,6 +61,36 @@ public sealed record CompileWidgetRequest
     public required string SourceCode { get; init; }
 }
 
+/// <summary>
+/// The public, token-resolved overlay manifest (widgets-overlays.md §4). The single read an OBS browser source
+/// needs: the channel's enabled, successfully-built widgets, each with the URL to fetch its compiled bundle, the
+/// content hash (cache-bust key), its render-time trust tier, and its live settings + event subscriptions.
+/// </summary>
+public sealed record OverlayManifest(
+    Guid ChannelId,
+    string CspNonce,
+    List<OverlayWidgetEntry> Widgets
+);
+
+/// <summary>
+/// One widget in the overlay manifest. <see cref="TrustTier"/> (first_party | verified_community | unverified) is
+/// derived from the widget's <c>Source</c> and drives the render-time CSP tier — a self-authored (custom) widget is
+/// always <c>unverified</c> (fail-closed).
+/// </summary>
+public sealed record OverlayWidgetEntry(
+    Guid WidgetId,
+    string Name,
+    string Framework,
+    string TrustTier,
+    string BundleUrl,
+    string ContentHash,
+    List<string> EventSubscriptions,
+    Dictionary<string, object?> Settings
+);
+
+/// <summary>A widget's compiled bundle, served to the overlay host page. <see cref="Framework"/> picks the MIME type.</summary>
+public sealed record OverlayBundle(string Content, string Framework, string ContentHash);
+
 /// <summary>A row in a widget's version history (rollback / debug list).</summary>
 public sealed record WidgetVersionSummary(
     Guid Id,
