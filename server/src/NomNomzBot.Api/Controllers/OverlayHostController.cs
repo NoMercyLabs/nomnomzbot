@@ -512,10 +512,12 @@ public sealed class OverlayHostController : ControllerBase
                 }
 
                 if (msg.type === 1) dispatch(msg.target, msg.arguments || []);
-                else if (msg.type === 3 && msg.invocationId === "join" && msg.result)
+                else if (msg.type === 3 && msg.invocationId === "join" && msg.result) {
                   // JoinWidgetResponse serializes as {success,error,initialState}; initialState IS the
                   // saved Widget.Settings bag (accentColor/durationMs at top level) — not a .settings field.
+                  widgetSettings = msg.result.initialState || {};
                   applySettings(msg.result.initialState);
+                }
               });
             };
 
@@ -532,7 +534,10 @@ public sealed class OverlayHostController : ControllerBase
               case "PlaySound": playSound(args[0] || {}); break;
               case "StopSound": stopSound(args[0] || {}); break;
               case "WidgetReload": location.reload(); break;
-              case "WidgetEvent": renderWidgetEvent(args[0]); break;
+              case "WidgetEvent":
+                renderWidgetEvent(args[0]);
+                postToCustom({ kind: "event", eventType: (args[0] || {}).eventType, data: (args[0] || {}).data });
+                break;
               case "Event": {
                 var oe = args[0];
                 if (oe && oe.type === "ChatMessage") {
@@ -541,17 +546,40 @@ public sealed class OverlayHostController : ControllerBase
                 }
                 break;
               }
-              case "WidgetSettingsChanged": applySettings((args[0] || {}).settings); break;
+              case "WidgetSettingsChanged":
+                widgetSettings = (args[0] || {}).settings || {};
+                applySettings(widgetSettings);
+                postToCustom({ kind: "settings", settings: widgetSettings });
+                break;
               default: break;
             }
           }
 
-          // ── Custom-widget injector ──────────────────────────────────────────
-          // Render the widget's AUTHORED bundle (the compile-on-save output) in a sandboxed iframe. Fetched
-          // fresh (no-store) so the WidgetReload -> full page reload shows the just-compiled bundle. A 404 means
-          // this widget has no authored bundle (a built-in/type widget) - the shell above already renders it, so
-          // the page is left as-is. Untrusted custom code runs in a null-origin sandbox (scripts only), with no
-          // access to this page or its token.
+          // ── Custom-widget injector + SDK bridge ─────────────────────────────
+          // Render the widget's AUTHORED bundle (the compile-on-save output) in a sandboxed iframe, with the
+          // overlay SDK (window.NomNomz) loaded first. The widget cannot open its own hub connection (null-origin
+          // sandbox), so this host owns the SignalR connection and forwards events + settings to the widget over
+          // postMessage; the SDK inside dispatches them. Fetched fresh (no-store) so the WidgetReload -> full page
+          // reload shows the just-compiled bundle. A 404 means no authored bundle (a built-in/type widget) - the
+          // shell above already renders it. Untrusted custom code runs scripts-only, with no access to this page.
+          var customFrame = null;
+          var widgetSettings = {}; // the full saved Settings bag, forwarded to the widget (accentColor + custom keys)
+
+          function postToCustom(msg) {
+            if (customFrame && customFrame.contentWindow) {
+              try { msg.nnz = 1; customFrame.contentWindow.postMessage(msg, "*"); } catch (_) {}
+            }
+          }
+
+          // Messages FROM the widget iframe: send its settings once it is ready; log any runtime error (audit B5).
+          window.addEventListener("message", function (evt) {
+            if (!customFrame || evt.source !== customFrame.contentWindow) return;
+            var m = evt.data;
+            if (!m || m.nnz !== 1) return;
+            if (m.kind === "ready") postToCustom({ kind: "settings", settings: widgetSettings });
+            else if (m.kind === "error") console.error("[overlay] widget runtime error:", m.message);
+          });
+
           function mountCustomWidget() {
             if (!widgetId) return;
             var url = "/api/v1/overlay/bundle/" + encodeURIComponent(widgetId)
@@ -562,14 +590,17 @@ public sealed class OverlayHostController : ControllerBase
               return r.text().then(function (body) { return { body: body, isHtml: isHtml }; });
             }).then(function (res) {
               if (!res) return;
+              // The SDK loads first (parser-blocking), so window.NomNomz is defined before the widget's scripts run.
+              var sdkTag = '<script src="' + location.origin + '/overlay/sdk.js"><\/script>';
               var frame = document.createElement("iframe");
               frame.id = "custom-widget";
               frame.setAttribute("sandbox", "allow-scripts");
               frame.style.cssText =
                 "position:fixed;inset:0;width:100%;height:100%;border:0;background:transparent;";
-              frame.srcdoc = res.isHtml ? res.body
+              frame.srcdoc = sdkTag + (res.isHtml ? res.body
                 : '<!doctype html><meta charset="utf-8">'
-                  + '<body style="margin:0;background:transparent"><script>' + res.body + '<\/script></body>';
+                  + '<body style="margin:0;background:transparent"><script>' + res.body + '<\/script></body>');
+              customFrame = frame;
               document.body.appendChild(frame);
             }).catch(function (e) { console.error("[overlay] custom widget mount failed", e); });
           }
