@@ -23,9 +23,10 @@ namespace NomNomzBot.Api.Controllers;
 /// standing now-playing pill, and the hype-train meter. Event payload text is inserted as text nodes only
 /// (never markup), so a chatter's display name cannot inject script into the browser source. Widget
 /// settings (<c>accentColor</c>, <c>durationMs</c>) apply on join and live via <c>WidgetSettingsChanged</c>;
-/// unknown keys are ignored. It is the runtime shell compiled widget bundles will later load into
-/// (widgets-overlays.md). The page itself carries no secrets and is served anonymously; the token only
-/// gates the hub.
+/// unknown keys are ignored. It also MOUNTS the authored widget's compiled bundle (the compile-on-save output,
+/// fetched from <c>/api/v1/overlay/bundle/{widgetId}</c>) in a null-origin sandboxed iframe, re-fetched fresh on
+/// the <c>WidgetReload</c> full reload so a save hot-swaps the overlay (widgets-overlays.md). The page itself
+/// carries no secrets and is served anonymously; the token only gates the hub.
 /// </summary>
 [ApiController]
 [Route("overlay")]
@@ -545,6 +546,34 @@ public sealed class OverlayHostController : ControllerBase
             }
           }
 
+          // ── Custom-widget injector ──────────────────────────────────────────
+          // Render the widget's AUTHORED bundle (the compile-on-save output) in a sandboxed iframe. Fetched
+          // fresh (no-store) so the WidgetReload -> full page reload shows the just-compiled bundle. A 404 means
+          // this widget has no authored bundle (a built-in/type widget) - the shell above already renders it, so
+          // the page is left as-is. Untrusted custom code runs in a null-origin sandbox (scripts only), with no
+          // access to this page or its token.
+          function mountCustomWidget() {
+            if (!widgetId) return;
+            var url = "/api/v1/overlay/bundle/" + encodeURIComponent(widgetId)
+              + "?token=" + encodeURIComponent(token);
+            fetch(url, { cache: "no-store" }).then(function (r) {
+              if (!r.ok) return null;
+              var isHtml = (r.headers.get("content-type") || "").indexOf("text/html") === 0;
+              return r.text().then(function (body) { return { body: body, isHtml: isHtml }; });
+            }).then(function (res) {
+              if (!res) return;
+              var frame = document.createElement("iframe");
+              frame.id = "custom-widget";
+              frame.setAttribute("sandbox", "allow-scripts");
+              frame.style.cssText =
+                "position:fixed;inset:0;width:100%;height:100%;border:0;background:transparent;";
+              frame.srcdoc = res.isHtml ? res.body
+                : '<!doctype html><meta charset="utf-8">'
+                  + '<body style="margin:0;background:transparent"><script>' + res.body + '<\/script></body>';
+              document.body.appendChild(frame);
+            }).catch(function (e) { console.error("[overlay] custom widget mount failed", e); });
+          }
+
           // Keep-alive: the server evicts silent clients (~30s) and server frames do not reset that
           // timer - ping well under it.
           setInterval(function () {
@@ -553,6 +582,7 @@ public sealed class OverlayHostController : ControllerBase
           }, 15000);
 
           connect();
+          mountCustomWidget();
         })();
         </script>
         </body>
