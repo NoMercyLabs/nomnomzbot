@@ -47671,6 +47671,257 @@
         }
       }
     },
+    "/api/v{version}/widget-gallery": {
+      "get": {
+        "tags": [
+          "Widget Gallery"
+        ],
+        "summary": "Browse the verified widget catalogue, paginated, filterable by framework and trust tier.",
+        "parameters": [
+          {
+            "name": "Framework",
+            "in": "query",
+            "description": "Restrict to one source language: `vue` | `react` | `svelte` | `vanilla`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "TrustTier",
+            "in": "query",
+            "description": "Restrict to one trust tier: `first_party` | `verified_community` | `unverified`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Take",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseOfGalleryItemSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/widget-gallery/{galleryItemId}": {
+      "get": {
+        "tags": [
+          "Widget Gallery"
+        ],
+        "summary": "Get one verified gallery item in full (incl. its source, for preview). The `galleryItemId` route param is\r\na Guid, so the registered `UlidGuidModelBinder` decodes both a 26-char ULID and a raw guid;\r\nan unknown / non-verified id returns 404.",
+        "parameters": [
+          {
+            "name": "galleryItemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfGalleryItemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/widgets": {
       "get": {
         "tags": [
@@ -53952,6 +54203,120 @@
           }
         }
       },
+      "GalleryItemDetail": {
+        "required": [
+          "id",
+          "name",
+          "description",
+          "framework",
+          "trustTier",
+          "installCount",
+          "availableInSaaS",
+          "sourceKind",
+          "defaultSettings",
+          "defaultEventSubscriptions",
+          "sourceCode"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "framework": {
+            "type": "string"
+          },
+          "trustTier": {
+            "type": "string"
+          },
+          "installCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "availableInSaaS": {
+            "type": "boolean"
+          },
+          "sourceKind": {
+            "type": "string"
+          },
+          "defaultSettings": {
+            "type": "object"
+          },
+          "defaultEventSubscriptions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sourceCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "A single verified gallery item in full: the summary fields plus everything the dashboard's install/clone UI needs\r\nto preview and pre-configure — the item's string? GalleryItemDetail.SourceCode (for the preview pane), its declared\r\nDictionary&lt;string, object&gt; GalleryItemDetail.DefaultSettings / List&lt;string&gt; GalleryItemDetail.DefaultEventSubscriptions (applied on install), and its\r\nstring GalleryItemDetail.SourceKind provenance (`in_repo` | `github`)."
+      },
+      "GalleryItemSummary": {
+        "required": [
+          "id",
+          "name",
+          "description",
+          "framework",
+          "trustTier",
+          "installCount",
+          "availableInSaaS"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "framework": {
+            "type": "string"
+          },
+          "trustTier": {
+            "type": "string"
+          },
+          "installCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "availableInSaaS": {
+            "type": "boolean"
+          }
+        },
+        "description": "A row in the public widget-gallery browse list (widgets-overlays.md §5c). The lightweight shape a channel scans\r\nwhen choosing what to install/clone — the heavy fields (source, default config) load only on the detail read.\r\nstring GalleryItemSummary.TrustTier is `first_party` | `verified_community` | `unverified`."
+      },
       "GamePlayDto": {
         "required": [
           "id",
@@ -56636,6 +57001,44 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/FederationPeerDto"
+            }
+          },
+          "nextPage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PaginatedResponseOfGalleryItemSummary": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GalleryItemSummary"
             }
           },
           "nextPage": {
@@ -60520,6 +60923,36 @@
               },
               {
                 "$ref": "#/components/schemas/FoundersBadgeDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfGalleryItemDetail": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GalleryItemDetail"
               }
             ]
           },
@@ -67882,6 +68315,9 @@
     },
     {
       "name": "Viewer Data"
+    },
+    {
+      "name": "Widget Gallery"
     },
     {
       "name": "Widgets"
