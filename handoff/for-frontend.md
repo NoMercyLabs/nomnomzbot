@@ -16,6 +16,46 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-14 — Widgets/Overlays editor: rewire to compile-on-save (BREAKING contract change)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the widget subsystem was rebuilt to the `widgets-overlays.md` spec. The old
+  "PUT `customCode`" save path is **gone** — the editor now creates a widget, then **compiles**
+  authored source into an append-only version that the overlay serves + hot-reloads. Rewire the
+  "Overlays" page + code editor to this flow:
+  1. **Create** → `POST /channels/{id}/widgets` with `{ name, framework }` where `framework` ∈
+     `vanilla|react|vue|svelte` (**renamed from `type`**; only `vanilla` + `react` compile today).
+     Offer a template picker from **`GET /channels/{id}/widgets/templates`** →
+     `WidgetTemplate{ key, name, description, framework, source }` (3 starter vanilla widgets; seed
+     the editor with `source`).
+  2. **Load source to edit** → `GET /channels/{id}/widgets/{widgetId}/versions/{versionId}` →
+     `WidgetVersionDetail.sourceCode` (use the widget's `activeVersionId`, or the newest from
+     `GET .../versions`). `WidgetDetail` **no longer has `customCode`**.
+  3. **Save = compile** → `POST /channels/{id}/widgets/{widgetId}/compile` with `{ sourceCode }` →
+     `WidgetVersionDetail{ buildStatus: pending|success|error, buildError?, buildLog?, contentHash }`.
+     Always 200; if `buildStatus == "error"`, show `buildError` in the editor (the overlay keeps the
+     last good version). On success the overlay hot-reloads itself.
+  4. **Version history / rollback** → `GET .../versions` (newest first) + `POST .../rollback/{versionId}`.
+  5. **Clone** → replace the client-side "Copy of…" re-POST with **`POST /channels/{id}/widgets/clone`**
+     `{ installedWidgetId }` → a new live custom widget (source copied + compiled).
+- **Why:** `WidgetDetail` changed shape — now `{ id, name, description?, framework, source, isEnabled,
+  overlayUrl?, activeVersionId?, galleryItemId?, settings, eventSubscriptions, lastRuntimeError?,
+  lastRanAt?, createdAt, updatedAt }` (was `{ type, customCode, … }`). `CreateWidgetRequest` uses
+  `framework` (not `type`) and dropped `customCode`; `UpdateWidgetRequest` dropped `customCode`
+  (it now patches name/description/settings/subscriptions/enabled only). The old editor's `saveCode`
+  (PUT customCode) is now a silent no-op → the editor is broken against the new backend until rewired.
+- **Where:** `feature/widgets/` (WidgetsScreen/WidgetsController), `core/network/WidgetsApi.kt`
+  (DTOs + calls), `core/editor` (unchanged — the CodeMirror editor is reused; just feed it the version
+  source + save via /compile). The overlay runtime (host page + SDK + bundle serving) is **100% backend**
+  — no frontend work: the OBS browser source is `WidgetDetail.overlayUrl`, unchanged.
+- **Gate-2 keys:** `widget:read` (list/get/versions/templates), `widget:write` (create/update/delete/
+  clone), `widget:compile`, `widget:version:read`, `widget:rollback` — all seeded.
+- **⚠️ Backend still owes you:** `server/openapi/v1.json` is **not yet refreshed** for these DTO changes
+  (blocked locally on a busy port). Do NOT resync Kotlin DTOs against the stale snapshot — the backend
+  will refresh v1.json and ping this entry; `ApiContractTest` will then guard the new shapes.
+- **Done when:** create-from-template → edit in the code editor → Save compiles + the OBS overlay URL
+  renders the widget and hot-reloads on save; a build error shows in the editor; version list + rollback
+  work; clone produces a live, independently-editable copy; en + nl strings.
+
 ### 2026-07-11 — Media-share page: mod queue + overlay widget (viewer clip/video queue)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** two surfaces. (1) A **mod queue** page: list submissions (filter by status), approve/reject/
