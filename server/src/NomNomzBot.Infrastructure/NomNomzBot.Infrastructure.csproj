@@ -18,10 +18,15 @@
   <!-- The vendored Vue SFC compiler (@vue/compiler-sfc IIFE) + our assembly wrapper, embedded so
        JintVueSfcCompiler loads them into its pooled Jint engines with no filesystem dependency. The .js files
        otherwise fall into the SDK's default None glob, so remove them there first; LogicalName pins a stable
-       manifest name (the default derivation mangles the hyphens/dots in the file names). -->
+       manifest name (the default derivation mangles the hyphens/dots in the file names).
+
+       vue.runtime.global.prod.js is the matching Vue 3.5.39 RUNTIME (exposes window.Vue with createApp + the
+       compiled-render helpers). It is not loaded into Jint — OverlayVueRuntimeController serves it at
+       /overlay/vue.js so it is defined inside the overlay iframe before a compiled vue widget bundle runs. -->
   <ItemGroup>
     <None Remove="Content\Widgets\Vendor\vue-compiler-sfc.js" />
     <None Remove="Content\Widgets\Vendor\compile-sfc.js" />
+    <None Remove="Content\Widgets\Vendor\vue.runtime.global.prod.js" />
     <EmbeddedResource
       Include="Content\Widgets\Vendor\vue-compiler-sfc.js"
       LogicalName="NomNomzBot.Infrastructure.Widgets.Vendor.vue-compiler-sfc.js"
@@ -30,6 +35,19 @@
       Include="Content\Widgets\Vendor\compile-sfc.js"
       LogicalName="NomNomzBot.Infrastructure.Widgets.Vendor.compile-sfc.js"
     />
+    <EmbeddedResource
+      Include="Content\Widgets\Vendor\vue.runtime.global.prod.js"
+      LogicalName="NomNomzBot.Infrastructure.Widgets.Vendor.vue.runtime.global.prod.js"
+    />
+  </ItemGroup>
+
+  <!-- The four first-party widget SFCs, embedded so FirstPartyWidgetCatalogueSeeder can read each one's source
+       (manifest name NomNomzBot.Infrastructure.Content.Widgets.Assets.<key>.vue) at seed time. The default manifest
+       derivation already yields that name; the files otherwise fall into the SDK's default None glob, so remove
+       them there first. -->
+  <ItemGroup>
+    <None Remove="Content\Widgets\Assets\*.vue" />
+    <EmbeddedResource Include="Content\Widgets\Assets\*.vue" />
   </ItemGroup>
 
   <ItemGroup>

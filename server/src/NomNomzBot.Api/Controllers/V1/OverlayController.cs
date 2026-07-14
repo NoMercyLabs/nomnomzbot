@@ -80,6 +80,9 @@ public class OverlayController : BaseController
                 ? "text/html; charset=utf-8"
                 : "application/javascript; charset=utf-8";
         Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+        // Tell the overlay host which framework this bundle is: for "vue" it injects the Vue runtime
+        // (/overlay/vue.js) into the widget iframe before the bundle, so window.Vue exists when the bundle mounts.
+        Response.Headers["X-Widget-Framework"] = result.Value.Framework;
         return Content(result.Value.Content, contentType);
     }
 }

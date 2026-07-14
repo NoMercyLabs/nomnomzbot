@@ -605,17 +605,24 @@ public sealed class OverlayHostController : ControllerBase
             fetch(url, { cache: "no-store" }).then(function (r) {
               if (!r.ok) return null;
               var isHtml = (r.headers.get("content-type") || "").indexOf("text/html") === 0;
-              return r.text().then(function (body) { return { body: body, isHtml: isHtml }; });
+              var framework = (r.headers.get("X-Widget-Framework") || "").toLowerCase();
+              return r.text().then(function (body) { return { body: body, isHtml: isHtml, framework: framework }; });
             }).then(function (res) {
               if (!res) return;
               // The SDK loads first (parser-blocking), so window.NomNomz is defined before the widget's scripts run.
               var sdkTag = '<script src="' + location.origin + '/overlay/sdk.js"><\/script>';
+              // A compiled vue widget keeps its `vue` import external and self-mounts via window.Vue. Inject the Vue
+              // runtime BEFORE the SDK (and thus before the widget bundle) so window.Vue is defined when it mounts.
+              // Same-origin scripts DO load inside the null-origin sandboxed iframe (the SDK already relies on this).
+              var vueTag = res.framework === "vue"
+                ? '<script src="' + location.origin + '/overlay/vue.js"><\/script>'
+                : '';
               var frame = document.createElement("iframe");
               frame.id = "custom-widget";
               frame.setAttribute("sandbox", "allow-scripts");
               frame.style.cssText =
                 "position:fixed;inset:0;width:100%;height:100%;border:0;background:transparent;";
-              frame.srcdoc = sdkTag + (res.isHtml ? res.body
+              frame.srcdoc = vueTag + sdkTag + (res.isHtml ? res.body
                 : '<!doctype html><meta charset="utf-8">'
                   + '<body style="margin:0;background:transparent"><script>' + res.body + '<\/script></body>');
               customFrame = frame;

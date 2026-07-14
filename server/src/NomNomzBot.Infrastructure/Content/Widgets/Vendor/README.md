@@ -1,8 +1,9 @@
-# Vendored Vue SFC compiler
+# Vendored Vue SFC compiler + runtime
 
-These two files back `JintVueSfcCompiler` (server-side Vue Single-File-Component compilation inside Jint,
-no Node runtime). Both are embedded resources (see `NomNomzBot.Infrastructure.csproj`) and loaded once into
-each pooled Jint engine at warm-up.
+These files back the Vue widget path. The first two power `JintVueSfcCompiler` (server-side Vue
+Single-File-Component compilation inside Jint, no Node runtime) — both embedded resources (see
+`NomNomzBot.Infrastructure.csproj`) loaded once into each pooled Jint engine at warm-up. The third is the
+matching Vue **runtime**, served to the browser (not loaded into Jint).
 
 ## `vue-compiler-sfc.js` (vendored, third-party)
 
@@ -38,3 +39,22 @@ Notes:
   the external `vue` to the host `window.Vue`.
 - `rewriteDefault` is called with the block's babel parser plugins (`typescript`/`jsx`), or it throws on a
   generic (e.g. `ref<number>`, `setup(__props: any)`) — a subtle but load-bearing detail.
+
+## `vue.runtime.global.prod.js` (vendored, third-party)
+
+The **`vue@3.5.39`** runtime global build (MIT — © Vue.js contributors), ~104 kb, exposing `window.Vue`
+(`createApp` + the compiled-render-fn helpers `_toDisplayString`, `openBlock`, `createElementBlock`, …). Its
+version **MUST** match `@vue/compiler-sfc` above — the compiler emits render code the runtime executes.
+
+`OverlayVueRuntimeController` serves this at `/overlay/vue.js`; the overlay host injects that script into a
+vue widget's sandboxed iframe **before** the widget bundle, so `window.Vue` is defined when the bundle
+self-mounts. It is not loaded into Jint.
+
+Regenerate whenever the pinned Vue version changes (from a scratch dir with Node + npm):
+
+```bash
+npm i vue@3.5.39
+cp node_modules/vue/dist/vue.runtime.global.prod.js .
+```
+
+Do NOT hand-edit; only re-copy the dist file.
