@@ -517,6 +517,12 @@ public sealed class OverlayHostController : ControllerBase
                   // saved Widget.Settings bag (accentColor/durationMs at top level) — not a .settings field.
                   widgetSettings = msg.result.initialState || {};
                   applySettings(msg.result.initialState);
+                  // Deliver the saved settings to the custom widget now that they're loaded. The iframe's SDK
+                  // usually posts "ready" (below) BEFORE this join response arrives, and at that point
+                  // widgetSettings was still empty — so without this re-send the widget never receives its
+                  // configured settings on first load (it renders with defaults until a later change event).
+                  // A no-op if the iframe hasn't mounted yet; the "ready" handler then delivers these instead.
+                  postToCustom({ kind: "settings", settings: widgetSettings });
                 }
               });
             };
