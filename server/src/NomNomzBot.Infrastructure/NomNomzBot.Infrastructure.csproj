@@ -15,6 +15,23 @@
     <ProjectReference Include="..\NomNomzBot.Domain\NomNomzBot.Domain.csproj" />
   </ItemGroup>
 
+  <!-- The vendored Vue SFC compiler (@vue/compiler-sfc IIFE) + our assembly wrapper, embedded so
+       JintVueSfcCompiler loads them into its pooled Jint engines with no filesystem dependency. The .js files
+       otherwise fall into the SDK's default None glob, so remove them there first; LogicalName pins a stable
+       manifest name (the default derivation mangles the hyphens/dots in the file names). -->
+  <ItemGroup>
+    <None Remove="Content\Widgets\Vendor\vue-compiler-sfc.js" />
+    <None Remove="Content\Widgets\Vendor\compile-sfc.js" />
+    <EmbeddedResource
+      Include="Content\Widgets\Vendor\vue-compiler-sfc.js"
+      LogicalName="NomNomzBot.Infrastructure.Widgets.Vendor.vue-compiler-sfc.js"
+    />
+    <EmbeddedResource
+      Include="Content\Widgets\Vendor\compile-sfc.js"
+      LogicalName="NomNomzBot.Infrastructure.Widgets.Vendor.compile-sfc.js"
+    />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Jint" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />

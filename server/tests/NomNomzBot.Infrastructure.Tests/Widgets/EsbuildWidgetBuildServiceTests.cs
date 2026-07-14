@@ -28,8 +28,12 @@ namespace NomNomzBot.Infrastructure.Tests.Widgets;
 public sealed class EsbuildWidgetBuildServiceTests
 {
     private static EsbuildWidgetBuildService Build(IProcessRunner runner) =>
+        Build(runner, Substitute.For<IVueSfcCompiler>());
+
+    private static EsbuildWidgetBuildService Build(IProcessRunner runner, IVueSfcCompiler vue) =>
         new(
             runner,
+            vue,
             new ConfigurationBuilder().Build(),
             NullLogger<EsbuildWidgetBuildService>.Instance
         );
@@ -156,10 +160,10 @@ public sealed class EsbuildWidgetBuildServiceTests
     }
 
     [Theory]
-    [InlineData("vue")]
     [InlineData("svelte")]
     public async Task Plugin_frameworks_fail_honestly_rather_than_mis_compiling(string framework)
     {
+        // Svelte still needs the plugin-based build (Vue is now supported via IVueSfcCompiler + esbuild).
         IProcessRunner runner = Substitute.For<IProcessRunner>();
         EsbuildWidgetBuildService service = Build(runner);
 
