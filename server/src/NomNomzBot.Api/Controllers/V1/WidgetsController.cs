@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Extensions;
+using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -39,6 +40,17 @@ public class WidgetsController : BaseController
         _widgetService = widgetService;
         _configuration = configuration;
     }
+
+    /// <summary>
+    /// Decode a widget/version/gallery route id from its wire form to the canonical guid the services parse. Owned
+    /// ids are serialized to clients as 26-char ULID strings (<see cref="UlidGuidJsonConverter"/>), so
+    /// <c>WidgetDetail.id</c> et al. come back as ULIDs; these route params are typed <c>string</c> and reach the
+    /// service via <c>Guid.TryParse</c>, which rejects a ULID. Normalizing here (accepting ULID OR raw guid) is what
+    /// makes the editor's compile/versions/rollback calls resolve instead of 404-ing. An undecodable value is passed
+    /// through so the service returns its own NOT_FOUND.
+    /// </summary>
+    private static string Decode(string id) =>
+        GuidUlidCodec.TryDecode(id, out Guid guid) ? guid.ToString() : id;
 
     /// <summary>
     /// Rewrites the OBS browser-source URL to the origin the operator actually reached the dashboard on, so a
@@ -119,7 +131,11 @@ public class WidgetsController : BaseController
         CancellationToken ct
     )
     {
-        Result<WidgetDetail> result = await _widgetService.GetAsync(channelId, widgetId, ct);
+        Result<WidgetDetail> result = await _widgetService.GetAsync(
+            channelId,
+            Decode(widgetId),
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<WidgetDetail> { Data = WithOverlayOrigin(result.Value) });
@@ -187,7 +203,7 @@ public class WidgetsController : BaseController
     {
         Result<WidgetDetail> result = await _widgetService.InstallFromGalleryAsync(
             channelId,
-            galleryItemId,
+            Decode(galleryItemId),
             ct
         );
         if (result.IsFailure)
@@ -217,7 +233,7 @@ public class WidgetsController : BaseController
     {
         Result<WidgetDetail> result = await _widgetService.UpdateAsync(
             channelId,
-            widgetId,
+            Decode(widgetId),
             request,
             ct
         );
@@ -236,7 +252,7 @@ public class WidgetsController : BaseController
         CancellationToken ct
     )
     {
-        Result result = await _widgetService.DeleteAsync(channelId, widgetId, ct);
+        Result result = await _widgetService.DeleteAsync(channelId, Decode(widgetId), ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return NoContent();
@@ -258,7 +274,7 @@ public class WidgetsController : BaseController
     {
         Result<WidgetVersionDetail> result = await _widgetService.CompileAsync(
             channelId,
-            widgetId,
+            Decode(widgetId),
             request,
             ct
         );
@@ -281,7 +297,7 @@ public class WidgetsController : BaseController
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
         Result<PagedList<WidgetVersionSummary>> result = await _widgetService.ListVersionsAsync(
             channelId,
-            widgetId,
+            Decode(widgetId),
             pagination,
             ct
         );
@@ -303,8 +319,8 @@ public class WidgetsController : BaseController
     {
         Result<WidgetVersionDetail> result = await _widgetService.GetVersionAsync(
             channelId,
-            widgetId,
-            versionId,
+            Decode(widgetId),
+            Decode(versionId),
             ct
         );
         if (result.IsFailure)
@@ -325,8 +341,8 @@ public class WidgetsController : BaseController
     {
         Result<WidgetDetail> result = await _widgetService.RollbackAsync(
             channelId,
-            widgetId,
-            versionId,
+            Decode(widgetId),
+            Decode(versionId),
             ct
         );
         if (result.IsFailure)
