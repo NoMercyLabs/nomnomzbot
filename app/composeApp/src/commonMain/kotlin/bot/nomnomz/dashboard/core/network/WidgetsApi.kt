@@ -77,6 +77,19 @@ interface WidgetsApi {
      * first-party / gallery widget becomes independently editable. Addressed by the source [installedWidgetId].
      */
     suspend fun clone(channelId: String, installedWidgetId: String): ApiResult<WidgetSummary>
+
+    /**
+     * Install a verified gallery widget into this channel by its [galleryItemId]: the backend copies the item's
+     * source in, compiles it into v1, and the overlay goes live immediately. Returns the newly-installed widget.
+     */
+    suspend fun install(channelId: String, galleryItemId: String): ApiResult<WidgetSummary>
+
+    /**
+     * Clone a GALLERY item into a NEW, fully-owned `custom` widget (source copied in + compiled) so a verified
+     * gallery widget becomes independently editable — the gallery counterpart of [clone] (which forks an
+     * already-installed widget). Addressed by the source [galleryItemId].
+     */
+    suspend fun cloneFromGallery(channelId: String, galleryItemId: String): ApiResult<WidgetSummary>
 }
 
 class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
@@ -160,6 +173,19 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
             "api/v1/channels/$channelId/widgets/clone",
             CloneWidgetBody(installedWidgetId = installedWidgetId),
         )
+
+    // The install route carries no body — the gallery item is addressed entirely by the {galleryItemId} segment;
+    // the backend returns 201 with a StatusResponseDto<WidgetDetail>, which postEnvelope unwraps like any 2xx.
+    override suspend fun install(channelId: String, galleryItemId: String): ApiResult<WidgetSummary> =
+        client.postEnvelope("api/v1/channels/$channelId/widgets/install/$galleryItemId", Unit)
+
+    // Same clone endpoint as [clone], but the fork source is a gallery item — so the body carries galleryItemId
+    // instead of installedWidgetId (exactly one is set; the null one is omitted from the wire body).
+    override suspend fun cloneFromGallery(channelId: String, galleryItemId: String): ApiResult<WidgetSummary> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/widgets/clone",
+            CloneWidgetBody(galleryItemId = galleryItemId),
+        )
 }
 
 /**
@@ -183,11 +209,15 @@ data class CreateWidgetBody(val name: String, val framework: String)
 data class CompileWidgetBody(val sourceCode: String)
 
 /**
- * The clone request body (backend `CloneWidgetRequest`). Exactly one fork source is set; the dashboard clones an
- * already-installed widget, so it sends [installedWidgetId].
+ * The clone request body (backend `CloneWidgetRequest`). Exactly one fork source is set: [installedWidgetId] to
+ * fork an already-installed widget, or [galleryItemId] to clone straight from the gallery. The unset one stays
+ * null and is omitted from the wire body (`explicitNulls = false` on the shared Json).
  */
 @Serializable
-data class CloneWidgetBody(val installedWidgetId: String)
+data class CloneWidgetBody(
+    val installedWidgetId: String? = null,
+    val galleryItemId: String? = null,
+)
 
 /**
  * An overlay widget (backend `WidgetDetail`): its [id], display [name], the source [framework]

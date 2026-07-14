@@ -95,6 +95,7 @@ import bot.nomnomz.dashboard.core.network.RestStreamApi
 import bot.nomnomz.dashboard.core.network.RestTimersApi
 import bot.nomnomz.dashboard.core.network.RestTtsApi
 import bot.nomnomz.dashboard.core.editor.CustomCodeEditor
+import bot.nomnomz.dashboard.core.network.RestWidgetGalleryApi
 import bot.nomnomz.dashboard.core.network.RestWidgetsApi
 import bot.nomnomz.dashboard.core.network.RewardsApi
 import bot.nomnomz.dashboard.core.network.RolesApi
@@ -102,6 +103,7 @@ import bot.nomnomz.dashboard.core.network.SongRequestsApi
 import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.TimersApi
 import bot.nomnomz.dashboard.core.network.TtsApi
+import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
 import bot.nomnomz.dashboard.core.network.WidgetsApi
 import bot.nomnomz.dashboard.core.network.UsersApi
 import bot.nomnomz.dashboard.core.network.RestUsersApi
@@ -268,6 +270,7 @@ class AppGraph {
     val economyApi: EconomyApi = RestEconomyApi(apiClient)
     val alertsApi: AlertsApi = RestAlertsApi(apiClient)
     val widgetsApi: WidgetsApi = RestWidgetsApi(apiClient)
+    val widgetGalleryApi: WidgetGalleryApi = RestWidgetGalleryApi(apiClient)
     val eventStoreApi: EventStoreApi = RestEventStoreApi(apiClient)
     val chatApi: ChatApi = RestChatApi(apiClient)
     val quotesApi: QuotesApi = RestQuotesApi(apiClient)
@@ -439,6 +442,7 @@ class AppGraph {
         WidgetsController(
             channelsApi = channelsApi,
             widgetsApi = widgetsApi,
+            widgetGalleryApi = widgetGalleryApi,
             codeEditor = CustomCodeEditor(),
         )
 

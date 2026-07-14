@@ -45,6 +45,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
+import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
@@ -59,6 +61,8 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.GalleryItemSummary
+import bot.nomnomz.dashboard.core.network.GalleryListRequest
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetTemplate
 import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
@@ -127,6 +131,21 @@ import nomnomzbot.composeapp.generated.resources.widgets_versions_loading
 import nomnomzbot.composeapp.generated.resources.widgets_versions_row
 import nomnomzbot.composeapp.generated.resources.widgets_versions_title
 import nomnomzbot.composeapp.generated.resources.widgets_rollback_action
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_action
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_clone_action
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_clone_action_short
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_close
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_empty
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_error
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_filter_all
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_install_action
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_install_action_short
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_install_count
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_loading
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_title
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_trust_first_party
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_trust_unverified
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_trust_verified
 import org.jetbrains.compose.resources.stringResource
 
 // The Overlays page (frontend-ia.md §3, Stream group): the channel's OBS browser-source overlay widgets, all
@@ -162,6 +181,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
     var pendingVersions: WidgetSummary? by remember { mutableStateOf(null) }
     var pendingRollback: PendingRollback? by remember { mutableStateOf(null) }
     var showCreateDialog: Boolean by remember { mutableStateOf(false) }
+    var showGalleryDialog: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -173,9 +193,22 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
             title = stringResource(Res.string.shell_nav_overlays),
             subtitle = stringResource(Res.string.widgets_subtitle),
         ) {
-            ManageGate(manage) {
-                Button(onClick = { showCreateDialog = true }) {
-                    Text(stringResource(Res.string.widgets_create_action))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Browsing the gallery is a public read, so it stays ungated; the Install / Clone controls inside
+                // the dialog carry the Editor write gate.
+                Button(
+                    onClick = { showGalleryDialog = true },
+                    variant = ButtonVariant.Outline,
+                ) {
+                    Text(stringResource(Res.string.widgets_gallery_action))
+                }
+                ManageGate(manage) {
+                    Button(onClick = { showCreateDialog = true }) {
+                        Text(stringResource(Res.string.widgets_create_action))
+                    }
                 }
             }
         }
@@ -279,6 +312,22 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
                 scope.launch { controller.createWidget(name, framework, seedSource, editorMessages) }
             },
             onDismiss = { showCreateDialog = false },
+        )
+    }
+
+    if (showGalleryDialog) {
+        GalleryBrowseDialog(
+            manage = manage,
+            loadGallery = { request -> controller.listGallery(request) },
+            onInstall = { item ->
+                showGalleryDialog = false
+                scope.launch { controller.installFromGallery(item.id) }
+            },
+            onClone = { item ->
+                showGalleryDialog = false
+                scope.launch { controller.cloneFromGallery(item.id, editorMessages) }
+            },
+            onDismiss = { showGalleryDialog = false },
         )
     }
 }
@@ -857,4 +906,189 @@ private fun WidgetVersionRow(
             }
         }
     }
+}
+
+// The gallery browse surface (widgets-overlays.md §5c), reachable from the Overlays header. Lists the public,
+// verified widget catalogue with an optional framework filter; each item can be installed into the channel or
+// cloned into an editable copy. Fetches its own list on open + on every filter change (loading / error / empty /
+// list). Install / Clone are Editor-gated (the page's manage floor); browsing itself is a public read.
+@Composable
+private fun GalleryBrowseDialog(
+    manage: ManageDecision,
+    loadGallery: suspend (GalleryListRequest) -> ApiResult<List<GalleryItemSummary>>,
+    onInstall: (GalleryItemSummary) -> Unit,
+    onClone: (GalleryItemSummary) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var selectedFramework: String? by remember { mutableStateOf(null) }
+    var result: ApiResult<List<GalleryItemSummary>>? by remember { mutableStateOf(null) }
+
+    // First open (framework null) and every filter change re-list the catalogue.
+    LaunchedEffect(selectedFramework) { result = loadGallery(GalleryListRequest(framework = selectedFramework)) }
+
+    val allLabel: String = stringResource(Res.string.widgets_gallery_filter_all)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.widgets_gallery_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(spacing.s3),
+            ) {
+                // The framework filter — "All" plus each supported framework; picking one re-lists the catalogue.
+                BadgeRow(
+                    options = listOf<String?>(null) + WIDGET_FRAMEWORKS,
+                    label = { it ?: allLabel },
+                    isSelected = { it == selectedFramework },
+                    onSelect = { selectedFramework = it },
+                )
+
+                when (val current: ApiResult<List<GalleryItemSummary>>? = result) {
+                    null ->
+                        Text(
+                            text = stringResource(Res.string.widgets_gallery_loading),
+                            style = typography.sm,
+                            color = tokens.mutedForeground,
+                        )
+                    is ApiResult.Failure ->
+                        Text(
+                            text = stringResource(Res.string.widgets_gallery_error, current.error.message),
+                            style = typography.sm,
+                            color = tokens.destructive,
+                        )
+                    is ApiResult.Ok ->
+                        if (current.value.isEmpty()) {
+                            Text(
+                                text = stringResource(Res.string.widgets_gallery_empty),
+                                style = typography.sm,
+                                color = tokens.mutedForeground,
+                            )
+                        } else {
+                            current.value.forEach { item ->
+                                GalleryItemCard(
+                                    item = item,
+                                    manage = manage,
+                                    onInstall = { onInstall(item) },
+                                    onClone = { onClone(item) },
+                                )
+                            }
+                        }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.widgets_gallery_close)) }
+        },
+    )
+}
+
+// One gallery catalogue entry: its name + description, a badge row (framework · trust tier · install count), and
+// the two write actions (Install / Clone to edit), each gated at the page's Editor manage floor. Install adds the
+// widget to the channel and goes live; Clone forks it into an editable custom copy and opens the code editor.
+@Composable
+private fun GalleryItemCard(
+    item: GalleryItemSummary,
+    manage: ManageDecision,
+    onInstall: () -> Unit,
+    onClone: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val installLabel: String = stringResource(Res.string.widgets_gallery_install_action, item.name)
+    val cloneLabel: String = stringResource(Res.string.widgets_gallery_clone_action, item.name)
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            Text(
+                text = item.name,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            item.description?.takeIf { it.isNotBlank() }?.let { description ->
+                Text(
+                    text = description,
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Badge(variant = BadgeVariant.Outline) { Text(item.framework, style = typography.xs) }
+                TrustTierBadge(item.trustTier)
+                Text(
+                    text = stringResource(Res.string.widgets_gallery_install_count, item.installCount.toString()),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                ManageGate(decision = manage) { enabled ->
+                    Button(
+                        onClick = onInstall,
+                        enabled = enabled,
+                        modifier = Modifier.semantics { contentDescription = installLabel },
+                    ) {
+                        Text(stringResource(Res.string.widgets_gallery_install_action_short))
+                    }
+                }
+                ManageGate(decision = manage) { enabled ->
+                    Button(
+                        onClick = onClone,
+                        variant = ButtonVariant.Outline,
+                        enabled = enabled,
+                        modifier = Modifier.semantics { contentDescription = cloneLabel },
+                    ) {
+                        Text(stringResource(Res.string.widgets_gallery_clone_action_short))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// The trust-tier chip: a localized label on a variant that reads the tier's weight — a first-party widget is the
+// loud Default fill, verified-community is Secondary, and an unverified / unknown tier is a quiet Outline.
+@Composable
+private fun TrustTierBadge(trustTier: String) {
+    val typography = LocalTypography.current
+
+    val variant: BadgeVariant =
+        when (trustTier) {
+            "first_party" -> BadgeVariant.Default
+            "verified_community" -> BadgeVariant.Secondary
+            else -> BadgeVariant.Outline
+        }
+    val label: String =
+        when (trustTier) {
+            "first_party" -> stringResource(Res.string.widgets_gallery_trust_first_party)
+            "verified_community" -> stringResource(Res.string.widgets_gallery_trust_verified)
+            else -> stringResource(Res.string.widgets_gallery_trust_unverified)
+        }
+
+    Badge(variant = variant) { Text(label, style = typography.xs) }
 }

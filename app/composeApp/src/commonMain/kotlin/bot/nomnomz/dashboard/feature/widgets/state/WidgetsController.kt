@@ -17,6 +17,9 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateWidgetBody
+import bot.nomnomz.dashboard.core.network.GalleryItemSummary
+import bot.nomnomz.dashboard.core.network.GalleryListRequest
+import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetTemplate
 import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
@@ -35,6 +38,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class WidgetsController(
     private val channelsApi: ChannelsApi,
     private val widgetsApi: WidgetsApi,
+    private val widgetGalleryApi: WidgetGalleryApi,
     private val codeEditor: CustomCodeEditorIO,
 ) {
     private val _state: MutableStateFlow<WidgetsState> = MutableStateFlow(WidgetsState.Loading)
@@ -155,6 +159,39 @@ class WidgetsController(
         val channel: String = channelId ?: return failWrite(NoChannelError)
         when (val result: ApiResult<WidgetSummary> = widgetsApi.clone(channel, widgetId)) {
             is ApiResult.Ok -> load()
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
+    /**
+     * Browse the public widget gallery for the browse surface. Returns the raw result so the dialog renders its
+     * own loading / error / list — a read that does not disturb the page's [state], and (like the catalogue
+     * itself) needs no channel resolve.
+     */
+    suspend fun listGallery(request: GalleryListRequest): ApiResult<List<GalleryItemSummary>> =
+        widgetGalleryApi.listGallery(request.framework, request.trustTier, request.page, request.pageSize)
+
+    /**
+     * Install a gallery item into the active channel (compiled + live), then reload so the new overlay appears in
+     * the list. Surfaces the error on failure.
+     */
+    suspend fun installFromGallery(galleryItemId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        when (val result: ApiResult<WidgetSummary> = widgetsApi.install(channel, galleryItemId)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
+    /**
+     * Clone a gallery item into a fresh, independently-editable custom widget, then open the compile-on-save
+     * editor on the new copy (seeded with its source) so the operator can adapt it right away. The editor close
+     * reloads the list (via [editWidgetCode]); surfaces the error if the clone call itself fails.
+     */
+    suspend fun cloneFromGallery(galleryItemId: String, messages: WidgetEditorMessages) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        when (val result: ApiResult<WidgetSummary> = widgetsApi.cloneFromGallery(channel, galleryItemId)) {
+            is ApiResult.Ok -> editWidgetCode(result.value, messages)
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }

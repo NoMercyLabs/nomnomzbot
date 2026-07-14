@@ -17,7 +17,11 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateWidgetBody
+import bot.nomnomz.dashboard.core.network.GalleryItemDetail
+import bot.nomnomz.dashboard.core.network.GalleryItemSummary
+import bot.nomnomz.dashboard.core.network.GalleryListRequest
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
+import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetTemplate
 import bot.nomnomz.dashboard.core.network.WidgetVersionDetail
@@ -303,6 +307,80 @@ class WidgetsControllerTest {
     }
 
     @Test
+    fun browse_gallery_lists_the_public_catalogue_and_threads_the_framework_filter() = runTest {
+        val galleryApi =
+            FakeWidgetGalleryApi(
+                ApiResult.Ok(
+                    listOf(
+                        GalleryItemSummary(
+                            id = "g-1",
+                            name = "Follower Alert",
+                            framework = "vue",
+                            trustTier = "first_party",
+                            installCount = 42,
+                        )
+                    )
+                )
+            )
+        val controller =
+            widgetsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                RecordingWidgetsApi(ApiResult.Ok(emptyList())),
+                galleryApi = galleryApi,
+            )
+
+        val result: ApiResult<List<GalleryItemSummary>> =
+            controller.listGallery(GalleryListRequest(framework = "vue"))
+
+        // The catalogue items surface with their browse fields intact (name, trust tier, install count) …
+        assertTrue(result is ApiResult.Ok)
+        val items: List<GalleryItemSummary> = (result as ApiResult.Ok).value
+        assertEquals(1, items.size)
+        assertEquals("Follower Alert", items.first().name)
+        assertEquals("first_party", items.first().trustTier)
+        assertEquals(42, items.first().installCount)
+        // … and the chosen framework filter is threaded straight through to the gallery read.
+        assertEquals("vue", galleryApi.listedRequests.single().framework)
+    }
+
+    @Test
+    fun install_from_gallery_calls_install_then_reloads_with_the_new_overlay() = runTest {
+        val widgetsApi = RecordingWidgetsApi(ApiResult.Ok(emptyList()))
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+        controller.load()
+        assertTrue(controller.state.value is WidgetsState.Empty)
+
+        controller.installFromGallery(galleryItemId = "g-1")
+
+        // The install endpoint was hit with the gallery item id, scoped to the resolved channel …
+        assertEquals(listOf("g-1"), widgetsApi.installed)
+        assertEquals("ch1", widgetsApi.installedChannelId)
+        // … and the post-install reload surfaces the freshly-installed overlay — the consequence, not just the call.
+        val state: WidgetsState = controller.state.value
+        assertTrue(state is WidgetsState.Ready)
+        assertEquals(1, (state as WidgetsState.Ready).widgets.size)
+        assertEquals("installed-g-1", state.widgets.first().id)
+    }
+
+    @Test
+    fun clone_from_gallery_clones_with_the_gallery_item_id_then_opens_the_editor_on_the_copy() = runTest {
+        val widgetsApi = RecordingWidgetsApi(ApiResult.Ok(emptyList()), versionSource = "<gallery-src/>")
+        val editor = FakeCodeEditor(toSave = emptyList())
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
+        controller.load()
+
+        controller.cloneFromGallery(galleryItemId = "g-1", messages = messages)
+
+        // Clone hit the real clone endpoint with the GALLERY item id (not an installed-widget id).
+        assertEquals(listOf("g-1"), widgetsApi.clonedFromGalleryIds)
+        assertTrue(widgetsApi.clonedIds.isEmpty())
+        // …then the editor opened on the new copy, seeded with its active-version source (ready to adapt).
+        assertEquals("clone" to "<gallery-src/>", editor.openedWith)
+    }
+
+    @Test
     fun rollback_calls_the_endpoint_then_reloads() = runTest {
         val widgetsApi =
             RecordingWidgetsApi(
@@ -319,13 +397,15 @@ class WidgetsControllerTest {
     }
 }
 
-// Builds a controller with a default (immediately-closing) code editor so the tests that don't exercise the
-// editor stay unchanged; the editor tests pass an explicit [FakeCodeEditor].
+// Builds a controller with a default (immediately-closing) code editor and an empty gallery so the tests that
+// don't exercise those stay unchanged; the editor / gallery tests pass an explicit [FakeCodeEditor] /
+// [FakeWidgetGalleryApi].
 private fun widgetsController(
     channelsApi: ChannelsApi,
     widgetsApi: WidgetsApi,
     editor: CustomCodeEditorIO = FakeCodeEditor(),
-): WidgetsController = WidgetsController(channelsApi, widgetsApi, editor)
+    galleryApi: WidgetGalleryApi = FakeWidgetGalleryApi(),
+): WidgetsController = WidgetsController(channelsApi, widgetsApi, galleryApi, editor)
 
 // A fake compile-on-save editor. Records what it opened with, "presses Save & Compile" for each source in
 // [toSave] (invoking the caller's compile callback and capturing the returned feedback), then closes. An empty
@@ -392,6 +472,9 @@ private class RecordingWidgetsApi(
     val compiled: MutableList<Pair<String, String>> = mutableListOf()
     val loadedVersionIds: MutableList<String> = mutableListOf()
     val clonedIds: MutableList<String> = mutableListOf()
+    val clonedFromGalleryIds: MutableList<String> = mutableListOf()
+    val installed: MutableList<String> = mutableListOf()
+    var installedChannelId: String? = null
     val rolledBack: MutableList<Pair<String, String>> = mutableListOf()
 
     override suspend fun list(channelId: String): ApiResult<List<WidgetSummary>> =
@@ -465,4 +548,45 @@ private class RecordingWidgetsApi(
         clonedIds += installedWidgetId
         return ApiResult.Ok(WidgetSummary(id = "cloned-widget", name = "clone", source = "custom"))
     }
+
+    // Install adds the compiled gallery widget to the live store so the controller's post-install reload observes
+    // the real new overlay (the consequence), and records the id + channel so the endpoint call is provable.
+    override suspend fun install(channelId: String, galleryItemId: String): ApiResult<WidgetSummary> {
+        installed += galleryItemId
+        installedChannelId = channelId
+        val widget =
+            WidgetSummary(id = "installed-$galleryItemId", name = "Gallery Widget", source = "verified_gallery")
+        store += widget
+        return ApiResult.Ok(widget)
+    }
+
+    // The gallery clone returns a fresh custom widget carrying an active version, so the controller can open the
+    // editor seeded with its source; the gallery item id is recorded to prove the fork source.
+    override suspend fun cloneFromGallery(channelId: String, galleryItemId: String): ApiResult<WidgetSummary> {
+        clonedFromGalleryIds += galleryItemId
+        return ApiResult.Ok(
+            WidgetSummary(id = "gallery-clone", name = "clone", source = "custom", activeVersionId = "v-1")
+        )
+    }
+}
+
+// A recording fake gallery catalogue: returns the preset [listResult] / [detail] and records every browse
+// request so the controller's filter threading is provable without HTTP.
+private class FakeWidgetGalleryApi(
+    private val listResult: ApiResult<List<GalleryItemSummary>> = ApiResult.Ok(emptyList()),
+    private val detail: ApiResult<GalleryItemDetail> = ApiResult.Ok(GalleryItemDetail()),
+) : WidgetGalleryApi {
+    val listedRequests: MutableList<GalleryListRequest> = mutableListOf()
+
+    override suspend fun listGallery(
+        framework: String?,
+        trustTier: String?,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<List<GalleryItemSummary>> {
+        listedRequests += GalleryListRequest(framework, trustTier, page, pageSize)
+        return listResult
+    }
+
+    override suspend fun getGalleryItem(galleryItemId: String): ApiResult<GalleryItemDetail> = detail
 }

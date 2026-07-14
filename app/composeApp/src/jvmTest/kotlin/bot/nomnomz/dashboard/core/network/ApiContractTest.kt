@@ -73,6 +73,8 @@ class ApiContractTest {
             WidgetTemplate.serializer() to "WidgetTemplate",
             WidgetVersionSummary.serializer() to "WidgetVersionSummary",
             WidgetVersionDetail.serializer() to "WidgetVersionDetail",
+            GalleryItemSummary.serializer() to "GalleryItemSummary",
+            GalleryItemDetail.serializer() to "GalleryItemDetail",
             RewardSummary.serializer() to "RewardDetail",
             RedemptionSummary.serializer() to "RedemptionListItem",
             CurrencyAccountSummary.serializer() to "CurrencyAccountDto",
