@@ -11,15 +11,26 @@
 package bot.nomnomz.dashboard.core.network
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
-// The typed widgets facade — the channel's OBS browser-source overlays the Overlays page renders. Real data
-// only: the backend lists the channel's stored widgets, each carrying its live browser-source URL (the value
-// the operator pastes into OBS). The state holder depends on this interface and fakes it in tests without HTTP.
+// The typed widgets facade — the channel's OBS browser-source overlays the Overlays page renders. Widgets are
+// compile-on-save: authored source is compiled into an append-only version the overlay serves + hot-reloads, so
+// this facade mirrors CodeScriptsApi's versioned-resource shape (compile ≈ createVersion, versions ≈
+// listVersions, rollback ≈ publishVersion). Real data only: the backend lists the channel's stored widgets, each
+// carrying its live browser-source URL (the value the operator pastes into OBS). The state holder depends on this
+// interface and fakes it in tests without HTTP.
 //
-// Backend routes (WidgetsController, all under /channels/{channelId}/widgets):
-//   GET    .../widgets               →  PaginatedResponse<WidgetDetail>   (the channel's overlays)
-//   PUT    .../widgets/{widgetId}    →  StatusResponseDto<WidgetDetail>   (partial update — flips isEnabled)
-//   DELETE .../widgets/{widgetId}    →  204 No Content                    (removes the overlay; its URL dies)
+// Backend routes (WidgetsController, all under /api/v1/channels/{channelId}/widgets):
+//   GET    .../widgets                              →  PaginatedResponse<WidgetDetail>          (the channel's overlays)
+//   POST   .../widgets                              →  StatusResponseDto<WidgetDetail>          (create — { name, framework })
+//   PUT    .../widgets/{widgetId}                   →  StatusResponseDto<WidgetDetail>          (partial update — name / isEnabled)
+//   DELETE .../widgets/{widgetId}                   →  204 No Content                           (removes the overlay; its URL dies)
+//   GET    .../widgets/templates                    →  StatusResponseDto<WidgetTemplate[]>      (starter templates for the editor)
+//   POST   .../widgets/clone                        →  StatusResponseDto<WidgetDetail>          (fork an installed widget to a custom copy)
+//   POST   .../widgets/{widgetId}/compile           →  StatusResponseDto<WidgetVersionDetail>   (compile-on-save → next version; always 200)
+//   GET    .../widgets/{widgetId}/versions          →  PaginatedResponse<WidgetVersionSummary>  (version history, newest first)
+//   GET    .../widgets/{widgetId}/versions/{vid}    →  StatusResponseDto<WidgetVersionDetail>   (a version's full source + build log)
+//   POST   .../widgets/{widgetId}/rollback/{vid}    →  StatusResponseDto<WidgetDetail>          (re-serve a past version)
 interface WidgetsApi {
     /** The channel's overlay widgets — each with its OBS browser-source URL. */
     suspend fun list(channelId: String): ApiResult<List<WidgetSummary>>
@@ -36,23 +47,36 @@ interface WidgetsApi {
      */
     suspend fun delete(channelId: String, widgetId: String): ApiResult<Unit>
 
-    /** Create a new widget with [name] and [type]. Returns the created row (including the assigned [WidgetSummary.id]). */
+    /** Create a new widget with [body] ({ name, framework }). Returns the created row (including its [WidgetSummary.id]). */
     suspend fun create(channelId: String, body: CreateWidgetBody): ApiResult<WidgetSummary>
 
     /** Rename a widget — sends a partial PUT with only [name]. */
     suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit>
 
     /**
-     * Save a custom widget's authored source ([code]) via a partial PUT carrying only `customCode`. An empty
-     * string clears the widget's code; every other field stays untouched.
+     * Compile-on-save: send the authored [sourceCode] to be built into the widget's next append-only version.
+     * Always resolves 200 with a [WidgetVersionDetail] whose `buildStatus` is `pending` / `success` / `error`
+     * (a failed build keeps the last good version live). The overlay hot-reloads itself on success.
      */
-    suspend fun saveCode(channelId: String, widgetId: String, code: String): ApiResult<Unit>
+    suspend fun compile(channelId: String, widgetId: String, sourceCode: String): ApiResult<WidgetVersionDetail>
+
+    /** The widget's version history, newest first (for the rollback / debug list). */
+    suspend fun listVersions(channelId: String, widgetId: String): ApiResult<List<WidgetVersionSummary>>
+
+    /** One version in full — carries the [WidgetVersionDetail.sourceCode] the editor loads to edit. */
+    suspend fun getVersion(channelId: String, widgetId: String, versionId: String): ApiResult<WidgetVersionDetail>
+
+    /** Roll the overlay back to a past [versionId] (it becomes the served version again). Returns the widget. */
+    suspend fun rollback(channelId: String, widgetId: String, versionId: String): ApiResult<WidgetSummary>
+
+    /** The starter templates the create flow offers — each a working, SDK-using source to seed the editor. */
+    suspend fun listTemplates(channelId: String): ApiResult<List<WidgetTemplate>>
 
     /**
-     * Clone a widget by creating a new one with the same [type] and "Copy of [sourceName]" as the name.
-     * The backend has no clone route, so the client re-issues a POST with the derived values.
+     * Clone an installed widget into a NEW, fully-owned `custom` widget (source copied in + compiled), so a
+     * first-party / gallery widget becomes independently editable. Addressed by the source [installedWidgetId].
      */
-    suspend fun clone(channelId: String, sourceType: String, sourceName: String): ApiResult<WidgetSummary>
+    suspend fun clone(channelId: String, installedWidgetId: String): ApiResult<WidgetSummary>
 }
 
 class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
@@ -92,48 +116,139 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
     override suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit> =
         client.putUnit("api/v1/channels/$channelId/widgets/$widgetId", UpdateWidgetBody(name = name))
 
-    // Partial PUT — only customCode changes; the backend leaves every other field of the widget as-is.
-    override suspend fun saveCode(channelId: String, widgetId: String, code: String): ApiResult<Unit> =
-        client.putUnit(
-            "api/v1/channels/$channelId/widgets/$widgetId",
-            UpdateWidgetBody(customCode = code),
+    override suspend fun compile(
+        channelId: String,
+        widgetId: String,
+        sourceCode: String,
+    ): ApiResult<WidgetVersionDetail> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/widgets/$widgetId/compile",
+            CompileWidgetBody(sourceCode),
         )
 
-    // Clone = POST with "Copy of <sourceName>" and the same type.
-    override suspend fun clone(channelId: String, sourceType: String, sourceName: String): ApiResult<WidgetSummary> =
-        client.postEnvelope("api/v1/channels/$channelId/widgets", CreateWidgetBody("Copy of $sourceName", sourceType))
+    override suspend fun listVersions(
+        channelId: String,
+        widgetId: String,
+    ): ApiResult<List<WidgetVersionSummary>> =
+        when (
+            val page: ApiResult<PaginatedEnvelope<WidgetVersionSummary>> =
+                client.getDirect("api/v1/channels/$channelId/widgets/$widgetId/versions?page=1&pageSize=50")
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
+
+    override suspend fun getVersion(
+        channelId: String,
+        widgetId: String,
+        versionId: String,
+    ): ApiResult<WidgetVersionDetail> =
+        client.getEnvelope("api/v1/channels/$channelId/widgets/$widgetId/versions/$versionId")
+
+    override suspend fun rollback(
+        channelId: String,
+        widgetId: String,
+        versionId: String,
+    ): ApiResult<WidgetSummary> =
+        client.postEnvelope("api/v1/channels/$channelId/widgets/$widgetId/rollback/$versionId", Unit)
+
+    override suspend fun listTemplates(channelId: String): ApiResult<List<WidgetTemplate>> =
+        client.getEnvelope("api/v1/channels/$channelId/widgets/templates")
+
+    override suspend fun clone(channelId: String, installedWidgetId: String): ApiResult<WidgetSummary> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/widgets/clone",
+            CloneWidgetBody(installedWidgetId = installedWidgetId),
+        )
 }
 
 /**
  * The update-widget request body (backend `UpdateWidgetRequest`) — every field nullable so an update is a
  * partial patch. A toggle sends only [isEnabled]; a rename sends only [name]; null fields are omitted from
- * the wire body (`explicitNulls = false` on the shared Json).
+ * the wire body (`explicitNulls = false` on the shared Json). Authored source is NOT patched here — it is
+ * compiled via [WidgetsApi.compile].
  */
 @Serializable
 data class UpdateWidgetBody(
     val name: String? = null,
     val isEnabled: Boolean? = null,
-    val customCode: String? = null,
 )
 
-/** The create-widget request body (backend `CreateWidgetRequest`). Only [name] and [type] are required. */
+/** The create-widget request body (backend `CreateWidgetRequest`). [framework] ∈ `vanilla | vue | react | svelte`. */
 @Serializable
-data class CreateWidgetBody(val name: String, val type: String)
+data class CreateWidgetBody(val name: String, val framework: String)
+
+/** The compile-on-save request body (backend `CompileWidgetRequest`). */
+@Serializable
+data class CompileWidgetBody(val sourceCode: String)
 
 /**
- * An overlay widget (backend `WidgetDetail`): its [id], display [name], the widget [type], whether it is live,
- * and the [overlayUrl] — the OBS browser-source URL the operator copies into OBS. The settings, event
- * subscriptions, and timestamps the detail DTO also carries are not part of the list view and are ignored
- * (`ignoreUnknownKeys` on the shared Json).
+ * The clone request body (backend `CloneWidgetRequest`). Exactly one fork source is set; the dashboard clones an
+ * already-installed widget, so it sends [installedWidgetId].
+ */
+@Serializable
+data class CloneWidgetBody(val installedWidgetId: String)
+
+/**
+ * An overlay widget (backend `WidgetDetail`): its [id], display [name], the source [framework]
+ * (`vanilla | vue | react | svelte`), the [source] provenance (`first_party | verified_gallery | custom`),
+ * whether it is live, the [overlayUrl] the operator copies into OBS, and [activeVersionId] — the version the
+ * overlay currently serves (null until the first successful compile; also the version the editor loads to edit).
+ * The authored source and compiled bundle are NOT here — they live on `WidgetVersion` rows. Timestamps and other
+ * detail fields are ignored (`ignoreUnknownKeys` on the shared Json).
  */
 @Serializable
 data class WidgetSummary(
     val id: String = "",
     val name: String = "",
-    val type: String = "",
+    val description: String? = null,
+    val framework: String = "",
+    val source: String = "",
     val isEnabled: Boolean = false,
     val overlayUrl: String? = null,
-    // The widget's authored source, for the custom-widget code editor. Null for template-driven widgets that
-    // carry no hand-written code. The backend returns it on `WidgetDetail`; the editor reads and rewrites it.
-    val customCode: String? = null,
+    val activeVersionId: String? = null,
+    val eventSubscriptions: List<String> = emptyList(),
+    val settings: JsonObject? = null,
+)
+
+/**
+ * A starter widget template the create flow offers (backend `WidgetTemplate`): a working, SDK-using [source] to
+ * seed into the editor (never a blank editor), tagged with its [framework].
+ */
+@Serializable
+data class WidgetTemplate(
+    val key: String = "",
+    val name: String = "",
+    val description: String = "",
+    val framework: String = "",
+    val source: String = "",
+)
+
+/** A row in a widget's version history (backend `WidgetVersionSummary`) — the rollback / debug list. */
+@Serializable
+data class WidgetVersionSummary(
+    val id: String = "",
+    val versionNumber: Int = 0,
+    val buildStatus: String = "",
+    val contentHash: String? = null,
+    val compiledAt: String? = null,
+    val createdAt: String = "",
+)
+
+/**
+ * A single widget version in full (backend `WidgetVersionDetail`). Carries [sourceCode] so the editor can load
+ * the current source to edit, and [buildError] / [buildLog] so a failed build is inspectable inline.
+ */
+@Serializable
+data class WidgetVersionDetail(
+    val id: String = "",
+    val widgetId: String = "",
+    val versionNumber: Int = 0,
+    val buildStatus: String = "",
+    val sourceCode: String? = null,
+    val buildError: String? = null,
+    val buildLog: String? = null,
+    val contentHash: String? = null,
+    val compiledAt: String? = null,
+    val createdAt: String = "",
 )

@@ -16,16 +16,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.Text
-
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,10 +58,14 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.WidgetSummary
+import bot.nomnomz.dashboard.core.network.WidgetTemplate
+import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import bot.nomnomz.dashboard.feature.widgets.state.WidgetEditorMessages
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsController
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsState
 import kotlinx.coroutines.launch
@@ -70,6 +73,8 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.widgets_action_error
 import nomnomzbot.composeapp.generated.resources.widgets_badge_disabled
 import nomnomzbot.composeapp.generated.resources.widgets_badge_enabled
+import nomnomzbot.composeapp.generated.resources.widgets_compile_failed
+import nomnomzbot.composeapp.generated.resources.widgets_compile_success
 import nomnomzbot.composeapp.generated.resources.widgets_delete_action
 import nomnomzbot.composeapp.generated.resources.widgets_delete_cancel
 import nomnomzbot.composeapp.generated.resources.widgets_delete_confirm
@@ -94,41 +99,68 @@ import nomnomzbot.composeapp.generated.resources.widgets_clone_message
 import nomnomzbot.composeapp.generated.resources.widgets_create_action
 import nomnomzbot.composeapp.generated.resources.widgets_create_confirm
 import nomnomzbot.composeapp.generated.resources.widgets_create_dismiss
+import nomnomzbot.composeapp.generated.resources.widgets_create_framework
 import nomnomzbot.composeapp.generated.resources.widgets_create_name
 import nomnomzbot.composeapp.generated.resources.widgets_create_name_required
+import nomnomzbot.composeapp.generated.resources.widgets_create_template
+import nomnomzbot.composeapp.generated.resources.widgets_create_template_blank
+import nomnomzbot.composeapp.generated.resources.widgets_create_template_loading
 import nomnomzbot.composeapp.generated.resources.widgets_create_title
-import nomnomzbot.composeapp.generated.resources.widgets_create_type
 import nomnomzbot.composeapp.generated.resources.widgets_rename_action
 import nomnomzbot.composeapp.generated.resources.widgets_rename_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_rename_confirm
 import nomnomzbot.composeapp.generated.resources.widgets_rename_dismiss
 import nomnomzbot.composeapp.generated.resources.widgets_rename_name
 import nomnomzbot.composeapp.generated.resources.widgets_rename_title
+import nomnomzbot.composeapp.generated.resources.widgets_rollback_confirm
+import nomnomzbot.composeapp.generated.resources.widgets_rollback_dismiss
+import nomnomzbot.composeapp.generated.resources.widgets_rollback_message
+import nomnomzbot.composeapp.generated.resources.widgets_rollback_title
 import nomnomzbot.composeapp.generated.resources.widgets_url_missing
+import nomnomzbot.composeapp.generated.resources.widgets_versions_action
+import nomnomzbot.composeapp.generated.resources.widgets_versions_action_short
+import nomnomzbot.composeapp.generated.resources.widgets_versions_active
+import nomnomzbot.composeapp.generated.resources.widgets_versions_close
+import nomnomzbot.composeapp.generated.resources.widgets_versions_empty
+import nomnomzbot.composeapp.generated.resources.widgets_versions_error
+import nomnomzbot.composeapp.generated.resources.widgets_versions_loading
+import nomnomzbot.composeapp.generated.resources.widgets_versions_row
+import nomnomzbot.composeapp.generated.resources.widgets_versions_title
+import nomnomzbot.composeapp.generated.resources.widgets_rollback_action
 import org.jetbrains.compose.resources.stringResource
 
 // The Overlays page (frontend-ia.md §3, Stream group): the channel's OBS browser-source overlay widgets, all
 // real data from [WidgetsController]. The screen is a pure projection of the controller's state; it loads on
 // first composition. The core value of the page is each overlay's browser-source URL, shown in a copyable chip
-// the operator pastes into an OBS browser source. Each overlay can be enabled/disabled inline, or deleted —
-// deletion is destructive (its browser-source URL stops resolving once gone), so it confirms first.
+// the operator pastes into an OBS browser source. Each overlay can be enabled/disabled inline, renamed, cloned,
+// edited (the compile-on-save code editor), rolled back to a past version, or deleted — deletion is destructive
+// (its browser-source URL stops resolving once gone), so it confirms first.
 @Composable
 fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
     val state: WidgetsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
 
     // One decision for the whole page: Overlays gates every write control at its single Editor manage floor
     // (frontend-ia.md §3, Stream group). A caller below it still sees each overlay and can copy its
-    // browser-source URL, but every enable/disable and delete control renders disabled with "Requires Editor"
-    // (§7); the backend re-checks every write regardless.
+    // browser-source URL, but every write control (enable/disable, rename, clone, edit-code, rollback, delete)
+    // renders disabled with "Requires Editor" (§7); the backend re-checks every write regardless.
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Widgets)
+
+    // Localized editor feedback strings, resolved here (a Composable) and threaded into the controller's compile
+    // callback — the controller is a plain state holder with no access to Compose resources.
+    val editorMessages =
+        WidgetEditorMessages(
+            compiled = stringResource(Res.string.widgets_compile_success),
+            buildFailed = stringResource(Res.string.widgets_compile_failed),
+        )
 
     var pendingDelete: PendingDelete? by remember { mutableStateOf(null) }
     var pendingRename: WidgetSummary? by remember { mutableStateOf(null) }
     var pendingClone: WidgetSummary? by remember { mutableStateOf(null) }
+    var pendingVersions: WidgetSummary? by remember { mutableStateOf(null) }
+    var pendingRollback: PendingRollback? by remember { mutableStateOf(null) }
     var showCreateDialog: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { controller.load() }
@@ -164,7 +196,8 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
                     onDelete = { widget -> pendingDelete = PendingDelete(widget.id, widget.name) },
                     onRename = { widget -> pendingRename = widget },
                     onClone = { widget -> pendingClone = widget },
-                    onEditCode = { widget -> scope.launch { controller.editWidgetCode(widget) } },
+                    onEditCode = { widget -> scope.launch { controller.editWidgetCode(widget, editorMessages) } },
+                    onVersions = { widget -> pendingVersions = widget },
                 )
         }
     }
@@ -204,17 +237,46 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
             destructive = false,
             onConfirm = {
                 pendingClone = null
-                scope.launch { controller.cloneWidget(widget.type, widget.name) }
+                scope.launch { controller.cloneWidget(widget.id) }
             },
             onDismiss = { pendingClone = null },
         )
     }
 
+    pendingVersions?.let { widget ->
+        WidgetVersionsDialog(
+            widget = widget,
+            manage = manage,
+            loadVersions = { controller.listVersions(widget.id) },
+            onRollback = { version ->
+                pendingVersions = null
+                pendingRollback = PendingRollback(widget.id, version)
+            },
+            onDismiss = { pendingVersions = null },
+        )
+    }
+
+    pendingRollback?.let { target ->
+        ConfirmDialog(
+            title = stringResource(Res.string.widgets_rollback_title),
+            message = stringResource(Res.string.widgets_rollback_message, target.version.versionNumber.toString()),
+            confirmLabel = stringResource(Res.string.widgets_rollback_confirm),
+            dismissLabel = stringResource(Res.string.widgets_rollback_dismiss),
+            destructive = false,
+            onConfirm = {
+                pendingRollback = null
+                scope.launch { controller.rollbackVersion(target.widgetId, target.version.id) }
+            },
+            onDismiss = { pendingRollback = null },
+        )
+    }
+
     if (showCreateDialog) {
         CreateWidgetDialog(
-            onConfirm = { name, type ->
+            loadTemplates = { controller.listTemplates() },
+            onConfirm = { name, framework, seedSource ->
                 showCreateDialog = false
-                scope.launch { controller.createWidget(name, type) }
+                scope.launch { controller.createWidget(name, framework, seedSource, editorMessages) }
             },
             onDismiss = { showCreateDialog = false },
         )
@@ -233,6 +295,7 @@ private fun ReadyContent(
     onRename: (WidgetSummary) -> Unit,
     onClone: (WidgetSummary) -> Unit,
     onEditCode: (WidgetSummary) -> Unit,
+    onVersions: (WidgetSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -249,6 +312,7 @@ private fun ReadyContent(
             onRename = onRename,
             onClone = onClone,
             onEditCode = onEditCode,
+            onVersions = onVersions,
         )
     }
 }
@@ -262,6 +326,7 @@ private fun WidgetList(
     onRename: (WidgetSummary) -> Unit,
     onClone: (WidgetSummary) -> Unit,
     onEditCode: (WidgetSummary) -> Unit,
+    onVersions: (WidgetSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -282,15 +347,18 @@ private fun WidgetList(
                     onRename = { onRename(widget) },
                     onClone = { onClone(widget) },
                     onEditCode = { onEditCode(widget) },
+                    onVersions = { onVersions(widget) },
                 )
             }
         }
     }
 }
 
-// One overlay card: its name + state on the left, an enable/disable switch + delete on the right, and below
-// them the browser-source URL in a copyable chip (the page's core value — paste into OBS). The header row uses
-// the hardened layout: the text block takes weight(1f) and ellipsizes, the trailing controls stay single-line.
+// One overlay card: its name + state on the left, the write controls on the right, and below them the
+// browser-source URL in a copyable chip (the page's core value — paste into OBS). Every widget is now
+// code-backed (compile-on-save), so Edit code + Versions are available for all of them — gated by the page's
+// Editor manage floor. The header row uses the hardened layout: the text block takes weight(1f) and ellipsizes,
+// the trailing controls stay single-line.
 @Composable
 private fun WidgetRow(
     widget: WidgetSummary,
@@ -300,6 +368,7 @@ private fun WidgetRow(
     onRename: () -> Unit,
     onClone: () -> Unit,
     onEditCode: () -> Unit,
+    onVersions: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -315,11 +384,8 @@ private fun WidgetRow(
     val renameLabel: String = stringResource(Res.string.widgets_rename_action, widget.name)
     val cloneLabel: String = stringResource(Res.string.widgets_clone_action, widget.name)
     val editCodeLabel: String = stringResource(Res.string.widgets_edit_code_action, widget.name)
+    val versionsLabel: String = stringResource(Res.string.widgets_versions_action, widget.name)
     val urlLabel: String = stringResource(Res.string.widgets_url_label)
-
-    // Only custom widgets carry hand-written code; the Edit code action is meaningless on template-driven
-    // overlays (alerts, now-playing, …), so it appears for the "custom" type alone.
-    val isCustom: Boolean = widget.type.equals("custom", ignoreCase = true)
 
     Column(
         modifier = Modifier
@@ -335,8 +401,8 @@ private fun WidgetRow(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    // One node for the text block: "Alerts, overlay, enabled.".
-                    .clearAndSetSemantics { contentDescription = "${widget.name}, ${widget.type}, $stateLabel." },
+                    // One node for the text block: "Alerts, vanilla, enabled.".
+                    .clearAndSetSemantics { contentDescription = "${widget.name}, ${widget.framework}, $stateLabel." },
                 verticalArrangement = Arrangement.spacedBy(spacing.s1),
             ) {
                 Text(
@@ -347,7 +413,7 @@ private fun WidgetRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "$stateLabel · ${widget.type}",
+                    text = "$stateLabel · ${widget.framework}",
                     style = typography.sm,
                     color = if (widget.isEnabled) tokens.primary else tokens.mutedForeground,
                     maxLines = 1,
@@ -363,20 +429,30 @@ private fun WidgetRow(
                     modifier = Modifier.semantics { contentDescription = toggleLabel },
                 )
             }
-            if (isCustom) {
-                ManageGate(decision = manage) { enabled ->
-                    TextButton(
-                        onClick = onEditCode,
-                        enabled = enabled,
-                        modifier = Modifier.semantics { contentDescription = editCodeLabel },
-                    ) {
-                        Text(
-                            text = stringResource(Res.string.widgets_edit_code_action_short),
-                            color = if (enabled) tokens.primary else tokens.mutedForeground,
-                            maxLines = 1,
-                        )
-                    }
+            ManageGate(decision = manage) { enabled ->
+                TextButton(
+                    onClick = onEditCode,
+                    enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = editCodeLabel },
+                ) {
+                    Text(
+                        text = stringResource(Res.string.widgets_edit_code_action_short),
+                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                        maxLines = 1,
+                    )
                 }
+            }
+            // Version history + rollback is a read to open, so it stays enabled below the manage floor; the
+            // rollback control inside the dialog carries the write gate.
+            TextButton(
+                onClick = onVersions,
+                modifier = Modifier.semantics { contentDescription = versionsLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.widgets_versions_action_short),
+                    color = tokens.primary,
+                    maxLines = 1,
+                )
             }
             ManageGate(decision = manage) { enabled ->
                 TextButton(
@@ -472,22 +548,35 @@ private fun CenteredMessage(text: String) {
 // The delete-confirm target: the widget's id (the backend address) plus its name (for the confirm message).
 private data class PendingDelete(val id: String, val name: String)
 
-// Dialog to create a new widget. The operator enters a name and picks a type from the closed set the backend
-// supports. The caller owns open/closed state — it opens when the user clicks "Create Overlay".
+// The rollback-confirm target: which widget, and the version to re-serve.
+private data class PendingRollback(val widgetId: String, val version: WidgetVersionSummary)
+
+// The framework set the backend accepts for a new widget (CreateWidgetRequest.framework).
+private val WIDGET_FRAMEWORKS: List<String> = listOf("vanilla", "vue", "react", "svelte")
+
+// Dialog to create a new widget: pick a framework and, optionally, a starter template. Choosing a template
+// adopts its framework and seeds the editor with its source; "Blank" starts from an empty editor on the
+// currently-selected framework. On confirm the widget is created and the compile-on-save editor opens.
 @Composable
 private fun CreateWidgetDialog(
-    onConfirm: (name: String, type: String) -> Unit,
+    loadTemplates: suspend () -> ApiResult<List<WidgetTemplate>>,
+    onConfirm: (name: String, framework: String, seedSource: String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val types: List<String> = listOf("alerts", "nowplaying", "chat", "goals", "countdown", "custom")
-
     var name: String by remember { mutableStateOf("") }
-    var selectedType: String by remember { mutableStateOf(types.first()) }
     var nameError: Boolean by remember { mutableStateOf(false) }
+    var selectedFramework: String by remember { mutableStateOf(WIDGET_FRAMEWORKS.first()) }
+    var selectedTemplateKey: String? by remember { mutableStateOf(null) }
+    var templatesResult: ApiResult<List<WidgetTemplate>>? by remember { mutableStateOf(null) }
+
+    LaunchedEffect(Unit) { templatesResult = loadTemplates() }
+
+    val templates: List<WidgetTemplate> =
+        (templatesResult as? ApiResult.Ok)?.value ?: emptyList()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -507,30 +596,54 @@ private fun CreateWidgetDialog(
                     isError = nameError,
                     errorText = if (nameError) stringResource(Res.string.widgets_create_name_required) else null,
                 )
+
                 Text(
-                    text = stringResource(Res.string.widgets_create_type),
+                    text = stringResource(Res.string.widgets_create_framework),
                     style = typography.sm,
                     color = tokens.mutedForeground,
                 )
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                    types.chunked(3).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                            row.forEach { t ->
-                                Badge(
-                                    selected = selectedType == t,
-                                    onClick = { selectedType = t },
-                                ) { Text(t, style = typography.xs) }
-                            }
-                        }
-                    }
+                BadgeRow(
+                    options = WIDGET_FRAMEWORKS,
+                    label = { it },
+                    isSelected = { it == selectedFramework },
+                    onSelect = { framework ->
+                        selectedFramework = framework
+                        // Picking a framework directly clears any template — the editor opens blank.
+                        selectedTemplateKey = null
+                    },
+                )
+
+                Text(
+                    text = stringResource(Res.string.widgets_create_template),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                if (templatesResult == null) {
+                    Text(
+                        text = stringResource(Res.string.widgets_create_template_loading),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
                 }
+                val blankLabel: String = stringResource(Res.string.widgets_create_template_blank)
+                BadgeRow(
+                    options = listOf<WidgetTemplate?>(null) + templates,
+                    label = { it?.name ?: blankLabel },
+                    isSelected = { it?.key == selectedTemplateKey },
+                    onSelect = { template ->
+                        selectedTemplateKey = template?.key
+                        if (template != null) selectedFramework = template.framework
+                    },
+                )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
                     if (name.isBlank()) { nameError = true; return@Button }
-                    onConfirm(name.trim(), selectedType)
+                    val seedSource: String =
+                        templates.firstOrNull { it.key == selectedTemplateKey }?.source.orEmpty()
+                    onConfirm(name.trim(), selectedFramework, seedSource)
                 },
             ) {
                 Text(stringResource(Res.string.widgets_create_confirm))
@@ -540,6 +653,32 @@ private fun CreateWidgetDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(Res.string.widgets_create_dismiss)) }
         },
     )
+}
+
+// A wrapped row of selectable badges (3 per line) over a homogeneous option list — the framework picker and the
+// template picker share it.
+@Composable
+private fun <T> BadgeRow(
+    options: List<T>,
+    label: (T) -> String,
+    isSelected: (T) -> Boolean,
+    onSelect: (T) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        options.chunked(3).forEach { rowItems ->
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                rowItems.forEach { option ->
+                    Badge(
+                        selected = isSelected(option),
+                        onClick = { onSelect(option) },
+                    ) { Text(label(option), style = typography.xs) }
+                }
+            }
+        }
+    }
 }
 
 // Dialog to rename an existing widget. Pre-filled with the current name; the operator edits it and confirms.
@@ -588,4 +727,134 @@ private fun RenameWidgetDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(Res.string.widgets_rename_dismiss)) }
         },
     )
+}
+
+// Dialog listing a widget's version history (newest first) with a per-version roll-back control. Fetches its own
+// list on open (loading / error / empty / list); rollback is gated at the page's Editor manage floor and hidden
+// on the currently-active version (there is nothing to roll back to).
+@Composable
+private fun WidgetVersionsDialog(
+    widget: WidgetSummary,
+    manage: ManageDecision,
+    loadVersions: suspend () -> ApiResult<List<WidgetVersionSummary>>,
+    onRollback: (WidgetVersionSummary) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var result: ApiResult<List<WidgetVersionSummary>>? by remember { mutableStateOf(null) }
+    LaunchedEffect(widget.id) { result = loadVersions() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.widgets_versions_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(spacing.s2),
+            ) {
+                when (val current = result) {
+                    null ->
+                        Text(
+                            text = stringResource(Res.string.widgets_versions_loading),
+                            style = typography.sm,
+                            color = tokens.mutedForeground,
+                        )
+                    is ApiResult.Failure ->
+                        Text(
+                            text = stringResource(Res.string.widgets_versions_error, current.error.message),
+                            style = typography.sm,
+                            color = tokens.destructive,
+                        )
+                    is ApiResult.Ok ->
+                        if (current.value.isEmpty()) {
+                            Text(
+                                text = stringResource(Res.string.widgets_versions_empty),
+                                style = typography.sm,
+                                color = tokens.mutedForeground,
+                            )
+                        } else {
+                            current.value.forEachIndexed { index, version ->
+                                if (index > 0) Separator()
+                                WidgetVersionRow(
+                                    version = version,
+                                    isActive = version.id == widget.activeVersionId,
+                                    manage = manage,
+                                    onRollback = { onRollback(version) },
+                                )
+                            }
+                        }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.widgets_versions_close)) }
+        },
+    )
+}
+
+// One version row: "Version N", its build status (colored), an "Active" marker on the served version, and a
+// roll-back control for every other version (write-gated).
+@Composable
+private fun WidgetVersionRow(
+    version: WidgetVersionSummary,
+    isActive: Boolean,
+    manage: ManageDecision,
+    onRollback: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            Text(
+                text = stringResource(Res.string.widgets_versions_row, version.versionNumber.toString()),
+                style = typography.sm,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = version.buildStatus,
+                style = typography.xs,
+                color = when (version.buildStatus.lowercase()) {
+                    "success" -> tokens.primary
+                    "error" -> tokens.destructive
+                    else -> tokens.mutedForeground
+                },
+                maxLines = 1,
+            )
+        }
+        if (isActive) {
+            Text(
+                text = stringResource(Res.string.widgets_versions_active),
+                style = typography.xs,
+                color = tokens.primary,
+                maxLines = 1,
+            )
+        } else {
+            ManageGate(decision = manage) { enabled ->
+                TextButton(onClick = onRollback, enabled = enabled) {
+                    Text(
+                        text = stringResource(Res.string.widgets_rollback_action),
+                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+    }
 }

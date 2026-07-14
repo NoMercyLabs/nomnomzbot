@@ -16,41 +16,73 @@ import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.coroutines.delay
 
 // Web custom-code editor — a full-screen DOM overlay hosting CodeMirror 6 (VS Code-like), mounted above the
-// Compose canvas. Mirrors the AudioFilePicker.wasmJs.kt handshake: the JS side stages its outcome on the
-// global slot `globalThis.__nnzCodeEdit` ({ status, value }) and Kotlin polls until the operator saves or
-// cancels. CodeMirror is loaded from a CDN; if that fails (offline self-host, blocked CDN) the overlay falls
-// back to a monospace <textarea> so the editor is never unavailable.
+// Compose canvas. It is a compile-on-save surface: the overlay stays open and shows the build result inline.
+//
+// Handshake (same global-slot polling as AudioFilePicker.wasmJs.kt): the JS side stages its state on
+// `globalThis.__nnzCodeEdit` ({ status, pendingSource, ... }) and Kotlin polls it. When the operator clicks
+// "Save & Compile" the JS sets status='compile' and stages the current source; Kotlin picks it up, flips
+// status='busy' to avoid re-reading the same request, awaits the caller's compile, then paints the result and
+// flips back to status='editing'. "Close" (button/Esc) sets status='closed' and Kotlin returns. CodeMirror is
+// loaded from a CDN; if that fails (offline self-host, blocked CDN) the overlay falls back to a monospace
+// <textarea> so the editor is never unavailable.
 actual class CustomCodeEditor : CustomCodeEditorIO {
-    actual override suspend fun edit(
+    actual override suspend fun editAndCompile(
         title: String,
         initialCode: String,
         language: String,
-    ): String? {
+        compile: suspend (String) -> CompileFeedback,
+    ) {
         openCodeEditor(title, initialCode, language)
-        while (true) {
-            when (codeEditorStatus()) {
-                "pending" -> delay(80)
-                "saved" -> {
-                    val code: String = codeEditorValue()
-                    closeCodeEditor()
-                    return code
-                }
-                else -> {
-                    closeCodeEditor()
-                    return null
+        try {
+            while (true) {
+                when (codeEditorStatus()) {
+                    "editing", "busy" -> delay(80)
+                    "compile" -> {
+                        val source: String = codeEditorSource()
+                        beginCompile()
+                        val feedback: CompileFeedback = compile(source)
+                        reportCompile(feedback.ok, feedback.message)
+                    }
+                    else -> return
                 }
             }
+        } finally {
+            closeCodeEditor()
         }
     }
 }
 
 private fun codeEditorStatus(): String =
-    js("(globalThis.__nnzCodeEdit ? globalThis.__nnzCodeEdit.status : 'cancel')")
+    js("(globalThis.__nnzCodeEdit ? globalThis.__nnzCodeEdit.status : 'closed')")
 
-private fun codeEditorValue(): String =
+// The source staged by the JS side at the moment "Save & Compile" was pressed (the value the operator asked to build).
+private fun codeEditorSource(): String =
     js(
-        "(globalThis.__nnzCodeEdit && typeof globalThis.__nnzCodeEdit.value === 'string') ? globalThis.__nnzCodeEdit.value : ''"
+        "(globalThis.__nnzCodeEdit && typeof globalThis.__nnzCodeEdit.pendingSource === 'string') ? globalThis.__nnzCodeEdit.pendingSource : ''"
     )
+
+// Guard: flip the slot out of 'compile' so the poll loop does not read the same save twice while the build runs.
+private fun beginCompile() {
+    js("{ var s = globalThis.__nnzCodeEdit; if (s) { s.status = 'busy'; } }")
+}
+
+// Paint the build result inline, re-enable the save button, and return the editor to the editable state.
+private fun reportCompile(ok: Boolean, message: String) {
+    js(
+        """{
+            var s = globalThis.__nnzCodeEdit;
+            if (!s) { return; }
+            if (s.result) {
+                s.result.textContent = message;
+                s.result.style.display = 'block';
+                s.result.style.color = ok ? '#4ade80' : '#f87171';
+                s.result.style.background = ok ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)';
+            }
+            if (s.saveBtn) { s.saveBtn.disabled = false; s.saveBtn.textContent = 'Save & Compile'; }
+            s.status = 'editing';
+        }"""
+    )
+}
 
 // Tears the overlay out of the DOM and clears the slot. Removing the element also disposes its CodeMirror view
 // (the view lives inside the removed subtree), so there is nothing else to release.
@@ -60,13 +92,13 @@ private fun closeCodeEditor() {
     )
 }
 
-// Builds the full-screen editor overlay and stages its outcome on globalThis.__nnzCodeEdit. `title`,
-// `initialCode`, and `language` are the enclosing function's parameters — referenced directly in the JS body
-// (the Kotlin/Wasm js() interop marshals them as real JS values, so there is no string-injection surface).
+// Builds the full-screen editor overlay and stages its state on globalThis.__nnzCodeEdit. `title`, `initialCode`,
+// and `language` are the enclosing function's parameters — referenced directly in the JS body (the Kotlin/Wasm
+// js() interop marshals them as real JS values, so there is no string-injection surface).
 private fun openCodeEditor(title: String, initialCode: String, language: String) {
     js(
         """{
-            var slot = { status: 'pending', value: initialCode, el: null, view: null, textarea: null };
+            var slot = { status: 'editing', value: initialCode, pendingSource: '', el: null, view: null, textarea: null, result: null, saveBtn: null };
             globalThis.__nnzCodeEdit = slot;
 
             var overlay = document.createElement('div');
@@ -86,29 +118,36 @@ private fun openCodeEditor(title: String, initialCode: String, language: String)
             langBadge.style.cssText = 'font-size:11px;color:#a3a3a3;padding:2px 8px;border:1px solid #333;border-radius:6px;';
 
             var hint = document.createElement('div');
-            hint.textContent = 'Esc to cancel · Ctrl+S to save';
+            hint.textContent = 'Esc to close · Ctrl+S to save & compile';
             hint.style.cssText = 'font-size:11px;color:#666;white-space:nowrap;';
 
-            var cancelBtn = document.createElement('button');
-            cancelBtn.type = 'button';
-            cancelBtn.textContent = 'Cancel';
-            cancelBtn.style.cssText = 'padding:7px 16px;font-size:13px;font-weight:600;color:#e5e5e5;background:transparent;border:1px solid #333;border-radius:8px;cursor:pointer;';
+            var closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.textContent = 'Close';
+            closeBtn.style.cssText = 'padding:7px 16px;font-size:13px;font-weight:600;color:#e5e5e5;background:transparent;border:1px solid #333;border-radius:8px;cursor:pointer;';
 
             var saveBtn = document.createElement('button');
             saveBtn.type = 'button';
-            saveBtn.textContent = 'Save';
+            saveBtn.textContent = 'Save & Compile';
             saveBtn.style.cssText = 'padding:7px 16px;font-size:13px;font-weight:600;color:#ffffff;background:#772ce8;border:none;border-radius:8px;cursor:pointer;';
+            slot.saveBtn = saveBtn;
 
             header.appendChild(titleEl);
             header.appendChild(langBadge);
             header.appendChild(hint);
-            header.appendChild(cancelBtn);
+            header.appendChild(closeBtn);
             header.appendChild(saveBtn);
+
+            // The inline build-result strip — hidden until the first compile reports back.
+            var result = document.createElement('div');
+            result.style.cssText = 'display:none;padding:8px 16px;font-size:13px;font-weight:600;border-bottom:1px solid #262626;';
+            slot.result = result;
 
             var host = document.createElement('div');
             host.style.cssText = 'flex:1;min-height:0;overflow:hidden;position:relative;';
 
             overlay.appendChild(header);
+            overlay.appendChild(result);
             overlay.appendChild(host);
             document.body.appendChild(overlay);
 
@@ -117,13 +156,20 @@ private fun openCodeEditor(title: String, initialCode: String, language: String)
                 if (slot.textarea) { return slot.textarea.value; }
                 return slot.value;
             }
-            function doSave() { slot.value = currentValue(); slot.status = 'saved'; }
-            function doCancel() { slot.status = 'cancel'; }
+            function doSave() {
+                if (slot.status !== 'editing') { return; }
+                slot.pendingSource = currentValue();
+                slot.status = 'compile';
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Compiling…';
+                result.style.display = 'none';
+            }
+            function doClose() { slot.status = 'closed'; }
 
             saveBtn.addEventListener('click', doSave);
-            cancelBtn.addEventListener('click', doCancel);
+            closeBtn.addEventListener('click', doClose);
             overlay.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') { e.preventDefault(); doCancel(); }
+                if (e.key === 'Escape') { e.preventDefault(); doClose(); }
                 else if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); doSave(); }
             });
 
@@ -160,7 +206,7 @@ private fun openCodeEditor(title: String, initialCode: String, language: String)
                 dynImport('https://esm.sh/@codemirror/lang-html@6.4.9'),
                 dynImport('https://esm.sh/@codemirror/theme-one-dark@6.1.2')
             ]).then(function (mods) {
-                if (slot.status !== 'pending' || slot.textarea) { return; }
+                if (slot.textarea || slot.status === 'closed') { return; }
                 var cm = mods[0], langHtml = mods[1], dark = mods[2];
                 var view = new cm.EditorView({
                     doc: slot.value,
@@ -181,7 +227,7 @@ private fun openCodeEditor(title: String, initialCode: String, language: String)
 
             // If the CDN modules are slow, show the textarea after a short grace period rather than a blank host.
             setTimeout(function () {
-                if (!slot.view && !slot.textarea && slot.status === 'pending') { mountTextarea(); }
+                if (!slot.view && !slot.textarea && slot.status !== 'closed') { mountTextarea(); }
             }, 2500);
 
             saveBtn.focus();

@@ -10,14 +10,18 @@
 
 package bot.nomnomz.dashboard.feature.widgets.state
 
+import bot.nomnomz.dashboard.core.editor.CompileFeedback
 import bot.nomnomz.dashboard.core.editor.CustomCodeEditorIO
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
-import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.CreateWidgetBody
+import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.WidgetSummary
+import bot.nomnomz.dashboard.core.network.WidgetTemplate
+import bot.nomnomz.dashboard.core.network.WidgetVersionDetail
+import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
 import bot.nomnomz.dashboard.core.network.WidgetsApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -27,10 +31,13 @@ import kotlinx.coroutines.test.runTest
 
 // Proves the Overlays page state machine the screen renders: resolve the active channel, then surface the
 // channel's real overlay widgets — empty when there are none, error if either step fails — and prove the writes
-// follow through (a toggle persists the flipped flag, a delete really removes the row). The screen is a pure
-// projection of this, so testing it proves the page shows real data (no fabricated rows), exposes each
-// overlay's browser-source URL, and degrades cleanly.
+// follow through. The widget backend is compile-on-save: editing loads the active version's source, "Save &
+// Compile" builds the next version and surfaces the build outcome inline (a real success message or the real
+// build error — never a silent no-op), create posts the chosen framework and seeds the editor, and clone hits
+// the real clone endpoint. The screen is a pure projection of this controller.
 class WidgetsControllerTest {
+
+    private val messages = WidgetEditorMessages(compiled = "compiled-ok", buildFailed = "build-failed")
 
     @Test
     fun load_surfaces_the_channel_widgets_with_their_overlay_urls() = runTest {
@@ -43,7 +50,8 @@ class WidgetsControllerTest {
                             WidgetSummary(
                                 id = "w-1",
                                 name = "Alerts",
-                                type = "alerts",
+                                framework = "vanilla",
+                                source = "first_party",
                                 isEnabled = true,
                                 overlayUrl = "http://localhost:8080/overlay?widgetId=w-1&token=tok",
                             )
@@ -60,7 +68,7 @@ class WidgetsControllerTest {
         assertEquals(1, widgets.size)
         val widget: WidgetSummary = widgets.first()
         assertEquals("Alerts", widget.name)
-        assertEquals("alerts", widget.type)
+        assertEquals("vanilla", widget.framework)
         assertEquals(true, widget.isEnabled)
         // The browser-source URL — the page's core value (paste into OBS) — survives intact to the row.
         assertEquals("http://localhost:8080/overlay?widgetId=w-1&token=tok", widget.overlayUrl)
@@ -170,88 +178,172 @@ class WidgetsControllerTest {
     }
 
     @Test
-    fun edit_widget_code_opens_seeded_saves_the_edited_source_then_reloads_with_it() = runTest {
+    fun edit_widget_code_loads_the_active_version_source_compiles_and_reports_success() = runTest {
         val widgetsApi =
             RecordingWidgetsApi(
                 ApiResult.Ok(
                     listOf(
-                        WidgetSummary(
-                            id = "w-1",
-                            name = "Timer",
-                            type = "custom",
-                            isEnabled = true,
-                            customCode = "<old/>",
-                        )
+                        WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1")
                     )
-                )
+                ),
+                versionSource = "<old/>",
+                compileResult = ApiResult.Ok(WidgetVersionDetail(versionNumber = 2, buildStatus = "success")),
             )
-        val editor = FakeCodeEditor(result = "<new>hi</new>")
+        val editor = FakeCodeEditor(toSave = listOf("<new>hi</new>"))
         val controller =
-            widgetsController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                widgetsApi,
-                editor,
-            )
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
         controller.load()
 
         controller.editWidgetCode(
-            WidgetSummary(id = "w-1", name = "Timer", type = "custom", customCode = "<old/>")
+            WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1"),
+            messages,
         )
 
-        // The editor was opened seeded with the widget's current source (title + code) — proving the round-trip
-        // reads the real stored code, not a blank buffer.
+        // The editor opened seeded with the ACTIVE VERSION's source (loaded via getVersion) — not a blank buffer.
         assertEquals("Timer" to "<old/>", editor.openedWith)
-        // The edited source was persisted for exactly that widget.
-        assertEquals(listOf("w-1" to "<new>hi</new>"), widgetsApi.savedCode)
-        // The reload reflects the saved code — the consequence of the action, not merely the call.
-        val state: WidgetsState = controller.state.value
-        assertTrue(state is WidgetsState.Ready)
-        assertEquals("<new>hi</new>", (state as WidgetsState.Ready).widgets.first().customCode)
+        assertEquals(listOf("v-1"), widgetsApi.loadedVersionIds)
+        // "Save & Compile" compiled exactly the edited source for that widget — a real version build, not a no-op.
+        assertEquals(listOf("w-1" to "<new>hi</new>"), widgetsApi.compiled)
+        // The build outcome was reported inline as success.
+        assertEquals(listOf(CompileFeedback(ok = true, message = "compiled-ok")), editor.feedbacks)
     }
 
     @Test
-    fun edit_widget_code_cancelled_persists_nothing() = runTest {
+    fun edit_widget_code_surfaces_the_real_build_error_not_a_silent_no_op() = runTest {
         val widgetsApi =
             RecordingWidgetsApi(
                 ApiResult.Ok(
                     listOf(
-                        WidgetSummary(id = "w-1", name = "Timer", type = "custom", customCode = "<x/>")
+                        WidgetSummary(id = "w-1", name = "Timer", framework = "vue", activeVersionId = "v-1")
                     )
-                )
+                ),
+                versionSource = "<old/>",
+                compileResult =
+                    ApiResult.Ok(
+                        WidgetVersionDetail(buildStatus = "error", buildError = "Unexpected token '<' at 3:1")
+                    ),
+            )
+        val editor = FakeCodeEditor(toSave = listOf("<broken"))
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
+        controller.load()
+
+        controller.editWidgetCode(
+            WidgetSummary(id = "w-1", name = "Timer", framework = "vue", activeVersionId = "v-1"),
+            messages,
+        )
+
+        // The compile ran and the REAL backend build error is surfaced inline (ok = false), proving the save
+        // path is a live compile whose failure is shown — not the old silent PUT no-op.
+        assertEquals(listOf("w-1" to "<broken"), widgetsApi.compiled)
+        assertEquals(
+            listOf(CompileFeedback(ok = false, message = "Unexpected token '<' at 3:1")),
+            editor.feedbacks,
+        )
+    }
+
+    @Test
+    fun edit_widget_code_closed_without_saving_compiles_nothing() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(
+                    listOf(
+                        WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1")
+                    )
+                ),
+                versionSource = "<x/>",
             )
         val controller =
             widgetsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 widgetsApi,
-                FakeCodeEditor(result = null), // the operator cancelled the editor
+                FakeCodeEditor(toSave = emptyList()), // the operator closed without saving
             )
         controller.load()
 
         controller.editWidgetCode(
-            WidgetSummary(id = "w-1", name = "Timer", type = "custom", customCode = "<x/>")
+            WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1"),
+            messages,
         )
 
-        // A cancelled edit writes nothing — the widget's stored code is left untouched.
-        assertTrue(widgetsApi.savedCode.isEmpty())
+        // Closing the editor without a save compiles nothing — no version is built.
+        assertTrue(widgetsApi.compiled.isEmpty())
+    }
+
+    @Test
+    fun create_posts_the_chosen_framework_and_seeds_the_editor_with_the_template_source() = runTest {
+        val widgetsApi = RecordingWidgetsApi(ApiResult.Ok(emptyList()))
+        val editor = FakeCodeEditor(toSave = emptyList())
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
+        controller.load()
+
+        controller.createWidget(name = "My Timer", framework = "vue", seedSource = "<template/>", messages = messages)
+
+        // Create posts the framework (renamed from `type`), not a legacy type.
+        assertEquals(listOf(CreateWidgetBody(name = "My Timer", framework = "vue")), widgetsApi.created)
+        // …then opens the editor seeded with the chosen template's source so Save compiles the first version.
+        assertEquals("My Timer" to "<template/>", editor.openedWith)
+    }
+
+    @Test
+    fun clone_calls_the_real_clone_endpoint_with_the_installed_widget_id() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(listOf(WidgetSummary(id = "w-1", name = "Alerts", source = "first_party")))
+            )
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+        controller.load()
+
+        controller.cloneWidget(widgetId = "w-1")
+
+        // Real backend clone (not a client-side "Copy of…" re-POST): the source installed-widget id is sent.
+        assertEquals(listOf("w-1"), widgetsApi.clonedIds)
+    }
+
+    @Test
+    fun rollback_calls_the_endpoint_then_reloads() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(listOf(WidgetSummary(id = "w-1", name = "Alerts", activeVersionId = "v-2")))
+            )
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+        controller.load()
+
+        controller.rollbackVersion(widgetId = "w-1", versionId = "v-1")
+
+        assertEquals(listOf("w-1" to "v-1"), widgetsApi.rolledBack)
+        assertTrue(controller.state.value is WidgetsState.Ready)
     }
 }
 
-// Builds a controller with a default (cancelling) code editor so the tests that don't exercise the editor stay
-// unchanged; the editor tests pass an explicit [FakeCodeEditor].
+// Builds a controller with a default (immediately-closing) code editor so the tests that don't exercise the
+// editor stay unchanged; the editor tests pass an explicit [FakeCodeEditor].
 private fun widgetsController(
     channelsApi: ChannelsApi,
     widgetsApi: WidgetsApi,
     editor: CustomCodeEditorIO = FakeCodeEditor(),
 ): WidgetsController = WidgetsController(channelsApi, widgetsApi, editor)
 
-// A fake editor that returns [result] from edit() (null = cancelled) and records what it was opened with, so a
-// test can assert the editor is seeded with the widget's real current source.
-private class FakeCodeEditor(private val result: String? = null) : CustomCodeEditorIO {
+// A fake compile-on-save editor. Records what it opened with, "presses Save & Compile" for each source in
+// [toSave] (invoking the caller's compile callback and capturing the returned feedback), then closes. An empty
+// [toSave] models the operator closing the editor without saving.
+private class FakeCodeEditor(private val toSave: List<String> = emptyList()) : CustomCodeEditorIO {
     var openedWith: Pair<String, String>? = null
+    val feedbacks: MutableList<CompileFeedback> = mutableListOf()
 
-    override suspend fun edit(title: String, initialCode: String, language: String): String? {
+    override suspend fun editAndCompile(
+        title: String,
+        initialCode: String,
+        language: String,
+        compile: suspend (String) -> CompileFeedback,
+    ) {
         openedWith = title to initialCode
-        return result
+        for (source in toSave) {
+            feedbacks += compile(source)
+        }
     }
 }
 
@@ -275,13 +367,19 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 }
 
 // A recording fake that behaves like the backend store: list() returns the live store, and each successful
-// write mutates the store so the controller's post-write reload observes the real consequence (a flipped flag,
-// a removed row) — not merely that a call happened. [writeResult] forces every write to fail (the store is left
-// untouched) to exercise the error path. A list-level failure is modelled by passing a Failure as the initial
-// result.
+// write mutates the store so the controller's post-write reload observes the real consequence (a flipped flag, a
+// removed row) — not merely that a call happened. [writeResult] forces every simple write to fail (the store is
+// left untouched) to exercise the error path. [versionSource] is what getVersion returns as the editable source;
+// [compileResult] is the build outcome each compile reports; [versions]/[templates] back the version + template
+// lists. A list-level failure is modelled by passing a Failure as the initial result.
 private class RecordingWidgetsApi(
     initial: ApiResult<List<WidgetSummary>>,
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val versionSource: String = "",
+    private val compileResult: ApiResult<WidgetVersionDetail> =
+        ApiResult.Ok(WidgetVersionDetail(buildStatus = "success")),
+    private val versions: List<WidgetVersionSummary> = emptyList(),
+    private val templates: ApiResult<List<WidgetTemplate>> = ApiResult.Ok(emptyList()),
 ) : WidgetsApi {
     private val listFailure: ApiError? = (initial as? ApiResult.Failure)?.error
     private val store: MutableList<WidgetSummary> =
@@ -290,7 +388,11 @@ private class RecordingWidgetsApi(
     val toggled: MutableList<Pair<String, Boolean>> = mutableListOf()
     var toggledChannelId: String? = null
     val deleted: MutableList<String> = mutableListOf()
-    val savedCode: MutableList<Pair<String, String>> = mutableListOf()
+    val created: MutableList<CreateWidgetBody> = mutableListOf()
+    val compiled: MutableList<Pair<String, String>> = mutableListOf()
+    val loadedVersionIds: MutableList<String> = mutableListOf()
+    val clonedIds: MutableList<String> = mutableListOf()
+    val rolledBack: MutableList<Pair<String, String>> = mutableListOf()
 
     override suspend fun list(channelId: String): ApiResult<List<WidgetSummary>> =
         listFailure?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(store.toList())
@@ -315,23 +417,52 @@ private class RecordingWidgetsApi(
         return writeResult
     }
 
-    override suspend fun create(channelId: String, body: CreateWidgetBody): ApiResult<WidgetSummary> =
-        ApiResult.Ok(WidgetSummary(id = "new-widget", type = body.type, name = body.name))
+    override suspend fun create(channelId: String, body: CreateWidgetBody): ApiResult<WidgetSummary> {
+        created += body
+        return ApiResult.Ok(WidgetSummary(id = "new-widget", framework = body.framework, name = body.name))
+    }
 
     override suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit> =
         ApiResult.Ok(Unit)
 
-    // Records the saved code and, on success, writes it back to the store so the controller's post-write reload
-    // observes the persisted source (a real consequence), not merely that the call happened.
-    override suspend fun saveCode(channelId: String, widgetId: String, code: String): ApiResult<Unit> {
-        savedCode += widgetId to code
-        if (writeResult is ApiResult.Ok) {
-            val index: Int = store.indexOfFirst { it.id == widgetId }
-            if (index >= 0) store[index] = store[index].copy(customCode = code)
-        }
-        return writeResult
+    // Records the compiled source so the controller's compile-on-save round-trip is observable (a real version
+    // build), and returns the configured build outcome so a success or a failure surfaces inline.
+    override suspend fun compile(
+        channelId: String,
+        widgetId: String,
+        sourceCode: String,
+    ): ApiResult<WidgetVersionDetail> {
+        compiled += widgetId to sourceCode
+        return compileResult
     }
 
-    override suspend fun clone(channelId: String, sourceType: String, sourceName: String): ApiResult<WidgetSummary> =
-        ApiResult.Ok(WidgetSummary(id = "cloned-widget", type = sourceType, name = "$sourceName (copy)"))
+    override suspend fun listVersions(
+        channelId: String,
+        widgetId: String,
+    ): ApiResult<List<WidgetVersionSummary>> = ApiResult.Ok(versions)
+
+    override suspend fun getVersion(
+        channelId: String,
+        widgetId: String,
+        versionId: String,
+    ): ApiResult<WidgetVersionDetail> {
+        loadedVersionIds += versionId
+        return ApiResult.Ok(WidgetVersionDetail(id = versionId, widgetId = widgetId, sourceCode = versionSource))
+    }
+
+    override suspend fun rollback(
+        channelId: String,
+        widgetId: String,
+        versionId: String,
+    ): ApiResult<WidgetSummary> {
+        rolledBack += widgetId to versionId
+        return ApiResult.Ok(store.firstOrNull { it.id == widgetId } ?: WidgetSummary(id = widgetId))
+    }
+
+    override suspend fun listTemplates(channelId: String): ApiResult<List<WidgetTemplate>> = templates
+
+    override suspend fun clone(channelId: String, installedWidgetId: String): ApiResult<WidgetSummary> {
+        clonedIds += installedWidgetId
+        return ApiResult.Ok(WidgetSummary(id = "cloned-widget", name = "clone", source = "custom"))
+    }
 }

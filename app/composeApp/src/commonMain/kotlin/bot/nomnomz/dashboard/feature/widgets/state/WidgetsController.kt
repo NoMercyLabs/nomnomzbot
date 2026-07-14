@@ -10,12 +10,16 @@
 
 package bot.nomnomz.dashboard.feature.widgets.state
 
+import bot.nomnomz.dashboard.core.editor.CompileFeedback
 import bot.nomnomz.dashboard.core.editor.CustomCodeEditorIO
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateWidgetBody
 import bot.nomnomz.dashboard.core.network.WidgetSummary
+import bot.nomnomz.dashboard.core.network.WidgetTemplate
+import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
 import bot.nomnomz.dashboard.core.network.WidgetsApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,9 +28,10 @@ import kotlinx.coroutines.flow.asStateFlow
 // The Overlays page's state-holder (frontend-ia.md §3 — the Stream group; a plain holder, not a ViewModel).
 // Resolves the active channel, then lists its real OBS overlay widgets from the backend (no fabricated rows) —
 // each row carries the browser-source URL the operator copies into OBS. It also drives the page's writes —
-// enable/disable and delete — each of which re-lists on success so the screen always reflects the backend's
-// truth. Delete is destructive (the overlay's URL stops resolving once it is gone), so the screen confirms it
-// before calling [deleteWidget]. The screen renders [state]; a retry / reconnect calls [load] again.
+// enable/disable, rename, delete, clone, create, and the compile-on-save code editor + version rollback. Every
+// mutation re-lists on success so the screen always reflects the backend's truth. Delete is destructive (the
+// overlay's URL stops resolving once it is gone), so the screen confirms it before calling [deleteWidget]. The
+// screen renders [state]; a retry / reconnect calls [load] again.
 class WidgetsController(
     private val channelsApi: ChannelsApi,
     private val widgetsApi: WidgetsApi,
@@ -82,11 +87,20 @@ class WidgetsController(
         afterWrite(widgetsApi.delete(channel, widgetId))
     }
 
-    /** Create a new widget with [name] and [type]. Reloads on success; surfaces error on failure. */
-    suspend fun createWidget(name: String, type: String) {
+    /**
+     * Create a new widget ({ [name], [framework] }), then open the compile-on-save editor seeded with
+     * [seedSource] (a chosen template's source, or blank) so the operator authors + compiles the first version
+     * right away. Reloads when the editor closes; surfaces the error if the create call fails.
+     */
+    suspend fun createWidget(
+        name: String,
+        framework: String,
+        seedSource: String,
+        messages: WidgetEditorMessages,
+    ) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
-        when (val result: ApiResult<WidgetSummary> = widgetsApi.create(channel, CreateWidgetBody(name, type))) {
-            is ApiResult.Ok -> load()
+        when (val result: ApiResult<WidgetSummary> = widgetsApi.create(channel, CreateWidgetBody(name, framework))) {
+            is ApiResult.Ok -> openEditor(channel, result.value.id, name, framework, seedSource, messages)
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
@@ -98,23 +112,107 @@ class WidgetsController(
     }
 
     /**
-     * Open the VS Code-style editor on a custom widget's authored source, seeded with its current code, then
-     * persist the result on save. A cancelled edit is a no-op (returns without a write). Reloads on success;
-     * surfaces the error over the kept list on failure.
+     * Open the compile-on-save code editor on a widget, seeded with its active version's source, then reload
+     * when it closes. Each "Save & Compile" builds a new version via [WidgetsApi.compile] and reports the build
+     * result inline. If the source cannot be loaded, surfaces the error and does not open the editor.
      */
-    suspend fun editWidgetCode(widget: WidgetSummary) {
+    suspend fun editWidgetCode(widget: WidgetSummary, messages: WidgetEditorMessages) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
-        val edited: String =
-            codeEditor.edit(widget.name, widget.customCode ?: "", language = "html") ?: return
-        afterWrite(widgetsApi.saveCode(channel, widget.id, edited))
+        val source: String =
+            when (val loaded: ApiResult<String> = loadActiveSource(channel, widget)) {
+                is ApiResult.Ok -> loaded.value
+                is ApiResult.Failure -> return failWrite(loaded.error.message)
+            }
+        openEditor(channel, widget.id, widget.name, widget.framework, source, messages)
     }
 
-    /** Clone a widget by creating "Copy of [sourceName]" with the same [sourceType]. Reloads on success. */
-    suspend fun cloneWidget(sourceType: String, sourceName: String) {
+    /** Roll the overlay back to a past [versionId] (it becomes the served version again). Reloads on success. */
+    suspend fun rollbackVersion(widgetId: String, versionId: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
-        when (val result: ApiResult<WidgetSummary> = widgetsApi.clone(channel, sourceType, sourceName)) {
+        when (val result: ApiResult<WidgetSummary> = widgetsApi.rollback(channel, widgetId, versionId)) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
+    /**
+     * The widget's version history (newest first) for the rollback dialog. Returns the raw result so the dialog
+     * can render its own loading / error / list — a read that does not disturb the page's [state].
+     */
+    suspend fun listVersions(widgetId: String): ApiResult<List<WidgetVersionSummary>> {
+        val channel: String = channelId ?: return ApiResult.Failure(NoChannelApiError)
+        return widgetsApi.listVersions(channel, widgetId)
+    }
+
+    /** The starter templates the create dialog offers. Returns the raw result for the dialog to render. */
+    suspend fun listTemplates(): ApiResult<List<WidgetTemplate>> {
+        val channel: String = channelId ?: return ApiResult.Failure(NoChannelApiError)
+        return widgetsApi.listTemplates(channel)
+    }
+
+    /** Clone an installed widget into a fresh, independently-editable custom copy. Reloads on success. */
+    suspend fun cloneWidget(widgetId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        when (val result: ApiResult<WidgetSummary> = widgetsApi.clone(channel, widgetId)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
+    // Open the compile-on-save editor, wiring each save to a compile of the widget's next version, then reload
+    // the list when the operator closes it (so the row reflects the new active version / freshly created widget).
+    private suspend fun openEditor(
+        channel: String,
+        widgetId: String,
+        title: String,
+        framework: String,
+        initialSource: String,
+        messages: WidgetEditorMessages,
+    ) {
+        codeEditor.editAndCompile(
+            title = title,
+            initialCode = initialSource,
+            // Highlighting is best-effort; the framework doubles as the editor's language badge.
+            language = framework.ifBlank { "html" },
+            compile = { edited -> compileToFeedback(channel, widgetId, edited, messages) },
+        )
+        load()
+    }
+
+    // Compile the authored source into the widget's next version and map the build outcome to inline feedback.
+    // A transport failure is surfaced as a failed build with the backend's error message.
+    private suspend fun compileToFeedback(
+        channel: String,
+        widgetId: String,
+        source: String,
+        messages: WidgetEditorMessages,
+    ): CompileFeedback =
+        when (val result = widgetsApi.compile(channel, widgetId, source)) {
+            is ApiResult.Ok -> {
+                val ok: Boolean = result.value.buildStatus.equals("success", ignoreCase = true)
+                CompileFeedback(
+                    ok = ok,
+                    message =
+                        if (ok) messages.compiled
+                        else result.value.buildError ?: result.value.buildLog ?: messages.buildFailed,
+                )
+            }
+            is ApiResult.Failure -> CompileFeedback(ok = false, message = result.error.message)
+        }
+
+    // Load the source the editor seeds with: the active version if the widget has one, else the newest version,
+    // else blank (a freshly created widget with no compiled version yet). A hard load failure propagates.
+    private suspend fun loadActiveSource(channel: String, widget: WidgetSummary): ApiResult<String> {
+        val versionId: String? =
+            widget.activeVersionId
+                ?: when (val versions: ApiResult<List<WidgetVersionSummary>> = widgetsApi.listVersions(channel, widget.id)) {
+                    is ApiResult.Ok -> versions.value.firstOrNull()?.id
+                    is ApiResult.Failure -> return ApiResult.Failure(versions.error)
+                }
+        if (versionId == null) return ApiResult.Ok("")
+        return when (val detail = widgetsApi.getVersion(channel, widget.id, versionId)) {
+            is ApiResult.Ok -> ApiResult.Ok(detail.value.sourceCode ?: "")
+            is ApiResult.Failure -> ApiResult.Failure(detail.error)
         }
     }
 
@@ -136,8 +234,16 @@ class WidgetsController(
 
     private companion object {
         const val NoChannelError: String = "No active channel — reconnect and try again."
+        val NoChannelApiError: ApiError = ApiError(status = 0, code = "NO_CHANNEL", message = NoChannelError)
     }
 }
+
+/**
+ * The localized editor-feedback strings the compile callback surfaces. Resolved by the screen (a Composable) and
+ * passed in, because the controller is a plain state holder with no access to Compose string resources.
+ * [buildError] / [buildLog] from the backend take precedence over [buildFailed] when a build reports an error.
+ */
+data class WidgetEditorMessages(val compiled: String, val buildFailed: String)
 
 /** The Overlays page render state. */
 sealed interface WidgetsState {
