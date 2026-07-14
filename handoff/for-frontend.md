@@ -49,9 +49,13 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   — no frontend work: the OBS browser source is `WidgetDetail.overlayUrl`, unchanged.
 - **Gate-2 keys:** `widget:read` (list/get/versions/templates), `widget:write` (create/update/delete/
   clone), `widget:compile`, `widget:version:read`, `widget:rollback` — all seeded.
-- **⚠️ Backend still owes you:** `server/openapi/v1.json` is **not yet refreshed** for these DTO changes
-  (blocked locally on a busy port). Do NOT resync Kotlin DTOs against the stale snapshot — the backend
-  will refresh v1.json and ping this entry; `ApiContractTest` will then guard the new shapes.
+- **✅ Backend refreshed `server/openapi/v1.json`** for these DTO changes (this commit). Now in the
+  snapshot: `WidgetDetail`/`CreateWidgetRequest`/`UpdateWidgetRequest` (CustomCode dropped;
+  framework/source/activeVersionId/eventSubscriptions/settings added), plus `CompileWidgetRequest`,
+  `CloneWidgetRequest`, `WidgetVersionSummary`/`WidgetVersionDetail`, `WidgetTemplate`,
+  `OverlayManifest`/`OverlayWidgetEntry`. Resync the Kotlin DTOs against it and register the new shapes in
+  `ApiContractTest` (`:composeApp:jvmTest`). Backend-verified live: create→compile→overlay URL renders the
+  bundle in the sandboxed iframe with the SDK bridge + saved settings.
 - **Done when:** create-from-template → edit in the code editor → Save compiles + the OBS overlay URL
   renders the widget and hot-reloads on save; a build error shows in the editor; version list + rollback
   work; clone produces a live, independently-editable copy; en + nl strings.

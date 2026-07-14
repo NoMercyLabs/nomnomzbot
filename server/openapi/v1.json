@@ -33389,6 +33389,234 @@
         }
       }
     },
+    "/api/v{version}/overlay/manifest": {
+      "get": {
+        "tags": [
+          "Overlay"
+        ],
+        "summary": "Resolve a channel's overlay manifest by its overlay token.",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfOverlayManifest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/overlay/bundle/{widgetId}": {
+      "get": {
+        "tags": [
+          "Overlay"
+        ],
+        "summary": "Serve a widget's active compiled bundle. The URL carries the content hash as `?v=`, so the response is\r\nsafely long-cacheable (a new compile / rollback changes the hash → a fresh URL the host fetches instead).",
+        "parameters": [
+          {
+            "name": "widgetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/javascript": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/javascript": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/javascript": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/javascript": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/javascript": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/javascript": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/permissions": {
       "get": {
         "tags": [
@@ -47702,6 +47930,104 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/widgets/templates": {
+      "get": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "List the starter templates offered when creating a new custom widget.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfWidgetTemplate"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/widgets/{widgetId}": {
       "get": {
         "tags": [
@@ -48027,6 +48353,629 @@
             "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/widgets/clone": {
+      "post": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Clone a widget into a new, fully-owned custom widget (source copied in + compiled, so it is live).",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloneWidgetRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloneWidgetRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloneWidgetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfWidgetDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/widgets/{widgetId}/compile": {
+      "post": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Compile-on-save: append the widget's next version, build it, and (on success) activate it. A failed build\r\nis a persisted `error` version — the response carries the build status either way.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "widgetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompileWidgetRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompileWidgetRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompileWidgetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfWidgetVersionDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/widgets/{widgetId}/versions": {
+      "get": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "List a widget's build/version history, newest first.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "widgetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Take",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseOfWidgetVersionSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/widgets/{widgetId}/versions/{versionId}": {
+      "get": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Get a single widget version in full (source + build log), for rollback/debug.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "widgetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfWidgetVersionDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/widgets/{widgetId}/rollback/{versionId}": {
+      "post": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Roll the widget's active version back to an earlier successful build (no recompile).",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "widgetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfWidgetDetail"
+                }
+              }
             }
           }
         }
@@ -49676,6 +50625,28 @@
         },
         "description": "A Stripe Checkout session redirect."
       },
+      "CloneWidgetRequest": {
+        "type": "object",
+        "properties": {
+          "galleryItemId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "installedWidgetId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          }
+        },
+        "description": "Fork source for clone-to-edit — exactly one of Guid? CloneWidgetRequest.GalleryItemId / Guid? CloneWidgetRequest.InstalledWidgetId is\r\nset. Produces a NEW, fully-owned `custom` widget with the source copied in (independently editable)."
+      },
       "CodeInput": {
         "required": [
           "code"
@@ -50088,6 +51059,18 @@
             "format": "date-time"
           }
         }
+      },
+      "CompileWidgetRequest": {
+        "required": [
+          "sourceCode"
+        ],
+        "type": "object",
+        "properties": {
+          "sourceCode": {
+            "type": "string"
+          }
+        },
+        "description": "The authored source to compile-on-save into the widget's next append-only version."
       },
       "ConnectIntegrationRequest": {
         "required": [
@@ -51002,15 +51985,22 @@
       "CreateWidgetRequest": {
         "required": [
           "name",
-          "type"
+          "framework"
         ],
         "type": "object",
         "properties": {
           "name": {
             "type": "string"
           },
-          "type": {
-            "type": "string"
+          "framework": {
+            "type": "string",
+            "description": "Source language of the widget: `vanilla` | `vue` | `react` | `svelte`."
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "settings": {
             "type": [
@@ -51026,13 +52016,6 @@
             "items": {
               "type": "string"
             }
-          },
-          "customCode": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Optional starter source for a custom widget; null leaves the widget code-less."
           }
         }
       },
@@ -54862,6 +55845,76 @@
           }
         }
       },
+      "OverlayManifest": {
+        "required": [
+          "channelId",
+          "cspNonce",
+          "widgets"
+        ],
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "cspNonce": {
+            "type": "string"
+          },
+          "widgets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverlayWidgetEntry"
+            }
+          }
+        },
+        "description": "The public, token-resolved overlay manifest (widgets-overlays.md §4). The single read an OBS browser source\r\nneeds: the channel's enabled, successfully-built widgets, each with the URL to fetch its compiled bundle, the\r\ncontent hash (cache-bust key), its render-time trust tier, and its live settings + event subscriptions."
+      },
+      "OverlayWidgetEntry": {
+        "required": [
+          "widgetId",
+          "name",
+          "framework",
+          "trustTier",
+          "bundleUrl",
+          "contentHash",
+          "eventSubscriptions",
+          "settings"
+        ],
+        "type": "object",
+        "properties": {
+          "widgetId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "framework": {
+            "type": "string"
+          },
+          "trustTier": {
+            "type": "string"
+          },
+          "bundleUrl": {
+            "type": "string"
+          },
+          "contentHash": {
+            "type": "string"
+          },
+          "eventSubscriptions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "settings": {
+            "type": "object"
+          }
+        },
+        "description": "One widget in the overlay manifest. string OverlayWidgetEntry.TrustTier (first_party | verified_community | unverified) is\r\nderived from the widget's `Source` and drives the render-time CSP tier — a self-authored (custom) widget is\r\nalways `unverified` (fail-closed)."
+      },
       "PaginatedResponseOfAdminChannelDto": {
         "type": "object",
         "properties": {
@@ -56351,6 +57404,44 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/WidgetDetail"
+            }
+          },
+          "nextPage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PaginatedResponseOfWidgetVersionSummary": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WidgetVersionSummary"
             }
           },
           "nextPage": {
@@ -60098,6 +61189,35 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfWidgetTemplate": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/WidgetTemplate"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfLegacyImportResult": {
         "type": "object",
         "properties": {
@@ -60899,6 +62019,36 @@
             "type": "string"
           },
           "data": { },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfOverlayManifest": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OverlayManifest"
+              }
+            ]
+          },
           "message": {
             "type": [
               "null",
@@ -62212,6 +63362,36 @@
               },
               {
                 "$ref": "#/components/schemas/WidgetDetail"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfWidgetVersionDetail": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WidgetVersionDetail"
               }
             ]
           },
@@ -64970,6 +66150,12 @@
               "string"
             ]
           },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "settings": {
             "type": [
               "null",
@@ -64990,13 +66176,6 @@
               "null",
               "boolean"
             ]
-          },
-          "customCode": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The widget's authored source. A partial patch: null leaves the stored code untouched (so a rename or\r\ntoggle never clears it); a non-null value — including an empty string — replaces it."
           }
         }
       },
@@ -66187,24 +67366,40 @@
         "required": [
           "id",
           "name",
-          "type",
+          "description",
+          "framework",
+          "source",
           "isEnabled",
           "overlayUrl",
+          "activeVersionId",
+          "galleryItemId",
           "settings",
           "eventSubscriptions",
+          "lastRuntimeError",
+          "lastRanAt",
           "createdAt",
-          "updatedAt",
-          "customCode"
+          "updatedAt"
         ],
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "name": {
             "type": "string"
           },
-          "type": {
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "framework": {
+            "type": "string"
+          },
+          "source": {
             "type": "string"
           },
           "isEnabled": {
@@ -66216,6 +67411,22 @@
               "string"
             ]
           },
+          "activeVersionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "galleryItemId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
           "settings": {
             "type": "object"
           },
@@ -66225,6 +67436,19 @@
               "type": "string"
             }
           },
+          "lastRuntimeError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastRanAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -66232,14 +67456,158 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        },
+        "description": "A widget's full detail. The authored source and compiled bundle are NOT here — they live on append-only\r\n`WidgetVersion` rows; Guid? WidgetDetail.ActiveVersionId names the version the overlay currently serves.\r\n`Framework` is the source language (vue|react|svelte|vanilla); `Source` is the provenance\r\n(first_party|verified_gallery|custom)."
+      },
+      "WidgetTemplate": {
+        "required": [
+          "key",
+          "name",
+          "description",
+          "framework",
+          "source"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
           },
-          "customCode": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "framework": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "description": "A starter widget template the editor offers when creating a new custom widget — a working, SDK-using starting\r\npoint (never a blank editor). string WidgetTemplate.Source is the authored source to seed into the editor + compile."
+      },
+      "WidgetVersionDetail": {
+        "required": [
+          "id",
+          "widgetId",
+          "versionNumber",
+          "buildStatus",
+          "sourceCode",
+          "buildError",
+          "buildLog",
+          "contentHash",
+          "compiledAt",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "widgetId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "versionNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "buildStatus": {
+            "type": "string"
+          },
+          "sourceCode": {
             "type": [
               "null",
               "string"
             ]
+          },
+          "buildError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "buildLog": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "contentHash": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "compiledAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
-        }
+        },
+        "description": "A single widget version in full. Carries string? WidgetVersionDetail.SourceCode so the editor can load the current source to\r\nedit, and string? WidgetVersionDetail.BuildError/string? WidgetVersionDetail.BuildLog so a failed build is inspectable. The compiled bundle\r\nitself is served to overlays via the manifest, not returned here."
+      },
+      "WidgetVersionSummary": {
+        "required": [
+          "id",
+          "versionNumber",
+          "buildStatus",
+          "contentHash",
+          "compiledAt",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "versionNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "buildStatus": {
+            "type": "string"
+          },
+          "contentHash": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "compiledAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "A row in a widget's version history (rollback / debug list)."
       }
     }
   },
@@ -66342,6 +67710,9 @@
     },
     {
       "name": "Music"
+    },
+    {
+      "name": "Overlay"
     },
     {
       "name": "Permissions"
