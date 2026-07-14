@@ -277,6 +277,9 @@ public static class DependencyInjection
         >();
         // Composer emote catalogue (scoped — reads the warm decoration cache + fetches Twitch emotes; chat-client.md §3.2).
         services.AddScoped<Application.Chat.Services.IChatEmoteCatalogue, ChatEmoteCatalogue>();
+        // The out-of-process CLI runner behind the widget build service (esbuild). Not an I<X>Service, so it is
+        // registered explicitly; IWidgetBuildService -> EsbuildWidgetBuildService is convention-bound.
+        services.AddScoped<Widgets.Bundling.IProcessRunner, Widgets.Bundling.ProcessRunner>();
         // Every outbound HttpClient the factory builds (provider fetches, OAuth, Twitch, TTS, webhooks…) sends
         // the product User-Agent by default, stamped with the running build version. A client may still override.
         services.ConfigureHttpClientDefaults(builder =>
