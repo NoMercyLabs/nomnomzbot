@@ -149,7 +149,13 @@ private fun openCodeEditor(title: String, initialCode: String, language: String)
             overlay.appendChild(header);
             overlay.appendChild(result);
             overlay.appendChild(host);
-            document.body.appendChild(overlay);
+            // Compose/Wasm renders the whole app into a shadow root attached to <body>. Light-DOM children of a
+            // shadow host are NOT laid out (there is no <slot> to project them), so appending the overlay to
+            // document.body leaves it — and everything inside it — 0x0 and invisible. Mount it INTO that shadow
+            // root instead, where it lays out against the viewport and paints above the canvas. Fall back to
+            // document.body if the app is ever hosted without a shadow root (e.g. a plain-DOM Compose target).
+            var mountRoot = document.body.shadowRoot || document.body;
+            mountRoot.appendChild(overlay);
 
             function currentValue() {
                 if (slot.view) { return slot.view.state.doc.toString(); }
