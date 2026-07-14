@@ -130,4 +130,15 @@ public interface IWidgetService
 
     /// <summary>The starter templates offered when creating a new custom widget (static reference data).</summary>
     IReadOnlyList<WidgetTemplate> GetTemplates();
+
+    /// <summary>
+    /// Fork a widget into a NEW, fully-owned custom widget: copies the source widget's name/description/framework +
+    /// its latest authored source, then compiles the copy so the clone is immediately live and independently
+    /// editable. Exactly one fork source (installed widget or gallery item) must be set on the request.
+    /// </summary>
+    Task<Result<WidgetDetail>> CloneToEditAsync(
+        string broadcasterId,
+        CloneWidgetRequest request,
+        CancellationToken cancellationToken = default
+    );
 }

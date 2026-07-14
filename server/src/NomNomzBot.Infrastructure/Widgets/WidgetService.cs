@@ -90,6 +90,92 @@ public class WidgetService : IWidgetService
         return Result.Success(ToDetail(widget, channel.OverlayToken, _overlayBaseUrl));
     }
 
+    public async Task<Result<WidgetDetail>> CloneToEditAsync(
+        string broadcasterId,
+        CloneWidgetRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
+
+        // Exactly one fork source.
+        bool hasGallery = request.GalleryItemId.HasValue;
+        bool hasInstalled = request.InstalledWidgetId.HasValue;
+        if (hasGallery == hasInstalled)
+            return Result.Failure<WidgetDetail>(
+                "Provide exactly one of galleryItemId or installedWidgetId to clone.",
+                "WIDGET_CLONE_SOURCE_INVALID"
+            );
+
+        // The gallery (and installing/cloning from it) is a later slice; fail honestly rather than pretend.
+        if (hasGallery)
+            return Result.Failure<WidgetDetail>(
+                "Cloning from the gallery is not available yet.",
+                "WIDGET_GALLERY_UNAVAILABLE"
+            );
+
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == broadcasterGuid,
+            cancellationToken
+        );
+        if (channel is null)
+            return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
+
+        Guid sourceWidgetId = request.InstalledWidgetId!.Value;
+        Widget? source = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.Id == sourceWidgetId && w.BroadcasterId == broadcasterGuid,
+            cancellationToken
+        );
+        if (source is null)
+            return Errors.NotFound<WidgetDetail>("Widget", sourceWidgetId.ToString());
+
+        // Copy the LATEST authored source (what the editor shows), then recompile it into the clone.
+        WidgetVersion? latest = await _db
+            .WidgetVersions.Where(v => v.WidgetId == sourceWidgetId)
+            .OrderByDescending(v => v.VersionNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (latest?.SourceCode is null)
+            return Result.Failure<WidgetDetail>(
+                "The widget has no source to clone yet — compile it first.",
+                "WIDGET_NO_SOURCE"
+            );
+
+        string clonedName = "Copy of " + source.Name;
+        if (clonedName.Length > 255)
+            clonedName = clonedName[..255];
+
+        Widget clone = new()
+        {
+            BroadcasterId = broadcasterGuid,
+            Name = clonedName,
+            Description = source.Description,
+            Framework = source.Framework,
+            Source = "custom", // a self-authored fork is always custom (=> unverified trust tier), fully detached
+            IsEnabled = true,
+            EventSubscriptions = [.. source.EventSubscriptions],
+            Settings = new Dictionary<string, object>(source.Settings),
+        };
+        _db.Widgets.Add(clone);
+        await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(broadcasterGuid, clone.Id, "created", cancellationToken);
+
+        // Compile the copied source so the clone is immediately live + independently editable.
+        Result<WidgetVersionDetail> compiled = await CompileAsync(
+            broadcasterId,
+            clone.Id.ToString(),
+            new CompileWidgetRequest { SourceCode = latest.SourceCode },
+            cancellationToken
+        );
+        if (compiled.IsFailure)
+            return Result.Failure<WidgetDetail>(
+                compiled.ErrorMessage ?? "The cloned widget failed to compile.",
+                compiled.ErrorCode ?? "WIDGET_BUILD_FAILED"
+            );
+
+        return await GetAsync(broadcasterId, clone.Id.ToString(), cancellationToken);
+    }
+
     public async Task<Result<WidgetDetail>> UpdateAsync(
         string broadcasterId,
         string widgetId,

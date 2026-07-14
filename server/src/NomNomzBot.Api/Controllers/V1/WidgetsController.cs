@@ -150,6 +150,31 @@ public class WidgetsController : BaseController
         );
     }
 
+    /// <summary>Clone a widget into a new, fully-owned custom widget (source copied in + compiled, so it is live).</summary>
+    [RequireAction("widget:write")]
+    [HttpPost("clone")]
+    [ProducesResponseType<StatusResponseDto<WidgetDetail>>(StatusCodes.Status201Created)]
+    public async Task<IActionResult> CloneWidget(
+        string channelId,
+        [FromBody] CloneWidgetRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<WidgetDetail> result = await _widgetService.CloneToEditAsync(channelId, request, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+
+        return CreatedAtAction(
+            nameof(GetWidget),
+            new { channelId, widgetId = result.Value.Id },
+            new StatusResponseDto<WidgetDetail>
+            {
+                Data = WithOverlayOrigin(result.Value),
+                Message = "Widget cloned successfully.",
+            }
+        );
+    }
+
     /// <summary>Update an existing overlay widget's configuration.</summary>
     [RequireAction("widget:write")]
     [HttpPut("{widgetId}")]

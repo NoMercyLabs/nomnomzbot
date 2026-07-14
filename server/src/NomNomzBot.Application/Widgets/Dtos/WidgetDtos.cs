@@ -62,6 +62,16 @@ public sealed record CompileWidgetRequest
 }
 
 /// <summary>
+/// Fork source for clone-to-edit — exactly one of <see cref="GalleryItemId"/> / <see cref="InstalledWidgetId"/> is
+/// set. Produces a NEW, fully-owned <c>custom</c> widget with the source copied in (independently editable).
+/// </summary>
+public sealed record CloneWidgetRequest
+{
+    public Guid? GalleryItemId { get; init; }
+    public Guid? InstalledWidgetId { get; init; }
+}
+
+/// <summary>
 /// The public, token-resolved overlay manifest (widgets-overlays.md §4). The single read an OBS browser source
 /// needs: the channel's enabled, successfully-built widgets, each with the URL to fetch its compiled bundle, the
 /// content hash (cache-bust key), its render-time trust tier, and its live settings + event subscriptions.
