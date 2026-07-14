@@ -15,16 +15,31 @@ package bot.nomnomz.dashboard.core.editor
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.coroutines.delay
 
-// Web custom-code editor — a full-screen DOM overlay hosting CodeMirror 6 (VS Code-like), mounted above the
+// Web custom-code editor — a full-screen DOM overlay hosting the VS Code editor (Monaco), mounted above the
 // Compose canvas. It is a compile-on-save surface: the overlay stays open and shows the build result inline.
+//
+// IntelliSense stack (loaded from a CDN at runtime; this project has no JS bundler, so everything is
+// hand-wired):
+//   • Monaco Editor, via the classic AMD CDN loader. Monaco's own language workers (TypeScript, HTML, CSS,
+//     JSON) are spun up through the standard `MonacoEnvironment.getWorker` proxy, giving real completion,
+//     hover and diagnostics for `lang="ts"`/`lang="js"` scripts and for standalone ts/js/html/css/json
+//     widgets out of the box.
+//   • For a Vue SFC (`language == "vue"`) we additionally attempt the Vue language service (Volar) in a Web
+//     Worker: a Blob module-worker runs `@volar/monaco/worker` + `@vue/language-service` with a jsdelivr-backed
+//     virtual FS (`@volar/jsdelivr`) for on-demand type acquisition, wired to Monaco through the documented
+//     `@volar/monaco` main-thread helpers (activateMarkers / activateAutoInsertion / registerProviders). This
+//     gives `<template>` component/prop/directive completion and Vue-aware `<script setup lang="ts">` checking.
+//     It is a best-effort enhancement layered on top of an already-working editor: any failure to load or
+//     initialise leaves the plain Monaco editor (with its native TS/HTML/CSS IntelliSense) untouched.
+//
+// Degradation ladder: Volar → plain Monaco → monospace <textarea>. If Monaco itself cannot load (offline
+// self-host, blocked CDN) the overlay falls back to a <textarea> so the editor is never unavailable.
 //
 // Handshake (same global-slot polling as AudioFilePicker.wasmJs.kt): the JS side stages its state on
 // `globalThis.__nnzCodeEdit` ({ status, pendingSource, ... }) and Kotlin polls it. When the operator clicks
 // "Save & Compile" the JS sets status='compile' and stages the current source; Kotlin picks it up, flips
 // status='busy' to avoid re-reading the same request, awaits the caller's compile, then paints the result and
-// flips back to status='editing'. "Close" (button/Esc) sets status='closed' and Kotlin returns. CodeMirror is
-// loaded from a CDN; if that fails (offline self-host, blocked CDN) the overlay falls back to a monospace
-// <textarea> so the editor is never unavailable.
+// flips back to status='editing'. "Close" (button/Esc) sets status='closed' and Kotlin returns.
 actual class CustomCodeEditor : CustomCodeEditorIO {
     actual override suspend fun editAndCompile(
         title: String,
@@ -84,11 +99,22 @@ private fun reportCompile(ok: Boolean, message: String) {
     )
 }
 
-// Tears the overlay out of the DOM and clears the slot. Removing the element also disposes its CodeMirror view
-// (the view lives inside the removed subtree), so there is nothing else to release.
+// Tears the overlay out of the DOM and disposes the Monaco resources it owned. Removing the element disposes the
+// editor view (it lives inside the removed subtree); we also dispose the model, terminate the Volar worker, and
+// revoke the worker blob URL so a repeated open/close cycle does not leak.
 private fun closeCodeEditor() {
     js(
-        "{ var s = globalThis.__nnzCodeEdit; if (s && s.el && s.el.parentNode) { s.el.parentNode.removeChild(s.el); } globalThis.__nnzCodeEdit = null; }"
+        """{
+            var s = globalThis.__nnzCodeEdit;
+            if (s) {
+                try { if (s.editor && s.editor.dispose) { s.editor.dispose(); } } catch (e) {}
+                try { if (s.model && s.model.dispose) { s.model.dispose(); } } catch (e) {}
+                try { if (s.worker && s.worker.dispose) { s.worker.dispose(); } } catch (e) {}
+                try { if (s.vueWorkerUrl) { URL.revokeObjectURL(s.vueWorkerUrl); } } catch (e) {}
+                try { if (s.el && s.el.parentNode) { s.el.parentNode.removeChild(s.el); } } catch (e) {}
+            }
+            globalThis.__nnzCodeEdit = null;
+        }"""
     )
 }
 
@@ -98,9 +124,14 @@ private fun closeCodeEditor() {
 private fun openCodeEditor(title: String, initialCode: String, language: String) {
     js(
         """{
-            var slot = { status: 'editing', value: initialCode, pendingSource: '', el: null, view: null, textarea: null, result: null, saveBtn: null };
+            var slot = {
+                status: 'editing', value: initialCode, pendingSource: '',
+                el: null, monaco: null, editor: null, model: null, textarea: null,
+                result: null, saveBtn: null, worker: null, vueWorkerUrl: null
+            };
             globalThis.__nnzCodeEdit = slot;
 
+            // --- Overlay chrome -------------------------------------------------------------------------------
             var overlay = document.createElement('div');
             overlay.setAttribute('data-nnz-code-editor', '');
             overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;background:#0a0a0a;color:#e5e5e5;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif;';
@@ -151,8 +182,9 @@ private fun openCodeEditor(title: String, initialCode: String, language: String)
             overlay.appendChild(host);
             document.body.appendChild(overlay);
 
+            // --- Compile-on-save handshake --------------------------------------------------------------------
             function currentValue() {
-                if (slot.view) { return slot.view.state.doc.toString(); }
+                if (slot.model) { return slot.model.getValue(); }
                 if (slot.textarea) { return slot.textarea.value; }
                 return slot.value;
             }
@@ -173,8 +205,9 @@ private fun openCodeEditor(title: String, initialCode: String, language: String)
                 else if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); doSave(); }
             });
 
+            // --- Textarea fallback (offline self-host / blocked CDN) ------------------------------------------
             function mountTextarea() {
-                if (slot.textarea || slot.view) { return; }
+                if (slot.textarea || slot.editor) { return; }
                 var ta = document.createElement('textarea');
                 ta.value = slot.value;
                 ta.spellcheck = false;
@@ -193,42 +226,266 @@ private fun openCodeEditor(title: String, initialCode: String, language: String)
                 ta.focus();
             }
 
-            // Load CodeMirror 6 (the VS Code-like experience) from a CDN. On any failure, or if the overlay was
-            // already closed, fall back to / keep the monospace textarea so the editor always works.
-            //
-            // The import is built through the Function constructor rather than written as a literal import(): the
-            // Kotlin/Wasm webpack target statically rejects a literal dynamic import() ("target doesn't support
-            // dynamic import syntax") and would fail the bundle. Hiding it behind Function() leaves webpack out of
-            // it and the browser runs a real native import() at runtime.
-            var dynImport = new Function('u', 'return import(u);');
-            Promise.all([
-                dynImport('https://esm.sh/codemirror@6.0.1'),
-                dynImport('https://esm.sh/@codemirror/lang-html@6.4.9'),
-                dynImport('https://esm.sh/@codemirror/theme-one-dark@6.1.2')
-            ]).then(function (mods) {
-                if (slot.textarea || slot.status === 'closed') { return; }
-                var cm = mods[0], langHtml = mods[1], dark = mods[2];
-                var view = new cm.EditorView({
-                    doc: slot.value,
-                    extensions: [
-                        cm.basicSetup,
-                        langHtml.html(),
-                        dark.oneDark,
-                        cm.EditorView.theme({
-                            '&': { height: '100%' },
-                            '.cm-scroller': { overflow: 'auto', fontFamily: '\"Cascadia Code\",\"Fira Code\",Menlo,Consolas,monospace' }
-                        })
-                    ],
-                    parent: host
-                });
-                slot.view = view;
-                view.focus();
-            }).catch(function () { mountTextarea(); });
+            // --- Language mapping -----------------------------------------------------------------------------
+            var langArg = (language || '').toLowerCase();
+            function mapMonacoLang(l) {
+                if (l === 'vue') { return 'vue'; }
+                if (l === 'ts' || l === 'typescript' || l === 'tsx' || l === 'react' || l === 'jsx' || l === 'solid' || l === 'preact') { return 'typescript'; }
+                if (l === 'js' || l === 'javascript') { return 'javascript'; }
+                if (l === 'css' || l === 'scss' || l === 'less') { return 'css'; }
+                if (l === 'json') { return 'json'; }
+                // html, vanilla, svelte, empty, and anything else edit best as HTML (tags + embedded script/style).
+                return 'html';
+            }
+            function extFor(ml) {
+                if (ml === 'typescript') { return 'ts'; }
+                if (ml === 'javascript') { return 'js'; }
+                if (ml === 'css') { return 'css'; }
+                if (ml === 'json') { return 'json'; }
+                if (ml === 'vue') { return 'vue'; }
+                return 'html';
+            }
+            var monacoLang = mapMonacoLang(langArg);
 
-            // If the CDN modules are slow, show the textarea after a short grace period rather than a blank host.
+            var MONACO_VS = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
+
+            // Minimal ambient types so a standalone `import { ref } from 'vue'` resolves under Monaco's own TS
+            // worker. The Volar path (when it loads) supersedes this with the real Vue types fetched from jsdelivr.
+            var VUE_TYPE_SHIM = [
+                'declare module \"vue\" {',
+                '  export function ref<T>(value: T): { value: T };',
+                '  export function reactive<T extends object>(target: T): T;',
+                '  export function computed<T>(getter: () => T): { readonly value: T };',
+                '  export function watch(source: any, cb: (a: any, b: any) => void, options?: any): void;',
+                '  export function watchEffect(cb: () => void): void;',
+                '  export function onMounted(cb: () => void): void;',
+                '  export function onUnmounted(cb: () => void): void;',
+                '  export function onBeforeMount(cb: () => void): void;',
+                '  export function nextTick(cb?: () => void): Promise<void>;',
+                '  export function defineComponent(options: any): any;',
+                '  export function defineProps<T = any>(): T;',
+                '  export function defineEmits<T = any>(): T;',
+                '  export const provide: any;',
+                '  export const inject: any;',
+                '  export const h: any;',
+                '}'
+            ].join('\n');
+
+            // A compact HTML-derived Monarch grammar for the `vue` language: tags/attributes/comments/{{ }}, with
+            // <script> embedded as TypeScript and <style> as CSS. Wrapped in try/catch at the call site so a
+            // grammar hiccup only costs colouring, never the editor.
+            var VUE_MONARCH = {
+                defaultToken: '',
+                tokenPostfix: '.vue',
+                ignoreCase: true,
+                tokenizer: {
+                    root: [
+                        [/<!--/, 'comment', '@comment'],
+                        [/<script/, { token: 'tag', next: '@scriptEmbedded', nextEmbedded: 'typescript' }],
+                        [/<style/, { token: 'tag', next: '@styleEmbedded', nextEmbedded: 'css' }],
+                        [/<\/?[a-zA-Z][\w:-]*/, 'tag'],
+                        [/{{/, { token: 'delimiter.bracket', next: '@interp' }],
+                        [/[a-zA-Z@:][\w@:.-]*=/, 'attribute.name'],
+                        [/"[^"]*"/, 'attribute.value'],
+                        [/'[^']*'/, 'attribute.value'],
+                        [/[<>]/, 'tag'],
+                        [/[^<{]+/, '']
+                    ],
+                    comment: [
+                        [/-->/, 'comment', '@pop'],
+                        [/[^-]+/, 'comment'],
+                        [/./, 'comment']
+                    ],
+                    interp: [
+                        [/}}/, { token: 'delimiter.bracket', next: '@pop' }],
+                        [/[^}]+/, 'variable']
+                    ],
+                    scriptEmbedded: [
+                        [/<\/script\s*>/, { token: '@rematch', next: '@pop', nextEmbedded: '@pop' }]
+                    ],
+                    styleEmbedded: [
+                        [/<\/style\s*>/, { token: '@rematch', next: '@pop', nextEmbedded: '@pop' }]
+                    ]
+                }
+            };
+
+            var VUE_LANG_CONFIG = {
+                comments: { blockComment: ['<!--', '-->'] },
+                brackets: [['<', '>'], ['{', '}'], ['(', ')'], ['[', ']']],
+                autoClosingPairs: [
+                    { open: '{', close: '}' },
+                    { open: '[', close: ']' },
+                    { open: '(', close: ')' },
+                    { open: '\'', close: '\'' },
+                    { open: '\"', close: '\"' },
+                    { open: '<', close: '>' }
+                ]
+            };
+
+            // --- Volar (Vue language service) — best-effort enhancement over a working Monaco -----------------
+            // Builds the Web Worker source that runs @vue/language-service inside @volar/monaco's TS worker host,
+            // with a jsdelivr-backed virtual FS for on-demand type acquisition. Pinned CDN ESM, no bundler.
+            function buildVueWorkerBlobUrl() {
+                var src = [
+                    "import * as worker from 'https://esm.sh/monaco-editor@0.52.2/esm/vs/editor/editor.worker.js';",
+                    "import { createTypeScriptWorkerLanguageService } from 'https://esm.sh/@volar/monaco@2.4.11/worker';",
+                    "import { createNpmFileSystem } from 'https://esm.sh/@volar/jsdelivr@2.4.11';",
+                    "import { createVueLanguagePlugin, getFullLanguageServicePlugins } from 'https://esm.sh/@vue/language-service@2.1.10';",
+                    "import ts from 'https://esm.sh/typescript@5.6.3';",
+                    "import { URI } from 'https://esm.sh/vscode-uri@3.0.8';",
+                    "self.onmessage = function () {",
+                    "  worker.initialize(function (ctx) {",
+                    "    var compilerOptions = {",
+                    "      target: 99, module: 99, moduleResolution: 2, allowJs: true, checkJs: false,",
+                    "      jsx: 1, allowNonTsExtensions: true, esModuleInterop: true, skipLibCheck: true,",
+                    "      lib: ['esnext', 'dom', 'dom.iterable']",
+                    "    };",
+                    "    var env = { workspaceFolders: [URI.file('/')], fs: createNpmFileSystem() };",
+                    "    var vueLanguagePlugin = createVueLanguagePlugin(ts, compilerOptions, {});",
+                    "    var servicePlugins = getFullLanguageServicePlugins(ts);",
+                    "    return createTypeScriptWorkerLanguageService({",
+                    "      typescript: ts,",
+                    "      compilerOptions: compilerOptions,",
+                    "      workerContext: ctx,",
+                    "      env: env,",
+                    "      uriConverter: {",
+                    "        asFileName: function (u) { return u.fsPath; },",
+                    "        asUri: function (f) { return URI.file(f); }",
+                    "      },",
+                    "      languagePlugins: [vueLanguagePlugin],",
+                    "      languageServicePlugins: servicePlugins",
+                    "    });",
+                    "  });",
+                    "};"
+                ].join('\n');
+                return URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+            }
+
+            function activateVolar(monaco) {
+                var dynImport = new Function('u', 'return import(u);');
+                return dynImport('https://esm.sh/@volar/monaco@2.4.11').then(function (volar) {
+                    if (slot.status === 'closed') { return; }
+                    slot.vueWorkerUrl = buildVueWorkerBlobUrl();
+                    var worker = monaco.editor.createWebWorker({ moduleId: 'nnz-vue-worker', label: 'vue', createData: {} });
+                    slot.worker = worker;
+                    var getSyncUris = function () { return monaco.editor.getModels().map(function (m) { return m.uri; }); };
+                    volar.activateMarkers(worker, ['vue'], 'nnz-vue-markers', getSyncUris, monaco.editor);
+                    volar.activateAutoInsertion(worker, ['vue'], getSyncUris, monaco.editor);
+                    return volar.registerProviders(worker, ['vue'], getSyncUris, monaco.languages);
+                });
+            }
+
+            // --- Monaco bring-up ------------------------------------------------------------------------------
+            function setupMonaco(monaco) {
+                slot.monaco = monaco;
+                try {
+                    monaco.editor.defineTheme('nnz-dark', {
+                        base: 'vs-dark', inherit: true, rules: [], colors: { 'editor.background': '#0a0a0a' }
+                    });
+                } catch (e) {}
+
+                try {
+                    var tsl = monaco.languages.typescript;
+                    if (tsl) {
+                        tsl.typescriptDefaults.setCompilerOptions({
+                            target: tsl.ScriptTarget.ESNext,
+                            module: tsl.ModuleKind.ESNext,
+                            moduleResolution: tsl.ModuleResolutionKind.NodeJs,
+                            jsx: tsl.JsxEmit.Preserve,
+                            allowNonTsExtensions: true,
+                            allowJs: true,
+                            esModuleInterop: true,
+                            skipLibCheck: true,
+                            noEmit: true
+                        });
+                        tsl.typescriptDefaults.setEagerModelSync(true);
+                        tsl.typescriptDefaults.addExtraLib(VUE_TYPE_SHIM, 'file:///node_modules/@vue/nnz-vue-shim.d.ts');
+                    }
+                } catch (e) {}
+
+                if (monacoLang === 'vue') {
+                    try {
+                        var known = monaco.languages.getLanguages().some(function (l) { return l.id === 'vue'; });
+                        if (!known) {
+                            monaco.languages.register({ id: 'vue', extensions: ['.vue'] });
+                            try { monaco.languages.setMonarchTokensProvider('vue', VUE_MONARCH); } catch (e) {}
+                            try { monaco.languages.setLanguageConfiguration('vue', VUE_LANG_CONFIG); } catch (e) {}
+                        }
+                    } catch (e) {}
+                }
+
+                var uri = monaco.Uri.parse('file:///widget/Widget.' + extFor(monacoLang));
+                var model = monaco.editor.getModel(uri);
+                if (model) { try { model.dispose(); } catch (e) {} }
+                model = monaco.editor.createModel(slot.value, monacoLang, uri);
+                slot.model = model;
+
+                var editor = monaco.editor.create(host, {
+                    model: model,
+                    theme: 'nnz-dark',
+                    automaticLayout: true,
+                    fontFamily: '\"Cascadia Code\",\"Fira Code\",Menlo,Consolas,monospace',
+                    fontSize: 13,
+                    tabSize: 2,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    fixedOverflowWidgets: true,
+                    smoothScrolling: true
+                });
+                slot.editor = editor;
+                editor.focus();
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function () { doSave(); });
+
+                if (monacoLang === 'vue') {
+                    try { activateVolar(monaco).catch(function () {}); } catch (e) {}
+                }
+            }
+
+            // --- Monaco loader (classic AMD CDN loader — reliably wires the built-in workers, no bundler) ------
+            function loadScript(src, onload, onerror) {
+                var scriptEl = document.createElement('script');
+                scriptEl.src = src;
+                scriptEl.async = true;
+                scriptEl.onload = onload;
+                scriptEl.onerror = onerror;
+                document.head.appendChild(scriptEl);
+            }
+
+            if (globalThis.monaco && globalThis.monaco.editor) {
+                try { setupMonaco(globalThis.monaco); } catch (e) { mountTextarea(); }
+            } else {
+                if (!globalThis.__nnzMonacoEnv) {
+                    globalThis.__nnzMonacoEnv = true;
+                    // Built-in Monaco workers: a tiny same-origin blob that importScripts the CDN worker main.
+                    var proxySrc = 'self.MonacoEnvironment={baseUrl:\"' + MONACO_VS + '/\"};importScripts(\"' + MONACO_VS + '/base/worker/workerMain.js\");';
+                    var builtinWorkerUrl = URL.createObjectURL(new Blob([proxySrc], { type: 'text/javascript' }));
+                    globalThis.MonacoEnvironment = {
+                        getWorker: function (moduleId, label) {
+                            try {
+                                var active = globalThis.__nnzCodeEdit;
+                                if (label === 'vue' && active && active.vueWorkerUrl) {
+                                    return new Worker(active.vueWorkerUrl, { type: 'module' });
+                                }
+                            } catch (e) {}
+                            return new Worker(builtinWorkerUrl);
+                        }
+                    };
+                }
+                loadScript(MONACO_VS + '/loader.js', function () {
+                    try {
+                        globalThis.require.config({ paths: { vs: MONACO_VS } });
+                        globalThis.require(['vs/editor/editor.main'], function () {
+                            if (slot.status === 'closed') { return; }
+                            try { setupMonaco(globalThis.monaco); } catch (e) { mountTextarea(); }
+                        }, function () { mountTextarea(); });
+                    } catch (e) { mountTextarea(); }
+                }, function () { mountTextarea(); });
+            }
+
+            // If the CDN is slow or silently blocked, show the textarea rather than a blank host.
             setTimeout(function () {
-                if (!slot.view && !slot.textarea && slot.status !== 'closed') { mountTextarea(); }
-            }, 2500);
+                if (!slot.editor && !slot.textarea && slot.status !== 'closed') { mountTextarea(); }
+            }, 6000);
 
             saveBtn.focus();
         }"""
