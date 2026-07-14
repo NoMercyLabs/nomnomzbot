@@ -30,6 +30,14 @@ public interface IWidgetNotifier
         CancellationToken ct = default
     );
 
+    /// <summary>Pushes a compile-failed notice to a widget's group (a connected editor surfaces the build error).</summary>
+    Task SendCompileFailedAsync(
+        string broadcasterId,
+        string widgetId,
+        WidgetCompileFailedDto dto,
+        CancellationToken ct = default
+    );
+
     /// <summary>Pushes a play-sound command to all overlay clients for the given broadcaster.</summary>
     Task PlaySoundAsync(
         string broadcasterId,
@@ -77,6 +85,13 @@ public class WidgetNotifier : IWidgetNotifier
         WidgetSettingsDto dto,
         CancellationToken ct = default
     ) => _hub.Clients.Group($"widget-{broadcasterId}-{widgetId}").WidgetSettingsChanged(dto);
+
+    public Task SendCompileFailedAsync(
+        string broadcasterId,
+        string widgetId,
+        WidgetCompileFailedDto dto,
+        CancellationToken ct = default
+    ) => _hub.Clients.Group($"widget-{broadcasterId}-{widgetId}").WidgetCompileFailed(dto);
 
     public Task PlaySoundAsync(
         string broadcasterId,

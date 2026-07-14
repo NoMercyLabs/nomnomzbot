@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -25,16 +26,19 @@ public class OverlayHub : Hub<IOverlayClient>
     private static readonly ConcurrentDictionary<string, string> _connectionWidget = new(); // connectionId -> widgetId
     private readonly IChannelRegistry _registry;
     private readonly IApplicationDbContext _db;
+    private readonly IWidgetService _widgetService;
     private readonly ILogger<OverlayHub> _logger;
 
     public OverlayHub(
         IChannelRegistry registry,
         IApplicationDbContext db,
+        IWidgetService widgetService,
         ILogger<OverlayHub> logger
     )
     {
         _registry = registry;
         _db = db;
+        _widgetService = widgetService;
         _logger = logger;
     }
 
@@ -111,5 +115,18 @@ public class OverlayHub : Hub<IOverlayClient>
     {
         _logger.LogDebug("Widget {W} ready on connection {C}", widgetId, Context.ConnectionId);
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// An overlay-reported runtime fault for a widget (the SDK's <c>reportError</c> -> host -> here). Recorded
+    /// against the widget (audit B5). Best-effort: an unparseable id or a widget the token's channel does not own is
+    /// ignored by the service; the message is truncated so a looping widget cannot bloat the row.
+    /// </summary>
+    public async Task ReportRuntimeError(string widgetId, string error)
+    {
+        if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
+            return;
+        string trimmed = error.Length > 2000 ? error[..2000] : error;
+        await _widgetService.RecordRuntimeErrorAsync(broadcasterId.ToString(), widgetId, trimmed);
     }
 }

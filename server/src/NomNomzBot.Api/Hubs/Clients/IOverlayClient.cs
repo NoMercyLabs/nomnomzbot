@@ -18,6 +18,9 @@ public interface IOverlayClient
     Task WidgetReload();
     Task WidgetSettingsChanged(WidgetSettingsDto settings);
 
+    /// <summary>A compile-on-save build failed for a widget — surfaced to a connected editor (never silent).</summary>
+    Task WidgetCompileFailed(WidgetCompileFailedDto error);
+
     /// <summary>
     /// The generic overlay event feed (widgets-overlays.md): one channel-wide event, delivered to every overlay
     /// connection so a custom overlay can listen and filter client-side. <see cref="OverlayEventDto.Payload"/> is

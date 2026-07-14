@@ -571,13 +571,25 @@ public sealed class OverlayHostController : ControllerBase
             }
           }
 
+          // Report a widget runtime fault to the server (audit B5) - throttled so a widget erroring in a loop
+          // cannot flood the hub.
+          var lastErrorAt = 0;
+          function reportRuntimeError(message) {
+            console.error("[overlay] widget runtime error:", message);
+            var now = Date.now();
+            if (now - lastErrorAt < 5000) return;
+            lastErrorAt = now;
+            if (widgetId && ws && ws.readyState === WebSocket.OPEN)
+              ws.send(JSON.stringify({ type: 1, target: "ReportRuntimeError", arguments: [widgetId, String(message)] }) + RS);
+          }
+
           // Messages FROM the widget iframe: send its settings once it is ready; log any runtime error (audit B5).
           window.addEventListener("message", function (evt) {
             if (!customFrame || evt.source !== customFrame.contentWindow) return;
             var m = evt.data;
             if (!m || m.nnz !== 1) return;
             if (m.kind === "ready") postToCustom({ kind: "settings", settings: widgetSettings });
-            else if (m.kind === "error") console.error("[overlay] widget runtime error:", m.message);
+            else if (m.kind === "error") reportRuntimeError(m.message);
           });
 
           function mountCustomWidget() {

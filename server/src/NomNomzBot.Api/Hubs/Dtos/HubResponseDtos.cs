@@ -135,6 +135,9 @@ public record OverlayEventDto(string Type, string Payload);
 
 public record WidgetSettingsDto(string WidgetId, object Settings);
 
+/// <summary>Pushed to a widget's group when its compile-on-save build fails, so a live editor surfaces the error.</summary>
+public record WidgetCompileFailedDto(string WidgetId, int VersionNumber, string BuildError);
+
 public record OBSCommandDto(string RequestId, string Command, object? Params);
 
 public record OBSResponseDto(string RequestId, bool Success, object? Data, string? Error);
