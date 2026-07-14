@@ -93,6 +93,25 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
+# esbuild native binary — the stage-B bundler for Vue/React widget compilation (a single static Go binary, no
+# Node runtime). Version-pinned to the vendored @vue/compiler-sfc toolchain
+# (server/src/NomNomzBot.Infrastructure/Content/Widgets/Vendor/README.md). Installed from the platform
+# @esbuild package tarball onto PATH, so EsbuildWidgetBuildService's Widgets:EsbuildPath default ("esbuild")
+# resolves. Without it, every vue/react widget compile fails with the "esbuild could not be started" install hint.
+ARG ESBUILD_VERSION=0.28.1
+ARG TARGETARCH
+RUN set -eux; \
+    case "${TARGETARCH:-amd64}" in \
+      amd64) esbuild_pkg=linux-x64 ;; \
+      arm64) esbuild_pkg=linux-arm64 ;; \
+      *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://registry.npmjs.org/@esbuild/${esbuild_pkg}/-/${esbuild_pkg}-${ESBUILD_VERSION}.tgz" -o /tmp/esbuild.tgz; \
+    tar -xzf /tmp/esbuild.tgz -C /tmp package/bin/esbuild; \
+    install -m 0755 /tmp/package/bin/esbuild /usr/local/bin/esbuild; \
+    rm -rf /tmp/esbuild.tgz /tmp/package; \
+    esbuild --version
+
 WORKDIR /app
 EXPOSE 5000 5001
 
