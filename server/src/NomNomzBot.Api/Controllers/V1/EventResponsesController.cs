@@ -57,6 +57,24 @@ public class EventResponsesController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>
+    /// The event-response preset catalog: every configurable event type with its ready-to-use default
+    /// template and the exact template variables that event seeds — the dashboard pre-fills the message
+    /// input from this instead of presenting an empty field.
+    /// </summary>
+    [RequireAction("eventresponses:read")]
+    [HttpGet("catalog")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<EventResponsePresetDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public IActionResult GetCatalog() =>
+        Ok(
+            new StatusResponseDto<IReadOnlyList<EventResponsePresetDto>>
+            {
+                Data = EventResponsePresetCatalog.Presets,
+            }
+        );
+
     /// <summary>Get the configured response for a single event type.</summary>
     [RequireAction("eventresponses:read")]
     [HttpGet("{eventType}")]

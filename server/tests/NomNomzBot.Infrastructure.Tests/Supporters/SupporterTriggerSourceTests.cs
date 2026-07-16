@@ -17,6 +17,7 @@ using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Supporters.Events;
+using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Supporters.EventHandlers;
 using NSubstitute;
 
@@ -54,11 +55,17 @@ public sealed class SupporterTriggerSourceTests
         chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(true));
 
-        SupporterTriggerSource handler = new(
+        // The REAL shared executor over the same context + fakes — the assertions stay on actual sends.
+        EventResponseExecutor executor = new(
             db,
             Substitute.For<IPipelineEngine>(),
             templates,
             chat,
+            NullLogger<EventResponseExecutor>.Instance
+        );
+        SupporterTriggerSource handler = new(
+            db,
+            executor,
             NullLogger<SupporterTriggerSource>.Instance
         );
         return (handler, db, chat);

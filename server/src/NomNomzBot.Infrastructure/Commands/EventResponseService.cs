@@ -30,32 +30,11 @@ public class EventResponseService : IEventResponseService
         _eventBus = eventBus;
     }
 
-    // The canonical set of Twitch events a streamer can configure responses for.
-    // Seeded lazily (disabled + no message) when a broadcaster first visits the page.
-    private static readonly string[] DefaultEventTypes =
-    [
-        "channel.follow",
-        "channel.subscribe",
-        "channel.subscription.gift",
-        "channel.subscription.message",
-        "channel.cheer",
-        "channel.raid",
-        "channel.channel_points_custom_reward_redemption.add",
-        "stream.online",
-        "stream.offline",
-        // Engagement triggers (engagement.md §4) — detected from the chat stream, bound like any other
-        // event response. Seeded disabled; the detector itself is separately opted in via EngagementConfig.
-        "engagement.first_time_chatter",
-        "engagement.returning_chatter",
-        "engagement.watch_streak",
-        // Supporter triggers (supporter-events.md §4) — a monetization event fires the specific kind plus the
-        // catch-all. Seeded disabled; the provider itself is separately opted in via a SupporterConnection.
-        "supporter.tip",
-        "supporter.membership",
-        "supporter.merch",
-        "supporter.charity",
-        "supporter.any",
-    ];
+    // The canonical set of events a streamer can configure responses for — sourced from the preset
+    // catalog so the seeded rows, the dashboard's pre-fill presets, and the trigger sources can never
+    // drift apart. Seeded lazily (disabled + no message) when a broadcaster first visits the page.
+    private static readonly IReadOnlyList<string> DefaultEventTypes =
+        EventResponsePresetCatalog.EventTypes;
 
     public async Task<Result<PagedList<EventResponseListItem>>> ListAsync(
         string broadcasterId,

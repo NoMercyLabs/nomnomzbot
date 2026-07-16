@@ -10,13 +10,9 @@
 
 using System.Globalization;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Abstractions.Templating;
-using NomNomzBot.Domain.Chat.Interfaces;
-using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Supporters.Events;
 
@@ -26,30 +22,24 @@ namespace NomNomzBot.Infrastructure.Supporters.EventHandlers;
 /// Fires the streamer's bound responses for a supporter event (supporter-events.md §4). One
 /// <see cref="SupporterEventReceived"/> dispatches to TWO trigger keys — the specific
 /// <c>supporter.&lt;kind&gt;</c> and the catch-all <c>supporter.any</c> — so a streamer can bind either or both.
-/// A configured <c>EventResponse</c> (chat message or pipeline) runs with the supporter template vars, and the
-/// event is logged to the activity feed. Unlike the Twitch alert handlers this dispatches two keys, so it runs
-/// its own lookup rather than the single-key <c>TwitchAlertHandlerBase</c>.
+/// Each key runs through <see cref="IEventResponseExecutor"/> (the shared execution path) with the supporter
+/// template vars, and the event is logged to the activity feed. Unlike the Twitch alert handlers this
+/// dispatches two keys, so it doesn't ride the single-key <c>TwitchAlertHandlerBase</c>.
 /// </summary>
 public sealed class SupporterTriggerSource : IEventHandler<SupporterEventReceived>
 {
     private readonly IApplicationDbContext _db;
-    private readonly IPipelineEngine _pipeline;
-    private readonly ITemplateResolver _templateResolver;
-    private readonly IChatProvider _chatProvider;
+    private readonly IEventResponseExecutor _executor;
     private readonly ILogger<SupporterTriggerSource> _logger;
 
     public SupporterTriggerSource(
         IApplicationDbContext db,
-        IPipelineEngine pipeline,
-        ITemplateResolver templateResolver,
-        IChatProvider chatProvider,
+        IEventResponseExecutor executor,
         ILogger<SupporterTriggerSource> logger
     )
     {
         _db = db;
-        _pipeline = pipeline;
-        _templateResolver = templateResolver;
-        _chatProvider = chatProvider;
+        _executor = executor;
         _logger = logger;
     }
 
@@ -91,78 +81,20 @@ public sealed class SupporterTriggerSource : IEventHandler<SupporterEventReceive
             ? (minor / 100m).ToString("0.##", CultureInfo.InvariantCulture)
             : string.Empty;
 
-    private async Task RunBoundResponseAsync(
+    private Task RunBoundResponseAsync(
         Guid broadcasterId,
         string eventTypeKey,
         Dictionary<string, string> variables,
         CancellationToken ct
-    )
-    {
-        EventResponse? config = await _db.EventResponses.FirstOrDefaultAsync(
-            r => r.BroadcasterId == broadcasterId && r.EventType == eventTypeKey && r.IsEnabled,
+    ) =>
+        _executor.ExecuteAsync(
+            broadcasterId,
+            eventTypeKey,
+            userId: null,
+            userDisplayName: variables.GetValueOrDefault("supporter.name", string.Empty),
+            variables,
             ct
         );
-        if (config is null)
-            return;
-
-        try
-        {
-            switch (config.ResponseType)
-            {
-                case "chat_message":
-                    if (string.IsNullOrWhiteSpace(config.Message))
-                        break;
-                    string message = await _templateResolver.ResolveAsync(
-                        config.Message,
-                        variables,
-                        broadcasterId,
-                        ct
-                    );
-                    if (!string.IsNullOrWhiteSpace(message))
-                        await _chatProvider.SendMessageAsync(broadcasterId, message, ct);
-                    break;
-
-                case "pipeline":
-                    if (!config.PipelineId.HasValue)
-                        break;
-                    Pipeline? pipeline = await _db.Pipelines.FirstOrDefaultAsync(
-                        p => p.Id == config.PipelineId.Value,
-                        ct
-                    );
-                    if (pipeline is null)
-                        break;
-                    await _pipeline.ExecuteAsync(
-                        new PipelineRequest
-                        {
-                            BroadcasterId = broadcasterId,
-                            PipelineId = config.PipelineId,
-                            PipelineJson = pipeline.GraphJsonCache ?? "{}",
-                            TriggeredByUserId = string.Empty,
-                            TriggeredByDisplayName = variables.GetValueOrDefault(
-                                "supporter.name",
-                                string.Empty
-                            ),
-                            RawMessage = string.Empty,
-                            InitialVariables = variables,
-                        },
-                        ct
-                    );
-                    break;
-
-                // "none"/"overlay" or unknown: no direct chat/pipeline action here.
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to execute event_response:{EventType} ({ResponseType}) in {Channel}",
-                eventTypeKey,
-                config.ResponseType,
-                broadcasterId
-            );
-        }
-    }
 
     private async Task LogActivityAsync(
         SupporterEventReceived @event,

@@ -222,7 +222,7 @@ public static class DependencyInjection
         // the interface does not match the I<X>Service convention scan.
         services.AddScoped<
             Application.Contracts.Music.IMusicProviderManageApi,
-            Music.MusicProviderManageApi
+            MusicProviderManageApi
         >();
 
         // Runtime-observed integration capabilities (e.g. spotify.premium from a player-403) —
@@ -273,7 +273,7 @@ public static class DependencyInjection
         // Not an I<X>Service, so it is registered explicitly rather than by AddServicesByConvention.
         services.AddScoped<
             Application.Moderation.Services.IOperatorMessageDeleter,
-            Moderation.OperatorMessageDeleter
+            OperatorMessageDeleter
         >();
         // Composer emote catalogue (scoped — reads the warm decoration cache + fetches Twitch emotes; chat-client.md §3.2).
         services.AddScoped<Application.Chat.Services.IChatEmoteCatalogue, ChatEmoteCatalogue>();
@@ -613,7 +613,7 @@ public static class DependencyInjection
         // through the per-request DbContext. Not an I<X>Service, so it is registered explicitly here.
         services.AddScoped<
             Application.Contracts.Music.IMusicProviderTokenMirror,
-            Music.MusicProviderTokenMirror
+            MusicProviderTokenMirror
         >();
 
         // Login-provider descriptors (platform-identity §3.2) — data, not a fork. Singleton (static list); the
@@ -696,6 +696,9 @@ public static class DependencyInjection
 
         // PipelineEngine (scoped — IPipelineEngine is not an I<X>Service, registered explicitly)
         services.AddScoped<IPipelineEngine, PipelineEngine>();
+        // The ONE event-response execution path every trigger source dispatches through (alert handlers,
+        // supporter triggers, stream online/offline, reward redemptions). Not an I<X>Service — explicit.
+        services.AddScoped<IEventResponseExecutor, EventResponseExecutor>();
         // Save-time, fail-closed validator (broker-pattern invariant + type registry check).
         services.AddScoped<ICommandConfigValidator, CommandConfigValidator>();
 
@@ -728,75 +731,30 @@ public static class DependencyInjection
         // Stateless over the singleton ITemplateResolver, so registered singleton.
         services.AddSingleton<
             IBuiltinResponseComposer,
-            NomNomzBot.Infrastructure.Commands.Builtins.BuiltinResponseComposer
+            Commands.Builtins.BuiltinResponseComposer
         >();
 
         // Built-in commands — scoped because some implementations consume scoped services
         // (e.g. IMusicService). The catalog is also scoped so it receives a consistent
         // IEnumerable<IBuiltinCommand> from the DI container within each request scope.
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.Commands.Builtins.UptimeBuiltin
-        >();
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.Quotes.Builtins.QuoteBuiltin
-        >();
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.Commands.Builtins.SongRequestBuiltin
-        >();
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.Commands.Builtins.SkipBuiltin
-        >();
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.Commands.Builtins.QueueBuiltin
-        >();
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.Commands.Builtins.VolumeBuiltin
-        >();
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.Commands.Builtins.CurrentSongBuiltin
-        >();
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.Commands.Builtins.CoinflipBuiltin
-        >();
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.Commands.Builtins.DiceBuiltin
-        >();
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.Commands.Builtins.SlotsBuiltin
-        >();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.UptimeBuiltin>();
+        services.AddScoped<IBuiltinCommand, Quotes.Builtins.QuoteBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.SongRequestBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.SkipBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.QueueBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.VolumeBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.CurrentSongBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.CoinflipBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.DiceBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.SlotsBuiltin>();
         // Temporary-delegation chat surface (!permit/!unpermit) — permit:issue-gated in-command.
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.Identity.Builtins.PermitBuiltin
-        >();
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.Identity.Builtins.UnpermitBuiltin
-        >();
+        services.AddScoped<IBuiltinCommand, Identity.Builtins.PermitBuiltin>();
+        services.AddScoped<IBuiltinCommand, Identity.Builtins.UnpermitBuiltin>();
         // Viewer stats (!stats + legacy-parity alias !profile) — composes existing read-models.
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.ViewerData.Builtins.StatsBuiltin
-        >();
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.ViewerData.Builtins.ProfileBuiltin
-        >();
+        services.AddScoped<IBuiltinCommand, ViewerData.Builtins.StatsBuiltin>();
+        services.AddScoped<IBuiltinCommand, ViewerData.Builtins.ProfileBuiltin>();
         // Media share (!media <url>) — submits a clip/video for the caller.
-        services.AddScoped<
-            IBuiltinCommand,
-            NomNomzBot.Infrastructure.MediaShare.Builtins.MediaBuiltin
-        >();
+        services.AddScoped<IBuiltinCommand, MediaShare.Builtins.MediaBuiltin>();
         services.AddScoped<IBuiltinCommandCatalog, BuiltinCommandCatalog>();
         // Per-channel enable/disable toggle management.
         services.AddScoped<IBuiltinCommandService, BuiltinCommandService>();
@@ -822,10 +780,7 @@ public static class DependencyInjection
 
         // Light profanity mask for spoken TTS text (tts.md §3.5) — pure + stateless, so singleton. Does not end in
         // "Service", so it is not picked up by AddServicesByConvention; registered explicitly here.
-        services.AddSingleton<
-            Application.Contracts.Tts.ITtsProfanityCensor,
-            Tts.TtsProfanityCensor
-        >();
+        services.AddSingleton<Application.Contracts.Tts.ITtsProfanityCensor, TtsProfanityCensor>();
 
         // Spotify HTTP clients with resilience (Music providers themselves are scanned by
         // IMusicProvider above; IMusicService is scanned by AddServicesByConvention).
@@ -900,12 +855,12 @@ public static class DependencyInjection
         // Remembers each in-flight device code's REQUESTED scope set so the (separate-request) poll re-sends it.
         // MUST be a singleton for the same reason as the throttle — the scoped auth service that reads it lives
         // for one request, but the start and the polls are different requests (see DeviceCodeScopeMemory).
-        services.AddSingleton<Platform.Auth.DeviceCodeScopeMemory>();
+        services.AddSingleton<DeviceCodeScopeMemory>();
 
         // The platform app access token (client_credentials) — a process-wide singleton so the long-lived token
         // is minted once and shared by every badge-bearing chat send that rides it. Re-mints on expiry / 401.
         // It resolves the scoped credentials provider in its own scope, so it safely outlives the request scope.
-        services.AddSingleton<ITwitchAppTokenProvider, Platform.Auth.TwitchAppTokenProvider>();
+        services.AddSingleton<ITwitchAppTokenProvider, TwitchAppTokenProvider>();
 
         // ── Helix transport plumbing (twitch-helix.md §3, §7) ────────────────
         // The named "twitch-helix" client carries the full Helix request pipeline:
@@ -1108,7 +1063,7 @@ public static class DependencyInjection
         services.AddSingleton<ITwitchEventSubService>(sp =>
             sp.GetRequiredService<TwitchEventSubHostedService>()
         );
-        services.AddSingleton<Application.Contracts.Platform.IEventSource>(sp =>
+        services.AddSingleton<IEventSource>(sp =>
             sp.GetRequiredService<TwitchEventSubHostedService>()
         );
         services.AddHostedService(sp => sp.GetRequiredService<TwitchEventSubHostedService>());

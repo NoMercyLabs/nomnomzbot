@@ -8,15 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 
@@ -25,25 +23,23 @@ namespace NomNomzBot.Infrastructure.Stream.EventHandlers;
 /// <summary>
 /// Updates Channel.IsLive = true, refreshes title/game, and creates a Stream record
 /// when a stream comes online via EventSub stream.online.
-/// Also resets per-session ChannelContext state (chatters, shoutout cooldowns).
+/// Also resets per-session ChannelContext state (chatters, shoutout cooldowns) and runs the
+/// operator's configured <c>stream.online</c> event response through the shared executor.
 /// stream.online EventSub does not include title/game — these are fetched from Helix.
 /// </summary>
 public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IPipelineEngine _pipeline;
     private readonly IChannelRegistry _registry;
     private readonly ILogger<ChannelOnlineHandler> _logger;
 
     public ChannelOnlineHandler(
         IServiceScopeFactory scopeFactory,
-        IPipelineEngine pipeline,
         IChannelRegistry registry,
         ILogger<ChannelOnlineHandler> logger
     )
     {
         _scopeFactory = scopeFactory;
-        _pipeline = pipeline;
         _registry = registry;
         _logger = logger;
     }
@@ -132,59 +128,22 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
             @event.GameName
         );
 
-        await ExecuteEventResponseAsync(
-            db,
+        // The operator's configured "stream.online" response (the row the event-responses page edits) —
+        // through the shared executor, like every other trigger source.
+        IEventResponseExecutor executor =
+            scope.ServiceProvider.GetRequiredService<IEventResponseExecutor>();
+        await executor.ExecuteAsync(
             broadcasterId,
-            "stream_online",
+            "stream.online",
+            userId: null,
+            userDisplayName: @event.BroadcasterDisplayName,
             new(StringComparer.OrdinalIgnoreCase)
             {
                 ["broadcaster"] = @event.BroadcasterDisplayName,
-                ["title"] = @event.StreamTitle,
-                ["game"] = @event.GameName,
+                ["title"] = title,
+                ["game"] = gameName,
             },
             cancellationToken
         );
-    }
-
-    private async Task ExecuteEventResponseAsync(
-        IApplicationDbContext db,
-        Guid broadcasterId,
-        string eventType,
-        Dictionary<string, string> variables,
-        CancellationToken ct
-    )
-    {
-        Record? config = await db.Records.FirstOrDefaultAsync(
-            r => r.BroadcasterId == broadcasterId && r.RecordType == $"event_response:{eventType}",
-            ct
-        );
-
-        if (config is null || string.IsNullOrWhiteSpace(config.Data))
-            return;
-
-        try
-        {
-            await _pipeline.ExecuteAsync(
-                new()
-                {
-                    BroadcasterId = broadcasterId,
-                    PipelineJson = config.Data,
-                    TriggeredByUserId = broadcasterId.ToString(),
-                    TriggeredByDisplayName = string.Empty,
-                    RawMessage = string.Empty,
-                    InitialVariables = variables,
-                },
-                ct
-            );
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to execute event_response pipeline for {EventType} in {Channel}",
-                eventType,
-                broadcasterId
-            );
-        }
     }
 }

@@ -8,13 +8,12 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 
@@ -23,7 +22,8 @@ namespace NomNomzBot.Infrastructure.Stream.EventHandlers;
 /// <summary>
 /// Updates Channel.IsLive = false and cancels all running pipelines when
 /// the stream goes offline via EventSub stream.offline.
-/// Computes actual stream duration from ChannelContext.WentLiveAt.
+/// Computes actual stream duration from ChannelContext.WentLiveAt and runs the operator's
+/// configured <c>stream.offline</c> event response through the shared executor.
 /// </summary>
 public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
 {
@@ -108,10 +108,15 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
 
         await _pipeline.CancelAllForChannelAsync(broadcasterId);
 
-        await ExecuteEventResponseAsync(
-            db,
+        // The operator's configured "stream.offline" response (the row the event-responses page edits) —
+        // through the shared executor, like every other trigger source.
+        IEventResponseExecutor executor =
+            scope.ServiceProvider.GetRequiredService<IEventResponseExecutor>();
+        await executor.ExecuteAsync(
             broadcasterId,
-            "stream_offline",
+            "stream.offline",
+            userId: null,
+            userDisplayName: @event.BroadcasterDisplayName,
             new(StringComparer.OrdinalIgnoreCase)
             {
                 ["broadcaster"] = @event.BroadcasterDisplayName,
@@ -119,47 +124,5 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
             },
             cancellationToken
         );
-    }
-
-    private async Task ExecuteEventResponseAsync(
-        IApplicationDbContext db,
-        Guid broadcasterId,
-        string eventType,
-        Dictionary<string, string> variables,
-        CancellationToken ct
-    )
-    {
-        Record? config = await db.Records.FirstOrDefaultAsync(
-            r => r.BroadcasterId == broadcasterId && r.RecordType == $"event_response:{eventType}",
-            ct
-        );
-
-        if (config is null || string.IsNullOrWhiteSpace(config.Data))
-            return;
-
-        try
-        {
-            await _pipeline.ExecuteAsync(
-                new()
-                {
-                    BroadcasterId = broadcasterId,
-                    PipelineJson = config.Data,
-                    TriggeredByUserId = broadcasterId.ToString(),
-                    TriggeredByDisplayName = string.Empty,
-                    RawMessage = string.Empty,
-                    InitialVariables = variables,
-                },
-                ct
-            );
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to execute event_response pipeline for {EventType} in {Channel}",
-                eventType,
-                broadcasterId
-            );
-        }
     }
 }

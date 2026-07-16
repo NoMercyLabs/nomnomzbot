@@ -16,6 +16,22 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-16 — Pre-fill every template input from the new preset catalog
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** `GET /api/v1/channels/{channelId}/event-responses/catalog` returns one preset per
+  configurable event type: `eventType`, `defaultTemplate` (a ready-to-send line using `{placeholder}`
+  syntax), and `variables` (the EXACT placeholders that event seeds — safe to offer as insert chips).
+  Pre-fill the event-response message input with `defaultTemplate` whenever the stored message is
+  empty, and surface `variables` next to the field. For the custom-command and timer template inputs
+  (no per-type presets needed): pre-fill commands with a default like `Hello {user}!` — commands seed
+  `{user}`, `{user.name}`, `{target}`, `{args}`, `{args.count}`, `{args.N}` — and timers with a plain
+  text default (timers have no per-event variables).
+- **Why:** owner item — "i am missing the pre-filled templates in all the template input fields."
+- **Where:** `feature/eventresponses` dialog + command/timer create dialogs; new endpoint in
+  `server/openapi/v1.json` (`EventResponsePresetDto`).
+- **Done when:** opening any template input on a fresh channel shows a sensible pre-filled template
+  instead of an empty field, verified on the dev web build.
+
 ### 2026-07-16 — Auth round-trips: send `return_to` so the user lands back on the page they left
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the browser OAuth flows now carry an optional `return_to` query param (a same-origin

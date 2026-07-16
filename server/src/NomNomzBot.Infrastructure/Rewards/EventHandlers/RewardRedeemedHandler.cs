@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Rewards.Events;
@@ -24,8 +24,9 @@ namespace NomNomzBot.Infrastructure.Rewards.EventHandlers;
 /// Handles channel point reward redemptions.
 /// Looks up the Reward entity by its Twitch reward ID and executes the
 /// configured PipelineJson. If the reward has a simple Response text,
-/// that is used directly. Falls back to the generic "reward_redeemed"
-/// event_response Record if no specific reward pipeline is configured.
+/// that is used directly. With no reward-specific behavior, the generic
+/// <c>channel.channel_points_custom_reward_redemption.add</c> event response
+/// runs through the shared executor.
 /// </summary>
 public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
 {
@@ -82,20 +83,22 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             pipelineJson = BuildResponsePipeline(reward.Response);
         }
 
-        // Fall back to generic event_response:reward_redeemed record
-        if (pipelineJson is null)
+        // No reward-specific behavior → the generic redemption event response (the row the
+        // event-responses page edits), through the shared executor like every other trigger source.
+        if (string.IsNullOrWhiteSpace(pipelineJson))
         {
-            Record? genericConfig = await db.Records.FirstOrDefaultAsync(
-                r =>
-                    r.BroadcasterId == broadcasterId
-                    && r.RecordType == "event_response:reward_redeemed",
+            IEventResponseExecutor executor =
+                scope.ServiceProvider.GetRequiredService<IEventResponseExecutor>();
+            await executor.ExecuteAsync(
+                broadcasterId,
+                "channel.channel_points_custom_reward_redemption.add",
+                @event.UserId,
+                @event.UserDisplayName,
+                variables,
                 cancellationToken
             );
-            pipelineJson = genericConfig?.Data;
-        }
-
-        if (string.IsNullOrWhiteSpace(pipelineJson))
             return;
+        }
 
         _logger.LogDebug(
             "Executing pipeline for reward {RewardId} in channel {Channel}",

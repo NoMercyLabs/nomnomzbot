@@ -34,6 +34,16 @@ public sealed record EventResponseListItem(
     DateTime UpdatedAt
 );
 
+/// <summary>
+/// One catalog preset for an event type: the ready-to-use default template the dashboard pre-fills the
+/// message input with, and the exact template variables the trigger source seeds for that event.
+/// </summary>
+public sealed record EventResponsePresetDto(
+    string EventType,
+    string DefaultTemplate,
+    IReadOnlyList<string> Variables
+);
+
 /// <summary>Request to update an event response configuration.</summary>
 public sealed record UpdateEventResponseDto
 {

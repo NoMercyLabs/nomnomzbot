@@ -117,6 +117,13 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
             e.Ignore(c => c.User);
         });
 
+        b.Entity<Pipeline>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Ignore(p => p.Steps);
+            e.Ignore(p => p.Channel);
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -133,6 +140,9 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
         typeof(ChannelEvent),
         typeof(InboundWebhookEndpoint),
         typeof(IntegrationConnection),
+        // The shared event-response executor's pipeline leg reads a Pipeline row (GraphJsonCache only —
+        // its Steps/Channel navigations are ignored in the model, matching the other entries here).
+        typeof(Pipeline),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -220,7 +230,7 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Commands.Entities.Pipeline>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStep> PipelineSteps =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition> PipelineStepConditions =>
