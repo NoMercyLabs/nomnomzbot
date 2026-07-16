@@ -148,7 +148,6 @@ commits; this is the collapsed record.
 - [ ] the bot personality responses need to be better, no emoji bullshit and be properly taken an example from my current bot. my current bots responses are way funnier and sassy and you need to do better.
 - [ ] i am missing the pre-filled templates in all the template input fields.
 - [ ] the dashboard home screen needs to be more useful in showing important information and stats about the stream, for example the current viewers, chatters, followers, subscribers, donations, platforms streaming to, etc.
-- [ ] the channel selector needs to be pre-filled with the channels and not after going in. 
 - [ ] the bot account is not sending messages in chat with the app token on other channels, this is bad UX.
 - [ ] the admin pannel for the saas is just show and does not do anything useful, it does not let me change behavior or go into details of things. i can not promote accounts to admin or grant them specific saas permissions.
 - [ ] billing does not seem to be doing anything.
