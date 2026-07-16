@@ -65,6 +65,8 @@ services:
       - YouTube__ApiKey=${YOUTUBE_API_KEY:-}
       - Patreon__ClientId=${PATREON_CLIENT_ID:-}
       - Patreon__ClientSecret=${PATREON_CLIENT_SECRET:-}
+      - Shopify__ClientId=${SHOPIFY_CLIENT_ID:-}
+      - Shopify__ClientSecret=${SHOPIFY_CLIENT_SECRET:-}
       # Extra multi-platform sign-in providers — hidden until their creds are set AND their
       # login feature flag is on (use_kick_login / use_twitter_login). See .env.example.
       - Kick__ClientId=${KICK_CLIENT_ID:-}

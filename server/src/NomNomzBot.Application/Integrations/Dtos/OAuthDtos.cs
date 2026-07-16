@@ -10,8 +10,16 @@
 
 namespace NomNomzBot.Application.Integrations.Dtos;
 
-/// <summary>The connect request body: the progressive scope-set to request, and where to return after connect (integrations-oauth §5).</summary>
-public sealed record ConnectIntegrationRequest(string ScopeSetKey, string? ReturnUrl);
+/// <summary>
+/// The connect request body: the progressive scope-set to request, where to return after connect
+/// (integrations-oauth §5), and — for a shop-scoped provider (Shopify) — the shop name (bare or pasted as
+/// <c>name.myshopify.com</c>; required there, ignored elsewhere).
+/// </summary>
+public sealed record ConnectIntegrationRequest(
+    string ScopeSetKey,
+    string? ReturnUrl,
+    string? ShopDomain = null
+);
 
 /// <summary>The authorize URL the client opens plus the signed single-use state (integrations-oauth §4).</summary>
 public sealed record OAuthStartDto(string AuthorizeUrl, string State);

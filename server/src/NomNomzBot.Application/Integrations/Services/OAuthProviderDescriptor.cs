@@ -16,6 +16,10 @@ namespace NomNomzBot.Application.Integrations.Services;
 /// enumerate the FULL manageable surface (external-API-coverage rule); a feature requests only the subset
 /// it needs. The client_id/secret are resolved per request from <c>ISystemCredentialsProvider</c> (vaulted
 /// store → config), so the descriptor only carries the deployment BYOK flag.
+/// A shop-scoped provider (Shopify) marks <paramref name="RequiresShopDomain"/> and templates its endpoints
+/// with <c>{shop}</c> — the sanitized shop name from the connect request substitutes in. A provider whose
+/// identity endpoint takes the token in a custom header (Shopify's <c>X-Shopify-Access-Token</c>) names it
+/// in <paramref name="IdentityTokenHeader"/>; null = standard <c>Authorization: Bearer</c>.
 /// </summary>
 public sealed record OAuthProviderDescriptor(
     string Provider,
@@ -25,5 +29,7 @@ public sealed record OAuthProviderDescriptor(
     string AccountIdentityEndpoint,
     bool UsesPkce,
     IReadOnlyDictionary<string, IReadOnlyList<string>> ScopeSets,
-    bool IsByok
+    bool IsByok,
+    bool RequiresShopDomain = false,
+    string? IdentityTokenHeader = null
 );

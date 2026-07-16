@@ -95,6 +95,7 @@ public class IntegrationOAuthController : BaseController
             request.ReturnUrl,
             actingUserId,
             Request.ResolvePublicOrigin(_config),
+            request.ShopDomain,
             ct
         );
 

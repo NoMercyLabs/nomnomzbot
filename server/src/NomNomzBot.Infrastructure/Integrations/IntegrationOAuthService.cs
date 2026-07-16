@@ -85,6 +85,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         string? returnUrl,
         Guid actingUserId,
         string publicOrigin,
+        string? shopDomain = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -101,6 +102,19 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                 $"Unknown scope set '{scopeSetKey}' for provider '{provider}'.",
                 "UNKNOWN_SCOPE_SET"
             );
+
+        // A shop-scoped provider (Shopify) parameterizes its endpoints with the shop name — required,
+        // sanitized (never a full URL: the substitution must not become an SSRF vector).
+        string? shop = null;
+        if (descriptor.RequiresShopDomain)
+        {
+            shop = SanitizeShopName(shopDomain);
+            if (shop is null)
+                return Result.Failure<OAuthStartDto>(
+                    $"'{provider}' needs the shop name (e.g. my-store or my-store.myshopify.com).",
+                    "SHOP_REQUIRED"
+                );
+        }
 
         SystemAppCredentials? app = await _credentials.GetAsync(provider, cancellationToken);
         if (app is null)
@@ -127,12 +141,13 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             actingUserId,
             returnUrl,
             codeVerifier,
-            redirectUri
+            redirectUri,
+            shop
         );
         await _cache.SetAsync(StateCachePrefix + state, entry, StateTtl, cancellationToken);
 
         string authorizeUrl =
-            descriptor.AuthorizeEndpoint
+            ResolveEndpoint(descriptor.AuthorizeEndpoint, shop)
             + $"?client_id={Uri.EscapeDataString(app.ClientId)}"
             + $"&redirect_uri={Uri.EscapeDataString(redirectUri)}"
             + "&response_type=code"
@@ -205,6 +220,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             callbackParams.Code,
             entry.CodeVerifier,
             entry.RedirectUri,
+            entry.ShopDomain,
             cancellationToken
         );
         if (tokens is null)
@@ -216,6 +232,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         (string? accountId, string? accountName) = await FetchAccountIdentityAsync(
             descriptor,
             tokens.AccessToken,
+            entry.ShopDomain,
             cancellationToken
         );
 
@@ -231,7 +248,11 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                 app.ClientId,
                 descriptor.IsByok,
                 entry.ActingUserId,
-                SettingsJson: null
+                // A shop-scoped connection remembers its shop — later provider API calls (webhook
+                // provisioning, order reads) need the domain, not just the numeric shop id.
+                SettingsJson: entry.ShopDomain is null
+                    ? null
+                    : JsonSerializer.Serialize(new { shopDomain = entry.ShopDomain })
             ),
             cancellationToken
         );
@@ -375,12 +396,40 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
     private static string RedirectUriFor(string publicOrigin, string provider) =>
         $"{publicOrigin.TrimEnd('/')}/api/v1/integrations/{provider}/callback";
 
+    /// <summary>Substitutes a shop-scoped endpoint template's <c>{shop}</c> with the sanitized shop name.</summary>
+    private static string ResolveEndpoint(string endpointTemplate, string? shop) =>
+        shop is null ? endpointTemplate : endpointTemplate.Replace("{shop}", shop);
+
+    /// <summary>
+    /// The sanitized shop NAME (never a URL — the endpoint substitution must not become an SSRF vector):
+    /// lowercased, an optional pasted <c>.myshopify.com</c> suffix stripped, then strictly
+    /// <c>[a-z0-9][a-z0-9-]*</c>. Null when absent or invalid.
+    /// </summary>
+    private static string? SanitizeShopName(string? shopDomain)
+    {
+        if (string.IsNullOrWhiteSpace(shopDomain))
+            return null;
+        string shop = shopDomain.Trim().ToLowerInvariant();
+        const string suffix = ".myshopify.com";
+        if (shop.EndsWith(suffix, StringComparison.Ordinal))
+            shop = shop[..^suffix.Length];
+        if (shop.Length is 0 or > 100)
+            return null;
+        if (!char.IsAsciiLetterOrDigit(shop[0]))
+            return null;
+        foreach (char c in shop)
+            if (!char.IsAsciiLetterOrDigit(c) && c != '-')
+                return null;
+        return shop;
+    }
+
     private async Task<TokenExchangeResult?> ExchangeCodeAsync(
         OAuthProviderDescriptor descriptor,
         SystemAppCredentials app,
         string code,
         string codeVerifier,
         string redirectUri,
+        string? shop,
         CancellationToken cancellationToken
     )
     {
@@ -399,7 +448,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
 
         using FormUrlEncodedContent content = new(form);
         HttpResponseMessage response = await _http.PostAsync(
-            descriptor.TokenEndpoint,
+            ResolveEndpoint(descriptor.TokenEndpoint, shop),
             content,
             cancellationToken
         );
@@ -430,6 +479,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
     private async Task<(string? Id, string? Name)> FetchAccountIdentityAsync(
         OAuthProviderDescriptor descriptor,
         string accessToken,
+        string? shop,
         CancellationToken cancellationToken
     )
     {
@@ -437,9 +487,14 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         {
             using HttpRequestMessage request = new(
                 HttpMethod.Get,
-                descriptor.AccountIdentityEndpoint
+                ResolveEndpoint(descriptor.AccountIdentityEndpoint, shop)
             );
-            request.Headers.Add("Authorization", $"Bearer {accessToken}");
+            // Most providers take the token as a Bearer; a provider with its own header (Shopify's
+            // X-Shopify-Access-Token) names it on the descriptor.
+            if (descriptor.IdentityTokenHeader is string headerName)
+                request.Headers.Add(headerName, accessToken);
+            else
+                request.Headers.Add("Authorization", $"Bearer {accessToken}");
             HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
                 return (null, null);
@@ -447,7 +502,8 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             // Providers disagree on the identity envelope: Spotify/Google return a flat object
             // (id/sub + display_name/name); Kick wraps the caller in a data ARRAY with a numeric
             // user_id; Patreon speaks JSON:API — a data OBJECT whose display fields live under
-            // "attributes". Probe the shapes generically instead of branching per provider.
+            // "attributes"; Shopify wraps the store in a "shop" object. Probe the shapes generically
+            // instead of branching per provider.
             using JsonDocument doc = JsonDocument.Parse(
                 await response.Content.ReadAsStringAsync(cancellationToken)
             );
@@ -455,7 +511,10 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             JsonElement subject = root;
             if (
                 root.ValueKind == JsonValueKind.Object
-                && root.TryGetProperty("data", out JsonElement data)
+                && (
+                    root.TryGetProperty("data", out JsonElement data)
+                    || root.TryGetProperty("shop", out data)
+                )
             )
             {
                 if (data.ValueKind == JsonValueKind.Array && data.GetArrayLength() > 0)
@@ -552,7 +611,8 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         Guid ActingUserId,
         string? ReturnUrl,
         string CodeVerifier,
-        string RedirectUri
+        string RedirectUri,
+        string? ShopDomain = null
     );
 
     private sealed record TokenExchangeResult(

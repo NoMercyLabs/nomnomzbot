@@ -67,9 +67,10 @@ commits; this is the collapsed record.
   WebSocket stream. *(Streamer.bot core.)*
 - [ ] **9. OBS control** (`obs-control.md`) — scenes/inputs, ~20 pipeline actions, `obs_event`.
 - [ ] **10. VTube Studio** (`vtube-studio.md`) — connect/authorize/bridge, model control, `vts_event`.
-- [~] **13. Supporter events** (`supporter-events.md`) — *remaining:* Shopify OAuth (its authorize URL is
-  shop-domain-parameterized — needs a descriptor extension); TreatStream (no identity endpoint + a second
-  socket-token exchange — needs generic-flow accommodations, then its Socket.IO profile).
+- [~] **13. Supporter events** (`supporter-events.md`) — *remaining:* TreatStream (no identity endpoint +
+  a second socket-token exchange — needs generic-flow accommodations, then its Socket.IO profile);
+  Shopify orders-webhook auto-registration via the Admin API (rides the same
+  `ISupporterProviderProvisioner` seam Patreon uses; OAuth connect itself now works).
 - [~] **15. Advanced moderation** (`moderation.md`) — the truthful-reads foundation + the full per-user
   panel (context/notes/warn/suspicious/ban), unban-request queue, network un-nuke, and **viewer reports**
   (first entity leg) all SHIPPED. *Remaining entity legs:* SuperMod platform `moderation:nuke` (tenant-

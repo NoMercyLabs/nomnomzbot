@@ -206,6 +206,102 @@ public sealed class IntegrationOAuthServiceTests
         start.ErrorCode.Should().Be("UNKNOWN_SCOPE_SET");
     }
 
+    /// <summary>
+    /// Proves the shop-scoped connect (Shopify, supporter-events.md OAuth-vault): the shop name is required
+    /// and sanitized (a pasted <c>Name.myshopify.com</c> works; a URL is rejected), every endpoint resolves
+    /// onto the shop's domain, the identity ride's Shopify's own <c>X-Shopify-Access-Token</c> header (never
+    /// Bearer) and reads the <c>shop</c> envelope, and the connection remembers its shop domain for later
+    /// provider API calls.
+    /// </summary>
+    [Fact]
+    public async Task ShopifyConnect_ResolvesShopScopedEndpoints_AndRemembersTheShop()
+    {
+        StubHandler handler = new()
+        {
+            TokenJson =
+                """{"access_token":"shpat-token","refresh_token":"shpat-refresh","expires_in":86400,"scope":"read_orders"}""",
+            IdentityJson =
+                """{"shop":{"id":548380009,"name":"My Test Store","myshopify_domain":"my-store.myshopify.com"}}""",
+        };
+        (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(handler);
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Shopify,
+            "shopify.orders",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv",
+            shopDomain: "My-Store.myshopify.com" // pasted full domain, mixed case — sanitized
+        );
+
+        start.IsSuccess.Should().BeTrue(start.ErrorMessage);
+        start
+            .Value.AuthorizeUrl.Should()
+            .StartWith("https://my-store.myshopify.com/admin/oauth/authorize");
+        start.Value.AuthorizeUrl.Should().Contain("client_id=shopify-client");
+        start
+            .Value.AuthorizeUrl.Should()
+            .NotContain("code_challenge", "Shopify's grant has no PKCE");
+
+        Result<OAuthCallbackResultDto> callback = await service.HandleCallbackAsync(
+            AuthEnums.IntegrationProvider.Shopify,
+            new OAuthCallbackParams("the-auth-code", start.Value.State, null, null)
+        );
+
+        callback.IsSuccess.Should().BeTrue(callback.ErrorMessage);
+        callback.Value.ProviderAccountName.Should().Be("My Test Store");
+        // The exchange + identity both resolved onto the SHOP's domain…
+        handler.LastTokenRequestUri!.Host.Should().Be("my-store.myshopify.com");
+        handler.LastIdentityRequestUri!.Host.Should().Be("my-store.myshopify.com");
+        // …with Shopify's own token header, never Bearer.
+        handler.LastIdentityShopifyHeader.Should().Be("shpat-token");
+
+        IntegrationConnection connection = await db
+            .IntegrationConnections.AsNoTracking()
+            .SingleAsync();
+        connection.Provider.Should().Be(AuthEnums.IntegrationProvider.Shopify);
+        connection
+            .Settings.Should()
+            .Contain("my-store", "later provider API calls need the shop domain");
+    }
+
+    [Fact]
+    public async Task ShopifyConnect_WithoutAShop_FailsActionably()
+    {
+        (IntegrationOAuthService service, _, _, _) = Build(new StubHandler());
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Shopify,
+            "shopify.orders",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+
+        start.ErrorCode.Should().Be("SHOP_REQUIRED");
+    }
+
+    [Fact]
+    public async Task ShopifyConnect_WithAUrlAsShop_IsRejected_NeverSubstituted()
+    {
+        // The {shop} substitution must never become an SSRF vector — a URL/host injection is invalid input.
+        (IntegrationOAuthService service, _, _, _) = Build(new StubHandler());
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Shopify,
+            "shopify.orders",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv",
+            shopDomain: "evil.example.com/steal?x="
+        );
+
+        start.ErrorCode.Should().Be("SHOP_REQUIRED");
+    }
+
     // ─── HandleCallback: code → tokens → vault ─────────────────────────────────
 
     [Fact]
@@ -454,6 +550,7 @@ public sealed class IntegrationOAuthServiceTests
                 AuthEnums.IntegrationProvider.YouTube,
                 AuthEnums.IntegrationProvider.Kick,
                 AuthEnums.IntegrationProvider.Patreon,
+                AuthEnums.IntegrationProvider.Shopify,
                 AuthEnums.IntegrationProvider.Discord,
             ]);
 
@@ -548,6 +645,8 @@ public sealed class IntegrationOAuthServiceTests
                     ["YouTube:ClientSecret"] = "youtube-secret",
                     ["Patreon:ClientId"] = "patreon-client",
                     ["Patreon:ClientSecret"] = "patreon-secret",
+                    ["Shopify:ClientId"] = "shopify-client",
+                    ["Shopify:ClientSecret"] = "shopify-secret",
                 }
             )
             .Build();
@@ -591,6 +690,9 @@ public sealed class IntegrationOAuthServiceTests
             """{"access_token":"a","refresh_token":"r","expires_in":3600,"scope":"user-read-playback-state"}""";
         public string IdentityJson { get; init; } = """{"id":"u","display_name":"n"}""";
         public string? LastTokenRequestBody { get; private set; }
+        public Uri? LastTokenRequestUri { get; private set; }
+        public Uri? LastIdentityRequestUri { get; private set; }
+        public string? LastIdentityShopifyHeader { get; private set; }
 
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -598,8 +700,24 @@ public sealed class IntegrationOAuthServiceTests
         )
         {
             bool isToken = request.RequestUri!.AbsoluteUri.Contains("token");
-            if (isToken && request.Content is not null)
-                LastTokenRequestBody = await request.Content.ReadAsStringAsync(cancellationToken);
+            if (isToken)
+            {
+                LastTokenRequestUri = request.RequestUri;
+                if (request.Content is not null)
+                    LastTokenRequestBody = await request.Content.ReadAsStringAsync(
+                        cancellationToken
+                    );
+            }
+            else
+            {
+                LastIdentityRequestUri = request.RequestUri;
+                LastIdentityShopifyHeader = request.Headers.TryGetValues(
+                    "X-Shopify-Access-Token",
+                    out IEnumerable<string>? values
+                )
+                    ? values.FirstOrDefault()
+                    : null;
+            }
 
             string body = isToken ? TokenJson : IdentityJson;
             return new HttpResponseMessage(HttpStatusCode.OK)

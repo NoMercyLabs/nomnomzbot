@@ -34,6 +34,7 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
         AuthEnums.IntegrationProvider.YouTube,
         AuthEnums.IntegrationProvider.Kick,
         AuthEnums.IntegrationProvider.Patreon,
+        AuthEnums.IntegrationProvider.Shopify,
     ];
 
     public Result<OAuthProviderDescriptor> Resolve(string provider, Guid broadcasterId)
@@ -45,6 +46,7 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
             AuthEnums.IntegrationProvider.YouTube => Result.Success(YouTube()),
             AuthEnums.IntegrationProvider.Kick => Result.Success(Kick()),
             AuthEnums.IntegrationProvider.Patreon => Result.Success(Patreon()),
+            AuthEnums.IntegrationProvider.Shopify => Result.Success(Shopify()),
             _ => Result.Failure<OAuthProviderDescriptor>(
                 $"Unknown OAuth provider '{provider}'.",
                 "UNKNOWN_PROVIDER"
@@ -130,6 +132,27 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
                 ["patreon.lives"] = ["campaigns.lives", "w:campaigns.lives"],
             },
             IsByok: ResolveIsByok("Patreon")
+        );
+
+    private OAuthProviderDescriptor Shopify() =>
+        new(
+            Provider: AuthEnums.IntegrationProvider.Shopify,
+            // Shop-scoped endpoints (shopify.dev authorization-code-grant): {shop} substitutes the
+            // sanitized shop name from the connect request.
+            AuthorizeEndpoint: "https://{shop}.myshopify.com/admin/oauth/authorize",
+            TokenEndpoint: "https://{shop}.myshopify.com/admin/oauth/access_token",
+            RevokeEndpoint: null,
+            AccountIdentityEndpoint: "https://{shop}.myshopify.com/admin/api/2025-10/shop.json",
+            UsesPkce: false, // confidential client; Shopify's grant has no PKCE.
+            ScopeSets: new Dictionary<string, IReadOnlyList<string>>
+            {
+                // The supporter-events merch ingest core: read orders + manage the orders webhooks the
+                // bot registers itself.
+                ["shopify.orders"] = ["read_orders"],
+            },
+            IsByok: ResolveIsByok("Shopify"),
+            RequiresShopDomain: true,
+            IdentityTokenHeader: "X-Shopify-Access-Token"
         );
 
     private OAuthProviderDescriptor YouTube() =>

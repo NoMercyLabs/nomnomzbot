@@ -86,6 +86,7 @@ public static class AuthEnums
         public const string YouTube = "youtube";
         public const string Kick = Platform.Kick;
         public const string Patreon = "patreon";
+        public const string Shopify = "shopify";
         public const string AzureTts = "azure_tts";
         public const string ElevenLabs = "elevenlabs";
     }

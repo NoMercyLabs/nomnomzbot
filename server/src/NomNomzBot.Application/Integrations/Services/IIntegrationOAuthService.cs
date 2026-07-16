@@ -32,6 +32,11 @@ public interface IIntegrationOAuthService
     /// it and persisted in the state so the callback's token exchange reuses the exact same value (OAuth requires
     /// a byte-for-byte match). Spotify rejects loopback callbacks, so this must be the https public origin.
     /// </para>
+    /// <para>
+    /// <paramref name="shopDomain"/> is the shop name for a shop-scoped provider (Shopify) — required there,
+    /// ignored elsewhere. Accepts the bare name or a pasted <c>name.myshopify.com</c>; it is sanitized and
+    /// persisted in the state so the callback exchanges against the same shop.
+    /// </para>
     /// </summary>
     Task<Result<OAuthStartDto>> StartConnectAsync(
         Guid broadcasterId,
@@ -40,6 +45,7 @@ public interface IIntegrationOAuthService
         string? returnUrl,
         Guid actingUserId,
         string publicOrigin,
+        string? shopDomain = null,
         CancellationToken cancellationToken = default
     );
 
