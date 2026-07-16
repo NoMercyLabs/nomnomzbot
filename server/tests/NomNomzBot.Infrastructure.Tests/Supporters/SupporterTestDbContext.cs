@@ -59,6 +59,7 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
+    public DbSet<InboundWebhookEndpoint> InboundWebhookEndpoints => Set<InboundWebhookEndpoint>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -67,6 +68,8 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
             e.HasKey(c => c.Id);
             e.Ignore(c => c.Channel);
         });
+
+        b.Entity<InboundWebhookEndpoint>(e => e.HasKey(x => x.Id));
 
         b.Entity<SupporterEvent>(e =>
         {
@@ -121,6 +124,7 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
         typeof(User),
         typeof(EventResponse),
         typeof(ChannelEvent),
+        typeof(InboundWebhookEndpoint),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -279,8 +283,6 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
     public DbSet<OutboundWebhookEndpoint> OutboundWebhookEndpoints =>
         throw new NotSupportedException();
     public DbSet<OutboundWebhookDelivery> OutboundWebhookDeliveries =>
-        throw new NotSupportedException();
-    public DbSet<InboundWebhookEndpoint> InboundWebhookEndpoints =>
         throw new NotSupportedException();
     public DbSet<HttpEgressAllowlist> HttpEgressAllowlists => throw new NotSupportedException();
     public DbSet<ViewerProfile> ViewerProfiles => throw new NotSupportedException();

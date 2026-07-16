@@ -44,14 +44,20 @@ public sealed record UpsertSupporterConnectionRequest(
     bool IsEnabled
 );
 
-/// <summary>A supporter connection's public shape — the secret is never returned, only whether one is set.</summary>
+/// <summary>
+/// A supporter connection's public shape — the secret is never returned, only whether one is set. For a
+/// webhook provider whose inbound endpoint was one-step provisioned from this page,
+/// <paramref name="EndpointUrl"/> is the ingest URL to paste into the provider's webhook settings (null for
+/// socket/ws/poll providers and for webhook connections without a provisioned endpoint).
+/// </summary>
 public sealed record SupporterConnectionDto(
     string SourceKey,
     string ConnectionMode,
     bool HasSecret,
     bool IsEnabled,
     string Status,
-    DateTime? LastEventAt
+    DateTime? LastEventAt,
+    string? EndpointUrl
 );
 
 /// <summary>One recorded supporter event for the events list (supporter-events.md §5).</summary>

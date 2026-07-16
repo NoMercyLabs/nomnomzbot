@@ -10,21 +10,30 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Supporters.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Supporters.Entities;
+using NomNomzBot.Domain.Webhooks.Entities;
+using NomNomzBot.Domain.Webhooks.Enums;
 using NomNomzBot.Infrastructure.Supporters;
 using NomNomzBot.Infrastructure.Supporters.Adapters;
+using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Webhooks;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Supporters;
 
 /// <summary>
 /// Proves the connection surface (supporter-events.md §5): a connection is the enforced enable-toggle for a
-/// provider — upsert validates the source + ingress mode, rejects a webhook secret (it belongs on the endpoint),
-/// reconnect-after-delete leaves a single row (no duplicate), and the events list filters + orders. Assertions
-/// are on the persisted row and the returned DTO shape.
+/// provider — upsert validates the source + ingress mode, a webhook secret one-step provisions (then rotates)
+/// the inbound endpoint whose ingest URL rides back on the DTO, a socket/ws/poll secret seals onto the
+/// connection, reconnect-after-delete leaves a single row (no duplicate), disconnecting retires the
+/// provisioned endpoint, and the events list filters + orders. Assertions are on the persisted rows and the
+/// returned DTO shape.
 /// </summary>
 public sealed class SupporterConnectionServiceTests
 {
@@ -48,11 +57,37 @@ public sealed class SupporterConnectionServiceTests
             }
         );
         await db.SaveChangesAsync();
+
+        // The REAL endpoint service (over the same db + a transparent protector), so one-step provisioning is
+        // proven by the actual endpoint row + its ingest URL — not a mock's say-so.
+        ISubjectKeyService subjectKeys = Substitute.For<ISubjectKeyService>();
+        subjectKeys
+            .GetOrCreateSubjectKeyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(Guid.NewGuid()));
+        IConfiguration config = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?> { ["App:BaseUrl"] = "https://bot.example.test" }
+            )
+            .Build();
+        InboundWebhookEndpointService endpoints = new(
+            db,
+            new PrefixingFakeProtector(),
+            subjectKeys,
+            config,
+            TimeProvider.System,
+            new RecordingEventBus()
+        );
+
         return (
             new SupporterConnectionService(
                 db,
                 [new KofiSupporterSource(), new DonordriveSupporterSource()],
-                new PrefixingFakeProtector()
+                new PrefixingFakeProtector(),
+                endpoints
             ),
             db
         );
@@ -106,19 +141,73 @@ public sealed class SupporterConnectionServiceTests
     }
 
     [Fact]
-    public async Task UpsertAsync_RejectsAWebhookSecret()
+    public async Task UpsertAsync_WithAWebhookSecret_ProvisionsTheInboundEndpointInOneStep()
     {
         (SupporterConnectionService service, SupporterTestDbContext db) = await BuildAsync();
 
         Result<SupporterConnectionDto> result = await service.UpsertAsync(
             Tenant,
             Actor,
-            new UpsertSupporterConnectionRequest("kofi", "webhook", "a-secret", null, true)
+            new UpsertSupporterConnectionRequest("kofi", "webhook", "kofi-verify-token", null, true)
         );
 
-        result.IsFailure.Should().BeTrue();
-        result.ErrorCode.Should().Be("VALIDATION_FAILED");
-        (await db.SupporterConnections.CountAsync()).Should().Be(0);
+        result.IsSuccess.Should().BeTrue();
+        // The real consequence: a live Ko-fi inbound endpoint exists, sealed with the pass-through secret…
+        InboundWebhookEndpoint endpoint = await db.InboundWebhookEndpoints.SingleAsync();
+        endpoint.AdapterKind.Should().Be(WebhookAdapterKind.Kofi);
+        endpoint.IsEnabled.Should().BeTrue();
+        endpoint.VerificationSecretEnvelope.Should().Be("sealed:kofi-verify-token");
+        // …linked from the connection (which itself stores NO secret)…
+        SupporterConnection stored = await db.SupporterConnections.SingleAsync();
+        stored.InboundWebhookEndpointId.Should().Be(endpoint.Id);
+        stored
+            .AuthSecretCipher.Should()
+            .BeNull("the webhook secret lives on the endpoint, never here");
+        // …and the ingest URL to paste into Ko-fi rides back on the DTO.
+        result
+            .Value.EndpointUrl.Should()
+            .Be($"https://bot.example.test/api/v1/webhooks/in/{endpoint.Token}");
+        result.Value.HasSecret.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task UpsertAsync_ASecondSecret_RotatesTheSameEndpoint_NeverDuplicates()
+    {
+        (SupporterConnectionService service, SupporterTestDbContext db) = await BuildAsync();
+        await service.UpsertAsync(
+            Tenant,
+            Actor,
+            new UpsertSupporterConnectionRequest("kofi", "webhook", "first-token", null, true)
+        );
+
+        Result<SupporterConnectionDto> rotated = await service.UpsertAsync(
+            Tenant,
+            Actor,
+            new UpsertSupporterConnectionRequest("kofi", "webhook", "second-token", null, true)
+        );
+
+        rotated.IsSuccess.Should().BeTrue();
+        InboundWebhookEndpoint endpoint = await db.InboundWebhookEndpoints.SingleAsync();
+        endpoint.VerificationSecretEnvelope.Should().Be("sealed:second-token");
+    }
+
+    [Fact]
+    public async Task DeleteAsync_RetiresTheProvisionedEndpointWithTheConnection()
+    {
+        (SupporterConnectionService service, SupporterTestDbContext db) = await BuildAsync();
+        await service.UpsertAsync(
+            Tenant,
+            Actor,
+            new UpsertSupporterConnectionRequest("kofi", "webhook", "kofi-verify-token", null, true)
+        );
+
+        Result deleted = await service.DeleteAsync(Tenant, Actor, "kofi");
+
+        deleted.IsSuccess.Should().BeTrue();
+        // The dead ingest URL stops resolving: the auto-provisioned endpoint is soft-deleted too.
+        (await db.InboundWebhookEndpoints.SingleAsync())
+            .DeletedAt.Should()
+            .NotBeNull();
     }
 
     [Fact]

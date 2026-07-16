@@ -43,15 +43,7 @@ public sealed class SupporterWebhookBridge : IEventHandler<InboundWebhookReceive
 
     /// <summary>Maps a webhook adapter kind to its supporter source key; null = not a monetization provider.</summary>
     private static string? SupporterSourceFor(WebhookAdapterKind adapter) =>
-        adapter switch
-        {
-            WebhookAdapterKind.Kofi => "kofi",
-            WebhookAdapterKind.Fourthwall => "fourthwall",
-            WebhookAdapterKind.Shopify => "shopify",
-            WebhookAdapterKind.Patreon => "patreon",
-            WebhookAdapterKind.Buymeacoffee => "buymeacoffee",
-            _ => null,
-        };
+        SupporterWebhookAdapters.SourceFor(adapter);
 
     public async Task HandleAsync(
         InboundWebhookReceivedEvent @event,

@@ -12,19 +12,23 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Webhooks;
+using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Application.Supporters.Dtos;
 using NomNomzBot.Application.Supporters.Services;
 using NomNomzBot.Domain.Supporters.Entities;
+using NomNomzBot.Domain.Webhooks.Enums;
 
 namespace NomNomzBot.Infrastructure.Supporters;
 
 /// <summary>
 /// Manages a broadcaster's supporter connections + browses recorded events (supporter-events.md §5). A
 /// connection is the enforced enable-toggle for a provider: ingest is default-deny and only fires when a live
-/// connection exists (checked in <see cref="SupporterIngestService"/>). Webhook providers verify + ingest
-/// through the shared inbound-webhook plane, so the verification secret lives on that endpoint — never here;
-/// a socket/ws/poll provider's key (or, for DonorDrive, its public donations URL) is AEAD-sealed onto the
-/// connection (supporter-events.md §0 D6) for the ingress runners to open.
+/// connection exists (checked in <see cref="SupporterIngestService"/>). A webhook provider connects in ONE
+/// step: its verification secret passes straight through to an auto-provisioned inbound-webhook endpoint
+/// (never stored on the connection), and the endpoint's ingest URL comes back on the DTO to paste into the
+/// provider's settings. A socket/ws/poll provider's key (or, for DonorDrive, its public donations URL) is
+/// AEAD-sealed onto the connection (supporter-events.md §0 D6) for the ingress runners to open.
 /// </summary>
 public sealed class SupporterConnectionService : ISupporterConnectionService
 {
@@ -33,16 +37,19 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
     private readonly IApplicationDbContext _db;
     private readonly IReadOnlyDictionary<string, ISupporterSource> _sources;
     private readonly ITokenProtector _protector;
+    private readonly IInboundWebhookEndpointService _endpoints;
 
     public SupporterConnectionService(
         IApplicationDbContext db,
         IEnumerable<ISupporterSource> sources,
-        ITokenProtector protector
+        ITokenProtector protector,
+        IInboundWebhookEndpointService endpoints
     )
     {
         _db = db;
         _sources = sources.ToDictionary(s => s.SourceKey, StringComparer.OrdinalIgnoreCase);
         _protector = protector;
+        _endpoints = endpoints;
     }
 
     /// <summary>The per-connection AEAD context: subject = the tenant, provider = the source, one field role.</summary>
@@ -54,18 +61,14 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
         CancellationToken ct = default
     )
     {
-        List<SupporterConnectionDto> items = await _db
+        List<SupporterConnection> connections = await _db
             .SupporterConnections.Where(c => c.BroadcasterId == broadcasterId)
             .OrderBy(c => c.SourceKey)
-            .Select(c => new SupporterConnectionDto(
-                c.SourceKey,
-                c.ConnectionMode,
-                c.AuthSecretCipher != null,
-                c.IsEnabled,
-                c.Status,
-                c.LastEventAt
-            ))
             .ToListAsync(ct);
+
+        List<SupporterConnectionDto> items = [];
+        foreach (SupporterConnection connection in connections)
+            items.Add(await ToDtoAsync(connection, ct));
         return Result.Success<IReadOnlyList<SupporterConnectionDto>>(items);
     }
 
@@ -87,14 +90,6 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
         if (!string.Equals(mode, source.Capabilities.ConnectionMode, StringComparison.Ordinal))
             return Result.Failure<SupporterConnectionDto>(
                 $"'{sourceKey}' ingests via '{source.Capabilities.ConnectionMode}', not '{mode}'.",
-                "VALIDATION_FAILED"
-            );
-
-        // Webhook providers verify at the inbound-webhook endpoint, which owns the secret. Accepting one here
-        // would store a secret nothing reads — reject it rather than ship a phantom control.
-        if (mode == "webhook" && !string.IsNullOrWhiteSpace(request.AuthSecret))
-            return Result.Failure<SupporterConnectionDto>(
-                "A webhook provider's verification secret is set on its inbound webhook endpoint, not on the connection.",
                 "VALIDATION_FAILED"
             );
 
@@ -124,26 +119,122 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
         if (string.IsNullOrEmpty(connection.Status))
             connection.Status = "idle";
 
+        if (mode == "webhook")
+        {
+            // One-step connect: the secret passes straight through to the provider's inbound endpoint —
+            // auto-provisioned on first supply, secret-rotated on a later one — and is NEVER stored here.
+            // An omitted secret just toggles the connection; the endpoint (if any) is untouched.
+            if (!string.IsNullOrWhiteSpace(request.AuthSecret))
+            {
+                Result provisioned = await ProvisionEndpointAsync(
+                    broadcasterId,
+                    actorUserId,
+                    connection,
+                    sourceKey,
+                    request.AuthSecret,
+                    ct
+                );
+                if (provisioned.IsFailure)
+                    return Result.Failure<SupporterConnectionDto>(
+                        provisioned.ErrorMessage!,
+                        provisioned.ErrorCode!
+                    );
+            }
+        }
         // A socket/ws/poll provider's key is AEAD-sealed here for the ingress runner to open. An omitted
         // secret on a re-upsert keeps the stored one (toggling IsEnabled must never wipe the credential).
-        if (!string.IsNullOrWhiteSpace(request.AuthSecret))
+        else if (!string.IsNullOrWhiteSpace(request.AuthSecret))
+        {
             connection.AuthSecretCipher = await _protector.ProtectAsync(
                 request.AuthSecret,
                 SecretContext(broadcasterId, sourceKey),
                 ct
             );
+        }
 
         await _db.SaveChangesAsync(ct);
 
-        return Result.Success(
-            new SupporterConnectionDto(
-                connection.SourceKey,
-                connection.ConnectionMode,
-                connection.AuthSecretCipher != null,
-                connection.IsEnabled,
-                connection.Status,
-                connection.LastEventAt
-            )
+        return Result.Success(await ToDtoAsync(connection, ct));
+    }
+
+    /// <summary>
+    /// Creates (first secret) or secret-rotates (later secret) the connection's inbound-webhook endpoint —
+    /// the one-step connect: no separate trip to the Webhooks page, and the ingest URL rides back on the DTO.
+    /// </summary>
+    private async Task<Result> ProvisionEndpointAsync(
+        Guid broadcasterId,
+        Guid actorUserId,
+        SupporterConnection connection,
+        string sourceKey,
+        string verificationSecret,
+        CancellationToken ct
+    )
+    {
+        WebhookAdapterKind? adapter = SupporterWebhookAdapters.AdapterFor(sourceKey);
+        if (adapter is not WebhookAdapterKind kind)
+            return Result.Failure(
+                $"'{sourceKey}' has no inbound webhook adapter to provision.",
+                "VALIDATION_FAILED"
+            );
+
+        if (connection.InboundWebhookEndpointId is Guid endpointId)
+        {
+            Result<InboundWebhookEndpointDto> rotated = await _endpoints.UpdateAsync(
+                broadcasterId,
+                endpointId,
+                new UpdateInboundWebhookRequest { VerificationSecret = verificationSecret },
+                ct
+            );
+            return rotated.IsFailure
+                ? Result.Failure(rotated.ErrorMessage!, rotated.ErrorCode!)
+                : Result.Success();
+        }
+
+        Result<InboundWebhookEndpointDto> created = await _endpoints.CreateAsync(
+            broadcasterId,
+            actorUserId,
+            new CreateInboundWebhookRequest
+            {
+                Name = $"{sourceKey} (supporters)",
+                Adapter = kind,
+                VerificationSecret = verificationSecret,
+                IsEnabled = true,
+            },
+            ct
+        );
+        if (created.IsFailure)
+            return Result.Failure(created.ErrorMessage!, created.ErrorCode!);
+
+        connection.InboundWebhookEndpointId = created.Value.Id;
+        return Result.Success();
+    }
+
+    /// <summary>The public DTO, with the provisioned endpoint's ingest URL resolved for webhook providers.</summary>
+    private async Task<SupporterConnectionDto> ToDtoAsync(
+        SupporterConnection connection,
+        CancellationToken ct
+    )
+    {
+        string? endpointUrl = null;
+        if (connection.InboundWebhookEndpointId is Guid endpointId)
+        {
+            Result<InboundWebhookEndpointDto> endpoint = await _endpoints.GetAsync(
+                connection.BroadcasterId,
+                endpointId,
+                ct
+            );
+            if (endpoint.IsSuccess)
+                endpointUrl = endpoint.Value.IngestUrl;
+        }
+
+        return new SupporterConnectionDto(
+            connection.SourceKey,
+            connection.ConnectionMode,
+            connection.AuthSecretCipher != null || connection.InboundWebhookEndpointId != null,
+            connection.IsEnabled,
+            connection.Status,
+            connection.LastEventAt,
+            endpointUrl
         );
     }
 
@@ -161,6 +252,12 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
         );
         if (connection is null)
             return Result.Failure($"No '{sourceKey}' supporter connection.", "NOT_FOUND");
+
+        // A one-step-provisioned endpoint belongs to this connection — disconnecting retires it too, so the
+        // dead ingest URL stops resolving. Endpoints created manually on the Webhooks page are never linked
+        // here and stay untouched.
+        if (connection.InboundWebhookEndpointId is Guid endpointId)
+            await _endpoints.DeleteAsync(broadcasterId, endpointId, ct);
 
         _db.SupporterConnections.Remove(connection); // Soft delete via the interceptor.
         await _db.SaveChangesAsync(ct);

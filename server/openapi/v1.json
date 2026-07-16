@@ -2972,7 +2972,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Start the Twitch OAuth flow. Redirects the browser to Twitch's authorization page.\r\nPass `redirect_uri` for mobile / desktop-loopback deep-link callbacks (e.g.\r\n`nomnomzbot://callback`). Pass `client=web` for the served-web dashboard: a full-page redirect\r\ncan't receive a JSON token body, so the callback returns the tokens in the URL fragment + an HttpOnly\r\ncookie instead.",
+        "summary": "Start the Twitch OAuth flow. Redirects the browser to Twitch's authorization page.\r\nPass `redirect_uri` for mobile / desktop-loopback deep-link callbacks (e.g.\r\n`nomnomzbot://callback`). Pass `client=web` for the served-web dashboard: a full-page redirect\r\ncan't receive a JSON token body, so the callback returns the tokens in the URL fragment + an HttpOnly\r\ncookie instead. A RETURNING operator's re-auth is additive: when the navigation carries a live web\r\nsession cookie, the requested scope set widens to `base ∪ granted ∪ recorded-missing` so a re-grant\r\nclears every recorded gap and never drops an already-held scope (a fresh login gets the base set).",
         "parameters": [
           {
             "name": "redirect_uri",
@@ -52322,7 +52322,8 @@
             "type": "boolean"
           },
           "fireOnce": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "When true the timer fires once and then disables itself, instead of looping on the interval."
           }
         },
         "description": "Request to create a new timer."
@@ -64128,7 +64129,8 @@
           "hasSecret",
           "isEnabled",
           "status",
-          "lastEventAt"
+          "lastEventAt",
+          "endpointUrl"
         ],
         "type": "object",
         "properties": {
@@ -64153,9 +64155,15 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "endpointUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "A supporter connection's public shape — the secret is never returned, only whether one is set."
+        "description": "A supporter connection's public shape — the secret is never returned, only whether one is set. For a\r\nwebhook provider whose inbound endpoint was one-step provisioned from this page,\r\nEndpointUrl is the ingest URL to paste into the provider's webhook settings (null for\r\nsocket/ws/poll providers and for webhook connections without a provisioned endpoint)."
       },
       "SupporterEventDto": {
         "required": [
@@ -66576,7 +66584,8 @@
             "type": [
               "null",
               "boolean"
-            ]
+            ],
+            "description": "When set, toggles one-shot mode (fire once then disable) vs looping."
           }
         },
         "description": "Request to update an existing timer."
