@@ -730,7 +730,7 @@ private data class RewardEditor(
                 id = reward.id,
                 title = reward.title,
                 cost = reward.cost.toString(),
-                prompt = "",
+                prompt = reward.prompt.orEmpty(),
                 isEnabled = reward.isEnabled,
             )
     }

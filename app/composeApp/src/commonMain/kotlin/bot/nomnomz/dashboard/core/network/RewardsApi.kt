@@ -183,8 +183,8 @@ data class UpdateRewardBody(
 /**
  * A channel-point reward (backend `RewardDetail` — the list endpoint returns the same schema as get/create). The
  * field names are the serialized (camelCase) names of `RewardDetail`; the client reads the subset the row renders
- * (ApiClient's Json ignores unknown keys), so the heavier detail-only fields (prompt, cooldowns, paused) are
- * omitted here. [isManageable] is the one that drives the page's read-only gating: `true` when the bot's own
+ * (ApiClient's Json ignores unknown keys), so the heavier detail-only fields (cooldowns, paused) are omitted
+ * here. [prompt] IS read — the edit dialog pre-fills it. [isManageable] is the one that drives the page's read-only gating: `true` when the bot's own
  * Twitch client created the reward (full CRUD), `false` for EXTERNAL rewards made in the Twitch dashboard or by
  * another app — those are read-only to us until recreated under the bot ("Take control").
  */
@@ -193,6 +193,9 @@ data class RewardSummary(
     val id: String,
     val title: String = "",
     val cost: Int = 0,
+    // The viewer-facing prompt the operator set on Twitch (backend RewardDetail.prompt). The list endpoint returns
+    // the full RewardDetail schema, so this arrives on every row and the edit dialog pre-fills it.
+    val prompt: String? = null,
     val isEnabled: Boolean = false,
     val isManageable: Boolean = false,
     val backgroundColor: String? = null,
