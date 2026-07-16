@@ -71,6 +71,13 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
 
         b.Entity<InboundWebhookEndpoint>(e => e.HasKey(x => x.Id));
 
+        b.Entity<IntegrationConnection>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Ignore(x => x.Channel);
+            e.Ignore(x => x.Tokens);
+        });
+
         b.Entity<SupporterEvent>(e =>
         {
             e.HasKey(x => x.Id);
@@ -125,6 +132,7 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
         typeof(EventResponse),
         typeof(ChannelEvent),
         typeof(InboundWebhookEndpoint),
+        typeof(IntegrationConnection),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -188,7 +196,7 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
     public DbSet<AuthSession> AuthSessions => throw new NotSupportedException();
     public DbSet<RefreshToken> RefreshTokens => throw new NotSupportedException();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => throw new NotSupportedException();
-    public DbSet<IntegrationConnection> IntegrationConnections => throw new NotSupportedException();
+    public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
     public DbSet<IntegrationToken> IntegrationTokens => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
         throw new NotSupportedException();
