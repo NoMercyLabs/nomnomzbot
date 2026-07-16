@@ -1468,6 +1468,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("FireOnce")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("IntervalMinutes")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")

@@ -43,6 +43,13 @@ public class Timer : SoftDeletableEntity, ITenantScoped
     /// <summary>How often the timer fires (in minutes).</summary>
     public int IntervalMinutes { get; set; } = 30;
 
+    /// <summary>
+    /// One-shot mode: when true the timer fires exactly once (on its first due tick, honoring
+    /// <see cref="MinChatActivity"/>) and then disables itself (<see cref="IsEnabled"/> is set to false).
+    /// When false the timer loops on <see cref="IntervalMinutes"/> as usual.
+    /// </summary>
+    public bool FireOnce { get; set; }
+
     /// <summary>Minimum number of chat messages since last fire before the timer will fire again.</summary>
     public int MinChatActivity { get; set; }
 

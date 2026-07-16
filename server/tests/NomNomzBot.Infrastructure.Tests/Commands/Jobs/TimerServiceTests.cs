@@ -102,7 +102,8 @@ public sealed class TimerServiceTests
         AuthDbContext db,
         Guid? pipelineId,
         List<string> messages,
-        int nextIndex = 0
+        int nextIndex = 0,
+        bool fireOnce = false
     )
     {
         Timer timer = new()
@@ -114,6 +115,7 @@ public sealed class TimerServiceTests
             PipelineId = pipelineId,
             IntervalMinutes = 15,
             IsEnabled = true,
+            FireOnce = fireOnce,
             NextMessageIndex = nextIndex,
         };
         db.Timers.Add(timer);
@@ -208,6 +210,43 @@ public sealed class TimerServiceTests
 
         await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
         h.Db.Timers.Single(t => t.Id == timer.Id).LastFiredAt.Should().Be(Now.UtcDateTime);
+    }
+
+    [Fact]
+    public async Task A_one_shot_timer_fires_once_then_disables_itself()
+    {
+        // FireOnce = a single dispatch: the line still goes out, but the timer disables itself so the next
+        // tick skips it — the whole point of "trigger just once" instead of looping on the interval.
+        Harness h = Build();
+        Timer timer = SeedTimer(h.Db, pipelineId: null, ["one and done"], fireOnce: true);
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        await h
+            .Chat.Received(1)
+            .SendMessageAsync(Channel, "one and done", Arg.Any<CancellationToken>());
+        Timer persisted = h.Db.Timers.Single(t => t.Id == timer.Id);
+        persisted
+            .IsEnabled.Should()
+            .BeFalse("a one-shot timer disables itself after its single fire");
+        persisted.LastFiredAt.Should().Be(Now.UtcDateTime);
+    }
+
+    [Fact]
+    public async Task A_looping_timer_stays_enabled_after_firing()
+    {
+        // The default (FireOnce = false) must be untouched — it keeps looping, so it stays enabled.
+        Harness h = Build();
+        Timer timer = SeedTimer(h.Db, pipelineId: null, ["again and again"], fireOnce: false);
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        await h
+            .Chat.Received(1)
+            .SendMessageAsync(Channel, "again and again", Arg.Any<CancellationToken>());
+        h.Db.Timers.Single(t => t.Id == timer.Id)
+            .IsEnabled.Should()
+            .BeTrue("a looping timer stays enabled to fire again next interval");
     }
 
     [Fact]

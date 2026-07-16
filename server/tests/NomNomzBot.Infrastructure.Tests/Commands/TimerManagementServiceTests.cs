@@ -87,6 +87,40 @@ public sealed class TimerManagementServiceTests
     }
 
     [Fact]
+    public async Task FireOnce_round_trips_through_create_get_and_update()
+    {
+        (TimerManagementService sut, RecordingEventBus _) = Build();
+
+        // Created as a one-shot: the flag persists and is reflected back.
+        TimerDto created = (
+            await sut.CreateAsync(
+                Channel.ToString(),
+                new CreateTimerDto
+                {
+                    Name = "welcome-once",
+                    Messages = ["hi"],
+                    FireOnce = true,
+                }
+            )
+        ).Value;
+        created.FireOnce.Should().BeTrue();
+
+        TimerDto fetched = (await sut.GetAsync(Channel.ToString(), created.Id)).Value;
+        fetched.FireOnce.Should().BeTrue("the persisted timer is a one-shot");
+
+        // Flipped back to a loop via update; other fields (name) untouched.
+        TimerDto updated = (
+            await sut.UpdateAsync(
+                Channel.ToString(),
+                created.Id,
+                new UpdateTimerDto { FireOnce = false }
+            )
+        ).Value;
+        updated.FireOnce.Should().BeFalse("update cleared one-shot mode");
+        updated.Name.Should().Be("welcome-once", "an unset field is left as-is");
+    }
+
+    [Fact]
     public async Task Update_of_an_unknown_timer_publishes_nothing()
     {
         (TimerManagementService sut, RecordingEventBus bus) = Build();

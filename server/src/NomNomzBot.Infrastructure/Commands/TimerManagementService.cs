@@ -54,6 +54,7 @@ public class TimerManagementService : ITimerManagementService
                 t.Name,
                 t.IntervalMinutes,
                 t.IsEnabled,
+                t.FireOnce,
                 t.LastFiredAt,
                 t.Messages.Count,
                 t.CreatedAt
@@ -117,6 +118,7 @@ public class TimerManagementService : ITimerManagementService
             IntervalMinutes = request.IntervalMinutes,
             MinChatActivity = request.MinChatActivity,
             IsEnabled = request.IsEnabled,
+            FireOnce = request.FireOnce,
         };
 
         _db.Timers.Add(timer);
@@ -159,6 +161,8 @@ public class TimerManagementService : ITimerManagementService
             timer.MinChatActivity = request.MinChatActivity.Value;
         if (request.IsEnabled.HasValue)
             timer.IsEnabled = request.IsEnabled.Value;
+        if (request.FireOnce.HasValue)
+            timer.FireOnce = request.FireOnce.Value;
 
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcaster, timer.Id, "updated", cancellationToken);
@@ -244,6 +248,7 @@ public class TimerManagementService : ITimerManagementService
             t.IntervalMinutes,
             t.MinChatActivity,
             t.IsEnabled,
+            t.FireOnce,
             t.PipelineId,
             t.LastFiredAt,
             t.NextMessageIndex,

@@ -20,6 +20,7 @@ public sealed record TimerDto(
     int IntervalMinutes,
     int MinChatActivity,
     bool IsEnabled,
+    bool FireOnce,
     Guid? PipelineId,
     DateTime? LastFiredAt,
     int NextMessageIndex,
@@ -33,6 +34,7 @@ public sealed record TimerListItem(
     string Name,
     int IntervalMinutes,
     bool IsEnabled,
+    bool FireOnce,
     DateTime? LastFiredAt,
     int MessageCount,
     DateTime CreatedAt
@@ -55,6 +57,9 @@ public sealed record CreateTimerDto
     public int MinChatActivity { get; init; }
 
     public bool IsEnabled { get; init; } = true;
+
+    /// <summary>When true the timer fires once and then disables itself, instead of looping on the interval.</summary>
+    public bool FireOnce { get; init; }
 }
 
 /// <summary>Request to update an existing timer.</summary>
@@ -74,4 +79,7 @@ public sealed record UpdateTimerDto
     public int? MinChatActivity { get; init; }
 
     public bool? IsEnabled { get; init; }
+
+    /// <summary>When set, toggles one-shot mode (fire once then disable) vs looping.</summary>
+    public bool? FireOnce { get; init; }
 }

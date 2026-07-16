@@ -176,6 +176,9 @@ public sealed class TimerService : BackgroundService
         timer.LastFiredAt = now;
         if (timer.Messages.Count > 0)
             timer.NextMessageIndex = (timer.NextMessageIndex + 1) % timer.Messages.Count;
+        // One-shot timers fire exactly once, then disable themselves so the next tick skips them.
+        if (timer.FireOnce)
+            timer.IsEnabled = false;
         await db.SaveChangesAsync(ct);
 
         // Record message count snapshot for next activity check
