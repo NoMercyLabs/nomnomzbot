@@ -16,6 +16,24 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-16 — Auth round-trips: send `return_to` so the user lands back on the page they left
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the browser OAuth flows now carry an optional `return_to` query param (a same-origin
+  RELATIVE path like `/commands` or `/settings?tab=identity` — anything else is dropped server-side):
+  `GET /api/v1/auth/twitch?client=web&return_to=...`, `GET /api/v1/auth/{provider}/authorize?...`,
+  and `POST /api/v1/auth/identities/{provider}/link?...`. On success the callback 302s to
+  `{origin}{return_to}#access_token=...` (login) or `{origin}{return_to}#linked=...` (link) instead
+  of always the home page. Frontend work: (1) pass the CURRENT route as `return_to` when starting
+  any web OAuth hop; (2) parse the `#access_token`/`#linked`/`#link_error` fragment on EVERY route,
+  not just the root, then strip it and stay on that route.
+- **Why:** owner item — "after redirecting from auth providers, the user is not redirected back to
+  the page they were on before the redirect". Backend leg shipped; the visible fix needs the app to
+  send the param and restore the route.
+- **Where:** login/link flow starters in `core/network` + the fragment handling in the app bootstrap;
+  contract refreshed in `server/openapi/v1.json` (3 new query params).
+- **Done when:** starting a re-auth or identity link from any dashboard page returns to that page
+  with the session/link applied, verified on the dev web build.
+
 ### 2026-07-16 — Home screen: render the new real stats (subs, chatters, donations)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** `GET /api/v1/dashboard/{channelId}/stats` (`DashboardStatsDto`) now carries six new

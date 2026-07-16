@@ -130,7 +130,6 @@ commits; this is the collapsed record.
 - [ ] federation needs to be reworked and overhauled to be more user friendly and intuitive and usability.
 - [ ] the entire platform needs to be reworked and overhauled to be more user friendly and intuitive and usability.
 - [ ] data sources are not clear what they do and how they are used, they need to be reworked and overhauled to be more user friendly and intuitive and usability.
-- [ ] after redirecting from auth providers, the user is not redirected back to the page they were on before the redirect, instead they are redirected to the home page.
 - [ ] youtube needs a non-byoc provider for auth.
 - [ ] i am missing the pre-filled templates in all the template input fields.
 - [ ] the bot account is not sending messages in chat with the app token on other channels, this is bad UX.

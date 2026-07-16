@@ -2607,6 +2607,13 @@
             }
           },
           {
+            "name": "return_to",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "version",
             "in": "path",
             "required": true,
@@ -2983,6 +2990,13 @@
           },
           {
             "name": "client",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "return_to",
             "in": "query",
             "schema": {
               "type": "string"
@@ -3797,6 +3811,13 @@
           },
           {
             "name": "client",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "return_to",
             "in": "query",
             "schema": {
               "type": "string"

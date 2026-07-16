@@ -47,6 +47,11 @@ public interface ITwitchOAuthStateService
 /// session. Null for a plain login. (Device-grant links complete on an authenticated poll and carry the user in
 /// the JWT, so they never need this.)
 /// </para>
+/// <para>
+/// <paramref name="ReturnTo"/> is the served-web page (same-origin RELATIVE path, validated by the issuing
+/// endpoint before it enters the state) the dashboard returns to after the round-trip — so an OAuth hop
+/// started from /commands lands back on /commands, not the home page. Null lands on the origin root.
+/// </para>
 /// </summary>
 public sealed record TwitchOAuthFlowState(
     string Flow,
@@ -55,5 +60,6 @@ public sealed record TwitchOAuthFlowState(
     string? Client = null,
     string? Provider = null,
     string? CodeVerifier = null,
-    Guid? LinkUserId = null
+    Guid? LinkUserId = null,
+    string? ReturnTo = null
 );

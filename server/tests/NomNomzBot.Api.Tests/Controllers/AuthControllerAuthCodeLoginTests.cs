@@ -90,7 +90,13 @@ public sealed class AuthControllerAuthCodeLoginTests
             .Returns("nonce");
 
         IActionResult result = await Build(impl, state)
-            .StartExternalAuthorize("kick", redirect_uri: null, client: "web", default);
+            .StartExternalAuthorize(
+                "kick",
+                redirect_uri: null,
+                client: "web",
+                return_to: null,
+                default
+            );
 
         RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
         redirect.Url.Should().Be("https://id.kick.com/oauth/authorize?x=1");

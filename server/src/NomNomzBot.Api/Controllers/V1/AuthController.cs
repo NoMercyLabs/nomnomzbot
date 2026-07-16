@@ -146,6 +146,7 @@ public class AuthController : BaseController
         string provider,
         [FromQuery] string? redirect_uri,
         [FromQuery] string? client,
+        [FromQuery] string? return_to,
         CancellationToken ct
     )
     {
@@ -177,7 +178,8 @@ public class AuthController : BaseController
                     Client: client,
                     Provider: provider.ToLowerInvariant(),
                     CodeVerifier: pkce.Verifier,
-                    LinkUserId: userId
+                    LinkUserId: userId,
+                    ReturnTo: ReturnPathPolicy.Normalize(return_to)
                 ),
                 ct
             );
@@ -332,6 +334,7 @@ public class AuthController : BaseController
     public async Task<IActionResult> StartTwitchOAuth(
         [FromQuery] string? redirect_uri,
         [FromQuery] string? client,
+        [FromQuery] string? return_to,
         CancellationToken ct
     )
     {
@@ -340,9 +343,15 @@ public class AuthController : BaseController
 
         // Issue a single-use, server-side CSRF state nonce; only the opaque nonce travels through Twitch, and
         // the flow + optional mobile redirect + client class are held server-side so the callback can route
-        // safely (the client class can't be tampered with in the query string on the way back).
+        // safely (the client class can't be tampered with in the query string on the way back). The return
+        // path is normalized to a same-origin relative path (or dropped) BEFORE it enters the state.
         string state = await _oauthState.IssueAsync(
-            new TwitchOAuthFlowState("user", redirect_uri, Client: client),
+            new TwitchOAuthFlowState(
+                "user",
+                redirect_uri,
+                Client: client,
+                ReturnTo: ReturnPathPolicy.Normalize(return_to)
+            ),
             ct
         );
 
@@ -498,7 +507,7 @@ public class AuthController : BaseController
             return ResultResponse(result);
         }
 
-        return BuildLoginResponse(result.Value, client, mobileRedirectUri);
+        return BuildLoginResponse(result.Value, client, mobileRedirectUri, flowState.ReturnTo);
     }
 
     /// <summary>
@@ -511,7 +520,8 @@ public class AuthController : BaseController
     private IActionResult BuildLoginResponse(
         AuthResultDto auth,
         string? client,
-        string? mobileRedirectUri
+        string? mobileRedirectUri,
+        string? returnTo = null
     )
     {
         int expiresIn = (int)(auth.ExpiresAt - _timeProvider.GetUtcNow().UtcDateTime).TotalSeconds;
@@ -531,7 +541,9 @@ public class AuthController : BaseController
             SetRefreshTokenCookie(auth.RefreshToken);
             string fragment =
                 $"#access_token={Uri.EscapeDataString(auth.AccessToken)}&expires_in={expiresIn}";
-            return Redirect($"{GetPublicBaseUrl()}/{fragment}");
+            // returnTo was validated at issue time (ReturnPathPolicy) and rides the server-side state —
+            // the dashboard lands back on the page that started the OAuth hop, not the home page.
+            return Redirect($"{GetPublicBaseUrl()}{returnTo ?? "/"}{fragment}");
         }
 
         return Ok(
@@ -837,6 +849,7 @@ public class AuthController : BaseController
         string provider,
         [FromQuery] string? redirect_uri,
         [FromQuery] string? client,
+        [FromQuery] string? return_to,
         CancellationToken ct
     )
     {
@@ -859,7 +872,8 @@ public class AuthController : BaseController
                 redirect_uri,
                 Client: client,
                 Provider: provider.ToLowerInvariant(),
-                CodeVerifier: pkce.Verifier
+                CodeVerifier: pkce.Verifier,
+                ReturnTo: ReturnPathPolicy.Normalize(return_to)
             ),
             ct
         );
@@ -912,7 +926,13 @@ public class AuthController : BaseController
         if (flowState.LinkUserId is Guid linkUserId)
         {
             Result<UserIdentityDto> link = await _identities.LinkAsync(linkUserId, proof.Value, ct);
-            return BuildLinkResponse(link, provider, flowState.Client, flowState.RedirectUri);
+            return BuildLinkResponse(
+                link,
+                provider,
+                flowState.Client,
+                flowState.RedirectUri,
+                flowState.ReturnTo
+            );
         }
 
         Result<AuthResultDto> login = await _externalLogin.LoginAsync(
@@ -923,7 +943,12 @@ public class AuthController : BaseController
         if (login.IsFailure)
             return ResultResponse(login);
 
-        return BuildLoginResponse(login.Value, flowState.Client, flowState.RedirectUri);
+        return BuildLoginResponse(
+            login.Value,
+            flowState.Client,
+            flowState.RedirectUri,
+            flowState.ReturnTo
+        );
     }
 
     /// <summary>
@@ -936,7 +961,8 @@ public class AuthController : BaseController
         Result<UserIdentityDto> link,
         string provider,
         string? client,
-        string? mobileRedirectUri
+        string? mobileRedirectUri,
+        string? returnTo = null
     )
     {
         if (!string.IsNullOrWhiteSpace(mobileRedirectUri))
@@ -954,7 +980,8 @@ public class AuthController : BaseController
             string fragment = link.IsSuccess
                 ? $"#linked={Uri.EscapeDataString(provider)}"
                 : $"#link_error={Uri.EscapeDataString(link.ErrorCode ?? "link_failed")}";
-            return Redirect($"{GetPublicBaseUrl()}/{fragment}");
+            // A link started from the settings page returns to the settings page (validated at issue).
+            return Redirect($"{GetPublicBaseUrl()}{returnTo ?? "/"}{fragment}");
         }
 
         return IdentityWriteResponse(link);

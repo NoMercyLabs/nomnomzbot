@@ -68,7 +68,12 @@ public sealed class OAuthForwardedOriginTests
             ControllerContext = ForwardedContext(),
         };
 
-        await controller.StartTwitchOAuth(redirect_uri: null, client: "web", default);
+        await controller.StartTwitchOAuth(
+            redirect_uri: null,
+            client: "web",
+            return_to: null,
+            default
+        );
 
         // The base URL the OAuth URL is built from is the tunnel origin — so the resulting Twitch
         // redirect_uri (…/api/v1/auth/twitch/callback) is the domain, exactly what the owner registers.
