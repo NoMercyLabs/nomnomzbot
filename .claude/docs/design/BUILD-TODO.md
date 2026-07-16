@@ -132,7 +132,6 @@ commits; this is the collapsed record.
 - [ ] data sources are not clear what they do and how they are used, they need to be reworked and overhauled to be more user friendly and intuitive and usability.
 - [ ] after redirecting from auth providers, the user is not redirected back to the page they were on before the redirect, instead they are redirected to the home page.
 - [ ] youtube needs a non-byoc provider for auth.
-- [ ] the bot personality responses need to be better, no emoji bullshit and be properly taken an example from my current bot. my current bots responses are way funnier and sassy and you need to do better.
 - [ ] i am missing the pre-filled templates in all the template input fields.
 - [ ] the bot account is not sending messages in chat with the app token on other channels, this is bad UX.
 - [ ] the admin pannel for the saas is just show and does not do anything useful, it does not let me change behavior or go into details of things. i can not promote accounts to admin or grant them specific saas permissions.

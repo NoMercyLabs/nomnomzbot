@@ -93,21 +93,22 @@ public static class ToneTemplateCatalog
             ],
             friendly:
             [
-                "We've been hanging out for {uptime} now — thanks for being here! 💛",
+                "We've been hanging out for {uptime} now — thanks for being here!",
                 "Live and loving it for {uptime}!",
                 "{uptime} of stream so far — so glad you're here!",
             ],
             sassy:
             [
-                "We've been live {uptime}. Yes, some of us have places to be. 😏",
-                "{uptime} and still going strong — try to keep up.",
-                "Clock says {uptime}. No, you can't have those hours back.",
+                "We've been live for {uptime}. Yes, the whole time. I counted. It's my whole job.",
+                "The clock says {uptime}. The clock does not lie. Unlike \"one more game\" from two hours ago.",
+                "{uptime}. That's how long we've been live. What you did with that time is between you and your browser history.",
+                "Live for {uptime} and still no plan. Consistency is important.",
             ],
             hype:
             [
-                "LIVE FOR {uptime} AND WE'RE JUST GETTING STARTED 🔥🔥",
-                "{uptime} ON THE CLOCK LETS GOOOO 🚀",
-                "{uptime} OF PURE CHAOS AND WE AIN'T STOPPING 💪",
+                "LIVE FOR {uptime} AND STILL CLIMBING. NOBODY IS TIRED. NOT EVEN THE BOT.",
+                "{uptime} ON THE CLOCK. THE GRIND DOES NOT SLEEP.",
+                "{uptime} DEEP AND WE ARE JUST WARMING UP. BUCKLE UP.",
             ],
             chill:
             [
@@ -130,21 +131,22 @@ public static class ToneTemplateCatalog
             ],
             friendly:
             [
-                "We're offline right now — catch you next stream! 💛",
+                "We're offline right now — catch you next stream!",
                 "No stream going yet, but I'm glad you stopped by!",
                 "Offline for now — see you soon!",
             ],
             sassy:
             [
-                "Offline. Shocking, I know. 😏",
-                "No stream right now. Try again when the sun's up.",
-                "We're offline — go touch some grass.",
+                "Offline. You just typed !uptime into an empty room. Bold.",
+                "The stream is off. It's just me in here. It's very peaceful. Don't ruin it.",
+                "No stream right now. Somewhere out there, the streamer is pretending to have a life.",
+                "Offline. Uptime: zero. Some questions answer themselves.",
             ],
             hype:
             [
-                "WE'RE OFFLINE... FOR NOW 👀 FOLLOW SO YOU DON'T MISS THE NEXT ONE 🔔",
-                "NO STREAM YET BUT STAY READY 🚀",
-                "OFFLINE BUT NEVER FORGOTTEN — SEE YOU SOON 🔥",
+                "WE ARE OFFLINE... FOR NOW. STAY READY.",
+                "NO STREAM YET. THE CALM BEFORE THE STORM.",
+                "OFFLINE, NOT DEFEATED. SEE YOU AT THE NEXT ONE.",
             ],
             chill: ["offline rn.", "not live atm.", "we're off. later."]
         );
@@ -162,21 +164,22 @@ public static class ToneTemplateCatalog
             ],
             friendly:
             [
-                "🎶 We're vibing to {song.name} by {song.artist} — great pick!",
-                "Now playing {song.name} by {song.artist}. Enjoy! 💛",
-                "This one's {song.name} by {song.artist} 🎧",
+                "We're vibing to {song.name} by {song.artist} — great pick!",
+                "Now playing {song.name} by {song.artist}. Enjoy!",
+                "This one's {song.name} by {song.artist}.",
             ],
             sassy:
             [
-                "It's {song.name} by {song.artist}. You're welcome. 😏",
-                "{song.name} by {song.artist} — yes, again.",
-                "Currently {song.name} by {song.artist}. Bold choice by someone.",
+                "It's {song.name} by {song.artist}. You could have read the overlay, but I'm flattered you asked.",
+                "{song.name} by {song.artist}. Yes, again. No, I don't pick them. I just endure them.",
+                "Currently {song.name} by {song.artist}. Bold choice by someone. Not naming names.",
+                "{song.name} by {song.artist}. The court will note nobody skipped it. Yet.",
             ],
             hype:
             [
-                "🔊 {song.name} BY {song.artist} — TUNE! 🔥",
-                "WE ARE BLASTING {song.name} BY {song.artist} 🎶🚀",
-                "{song.name} BY {song.artist} AND IT GOES HARD 💥",
+                "{song.name} BY {song.artist}. ABSOLUTE TUNE. TURN IT UP.",
+                "WE ARE BLASTING {song.name} BY {song.artist}. NEIGHBORS BEWARE.",
+                "{song.name} BY {song.artist} AND IT GOES HARD. THAT'S THE TWEET.",
             ],
             chill:
             [
@@ -199,21 +202,22 @@ public static class ToneTemplateCatalog
             ],
             friendly:
             [
-                "Nothing playing at the moment — request something with !sr! 💛",
+                "Nothing playing at the moment — request something with !sr!",
                 "Quiet right now! Drop an !sr to get the music going.",
                 "No song yet — your pick could be next!",
             ],
             sassy:
             [
-                "Nothing's playing. The silence is deafening, isn't it? 😏",
-                "No music. Someone do something about that.",
-                "Dead air. Request a song with !sr, hero.",
+                "Nothing is playing. Just the sound of nobody using !sr. Fix that or don't. I'm a bot, not a cop.",
+                "No music. The queue died of neglect. !sr if you feel responsible. You should.",
+                "Dead air. I'd put something on myself, but apparently \"bots choosing the music\" is \"how we got here last time\".",
+                "Silence. Somewhere, a DJ weeps. !sr, hero.",
             ],
             hype:
             [
-                "NO SONG PLAYING?! FIX THAT WITH !sr RIGHT NOW 🔥🎶",
-                "SILENCE?! WE DON'T DO THAT HERE — !sr NOW 🚀",
-                "PLAYER'S EMPTY, DROP AN !sr AND LETS GOOO 💥",
+                "NO SONG PLAYING. FIX IT WITH !sr RIGHT NOW.",
+                "SILENCE? WE DON'T DO SILENCE HERE. !sr, GO.",
+                "THE PLAYER IS EMPTY. DROP AN !sr AND SAVE US ALL.",
             ],
             chill: ["nothing playing rn.", "quiet atm. !sr if you want.", "no song. it's fine."]
         );
@@ -231,21 +235,22 @@ public static class ToneTemplateCatalog
             ],
             friendly:
             [
-                "Here's what's coming up 🎶 {queue.list}",
+                "Here's what's coming up: {queue.list}",
                 "Queue's looking good ({queue.count})! {queue.list}",
-                "Next up for us: {queue.list} 💛",
+                "Next up for us: {queue.list}",
             ],
             sassy:
             [
-                "{queue.count} songs deep: {queue.list}. Patience. 😏",
-                "The queue, since you asked: {queue.list}",
+                "{queue.count} songs deep: {queue.list}. Yes, yours is in there somewhere. Patience.",
+                "OFFICIAL QUEUE REPORT: {queue.count} tracks. {queue.list}. Complaints go to /dev/null.",
                 "Up next, whether you like it or not: {queue.list}",
+                "The queue, since you asked instead of scrolling: {queue.list}",
             ],
             hype:
             [
-                "🔥 {queue.count} BANGERS LOADED: {queue.list}",
-                "THE QUEUE IS STACKED 🚀 {queue.list}",
-                "COMING UP AND IT'S HEAT: {queue.list} 💥",
+                "{queue.count} BANGERS LOADED: {queue.list}",
+                "THE QUEUE IS STACKED: {queue.list}",
+                "COMING UP AND IT'S ALL HEAT: {queue.list}",
             ],
             chill:
             [
@@ -268,21 +273,22 @@ public static class ToneTemplateCatalog
             ],
             friendly:
             [
-                "Queue's empty — add one with !sr! 💛",
+                "Queue's empty — add one with !sr!",
                 "Nothing lined up yet. Your !sr could be first!",
                 "Empty queue! Get something going with !sr.",
             ],
             sassy:
             [
-                "Queue's empty. Someone's slacking. 😏",
-                "Nothing queued. Tragic. Use !sr.",
-                "Empty. As in, do an !sr already.",
+                "The queue is empty. It's not going to fill itself. That's what !sr is for. That's the whole deal.",
+                "Nothing queued. The DJ booth is a ghost town. Somebody !sr before I start playing elevator music.",
+                "Empty. Zero songs. The bar is on the floor and nobody has picked it up. !sr.",
+                "Queue status: 404. Songs not found. You know what to do.",
             ],
             hype:
             [
-                "QUEUE'S EMPTY?! LOAD IT UP WITH !sr 🔥🎶",
-                "NOTHING QUEUED — CHANGE THAT NOW WITH !sr 🚀",
-                "EMPTY QUEUE ALERT 🚨 !sr TO THE RESCUE",
+                "THE QUEUE IS EMPTY. LOAD IT UP WITH !sr.",
+                "NOTHING QUEUED. CHANGE THAT. !sr NOW.",
+                "EMPTY QUEUE ALERT. !sr TO THE RESCUE.",
             ],
             chill: ["queue's empty.", "nothing queued. !sr maybe.", "empty rn."]
         );
@@ -300,21 +306,22 @@ public static class ToneTemplateCatalog
             ],
             friendly:
             [
-                "@{user} Added {track.name} by {track.artist} — great choice! 💛",
-                "@{user} Got it! {track.name} by {track.artist} is queued 🎶",
+                "@{user} Added {track.name} by {track.artist} — great choice!",
+                "@{user} Got it! {track.name} by {track.artist} is queued.",
                 "@{user} {track.name} by {track.artist} coming up — thanks!",
             ],
             sassy:
             [
-                "@{user} Fine, {track.name} by {track.artist} is queued. 😏",
-                "@{user} Added {track.name} by {track.artist}. Bold. Noted.",
-                "@{user} {track.name} by {track.artist}? Sure. It's in.",
+                "@{user} Fine. {track.name} by {track.artist} is in the queue. I've queued worse. Barely.",
+                "@{user} Added {track.name} by {track.artist}. Bold. Noted. Logged forever.",
+                "@{user} {track.name} by {track.artist}? Sure. It's in. The queue doesn't judge. I do, but the queue doesn't.",
+                "@{user} {track.name} by {track.artist}, queued. Your taste has been entered into evidence.",
             ],
             hype:
             [
-                "@{user} 🔥 {track.name} BY {track.artist} LOCKED IN THE QUEUE 🚀",
-                "@{user} ADDED {track.name} BY {track.artist} — LETS GOOO 🎶💥",
-                "@{user} {track.name} BY {track.artist} INCOMING 🔊",
+                "@{user} {track.name} BY {track.artist} IS LOCKED IN. LET'S GO.",
+                "@{user} ADDED {track.name} BY {track.artist}. THE QUEUE JUST GOT BETTER.",
+                "@{user} {track.name} BY {track.artist} INCOMING. BRACE.",
             ],
             chill:
             [
@@ -337,21 +344,22 @@ public static class ToneTemplateCatalog
             ],
             friendly:
             [
-                "@{user} Hmm, couldn't find \"{query}\" — try another spelling? 💛",
+                "@{user} Hmm, couldn't find \"{query}\" — try another spelling?",
                 "@{user} No luck with \"{query}\". Give it another go!",
                 "@{user} Couldn't find \"{query}\", but don't give up!",
             ],
             sassy:
             [
-                "@{user} \"{query}\"? Never heard of it. 😏",
-                "@{user} Found nothing for \"{query}\". Try real words.",
-                "@{user} \"{query}\" doesn't exist. Allegedly.",
+                "@{user} \"{query}\"? Searched everywhere. Even under the couch. Nothing.",
+                "@{user} Zero results for \"{query}\". Either it doesn't exist or you just invented a song. Impressive either way.",
+                "@{user} \"{query}\" returned nothing. Spelling is free, you know.",
+                "@{user} 404: \"{query}\" not found. Not on any platform. Possibly not in this reality.",
             ],
             hype:
             [
-                "@{user} NOTHING FOUND FOR \"{query}\" 😤 TRY AGAIN, WE BELIEVE IN YOU 🔥",
-                "@{user} \"{query}\"?! NO HITS — RELOAD AND RETRY 🚀",
-                "@{user} SWING AND A MISS ON \"{query}\" — GO AGAIN 💪",
+                "@{user} NOTHING FOUND FOR \"{query}\". TRY AGAIN. WE BELIEVE IN YOU.",
+                "@{user} \"{query}\" CAME BACK EMPTY. RELOAD AND RETRY.",
+                "@{user} SWING AND A MISS ON \"{query}\". GO AGAIN.",
             ],
             chill:
             [
@@ -369,21 +377,22 @@ public static class ToneTemplateCatalog
             informative: ["Skipped.", "Track skipped.", "Skipped the current track."],
             friendly:
             [
-                "Skipped! On to the next one 🎶",
-                "Done — skipped it for you! 💛",
+                "Skipped! On to the next one.",
+                "Done — skipped it for you!",
                 "Next up! Skipped that one.",
             ],
             sassy:
             [
-                "Skipped. That one was rough anyway. 😏",
-                "Gone. You're welcome.",
-                "Skipped. Someone had to.",
+                "Skipped. Someone had to say it. I just did it.",
+                "Gone. We don't talk about that one anymore.",
+                "Skipped. The queue thanks you for your service.",
+                "That track has been escorted from the building. Next.",
             ],
             hype:
             [
-                "SKIPPED ⏭️ NEXT BANGER INCOMING 🔥",
-                "OUTTA HERE — NEXT ONE LETS GO 🚀",
-                "SKIPPED 💥 ON TO THE HEAT",
+                "SKIPPED. NEXT BANGER INCOMING.",
+                "OUT OF HERE. NEXT ONE, LET'S GO.",
+                "SKIPPED. ON TO THE HEAT.",
             ],
             chill: ["skipped.", "next one. skipped.", "gone. moving on."]
         );
@@ -398,21 +407,22 @@ public static class ToneTemplateCatalog
             BuiltinResponseSlots.Stats.Profile,
             friendly:
             [
-                "{stats.user}, you've sent {stats.messages} messages and earned {stats.points} points — {stats.watchtime} watched together! 💛",
-                "Look at {stats.user}: {stats.points} points, {stats.messages} messages, here since {stats.firstseen} 🎉",
+                "{stats.user}, you've sent {stats.messages} messages and earned {stats.points} points — {stats.watchtime} watched together!",
+                "Look at {stats.user}: {stats.points} points, {stats.messages} messages, here since {stats.firstseen}!",
                 "{stats.user} has been amazing — {stats.watchtime} watched and {stats.points} points!",
             ],
             sassy:
             [
-                "{stats.user}: {stats.messages} messages, {stats.points} points. Touch grass? Never. 😏",
-                "{stats.user} has {stats.watchtime} of watch time. We're not judging. (We are.)",
-                "{stats.points} points and {stats.messages} messages, {stats.user}. Impressive. Concerning. Both.",
+                "CLASSIFIED DOSSIER: {stats.user}. {stats.messages} messages. {stats.watchtime} watched. {stats.points} points. Threat level: chronically online.",
+                "{stats.user}: {stats.messages} messages, {stats.points} points, here since {stats.firstseen}. Impressive. Concerning. Both.",
+                "{stats.user} has {stats.watchtime} of watch time. I'm not judging. Actually, judging is most of my codebase. I'm judging.",
+                "{stats.user} in a nutshell: {stats.messages} messages, {stats.points} points, {stats.watchtime} watched. And somehow, none of it was quiet.",
             ],
             hype:
             [
-                "{stats.user} 🔥 {stats.points} POINTS · {stats.messages} MESSAGES · {stats.watchtime} WATCHED — LEGEND 🚀",
-                "BIG NUMBERS FOR {stats.user} 💥 {stats.points} POINTS AND {stats.watchtime} WATCHED",
-                "{stats.user} IS BUILT DIFFERENT: {stats.messages} MESSAGES, {stats.points} POINTS 🔥",
+                "{stats.user}: {stats.points} POINTS, {stats.messages} MESSAGES, {stats.watchtime} WATCHED. LEGEND STATUS.",
+                "BIG NUMBERS FOR {stats.user}: {stats.points} POINTS AND {stats.watchtime} WATCHED.",
+                "{stats.user} IS BUILT DIFFERENT: {stats.messages} MESSAGES, {stats.points} POINTS.",
             ],
             chill:
             [
