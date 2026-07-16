@@ -393,6 +393,14 @@ public static class DependencyInjection
             ServiceLifetime.Transient
         );
 
+        // Poll-mode supporter ingress (supporter-events.md D3): DonorDrive-style public feeds on a ~15 s
+        // conditional-GET cadence. Socket/ws ingress is a separate hosted service (Socket.IO providers).
+        services.AddHttpClient(
+            Supporters.SupporterPollHostedService.HttpClientName,
+            client => client.Timeout = TimeSpan.FromSeconds(10)
+        );
+        services.AddHostedService<Supporters.SupporterPollHostedService>();
+
         // The single SSRF-hardened egress client (sandbox + outbound webhooks): resolve-then-pin + https-only.
         services
             .AddHttpClient(NomNomzBot.Infrastructure.Sandbox.EgressHttpClient.Name)

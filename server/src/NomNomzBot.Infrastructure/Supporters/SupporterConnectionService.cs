@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Supporters.Dtos;
 using NomNomzBot.Application.Supporters.Services;
@@ -21,7 +22,9 @@ namespace NomNomzBot.Infrastructure.Supporters;
 /// Manages a broadcaster's supporter connections + browses recorded events (supporter-events.md §5). A
 /// connection is the enforced enable-toggle for a provider: ingest is default-deny and only fires when a live
 /// connection exists (checked in <see cref="SupporterIngestService"/>). Webhook providers verify + ingest
-/// through the shared inbound-webhook plane, so the verification secret lives on that endpoint — never here.
+/// through the shared inbound-webhook plane, so the verification secret lives on that endpoint — never here;
+/// a socket/ws/poll provider's key (or, for DonorDrive, its public donations URL) is AEAD-sealed onto the
+/// connection (supporter-events.md §0 D6) for the ingress runners to open.
 /// </summary>
 public sealed class SupporterConnectionService : ISupporterConnectionService
 {
@@ -29,15 +32,22 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
 
     private readonly IApplicationDbContext _db;
     private readonly IReadOnlyDictionary<string, ISupporterSource> _sources;
+    private readonly ITokenProtector _protector;
 
     public SupporterConnectionService(
         IApplicationDbContext db,
-        IEnumerable<ISupporterSource> sources
+        IEnumerable<ISupporterSource> sources,
+        ITokenProtector protector
     )
     {
         _db = db;
         _sources = sources.ToDictionary(s => s.SourceKey, StringComparer.OrdinalIgnoreCase);
+        _protector = protector;
     }
+
+    /// <summary>The per-connection AEAD context: subject = the tenant, provider = the source, one field role.</summary>
+    internal static TokenProtectionContext SecretContext(Guid broadcasterId, string sourceKey) =>
+        new(broadcasterId.ToString(), sourceKey, "auth_secret");
 
     public async Task<Result<IReadOnlyList<SupporterConnectionDto>>> ListAsync(
         Guid broadcasterId,
@@ -113,6 +123,15 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
         connection.IsEnabled = request.IsEnabled;
         if (string.IsNullOrEmpty(connection.Status))
             connection.Status = "idle";
+
+        // A socket/ws/poll provider's key is AEAD-sealed here for the ingress runner to open. An omitted
+        // secret on a re-upsert keeps the stored one (toggling IsEnabled must never wipe the credential).
+        if (!string.IsNullOrWhiteSpace(request.AuthSecret))
+            connection.AuthSecretCipher = await _protector.ProtectAsync(
+                request.AuthSecret,
+                SecretContext(broadcasterId, sourceKey),
+                ct
+            );
 
         await _db.SaveChangesAsync(ct);
 

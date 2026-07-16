@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Supporters.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
@@ -47,7 +48,39 @@ public sealed class SupporterConnectionServiceTests
             }
         );
         await db.SaveChangesAsync();
-        return (new SupporterConnectionService(db, [new KofiSupporterSource()]), db);
+        return (
+            new SupporterConnectionService(
+                db,
+                [new KofiSupporterSource(), new DonordriveSupporterSource()],
+                new PrefixingFakeProtector()
+            ),
+            db
+        );
+    }
+
+    /// <summary>
+    /// A transparent stand-in for the AEAD protector: seals as <c>sealed:&lt;plaintext&gt;</c>. The service's
+    /// behavior under test is WHAT it stores/keeps (the protector's output, preserved across re-upserts) —
+    /// the envelope crypto itself is proven by the crypto suites.
+    /// </summary>
+    private sealed class PrefixingFakeProtector : ITokenProtector
+    {
+        public Task<string> ProtectAsync(
+            string plaintext,
+            TokenProtectionContext context,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult($"sealed:{plaintext}");
+
+        public Task<string?> TryUnprotectAsync(
+            string? sealedEnvelope,
+            TokenProtectionContext context,
+            CancellationToken cancellationToken = default
+        ) =>
+            Task.FromResult(
+                sealedEnvelope is not null && sealedEnvelope.StartsWith("sealed:")
+                    ? sealedEnvelope["sealed:".Length..]
+                    : null
+            );
     }
 
     [Fact]
@@ -109,6 +142,45 @@ public sealed class SupporterConnectionServiceTests
         );
         wrongMode.IsFailure.Should().BeTrue();
         wrongMode.ErrorCode.Should().Be("VALIDATION_FAILED");
+    }
+
+    [Fact]
+    public async Task UpsertAsync_SealsAPollProviderSecret_AndKeepsItWhenOmittedOnReUpsert()
+    {
+        (SupporterConnectionService service, SupporterTestDbContext db) = await BuildAsync();
+
+        Result<SupporterConnectionDto> created = await service.UpsertAsync(
+            Tenant,
+            Actor,
+            new UpsertSupporterConnectionRequest(
+                "donordrive",
+                "poll",
+                "https://www.extra-life.org/api/participants/12345/donations",
+                null,
+                IsEnabled: true
+            )
+        );
+
+        created.IsSuccess.Should().BeTrue();
+        created.Value.HasSecret.Should().BeTrue();
+        SupporterConnection stored = await db.SupporterConnections.SingleAsync();
+        // Sealed via the protector — never the plaintext feed URL in the column.
+        stored
+            .AuthSecretCipher.Should()
+            .Be("sealed:https://www.extra-life.org/api/participants/12345/donations");
+
+        // A later toggle that omits the secret must keep the stored credential, not wipe it.
+        Result<SupporterConnectionDto> toggled = await service.UpsertAsync(
+            Tenant,
+            Actor,
+            new UpsertSupporterConnectionRequest("donordrive", "poll", null, null, IsEnabled: false)
+        );
+
+        toggled.IsSuccess.Should().BeTrue();
+        toggled.Value.HasSecret.Should().BeTrue();
+        (await db.SupporterConnections.SingleAsync())
+            .AuthSecretCipher.Should()
+            .Be("sealed:https://www.extra-life.org/api/participants/12345/donations");
     }
 
     [Fact]

@@ -67,10 +67,10 @@ commits; this is the collapsed record.
   WebSocket stream. *(Streamer.bot core.)*
 - [ ] **9. OBS control** (`obs-control.md`) — scenes/inputs, ~20 pipeline actions, `obs_event`.
 - [ ] **10. VTube Studio** (`vtube-studio.md`) — connect/authorize/bridge, model control, `vts_event`.
-- [~] **13. Supporter events** (`supporter-events.md`) — *remaining:* the **socket/ws/poll** adapters
-  (streamelements/streamlabs/tipeee/treatstream/pally/donordrive) — these need the
-  `SupporterSocketHostedService`/`SupporterPollHostedService` ingress built (not just an adapter drop);
-  Fourthwall's own merch(`ORDER_PLACED`)/membership kinds (payloads unmodeled); OAuth-vault connect for
+- [~] **13. Supporter events** (`supporter-events.md`) — *remaining:* the **socket/ws** adapters
+  (streamelements/streamlabs/tipeee/treatstream on Socket.IO + pally on raw WS) — these need the
+  `SupporterSocketHostedService` ingress built (not just an adapter drop); Fourthwall's own
+  merch(`ORDER_PLACED`)/membership kinds (payloads unmodeled); OAuth-vault connect for
   Shopify/Patreon/TreatStream; one-step endpoint provisioning on connect.
 - [~] **15. Advanced moderation** (`moderation.md`) — the truthful-reads foundation + the full per-user
   panel (context/notes/warn/suspicious/ban), unban-request queue, network un-nuke, and **viewer reports**
