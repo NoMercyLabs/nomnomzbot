@@ -134,7 +134,12 @@ commits; this is the collapsed record.
 - [ ] youtube needs a non-byoc provider for auth.
 - [ ] the bot personality responses need to be better, no emoji bullshit and be properly taken an example from my current bot. my current bots responses are way funnier and sassy and you need to do better.
 - [ ] i am missing the pre-filled templates in all the template input fields.
-- [ ] the dashboard home screen needs to be more useful in showing important information and stats about the stream, for example the current viewers, chatters, followers, subscribers, donations, platforms streaming to, etc.
+- [~] the dashboard home screen needs to be more useful in showing important information and stats about the stream, for example the current viewers, chatters, followers, subscribers, donations, platforms streaming to, etc.
+  *(Backend SHIPPED 9b2497b7 for viewers/chatters/followers/subs/donations — real Helix subs, distinct
+  hashed chatters/day, honest supporter totals; frontend render = handoff entry. Remaining backend:
+  `platformsLive` needs a per-platform live registry — ChannelContext only tracks Twitch `IsLive`;
+  YouTube's live state is private to YouTubeLiveChatPollWorker (stamp `ctx` on GoLive/offline); Kick has
+  no live tracking yet.)*
 - [ ] the bot account is not sending messages in chat with the app token on other channels, this is bad UX.
 - [ ] the admin pannel for the saas is just show and does not do anything useful, it does not let me change behavior or go into details of things. i can not promote accounts to admin or grant them specific saas permissions.
 - [ ] billing does not seem to be doing anything.
