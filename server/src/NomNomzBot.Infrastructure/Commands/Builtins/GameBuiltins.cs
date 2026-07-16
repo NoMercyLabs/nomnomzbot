@@ -49,6 +49,26 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
         CancellationToken ct = default
     )
     {
+        // Resolve the game config FIRST (ListGamesAsync lazily seeds the default catalog, so a fresh channel
+        // resolves here too). Checking enablement before the bet-usage hint gives a disabled game ONE consistent,
+        // actionable answer — instead of a "Usage:" line for a bare `!game` (which implies it works) followed by
+        // "not enabled" once a bet is added. Games are opt-in (seeded disabled) and spend channel currency, so the
+        // message points at both switches: enable the game AND set up the economy.
+        Result<IReadOnlyList<GameConfigDto>> games = await _games.ListGamesAsync(
+            context.BroadcasterId,
+            ct
+        );
+        if (games.IsFailure)
+            return Result.Success("Games are unavailable right now.");
+
+        GameConfigDto? game = games.Value.FirstOrDefault(g =>
+            string.Equals(g.GameType, GameType, StringComparison.OrdinalIgnoreCase)
+        );
+        if (game is null || !game.IsEnabled)
+            return Result.Success(
+                $"!{GameType} isn't enabled yet — turn it on under Economy → Games. Games spend your channel currency, so set that up there too."
+            );
+
         // The response is sent as a reply to the caller's message, so no "@user" prefix is needed.
         string betArg = context.Args.Trim().Split(' ', 2)[0];
         if (!long.TryParse(betArg, out long bet) || bet <= 0)
@@ -62,20 +82,6 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
         );
         if (user.IsFailure || !Guid.TryParse(user.Value.Id, out Guid playerUserId))
             return Result.Success("Could not resolve your account — try again.");
-
-        // ListGamesAsync lazily seeds the default catalog, so a fresh channel resolves its config here too.
-        Result<IReadOnlyList<GameConfigDto>> games = await _games.ListGamesAsync(
-            context.BroadcasterId,
-            ct
-        );
-        if (games.IsFailure)
-            return Result.Success("Games are unavailable right now.");
-
-        GameConfigDto? game = games.Value.FirstOrDefault(g =>
-            string.Equals(g.GameType, GameType, StringComparison.OrdinalIgnoreCase)
-        );
-        if (game is null || !game.IsEnabled)
-            return Result.Success($"{GameType} is not enabled on this channel.");
 
         Result<GamePlayResultDto> played = await _games.PlayAsync(
             context.BroadcasterId,

@@ -120,7 +120,22 @@ public sealed class GameBuiltinsTests
 
         Result<string> reply = await sut.ExecuteAsync(Context("50"));
 
-        reply.Value.Should().Contain("not enabled");
+        // Actionable: names the game, that it isn't on, and where to turn it on (+ the currency dependency).
+        reply.Value.Should().Contain("isn't enabled").And.Contain("Economy");
+        await games.DidNotReceiveWithAnyArgs().PlayAsync(default, default!, default);
+    }
+
+    [Fact]
+    public async Task A_disabled_game_replies_not_enabled_even_for_a_bare_command_not_usage()
+    {
+        // Enablement is checked BEFORE the bet-usage hint, so a disabled game gives ONE consistent answer whether
+        // or not a bet is supplied — previously a bare `!coinflip` wrongly replied "Usage:" as if it worked.
+        (CoinflipBuiltin sut, IGameService games) = Build(enabled: false);
+
+        Result<string> reply = await sut.ExecuteAsync(Context(""));
+
+        reply.Value.Should().Contain("isn't enabled");
+        reply.Value.Should().NotContain("Usage");
         await games.DidNotReceiveWithAnyArgs().PlayAsync(default, default!, default);
     }
 
