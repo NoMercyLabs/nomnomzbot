@@ -35,8 +35,14 @@ class ChannelSwitcherController(
     private val channelsApi: ChannelsApi,
     private val provisioningApi: ChannelProvisioningApi,
     private val sessionStore: SessionStore,
+    // Apply the switched-to channel's Twitch chat color to the theme accent immediately, so switching channels
+    // re-themes the shell without a full page reload (the accent is derived per-channel from chat color).
+    private val onChatColorResolved: (String?) -> Unit = {},
 ) {
     private val _state: MutableStateFlow<SwitcherState> = MutableStateFlow(SwitcherState.Loading)
+
+    // The bot-registered channels (carry chatColor), retained so [select] can re-theme without a refetch.
+    private var loadedChannels: List<ChannelSummary> = emptyList()
 
     val state: StateFlow<SwitcherState> = _state.asStateFlow()
 
@@ -49,6 +55,7 @@ class ChannelSwitcherController(
             is ApiResult.Failure -> _state.value = SwitcherState.Error(result.error.message)
             is ApiResult.Ok -> {
                 val channels: List<ChannelSummary> = result.value
+                loadedChannels = channels
                 if (channels.isNotEmpty()) {
                     // Restore the operator's last explicitly-chosen channel across a reload/relaunch. Fall back to
                     // the first (owned-first) channel when nothing is remembered OR the remembered channel is no
@@ -73,6 +80,9 @@ class ChannelSwitcherController(
 
     /** Switch the active channel — affects every page controller on its next load. */
     fun select(channelId: String) {
+        // Re-theme immediately from the target channel's chat color (the accent is per-channel). Previously the
+        // theme only updated on the Home page's next load, so a switch left the old accent until a full reload.
+        loadedChannels.firstOrNull { it.id == channelId }?.let { onChatColorResolved(it.chatColor) }
         sessionStore.switchChannel(channelId)
     }
 

@@ -340,6 +340,8 @@ class AppGraph {
             channelsApi = channelsApi,
             provisioningApi = channelProvisioningApi,
             sessionStore = sessionStore,
+            // Re-theme the shell on channel switch (same accent hook HomeController uses on load).
+            onChatColorResolved = ::setChatAccentColor,
         )
 
     val homeController: HomeController =
