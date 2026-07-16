@@ -16,6 +16,24 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-16 — Supporters page: one-step webhook connect (secret in the upsert, ingest URL on the DTO)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the Supporters page can now connect a webhook provider (kofi / fourthwall / shopify /
+  patreon / buymeacoffee) in ONE step. Update the connect flow to: (1) send the provider's
+  verification secret as `authSecret` in the `PUT /api/v1/supporters/connections` upsert — the old
+  "backend rejects a webhook authSecret" behavior is GONE (update the stale comment in
+  `SupportersApi.kt`); (2) render the new `SupporterConnection.endpointUrl` field (add it to the
+  Kotlin DTO — additive, drift-guard-safe) with a copy button: it is the ingest URL the streamer
+  pastes into the provider's webhook settings. Re-sending a secret rotates the endpoint in place;
+  deleting the connection retires the endpoint.
+- **Why:** connecting Ko-fi previously took two pages (create the endpoint on Webhooks, then enable
+  the connection on Supporters). The backend now auto-provisions the inbound endpoint from the
+  connection upsert and returns the URL.
+- **Where:** `core/network/SupportersApi.kt` (DTO + doc comments), `feature/supporters` connect UI;
+  backend contract in `server/openapi/v1.json` (refreshed, `SupporterConnectionDto.endpointUrl`).
+- **Done when:** connecting Ko-fi from the Supporters page with its verification token shows the
+  ingest URL to copy, without visiting the Webhooks page; disconnect removes it.
+
 ### 2026-07-16 — Desktop scope re-grant: route through the device flow (redirect can't widen there)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** in `IntegrationsController.regrantScopes()`, make the **desktop** target always use
