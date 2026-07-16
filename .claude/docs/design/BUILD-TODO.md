@@ -98,7 +98,6 @@ commits; this is the collapsed record.
 - [ ] Chat needs styling controls (size, time and so on, like Twitch)
 - [ ] Chat input doesn't wrap but overflows right
 - [ ] StreamElements import: let a user grab their overlays, quotes, timers and all
-- [ ] Channel-point page header has overlapping top-right buttons
 - [ ] Analytics metrics row should balance itself when possible
 - [ ] Analytics could benefit from some charts
 - [ ] Import things like quotes, timers, overlays from other providers (StreamElements, Streamer.bot, etc)

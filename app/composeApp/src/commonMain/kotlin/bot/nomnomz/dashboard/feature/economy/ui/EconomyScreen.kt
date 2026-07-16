@@ -1596,32 +1596,39 @@ private fun CatalogItemRow(
                 modifier = Modifier.wrapContentWidth(),
             )
         }
-        // Enable / disable — Editor floor (ManageGate); the backend re-checks economy:catalog:update.
+        // Enable / disable + delete — Editor floor (ManageGate); the backend re-checks economy:catalog:update.
+        // Both controls MUST sit in a Row: ManageGate wraps its content in a Box, so two bare siblings would
+        // stack and overlap — the Row lays the toggle and the delete button out side by side.
         ManageGate(decision = manage) { enabled ->
-            TextButton(
-                onClick = { onToggle(item.id, !item.isEnabled) },
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = toggleLabel },
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text =
-                        stringResource(
-                            if (item.isEnabled) Res.string.economy_catalog_disable
-                            else Res.string.economy_catalog_enable
-                        ),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
+                TextButton(
+                    onClick = { onToggle(item.id, !item.isEnabled) },
+                    enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = toggleLabel },
+                ) {
+                    Text(
+                        text =
+                            stringResource(
+                                if (item.isEnabled) Res.string.economy_catalog_disable
+                                else Res.string.economy_catalog_enable
+                            ),
+                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                        maxLines = 1,
+                    )
+                }
+                // Delete — destructive; the caller confirms before calling onDelete.
+                val deleteLabel: String = stringResource(Res.string.economy_catalog_delete_action, item.name)
+                GlyphButton(
+                    imageVector = TrashGlyph,
+                    label = deleteLabel,
+                    onClick = onDelete,
+                    enabled = enabled,
+                    tint = tokens.destructive,
                 )
             }
-            // Delete — destructive; the caller confirms before calling onDelete.
-            val deleteLabel: String = stringResource(Res.string.economy_catalog_delete_action, item.name)
-            GlyphButton(
-                imageVector = TrashGlyph,
-                label = deleteLabel,
-                onClick = onDelete,
-                enabled = enabled,
-                tint = tokens.destructive,
-            )
         }
     }
 }

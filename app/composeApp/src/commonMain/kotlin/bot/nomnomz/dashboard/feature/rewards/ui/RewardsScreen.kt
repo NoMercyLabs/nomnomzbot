@@ -287,6 +287,7 @@ private fun Header(
     onImport: () -> Unit,
 ) {
     val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
     val newLabel: String = stringResource(Res.string.rewards_new_action)
     val syncLabel: String = stringResource(Res.string.rewards_sync_action)
     val importLabel: String = stringResource(Res.string.rewards_import_action)
@@ -295,34 +296,41 @@ private fun Header(
         ManageGate(decision = lifecycle) { enabled ->
             // Sync refreshes only the bot's own rewards; Import pulls EVERYTHING incl. external ones. Both are
             // Twitch-pull text actions; New creates a fresh reward. All three gate on the same lifecycle floor.
-            TextButton(
-                onClick = onSync,
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = syncLabel },
+            // They MUST sit in a Row: ManageGate wraps its content in a Box, so three bare siblings would stack
+            // and overlap (the "overlapping top-right buttons" bug) — the Row lays them out side by side.
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = syncLabel,
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                )
-            }
-            TextButton(
-                onClick = onImport,
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = importLabel },
-            ) {
-                Text(
-                    text = importLabel,
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                )
-            }
-            Button(
-                onClick = onNew,
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = newLabel },
-            ) {
-                Text(text = newLabel)
+                TextButton(
+                    onClick = onSync,
+                    enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = syncLabel },
+                ) {
+                    Text(
+                        text = syncLabel,
+                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                        maxLines = 1,
+                    )
+                }
+                TextButton(
+                    onClick = onImport,
+                    enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = importLabel },
+                ) {
+                    Text(
+                        text = importLabel,
+                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                        maxLines = 1,
+                    )
+                }
+                Button(
+                    onClick = onNew,
+                    enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = newLabel },
+                ) {
+                    Text(text = newLabel)
+                }
             }
         }
     }
