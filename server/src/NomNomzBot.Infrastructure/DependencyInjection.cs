@@ -394,12 +394,25 @@ public static class DependencyInjection
         );
 
         // Poll-mode supporter ingress (supporter-events.md D3): DonorDrive-style public feeds on a ~15 s
-        // conditional-GET cadence. Socket/ws ingress is a separate hosted service (Socket.IO providers).
+        // conditional-GET cadence.
         services.AddHttpClient(
             Supporters.SupporterPollHostedService.HttpClientName,
             client => client.Timeout = TimeSpan.FromSeconds(10)
         );
         services.AddHostedService<Supporters.SupporterPollHostedService>();
+
+        // Live-socket supporter ingress (supporter-events.md D3): one stream per enabled socket/ws
+        // connection whose provider has a dialect profile (Pally raw WS today; Socket.IO providers land as
+        // additional profiles on the same runner).
+        services.AddSingleton<
+            Supporters.Sockets.ISocketFrameSource,
+            Supporters.Sockets.ClientWebSocketFrameSource
+        >();
+        services.AddSingleton<
+            Supporters.Sockets.ISupporterSocketProfile,
+            Supporters.Sockets.PallySocketProfile
+        >();
+        services.AddHostedService<Supporters.SupporterSocketHostedService>();
 
         // The single SSRF-hardened egress client (sandbox + outbound webhooks): resolve-then-pin + https-only.
         services
