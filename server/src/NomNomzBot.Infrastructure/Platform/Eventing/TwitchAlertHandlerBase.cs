@@ -170,7 +170,9 @@ public abstract class TwitchAlertHandlerBase<TEvent>
             await chatProvider.SendMessageAsync(broadcasterId, message, ct);
     }
 
-    private async Task LogChannelEventAsync(
+    // protected (not private) so the id-convergence + idempotency behavior can be unit-tested in isolation
+    // against a ChannelEvents+Users context without wiring the full event-response execution path.
+    protected async Task LogChannelEventAsync(
         IApplicationDbContext db,
         TEvent @event,
         Guid broadcasterId,
@@ -179,6 +181,16 @@ public abstract class TwitchAlertHandlerBase<TEvent>
     {
         try
         {
+            // Key the row by the domain event's EventId — the SAME id TwitchChannelEventLogProjection uses (the
+            // journal preserves it as EventRecord.EventId). This collapses the instant alert-handler write and the
+            // later projection enrichment into ONE ChannelEvents row: the handler writes first (resolved UserId +
+            // alert variables), the projection then folds its richer Data onto the same row. A fresh id here made
+            // every alert event show up TWICE in the activity feed. Idempotent: if the projection (or an EventSub
+            // re-delivery) already logged this EventId, skip — no duplicate, no spurious error log.
+            string eventId = @event.EventId.ToString();
+            if (await db.ChannelEvents.AnyAsync(e => e.Id == eventId, ct))
+                return;
+
             Dictionary<string, string> variables = BuildVariables(@event);
 
             // GetUserId returns the Twitch string id; ChannelEvent.UserId is the internal Users.Id Guid FK,
@@ -194,7 +206,7 @@ public abstract class TwitchAlertHandlerBase<TEvent>
             db.ChannelEvents.Add(
                 new()
                 {
-                    Id = Ulid.NewUlid().ToString(),
+                    Id = eventId,
                     ChannelId = broadcasterId,
                     UserId = userId,
                     Type = EventTypeKey,
