@@ -16,6 +16,22 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-16 — Home screen: render the new real stats (subs, chatters, donations)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** `GET /api/v1/dashboard/{channelId}/stats` (`DashboardStatsDto`) now carries five new
+  fields — `subscriberCount` (real Helix total), `chattersToday` (distinct hashed chatters, UTC day),
+  `supporterEventsToday`, `supporterAmountMinorToday` + `supporterCurrency` (minor units; the amount
+  pair is NULL on a mixed-currency or amount-less day — show the event count alone then, never a
+  fabricated 0.00). Add them to the Kotlin `DashboardStats` DTO (additive, drift-guard-safe) and
+  render them on the home screen next to viewers/followers. Divide the amount by 100 for display.
+- **Why:** the owner's home-screen ask — "current viewers, chatters, followers, subscribers,
+  donations". The backend now serves all of these truthfully (the old followerCount was already real;
+  its doc comment lied). Note: "platforms streaming to" is NOT yet served — backend follow-up.
+- **Where:** `core/network` DashboardStats DTO + `feature/home/ui/HomeScreen.kt`; contract refreshed
+  in `server/openapi/v1.json`.
+- **Done when:** the home screen shows subs/chatters/donations from a live backend, with the
+  mixed-currency day rendering as a count without an amount.
+
 ### 2026-07-16 — Supporters page: one-step webhook connect (secret in the upsert, ingest URL on the DTO)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the Supporters page can now connect a webhook provider (kofi / fourthwall / shopify /

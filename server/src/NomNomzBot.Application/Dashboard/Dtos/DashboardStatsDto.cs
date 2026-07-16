@@ -31,9 +31,33 @@ public sealed record DashboardStatsDto
     [JsonPropertyName("viewerCount")]
     public int ViewerCount { get; init; }
 
-    /// <summary>Follower count (not tracked server-side; always 0 in this implementation).</summary>
+    /// <summary>Real Twitch follower total (Get Channel Followers); 0 when the Helix read fails.</summary>
     [JsonPropertyName("followerCount")]
     public int FollowerCount { get; init; }
+
+    /// <summary>Real Twitch subscriber total (Get Broadcaster Subscriptions); 0 when the Helix read fails.</summary>
+    [JsonPropertyName("subscriberCount")]
+    public int SubscriberCount { get; init; }
+
+    /// <summary>Distinct chatters seen today (UTC) — the privacy-hashed ChannelChatterDays count.</summary>
+    [JsonPropertyName("chattersToday")]
+    public int ChattersToday { get; init; }
+
+    /// <summary>Supporter events (tips/memberships/merch/charity) received today (UTC).</summary>
+    [JsonPropertyName("supporterEventsToday")]
+    public int SupporterEventsToday { get; init; }
+
+    /// <summary>
+    /// Today's supporter total in minor units — only when every amount-bearing event today shares ONE
+    /// currency (<see cref="SupporterCurrency"/>); a mixed-currency day reports null rather than a
+    /// meaningless cross-currency sum.
+    /// </summary>
+    [JsonPropertyName("supporterAmountMinorToday")]
+    public long? SupporterAmountMinorToday { get; init; }
+
+    /// <summary>The single currency behind <see cref="SupporterAmountMinorToday"/>, else null.</summary>
+    [JsonPropertyName("supporterCurrency")]
+    public string? SupporterCurrency { get; init; }
 
     /// <summary>Commands successfully executed this session.</summary>
     [JsonPropertyName("commandsUsed")]

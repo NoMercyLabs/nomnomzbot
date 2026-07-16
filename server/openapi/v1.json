@@ -51444,9 +51444,15 @@
               "null",
               "string"
             ]
+          },
+          "shopDomain": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "The connect request body: the progressive scope-set to request, and where to return after connect (integrations-oauth §5)."
+        "description": "The connect request body: the progressive scope-set to request, where to return after connect\r\n(integrations-oauth §5), and — for a shop-scoped provider (Shopify) — the shop name (bare or pasted as\r\n`name.myshopify.com`; required there, ignored elsewhere)."
       },
       "CreateCatalogItemRequest": {
         "required": [
@@ -52862,8 +52868,52 @@
               "integer",
               "string"
             ],
-            "description": "Follower count (not tracked server-side; always 0 in this implementation).",
+            "description": "Real Twitch follower total (Get Channel Followers); 0 when the Helix read fails.",
             "format": "int32"
+          },
+          "subscriberCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Real Twitch subscriber total (Get Broadcaster Subscriptions); 0 when the Helix read fails.",
+            "format": "int32"
+          },
+          "chattersToday": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Distinct chatters seen today (UTC) — the privacy-hashed ChannelChatterDays count.",
+            "format": "int32"
+          },
+          "supporterEventsToday": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Supporter events (tips/memberships/merch/charity) received today (UTC).",
+            "format": "int32"
+          },
+          "supporterAmountMinorToday": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Today's supporter total in minor units — only when every amount-bearing event today shares ONE\r\ncurrency (string? DashboardStatsDto.SupporterCurrency); a mixed-currency day reports null rather than a\r\nmeaningless cross-currency sum.",
+            "format": "int64"
+          },
+          "supporterCurrency": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The single currency behind long? DashboardStatsDto.SupporterAmountMinorToday, else null."
           },
           "commandsUsed": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",

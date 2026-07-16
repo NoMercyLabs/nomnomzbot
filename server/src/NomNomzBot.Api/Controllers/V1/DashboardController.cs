@@ -37,6 +37,7 @@ public class DashboardController : BaseController
     private readonly IChannelService _channelService;
     private readonly IApplicationDbContext _db;
     private readonly ITwitchChannelsApi _channels;
+    private readonly ITwitchSubscriptionsApi _subscriptions;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<DashboardController> _logger;
 
@@ -45,6 +46,7 @@ public class DashboardController : BaseController
         IChannelService channelService,
         IApplicationDbContext db,
         ITwitchChannelsApi channels,
+        ITwitchSubscriptionsApi subscriptions,
         TimeProvider timeProvider,
         ILogger<DashboardController> logger
     )
@@ -53,6 +55,7 @@ public class DashboardController : BaseController
         _channelService = channelService;
         _db = db;
         _channels = channels;
+        _subscriptions = subscriptions;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -85,6 +88,7 @@ public class DashboardController : BaseController
         // Task.WhenAll causes "A second operation was started on this context instance" because EF Core
         // DbContext is not thread-safe. Sequential execution is safe and still fast (<500 ms each).
         int followerCount = 0;
+        int subscriberCount = 0;
         string? twitchTitle = null;
         string? twitchGame = null;
 
@@ -98,6 +102,19 @@ public class DashboardController : BaseController
                     tenantId,
                     followerResult.ErrorMessage,
                     followerResult.ErrorCode
+                );
+
+            Result<int> subscriberResult = await _subscriptions.GetSubscriberCountAsync(
+                tenantId,
+                ct
+            );
+            subscriberCount = subscriberResult.IsSuccess ? subscriberResult.Value : 0;
+            if (subscriberResult.IsFailure)
+                _logger.LogWarning(
+                    "Dashboard stats: subscriber count failed for {BroadcasterId}: {Error} ({Code}) — reporting 0",
+                    tenantId,
+                    subscriberResult.ErrorMessage,
+                    subscriberResult.ErrorCode
                 );
 
             // Channel info uses app token (no scope required) — always shows the real Twitch title/game.
@@ -114,6 +131,30 @@ public class DashboardController : BaseController
                 tenantId
             );
         }
+
+        // Today's local counters (UTC day) — real rows, never Helix-dependent: distinct hashed chatters
+        // and the supporter events the new ingest recorded. A mixed-currency day reports the count with a
+        // NULL amount rather than a meaningless cross-currency sum.
+        DateOnly today = DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime);
+        DateTime todayStart = today.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        int chattersToday = await _db.ChannelChatterDays.CountAsync(
+            c => c.BroadcasterId == tenantId && c.ActivityDate == today,
+            ct
+        );
+        List<(long? Amount, string? Currency)> supporterToday = (
+            await _db
+                .SupporterEvents.Where(e =>
+                    e.BroadcasterId == tenantId && e.ReceivedAt >= todayStart
+                )
+                .Select(e => new { e.AmountMinor, e.Currency })
+                .ToListAsync(ct)
+        )
+            .Select(e => (e.AmountMinor, e.Currency))
+            .ToList();
+        int supporterEventsToday = supporterToday.Count;
+        (long? supporterAmountToday, string? supporterCurrency) = AggregateSupporterAmounts(
+            supporterToday
+        );
 
         ChannelContext? ctx = _registry.Get(tenantId);
 
@@ -135,6 +176,11 @@ public class DashboardController : BaseController
                 GameName = twitchGame ?? ctx.CurrentGame,
                 ViewerCount = viewerCount,
                 FollowerCount = followerCount,
+                SubscriberCount = subscriberCount,
+                ChattersToday = chattersToday,
+                SupporterEventsToday = supporterEventsToday,
+                SupporterAmountMinorToday = supporterAmountToday,
+                SupporterCurrency = supporterCurrency,
                 CommandsUsed = ctx.CommandsUsed,
                 MessagesCount = ctx.MessageCount,
                 Uptime = uptime,
@@ -156,6 +202,11 @@ public class DashboardController : BaseController
             GameName = twitchGame ?? channel.GameName,
             ViewerCount = channel.ViewerCount ?? 0,
             FollowerCount = followerCount,
+            SubscriberCount = subscriberCount,
+            ChattersToday = chattersToday,
+            SupporterEventsToday = supporterEventsToday,
+            SupporterAmountMinorToday = supporterAmountToday,
+            SupporterCurrency = supporterCurrency,
             CommandsUsed = 0,
             MessagesCount = 0,
             Uptime = null,
@@ -244,6 +295,29 @@ public class DashboardController : BaseController
         "fromLogin",
         "user.name",
     ];
+
+    /// <summary>
+    /// A day's supporter money as ONE honest number: the minor-unit total + its currency when every
+    /// amount-bearing event shares a single currency; (null, null) for an amount-less or mixed-currency day —
+    /// never a meaningless cross-currency sum.
+    /// </summary>
+    internal static (long? AmountMinor, string? Currency) AggregateSupporterAmounts(
+        IReadOnlyList<(long? Amount, string? Currency)> events
+    )
+    {
+        List<string> currencies =
+        [
+            .. events
+                .Where(e => e.Amount is not null && e.Currency is not null)
+                .Select(e => e.Currency!)
+                .Distinct(StringComparer.OrdinalIgnoreCase),
+        ];
+        if (currencies.Count != 1)
+            return (null, null); // no amounts at all, or a mixed-currency day.
+
+        long total = events.Where(e => e.Amount is not null).Sum(e => e.Amount!.Value);
+        return (total, currencies[0]);
+    }
 
     /// <summary>
     /// Extracts the actor's display name (falling back to login) from a channel event's JSON payload, so an event
