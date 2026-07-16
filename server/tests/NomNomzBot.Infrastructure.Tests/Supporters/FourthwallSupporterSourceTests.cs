@@ -16,12 +16,13 @@ using NomNomzBot.Infrastructure.Supporters.Adapters;
 namespace NomNomzBot.Infrastructure.Tests.Supporters;
 
 /// <summary>
-/// Proves the Fourthwall adapter maps a real <c>DONATION</c> webhook onto the normalized
-/// <see cref="SupporterEventDraft"/> (supporter-events.md §6): the major-unit
-/// <c>data.amounts.total.value</c> → minor units, <c>data.username</c> → the supporter name, <c>data.id</c> →
-/// the dedup key, and the event → kind <c>tip</c>. It maps the same event whether it arrives nested (a direct
-/// feed) or already flattened into the dotted key→string bag the inbound plane journals, and it declines a
-/// non-donation event (whose payload the adapter does not yet model) rather than emitting a junk draft.
+/// Proves the Fourthwall adapter maps all three shop kinds onto the normalized
+/// <see cref="SupporterEventDraft"/> (supporter-events.md §6): <c>DONATION</c> → <c>tip</c>,
+/// <c>ORDER_PLACED</c> → <c>merch</c> (documented <c>amounts.total</c>, tolerant line-item count — null when
+/// the array shape is unknown, never zero), <c>SUBSCRIPTION_PURCHASED</c> → recurring <c>membership</c>
+/// (flat amount + <c>nickname</c>). Same mapping whether the event arrives nested or already flattened into
+/// the journaled bag; changed/expired subscriptions and unmodeled gift shapes are declined rather than
+/// emitting a junk draft.
 /// </summary>
 public sealed class FourthwallSupporterSourceTests
 {
@@ -90,14 +91,107 @@ public sealed class FourthwallSupporterSourceTests
     }
 
     [Fact]
-    public async Task NormalizeAsync_NonDonationEvent_IsDeclined()
+    public async Task NormalizeAsync_OrderPlaced_MapsToMerch_WithTotalAndTolerantItemCount()
     {
-        // Merch (ORDER_PLACED) is not modeled yet — the adapter must decline, not emit a mis-shaped draft.
+        // The documented order shape: amounts.{...,total}, username/email, id. The line-item array key is
+        // unspecified in the public docs, so the count is best-effort (here: an offers[] shape → 2 items).
         string order = """
-            { "type": "ORDER_PLACED", "webhookId": "wh_2", "data": { "friendlyId": "FW-123" } }
+            {
+              "type": "ORDER_PLACED",
+              "webhookId": "wh_2",
+              "data": {
+                "id": "ord_9",
+                "friendlyId": "FW-123",
+                "status": "CONFIRMED",
+                "username": "Buyer99",
+                "email": "b@example.test",
+                "message": "love the merch!",
+                "amounts": {
+                  "subtotal": { "value": 40, "currency": "USD" },
+                  "shipping": { "value": 5, "currency": "USD" },
+                  "total": { "value": 45, "currency": "USD" }
+                },
+                "offers": [
+                  { "name": "Hoodie", "quantity": 1 },
+                  { "name": "Mug", "quantity": 2 }
+                ]
+              }
+            }
             """;
 
         Result<SupporterEventDraft> result = await _source.NormalizeAsync(order);
+
+        result.IsSuccess.Should().BeTrue();
+        SupporterEventDraft draft = result.Value;
+        draft.Kind.Should().Be("merch");
+        draft.AmountMinor.Should().Be(4500); // total 45 major → minor
+        draft.Currency.Should().Be("USD");
+        draft.SupporterDisplayName.Should().Be("Buyer99");
+        draft.Quantity.Should().Be(2, "two line items");
+        draft.MessageText.Should().Be("love the merch!");
+        draft.ProviderTransactionId.Should().Be("ord_9");
+    }
+
+    [Fact]
+    public async Task NormalizeAsync_OrderWithUnknownItemShape_LeavesQuantityNull_NeverZero()
+    {
+        string order = """
+            {
+              "type": "ORDER_PLACED",
+              "data": {
+                "id": "ord_10",
+                "username": "Buyer",
+                "amounts": { "total": { "value": 20, "currency": "EUR" } }
+              }
+            }
+            """;
+
+        Result<SupporterEventDraft> result = await _source.NormalizeAsync(order);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Quantity.Should().BeNull("an uncountable order is unknown, not zero items");
+        result.Value.AmountMinor.Should().Be(2000);
+    }
+
+    [Fact]
+    public async Task NormalizeAsync_SubscriptionPurchased_MapsToRecurringMembership()
+    {
+        // The membership shape observed in the wild: a flat amount/currency + the subscriber's nickname.
+        string subscription = """
+            {
+              "type": "SUBSCRIPTION_PURCHASED",
+              "data": {
+                "id": "sub_5",
+                "nickname": "MemberOne",
+                "amount": 5,
+                "currency": "USD",
+                "interval": "MONTHLY"
+              }
+            }
+            """;
+
+        Result<SupporterEventDraft> result = await _source.NormalizeAsync(subscription);
+
+        result.IsSuccess.Should().BeTrue();
+        SupporterEventDraft draft = result.Value;
+        draft.Kind.Should().Be("membership");
+        draft.AmountMinor.Should().Be(500);
+        draft.Currency.Should().Be("USD");
+        draft.SupporterDisplayName.Should().Be("MemberOne");
+        draft.IsRecurring.Should().BeTrue();
+        draft.ProviderTransactionId.Should().Be("sub_5");
+    }
+
+    [Theory]
+    [InlineData("SUBSCRIPTION_CHANGED")]
+    [InlineData("SUBSCRIPTION_EXPIRED")]
+    [InlineData("GIFT_PURCHASE")]
+    public async Task NormalizeAsync_NonSupporterEvents_AreDeclined(string type)
+    {
+        // A changed/expired subscription or an unmodeled gift shape is not a NEW supporter event.
+        Result<SupporterEventDraft> result = await _source.NormalizeAsync(
+            $$"""{ "type": "{{type}}", "data": { "id": "x-1" } }"""
+        );
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");

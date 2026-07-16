@@ -17,19 +17,22 @@ using NomNomzBot.Application.Supporters.Services;
 namespace NomNomzBot.Infrastructure.Supporters.Adapters;
 
 /// <summary>
-/// Fourthwall monetization adapter (supporter-events.md §0 D2). Normalizes a Fourthwall <c>DONATION</c> webhook
-/// into a <see cref="SupporterEventDraft"/> of kind <c>tip</c>. Fourthwall's amount lives at
-/// <c>data.amounts.total.{value,currency}</c> (major units), the supporter name at <c>data.username</c>, the
-/// note at <c>data.message</c>, and the dedupe id at <c>data.id</c>. The inbound plane journals a dotted
-/// key→string bag, so this reads the flat keys. Non-donation events (merch <c>ORDER_PLACED</c>, …) are declined
-/// — their payload shapes are not yet modeled, so <see cref="Capabilities"/> advertises only <c>tip</c>.
+/// Fourthwall monetization adapter (supporter-events.md §0 D2) — all three shop kinds:
+/// <c>DONATION</c> → <c>tip</c>, <c>ORDER_PLACED</c> → <c>merch</c>, and
+/// <c>SUBSCRIPTION_PURCHASED</c> → <c>membership</c> (a changed/expired subscription is not a new supporter
+/// event and is declined). The verified common shape (docs.fourthwall.com webhook model): the major-unit
+/// amount at <c>data.amounts.total.{value,currency}</c>, the supporter at <c>data.username</c> (memberships
+/// say <c>data.nickname</c>), the note at <c>data.message</c>, and the dedupe id at <c>data.id</c>. Fields the
+/// public docs leave unspecified (the order's line-item array key, a membership's flat amount) are probed
+/// tolerantly and stay null when absent — never fabricated; the full payload rides
+/// <see cref="SupporterEventDraft.PayloadJson"/> regardless.
 /// </summary>
 public sealed class FourthwallSupporterSource : ISupporterSource
 {
     public string SourceKey => "fourthwall";
 
     public SupporterSourceCapabilities Capabilities { get; } =
-        new(Kinds: ["tip"], ConnectionMode: "webhook", RequiresOAuth: false);
+        new(Kinds: ["tip", "merch", "membership"], ConnectionMode: "webhook", RequiresOAuth: false);
 
     public Task<Result<SupporterEventDraft>> NormalizeAsync(
         string rawPayload,
@@ -46,17 +49,29 @@ public sealed class FourthwallSupporterSource : ISupporterSource
             );
 
         string type = fields.GetValueOrDefault("type", string.Empty).ToLowerInvariant();
-        if (type != "donation")
+        (string Kind, bool IsRecurring)? mapped = type switch
+        {
+            "donation" => ("tip", false),
+            "order_placed" => ("merch", false),
+            "subscription_purchased" => ("membership", true),
+            _ => null, // updates/expiries/gift shapes are not new supporter events
+        };
+        if (mapped is null)
             return Task.FromResult(
                 Result.Failure<SupporterEventDraft>(
                     $"Unsupported Fourthwall event '{type}'.",
                     "VALIDATION_FAILED"
                 )
             );
+        (string kind, bool isRecurring) = mapped.Value;
 
+        // The documented money shape is amounts.total; a membership event has been observed with a flat
+        // amount + currency instead — probe both, null when neither is present (never fabricated).
         (long? amountMinor, string? currency) = SupporterAdapterHelpers.ParseMajorAmount(
-            fields.GetValueOrDefault("data.amounts.total.value"),
+            fields.GetValueOrDefault("data.amounts.total.value")
+                ?? fields.GetValueOrDefault("data.amount"),
             fields.GetValueOrDefault("data.amounts.total.currency")
+                ?? fields.GetValueOrDefault("data.currency")
         );
 
         string transactionId =
@@ -65,22 +80,33 @@ public sealed class FourthwallSupporterSource : ISupporterSource
             ?? fields.GetValueOrDefault("id")
             ?? CompositeId(fields);
 
+        // Memberships identify the subscriber as "nickname"; shop events use "username".
+        string? name =
+            fields.GetValueOrDefault("data.username") ?? fields.GetValueOrDefault("data.nickname");
+
+        // The public docs leave the order's line-item array key unspecified — count tolerantly across the
+        // two shapes seen in the wild; null (not 0) when neither exists.
+        int? quantity = null;
+        if (kind == "merch")
+        {
+            int items =
+                SupporterAdapterHelpers.CountArrayItems(fields, "data.offers.")
+                + SupporterAdapterHelpers.CountArrayItems(fields, "data.variants.");
+            quantity = items > 0 ? items : null;
+        }
+
         SupporterEventDraft draft = new(
-            Kind: "tip",
-            SupporterDisplayName: SupporterAdapterHelpers.Trimmed(
-                fields.GetValueOrDefault("data.username"),
-                "Anonymous",
-                100
-            ),
+            Kind: kind,
+            SupporterDisplayName: SupporterAdapterHelpers.Trimmed(name, "Anonymous", 100),
             AmountMinor: amountMinor,
             Currency: currency,
             Tier: null,
-            Quantity: null,
+            Quantity: quantity,
             ItemsJson: null,
             MessageText: string.IsNullOrWhiteSpace(fields.GetValueOrDefault("data.message"))
                 ? null
                 : fields.GetValueOrDefault("data.message"),
-            IsRecurring: false,
+            IsRecurring: isRecurring,
             ProviderTransactionId: transactionId,
             PayloadJson: rawPayload
         );
