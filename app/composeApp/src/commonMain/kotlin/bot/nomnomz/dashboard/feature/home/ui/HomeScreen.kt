@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -439,28 +438,6 @@ private fun LiveBanner(stats: DashboardStats) {
                 Text(
                     text = stringResource(Res.string.home_game_label, game),
                     style = typography.sm,
-                    color = tokens.mutedForeground,
-                )
-            }
-        }
-
-        // Viewer count — shown prominently when live.
-        if (stats.isLive) {
-            Spacer(modifier = Modifier.width(spacing.s4))
-            Column(
-                horizontalAlignment = Alignment.End,
-                modifier = Modifier
-                    .clearAndSetSemantics { contentDescription = "${stats.viewerCount} viewers" },
-            ) {
-                Text(
-                    text = stats.viewerCount.toString(),
-                    style = typography.xl3,
-                    fontWeight = FontWeight.Bold,
-                    color = tokens.cardForeground,
-                )
-                Text(
-                    text = stringResource(Res.string.home_stat_viewers).lowercase(),
-                    style = typography.xs,
                     color = tokens.mutedForeground,
                 )
             }

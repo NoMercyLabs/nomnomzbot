@@ -349,7 +349,9 @@ private fun MessageRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalAlignment = Alignment.Top,
+        // Center the timestamp + actions against the message body (designer review) — a single-line message
+        // reads level with its time and controls instead of pinning them to the top of the line.
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         // Per-line timestamp in the viewer's LOCAL time (muted), like the Twitch client's message times.

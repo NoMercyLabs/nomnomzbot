@@ -94,10 +94,8 @@ commits; this is the collapsed record.
   autonomously.
 
 ## 🖌️ Designer reviews (open)
-- [ ] Dashboard viewer count in the top card needs to get removed (redundant with metrics row)
 - [ ] Dashboard Title view needs to support emojis
 - [ ] Chat needs styling controls (size, time and so on, like Twitch)
-- [ ] Chat line is top aligned — should be center-aligned
 - [ ] Chat input doesn't wrap but overflows right
 - [ ] StreamElements import: let a user grab their overlays, quotes, timers and all
 - [ ] Channel-point page header has overlapping top-right buttons
