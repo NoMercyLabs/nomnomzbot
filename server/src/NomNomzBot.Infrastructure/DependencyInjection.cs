@@ -339,6 +339,12 @@ public static class DependencyInjection
             Application.Sound.Services.ISoundClipOverlayNotifier,
             Sound.NullSoundClipOverlayNotifier
         >();
+        // No-op fallback; the API host replaces this with the SignalR-backed WidgetEventNotifierAdapter
+        // (drives the widget_event pipeline action's overlay push — widgets-overlays.md §6).
+        services.AddScoped<
+            Application.Widgets.Services.IWidgetEventNotifier,
+            Widgets.NullWidgetEventNotifier
+        >();
         // No-op fallback for the generic overlay event feed; the API host replaces it with the hub-backed adapter.
         // The OverlayEventFeedHook that drives it is auto-registered by the IJournalPostCommitHook scan below.
         services.AddScoped<

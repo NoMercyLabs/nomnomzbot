@@ -172,6 +172,10 @@ try
         NomNomzBot.Application.Sound.Services.ISoundClipOverlayNotifier,
         NomNomzBot.Api.Hubs.SoundClipOverlayNotifierAdapter
     >();
+    builder.Services.AddScoped<
+        NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier,
+        NomNomzBot.Api.Hubs.WidgetEventNotifierAdapter
+    >();
     // The generic overlay event feed — the hub-backed impl the OverlayEventFeedHook fans every event through.
     builder.Services.AddScoped<
         NomNomzBot.Application.Overlays.Services.IOverlayEventFeed,
