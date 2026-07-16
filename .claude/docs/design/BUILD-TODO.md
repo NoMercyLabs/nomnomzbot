@@ -128,7 +128,6 @@ commits; this is the collapsed record.
 - [ ] pick lists makes no sense to what its purpose is and needs to be reworked to be more user friendly and intuitive.
 - [ ] moderation needs to be more robust and allow for more granular control over what actions can be taken against users, for example if a user is banned from the channel they should not be able to send messages in chat or interact with the stream in any way. but if a user is timed out they should still be able to send messages in chat but not be able to interact with the stream in any way. but if a user is muted they should still be able to send messages in chat but not be able to interact with the stream in any way. but if a user is shadow banned they should still be able to send messages in chat but not be able to interact with the stream in any way. but if a user is blacklisted they should not be able to send messages in chat or interact with the stream in any way.
 - [ ] we need way more games.
-- [ ] sound clips does not play when clicking on the preview button.
 - [ ] tts needs a full rework, it's not intuitive and there is no way to search for voices properly or even setting your own voice as a viewer.
 - [ ] we need WAY more overlays, the current ones are very limited and not very useful for streamers.
 - [ ] alerts and events need to be merged with event responses and triggers, they are all the same thing and should be treated as such.
