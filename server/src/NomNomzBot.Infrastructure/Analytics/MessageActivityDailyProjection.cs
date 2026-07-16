@@ -97,13 +97,17 @@ public sealed class MessageActivityDailyProjection(
         CancellationToken ct
     )
     {
-        MessageActivityDaily? row = await db.MessageActivityDailies.FirstOrDefaultAsync(
-            r =>
-                r.BroadcasterId == broadcasterId
-                && r.ViewerUserId == viewerUserId
-                && r.ActivityDate == date,
-            ct
-        );
+        // IgnoreQueryFilters: tenant-less projection-driver / rebuild scope — the ITenantScoped filter would hide
+        // the row just committed for this (broadcaster, viewer, day), causing a re-insert + unique-index 23505.
+        MessageActivityDaily? row = await db
+            .MessageActivityDailies.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                r =>
+                    r.BroadcasterId == broadcasterId
+                    && r.ViewerUserId == viewerUserId
+                    && r.ActivityDate == date,
+                ct
+            );
         if (row is null)
         {
             row = new MessageActivityDaily

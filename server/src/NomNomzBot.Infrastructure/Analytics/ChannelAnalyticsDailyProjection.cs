@@ -182,13 +182,15 @@ public sealed class ChannelAnalyticsDailyProjection(
             ct
         );
 
-        ChannelChatterDay? anchor = await db.ChannelChatterDays.FirstOrDefaultAsync(
-            a =>
-                a.BroadcasterId == row.BroadcasterId
-                && a.ActivityDate == row.ActivityDate
-                && a.ChatterHash == hash,
-            ct
-        );
+        ChannelChatterDay? anchor = await db
+            .ChannelChatterDays.IgnoreQueryFilters() // see GetOrCreateAsync: tenant-less projection scope
+            .FirstOrDefaultAsync(
+                a =>
+                    a.BroadcasterId == row.BroadcasterId
+                    && a.ActivityDate == row.ActivityDate
+                    && a.ChatterHash == hash,
+                ct
+            );
 
         if (anchor is null)
         {
@@ -235,10 +237,16 @@ public sealed class ChannelAnalyticsDailyProjection(
         CancellationToken ct
     )
     {
-        ChannelAnalyticsDaily? row = await db.ChannelAnalyticsDailies.FirstOrDefaultAsync(
-            r => r.BroadcasterId == broadcasterId && r.ActivityDate == date,
-            ct
-        );
+        // IgnoreQueryFilters: this projection runs in the projection-driver / rebuild scope where the ambient
+        // tenant is unset, so the ITenantScoped filter (BroadcasterId == currentTenant) would hide the row this
+        // same-day fold just committed — GetOrCreate would then re-insert and collide on the (BroadcasterId,
+        // ActivityDate) unique index (Npgsql 23505). The explicit BroadcasterId predicate is the real tenant scope.
+        ChannelAnalyticsDaily? row = await db
+            .ChannelAnalyticsDailies.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                r => r.BroadcasterId == broadcasterId && r.ActivityDate == date,
+                ct
+            );
         if (row is null)
         {
             row = new ChannelAnalyticsDaily { BroadcasterId = broadcasterId, ActivityDate = date };

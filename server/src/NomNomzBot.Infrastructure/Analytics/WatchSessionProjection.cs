@@ -122,13 +122,17 @@ public sealed class WatchSessionProjection(
         CancellationToken ct
     )
     {
-        WatchSession? session = await db.WatchSessions.FirstOrDefaultAsync(
-            s =>
-                s.BroadcasterId == broadcasterId
-                && s.ViewerUserId == profile.ViewerUserId
-                && s.StreamId == streamId,
-            ct
-        );
+        // IgnoreQueryFilters: tenant-less projection-driver / rebuild scope — the ITenantScoped filter would hide
+        // the open session just committed for this (broadcaster, viewer, stream), causing a re-insert + 23505.
+        WatchSession? session = await db
+            .WatchSessions.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                s =>
+                    s.BroadcasterId == broadcasterId
+                    && s.ViewerUserId == profile.ViewerUserId
+                    && s.StreamId == streamId,
+                ct
+            );
         if (session is null)
         {
             session = new WatchSession
