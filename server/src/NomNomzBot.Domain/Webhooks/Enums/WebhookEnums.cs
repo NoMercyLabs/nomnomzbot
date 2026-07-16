@@ -18,6 +18,7 @@ public enum WebhookAdapterKind
     Generic,
     Fourthwall,
     Shopify,
+    Patreon,
 }
 
 /// <summary>The lifecycle of one outbound delivery attempt.</summary>
