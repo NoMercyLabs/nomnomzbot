@@ -59793,7 +59793,8 @@
           "sizeBytes",
           "defaultVolume",
           "isEnabled",
-          "createdAt"
+          "createdAt",
+          "previewUrl"
         ],
         "type": "object",
         "properties": {
@@ -59841,6 +59842,9 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "previewUrl": {
+            "type": "string"
           }
         }
       },

@@ -89,7 +89,10 @@ public sealed record SoundClipDto(
     long SizeBytes,
     int DefaultVolume,
     bool IsEnabled,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    // Ready-to-play relative URL for the (anonymous, range-enabled) stream endpoint, so the dashboard can
+    // preview a clip in-browser — clicking Preview should be audible on the page, not only pushed to the overlay.
+    string PreviewUrl
 );
 
 public sealed record SoundPlaybackDto(Guid ClipId, string PlaybackUrl, int Volume, int DurationMs);

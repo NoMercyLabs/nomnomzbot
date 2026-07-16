@@ -288,6 +288,9 @@ internal sealed class SoundClipService : ISoundClipService
             c.SizeBytes,
             c.DefaultVolume,
             c.IsEnabled,
-            c.CreatedAt
+            c.CreatedAt,
+            // The stream endpoint is a catch-all route ({*storageKey}) that takes the raw key, so pass it through
+            // un-escaped. Anonymous + range-enabled, so an <audio> element on the dashboard can play it directly.
+            $"/api/v1/sound-clips/stream/{c.StorageKey}"
         );
 }
