@@ -149,7 +149,6 @@ commits; this is the collapsed record.
 - [ ] i am missing the pre-filled templates in all the template input fields.
 - [ ] the dashboard home screen needs to be more useful in showing important information and stats about the stream, for example the current viewers, chatters, followers, subscribers, donations, platforms streaming to, etc.
 - [ ] the channel selector needs to be pre-filled with the channels and not after going in. 
-- [ ] showing just a `channel event` or `insert twitch event string here` is completely useless, and showing a chat message as an event is also very useless information.
 - [ ] the bot account is not sending messages in chat with the app token on other channels, this is bad UX.
 - [ ] user theming is not working unless the page is reloaded with the new channel choosen.
 - [ ] the admin pannel for the saas is just show and does not do anything useful, it does not let me change behavior or go into details of things. i can not promote accounts to admin or grant them specific saas permissions.
