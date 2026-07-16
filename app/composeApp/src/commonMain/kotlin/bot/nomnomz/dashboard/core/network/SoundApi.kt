@@ -103,6 +103,8 @@ data class SoundClip(
     val defaultVolume: Int = 80,
     val isEnabled: Boolean = true,
     val createdAt: String = "",
+    // Relative, anonymous stream URL the dashboard plays for an in-browser Preview (backend SoundClipDto.previewUrl).
+    val previewUrl: String = "",
 )
 
 /** The update-clip request body (backend `UpdateSoundClipRequest`). */

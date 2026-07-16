@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.io.AudioFile
 import bot.nomnomz.dashboard.core.io.AudioFilePickerIO
+import bot.nomnomz.dashboard.core.io.playSoundPreview
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.SoundApi
 import bot.nomnomz.dashboard.core.network.SoundClip
@@ -85,11 +86,11 @@ class SoundController(
         afterWrite(soundApi.delete(id), success = Res.string.feedback_sound_clip_deleted)
     }
 
-    suspend fun previewClip(id: String) {
-        when (val result: ApiResult<Unit> = soundApi.preview(id)) {
-            is ApiResult.Ok -> Unit
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
+    // Preview plays the clip IN THE DASHBOARD so the operator hears it on click. It used to POST to the backend,
+    // which only pushed the clip to the OBS overlay — silent unless OBS was open (the reported "preview doesn't
+    // play"). Fire-and-forget browser playback of the clip's anonymous stream URL; no network round-trip needed.
+    fun previewClip(previewUrl: String) {
+        if (previewUrl.isNotBlank()) playSoundPreview(previewUrl)
     }
 
     private suspend fun afterWrite(

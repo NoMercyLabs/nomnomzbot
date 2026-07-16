@@ -122,7 +122,7 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
                     onUpload = { scope.launch { controller.uploadClip() } },
                     onEdit = { clip -> editTarget = clip },
                     onDelete = { clip -> deleteTarget = clip },
-                    onPreview = { clip -> scope.launch { controller.previewClip(clip.id) } },
+                    onPreview = { clip -> controller.previewClip(clip.previewUrl) },
                 )
             is SoundState.Ready ->
                 ClipList(
@@ -133,7 +133,7 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
                     onUpload = { scope.launch { controller.uploadClip() } },
                     onEdit = { clip -> editTarget = clip },
                     onDelete = { clip -> deleteTarget = clip },
-                    onPreview = { clip -> scope.launch { controller.previewClip(clip.id) } },
+                    onPreview = { clip -> controller.previewClip(clip.previewUrl) },
                 )
         }
     }
