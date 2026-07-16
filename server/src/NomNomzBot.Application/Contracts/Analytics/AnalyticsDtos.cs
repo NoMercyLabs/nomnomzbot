@@ -55,6 +55,39 @@ public sealed record ChannelAnalyticsSummaryDto(
     ChannelAnalyticsDeltasDto Deltas
 );
 
+/// <summary>One stream in the channel's history list, newest first — the per-stream entry point.</summary>
+public sealed record StreamListItemDto(
+    string StreamId,
+    string? Title,
+    string? GameName,
+    DateTimeOffset? StartedAt,
+    DateTimeOffset? EndedAt,
+    long? DurationSeconds,
+    int? PeakViewers
+);
+
+/// <summary>
+/// One stream's per-stream aggregates — the "stream by stream, not all-time" analytics view. Counts are
+/// window-folded from the raw activity between <see cref="StartedAt"/> and <see cref="EndedAt"/> (or now,
+/// while the stream is still live); <see cref="PeakViewers"/> is the fold the status poller stamps.
+/// </summary>
+public sealed record StreamAnalyticsDto(
+    string StreamId,
+    string? Title,
+    string? GameName,
+    DateTimeOffset? StartedAt,
+    DateTimeOffset? EndedAt,
+    long? DurationSeconds,
+    int? PeakViewers,
+    long TotalMessages,
+    int UniqueChatters,
+    int NewFollowers,
+    int NewSubscribers,
+    int CheersCount,
+    long CommandsRun,
+    long RedemptionsCount
+);
+
 /// <summary>A channel's top viewer over a range by the chosen metric (analytics.md §4) — not the economy board.</summary>
 public sealed record TopViewerDto(Guid ViewerUserId, string? DisplayName, long MetricValue);
 

@@ -16,6 +16,23 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-16 — Analytics: per-stream views ("stream by stream, not all-time")
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** two new management-plane reads under
+  `GET /api/v1/channels/{channelId}/analytics/streams` (paginated stream history, newest first —
+  `StreamListItemDto`: streamId, title, gameName, startedAt, endedAt, durationSeconds (null while
+  live), peakViewers) and `.../analytics/streams/{streamId}` (`StreamAnalyticsDto`: the list fields
+  plus totalMessages, uniqueChatters, newFollowers, newSubscribers, cheersCount, commandsRun,
+  redemptionsCount — window-folded between the stream's start and end, or "now" while live). Build
+  the analytics page a stream picker/list on top of these so every stat can be read per stream; the
+  stream's startedAt/endedAt window is also what to use for scoping the chat/history views per
+  stream.
+- **Why:** owner item — "analytics, chat and everything stream related needs to be shown stream by
+  stream and not all-time."
+- **Where:** `feature/analytics`; contract refreshed in `server/openapi/v1.json`.
+- **Done when:** the analytics page can switch between all-time and a specific stream, showing that
+  stream's own numbers, verified on the dev web build.
+
 ### 2026-07-16 — Pre-fill every template input from the new preset catalog
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** `GET /api/v1/channels/{channelId}/event-responses/catalog` returns one preset per

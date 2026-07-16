@@ -74,6 +74,37 @@ public class AnalyticsController(
             await channelAnalytics.GetTopViewersAsync(channelId, metric, from, to, top, ct)
         );
 
+    // ── Streams (management plane) — per-stream, not all-time ────────────────
+
+    /// <summary>The channel's stream history, newest first — the per-stream analytics entry point.</summary>
+    [HttpGet("streams")]
+    [RequireAction("analytics:read")]
+    public async Task<IActionResult> ListStreams(
+        Guid channelId,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<StreamListItemDto>> result = await channelAnalytics.ListStreamsAsync(
+            channelId,
+            pagination,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    /// <summary>One stream's per-stream aggregates (messages, chatters, follows, subs, cheers, commands, redemptions, peak viewers).</summary>
+    [HttpGet("streams/{streamId}")]
+    [RequireAction("analytics:read")]
+    public async Task<IActionResult> GetStream(
+        Guid channelId,
+        string streamId,
+        CancellationToken ct
+    ) => ResultResponse(await channelAnalytics.GetStreamAsync(channelId, streamId, ct));
+
     // ── Viewers ──────────────────────────────────────────────────────────────
 
     /// <summary>List viewer analytics profiles matching the query, paginated.</summary>

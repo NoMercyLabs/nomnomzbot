@@ -191,6 +191,31 @@ public sealed class StreamStatusPollingServiceTests
     }
 
     [Fact]
+    public void FoldPeakViewers_stamps_only_new_highs()
+    {
+        NomNomzBot.Domain.Stream.Entities.Stream row = new()
+        {
+            Id = "s-1",
+            ChannelId = Guid.NewGuid(),
+        };
+
+        StreamStatusPollingService.FoldPeakViewers(row, 10).Should().BeTrue("first sample");
+        row.PeakViewers.Should().Be(10);
+        StreamStatusPollingService
+            .FoldPeakViewers(row, 10)
+            .Should()
+            .BeFalse("an equal sample is not a new high — no write");
+        StreamStatusPollingService.FoldPeakViewers(row, 7).Should().BeFalse("lower sample");
+        row.PeakViewers.Should().Be(10);
+        StreamStatusPollingService.FoldPeakViewers(row, 25).Should().BeTrue("new high");
+        row.PeakViewers.Should().Be(25);
+        StreamStatusPollingService
+            .FoldPeakViewers(null, 99)
+            .Should()
+            .BeFalse("no stream row to stamp");
+    }
+
+    [Fact]
     public void A_live_poll_builds_a_journalable_viewer_count_sample()
     {
         Guid broadcaster = Guid.NewGuid();

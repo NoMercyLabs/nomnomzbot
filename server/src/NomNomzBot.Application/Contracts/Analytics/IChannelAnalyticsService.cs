@@ -40,4 +40,18 @@ public interface IChannelAnalyticsService
         int top,
         CancellationToken ct = default
     );
+
+    /// <summary>The channel's stream history, newest first — the per-stream analytics entry point.</summary>
+    Task<Result<PagedList<StreamListItemDto>>> ListStreamsAsync(
+        Guid broadcasterId,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
+    /// <summary>One stream's per-stream aggregates, window-folded between its start and end (or now while live).</summary>
+    Task<Result<StreamAnalyticsDto>> GetStreamAsync(
+        Guid broadcasterId,
+        string streamId,
+        CancellationToken ct = default
+    );
 }

@@ -131,6 +131,18 @@ public sealed class StreamStatusPollingService : BackgroundService
                     );
                     if (sample is not null)
                         await eventBus.PublishAsync(sample, ct);
+
+                    // Fold the same sample into THIS stream's peak (the per-stream analytics read it) —
+                    // written only when the count actually exceeds the stored peak.
+                    if (result.IsSuccess && ctx.CurrentStreamId is string currentStreamId)
+                    {
+                        Domain.Stream.Entities.Stream? streamRow = await db.Streams.FindAsync(
+                            [currentStreamId],
+                            ct
+                        );
+                        if (FoldPeakViewers(streamRow, result.Value.ViewerCount))
+                            changed++;
+                    }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -173,6 +185,18 @@ public sealed class StreamStatusPollingService : BackgroundService
                 StreamId = result.Value.Id,
             }
             : null;
+
+    /// <summary>
+    /// Folds a live viewer-count sample into the stream row's <c>PeakViewers</c>: true (and stamps) only
+    /// when the sample exceeds the stored peak, so the once-per-poll write happens just on new highs.
+    /// </summary>
+    internal static bool FoldPeakViewers(Domain.Stream.Entities.Stream? streamRow, int viewerCount)
+    {
+        if (streamRow is null || viewerCount <= (streamRow.PeakViewers ?? -1))
+            return false;
+        streamRow.PeakViewers = viewerCount;
+        return true;
+    }
 
     /// <summary>
     /// Reconciles one channel's live state from a Helix Get Streams result into both the in-memory

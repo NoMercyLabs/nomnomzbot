@@ -174,7 +174,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 CancellationToken = cancellationToken,
             };
 
-            Application.Common.Models.Result<string> builtinResult = await builtin.ExecuteAsync(
+            Result<string> builtinResult = await builtin.ExecuteAsync(
                 builtinCtx,
                 cancellationToken
             );
@@ -321,8 +321,10 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                         CancellationToken = cancellationToken,
                     };
 
-                    Application.Common.Models.Result<string> builtinFallbackResult =
-                        await builtin.ExecuteAsync(builtinFallbackCtx, cancellationToken);
+                    Result<string> builtinFallbackResult = await builtin.ExecuteAsync(
+                        builtinFallbackCtx,
+                        cancellationToken
+                    );
                     if (
                         builtinFallbackResult.IsSuccess
                         && !string.IsNullOrEmpty(builtinFallbackResult.Value)

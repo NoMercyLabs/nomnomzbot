@@ -123,7 +123,6 @@ commits; this is the collapsed record.
 - [ ] looks like pipelines need to be reworked into all the other things listed above, and also overhauled to be more user friendly and intuitive and usability.
 - [ ] every user id input, source id input, and channel id input needs to be a pick list with search and auto complete functionality.
 - [ ] code scripts seems to be completely useless now that we have the proper vscode editor for the overlays.
-- [ ] analytics, chat and everything stream related needs to be shown stream by stream and not all-time.
 - [ ] the community section is not useful at all.
 - [ ] the discord section is not useful at all, there is no way of adding it properly to a guild's channel, and there is no option for a user to get personal live notification dm's.
 - [ ] webhooks have no rule, structure and organization and are therefore totally useless and cannot be integrated.

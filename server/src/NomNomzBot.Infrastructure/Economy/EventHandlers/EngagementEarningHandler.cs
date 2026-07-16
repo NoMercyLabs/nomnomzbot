@@ -22,7 +22,7 @@ namespace NomNomzBot.Infrastructure.Economy.EventHandlers;
 
 /// <summary>
 /// Awards currency for engagement milestones: follows, new subscriptions, cheers, and incoming raids.
-/// Each engagement maps to a named <see cref="NomNomzBot.Domain.Economy.Enums.EarningSource"/> — the channel must
+/// Each engagement maps to a named <see cref="Domain.Economy.Enums.EarningSource"/> — the channel must
 /// have the corresponding <c>EarningRule</c> enabled for earning to occur (economy.md §3.3). The earn is idempotent
 /// via the domain event's <c>EventId</c> so duplicate EventSub deliveries are no-ops.
 /// </summary>

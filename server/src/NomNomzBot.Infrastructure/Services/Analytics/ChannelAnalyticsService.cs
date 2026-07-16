@@ -16,8 +16,12 @@ using NomNomzBot.Domain.Analytics.Entities;
 
 namespace NomNomzBot.Infrastructure.Services.Analytics;
 
-/// <summary>Per-channel analytics reads (analytics.md §3.3) over the projected M.8 / M.7 roll-ups.</summary>
-public sealed class ChannelAnalyticsService(IApplicationDbContext db) : IChannelAnalyticsService
+/// <summary>
+/// Per-channel analytics reads (analytics.md §3.3) over the projected M.8 / M.7 roll-ups, plus the
+/// per-stream views ("stream by stream, not all-time") window-folded from the raw activity tables.
+/// </summary>
+public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvider clock)
+    : IChannelAnalyticsService
 {
     private const int MaxRangeDays = 366;
 
@@ -165,6 +169,118 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db) : IChannel
         ];
         return Result.Success<IReadOnlyList<TopViewerDto>>(ranked);
     }
+
+    public async Task<Result<PagedList<StreamListItemDto>>> ListStreamsAsync(
+        Guid broadcasterId,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        IQueryable<Domain.Stream.Entities.Stream> query = db
+            .Streams.Where(s => s.ChannelId == broadcasterId && s.StartedAt != null)
+            .OrderByDescending(s => s.StartedAt);
+
+        int total = await query.CountAsync(ct);
+        List<StreamListItemDto> items = (
+            await query
+                .Skip((pagination.Page - 1) * pagination.PageSize)
+                .Take(pagination.PageSize)
+                .ToListAsync(ct)
+        )
+            .Select(s => new StreamListItemDto(
+                s.Id,
+                s.Title,
+                s.GameName,
+                s.StartedAt,
+                s.EndedAt,
+                DurationSeconds(s),
+                s.PeakViewers
+            ))
+            .ToList();
+
+        return Result.Success(
+            new PagedList<StreamListItemDto>(items, pagination.Page, pagination.PageSize, total)
+        );
+    }
+
+    public async Task<Result<StreamAnalyticsDto>> GetStreamAsync(
+        Guid broadcasterId,
+        string streamId,
+        CancellationToken ct = default
+    )
+    {
+        Domain.Stream.Entities.Stream? stream = await db.Streams.FirstOrDefaultAsync(
+            s => s.ChannelId == broadcasterId && s.Id == streamId,
+            ct
+        );
+        if (stream is null || stream.StartedAt is null)
+            return Errors.NotFound<StreamAnalyticsDto>("Stream", streamId);
+
+        // The stream's activity window: start → end, or "now" while it is still live.
+        DateTime windowStart = stream.StartedAt.Value.UtcDateTime;
+        DateTime windowEnd = (stream.EndedAt ?? clock.GetUtcNow()).UtcDateTime;
+
+        long totalMessages = await db.ChatMessages.LongCountAsync(
+            m =>
+                m.BroadcasterId == broadcasterId
+                && m.CreatedAt >= windowStart
+                && m.CreatedAt < windowEnd,
+            ct
+        );
+        int uniqueChatters = await db
+            .ChatMessages.Where(m =>
+                m.BroadcasterId == broadcasterId
+                && m.CreatedAt >= windowStart
+                && m.CreatedAt < windowEnd
+            )
+            .Select(m => m.UserId)
+            .Distinct()
+            .CountAsync(ct);
+
+        // The activity-feed rows the alert handlers + projection log — counted by their canonical keys.
+        Dictionary<string, int> eventCounts = await db
+            .ChannelEvents.Where(e =>
+                e.ChannelId == broadcasterId
+                && e.CreatedAt >= windowStart
+                && e.CreatedAt < windowEnd
+            )
+            .GroupBy(e => e.Type)
+            .Select(g => new { Type = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.Type, g => g.Count, ct);
+
+        long commandsRun = await db.CommandUsages.LongCountAsync(
+            u =>
+                u.BroadcasterId == broadcasterId
+                && u.WasSuccessful
+                && u.CreatedAt >= windowStart
+                && u.CreatedAt < windowEnd,
+            ct
+        );
+
+        StreamAnalyticsDto dto = new(
+            stream.Id,
+            stream.Title,
+            stream.GameName,
+            stream.StartedAt,
+            stream.EndedAt,
+            DurationSeconds(stream),
+            stream.PeakViewers,
+            totalMessages,
+            uniqueChatters,
+            eventCounts.GetValueOrDefault("channel.follow"),
+            eventCounts.GetValueOrDefault("channel.subscribe"),
+            eventCounts.GetValueOrDefault("channel.cheer"),
+            commandsRun,
+            eventCounts.GetValueOrDefault("channel.channel_points_custom_reward_redemption.add")
+        );
+        return Result.Success(dto);
+    }
+
+    /// <summary>Whole seconds from start to end — null while the stream is live or never stamped.</summary>
+    private static long? DurationSeconds(Domain.Stream.Entities.Stream s) =>
+        s.StartedAt is { } started && s.EndedAt is { } ended
+            ? (long)(ended - started).TotalSeconds
+            : null;
 
     private async Task<List<ChannelAnalyticsDaily>> RangeRowsAsync(
         Guid broadcasterId,

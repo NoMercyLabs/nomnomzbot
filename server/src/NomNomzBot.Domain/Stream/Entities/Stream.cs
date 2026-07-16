@@ -46,6 +46,13 @@ public class Stream : BaseEntity
 
     public DateTimeOffset? EndedAt { get; set; }
 
+    /// <summary>
+    /// Highest concurrent viewer count observed during THIS stream — folded max from the live
+    /// viewer-count samples (StreamStatusPollingService). Null when no sample ever landed (e.g. the
+    /// bot joined after the stream ended). The per-stream twin of ChannelAnalyticsDaily.PeakViewers.
+    /// </summary>
+    public int? PeakViewers { get; set; }
+
     [ForeignKey(nameof(ChannelId))]
     public virtual Channel Channel { get; set; } = null!;
 }

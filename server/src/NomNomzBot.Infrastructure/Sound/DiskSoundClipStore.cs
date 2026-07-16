@@ -47,7 +47,7 @@ internal sealed class DiskSoundClipStore : ISoundClipStore
         string fullPath = Path.Combine(channelDir, uniqueName);
         string storageKey = $"{broadcasterId:N}/{uniqueName}";
 
-        await using System.IO.FileStream fs = File.Create(fullPath);
+        await using FileStream fs = File.Create(fullPath);
         await content.CopyToAsync(fs, ct);
 
         return Result<string>.Success(storageKey);

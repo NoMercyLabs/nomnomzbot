@@ -275,12 +275,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<Domain.Sound.Entities.SoundClip>();
     public DbSet<Domain.CustomEvents.Entities.CustomDataSource> CustomDataSources =>
         Set<Domain.CustomEvents.Entities.CustomDataSource>();
-    public DbSet<Domain.Widgets.Entities.WidgetVersion> WidgetVersions =>
-        Set<Domain.Widgets.Entities.WidgetVersion>();
-    public DbSet<Domain.Widgets.Entities.WidgetGalleryItem> WidgetGalleryItems =>
-        Set<Domain.Widgets.Entities.WidgetGalleryItem>();
-    public DbSet<Domain.Widgets.Entities.WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
-        Set<Domain.Widgets.Entities.WidgetGallerySubmissionEvent>();
+    public DbSet<WidgetVersion> WidgetVersions => Set<WidgetVersion>();
+    public DbSet<WidgetGalleryItem> WidgetGalleryItems => Set<WidgetGalleryItem>();
+    public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
+        Set<WidgetGallerySubmissionEvent>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

@@ -240,6 +240,20 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.IdempotencyKey>();
 
+        // Stream / ChannelEvent / CommandUsage: mapped scalar-only (navs + primitive collections
+        // ignored) so the per-stream analytics tests can seed a stream window and prove the folds.
+        b.Entity<NomNomzBot.Domain.Stream.Entities.Stream>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Stream.Entities.Stream>()
+            .Ignore(e => e.Channel)
+            .Ignore(e => e.Tags)
+            .Ignore(e => e.ContentLabels);
+        b.Entity<NomNomzBot.Domain.Identity.Entities.ChannelEvent>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Identity.Entities.ChannelEvent>()
+            .Ignore(e => e.Channel)
+            .Ignore(e => e.User);
+        b.Entity<NomNomzBot.Domain.Commands.Entities.CommandUsage>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Commands.Entities.CommandUsage>().Ignore(e => e.Command);
+
         // ChatMessage: mapped scalar-only (navs + jsonb fragment/badge collections ignored) so the
         // YouTube live-chat poll worker tests can prove the persisted-message dedupe through this harness.
         b.Entity<NomNomzBot.Domain.Chat.Entities.ChatMessage>().HasKey(e => e.Id);
@@ -248,8 +262,6 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
             .Ignore(e => e.Stream)
             .Ignore(e => e.Fragments)
             .Ignore(e => e.Badges);
-        b.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelEvent>();
-        b.Ignore<NomNomzBot.Domain.Stream.Entities.Stream>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.Storage>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.Record>();
         b.Ignore<NomNomzBot.Domain.Identity.Entities.Permission>();
@@ -353,9 +365,9 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
         Set<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelEvent> ChannelEvents =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Identity.Entities.ChannelEvent>();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Stream.Entities.Stream>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
         Set<NomNomzBot.Domain.Platform.Entities.Configuration>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Storage> Storages =>
@@ -429,7 +441,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareRequest> MediaShareRequests =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.CommandUsage> CommandUsages =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Commands.Entities.CommandUsage>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.TenantSequence> TenantSequences =>
