@@ -152,6 +152,11 @@ public sealed class ChatDecorationRefreshServiceTests
         public Task InvalidateSettingsAsync(Guid broadcasterId, CancellationToken ct = default) =>
             Task.CompletedTask;
 
+        public Task InvalidateChatTriggersAsync(
+            Guid broadcasterId,
+            CancellationToken ct = default
+        ) => Task.CompletedTask;
+
         public Task RemoveAsync(Guid broadcasterId, CancellationToken ct = default) =>
             Task.CompletedTask;
     }

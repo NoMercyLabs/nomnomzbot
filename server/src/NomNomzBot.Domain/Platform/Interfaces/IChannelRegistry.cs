@@ -51,6 +51,13 @@ public interface IChannelRegistry
     /// </summary>
     Task InvalidateSettingsAsync(Guid broadcasterId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Reloads the keyword chat-trigger cache for an already-registered channel. Call after any
+    /// Create/Update/Delete/Toggle on a chat trigger so the in-process chat handler picks up the change
+    /// without a restart. No-ops if the channel is not yet in the registry.
+    /// </summary>
+    Task InvalidateChatTriggersAsync(Guid broadcasterId, CancellationToken ct = default);
+
     Task RemoveAsync(Guid broadcasterId, CancellationToken ct = default);
     IReadOnlyCollection<ChannelContext> GetAll();
     IReadOnlyCollection<ChannelContext> GetLiveChannels();
@@ -99,6 +106,13 @@ public class ChannelContext
         new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Per-channel keyword chat-trigger cache (enabled triggers only), keyed by trigger id — matched
+    /// against every ordinary (non-command) chat line on the hot path. Populated by <c>ChannelRegistry</c>;
+    /// refresh via <see cref="IChannelRegistry.InvalidateChatTriggersAsync"/>.
+    /// </summary>
+    public ConcurrentDictionary<Guid, CachedChatTrigger> ChatTriggers { get; } = new();
+
+    /// <summary>
     /// Per-channel builtin-toggle cache: keys are the builtin's bare catalog key (lowercase, no leading "!"
     /// — the same form the builtin catalog and <c>ChatMessageHandler</c>'s parsed command name use) for every
     /// builtin explicitly disabled for this channel. Absence = enabled (the catalog default), mirroring
@@ -136,6 +150,29 @@ public class ChannelContext
     // Lock for compound operations
     private readonly object _lock = new();
     public object Lock => _lock;
+}
+
+/// <summary>
+/// Cached representation of a keyword chat trigger, hot-path ready: for <c>regex</c> triggers the
+/// pattern is pre-compiled ONCE at load with a hard match timeout (a malicious pattern can burn at most
+/// that long per message); an invalid regex never enters the cache.
+/// </summary>
+public class CachedChatTrigger
+{
+    public required Guid Id { get; init; }
+    public required string Pattern { get; init; }
+
+    /// <summary>contains | exact | starts_with | regex.</summary>
+    public required string MatchType { get; init; }
+
+    public required bool CaseSensitive { get; init; }
+    public string? Response { get; init; }
+    public string? PipelineGraphJson { get; init; }
+    public required int CooldownSeconds { get; init; }
+    public required int MinPermissionLevel { get; init; }
+
+    /// <summary>Set only for <c>regex</c> triggers (compiled, bounded by a match timeout).</summary>
+    public System.Text.RegularExpressions.Regex? CompiledRegex { get; init; }
 }
 
 /// <summary>

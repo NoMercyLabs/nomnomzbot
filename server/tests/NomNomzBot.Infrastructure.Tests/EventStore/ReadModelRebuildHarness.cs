@@ -40,6 +40,8 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
         Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.ChatTrigger> ChatTriggers =>
+        throw new NotSupportedException();
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => Set<ProjectionCheckpoint>();
     public DbSet<ViewerProfile> ViewerProfiles => Set<ViewerProfile>();

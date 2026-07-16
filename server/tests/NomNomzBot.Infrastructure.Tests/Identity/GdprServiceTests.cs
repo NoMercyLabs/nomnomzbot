@@ -301,6 +301,7 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<Redemption> Redemptions => Set<Redemption>();
     public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
+    public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();

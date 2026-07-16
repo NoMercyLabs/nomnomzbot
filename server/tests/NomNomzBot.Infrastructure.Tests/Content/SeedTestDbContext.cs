@@ -47,6 +47,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.ChatTrigger> ChatTriggers =>
+        throw new NotSupportedException();
     public DbSet<Pronoun> Pronouns => Set<Pronoun>();
     public DbSet<Configuration> Configurations => Set<Configuration>();
     public DbSet<Channel> Channels => Set<Channel>();

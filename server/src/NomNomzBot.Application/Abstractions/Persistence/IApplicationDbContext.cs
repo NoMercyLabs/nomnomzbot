@@ -44,6 +44,7 @@ public interface IApplicationDbContext
     DbSet<Reward> Rewards { get; }
     DbSet<Redemption> Redemptions { get; }
     DbSet<RedemptionTimer> RedemptionTimers { get; }
+    DbSet<ChatTrigger> ChatTriggers { get; }
     DbSet<Quote> Quotes { get; }
     DbSet<PickList> PickLists { get; }
     DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways { get; }

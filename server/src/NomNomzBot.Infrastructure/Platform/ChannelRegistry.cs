@@ -98,6 +98,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         await LoadCommandsAsync(ctx, ct);
         await LoadBuiltinTogglesAsync(ctx, ct);
         await LoadChannelSettingsAsync(ctx, ct);
+        await LoadChatTriggersAsync(ctx, ct);
 
         _channels[broadcasterId] = ctx;
         _logger.LogInformation(
@@ -138,6 +139,24 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         _logger.LogDebug(
             "Reloaded {Count} disabled builtin(s) for channel {BroadcasterId}",
             ctx.DisabledBuiltins.Count,
+            broadcasterId
+        );
+    }
+
+    public async Task InvalidateChatTriggersAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        if (!_channels.TryGetValue(broadcasterId, out ChannelContext? ctx))
+            return;
+
+        ctx.ChatTriggers.Clear();
+        await LoadChatTriggersAsync(ctx, ct);
+
+        _logger.LogDebug(
+            "Reloaded {Count} chat trigger(s) for channel {BroadcasterId}",
+            ctx.ChatTriggers.Count,
             broadcasterId
         );
     }
@@ -192,6 +211,61 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    private async Task LoadChatTriggersAsync(ChannelContext ctx, CancellationToken ct)
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        List<Domain.Commands.Entities.ChatTrigger> triggers = await db
+            .ChatTriggers.Include(t => t.Pipeline)
+            .Where(t => t.BroadcasterId == ctx.BroadcasterId && t.IsEnabled)
+            .ToListAsync(ct);
+
+        foreach (Domain.Commands.Entities.ChatTrigger trigger in triggers)
+        {
+            System.Text.RegularExpressions.Regex? compiled = null;
+            if (trigger.MatchType == Domain.Commands.Entities.ChatTriggerMatchType.Regex)
+            {
+                try
+                {
+                    // Compiled once per cache load; the hard timeout bounds any pathological pattern
+                    // to milliseconds per message instead of a hot-path hang.
+                    compiled = new System.Text.RegularExpressions.Regex(
+                        trigger.Pattern,
+                        trigger.CaseSensitive
+                            ? System.Text.RegularExpressions.RegexOptions.None
+                            : System.Text.RegularExpressions.RegexOptions.IgnoreCase,
+                        TimeSpan.FromMilliseconds(100)
+                    );
+                }
+                catch (ArgumentException ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Skipping chat trigger {TriggerId} with invalid regex for {BroadcasterId}",
+                        trigger.Id,
+                        ctx.BroadcasterId
+                    );
+                    continue;
+                }
+            }
+
+            ctx.ChatTriggers[trigger.Id] = new CachedChatTrigger
+            {
+                Id = trigger.Id,
+                Pattern = trigger.Pattern,
+                MatchType = trigger.MatchType,
+                CaseSensitive = trigger.CaseSensitive,
+                Response = trigger.Response,
+                PipelineGraphJson = trigger.Pipeline?.GraphJsonCache,
+                CooldownSeconds = trigger.CooldownSeconds,
+                MinPermissionLevel = trigger.MinPermissionLevel,
+                CompiledRegex = compiled,
+            };
+        }
+    }
 
     private async Task LoadCommandsAsync(ChannelContext ctx, CancellationToken ct)
     {
