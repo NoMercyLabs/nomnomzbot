@@ -39,6 +39,17 @@ public sealed class PublicSongRequestController(
         ResultResponse(await pageTokens.ResolveAsync(token, cancellationToken));
 
     /// <summary>
+    /// Resolves a channel NAME to the same page context — the human-shareable <c>/sr/@name</c> link
+    /// ("share your song-request page" without handing out an opaque token). 404 for channels that never
+    /// set up their SR page.
+    /// </summary>
+    [HttpGet("by-channel/{channelName}")]
+    public async Task<IActionResult> GetPageByChannel(
+        string channelName,
+        CancellationToken cancellationToken
+    ) => ResultResponse(await pageTokens.ResolveByChannelNameAsync(channelName, cancellationToken));
+
+    /// <summary>
     /// Submits a viewer song request through a public SR-page token. 404 on an unknown token, 409 when the channel
     /// is not accepting requests. The requester label is untrusted display text (anonymous page) — defaults to
     /// "Anonymous"; richer provenance/trust scoring rides on the persisted-queue migration (music-sr.md).
@@ -48,9 +59,32 @@ public sealed class PublicSongRequestController(
         string token,
         [FromBody] SongRequestDto request,
         CancellationToken cancellationToken
+    ) =>
+        await SubmitCoreAsync(
+            await pageTokens.ResolveAsync(token, cancellationToken),
+            request,
+            cancellationToken
+        );
+
+    /// <summary>Submits a viewer song request through the shareable channel-name link (same gates as the token route).</summary>
+    [HttpPost("by-channel/{channelName}")]
+    public async Task<IActionResult> SubmitByChannel(
+        string channelName,
+        [FromBody] SongRequestDto request,
+        CancellationToken cancellationToken
+    ) =>
+        await SubmitCoreAsync(
+            await pageTokens.ResolveByChannelNameAsync(channelName, cancellationToken),
+            request,
+            cancellationToken
+        );
+
+    private async Task<IActionResult> SubmitCoreAsync(
+        Result<SongRequestPageDto> page,
+        SongRequestDto request,
+        CancellationToken cancellationToken
     )
     {
-        Result<SongRequestPageDto> page = await pageTokens.ResolveAsync(token, cancellationToken);
         if (page.IsFailure)
             return NotFoundResponse(page.ErrorMessage);
         if (!page.Value.IsAcceptingRequests)

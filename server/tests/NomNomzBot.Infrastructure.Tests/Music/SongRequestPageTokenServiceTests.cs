@@ -107,4 +107,35 @@ public sealed class SongRequestPageTokenServiceTests
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
     }
+
+    [Fact]
+    public async Task ResolveByChannelName_finds_the_engaged_channel_case_insensitively_with_at_prefix()
+    {
+        (SongRequestPageTokenService sut, _, IMusicConfigService config) = await BuildAsync();
+        config
+            .GetConfigAsync(Channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(new MusicConfigDto(true, "spotify", 50, 5, false, true, "everyone"))
+            );
+        await sut.GetOrCreateAsync(Channel); // the operator engaged the SR page — a token exists
+
+        SongRequestPageDto page = (await sut.ResolveByChannelNameAsync("@CoolStreamer")).Value;
+
+        page.BroadcasterId.Should().Be(Channel);
+        page.ChannelName.Should().Be("CoolStreamer");
+        page.IsAcceptingRequests.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ResolveByChannelName_never_exposes_a_channel_that_has_no_sr_page_token()
+    {
+        // The channel exists but never opened its SR page — the shareable name link must not make it
+        // discoverable through a page it never set up.
+        (SongRequestPageTokenService sut, _, _) = await BuildAsync();
+
+        Result<SongRequestPageDto> result = await sut.ResolveByChannelNameAsync("coolstreamer");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
 }

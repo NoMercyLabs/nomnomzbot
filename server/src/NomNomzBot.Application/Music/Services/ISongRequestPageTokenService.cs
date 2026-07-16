@@ -26,6 +26,16 @@ public interface ISongRequestPageTokenService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Resolves a channel NAME to the same page context — the human-shareable <c>/sr/@name</c> link.
+    /// Only resolves once the channel has an SR-page token at all (the operator engaged the feature);
+    /// <c>NOT_FOUND</c> otherwise, so no channel is discoverable through a page it never set up.
+    /// </summary>
+    Task<Result<SongRequestPageDto>> ResolveByChannelNameAsync(
+        string channelName,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Returns the channel's SR-page token, minting one (opaque, not PII) on first call. Idempotent.</summary>
     Task<Result<string>> GetOrCreateAsync(
         Guid broadcasterId,

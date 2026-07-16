@@ -16,6 +16,25 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Music: shareable song-request link + the player controls that already exist
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** (1) NEW shareable SR link: `GET/POST /api/v1/public/sr/by-channel/{channelName}` mirror
+  the token routes (`@` prefix and case both tolerated), resolving only channels that have engaged
+  their SR page — so the public page can live at `/sr/@channelname` and streamers can just say the
+  URL on stream. Add a "Copy share link" button on the music page emitting that pretty URL (keep the
+  token URL working). (2) The player-control gaps the owner listed are BACKEND-COMPLETE already —
+  `POST music/skip|pause|resume|seek`, `PATCH music/shuffle`, `PATCH music/repeat`, and
+  `GET music/now-playing` (which carries progress): wire the dashboard player to them — skip/shuffle/
+  repeat buttons and a progress bar that polls now-playing (or ticks locally between polls) WHILE
+  playing, not only on pause.
+- **Why:** owner item — "the music page is a disorganized mess ... progress bar ... skip ... shuffle
+  ... repeat ... no way of sharing the public version of that page because that page link is just a
+  token." The page reorganization itself is design/frontend work.
+- **Where:** `feature/music` + the public SR page widget routing (`/sr/@name` → by-channel API);
+  contract refreshed in `server/openapi/v1.json`.
+- **Done when:** the share link opens the SR page by channel name on dev, and the dashboard player
+  skips/shuffles/repeats with a live-updating progress bar.
+
 ### 2026-07-17 — Chat polls: bot-run polls with chat-number voting (every platform)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** new surface under `channels/{channelId}/chat-polls` (`ChatPollDto`): `POST` opens a poll

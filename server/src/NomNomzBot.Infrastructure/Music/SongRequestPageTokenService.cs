@@ -39,6 +39,37 @@ public sealed class SongRequestPageTokenService(
         Channel? channel = await db
             .Channels.AsNoTracking()
             .FirstOrDefaultAsync(c => c.SongRequestPageToken == pageToken, cancellationToken);
+        return await ProjectAsync(channel, cancellationToken);
+    }
+
+    public async Task<Result<SongRequestPageDto>> ResolveByChannelNameAsync(
+        string channelName,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(channelName))
+            return Result.Failure<SongRequestPageDto>("Unknown song-request page.", "NOT_FOUND");
+
+        // The shareable name link only works once the operator engaged the SR page (a token exists) —
+        // no channel becomes discoverable through a page it never set up.
+        string normalized = channelName.TrimStart('@').ToLowerInvariant();
+        Channel? channel = await db
+            .Channels.AsNoTracking()
+            .FirstOrDefaultAsync(
+                c =>
+                    c.NameNormalized == normalized
+                    && c.SongRequestPageToken != null
+                    && c.SongRequestPageToken != "",
+                cancellationToken
+            );
+        return await ProjectAsync(channel, cancellationToken);
+    }
+
+    private async Task<Result<SongRequestPageDto>> ProjectAsync(
+        Channel? channel,
+        CancellationToken cancellationToken
+    )
+    {
         if (channel is null)
             return Result.Failure<SongRequestPageDto>("Unknown song-request page.", "NOT_FOUND");
 
