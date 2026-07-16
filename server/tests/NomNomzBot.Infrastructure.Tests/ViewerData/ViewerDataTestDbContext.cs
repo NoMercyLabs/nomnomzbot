@@ -157,6 +157,7 @@ internal sealed class ViewerDataTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Command> Commands => throw new NotSupportedException();
     public DbSet<Reward> Rewards => throw new NotSupportedException();
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
+    public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>

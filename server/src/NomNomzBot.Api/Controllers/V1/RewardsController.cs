@@ -29,11 +29,17 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class RewardsController : BaseController
 {
     private readonly IRewardService _rewardService;
+    private readonly IRedemptionTimerService _redemptionTimers;
     private readonly IApplicationDbContext _db;
 
-    public RewardsController(IRewardService rewardService, IApplicationDbContext db)
+    public RewardsController(
+        IRewardService rewardService,
+        IRedemptionTimerService redemptionTimers,
+        IApplicationDbContext db
+    )
     {
         _rewardService = rewardService;
+        _redemptionTimers = redemptionTimers;
         _db = db;
     }
 
@@ -96,6 +102,62 @@ public class RewardsController : BaseController
         ResultResponse(
             await _rewardService.SetRedemptionStatusAsync(channelId, redemptionId, "FULFILLED", ct)
         );
+
+    // ── Redemption countdown timers ("streamer does X for Y") ────────────────
+
+    /// <summary>The channel's redemption countdowns: active (running/paused) first, then recent finished ones.
+    /// RemainingSeconds is the live clock-derived value at response time.</summary>
+    [RequireAction("reward:read")]
+    [HttpGet("redemption-timers")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<RedemptionTimerDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> ListRedemptionTimers(string channelId, CancellationToken ct)
+    {
+        Result<IReadOnlyList<RedemptionTimerDto>> result = await _redemptionTimers.ListAsync(
+            channelId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<IReadOnlyList<RedemptionTimerDto>> { Data = result.Value });
+    }
+
+    /// <summary>Pause a running countdown (the remaining time freezes).</summary>
+    [RequireAction("reward:manage")]
+    [HttpPost("redemption-timers/{timerId:guid}/pause")]
+    public async Task<IActionResult> PauseRedemptionTimer(
+        string channelId,
+        Guid timerId,
+        CancellationToken ct
+    ) => ResultResponse(await _redemptionTimers.PauseAsync(channelId, timerId, ct));
+
+    /// <summary>Resume a paused countdown.</summary>
+    [RequireAction("reward:manage")]
+    [HttpPost("redemption-timers/{timerId:guid}/resume")]
+    public async Task<IActionResult> ResumeRedemptionTimer(
+        string channelId,
+        Guid timerId,
+        CancellationToken ct
+    ) => ResultResponse(await _redemptionTimers.ResumeAsync(channelId, timerId, ct));
+
+    /// <summary>Finish the countdown now — completes the timer and fulfills the redemption on Twitch.</summary>
+    [RequireAction("reward:manage")]
+    [HttpPost("redemption-timers/{timerId:guid}/complete")]
+    public async Task<IActionResult> CompleteRedemptionTimer(
+        string channelId,
+        Guid timerId,
+        CancellationToken ct
+    ) => ResultResponse(await _redemptionTimers.CompleteAsync(channelId, timerId, ct));
+
+    /// <summary>Abandon the countdown without fulfilling — refunding stays a separate call.</summary>
+    [RequireAction("reward:manage")]
+    [HttpPost("redemption-timers/{timerId:guid}/cancel")]
+    public async Task<IActionResult> CancelRedemptionTimer(
+        string channelId,
+        Guid timerId,
+        CancellationToken ct
+    ) => ResultResponse(await _redemptionTimers.CancelAsync(channelId, timerId, ct));
 
     /// <summary>Refund a queued redemption — CANCELED in Helix (the viewer's points are returned).</summary>
     [RequireAction("reward:manage")]

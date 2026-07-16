@@ -98,6 +98,8 @@ internal sealed class PickListTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
+        throw new NotSupportedException();
     public DbSet<Quote> Quotes => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.Widget> Widgets =>
         throw new NotSupportedException();

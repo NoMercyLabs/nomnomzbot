@@ -59,6 +59,7 @@ public class RewardService : IRewardService
             BroadcasterId = broadcaster,
             Title = request.Title,
             IsEnabled = true,
+            TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds),
         };
 
         _db.Rewards.Add(reward);
@@ -98,6 +99,8 @@ public class RewardService : IRewardService
             reward.Title = request.Title;
         if (request.IsEnabled.HasValue)
             reward.IsEnabled = request.IsEnabled.Value;
+        if (request.TimerDurationSeconds.HasValue)
+            reward.TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds);
 
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -596,6 +599,10 @@ public class RewardService : IRewardService
         return upsertedCount;
     }
 
+    /// <summary>Clamps a requested countdown to sane bounds: 0/negative clears it; the ceiling is 24h.</summary>
+    private static int? NormalizeTimerDuration(int? requested) =>
+        requested is int seconds && seconds > 0 ? Math.Min(seconds, 86_400) : null;
+
     private static RewardDetail ToDetail(Reward r) =>
         new(
             r.Id.ToString(),
@@ -613,6 +620,7 @@ public class RewardService : IRewardService
             null,
             null,
             null,
+            r.TimerDurationSeconds,
             r.CreatedAt,
             r.UpdatedAt
         );

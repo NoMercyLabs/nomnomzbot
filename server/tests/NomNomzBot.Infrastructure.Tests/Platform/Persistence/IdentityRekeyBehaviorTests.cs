@@ -60,6 +60,8 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<User> Users => Set<User>();
         public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
             Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
+        public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
+            throw new NotSupportedException();
         public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
         public DbSet<Channel> Channels => Set<Channel>();
         public DbSet<Command> Commands => Set<Command>();
@@ -344,6 +346,8 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
             inner.Redemptions;
+        public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
+            throw new NotSupportedException();
         public DbSet<ConsentRecord> ConsentRecords => inner.ConsentRecords;
         public DbSet<Channel> Channels => inner.Channels;
         public DbSet<Command> Commands => inner.Commands;

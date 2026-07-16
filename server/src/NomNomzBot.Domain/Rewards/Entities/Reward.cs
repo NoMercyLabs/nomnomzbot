@@ -54,6 +54,13 @@ public class Reward : SoftDeletableEntity, ITenantScoped
 
     public int? Cost { get; set; }
 
+    /// <summary>
+    /// Opt-in countdown for time-limited rewards ("streamer does X for Y"): when set, every redemption
+    /// starts a <see cref="RedemptionTimer"/> for this many seconds; when the countdown completes the
+    /// redemption is marked FULFILLED on Twitch (manageable rewards only). Null = a normal reward.
+    /// </summary>
+    public int? TimerDurationSeconds { get; set; }
+
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;
 }

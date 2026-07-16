@@ -45,6 +45,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
         Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
+    public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
+        throw new NotSupportedException();
     public DbSet<Pronoun> Pronouns => Set<Pronoun>();
     public DbSet<Configuration> Configurations => Set<Configuration>();
     public DbSet<Channel> Channels => Set<Channel>();

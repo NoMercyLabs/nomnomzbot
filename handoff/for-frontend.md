@@ -16,6 +16,24 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-16 — Rewards: countdown timers for time-limited redemptions
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** a reward can now carry `timerDurationSeconds` (set via the reward create/update DTOs; 0
+  clears, capped 24h). Redeeming such a reward auto-starts a countdown. New endpoints under
+  `channels/{channelId}/rewards`: `GET redemption-timers` (active first, then recent history —
+  `RedemptionTimerDto`: id, redemptionId, rewardId, rewardTitle, redeemedBy, durationSeconds,
+  remainingSeconds (LIVE clock-derived at response time), status running|paused|completed|canceled,
+  startedAt) and `POST redemption-timers/{timerId}/pause|resume|complete|cancel`. Complete (manual or
+  automatic at expiry) fulfills the redemption on Twitch; cancel just stops counting (refund stays the
+  existing refund endpoint). UI: a timer field on the reward editor + a live countdown card/list on
+  the rewards (or live-ops) page with pause/resume/complete/cancel — poll the list or re-fetch on
+  action; remainingSeconds is exact at fetch time so client-side ticking from it is safe.
+- **Why:** owner item — "start, stop and pause a timer for certain reward redemptions that are time
+  limited... the timer stops and the reward is marked as completed."
+- **Where:** `feature/rewards`; contract refreshed in `server/openapi/v1.json`.
+- **Done when:** setting a duration on a reward, redeeming it, watching the countdown live, pausing/
+  resuming, and seeing the redemption fulfilled at zero — all verified on the dev web build.
+
 ### 2026-07-16 — Event responses ARE the reaction chains: merge alerts/events into one page
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the full "welcome them in" chain (sound → overlay → chat, any order, with waits) already

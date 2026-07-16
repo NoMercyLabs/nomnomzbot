@@ -1468,9 +1468,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("FireOnce")
-                        .HasColumnType("boolean");
-
                     b.Property<int>("IntervalMinutes")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
@@ -6491,9 +6488,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<string>("Language")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
-
-                    b.Property<int?>("PeakViewers")
-                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset?>("StartedAt")
                         .HasColumnType("timestamp with time zone");

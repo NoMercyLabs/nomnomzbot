@@ -34,6 +34,8 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
         Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
+    public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
+        throw new NotSupportedException();
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => Set<ProjectionCheckpoint>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMembership> ChannelMemberships =>

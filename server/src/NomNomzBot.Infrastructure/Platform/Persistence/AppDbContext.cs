@@ -55,6 +55,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Command> Commands => Set<Command>();
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<Redemption> Redemptions => Set<Redemption>();
+    public DbSet<RedemptionTimer> RedemptionTimers => Set<RedemptionTimer>();
     public DbSet<Domain.Quotes.Entities.Quote> Quotes => Set<Domain.Quotes.Entities.Quote>();
 
     // Generic named pick-lists (the {list.pick.<name>} primitive).

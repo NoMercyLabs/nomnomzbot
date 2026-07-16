@@ -14,6 +14,9 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Rewards.Dtos;
+using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Rewards.Events;
@@ -74,6 +77,30 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             r => r.BroadcasterId == broadcasterId && r.TwitchRewardId == @event.RewardId,
             cancellationToken
         );
+
+        // A time-limited reward starts its countdown the moment it's redeemed (idempotent per
+        // redemption — an EventSub redelivery returns the existing timer). Orthogonal to the response.
+        if (reward?.TimerDurationSeconds is int timerSeconds and > 0)
+        {
+            IRedemptionTimerService timers =
+                scope.ServiceProvider.GetRequiredService<IRedemptionTimerService>();
+            Result<RedemptionTimerDto> started = await timers.StartAsync(
+                broadcasterId,
+                @event.RedemptionId,
+                @event.RewardId,
+                @event.RewardTitle,
+                @event.UserDisplayName,
+                timerSeconds,
+                cancellationToken
+            );
+            if (started.IsFailure)
+                _logger.LogWarning(
+                    "Redemption timer failed to start for {RedemptionId} in {Channel}: {Error}",
+                    @event.RedemptionId,
+                    broadcasterId,
+                    started.ErrorMessage
+                );
+        }
 
         string? pipelineJson = reward?.PipelineJson;
 

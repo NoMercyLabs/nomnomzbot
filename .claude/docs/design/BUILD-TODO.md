@@ -100,7 +100,6 @@ commits; this is the collapsed record.
 - [ ] Ensure input + button combo are aligning the input itself and the button right now label+input is centered to button
 
 ## work
-- [ ] start, stop and pause a timer for certain reward redemptions that are time limited, for example streamer does x for y amount of time and then the timer stops and the reward is marked as completed.
 - [ ] Allow users to customize the appearance of chat messages, including font, color, and background.
 - [ ] Allow users to create and manage custom chat commands, including the ability to set permissions for who can use them.
 - [ ] Allow users to set up automated responses for specific chat messages or commands.

@@ -10,6 +10,20 @@
 
 namespace NomNomzBot.Application.Rewards.Dtos;
 
+/// <summary>One live/recent countdown for a time-limited reward redemption. <c>RemainingSeconds</c> is
+/// the CURRENT clock-derived value; <c>Status</c> is running | paused | completed | canceled.</summary>
+public sealed record RedemptionTimerDto(
+    Guid Id,
+    string RedemptionId,
+    string RewardId,
+    string RewardTitle,
+    string RedeemedBy,
+    int DurationSeconds,
+    int RemainingSeconds,
+    string Status,
+    DateTime StartedAt
+);
+
 /// <summary>One entry in the channel-points redemption queue (rewards.md) — a redemption with its current
 /// status (<c>unfulfilled</c> / <c>fulfilled</c> / <c>canceled</c>), folded from the journal.</summary>
 public sealed record RedemptionListItem(
@@ -42,6 +56,9 @@ public sealed record RewardDetail(
     int? GlobalCooldownSeconds,
     string? ActionType,
     Dictionary<string, object?>? ActionSettings,
+    // Opt-in countdown for time-limited rewards: redeeming starts a RedemptionTimer for this many
+    // seconds; completion fulfills the redemption. Null = a normal reward.
+    int? TimerDurationSeconds,
     DateTime CreatedAt,
     DateTime UpdatedAt
 );
@@ -58,6 +75,9 @@ public sealed record CreateRewardRequest
     public int? GlobalCooldownSeconds { get; init; }
     public string? ActionType { get; init; }
     public Dictionary<string, object?>? ActionSettings { get; init; }
+
+    /// <summary>Opt-in countdown (seconds, capped at 24h) — makes this a time-limited reward.</summary>
+    public int? TimerDurationSeconds { get; init; }
 }
 
 public sealed record UpdateRewardRequest
@@ -74,4 +94,7 @@ public sealed record UpdateRewardRequest
     public int? GlobalCooldownSeconds { get; init; }
     public string? ActionType { get; init; }
     public Dictionary<string, object?>? ActionSettings { get; init; }
+
+    /// <summary>Countdown seconds for a time-limited reward; 0 clears it, absent leaves it unchanged.</summary>
+    public int? TimerDurationSeconds { get; init; }
 }

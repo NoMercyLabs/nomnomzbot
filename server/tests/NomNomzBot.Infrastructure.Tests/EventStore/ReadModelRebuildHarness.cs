@@ -38,6 +38,8 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
     public DbSet<EventJournal> EventJournals => Set<EventJournal>();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
         Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
+    public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
+        throw new NotSupportedException();
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => Set<ProjectionCheckpoint>();
     public DbSet<ViewerProfile> ViewerProfiles => Set<ViewerProfile>();

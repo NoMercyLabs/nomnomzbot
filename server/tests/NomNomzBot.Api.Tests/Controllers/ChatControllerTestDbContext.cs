@@ -124,6 +124,8 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
     public DbSet<Reward> Rewards => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
+        throw new NotSupportedException();
     public DbSet<Quote> Quotes => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();

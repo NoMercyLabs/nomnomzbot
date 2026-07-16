@@ -58,6 +58,8 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
         Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
+    public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
+        throw new NotSupportedException();
     public DbSet<DiscordGuildConnection> DiscordGuildConnections => Set<DiscordGuildConnection>();
 
     protected override void OnModelCreating(ModelBuilder b)

@@ -37807,6 +37807,496 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/rewards/redemption-timers": {
+      "get": {
+        "tags": [
+          "Rewards"
+        ],
+        "summary": "The channel's redemption countdowns: active (running/paused) first, then recent finished ones.\r\n    RemainingSeconds is the live clock-derived value at response time.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfRedemptionTimerDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/rewards/redemption-timers/{timerId}/pause": {
+      "post": {
+        "tags": [
+          "Rewards"
+        ],
+        "summary": "Pause a running countdown (the remaining time freezes).",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "timerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/rewards/redemption-timers/{timerId}/resume": {
+      "post": {
+        "tags": [
+          "Rewards"
+        ],
+        "summary": "Resume a paused countdown.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "timerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/rewards/redemption-timers/{timerId}/complete": {
+      "post": {
+        "tags": [
+          "Rewards"
+        ],
+        "summary": "Finish the countdown now — completes the timer and fulfills the redemption on Twitch.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "timerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/rewards/redemption-timers/{timerId}/cancel": {
+      "post": {
+        "tags": [
+          "Rewards"
+        ],
+        "summary": "Abandon the countdown without fulfilling — refunding stays a separate call.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "timerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/rewards/redemptions/{redemptionId}/refund": {
       "post": {
         "tags": [
@@ -52539,6 +53029,16 @@
               "null",
               "object"
             ]
+          },
+          "timerDurationSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Opt-in countdown (seconds, capped at 24h) — makes this a time-limited reward.",
+            "format": "int32"
           }
         }
       },
@@ -59162,6 +59662,63 @@
         },
         "description": "One entry in the channel-points redemption queue (rewards.md) — a redemption with its current\r\n            status (`unfulfilled` / `fulfilled` / `canceled`), folded from the journal."
       },
+      "RedemptionTimerDto": {
+        "required": [
+          "id",
+          "redemptionId",
+          "rewardId",
+          "rewardTitle",
+          "redeemedBy",
+          "durationSeconds",
+          "remainingSeconds",
+          "status",
+          "startedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "redemptionId": {
+            "type": "string"
+          },
+          "rewardId": {
+            "type": "string"
+          },
+          "rewardTitle": {
+            "type": "string"
+          },
+          "redeemedBy": {
+            "type": "string"
+          },
+          "durationSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "remainingSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "One live/recent countdown for a time-limited reward redemption. `RemainingSeconds` is\r\n            the CURRENT clock-derived value; `Status` is running | paused | completed | canceled."
+      },
       "RefreshTokenRequest": {
         "required": [
           "refreshToken"
@@ -59447,6 +60004,7 @@
           "globalCooldownSeconds",
           "actionType",
           "actionSettings",
+          "timerDurationSeconds",
           "createdAt",
           "updatedAt"
         ],
@@ -59534,6 +60092,15 @@
               "null",
               "object"
             ]
+          },
+          "timerDurationSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "createdAt": {
             "type": "string",
@@ -62036,6 +62603,35 @@
             ],
             "items": {
               "$ref": "#/components/schemas/ProjectionRebuildResult"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfRedemptionTimerDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RedemptionTimerDto"
             }
           },
           "message": {
@@ -66833,6 +67429,16 @@
               "null",
               "object"
             ]
+          },
+          "timerDurationSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Countdown seconds for a time-limited reward; 0 clears it, absent leaves it unchanged.",
+            "format": "int32"
           }
         }
       },

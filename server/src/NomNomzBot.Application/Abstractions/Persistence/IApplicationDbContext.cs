@@ -43,6 +43,7 @@ public interface IApplicationDbContext
     DbSet<Command> Commands { get; }
     DbSet<Reward> Rewards { get; }
     DbSet<Redemption> Redemptions { get; }
+    DbSet<RedemptionTimer> RedemptionTimers { get; }
     DbSet<Quote> Quotes { get; }
     DbSet<PickList> PickLists { get; }
     DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways { get; }
