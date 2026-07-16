@@ -39,6 +39,21 @@ public sealed class KickEventSubscriptionWorkerTests
     private static readonly Guid KickTenant = Guid.Parse("0192e000-0000-7000-8000-0000000000a2");
     private static readonly Guid Owner = Guid.Parse("0192e000-0000-7000-8000-0000000000a9");
 
+    /// <summary>Kick's full verified webhook event surface — what the reconcile must keep subscribed.</summary>
+    private static readonly string[] WantedEventNames =
+    [
+        "chat.message.sent",
+        "channel.followed",
+        "channel.subscription.new",
+        "channel.subscription.renewal",
+        "channel.subscription.gifts",
+        "channel.reward.redemption.updated",
+        "livestream.status.updated",
+        "livestream.metadata.updated",
+        "moderation.banned",
+        "kicks.gifted",
+    ];
+
     private static (
         KickEventSubscriptionWorker Worker,
         AuthDbContext Db,
@@ -152,15 +167,17 @@ public sealed class KickEventSubscriptionWorkerTests
                 "StreamerGal",
                 Arg.Any<CancellationToken>()
             );
-        // A fresh channel gets the FULL wanted set in one create: the chat READ leg + the live tracker.
+        // A fresh channel gets the FULL wanted set in one create: chat READ, the live tracker, and
+        // every community/monetization event the ingest translates.
         await client
             .Received(1)
             .SubscribeAsync(
                 "kick-bearer-1",
                 Arg.Is<IReadOnlyList<KickEventRequest>>(events =>
-                    events.Count == 2
-                    && events.Any(e => e.Name == "chat.message.sent" && e.Version == 1)
-                    && events.Any(e => e.Name == "livestream.status.updated" && e.Version == 1)
+                    events.Count == WantedEventNames.Length
+                    && WantedEventNames.All(name =>
+                        events.Any(e => e.Name == name && e.Version == 1)
+                    )
                 ),
                 Arg.Any<CancellationToken>()
             );
@@ -195,8 +212,9 @@ public sealed class KickEventSubscriptionWorkerTests
         (KickEventSubscriptionWorker worker, AuthDbContext db, _, IKickApiClient client) = Build(
             existing:
             [
-                new KickEventSubscription("s1", "chat.message.sent", 1, "webhook", 12345),
-                new KickEventSubscription("s2", "livestream.status.updated", 1, "webhook", 12345),
+                .. WantedEventNames.Select(
+                    (name, i) => new KickEventSubscription($"s{i}", name, 1, "webhook", 12345)
+                ),
             ]
         );
         SeedConnection(db, PrimaryChannel);
@@ -211,8 +229,8 @@ public sealed class KickEventSubscriptionWorkerTests
     [Fact]
     public async Task A_partially_subscribed_channel_gets_only_the_missing_events()
     {
-        // A channel subscribed before the live tracker shipped self-heals: only the missing
-        // livestream.status.updated is created — the existing chat leg is never duplicated.
+        // A channel subscribed before the newer events shipped self-heals: only the missing events
+        // are created — the existing chat leg is never duplicated.
         (KickEventSubscriptionWorker worker, AuthDbContext db, _, IKickApiClient client) = Build(
             existing: [new KickEventSubscription("s1", "chat.message.sent", 1, "webhook", 12345)]
         );
@@ -225,7 +243,9 @@ public sealed class KickEventSubscriptionWorkerTests
             .SubscribeAsync(
                 "kick-bearer-1",
                 Arg.Is<IReadOnlyList<KickEventRequest>>(events =>
-                    events.Count == 1 && events[0].Name == "livestream.status.updated"
+                    events.Count == WantedEventNames.Length - 1
+                    && events.All(e => e.Name != "chat.message.sent")
+                    && events.Any(e => e.Name == "livestream.status.updated")
                 ),
                 Arg.Any<CancellationToken>()
             );

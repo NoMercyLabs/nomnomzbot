@@ -20,9 +20,9 @@ namespace NomNomzBot.Api.Tests.Controllers;
 
 /// <summary>
 /// Proves the Kick webhook gate: an unsigned/undersigned delivery never reaches the ingest (401); a
-/// stale signed timestamp is rejected as a replay even with a VALID signature; a verified
-/// <c>chat.message.sent</c> dispatches the raw body to the ingest; and a verified but unhandled event
-/// type acknowledges 200 without dispatch (Kick must not retry what we deliberately ignore).
+/// stale signed timestamp is rejected as a replay even with a VALID signature; a verified delivery
+/// dispatches its raw body + event type to the ingest (which owns the routing) and acknowledges 200 so
+/// Kick never retries.
 /// </summary>
 public sealed class KickWebhookControllerTests
 {
@@ -70,7 +70,7 @@ public sealed class KickWebhookControllerTests
     }
 
     [Fact]
-    public async Task A_verified_chat_message_dispatches_the_raw_body_to_the_ingest()
+    public async Task A_verified_delivery_dispatches_its_event_type_and_raw_body_to_the_ingest()
     {
         (KickWebhookController controller, _, IKickWebhookIngest ingest) = Build();
         SetDelivery(controller, "chat.message.sent");
@@ -78,7 +78,25 @@ public sealed class KickWebhookControllerTests
         IActionResult result = await controller.Receive(CancellationToken.None);
 
         result.Should().BeOfType<OkResult>();
-        await ingest.Received(1).HandleChatMessageAsync(Body, Arg.Any<CancellationToken>());
+        await ingest
+            .Received(1)
+            .HandleAsync("chat.message.sent", Body, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Every_verified_event_type_reaches_the_ingest_which_owns_the_routing()
+    {
+        // The controller must never grow a dispatch chain: any authenticated type passes through and
+        // acknowledges 200 — a type without a consumer no-ops inside the ingest instead of retrying.
+        (KickWebhookController controller, _, IKickWebhookIngest ingest) = Build();
+        SetDelivery(controller, "livestream.status.updated");
+
+        IActionResult result = await controller.Receive(CancellationToken.None);
+
+        result.Should().BeOfType<OkResult>();
+        await ingest
+            .Received(1)
+            .HandleAsync("livestream.status.updated", Body, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -92,7 +110,7 @@ public sealed class KickWebhookControllerTests
         result.Should().BeOfType<UnauthorizedResult>();
         await ingest
             .DidNotReceiveWithAnyArgs()
-            .HandleChatMessageAsync(default!, Arg.Any<CancellationToken>());
+            .HandleAsync(default!, default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -126,38 +144,6 @@ public sealed class KickWebhookControllerTests
         result.Should().BeOfType<UnauthorizedResult>();
         await ingest
             .DidNotReceiveWithAnyArgs()
-            .HandleChatMessageAsync(default!, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task A_verified_livestream_status_dispatches_to_the_live_tracker()
-    {
-        (KickWebhookController controller, _, IKickWebhookIngest ingest) = Build();
-        SetDelivery(controller, "livestream.status.updated");
-
-        IActionResult result = await controller.Receive(CancellationToken.None);
-
-        result.Should().BeOfType<OkResult>();
-        await ingest.Received(1).HandleLivestreamStatusAsync(Body, Arg.Any<CancellationToken>());
-        await ingest
-            .DidNotReceiveWithAnyArgs()
-            .HandleChatMessageAsync(default!, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task An_unhandled_event_type_acknowledges_200_without_dispatch()
-    {
-        (KickWebhookController controller, _, IKickWebhookIngest ingest) = Build();
-        SetDelivery(controller, "channel.followed");
-
-        IActionResult result = await controller.Receive(CancellationToken.None);
-
-        result.Should().BeOfType<OkResult>("Kick must not retry an event we deliberately ignore");
-        await ingest
-            .DidNotReceiveWithAnyArgs()
-            .HandleChatMessageAsync(default!, Arg.Any<CancellationToken>());
-        await ingest
-            .DidNotReceiveWithAnyArgs()
-            .HandleLivestreamStatusAsync(default!, Arg.Any<CancellationToken>());
+            .HandleAsync(default!, default!, Arg.Any<CancellationToken>());
     }
 }

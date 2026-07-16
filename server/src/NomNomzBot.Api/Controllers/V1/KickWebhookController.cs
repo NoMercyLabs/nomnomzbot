@@ -22,8 +22,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 /// developer dashboard). Anonymous — authenticated by Kick's RSA signature over
 /// <c>{message-id}.{timestamp}.{body}</c> (webhook-security, verified 2026-07-11) plus a freshness
 /// window on the signed timestamp as replay protection. Unhandled event types acknowledge 200 so Kick
-/// never retries them; a bad signature is 401; <c>chat.message.sent</c> and
-/// <c>livestream.status.updated</c> dispatch today.
+/// never retries them; a bad signature is 401; event-type routing lives in the ingest.
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/webhooks/kick")]
@@ -85,12 +84,10 @@ public class KickWebhookController : BaseController
         if (!await _verifier.VerifyAsync(messageId, timestamp, body, signature, ct))
             return Unauthorized();
 
-        if (eventType == "chat.message.sent")
-            await _ingest.HandleChatMessageAsync(body, ct);
-        else if (eventType == "livestream.status.updated")
-            await _ingest.HandleLivestreamStatusAsync(body, ct);
-        // Any other type acknowledges 200: it IS an authenticated Kick delivery, we just have no
-        // consumer for it yet — retrying would change nothing.
+        // The ingest owns the event-type routing; a type without a consumer is a no-op there. Either
+        // way the delivery acknowledges 200 — it IS an authenticated Kick delivery, and retrying an
+        // event we deliberately ignore would change nothing.
+        await _ingest.HandleAsync(eventType, body, ct);
 
         return Ok();
     }

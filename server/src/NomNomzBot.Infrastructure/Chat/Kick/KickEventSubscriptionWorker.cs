@@ -26,7 +26,8 @@ namespace NomNomzBot.Infrastructure.Chat.Kick;
 /// <c>kick</c> integration connection — the deliberate opt-in signal; identity-plane login connections
 /// are NOT enough), it provisions their Kick presence as its own tenant <c>Channel</c> row
 /// (<see cref="IPlatformChannelProvisioner"/>, the stable Guid the webhook ingest resolves) and ensures
-/// the wanted webhook subscriptions (<c>chat.message.sent</c> + <c>livestream.status.updated</c>) exist on their token. Declarative + idempotent per
+/// the full wanted webhook subscription set (<see cref="WantedEvents"/>) exists on their token — only the
+/// missing events are created, so channels subscribed before an event shipped self-heal. Declarative + idempotent per
 /// 5-minute tick, mirroring <c>BotLifecycleService</c>; a missing <c>events:subscribe</c> scope backs the
 /// connection off for 30 minutes (self-heals on re-grant — same posture as EventSub's scope gate) instead
 /// of hammering guaranteed 403s.
@@ -36,12 +37,21 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
     private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan MissingScopeBackoff = TimeSpan.FromMinutes(30);
 
-    /// <summary>The webhook events every connected Kick channel must carry: the chat READ leg and the
-    /// live tracker behind the dashboard's <c>platformsLive</c>.</summary>
+    /// <summary>The webhook events every connected Kick channel must carry — Kick's FULL verified event
+    /// surface: the chat READ leg, the live tracker behind the dashboard's <c>platformsLive</c>, and the
+    /// community/monetization events the ingest translates onto the canonical bus.</summary>
     private static readonly KickEventRequest[] WantedEvents =
     [
         new("chat.message.sent", 1),
+        new("channel.followed", 1),
+        new("channel.subscription.new", 1),
+        new("channel.subscription.renewal", 1),
+        new("channel.subscription.gifts", 1),
+        new("channel.reward.redemption.updated", 1),
         new("livestream.status.updated", 1),
+        new("livestream.metadata.updated", 1),
+        new("moderation.banned", 1),
+        new("kicks.gifted", 1),
     ];
 
     private readonly IServiceScopeFactory _scopeFactory;
