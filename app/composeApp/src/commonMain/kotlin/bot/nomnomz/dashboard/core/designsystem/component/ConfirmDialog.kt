@@ -36,12 +36,17 @@ fun ConfirmDialog(
         title = { Text(text = title) },
         text = { Text(text = message) },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(
-                    text = confirmLabel,
-                    color = if (destructive) tokens.destructive else tokens.primary,
-                    maxLines = 1,
-                )
+            // Destructive confirms get a solid red button (shadcn destructive variant) — the earlier ghost
+            // text button showed only a white-opacity hover background, reading as non-destructive. The
+            // affirmative for an irreversible action must be unmistakably red. Non-destructive stays a text button.
+            if (destructive) {
+                Button(onClick = onConfirm, variant = ButtonVariant.Destructive) {
+                    Text(text = confirmLabel, maxLines = 1)
+                }
+            } else {
+                TextButton(onClick = onConfirm) {
+                    Text(text = confirmLabel, color = tokens.primary, maxLines = 1)
+                }
             }
         },
         dismissButton = {

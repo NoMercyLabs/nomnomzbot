@@ -55,7 +55,6 @@ import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -573,7 +572,7 @@ private fun GuildHeader(
             ManageGate(decision = manage) { enabled ->
                 if (connection.serverConsentStatus == "approved") {
                     GlyphButton(
-                        imageVector = RemoveGlyph,
+                        imageVector = TrashGlyph,
                         label = stringResource(Res.string.discord_consent_revoke),
                         onClick = onRevokeConsent,
                         enabled = enabled,

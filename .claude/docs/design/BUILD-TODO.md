@@ -103,10 +103,8 @@ commits; this is the collapsed record.
 - [ ] Channel-point page header has overlapping top-right buttons
 - [ ] Analytics metrics row should balance itself when possible
 - [ ] Analytics could benefit from some charts
-- [ ] Discord server un-link icon should be the trash icon, not the minus icon
 - [ ] Import things like quotes, timers, overlays from other providers (StreamElements, Streamer.bot, etc)
 - [ ] Ensure input + button combo are aligning the input itself and the button right now label+input is centered to button
-- [ ] Destructive buttons backgrounds should be red instead of white opacity
 
 ## work
 - [ ] Add a "clear all" button to the chat input
