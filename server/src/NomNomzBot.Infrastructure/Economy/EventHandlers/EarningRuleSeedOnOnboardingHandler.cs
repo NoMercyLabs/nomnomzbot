@@ -47,6 +47,11 @@ public sealed class EarningRuleSeedOnOnboardingHandler(
         (EarningSource.GiftSubscription, 200, "200 points for a gifted subscription"),
         (EarningSource.Cheer, 1, "1 point per bit cheered"),
         (EarningSource.Raid, 500, "500 points for bringing a raid"),
+        (
+            EarningSource.Supporter,
+            250,
+            "250 points for a supporter event (tip / membership / merch)"
+        ),
     ];
 
     public async Task HandleAsync(ChannelOnboardedEvent @event, CancellationToken ct = default)

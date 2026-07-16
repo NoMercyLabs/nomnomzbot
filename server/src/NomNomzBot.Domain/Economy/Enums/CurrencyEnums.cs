@@ -23,6 +23,10 @@ public enum EarningSource
     GiftSubscription,
     Cheer,
     Raid,
+
+    // Supporter events (supporter-events.md D5): the opt-in reward on any ingested monetization event
+    // (tip / membership / merch / charity). Off by default — a rule for this source enables it.
+    Supporter,
 }
 
 /// <summary>
@@ -57,6 +61,9 @@ public enum CurrencyEntryType
     // Media share (media-share.md D7): the entry-cost debit and its reject/skip refund.
     SpendMedia,
     RefundMedia,
+
+    // Supporter events (supporter-events.md D5): the opt-in reward credit for a monetization event.
+    EarnSupporter,
 }
 
 /// <summary>

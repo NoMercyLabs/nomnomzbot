@@ -231,6 +231,7 @@ public sealed class CurrencyEarningService(
             EarningSource.GiftSubscription => CurrencyEntryType.EarnGiftSubscription,
             EarningSource.Cheer => CurrencyEntryType.EarnCheer,
             EarningSource.Raid => CurrencyEntryType.EarnRaid,
+            EarningSource.Supporter => CurrencyEntryType.EarnSupporter,
             _ => CurrencyEntryType.EarnChat,
         };
 }
