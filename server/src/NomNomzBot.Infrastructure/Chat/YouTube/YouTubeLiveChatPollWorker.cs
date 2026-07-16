@@ -37,6 +37,10 @@ namespace NomNomzBot.Infrastructure.Chat.YouTube;
 /// their YouTube channel id, and the FIRST page (which returns recent history, not new messages) only
 /// bootstraps the paging cursor — everything after it flows live. A worker restart mid-stream re-reads
 /// that history page the same way, so the feed never floods with duplicates.
+///
+/// The worker is also YouTube's live tracker: every live/offline transition stamps the tenant
+/// <c>Channel.IsLive</c> row the dashboard's <c>platformsLive</c> aggregates, and the first
+/// confirmed-offline probe after a (re)start sweeps a stale flag a mid-stream crash left behind.
 /// </summary>
 public sealed class YouTubeLiveChatPollWorker : BackgroundService
 {
@@ -112,7 +116,12 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         foreach (Guid gone in _states.Keys.Where(id => !connected.Contains(id)).ToList())
         {
             if (_states.Remove(gone, out PollState? removed) && removed.LiveChatId is not null)
+            {
                 _sessions.SetOffline(removed.TenantId);
+                // A disconnect ends our tracking — a tenant we can no longer observe must not keep
+                // claiming to be live on the dashboard.
+                await SetTenantLiveAsync(db, removed.TenantId, live: false, ct);
+            }
         }
 
         DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
@@ -158,7 +167,7 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         if (accessToken is null)
         {
             // No usable token (vault miss / failed refresh) — the integration status flow owns re-auth.
-            GoOffline(state, now + MissingScopeBackoff);
+            await GoOfflineAsync(services, state, now + MissingScopeBackoff, ct);
             return;
         }
 
@@ -200,6 +209,31 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
 
         if (active.Value is null)
         {
+            // First confirmed-offline probe after a (re)start: a tenant row left IsLive=true by a crash
+            // mid-stream would otherwise claim live forever — resolve the own-channel id ONCE and clear it.
+            if (!state.StaleLiveChecked)
+            {
+                Result<YouTubeOwnChannel> identity = await _client.GetOwnChannelAsync(
+                    accessToken,
+                    ct
+                );
+                if (identity.IsSuccess)
+                {
+                    state.StaleLiveChecked = true;
+                    IApplicationDbContext sweepDb =
+                        services.GetRequiredService<IApplicationDbContext>();
+                    Guid staleTenantId = await sweepDb
+                        .Channels.Where(c =>
+                            c.Provider == AuthEnums.Platform.YouTube
+                            && c.ExternalChannelId == identity.Value.ChannelId
+                        )
+                        .Select(c => c.Id)
+                        .FirstOrDefaultAsync(ct);
+                    if (staleTenantId != Guid.Empty)
+                        await SetTenantLiveAsync(sweepDb, staleTenantId, live: false, ct);
+                }
+            }
+
             state.NextDueUtc = now + LivenessInterval;
             return;
         }
@@ -232,9 +266,12 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         );
 
         state.GoLive(active.Value.LiveChatId, tenantId, own.Value.ChannelId);
+        state.StaleLiveChecked = true; // live now — the crash-recovery sweep is moot for this state.
         state.NextDueUtc = now; // read the bootstrap page on the next due pass, immediately.
         // The send path (YouTubeChatPlatform) can now write into this chat on the primary channel's token.
         _sessions.SetLive(tenantId, broadcasterId, active.Value.LiveChatId);
+        // The dashboard's platformsLive reads the tenant row — stamp it live alongside the session.
+        await SetTenantLiveAsync(db, tenantId, live: true, ct);
 
         _logger.LogInformation(
             "YouTube live chat opened for {BroadcasterId} (tenant {TenantId}, chat {LiveChatId})",
@@ -268,18 +305,20 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
                     "YouTube live chat closed for tenant {TenantId}",
                     state.TenantId
                 );
-                GoOffline(state, now + LivenessInterval);
+                await GoOfflineAsync(services, state, now + LivenessInterval, ct);
                 return;
             }
 
-            GoOffline(
+            await GoOfflineAsync(
+                services,
                 state,
                 now
                     + (
                         page.ErrorCode == "MISSING_SCOPE"
                             ? MissingScopeBackoff
                             : TransientFailureBackoff
-                    )
+                    ),
+                ct
             );
             return;
         }
@@ -351,12 +390,40 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         }
     }
 
-    /// <summary>Drops the poll state offline AND clears the send path's session in the same stroke.</summary>
-    private void GoOffline(PollState state, DateTime nextDueUtc)
+    /// <summary>
+    /// Drops the poll state offline AND clears the send path's session AND un-stamps the tenant row's
+    /// <c>IsLive</c> in the same stroke — the dashboard must never keep showing a platform we stopped
+    /// tracking (chat ended, token lost) as live.
+    /// </summary>
+    private async Task GoOfflineAsync(
+        IServiceProvider services,
+        PollState state,
+        DateTime nextDueUtc,
+        CancellationToken ct
+    )
     {
         if (state.LiveChatId is not null)
+        {
             _sessions.SetOffline(state.TenantId);
+            IApplicationDbContext db = services.GetRequiredService<IApplicationDbContext>();
+            await SetTenantLiveAsync(db, state.TenantId, live: false, ct);
+        }
         state.GoOffline(nextDueUtc);
+    }
+
+    /// <summary>Persists the platform tenant's live flag (no-op when already at the target state).</summary>
+    private static async Task SetTenantLiveAsync(
+        IApplicationDbContext db,
+        Guid tenantId,
+        bool live,
+        CancellationToken ct
+    )
+    {
+        Channel? tenant = await db.Channels.FirstOrDefaultAsync(c => c.Id == tenantId, ct);
+        if (tenant is null || tenant.IsLive == live)
+            return;
+        tenant.IsLive = live;
+        await db.SaveChangesAsync(ct);
     }
 
     private static TimeSpan Max(TimeSpan a, TimeSpan b) => a >= b ? a : b;
@@ -369,6 +436,10 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         public Guid TenantId { get; private set; }
         public string? ExternalChannelId { get; private set; }
         public string? PageToken { get; set; }
+
+        /// <summary>Crash-recovery guard: true once a stale IsLive tenant row has been swept (or the
+        /// channel went live, which supersedes the sweep).</summary>
+        public bool StaleLiveChecked { get; set; }
 
         public void GoLive(string liveChatId, Guid tenantId, string externalChannelId)
         {

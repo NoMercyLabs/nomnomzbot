@@ -30,6 +30,8 @@ namespace NomNomzBot.Infrastructure.Chat.Kick;
 /// <c>ChatMessages</c>, and publishes the canonical <see cref="ChatMessageReceivedEvent"/>. Role flags
 /// map from Kick's badge types; message text passes through as one raw fragment (Kick's emote
 /// placeholders stay inline — the same plain-text posture as the YouTube ingest).
+/// <c>livestream.status.updated</c> is Kick's live tracker: it stamps the tenant's
+/// <c>Channel.IsLive</c> (+ title) that the dashboard's <c>platformsLive</c> aggregates.
 /// </summary>
 public sealed class KickWebhookIngest : IKickWebhookIngest
 {
@@ -141,6 +143,60 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
         );
     }
 
+    public async Task HandleLivestreamStatusAsync(
+        string rawBody,
+        CancellationToken cancellationToken = default
+    )
+    {
+        LivestreamStatusPayload? payload;
+        try
+        {
+            payload = JsonSerializer.Deserialize<LivestreamStatusPayload>(rawBody);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Unparseable Kick livestream.status.updated payload — skipping");
+            return;
+        }
+
+        if (
+            payload?.Broadcaster?.UserId is not { } broadcasterKickId
+            || payload.IsLive is not { } isLive
+        )
+        {
+            _logger.LogWarning(
+                "Kick livestream.status.updated payload missing identity or live flag — skipping"
+            );
+            return;
+        }
+
+        string externalChannelId = broadcasterKickId.ToString(CultureInfo.InvariantCulture);
+        Domain.Identity.Entities.Channel? tenant = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Provider == AuthEnums.Platform.Kick && c.ExternalChannelId == externalChannelId,
+            cancellationToken
+        );
+        if (tenant is null)
+        {
+            _logger.LogDebug(
+                "Kick livestream status for unknown broadcaster {KickId} — skipping",
+                broadcasterKickId
+            );
+            return;
+        }
+
+        // Idempotent under Kick's redeliveries: stamping the same state twice is a no-op write.
+        tenant.IsLive = isLive;
+        if (!string.IsNullOrWhiteSpace(payload.Title))
+            tenant.Title = payload.Title;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Kick tenant {TenantId} is now {State}",
+            tenant.Id,
+            isLive ? "LIVE" : "OFFLINE"
+        );
+    }
+
     // ─── Wire model (chat.message.sent v1, verified against live docs 2026-07-11) ───
 
     private sealed class ChatMessagePayload
@@ -186,5 +242,19 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
     {
         [JsonPropertyName("type")]
         public string? Type { get; set; }
+    }
+
+    // ─── Wire model (livestream.status.updated v1, verified against live docs 2026-07-16) ───
+
+    private sealed class LivestreamStatusPayload
+    {
+        [JsonPropertyName("broadcaster")]
+        public KickUserRef? Broadcaster { get; set; }
+
+        [JsonPropertyName("is_live")]
+        public bool? IsLive { get; set; }
+
+        [JsonPropertyName("title")]
+        public string? Title { get; set; }
     }
 }

@@ -52915,6 +52915,13 @@
             ],
             "description": "The single currency behind long? DashboardStatsDto.SupporterAmountMinorToday, else null."
           },
+          "platformsLive": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Platforms the channel owner is live on right now, as tracked by the bot (\"twitch\" / \"youtube\" /\r\n\"kick\") — aggregated across the owner's platform presence channels, sorted alphabetically."
+          },
           "commandsUsed": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [

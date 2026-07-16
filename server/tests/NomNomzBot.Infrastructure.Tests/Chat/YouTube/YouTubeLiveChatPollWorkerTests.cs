@@ -87,6 +87,9 @@ public sealed class YouTubeLiveChatPollWorkerTests
         tenant.OwnerUserId.Should().Be(Owner);
         tenant.ExternalChannelId.Should().Be("UCstreamer");
         tenant.TwitchChannelId.Should().BeNull();
+        tenant
+            .IsLive.Should()
+            .BeTrue("going live stamps the row the dashboard's platformsLive reads");
 
         // Going live also opens the SEND path: the session registry carries the active chat + the
         // primary channel whose token authorizes writes (slice-3 YouTubeChatPlatform reads this).
@@ -205,6 +208,77 @@ public sealed class YouTubeLiveChatPollWorkerTests
         Channel tenant = await db
             .Channels.IgnoreQueryFilters()
             .SingleAsync(c => c.Provider == AuthEnums.Platform.YouTube);
+        sessions.Get(tenant.Id).Should().BeNull();
+        tenant
+            .IsLive.Should()
+            .BeFalse("the ended chat must clear the live flag platformsLive reads");
+    }
+
+    [Fact]
+    public async Task A_stale_live_flag_from_a_crash_is_swept_on_the_first_confirmed_offline_probe()
+    {
+        (
+            YouTubeLiveChatPollWorker worker,
+            ScriptedLiveChatClient client,
+            _,
+            AuthDbContext db,
+            _,
+            _
+        ) = await BuildConnectedAsync();
+
+        // The crash artifact: a tenant row left IsLive=true by a mid-stream shutdown.
+        db.Channels.Add(
+            new Channel
+            {
+                Id = Guid.Parse("0199b000-0000-7000-8000-0000000000c1"),
+                OwnerUserId = Owner,
+                Provider = AuthEnums.Platform.YouTube,
+                ExternalChannelId = "UCstreamer",
+                Name = "Streamer YT",
+                NameNormalized = "streamer yt",
+                IsOnboarded = true,
+                DeploymentMode = AuthEnums.DeploymentMode.Saas,
+                BillingTierKey = "free",
+                IsLive = true,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        client.LivenessResults.Enqueue(Result.Success<YouTubeActiveChat?>(null));
+
+        await worker.TickAsync(CancellationToken.None); // confirmed offline → sweep
+
+        Channel tenant = await db
+            .Channels.IgnoreQueryFilters()
+            .SingleAsync(c => c.Provider == AuthEnums.Platform.YouTube);
+        tenant.IsLive.Should().BeFalse("a channel we observe as offline must not claim to be live");
+    }
+
+    [Fact]
+    public async Task A_disconnect_mid_stream_clears_the_live_flag_we_can_no_longer_track()
+    {
+        (
+            YouTubeLiveChatPollWorker worker,
+            ScriptedLiveChatClient client,
+            _,
+            AuthDbContext db,
+            _,
+            YouTubeLiveChatSessionRegistry sessions
+        ) = await BuildConnectedAsync();
+
+        client.LivenessResults.Enqueue(
+            Result.Success<YouTubeActiveChat?>(new YouTubeActiveChat("b1", "chat-1", "Live!"))
+        );
+        await worker.TickAsync(CancellationToken.None); // → live, IsLive stamped
+
+        db.Services.Remove(db.Services.Single());
+        await db.SaveChangesAsync();
+        await worker.TickAsync(CancellationToken.None); // connection gone → drop + un-stamp
+
+        Channel tenant = await db
+            .Channels.IgnoreQueryFilters()
+            .SingleAsync(c => c.Provider == AuthEnums.Platform.YouTube);
+        tenant.IsLive.Should().BeFalse("a tenant we stopped tracking must not keep claiming live");
         sessions.Get(tenant.Id).Should().BeNull();
     }
 

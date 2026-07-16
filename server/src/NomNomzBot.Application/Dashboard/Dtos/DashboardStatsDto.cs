@@ -59,6 +59,13 @@ public sealed record DashboardStatsDto
     [JsonPropertyName("supporterCurrency")]
     public string? SupporterCurrency { get; init; }
 
+    /// <summary>
+    /// Platforms the channel owner is live on right now, as tracked by the bot ("twitch" / "youtube" /
+    /// "kick") — aggregated across the owner's platform presence channels, sorted alphabetically.
+    /// </summary>
+    [JsonPropertyName("platformsLive")]
+    public IReadOnlyList<string> PlatformsLive { get; init; } = [];
+
     /// <summary>Commands successfully executed this session.</summary>
     [JsonPropertyName("commandsUsed")]
     public long CommandsUsed { get; init; }

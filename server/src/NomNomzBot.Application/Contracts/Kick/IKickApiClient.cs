@@ -88,14 +88,15 @@ public interface IKickApiClient
     );
 
     /// <summary>
-    /// Subscribes the token owner's channel to <c>chat.message.sent</c> v1 over the webhook transport
+    /// Subscribes the token owner's channel to the given events over the webhook transport
     /// (<c>POST /public/v1/events/subscriptions</c>; a USER token subscribes its own channel —
     /// <c>broadcaster_user_id</c> is ignored). The webhook callback URL itself is configured PER APP in
     /// the Kick developer dashboard, not per subscription. A per-event <c>error</c> in the response is
     /// surfaced as a failure.
     /// </summary>
-    Task<Result> SubscribeToChatAsync(
+    Task<Result> SubscribeAsync(
         string accessToken,
+        IReadOnlyList<KickEventRequest> events,
         CancellationToken cancellationToken = default
     );
 }
@@ -108,3 +109,6 @@ public sealed record KickEventSubscription(
     string Method,
     long BroadcasterUserId
 );
+
+/// <summary>One event to subscribe (the POST create item shape).</summary>
+public sealed record KickEventRequest(string Name, int Version);

@@ -11,13 +11,17 @@
 namespace NomNomzBot.Application.Contracts.Kick;
 
 /// <summary>
-/// Turns a VERIFIED <c>chat.message.sent</c> webhook body into the canonical
-/// <c>ChatMessageReceivedEvent</c> (<c>Provider = kick</c>) — the same one substrate Twitch and YouTube
-/// chat ride, so persistence, the dashboard push, commands, and the analytics projections all fire with
-/// zero Kick-specific consumers. The caller (webhook controller) owns signature + freshness checks;
-/// this owns tenant resolution, redelivery dedupe, and the payload translation.
+/// Turns VERIFIED Kick webhook bodies into their canonical effects. <c>chat.message.sent</c> becomes the
+/// canonical <c>ChatMessageReceivedEvent</c> (<c>Provider = kick</c>) — the same one substrate Twitch and
+/// YouTube chat ride, so persistence, the dashboard push, commands, and the analytics projections all fire
+/// with zero Kick-specific consumers. <c>livestream.status.updated</c> is Kick's live tracker: it stamps
+/// the Kick tenant's <c>Channel.IsLive</c> (+ title) that the dashboard's <c>platformsLive</c> aggregates.
+/// The caller (webhook controller) owns signature + freshness checks; this owns tenant resolution,
+/// redelivery dedupe, and the payload translation.
 /// </summary>
 public interface IKickWebhookIngest
 {
     Task HandleChatMessageAsync(string rawBody, CancellationToken cancellationToken = default);
+
+    Task HandleLivestreamStatusAsync(string rawBody, CancellationToken cancellationToken = default);
 }

@@ -91,7 +91,11 @@ public sealed class KickEventSubscriptionWorkerTests
                 listOutcome ?? Result.Success<IReadOnlyList<KickEventSubscription>>(existing ?? [])
             );
         client
-            .SubscribeToChatAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .SubscribeAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<KickEventRequest>>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(subscribeOutcome ?? Result.Success());
 
         ServiceProvider provider = new ServiceCollection()
@@ -148,9 +152,18 @@ public sealed class KickEventSubscriptionWorkerTests
                 "StreamerGal",
                 Arg.Any<CancellationToken>()
             );
+        // A fresh channel gets the FULL wanted set in one create: the chat READ leg + the live tracker.
         await client
             .Received(1)
-            .SubscribeToChatAsync("kick-bearer-1", Arg.Any<CancellationToken>());
+            .SubscribeAsync(
+                "kick-bearer-1",
+                Arg.Is<IReadOnlyList<KickEventRequest>>(events =>
+                    events.Count == 2
+                    && events.Any(e => e.Name == "chat.message.sent" && e.Version == 1)
+                    && events.Any(e => e.Name == "livestream.status.updated" && e.Version == 1)
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -173,12 +186,33 @@ public sealed class KickEventSubscriptionWorkerTests
             .GetOrCreateAsync(default, default!, default!, default!, Arg.Any<CancellationToken>());
         await client
             .DidNotReceiveWithAnyArgs()
-            .SubscribeToChatAsync(default!, Arg.Any<CancellationToken>());
+            .SubscribeAsync(default!, default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task An_existing_subscription_is_adopted_without_a_duplicate_create()
+    public async Task A_fully_subscribed_channel_is_adopted_without_a_duplicate_create()
     {
+        (KickEventSubscriptionWorker worker, AuthDbContext db, _, IKickApiClient client) = Build(
+            existing:
+            [
+                new KickEventSubscription("s1", "chat.message.sent", 1, "webhook", 12345),
+                new KickEventSubscription("s2", "livestream.status.updated", 1, "webhook", 12345),
+            ]
+        );
+        SeedConnection(db, PrimaryChannel);
+
+        await worker.TickAsync(CancellationToken.None);
+
+        await client
+            .DidNotReceiveWithAnyArgs()
+            .SubscribeAsync(default!, default!, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_partially_subscribed_channel_gets_only_the_missing_events()
+    {
+        // A channel subscribed before the live tracker shipped self-heals: only the missing
+        // livestream.status.updated is created — the existing chat leg is never duplicated.
         (KickEventSubscriptionWorker worker, AuthDbContext db, _, IKickApiClient client) = Build(
             existing: [new KickEventSubscription("s1", "chat.message.sent", 1, "webhook", 12345)]
         );
@@ -187,8 +221,14 @@ public sealed class KickEventSubscriptionWorkerTests
         await worker.TickAsync(CancellationToken.None);
 
         await client
-            .DidNotReceiveWithAnyArgs()
-            .SubscribeToChatAsync(default!, Arg.Any<CancellationToken>());
+            .Received(1)
+            .SubscribeAsync(
+                "kick-bearer-1",
+                Arg.Is<IReadOnlyList<KickEventRequest>>(events =>
+                    events.Count == 1 && events[0].Name == "livestream.status.updated"
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]

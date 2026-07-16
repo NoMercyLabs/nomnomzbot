@@ -186,17 +186,21 @@ public sealed class KickApiClient : IKickApiClient
         return Result.Success(subscriptions);
     }
 
-    public async Task<Result> SubscribeToChatAsync(
+    public async Task<Result> SubscribeAsync(
         string accessToken,
+        IReadOnlyList<KickEventRequest> events,
         CancellationToken cancellationToken = default
     )
     {
+        if (events.Count == 0)
+            return Result.Success();
+
         HttpRequestMessage request = new(HttpMethod.Post, $"{KickApiBase}/events/subscriptions");
         request.Headers.Authorization = new("Bearer", accessToken);
         request.Content = JsonContent.Create(
             new
             {
-                events = new[] { new { name = "chat.message.sent", version = 1 } },
+                events = events.Select(e => new { name = e.Name, version = e.Version }).ToArray(),
                 method = "webhook",
             }
         );
@@ -204,7 +208,7 @@ public sealed class KickApiClient : IKickApiClient
         Result<EventSubscriptionCreateResponse> created =
             await SendForBodyAsync<EventSubscriptionCreateResponse>(
                 request,
-                "subscribe to chat.message.sent",
+                $"subscribe to {string.Join(", ", events.Select(e => e.Name))}",
                 cancellationToken
             );
         if (created.IsFailure)

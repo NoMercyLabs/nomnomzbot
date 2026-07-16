@@ -26,7 +26,7 @@ namespace NomNomzBot.Infrastructure.Chat.Kick;
 /// <c>kick</c> integration connection — the deliberate opt-in signal; identity-plane login connections
 /// are NOT enough), it provisions their Kick presence as its own tenant <c>Channel</c> row
 /// (<see cref="IPlatformChannelProvisioner"/>, the stable Guid the webhook ingest resolves) and ensures
-/// the <c>chat.message.sent</c> webhook subscription exists on their token. Declarative + idempotent per
+/// the wanted webhook subscriptions (<c>chat.message.sent</c> + <c>livestream.status.updated</c>) exist on their token. Declarative + idempotent per
 /// 5-minute tick, mirroring <c>BotLifecycleService</c>; a missing <c>events:subscribe</c> scope backs the
 /// connection off for 30 minutes (self-heals on re-grant — same posture as EventSub's scope gate) instead
 /// of hammering guaranteed 403s.
@@ -35,6 +35,14 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan MissingScopeBackoff = TimeSpan.FromMinutes(30);
+
+    /// <summary>The webhook events every connected Kick channel must carry: the chat READ leg and the
+    /// live tracker behind the dashboard's <c>platformsLive</c>.</summary>
+    private static readonly KickEventRequest[] WantedEvents =
+    [
+        new("chat.message.sent", 1),
+        new("livestream.status.updated", 1),
+    ];
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IKickApiClient _client;
@@ -170,13 +178,16 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
             return;
         }
 
-        bool subscribed = listed.Value.Any(s =>
-            s.Event == "chat.message.sent" && s.Method == "webhook"
-        );
-        if (subscribed)
+        List<KickEventRequest> missing =
+        [
+            .. WantedEvents.Where(wanted =>
+                !listed.Value.Any(s => s.Event == wanted.Name && s.Method == "webhook")
+            ),
+        ];
+        if (missing.Count == 0)
             return;
 
-        Result created = await _client.SubscribeToChatAsync(access.AccessToken, ct);
+        Result created = await _client.SubscribeAsync(access.AccessToken, missing, ct);
         if (created.IsFailure)
         {
             HandleFailure(kickTenantId, created.ErrorCode, created.ErrorMessage, now);
@@ -184,7 +195,8 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
         }
 
         _logger.LogInformation(
-            "Kick chat.message.sent webhook subscribed for tenant {KickTenantId} (account {KickAccountId})",
+            "Kick webhook events {Events} subscribed for tenant {KickTenantId} (account {KickAccountId})",
+            string.Join(", ", missing.Select(e => e.Name)),
             kickTenantId,
             kickAccountId
         );

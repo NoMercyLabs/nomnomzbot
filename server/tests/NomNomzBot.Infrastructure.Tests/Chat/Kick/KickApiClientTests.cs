@@ -173,24 +173,40 @@ public sealed class KickApiClientTests
     }
 
     [Fact]
-    public async Task Subscribe_posts_the_chat_event_over_the_webhook_transport()
+    public async Task Subscribe_posts_every_requested_event_over_the_webhook_transport()
     {
         StubHttpMessageHandler handler = new(
             (
                 HttpStatusCode.OK,
-                """{"data":[{"name":"chat.message.sent","version":1,"subscription_id":"s1","error":""}]}"""
+                """{"data":[{"name":"chat.message.sent","version":1,"subscription_id":"s1","error":""},{"name":"livestream.status.updated","version":1,"subscription_id":"s2","error":""}]}"""
             )
         );
         KickApiClient sut = Build(handler);
 
-        Result result = await sut.SubscribeToChatAsync(Token);
+        Result result = await sut.SubscribeAsync(
+            Token,
+            [new KickEventRequest("chat.message.sent", 1), new("livestream.status.updated", 1)]
+        );
 
         result.IsSuccess.Should().BeTrue();
         string body = await handler.LastRequest!.Content!.ReadAsStringAsync();
         body.Should()
             .Contain("chat.message.sent")
+            .And.Contain("livestream.status.updated")
             .And.Contain("\"version\":1")
             .And.Contain("webhook");
+    }
+
+    [Fact]
+    public async Task Subscribe_with_no_events_never_hits_the_api()
+    {
+        StubHttpMessageHandler handler = new();
+        KickApiClient sut = Build(handler);
+
+        Result result = await sut.SubscribeAsync(Token, []);
+
+        result.IsSuccess.Should().BeTrue();
+        handler.LastRequest.Should().BeNull();
     }
 
     [Fact]
@@ -206,7 +222,10 @@ public sealed class KickApiClientTests
         );
         KickApiClient sut = Build(handler);
 
-        Result result = await sut.SubscribeToChatAsync(Token);
+        Result result = await sut.SubscribeAsync(
+            Token,
+            [new KickEventRequest("chat.message.sent", 1)]
+        );
 
         result.IsFailure.Should().BeTrue();
         result.ErrorMessage.Should().Contain("subscription limit reached");

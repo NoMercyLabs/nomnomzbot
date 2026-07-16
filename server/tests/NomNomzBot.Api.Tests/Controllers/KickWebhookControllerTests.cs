@@ -130,6 +130,21 @@ public sealed class KickWebhookControllerTests
     }
 
     [Fact]
+    public async Task A_verified_livestream_status_dispatches_to_the_live_tracker()
+    {
+        (KickWebhookController controller, _, IKickWebhookIngest ingest) = Build();
+        SetDelivery(controller, "livestream.status.updated");
+
+        IActionResult result = await controller.Receive(CancellationToken.None);
+
+        result.Should().BeOfType<OkResult>();
+        await ingest.Received(1).HandleLivestreamStatusAsync(Body, Arg.Any<CancellationToken>());
+        await ingest
+            .DidNotReceiveWithAnyArgs()
+            .HandleChatMessageAsync(default!, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task An_unhandled_event_type_acknowledges_200_without_dispatch()
     {
         (KickWebhookController controller, _, IKickWebhookIngest ingest) = Build();
@@ -141,5 +156,8 @@ public sealed class KickWebhookControllerTests
         await ingest
             .DidNotReceiveWithAnyArgs()
             .HandleChatMessageAsync(default!, Arg.Any<CancellationToken>());
+        await ingest
+            .DidNotReceiveWithAnyArgs()
+            .HandleLivestreamStatusAsync(default!, Arg.Any<CancellationToken>());
     }
 }

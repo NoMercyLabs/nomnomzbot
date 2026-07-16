@@ -26,7 +26,9 @@ namespace NomNomzBot.Infrastructure.Tests.Chat.Kick;
 /// kick-provider tenant and publishes the canonical <see cref="ChatMessageReceivedEvent"/> with the
 /// exact identity, role flags (from Kick badge types), and provider key the one-substrate consumers
 /// expect; an unknown broadcaster is skipped; a redelivered message id (already persisted) publishes
-/// nothing; a malformed body is swallowed, never thrown into the webhook path.
+/// nothing; a malformed body is swallowed, never thrown into the webhook path. Also proves the
+/// <c>livestream.status.updated</c> live tracker: go-live/end stamps the tenant's <c>IsLive</c> (+ title)
+/// that the dashboard's <c>platformsLive</c> aggregates.
 /// </summary>
 public sealed class KickWebhookIngestTests
 {
@@ -169,5 +171,66 @@ public sealed class KickWebhookIngestTests
 
         await bus.DidNotReceiveWithAnyArgs()
             .PublishAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    // ─── livestream.status.updated — Kick's live tracker behind platformsLive ───
+
+    private const string LiveBody = """
+        {
+          "broadcaster": { "user_id": 12345, "username": "StreamerGal", "channel_slug": "streamergal" },
+          "is_live": true,
+          "title": "Bird up!",
+          "started_at": "2026-07-16T09:00:00Z",
+          "ended_at": null
+        }
+        """;
+
+    [Fact]
+    public async Task A_livestream_going_live_stamps_the_tenant_live_with_its_title()
+    {
+        (KickWebhookIngest ingest, AuthDbContext db, _) = Build();
+
+        await ingest.HandleLivestreamStatusAsync(LiveBody);
+
+        Channel tenant = db.Channels.Single(c => c.Id == Tenant);
+        tenant.IsLive.Should().BeTrue();
+        tenant.Title.Should().Be("Bird up!");
+    }
+
+    [Fact]
+    public async Task A_livestream_ending_clears_the_tenant_live_flag()
+    {
+        (KickWebhookIngest ingest, AuthDbContext db, _) = Build();
+        db.Channels.Single(c => c.Id == Tenant).IsLive = true;
+        db.SaveChanges();
+        string body = LiveBody
+            .Replace("\"is_live\": true", "\"is_live\": false")
+            .Replace("\"ended_at\": null", "\"ended_at\": \"2026-07-16T11:00:00Z\"");
+
+        await ingest.HandleLivestreamStatusAsync(body);
+
+        db.Channels.Single(c => c.Id == Tenant).IsLive.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task A_livestream_status_for_an_unknown_broadcaster_is_skipped()
+    {
+        (KickWebhookIngest ingest, AuthDbContext db, _) = Build();
+        string body = LiveBody.Replace("12345", "99999");
+
+        await ingest.HandleLivestreamStatusAsync(body);
+
+        db.Channels.Single(c => c.Id == Tenant).IsLive.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task A_malformed_livestream_body_is_swallowed_not_thrown()
+    {
+        (KickWebhookIngest ingest, AuthDbContext db, _) = Build();
+
+        await ingest.HandleLivestreamStatusAsync("not json at all");
+        await ingest.HandleLivestreamStatusAsync("""{"title":"no identity"}""");
+
+        db.Channels.Single(c => c.Id == Tenant).IsLive.Should().BeFalse();
     }
 }

@@ -156,6 +156,8 @@ public class DashboardController : BaseController
             supporterToday
         );
 
+        List<string> platformsLive = await ResolvePlatformsLiveAsync(_db, tenantId, ct);
+
         ChannelContext? ctx = _registry.Get(tenantId);
 
         if (ctx is not null)
@@ -181,6 +183,7 @@ public class DashboardController : BaseController
                 SupporterEventsToday = supporterEventsToday,
                 SupporterAmountMinorToday = supporterAmountToday,
                 SupporterCurrency = supporterCurrency,
+                PlatformsLive = platformsLive,
                 CommandsUsed = ctx.CommandsUsed,
                 MessagesCount = ctx.MessageCount,
                 Uptime = uptime,
@@ -207,6 +210,7 @@ public class DashboardController : BaseController
             SupporterEventsToday = supporterEventsToday,
             SupporterAmountMinorToday = supporterAmountToday,
             SupporterCurrency = supporterCurrency,
+            PlatformsLive = platformsLive,
             CommandsUsed = 0,
             MessagesCount = 0,
             Uptime = null,
@@ -317,6 +321,33 @@ public class DashboardController : BaseController
 
         long total = events.Where(e => e.Amount is not null).Sum(e => e.Amount!.Value);
         return (total, currencies[0]);
+    }
+
+    /// <summary>
+    /// The platforms the channel's OWNER is live on right now, aggregated across every platform presence
+    /// channel they own (the primary Twitch row plus the provisioned YouTube/Kick tenant rows, whose
+    /// <c>IsLive</c> the respective live trackers stamp). Only the owner's own channels count — another
+    /// streamer's live state never leaks in. Sorted alphabetically for a stable wire order.
+    /// </summary>
+    internal static async Task<List<string>> ResolvePlatformsLiveAsync(
+        IApplicationDbContext db,
+        Guid tenantId,
+        CancellationToken ct
+    )
+    {
+        Guid ownerUserId = await db
+            .Channels.Where(c => c.Id == tenantId)
+            .Select(c => c.OwnerUserId)
+            .FirstOrDefaultAsync(ct);
+        if (ownerUserId == Guid.Empty)
+            return [];
+
+        return await db
+            .Channels.Where(c => c.OwnerUserId == ownerUserId && c.IsLive)
+            .Select(c => c.Provider)
+            .Distinct()
+            .OrderBy(p => p)
+            .ToListAsync(ct);
     }
 
     /// <summary>
