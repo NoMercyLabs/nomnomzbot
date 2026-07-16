@@ -67,10 +67,11 @@ commits; this is the collapsed record.
   WebSocket stream. *(Streamer.bot core.)*
 - [ ] **9. OBS control** (`obs-control.md`) — scenes/inputs, ~20 pipeline actions, `obs_event`.
 - [ ] **10. VTube Studio** (`vtube-studio.md`) — connect/authorize/bridge, model control, `vts_event`.
-- [~] **13. Supporter events** (`supporter-events.md`) — **Ko-fi tip webhook ingest SHIPPED** (the
-  generic-adapter substrate + first live ingress). *Remaining:* the other 9 adapters (streamelements/
-  streamlabs/patreon/fourthwall/tipeee/treatstream/donordrive/pally/shopify), socket/ws/poll ingress
-  hosted services, OAuth-vault providers, one-step endpoint provisioning on connect, opt-in economy reward.
+- [~] **13. Supporter events** (`supporter-events.md`) — **Ko-fi + Fourthwall tip webhook ingest SHIPPED**
+  (generic-adapter substrate + base64-HMAC inbound plane). *Remaining:* the other 8 adapters (streamelements/
+  streamlabs/patreon/tipeee/treatstream/donordrive/pally/shopify), Fourthwall's own merch(`ORDER_PLACED`)/
+  membership kinds (payloads unmodeled), socket/ws/poll ingress hosted services, OAuth-vault providers,
+  one-step endpoint provisioning on connect, opt-in economy reward.
 - [~] **15. Advanced moderation** (`moderation.md`) — the truthful-reads foundation + the full per-user
   panel (context/notes/warn/suspicious/ban), unban-request queue, network un-nuke, and **viewer reports**
   (first entity leg) all SHIPPED. *Remaining entity legs:* SuperMod platform `moderation:nuke` (tenant-

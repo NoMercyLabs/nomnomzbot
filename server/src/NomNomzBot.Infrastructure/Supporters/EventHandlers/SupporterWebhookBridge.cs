@@ -46,6 +46,7 @@ public sealed class SupporterWebhookBridge : IEventHandler<InboundWebhookReceive
         adapter switch
         {
             WebhookAdapterKind.Kofi => "kofi",
+            WebhookAdapterKind.Fourthwall => "fourthwall",
             _ => null,
         };
 

@@ -16,6 +16,7 @@ public enum WebhookAdapterKind
     Kofi,
     Github,
     Generic,
+    Fourthwall,
 }
 
 /// <summary>The lifecycle of one outbound delivery attempt.</summary>

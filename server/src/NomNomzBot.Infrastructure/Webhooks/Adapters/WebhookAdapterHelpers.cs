@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Globalization;
 using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -81,8 +82,19 @@ internal static class WebhookAdapterHelpers
                 break;
             default:
                 if (prefix.Length != 0)
-                    variables[prefix] = token.ToString();
+                    variables[prefix] = ScalarText(token);
                 break;
         }
     }
+
+    /// <summary>
+    /// Renders a scalar JSON value to its string form <b>culture-invariantly</b>. <see cref="JToken.ToString()"/>
+    /// formats numbers with the current culture (e.g. <c>2,5</c> under a comma-decimal locale), which then
+    /// mis-parses downstream; a serialization boundary must be locale-stable, so numbers/dates go through their
+    /// invariant <see cref="IFormattable"/> form while strings pass through unchanged.
+    /// </summary>
+    private static string ScalarText(JToken token) =>
+        token is JValue { Value: IFormattable formattable }
+            ? formattable.ToString(null, CultureInfo.InvariantCulture)
+            : token.ToString();
 }
