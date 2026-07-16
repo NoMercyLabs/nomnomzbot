@@ -8,10 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Supporters.Dtos;
 using NomNomzBot.Application.Supporters.Services;
@@ -39,7 +37,7 @@ public sealed class ShopifySupporterSource : ISupporterSource
         CancellationToken ct = default
     )
     {
-        Dictionary<string, string> fields = ReadFlatFields(rawPayload);
+        Dictionary<string, string> fields = SupporterAdapterHelpers.ReadFlatFields(rawPayload);
 
         string? total = fields.GetValueOrDefault("total_price");
         if (string.IsNullOrWhiteSpace(total))
@@ -50,7 +48,7 @@ public sealed class ShopifySupporterSource : ISupporterSource
                 )
             );
 
-        (long? amountMinor, string? currency) = ParseAmount(
+        (long? amountMinor, string? currency) = SupporterAdapterHelpers.ParseMajorAmount(
             total,
             fields.GetValueOrDefault("currency")
         );
@@ -60,7 +58,7 @@ public sealed class ShopifySupporterSource : ISupporterSource
             ?? fields.GetValueOrDefault("admin_graphql_api_id")
             ?? CompositeId(fields);
 
-        int itemCount = CountLineItems(fields);
+        int itemCount = SupporterAdapterHelpers.CountArrayItems(fields, "line_items.");
 
         SupporterEventDraft draft = new(
             Kind: "merch",
@@ -94,89 +92,6 @@ public sealed class ShopifySupporterSource : ISupporterSource
         return string.IsNullOrWhiteSpace(email)
             ? "Anonymous"
             : (email.Trim().Length > 100 ? email.Trim()[..100] : email.Trim());
-    }
-
-    /// <summary>Counts the distinct <c>line_items.N.*</c> array indices in the flattened bag.</summary>
-    private static int CountLineItems(Dictionary<string, string> fields)
-    {
-        HashSet<string> indices = new(StringComparer.Ordinal);
-        foreach (string key in fields.Keys)
-        {
-            if (!key.StartsWith("line_items.", StringComparison.OrdinalIgnoreCase))
-                continue;
-            string rest = key["line_items.".Length..];
-            int dot = rest.IndexOf('.');
-            indices.Add(dot < 0 ? rest : rest[..dot]);
-        }
-        return indices.Count;
-    }
-
-    /// <summary>
-    /// Reads the payload as a flat dotted-key bag. The journaled body is already a flat object; a nested body
-    /// (direct test feed) is flattened here so both shapes normalize to the same keys.
-    /// </summary>
-    private static Dictionary<string, string> ReadFlatFields(string rawPayload)
-    {
-        Dictionary<string, string> fields = new(StringComparer.OrdinalIgnoreCase);
-        try
-        {
-            Flatten(JToken.Parse(rawPayload), string.Empty, fields);
-        }
-        catch (Newtonsoft.Json.JsonException)
-        {
-            // Unparseable — an empty bag makes the caller fail loudly rather than persist junk.
-        }
-        return fields;
-    }
-
-    private static void Flatten(JToken token, string prefix, Dictionary<string, string> fields)
-    {
-        switch (token)
-        {
-            case JObject obj:
-                foreach (JProperty property in obj.Properties())
-                    Flatten(
-                        property.Value,
-                        prefix.Length == 0 ? property.Name : $"{prefix}.{property.Name}",
-                        fields
-                    );
-                break;
-            case JArray array:
-                for (int i = 0; i < array.Count; i++)
-                    Flatten(array[i], $"{prefix}.{i}", fields);
-                break;
-            default:
-                if (prefix.Length != 0)
-                    // Invariant scalar text: JToken.ToString() would render a JSON number with the current
-                    // culture (e.g. "2,5" under a comma-decimal locale), which then mis-parses as the amount.
-                    fields[prefix] = token is JValue { Value: IFormattable formattable }
-                        ? formattable.ToString(null, CultureInfo.InvariantCulture)
-                        : token.ToString();
-                break;
-        }
-    }
-
-    /// <summary>Shopify sends money as a major-unit string ("125.00"); we store minor units (cents).</summary>
-    private static (long?, string?) ParseAmount(string? amount, string? currency)
-    {
-        if (
-            string.IsNullOrWhiteSpace(amount)
-            || !decimal.TryParse(
-                amount,
-                NumberStyles.Number,
-                CultureInfo.InvariantCulture,
-                out decimal value
-            )
-        )
-            return (null, null);
-
-        long minor = (long)Math.Round(value * 100m, MidpointRounding.AwayFromZero);
-        string? code = string.IsNullOrWhiteSpace(currency)
-            ? null
-            : currency.Trim().ToUpperInvariant();
-        if (code is { Length: > 3 })
-            code = code[..3];
-        return (minor, code);
     }
 
     /// <summary>A stable dedup id when Shopify omits every id — a hash over the identifying fields.</summary>

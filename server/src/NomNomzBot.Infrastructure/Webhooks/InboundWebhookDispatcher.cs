@@ -263,6 +263,7 @@ public sealed class InboundWebhookDispatcher(
             WebhookAdapterKind.Fourthwall => "fourthwall",
             WebhookAdapterKind.Shopify => "shopify",
             WebhookAdapterKind.Patreon => "patreon",
+            WebhookAdapterKind.Buymeacoffee => "buymeacoffee",
             _ => "generic",
         };
 

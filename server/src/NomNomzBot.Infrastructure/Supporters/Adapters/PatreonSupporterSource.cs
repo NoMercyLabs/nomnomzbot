@@ -11,7 +11,6 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Supporters.Dtos;
 using NomNomzBot.Application.Supporters.Services;
@@ -41,7 +40,7 @@ public sealed class PatreonSupporterSource : ISupporterSource
         CancellationToken ct = default
     )
     {
-        Dictionary<string, string> fields = ReadFlatFields(rawPayload);
+        Dictionary<string, string> fields = SupporterAdapterHelpers.ReadFlatFields(rawPayload);
 
         // Only a new paid pledge is a supporter event; updates/cancellations carry the same body shape.
         string trigger = fields.GetValueOrDefault("patreon.event", string.Empty).ToLowerInvariant();
@@ -57,12 +56,14 @@ public sealed class PatreonSupporterSource : ISupporterSource
             fields.GetValueOrDefault("data.attributes.currently_entitled_amount_cents")
         );
 
-        string? currency = Normalize(fields.GetValueOrDefault("data.attributes.currency"));
+        string? currency = SupporterAdapterHelpers.NormalizeCurrency(
+            fields.GetValueOrDefault("data.attributes.currency")
+        );
         string? tier = ResolveTierTitle(fields);
 
         SupporterEventDraft draft = new(
             Kind: "membership",
-            SupporterDisplayName: Trimmed(
+            SupporterDisplayName: SupporterAdapterHelpers.Trimmed(
                 fields.GetValueOrDefault("data.attributes.full_name"),
                 "Anonymous",
                 100
@@ -96,7 +97,7 @@ public sealed class PatreonSupporterSource : ISupporterSource
             string index = field.Key["included.".Length..^".type".Length];
             string? title = fields.GetValueOrDefault($"included.{index}.attributes.title");
             if (!string.IsNullOrWhiteSpace(title))
-                return Trimmed(title, string.Empty, 50);
+                return SupporterAdapterHelpers.Trimmed(title, string.Empty, 50);
         }
         return null;
     }
@@ -106,55 +107,6 @@ public sealed class PatreonSupporterSource : ISupporterSource
         long.TryParse(cents, NumberStyles.Integer, CultureInfo.InvariantCulture, out long value)
             ? value
             : null;
-
-    private static string? Normalize(string? currency)
-    {
-        if (string.IsNullOrWhiteSpace(currency))
-            return null;
-        string code = currency.Trim().ToUpperInvariant();
-        return code.Length > 3 ? code[..3] : code;
-    }
-
-    private static Dictionary<string, string> ReadFlatFields(string rawPayload)
-    {
-        Dictionary<string, string> fields = new(StringComparer.OrdinalIgnoreCase);
-        try
-        {
-            Flatten(JToken.Parse(rawPayload), string.Empty, fields);
-        }
-        catch (Newtonsoft.Json.JsonException)
-        {
-            // Unparseable — an empty bag fails the event-gate below rather than persisting junk.
-        }
-        return fields;
-    }
-
-    private static void Flatten(JToken token, string prefix, Dictionary<string, string> fields)
-    {
-        switch (token)
-        {
-            case JObject obj:
-                foreach (JProperty property in obj.Properties())
-                    Flatten(
-                        property.Value,
-                        prefix.Length == 0 ? property.Name : $"{prefix}.{property.Name}",
-                        fields
-                    );
-                break;
-            case JArray array:
-                for (int i = 0; i < array.Count; i++)
-                    Flatten(array[i], $"{prefix}.{i}", fields);
-                break;
-            default:
-                if (prefix.Length != 0)
-                    // Invariant scalar text: JToken.ToString() would render a JSON number with the current
-                    // culture (e.g. "2,5" under a comma-decimal locale), which then mis-parses as the amount.
-                    fields[prefix] = token is JValue { Value: IFormattable formattable }
-                        ? formattable.ToString(null, CultureInfo.InvariantCulture)
-                        : token.ToString();
-                break;
-        }
-    }
 
     /// <summary>
     /// Patreon carries no per-event id, so dedupe on the member + its last charge: a redelivery of the same
@@ -170,13 +122,5 @@ public sealed class PatreonSupporterSource : ISupporterSource
         );
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(material));
         return "patreon-" + Convert.ToHexString(hash)[..32].ToLowerInvariant();
-    }
-
-    private static string Trimmed(string? value, string fallback, int max)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return fallback;
-        string trimmed = value.Trim();
-        return trimmed.Length > max ? trimmed[..max] : trimmed;
     }
 }

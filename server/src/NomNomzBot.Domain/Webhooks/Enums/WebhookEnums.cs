@@ -19,6 +19,7 @@ public enum WebhookAdapterKind
     Fourthwall,
     Shopify,
     Patreon,
+    Buymeacoffee,
 }
 
 /// <summary>The lifecycle of one outbound delivery attempt.</summary>

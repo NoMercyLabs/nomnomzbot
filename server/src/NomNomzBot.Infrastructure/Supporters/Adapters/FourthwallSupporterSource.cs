@@ -8,10 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Supporters.Dtos;
 using NomNomzBot.Application.Supporters.Services;
@@ -38,7 +36,7 @@ public sealed class FourthwallSupporterSource : ISupporterSource
         CancellationToken ct = default
     )
     {
-        Dictionary<string, string> fields = ReadFlatFields(rawPayload);
+        Dictionary<string, string> fields = SupporterAdapterHelpers.ReadFlatFields(rawPayload);
         if (fields.Count == 0)
             return Task.FromResult(
                 Result.Failure<SupporterEventDraft>(
@@ -56,7 +54,7 @@ public sealed class FourthwallSupporterSource : ISupporterSource
                 )
             );
 
-        (long? amountMinor, string? currency) = ParseAmount(
+        (long? amountMinor, string? currency) = SupporterAdapterHelpers.ParseMajorAmount(
             fields.GetValueOrDefault("data.amounts.total.value"),
             fields.GetValueOrDefault("data.amounts.total.currency")
         );
@@ -69,7 +67,7 @@ public sealed class FourthwallSupporterSource : ISupporterSource
 
         SupporterEventDraft draft = new(
             Kind: "tip",
-            SupporterDisplayName: Trimmed(
+            SupporterDisplayName: SupporterAdapterHelpers.Trimmed(
                 fields.GetValueOrDefault("data.username"),
                 "Anonymous",
                 100
@@ -89,74 +87,6 @@ public sealed class FourthwallSupporterSource : ISupporterSource
         return Task.FromResult(Result.Success(draft));
     }
 
-    /// <summary>
-    /// Reads the payload as a flat dotted-key bag. The journaled body is already a flat object; a nested body
-    /// (direct test feed) is flattened here so both shapes normalize to the same <c>data.*</c> keys.
-    /// </summary>
-    private static Dictionary<string, string> ReadFlatFields(string rawPayload)
-    {
-        Dictionary<string, string> fields = new(StringComparer.OrdinalIgnoreCase);
-        try
-        {
-            Flatten(JToken.Parse(rawPayload), string.Empty, fields);
-        }
-        catch (Newtonsoft.Json.JsonException)
-        {
-            // Unparseable — an empty bag makes the caller fail loudly rather than persist junk.
-        }
-        return fields;
-    }
-
-    private static void Flatten(JToken token, string prefix, Dictionary<string, string> fields)
-    {
-        switch (token)
-        {
-            case JObject obj:
-                foreach (JProperty property in obj.Properties())
-                    Flatten(
-                        property.Value,
-                        prefix.Length == 0 ? property.Name : $"{prefix}.{property.Name}",
-                        fields
-                    );
-                break;
-            case JArray array:
-                for (int i = 0; i < array.Count; i++)
-                    Flatten(array[i], $"{prefix}.{i}", fields);
-                break;
-            default:
-                if (prefix.Length != 0)
-                    // Invariant scalar text: JToken.ToString() would render a JSON number with the current
-                    // culture (e.g. "2,5" under a comma-decimal locale), which then mis-parses as the amount.
-                    fields[prefix] = token is JValue { Value: IFormattable formattable }
-                        ? formattable.ToString(null, CultureInfo.InvariantCulture)
-                        : token.ToString();
-                break;
-        }
-    }
-
-    /// <summary>Fourthwall sends the amount in the currency's major units (10 = $10.00); we store minor units.</summary>
-    private static (long?, string?) ParseAmount(string? amount, string? currency)
-    {
-        if (
-            string.IsNullOrWhiteSpace(amount)
-            || !decimal.TryParse(
-                amount,
-                NumberStyles.Number,
-                CultureInfo.InvariantCulture,
-                out decimal value
-            )
-        )
-            return (null, null);
-
-        long minor = (long)Math.Round(value * 100m, MidpointRounding.AwayFromZero);
-        string? code = string.IsNullOrWhiteSpace(currency)
-            ? null
-            : currency.Trim().ToUpperInvariant();
-        if (code is { Length: > 3 })
-            code = code[..3];
-        return (minor, code);
-    }
-
     /// <summary>A stable dedup id when Fourthwall omits every id — a hash over the identifying fields.</summary>
     private static string CompositeId(Dictionary<string, string> fields)
     {
@@ -169,13 +99,5 @@ public sealed class FourthwallSupporterSource : ISupporterSource
         );
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(material));
         return "fourthwall-" + Convert.ToHexString(hash)[..32].ToLowerInvariant();
-    }
-
-    private static string Trimmed(string? value, string fallback, int max)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return fallback;
-        string trimmed = value.Trim();
-        return trimmed.Length > max ? trimmed[..max] : trimmed;
     }
 }

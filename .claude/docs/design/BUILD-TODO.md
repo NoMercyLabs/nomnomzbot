@@ -135,7 +135,6 @@ commits; this is the collapsed record.
 - [ ] federation needs to be reworked and overhauled to be more user friendly and intuitive and usability.
 - [ ] the entire platform needs to be reworked and overhauled to be more user friendly and intuitive and usability.
 - [ ] data sources are not clear what they do and how they are used, they need to be reworked and overhauled to be more user friendly and intuitive and usability.
-- [ ] kofi is not the only supporters platform, we need to add more supporters platforms like patreon, buymeacoffee, etc.
 - [ ] after redirecting from auth providers, the user is not redirected back to the page they were on before the redirect, instead they are redirected to the home page.
 - [ ] AND THE FUCKING PERMISSIONS NEEDED BANNER STILL STAYS ON THE SCREEN EVEN AFTER THE USER GRANTS THE PERMISSIONS NEEDED.
 - [ ] youtube needs a non-byoc provider for auth.
