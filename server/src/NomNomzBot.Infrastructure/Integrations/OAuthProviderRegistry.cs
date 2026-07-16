@@ -33,6 +33,7 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
         AuthEnums.IntegrationProvider.Spotify,
         AuthEnums.IntegrationProvider.YouTube,
         AuthEnums.IntegrationProvider.Kick,
+        AuthEnums.IntegrationProvider.Patreon,
     ];
 
     public Result<OAuthProviderDescriptor> Resolve(string provider, Guid broadcasterId)
@@ -43,6 +44,7 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
             AuthEnums.IntegrationProvider.Spotify => Result.Success(Spotify()),
             AuthEnums.IntegrationProvider.YouTube => Result.Success(YouTube()),
             AuthEnums.IntegrationProvider.Kick => Result.Success(Kick()),
+            AuthEnums.IntegrationProvider.Patreon => Result.Success(Patreon()),
             _ => Result.Failure<OAuthProviderDescriptor>(
                 $"Unknown OAuth provider '{provider}'.",
                 "UNKNOWN_PROVIDER"
@@ -100,6 +102,34 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
                 ],
             },
             IsByok: ResolveIsByok("Kick")
+        );
+
+    private OAuthProviderDescriptor Patreon() =>
+        new(
+            Provider: AuthEnums.IntegrationProvider.Patreon,
+            AuthorizeEndpoint: "https://www.patreon.com/oauth2/authorize",
+            TokenEndpoint: "https://www.patreon.com/api/oauth2/token",
+            RevokeEndpoint: null, // Patreon documents no token-revocation endpoint.
+            AccountIdentityEndpoint: "https://www.patreon.com/api/oauth2/v2/identity",
+            UsesPkce: false, // confidential client (client secret); Patreon documents no PKCE support.
+            ScopeSets: new Dictionary<string, IReadOnlyList<string>>
+            {
+                // The supporter-events ingest core (supporter-events.md): who the creator is, their
+                // campaign, its members, and webhook management — w:campaigns.webhook lets the bot
+                // register the members/pledge webhooks itself instead of a manual portal trip.
+                ["patreon.supporters"] =
+                [
+                    "identity",
+                    "campaigns",
+                    "campaigns.members",
+                    "w:campaigns.webhook",
+                ],
+                // Member PII (emails/addresses) is its own opt-in set — never bundled into the core grant.
+                ["patreon.members_pii"] = ["campaigns.members[email]", "campaigns.members.address"],
+                ["patreon.posts"] = ["campaigns.posts"],
+                ["patreon.lives"] = ["campaigns.lives", "w:campaigns.lives"],
+            },
+            IsByok: ResolveIsByok("Patreon")
         );
 
     private OAuthProviderDescriptor YouTube() =>

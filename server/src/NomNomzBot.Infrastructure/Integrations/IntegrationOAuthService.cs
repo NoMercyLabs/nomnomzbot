@@ -390,9 +390,12 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             ["code"] = code,
             ["grant_type"] = "authorization_code",
             ["redirect_uri"] = redirectUri,
-            ["code_verifier"] = codeVerifier,
             ["client_secret"] = app.ClientSecret,
         };
+        // The verifier only rides a PKCE flow — a confidential-client provider (Patreon) that never saw a
+        // code_challenge at authorize must not get a stray code_verifier at exchange.
+        if (descriptor.UsesPkce)
+            form["code_verifier"] = codeVerifier;
 
         using FormUrlEncodedContent content = new(form);
         HttpResponseMessage response = await _http.PostAsync(
@@ -443,23 +446,46 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
 
             // Providers disagree on the identity envelope: Spotify/Google return a flat object
             // (id/sub + display_name/name); Kick wraps the caller in a data ARRAY with a numeric
-            // user_id. Probe both shapes generically instead of branching per provider.
+            // user_id; Patreon speaks JSON:API — a data OBJECT whose display fields live under
+            // "attributes". Probe the shapes generically instead of branching per provider.
             using JsonDocument doc = JsonDocument.Parse(
                 await response.Content.ReadAsStringAsync(cancellationToken)
             );
             JsonElement root = doc.RootElement;
-            JsonElement subject =
+            JsonElement subject = root;
+            if (
                 root.ValueKind == JsonValueKind.Object
                 && root.TryGetProperty("data", out JsonElement data)
-                && data.ValueKind == JsonValueKind.Array
-                && data.GetArrayLength() > 0
-                    ? data[0]
-                    : root;
+            )
+            {
+                if (data.ValueKind == JsonValueKind.Array && data.GetArrayLength() > 0)
+                    subject = data[0];
+                else if (data.ValueKind == JsonValueKind.Object)
+                    subject = data;
+            }
 
-            return (
-                ReadIdentityValue(subject, "id", "sub", "user_id"),
-                ReadIdentityValue(subject, "display_name", "name", "username")
+            string? accountName = ReadIdentityValue(
+                subject,
+                "display_name",
+                "name",
+                "username",
+                "full_name"
             );
+            // JSON:API nests display fields under "attributes" beside the top-level id.
+            if (
+                accountName is null
+                && subject.ValueKind == JsonValueKind.Object
+                && subject.TryGetProperty("attributes", out JsonElement attributes)
+            )
+                accountName = ReadIdentityValue(
+                    attributes,
+                    "display_name",
+                    "name",
+                    "username",
+                    "full_name"
+                );
+
+            return (ReadIdentityValue(subject, "id", "sub", "user_id"), accountName);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

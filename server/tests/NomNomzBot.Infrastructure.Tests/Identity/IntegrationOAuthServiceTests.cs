@@ -72,6 +72,85 @@ public sealed class IntegrationOAuthServiceTests
         registry.Resolve("myspace", Tenant).ErrorCode.Should().Be("UNKNOWN_PROVIDER");
     }
 
+    /// <summary>
+    /// Proves the Patreon descriptor (supporter-events.md OAuth-vault connect; endpoints verified against
+    /// docs.patreon.com): a confidential client (no PKCE), the JSON:API identity endpoint, webhook
+    /// management (<c>w:campaigns.webhook</c>) riding the supporters core set, and member PII split into
+    /// its own opt-in set — never bundled into the core grant.
+    /// </summary>
+    [Fact]
+    public void Registry_ResolvesPatreon_WithVerifiedEndpointsAndSplitPiiScopes()
+    {
+        OAuthProviderRegistry registry = new(EmptyConfig());
+
+        Result<OAuthProviderDescriptor> patreon = registry.Resolve(
+            AuthEnums.IntegrationProvider.Patreon,
+            Tenant
+        );
+
+        patreon.IsSuccess.Should().BeTrue();
+        patreon.Value.AuthorizeEndpoint.Should().Be("https://www.patreon.com/oauth2/authorize");
+        patreon.Value.TokenEndpoint.Should().Be("https://www.patreon.com/api/oauth2/token");
+        patreon
+            .Value.AccountIdentityEndpoint.Should()
+            .Be("https://www.patreon.com/api/oauth2/v2/identity");
+        patreon.Value.UsesPkce.Should().BeFalse("Patreon documents a confidential client, no PKCE");
+        patreon.Value.ScopeSets["patreon.supporters"].Should().Contain("w:campaigns.webhook");
+        patreon
+            .Value.ScopeSets["patreon.supporters"]
+            .Should()
+            .NotContain(
+                "campaigns.members[email]",
+                "member PII is an explicit opt-in set, never bundled"
+            );
+        patreon.Value.ScopeSets.Should().ContainKey("patreon.members_pii");
+    }
+
+    /// <summary>
+    /// Proves the identity probe reads Patreon's JSON:API envelope — the id on the <c>data</c> OBJECT (not
+    /// array) and the display name nested under <c>attributes</c> — so a Patreon connect stores a real
+    /// account identity instead of nulls.
+    /// </summary>
+    [Fact]
+    public async Task HandleCallback_ForPatreon_ReadsTheJsonApiIdentity()
+    {
+        StubHandler handler = new()
+        {
+            TokenJson =
+                """{"access_token":"patreon-access","refresh_token":"patreon-refresh","expires_in":3600,"scope":"identity campaigns campaigns.members w:campaigns.webhook"}""",
+            IdentityJson =
+                """{"data":{"id":"patreon-user-9","type":"user","attributes":{"full_name":"Pat Ron"}},"links":{"self":"https://www.patreon.com/api/oauth2/v2/user/9"}}""",
+        };
+        (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(handler);
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Patreon,
+            "patreon.supporters",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+        start.IsSuccess.Should().BeTrue();
+
+        Result<OAuthCallbackResultDto> callback = await service.HandleCallbackAsync(
+            AuthEnums.IntegrationProvider.Patreon,
+            new OAuthCallbackParams("the-auth-code", start.Value.State, null, null)
+        );
+
+        callback.IsSuccess.Should().BeTrue();
+        callback.Value.ProviderAccountName.Should().Be("Pat Ron");
+        IntegrationConnection connection = await db
+            .IntegrationConnections.AsNoTracking()
+            .SingleAsync();
+        connection.Provider.Should().Be(AuthEnums.IntegrationProvider.Patreon);
+        connection.ProviderAccountId.Should().Be("patreon-user-9");
+        connection.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
+        // A confidential client: the exchange carries the secret, never a PKCE verifier.
+        handler.LastTokenRequestBody.Should().Contain("client_secret=patreon-secret");
+        handler.LastTokenRequestBody.Should().NotContain("code_verifier=");
+    }
+
     // ─── StartConnect: descriptor drives the URL ───────────────────────────────
 
     [Fact]
@@ -374,6 +453,7 @@ public sealed class IntegrationOAuthServiceTests
                 AuthEnums.IntegrationProvider.Spotify,
                 AuthEnums.IntegrationProvider.YouTube,
                 AuthEnums.IntegrationProvider.Kick,
+                AuthEnums.IntegrationProvider.Patreon,
                 AuthEnums.IntegrationProvider.Discord,
             ]);
 
@@ -466,6 +546,8 @@ public sealed class IntegrationOAuthServiceTests
                     ["Spotify:ClientSecret"] = "spotify-secret",
                     ["YouTube:ClientId"] = "youtube-client",
                     ["YouTube:ClientSecret"] = "youtube-secret",
+                    ["Patreon:ClientId"] = "patreon-client",
+                    ["Patreon:ClientSecret"] = "patreon-secret",
                 }
             )
             .Build();

@@ -41,6 +41,8 @@ services:
       - Discord__ClientSecret=${DISCORD_CLIENT_SECRET:-}
       - YouTube__ClientId=${YOUTUBE_CLIENT_ID:-}
       - YouTube__ClientSecret=${YOUTUBE_CLIENT_SECRET:-}
+      - Patreon__ClientId=${PATREON_CLIENT_ID:-}
+      - Patreon__ClientSecret=${PATREON_CLIENT_SECRET:-}
       - Azure__Tts__ApiKey=${AZURE_TTS_API_KEY:-}
       - Azure__Tts__Region=${AZURE_TTS_REGION:-westeurope}
       - ElevenLabs__ApiKey=${ELEVENLABS_API_KEY:-}

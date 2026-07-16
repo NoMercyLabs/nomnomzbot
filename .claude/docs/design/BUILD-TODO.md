@@ -67,10 +67,11 @@ commits; this is the collapsed record.
   WebSocket stream. *(Streamer.bot core.)*
 - [ ] **9. OBS control** (`obs-control.md`) — scenes/inputs, ~20 pipeline actions, `obs_event`.
 - [ ] **10. VTube Studio** (`vtube-studio.md`) — connect/authorize/bridge, model control, `vts_event`.
-- [~] **13. Supporter events** (`supporter-events.md`) — *remaining:* TreatStream (rides the OAuth-vault
-  slice — its socket token comes from the vaulted OAuth connect); OAuth-vault connect for
-  Shopify/Patreon/TreatStream; Fourthwall's own merch(`ORDER_PLACED`)/membership kinds (payloads
-  unmodeled); one-step endpoint provisioning on connect.
+- [~] **13. Supporter events** (`supporter-events.md`) — *remaining:* Shopify OAuth (its authorize URL is
+  shop-domain-parameterized — needs a descriptor extension); TreatStream (no identity endpoint + a second
+  socket-token exchange — needs generic-flow accommodations, then its Socket.IO profile);
+  Fourthwall's own merch(`ORDER_PLACED`)/membership kinds (payloads unmodeled); Patreon webhook
+  auto-registration via `w:campaigns.webhook` (the OAuth grant now carries the scope).
 - [~] **15. Advanced moderation** (`moderation.md`) — the truthful-reads foundation + the full per-user
   panel (context/notes/warn/suspicious/ban), unban-request queue, network un-nuke, and **viewer reports**
   (first entity leg) all SHIPPED. *Remaining entity legs:* SuperMod platform `moderation:nuke` (tenant-
