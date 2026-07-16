@@ -104,7 +104,6 @@ commits; this is the collapsed record.
 - [ ] Ensure input + button combo are aligning the input itself and the button right now label+input is centered to button
 
 ## work
-- [ ] Add a "clear all" button to the chat input
 - [ ] triggers need to be able to be added to any type of event for example a trigger for when a user joins the channel or leaves the channel, types their first message of the stream we can add personalized welcome overlays and sound alerts for these events. but not limited to just these events, events chain and do multiple followup actions for example when a user joins the channel we can have a trigger that plays a sound alert and then shows an overlay and then sends a message in chat welcoming the user.
 - [ ] start, stop and pause a timer for certain reward redemptions that are time limited, for example streamer does x for y amount of time and then the timer stops and the reward is marked as completed.
 - [ ] Allow users to customize the appearance of chat messages, including font, color, and background.

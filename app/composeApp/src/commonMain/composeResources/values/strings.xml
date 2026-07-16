@@ -1212,6 +1212,7 @@
     <string name="chat_timeout_action_short">Time out</string>
     <string name="chat_send_action">Send</string>
     <string name="chat_send_placeholder">Send a message…</string>
+    <string name="chat_clear_input">Clear message</string>
     <string name="chat_send_identity_label">Send as</string>
     <string name="chat_send_as_you">You</string>
     <string name="chat_send_as_bot">Bot</string>

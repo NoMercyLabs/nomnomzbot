@@ -117,6 +117,7 @@ import nomnomzbot.composeapp.generated.resources.chat_ban_scope_all_moderated
 import nomnomzbot.composeapp.generated.resources.chat_ban_scope_label
 import nomnomzbot.composeapp.generated.resources.chat_ban_scope_this_channel
 import nomnomzbot.composeapp.generated.resources.chat_ban_title
+import nomnomzbot.composeapp.generated.resources.chat_clear_input
 import nomnomzbot.composeapp.generated.resources.chat_delete_action
 import nomnomzbot.composeapp.generated.resources.chat_delete_action_short
 import nomnomzbot.composeapp.generated.resources.chat_delete_confirm
@@ -1066,6 +1067,15 @@ private fun SendBox(
                 onPreviewKey = onPreviewKey,
                 modifier = Modifier.weight(1f),
             )
+            // Clear-all: wipe the whole draft in one tap. Only shown while there's something to clear so the
+            // empty composer stays uncluttered. Not gated — clearing your own unsent text needs no write floor.
+            if (draft.text.isNotEmpty()) {
+                GlyphButton(
+                    imageVector = CloseGlyph,
+                    label = stringResource(Res.string.chat_clear_input),
+                    onClick = { draft = TextFieldValue("") },
+                )
+            }
             ManageGate(decision = manage) { gateEnabled ->
                 // Send is offered only when the gate allows it AND the draft is non-blank; the Enter key goes
                 // through the same `submit()` guard, and the visible affordance reflects the floor.
