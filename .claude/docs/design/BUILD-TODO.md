@@ -107,4 +107,55 @@ commits; this is the collapsed record.
 - [ ] Import things like quotes, timers, overlays from other providers (StreamElements, Streamer.bot, etc)
 - [ ] Ensure input + button combo are aligning the input itself and the button right now label+input is centered to button
 - [ ] Destructive buttons backgrounds should be red instead of white opacity
+
+## work
+- [ ] Add a "clear all" button to the chat input
+- [ ] triggers need to be able to be added to any type of event for example a trigger for when a user joins the channel or leaves the channel, types their first message of the stream we can add personalized welcome overlays and sound alerts for these events. but not limited to just these events, events chain and do multiple followup actions for example when a user joins the channel we can have a trigger that plays a sound alert and then shows an overlay and then sends a message in chat welcoming the user.
+- [ ] start, stop and pause a timer for certain reward redemptions that are time limited, for example streamer does x for y amount of time and then the timer stops and the reward is marked as completed.
+- [ ] Allow users to customize the appearance of chat messages, including font, color, and background.
+- [ ] Allow users to create and manage custom chat commands, including the ability to set permissions for who can use them.
+- [ ] Allow users to set up automated responses for specific chat messages or commands.
+- [ ] multi channel chat merging, for example if a user is streaming on multiple platforms at the same time, they can merge all chat messages into one unified chat window.
+- [ ] multi channel chat moderation, for example if a user is streaming on multiple platforms at the same time, they can moderate all chat messages from one unified chat window.
+- [ ] Allow users to set up custom alerts for specific events, such as new followers, subscribers, or donations.
+- [ ] Allow users to create and manage custom overlays for their streams, including the ability to add text, images, and animations.
+- [ ] Allow users to set up automated actions based on specific events, such as triggering a sound effect or displaying a message in chat when a new follower is detected.
+- [ ] Allow users to create and manage custom polls and surveys for their streams, including the ability to set up multiple-choice questions and view results in real-time.
+- [ ] the music page is a disorganized mess, it needs to be cleaned up and organized in a way that makes sense for the user. for example, the music page should have a clear separation between the different types of music (e.g. background music, sound effects, etc.) and should have a clear way to manage and organize the different types of music. the player does not update the progress bar when a song is playing, it only updates when the song is paused or stopped. the player does not have a way to skip to the next song in the queue, it only has a way to pause or stop the current song. the player does not have a way to shuffle the songs in the queue, it only plays them in the order they were added. the player does not have a way to repeat the current song or the entire queue, it only plays them once and then stops. there is also no way of sharing the public version of that page because that page link is just a token.
+- [ ] games and commands are overlapping and need to be clearly separated in their functionality and purpose. 
+- [ ] the event responses need to get the full reaction chain mentioned above, for example if a user joins the channel we can have a trigger that plays a sound alert and then shows an overlay and then sends a message in chat welcoming the user. but not limited to just these events, events chain and do multiple followup actions for example when a user joins the channel we can have a trigger that plays a sound alert and then shows an overlay and then sends a message in chat welcoming the user.
+- [ ] timer is just a loop interval without the option for it to trigger just once.
+- [ ] pick lists makes no sense to what its purpose is and needs to be reworked to be more user friendly and intuitive.
+- [ ] moderation needs to be more robust and allow for more granular control over what actions can be taken against users, for example if a user is banned from the channel they should not be able to send messages in chat or interact with the stream in any way. but if a user is timed out they should still be able to send messages in chat but not be able to interact with the stream in any way. but if a user is muted they should still be able to send messages in chat but not be able to interact with the stream in any way. but if a user is shadow banned they should still be able to send messages in chat but not be able to interact with the stream in any way. but if a user is blacklisted they should not be able to send messages in chat or interact with the stream in any way.
+- [ ] channel points is not showing the prompt that is set from twitch.
+- [ ] commands that have to do with games don't work if there is no economy setup but it responds with the help text but if you use it as intented it just says not enabled.
+- [ ] we need way more games.
+- [ ] sound clips does not play when clicking on the preview button.
+- [ ] tts needs a full rework, it's not intuitive and there is no way to search for voices properly or even setting your own voice as a viewer.
+- [ ] we need WAY more overlays, the current ones are very limited and not very useful for streamers.
+- [ ] alerts and events need to be merged with event responses and triggers, they are all the same thing and should be treated as such.
+- [ ] looks like pipelines need to be reworked into all the other things listed above, and also overhauled to be more user friendly and intuitive and usability.
+- [ ] every user id input, source id input, and channel id input needs to be a pick list with search and auto complete functionality.
+- [ ] code scripts seems to be completely useless now that we have the proper vscode editor for the overlays.
+- [ ] analytics, chat and everything stream related needs to be shown stream by stream and not all-time.
+- [ ] the community section is not useful at all.
+- [ ] the discord section is not useful at all, there is no way of adding it properly to a guild's channel, and there is no option for a user to get personal live notification dm's.
+- [ ] webhooks have no rule, structure and organization and are therefore totally useless and cannot be integrated.
+- [ ] federation needs to be reworked and overhauled to be more user friendly and intuitive and usability.
+- [ ] the entire platform needs to be reworked and overhauled to be more user friendly and intuitive and usability.
+- [ ] data sources are not clear what they do and how they are used, they need to be reworked and overhauled to be more user friendly and intuitive and usability.
+- [ ] kofi is not the only supporters platform, we need to add more supporters platforms like patreon, buymeacoffee, etc.
+- [ ] after redirecting from auth providers, the user is not redirected back to the page they were on before the redirect, instead they are redirected to the home page.
+- [ ] AND THE FUCKING PERMISSIONS NEEDED BANNER STILL STAYS ON THE SCREEN EVEN AFTER THE USER GRANTS THE PERMISSIONS NEEDED.
+- [ ] youtube needs a non-byoc provider for auth.
+- [ ] the bot personality responses need to be better, no emoji bullshit and be properly taken an example from my current bot. my current bots responses are way funnier and sassy and you need to do better.
+- [ ] i am missing the pre-filled templates in all the template input fields.
+- [ ] the dashboard home screen needs to be more useful in showing important information and stats about the stream, for example the current viewers, chatters, followers, subscribers, donations, platforms streaming to, etc.
+- [ ] recent activity is still duplicated and needs to be fixed.
+- [ ] the channel selector needs to be pre-filled with the channels and not after going in. 
+- [ ] showing just a `channel event` or `insert twitch event string here` is completely useless, and showing a chat message as an event is also very useless information.
+- [ ] the bot account is not sending messages in chat with the app token on other channels, this is bad UX.
+- [ ] user theming is not working unless the page is reloaded with the new channel choosen.
+- [ ] the admin pannel for the saas is just show and does not do anything useful, it does not let me change behavior or go into details of things. i can not promote accounts to admin or grant them specific saas permissions.
+- [ ] billing does not seem to be doing anything.
 - [ ] 
