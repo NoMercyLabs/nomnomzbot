@@ -38,18 +38,24 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
     private readonly IReadOnlyDictionary<string, ISupporterSource> _sources;
     private readonly ITokenProtector _protector;
     private readonly IInboundWebhookEndpointService _endpoints;
+    private readonly IReadOnlyDictionary<string, ISupporterProviderProvisioner> _provisioners;
 
     public SupporterConnectionService(
         IApplicationDbContext db,
         IEnumerable<ISupporterSource> sources,
         ITokenProtector protector,
-        IInboundWebhookEndpointService endpoints
+        IInboundWebhookEndpointService endpoints,
+        IEnumerable<ISupporterProviderProvisioner> provisioners
     )
     {
         _db = db;
         _sources = sources.ToDictionary(s => s.SourceKey, StringComparer.OrdinalIgnoreCase);
         _protector = protector;
         _endpoints = endpoints;
+        _provisioners = provisioners.ToDictionary(
+            p => p.SourceKey,
+            StringComparer.OrdinalIgnoreCase
+        );
     }
 
     /// <summary>The per-connection AEAD context: subject = the tenant, provider = the source, one field role.</summary>
@@ -140,6 +146,37 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
                         provisioned.ErrorCode!
                     );
             }
+            // OAuth-provisioned providers (Patreon) go further: the BOT registers the webhook on the
+            // provider's side and the endpoint verifies with the secret the PROVIDER mints — the streamer
+            // supplies no secret at all, just the OAuth connection.
+            else if (
+                request.IntegrationConnectionId is Guid oauthConnectionId
+                && _provisioners.TryGetValue(
+                    sourceKey,
+                    out ISupporterProviderProvisioner? provisioner
+                )
+            )
+            {
+                Result provisioned = await ProvisionViaProviderAsync(
+                    broadcasterId,
+                    actorUserId,
+                    connection,
+                    sourceKey,
+                    oauthConnectionId,
+                    provisioner,
+                    ct
+                );
+                if (provisioned.IsFailure)
+                {
+                    // The connect stays retryable: the row persists in error so a re-upsert re-provisions.
+                    connection.Status = "error";
+                    await _db.SaveChangesAsync(ct);
+                    return Result.Failure<SupporterConnectionDto>(
+                        provisioned.ErrorMessage!,
+                        provisioned.ErrorCode!
+                    );
+                }
+            }
         }
         // A socket/ws/poll provider's key is AEAD-sealed here for the ingress runner to open. An omitted
         // secret on a re-upsert keeps the stored one (toggling IsEnabled must never wipe the credential).
@@ -207,6 +244,77 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
 
         connection.InboundWebhookEndpointId = created.Value.Id;
         return Result.Success();
+    }
+
+    /// <summary>
+    /// The full provider-side connect (Patreon): ensure our inbound endpoint exists (a random placeholder
+    /// secret until the provider mints the real one), then have the provisioner register the provider-side
+    /// webhook against its ingest URL and seal the provider's secret onto it.
+    /// </summary>
+    private async Task<Result> ProvisionViaProviderAsync(
+        Guid broadcasterId,
+        Guid actorUserId,
+        SupporterConnection connection,
+        string sourceKey,
+        Guid oauthConnectionId,
+        ISupporterProviderProvisioner provisioner,
+        CancellationToken ct
+    )
+    {
+        string ingestUrl;
+        Guid endpointId;
+        if (connection.InboundWebhookEndpointId is Guid existingId)
+        {
+            Result<InboundWebhookEndpointDto> existing = await _endpoints.GetAsync(
+                broadcasterId,
+                existingId,
+                ct
+            );
+            if (existing.IsFailure)
+                return Result.Failure(existing.ErrorMessage!, existing.ErrorCode!);
+            endpointId = existingId;
+            ingestUrl = existing.Value.IngestUrl;
+        }
+        else
+        {
+            WebhookAdapterKind? adapter = SupporterWebhookAdapters.AdapterFor(sourceKey);
+            if (adapter is not WebhookAdapterKind kind)
+                return Result.Failure(
+                    $"'{sourceKey}' has no inbound webhook adapter to provision.",
+                    "VALIDATION_FAILED"
+                );
+
+            // A random placeholder secret: the endpoint must never be verifiable before the provider's real
+            // secret lands (an unguessable value fails every HMAC check until then).
+            string placeholder = Convert.ToHexStringLower(
+                System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)
+            );
+            Result<InboundWebhookEndpointDto> created = await _endpoints.CreateAsync(
+                broadcasterId,
+                actorUserId,
+                new CreateInboundWebhookRequest
+                {
+                    Name = $"{sourceKey} (supporters)",
+                    Adapter = kind,
+                    VerificationSecret = placeholder,
+                    IsEnabled = true,
+                },
+                ct
+            );
+            if (created.IsFailure)
+                return Result.Failure(created.ErrorMessage!, created.ErrorCode!);
+            connection.InboundWebhookEndpointId = created.Value.Id;
+            endpointId = created.Value.Id;
+            ingestUrl = created.Value.IngestUrl;
+        }
+
+        return await provisioner.ProvisionAsync(
+            broadcasterId,
+            oauthConnectionId,
+            endpointId,
+            ingestUrl,
+            ct
+        );
     }
 
     /// <summary>The public DTO, with the provisioned endpoint's ingest URL resolved for webhook providers.</summary>

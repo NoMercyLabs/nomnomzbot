@@ -393,6 +393,17 @@ public static class DependencyInjection
             ServiceLifetime.Transient
         );
 
+        // Provider-side ingest provisioning (supporter-events.md D3): OAuth-capable providers whose webhook
+        // the BOT registers itself (Patreon w:campaigns.webhook) — the provider mints the endpoint secret.
+        services.AddImplementationsOf<Application.Supporters.Services.ISupporterProviderProvisioner>(
+            infrastructure,
+            ServiceLifetime.Scoped
+        );
+        services.AddHttpClient(
+            Supporters.PatreonWebhookProvisioner.HttpClientName,
+            client => client.Timeout = TimeSpan.FromSeconds(15)
+        );
+
         // Poll-mode supporter ingress (supporter-events.md D3): DonorDrive-style public feeds on a ~15 s
         // conditional-GET cadence.
         services.AddHttpClient(

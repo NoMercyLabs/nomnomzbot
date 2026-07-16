@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Supporters.Dtos;
+using NomNomzBot.Application.Supporters.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Supporters.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
@@ -43,7 +44,7 @@ public sealed class SupporterConnectionServiceTests
     private static async Task<(
         SupporterConnectionService Service,
         SupporterTestDbContext Db
-    )> BuildAsync()
+    )> BuildAsync(ISupporterProviderProvisioner? provisioner = null)
     {
         SupporterTestDbContext db = SupporterTestDbContext.New();
         db.Channels.Add(
@@ -85,9 +86,14 @@ public sealed class SupporterConnectionServiceTests
         return (
             new SupporterConnectionService(
                 db,
-                [new KofiSupporterSource(), new DonordriveSupporterSource()],
+                [
+                    new KofiSupporterSource(),
+                    new DonordriveSupporterSource(),
+                    new PatreonSupporterSource(),
+                ],
                 new PrefixingFakeProtector(),
-                endpoints
+                endpoints,
+                provisioner is null ? [] : [provisioner]
             ),
             db
         );
@@ -189,6 +195,97 @@ public sealed class SupporterConnectionServiceTests
         rotated.IsSuccess.Should().BeTrue();
         InboundWebhookEndpoint endpoint = await db.InboundWebhookEndpoints.SingleAsync();
         endpoint.VerificationSecretEnvelope.Should().Be("sealed:second-token");
+    }
+
+    [Fact]
+    public async Task UpsertAsync_OAuthProvisionedProvider_RegistersProviderSide_WithAPlaceholderSealedEndpoint()
+    {
+        Guid oauthConnection = Guid.Parse("019f2900-2222-7000-8000-0000000000bb");
+        RecordingProvisioner provisioner = new();
+        (SupporterConnectionService service, SupporterTestDbContext db) = await BuildAsync(
+            provisioner
+        );
+
+        Result<SupporterConnectionDto> result = await service.UpsertAsync(
+            Tenant,
+            Actor,
+            new UpsertSupporterConnectionRequest(
+                "patreon",
+                "webhook",
+                null, // no manual secret — the PROVIDER mints it
+                oauthConnection,
+                IsEnabled: true
+            )
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        // The endpoint was created before provisioning, sealed with an unguessable placeholder…
+        InboundWebhookEndpoint endpoint = await db.InboundWebhookEndpoints.SingleAsync();
+        endpoint.AdapterKind.Should().Be(WebhookAdapterKind.Patreon);
+        endpoint.VerificationSecretEnvelope.Should().StartWith("sealed:");
+        endpoint
+            .VerificationSecretEnvelope.Length.Should()
+            .BeGreaterThan(40, "a random 32-byte hex placeholder");
+        // …and the provisioner was driven with the real endpoint id + its ingest URL + the OAuth connection.
+        provisioner.Calls.Should().HaveCount(1);
+        provisioner.Calls[0].EndpointId.Should().Be(endpoint.Id);
+        provisioner.Calls[0].IntegrationConnectionId.Should().Be(oauthConnection);
+        provisioner.Calls[0].IngestUrl.Should().Contain(endpoint.Token);
+        result.Value.EndpointUrl.Should().Contain(endpoint.Token);
+    }
+
+    [Fact]
+    public async Task UpsertAsync_ProviderProvisioningFailure_MarksErrorAndStaysRetryable()
+    {
+        RecordingProvisioner provisioner = new() { Fail = true };
+        (SupporterConnectionService service, SupporterTestDbContext db) = await BuildAsync(
+            provisioner
+        );
+
+        Result<SupporterConnectionDto> result = await service.UpsertAsync(
+            Tenant,
+            Actor,
+            new UpsertSupporterConnectionRequest(
+                "patreon",
+                "webhook",
+                null,
+                Guid.NewGuid(),
+                IsEnabled: true
+            )
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("PROVISIONING_FAILED");
+        // The row persists in error so a later re-upsert re-provisions — the connect is retryable, not lost.
+        SupporterConnection stored = await db.SupporterConnections.SingleAsync();
+        stored.Status.Should().Be("error");
+        stored.InboundWebhookEndpointId.Should().NotBeNull();
+    }
+
+    /// <summary>Records provisioning calls; optionally fails — the provider-side API itself is proven in
+    /// <see cref="PatreonWebhookProvisionerTests"/> against scripted Patreon responses.</summary>
+    private sealed class RecordingProvisioner : ISupporterProviderProvisioner
+    {
+        public sealed record Call(Guid IntegrationConnectionId, Guid EndpointId, string IngestUrl);
+
+        public bool Fail { get; init; }
+        public List<Call> Calls { get; } = [];
+
+        public string SourceKey => "patreon";
+
+        public Task<Result> ProvisionAsync(
+            Guid broadcasterId,
+            Guid integrationConnectionId,
+            Guid endpointId,
+            string ingestUrl,
+            CancellationToken ct = default
+        )
+        {
+            Calls.Add(new Call(integrationConnectionId, endpointId, ingestUrl));
+            return Task.FromResult(
+                Fail ? Result.Failure("Patreon said no.", "PROVISIONING_FAILED") : Result.Success()
+            );
+        }
     }
 
     [Fact]
