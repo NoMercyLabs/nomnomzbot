@@ -76,6 +76,8 @@
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
     <PackageReference Include="Polly.Core" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
+    <!-- Supporter live-socket ingress: the Socket.IO providers (Streamlabs et al.) — supporter-events.md D3. -->
+    <PackageReference Include="SocketIOClient" />
     <PackageReference Include="Wasmtime" />
     <!-- mDNS / DNS-SD advertiser for `_nomnomz._tcp` (deployment-distribution §6); used only by
          MdnsAdvertiserHostedService, registered only on self-host. Makaretu transitively pulls the legacy

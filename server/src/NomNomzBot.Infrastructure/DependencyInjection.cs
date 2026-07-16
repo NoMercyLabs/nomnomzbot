@@ -402,16 +402,34 @@ public static class DependencyInjection
         services.AddHostedService<Supporters.SupporterPollHostedService>();
 
         // Live-socket supporter ingress (supporter-events.md D3): one stream per enabled socket/ws
-        // connection whose provider has a dialect profile (Pally raw WS today; Socket.IO providers land as
-        // additional profiles on the same runner).
+        // connection whose provider has a dialect profile; the composite routes each profile to its
+        // transport (raw WebSocket or Socket.IO).
+        services.AddSingleton<Supporters.Sockets.ClientWebSocketFrameSource>();
+        services.AddSingleton<Supporters.Sockets.SocketIoFrameSource>();
         services.AddSingleton<
             Supporters.Sockets.ISocketFrameSource,
-            Supporters.Sockets.ClientWebSocketFrameSource
+            Supporters.Sockets.CompositeFrameSource
         >();
         services.AddSingleton<
             Supporters.Sockets.ISupporterSocketProfile,
             Supporters.Sockets.PallySocketProfile
         >();
+        services.AddSingleton<
+            Supporters.Sockets.ISupporterSocketProfile,
+            Supporters.Sockets.StreamlabsSocketProfile
+        >();
+        services.AddSingleton<
+            Supporters.Sockets.ISupporterSocketProfile,
+            Supporters.Sockets.StreamelementsSocketProfile
+        >();
+        services.AddSingleton<
+            Supporters.Sockets.ISupporterSocketProfile,
+            Supporters.Sockets.TipeeeSocketProfile
+        >();
+        services.AddHttpClient(
+            Supporters.Sockets.SocketIoFrameSource.HttpClientName,
+            client => client.Timeout = TimeSpan.FromSeconds(10)
+        );
         services.AddHostedService<Supporters.SupporterSocketHostedService>();
 
         // The single SSRF-hardened egress client (sandbox + outbound webhooks): resolve-then-pin + https-only.

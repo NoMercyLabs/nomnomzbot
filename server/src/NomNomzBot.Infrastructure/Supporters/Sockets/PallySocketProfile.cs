@@ -20,7 +20,7 @@ namespace NomNomzBot.Infrastructure.Supporters.Sockets;
 /// <c>campaignTip</c> + <c>page</c>) is what <c>PallySupporterSource</c> normalizes. Everything else on the
 /// wire (the pong echo, future event types) is ignored, never an error.
 /// </summary>
-internal sealed class PallySocketProfile : ISupporterSocketProfile
+internal sealed class PallySocketProfile : IRawWebSocketProfile
 {
     private const string TipEventType = "campaigntip.notify";
 

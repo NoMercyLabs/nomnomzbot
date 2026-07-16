@@ -23,21 +23,42 @@ namespace NomNomzBot.Infrastructure.Supporters.Sockets;
 internal interface ISocketFrameSource
 {
     /// <summary>
-    /// Connects to <paramref name="uri"/> and yields each inbound text frame until the peer closes or
-    /// <paramref name="ct"/> cancels. When <paramref name="keepaliveInterval"/> is set, sends
-    /// <paramref name="keepalivePayload"/> as a text frame on that cadence. Transport failures throw — the
-    /// runner owns backoff/reconnect.
+    /// Opens the stream <paramref name="profile"/> describes for a connection's decrypted
+    /// <paramref name="secret"/> (endpoint resolution — including any HTTP discovery — belongs to the
+    /// transport) and yields each inbound frame until the peer closes or <paramref name="ct"/> cancels.
+    /// Raw-WS profiles yield wire text frames; Socket.IO profiles yield each subscribed event's argument
+    /// array as JSON. Transport failures throw — the runner owns backoff/reconnect.
     /// </summary>
     IAsyncEnumerable<string> ConnectAndReceiveAsync(
-        Uri uri,
-        TimeSpan? keepaliveInterval,
-        string? keepalivePayload,
+        ISupporterSocketProfile profile,
+        string secret,
         CancellationToken ct
     );
 }
 
+/// <summary>Routes each profile to its transport: raw WebSocket or Socket.IO.</summary>
+internal sealed class CompositeFrameSource(
+    ClientWebSocketFrameSource rawWebSocket,
+    SocketIoFrameSource socketIo
+) : ISocketFrameSource
+{
+    public IAsyncEnumerable<string> ConnectAndReceiveAsync(
+        ISupporterSocketProfile profile,
+        string secret,
+        CancellationToken ct
+    ) =>
+        profile switch
+        {
+            IRawWebSocketProfile => rawWebSocket.ConnectAndReceiveAsync(profile, secret, ct),
+            ISocketIoProfile => socketIo.ConnectAndReceiveAsync(profile, secret, ct),
+            _ => throw new NotSupportedException(
+                $"Socket profile '{profile.SourceKey}' declares no transport interface."
+            ),
+        };
+}
+
 /// <summary>
-/// The production transport: one <see cref="ClientWebSocket"/> per stream, a timer-driven text keepalive, and
+/// The raw-WS transport: one <see cref="ClientWebSocket"/> per stream, a timer-driven text keepalive, and
 /// frame reassembly across partial receives. Binary frames are skipped (every supported provider speaks text).
 /// </summary>
 internal sealed class ClientWebSocketFrameSource : ISocketFrameSource
@@ -45,21 +66,21 @@ internal sealed class ClientWebSocketFrameSource : ISocketFrameSource
     private const int ReceiveBufferBytes = 16 * 1024;
 
     public async IAsyncEnumerable<string> ConnectAndReceiveAsync(
-        Uri uri,
-        TimeSpan? keepaliveInterval,
-        string? keepalivePayload,
+        ISupporterSocketProfile profile,
+        string secret,
         [EnumeratorCancellation] CancellationToken ct
     )
     {
+        IRawWebSocketProfile raw = (IRawWebSocketProfile)profile;
         using ClientWebSocket socket = new();
-        await socket.ConnectAsync(uri, ct);
+        await socket.ConnectAsync(raw.BuildUri(secret), ct);
 
         // The keepalive writes concurrently with the receive loop — WebSocket allows one send + one receive
         // in flight, which is exactly this shape.
         using CancellationTokenSource keepaliveCts =
             CancellationTokenSource.CreateLinkedTokenSource(ct);
         Task keepalive =
-            keepaliveInterval is TimeSpan interval && keepalivePayload is string payload
+            raw.KeepaliveInterval is TimeSpan interval && raw.KeepalivePayload is string payload
                 ? SendKeepalivesAsync(socket, interval, payload, keepaliveCts.Token)
                 : Task.CompletedTask;
 

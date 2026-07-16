@@ -176,7 +176,7 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
                             connection.Id,
                             connection.BroadcasterId,
                             connection.SourceKey,
-                            profile.BuildUri(secret),
+                            secret,
                             profile,
                             cts.Token
                         ),
@@ -199,7 +199,7 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
         Guid connectionId,
         Guid broadcasterId,
         string sourceKey,
-        Uri uri,
+        string secret,
         Sockets.ISupporterSocketProfile profile,
         CancellationToken ct
     )
@@ -209,14 +209,7 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
         {
             try
             {
-                await foreach (
-                    string frame in _frames.ConnectAndReceiveAsync(
-                        uri,
-                        profile.KeepaliveInterval,
-                        profile.KeepalivePayload,
-                        ct
-                    )
-                )
+                await foreach (string frame in _frames.ConnectAndReceiveAsync(profile, secret, ct))
                 {
                     backoff = BackoffFloor; // a live frame proves the stream healthy — reset the backoff.
                     foreach (string payload in profile.TranslateFrame(frame))

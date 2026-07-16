@@ -114,11 +114,11 @@ public sealed class SupporterSocketHostedServiceTests
         // Every queued frame consumed (and its ingest awaited) by the runner.
         await frames.Drained.WaitAsync(TimeSpan.FromSeconds(10));
 
-        frames.ConnectedUris.Should().HaveCount(1);
+        frames.ConnectedSecrets.Should().HaveCount(1);
         frames
-            .ConnectedUris[0]
-            .Query.Should()
-            .Contain("auth=pally-key", "the runner connects with the UNSEALED key");
+            .ConnectedSecrets[0]
+            .Should()
+            .Be("pally-key", "the runner hands the transport the UNSEALED key");
 
         List<SupporterEvent> events = await db.SupporterEvents.ToListAsync();
         events.Should().HaveCount(1, "the replayed frame dedups on the tip id");
@@ -139,7 +139,7 @@ public sealed class SupporterSocketHostedServiceTests
 
         await service.ReconcileOnceAsync(CancellationToken.None);
 
-        frames.ConnectedUris.Should().BeEmpty();
+        frames.ConnectedSecrets.Should().BeEmpty();
         await service.DisposeAsync();
     }
 
@@ -151,7 +151,7 @@ public sealed class SupporterSocketHostedServiceTests
 
         await service.ReconcileOnceAsync(CancellationToken.None);
 
-        frames.ConnectedUris.Should().BeEmpty();
+        frames.ConnectedSecrets.Should().BeEmpty();
         (await db.SupporterConnections.SingleAsync()).Status.Should().Be("error");
         await service.DisposeAsync();
     }
@@ -164,7 +164,7 @@ public sealed class SupporterSocketHostedServiceTests
 
         await service.ReconcileOnceAsync(CancellationToken.None);
         await frames.FirstConnected.WaitAsync(TimeSpan.FromSeconds(10)); // runner startup is async
-        frames.ConnectedUris.Should().HaveCount(1);
+        frames.ConnectedSecrets.Should().HaveCount(1);
 
         SupporterConnection connection = await db.SupporterConnections.SingleAsync();
         connection.IsEnabled = false;
@@ -190,7 +190,7 @@ public sealed class SupporterSocketHostedServiceTests
 
         await service.ReconcileOnceAsync(CancellationToken.None);
 
-        frames.ConnectedUris.Should().BeEmpty();
+        frames.ConnectedSecrets.Should().BeEmpty();
         await service.DisposeAsync();
     }
 
@@ -212,7 +212,7 @@ public sealed class SupporterSocketHostedServiceTests
         );
         private int _active;
 
-        public List<Uri> ConnectedUris { get; } = [];
+        public List<string> ConnectedSecrets { get; } = [];
         public int ActiveStreams => Volatile.Read(ref _active);
         public Task Drained => _drained.Task;
         public Task FirstConnected => _firstConnected.Task;
@@ -220,13 +220,12 @@ public sealed class SupporterSocketHostedServiceTests
         public void Enqueue(string frame) => _frames.Enqueue(frame);
 
         public async IAsyncEnumerable<string> ConnectAndReceiveAsync(
-            Uri uri,
-            TimeSpan? keepaliveInterval,
-            string? keepalivePayload,
+            ISupporterSocketProfile profile,
+            string secret,
             [EnumeratorCancellation] CancellationToken ct
         )
         {
-            ConnectedUris.Add(uri);
+            ConnectedSecrets.Add(secret);
             _firstConnected.TrySetResult();
             Interlocked.Increment(ref _active);
             try

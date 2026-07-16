@@ -10,6 +10,9 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.8" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.14.14" />
+    <!-- Socket.IO client for the supporter live-socket providers (Streamlabs v2 server via the EIO option;
+         StreamElements/Tipeee/TreatStream) — supporter-events.md D3. -->
+    <PackageVersion Include="SocketIOClient" Version="4.0.3" />
     <PackageVersion Include="Stripe.net" Version="52.0.0" />
     <PackageVersion Include="Wasmtime" Version="44.0.0" />
   </ItemGroup>
