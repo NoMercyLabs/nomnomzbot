@@ -47,6 +47,7 @@ public sealed class SupporterWebhookBridge : IEventHandler<InboundWebhookReceive
         {
             WebhookAdapterKind.Kofi => "kofi",
             WebhookAdapterKind.Fourthwall => "fourthwall",
+            WebhookAdapterKind.Shopify => "shopify",
             _ => null,
         };
 

@@ -17,6 +17,7 @@ public enum WebhookAdapterKind
     Github,
     Generic,
     Fourthwall,
+    Shopify,
 }
 
 /// <summary>The lifecycle of one outbound delivery attempt.</summary>
