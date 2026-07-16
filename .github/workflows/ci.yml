@@ -48,9 +48,32 @@ jobs:
         working-directory: server
         run: dotnet test NomNomzBot.slnx -c Debug --no-build
 
+  contract:
+    name: Contract test (frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # JDK 21 matches the wasm-build stage's eclipse-temurin:21. We only run the JVM target's tests here —
+      # NOT the ~25-minute Wasm/Compose distribution — so the shared-KMP DTO drift guard (ApiContractTest:
+      # Kotlin DTOs vs the committed server/openapi/v1.json) runs in CI cheaply, in parallel with the backend.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Frontend jvmTest (incl. ApiContractTest)
+        working-directory: app
+        run: |
+          chmod +x gradlew
+          ./gradlew :composeApp:jvmTest --no-daemon
+
   build:
     name: Build & push image
-    needs: test
+    needs: [test, contract]
     runs-on: ubuntu-latest
     permissions:
       contents: read
