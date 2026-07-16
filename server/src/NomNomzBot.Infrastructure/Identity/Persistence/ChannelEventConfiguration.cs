@@ -26,7 +26,9 @@ public class ChannelEventConfiguration : IEntityTypeConfiguration<ChannelEvent>
 
         builder.Property(e => e.UserId).HasMaxLength(50);
 
-        builder.Property(e => e.Type).IsRequired().HasMaxLength(50);
+        // 100, not 50: long Twitch channel types (e.g. "channel.channel_points_custom_reward_redemption.update",
+        // 54 chars) overflowed varchar(50) → Npgsql 22001, stalling the channel-event-log projection.
+        builder.Property(e => e.Type).IsRequired().HasMaxLength(100);
 
         builder.Property(e => e.Data).HasColumnType("jsonb");
 

@@ -25,7 +25,10 @@ public class ChannelEvent : BaseEntity
     // FK→Users.Id — string→Guid per schema §1.1.
     public Guid? UserId { get; set; }
 
-    [MaxLength(50)]
+    // 100, not 50: Twitch EventSub / channel types run long — e.g.
+    // "channel.channel_points_custom_reward_redemption.update" is 54 chars. At 50 the projection write
+    // threw Npgsql 22001 (value too long) and the channel-event-log stalled on those events.
+    [MaxLength(100)]
     public string Type { get; set; } = null!;
 
     public string? Data { get; set; }
