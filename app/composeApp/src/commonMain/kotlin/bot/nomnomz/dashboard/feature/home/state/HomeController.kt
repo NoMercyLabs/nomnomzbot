@@ -35,6 +35,24 @@ import kotlinx.coroutines.flow.filterIsInstance
 //
 // Real-time: when [hubClient] + [baseUrl] + [accessToken] are supplied, [load] connects the hub after the
 // channel resolves so all pages receive live push events for the duration of the shell session.
+
+// The channel-event types the Recent Activity feed labels meaningfully (mirror of ActivityRow's `when` in
+// HomeScreen.kt). Anything else — chat messages, and types without a friendly label — is filtered OUT of the
+// feed rather than shown as a useless generic "Channel event" or a chat line masquerading as an event.
+private val ACTIVITY_EVENT_TYPES: Set<String> = setOf(
+    "channel.follow",
+    "channel.subscribe",
+    "channel.subscription.message",
+    "channel.subscription.gift",
+    "channel.cheer",
+    "channel.raid",
+    "channel.channel_points_custom_reward_redemption.add",
+    "channel.ban",
+    "channel.timeout",
+    "channel.moderator.add",
+    "channel.moderator.remove",
+)
+
 class HomeController(
     private val channelsApi: ChannelsApi,
     private val dashboardApi: DashboardApi,
@@ -93,7 +111,9 @@ class HomeController(
                     }
                 val activity: List<ActivityEvent> =
                     when (val r: ApiResult<List<ActivityEvent>> = dashboardApi.activity(channel.id)) {
-                        is ApiResult.Ok -> r.value
+                        // Only surface events the feed can label meaningfully — chat messages and unlabeled
+                        // types otherwise render a useless generic "Channel event" (or a chat line as an "event").
+                        is ApiResult.Ok -> r.value.filter { it.type in ACTIVITY_EVENT_TYPES }
                         is ApiResult.Failure -> emptyList()
                     }
                 val topCommands: List<CommandSummary> =
@@ -170,16 +190,20 @@ class HomeController(
                             ),
                         )
                     is HubEvent.ChannelEvent -> {
-                        val newEvent: ActivityEvent = ActivityEvent(
-                            id = evt.event.timestamp,
-                            type = evt.event.type,
-                            userId = evt.event.userId,
-                            username = evt.event.userDisplayName,
-                            timestamp = evt.event.timestamp,
-                        )
-                        _state.value = current.copy(
-                            activity = (listOf(newEvent) + current.activity).take(20)
-                        )
+                        // Skip chat + unlabeled types — they'd render a useless "Channel event" (or a chat line
+                        // masquerading as an event). Same set the initial load filters on.
+                        if (evt.event.type in ACTIVITY_EVENT_TYPES) {
+                            val newEvent: ActivityEvent = ActivityEvent(
+                                id = evt.event.timestamp,
+                                type = evt.event.type,
+                                userId = evt.event.userId,
+                                username = evt.event.userDisplayName,
+                                timestamp = evt.event.timestamp,
+                            )
+                            _state.value = current.copy(
+                                activity = (listOf(newEvent) + current.activity).take(20)
+                            )
+                        }
                     }
                     else -> Unit
                 }
