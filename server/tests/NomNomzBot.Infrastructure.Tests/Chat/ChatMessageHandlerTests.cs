@@ -363,6 +363,122 @@ public sealed class ChatMessageHandlerTests
         builtin.Captured!.CustomResponseTemplate.Should().BeNull();
     }
 
+    // ── session-first-message trigger (the "welcome them in" chain) ─────────
+
+    [Fact]
+    public async Task First_message_of_the_session_fires_the_welcome_trigger_exactly_once_per_user()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ctx.IsLive = true;
+
+        (
+            ChatMessageHandler sut,
+            NomNomzBot.Application.Commands.Services.IEventResponseExecutor executor
+        ) = BuildWithExecutor(ctx);
+
+        await sut.HandleAsync(MessageEvent("hello everyone"), CancellationToken.None);
+        await sut.HandleAsync(MessageEvent("me again"), CancellationToken.None);
+
+        // One fire for the user's FIRST line; the second line is session-deduped.
+        await executor
+            .Received(1)
+            .ExecuteAsync(
+                Broadcaster,
+                "engagement.session_first_message",
+                "tw-viewer-1",
+                "Viewer",
+                Arg.Is<Dictionary<string, string>>(v =>
+                    v["user"] == "Viewer" && v["user.id"] == "tw-viewer-1"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+
+        // A DIFFERENT user's first line fires again.
+        ChatMessageReceivedEvent second = new()
+        {
+            BroadcasterId = Broadcaster,
+            MessageId = "msg-2",
+            TwitchBroadcasterId = "tw-777",
+            UserId = "tw-viewer-2",
+            UserDisplayName = "Other",
+            UserLogin = "other",
+            Message = "hi",
+            Fragments = [],
+            Badges = [],
+            IsSubscriber = false,
+            IsVip = false,
+            IsModerator = false,
+            IsBroadcaster = false,
+        };
+        await sut.HandleAsync(second, CancellationToken.None);
+        await executor
+            .Received(1)
+            .ExecuteAsync(
+                Broadcaster,
+                "engagement.session_first_message",
+                "tw-viewer-2",
+                "Other",
+                Arg.Any<Dictionary<string, string>>(),
+                Arg.Any<CancellationToken>()
+            );
+
+        // The plain (non-command) chatters are now really tracked — the {chatters} fix.
+        ctx.SessionChatters.Keys.Should().BeEquivalentTo("tw-viewer-1", "tw-viewer-2");
+    }
+
+    [Fact]
+    public async Task Offline_chat_never_fires_the_session_welcome()
+    {
+        ChannelContext ctx = NewChannelContext(); // IsLive = false
+
+        (
+            ChatMessageHandler sut,
+            NomNomzBot.Application.Commands.Services.IEventResponseExecutor executor
+        ) = BuildWithExecutor(ctx);
+
+        await sut.HandleAsync(MessageEvent("hello?"), CancellationToken.None);
+
+        await executor
+            .DidNotReceiveWithAnyArgs()
+            .ExecuteAsync(
+                default,
+                default!,
+                default,
+                default,
+                default!,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    private static (
+        ChatMessageHandler Sut,
+        NomNomzBot.Application.Commands.Services.IEventResponseExecutor Executor
+    ) BuildWithExecutor(ChannelContext ctx)
+    {
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+
+        NomNomzBot.Application.Commands.Services.IEventResponseExecutor executor =
+            Substitute.For<NomNomzBot.Application.Commands.Services.IEventResponseExecutor>();
+        ServiceProvider provider = new ServiceCollection()
+            .AddSingleton(executor)
+            .BuildServiceProvider();
+
+        ChatMessageHandler sut = new(
+            registry,
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            Substitute.For<ICooldownManager>(),
+            Substitute.For<IChatProvider>(),
+            Substitute.For<IPipelineEngine>(),
+            Substitute.For<IBuiltinCommandCatalog>(),
+            Substitute.For<ITemplateResolver>(),
+            Substitute.For<IEventBus>(),
+            TimeProvider.System,
+            NullLogger<ChatMessageHandler>.Instance
+        );
+        return (sut, executor);
+    }
+
     // ── shared scaffolding ──────────────────────────────────────────────────
 
     private static ChannelContext NewChannelContext() =>

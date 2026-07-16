@@ -16,6 +16,27 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-16 — Event responses ARE the reaction chains: merge alerts/events into one page
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the full "welcome them in" chain (sound → overlay → chat, any order, with waits) already
+  works backend-side: every event type on `GET .../event-responses` can bind `responseType:
+  "pipeline"` to a pipeline that chains `play_sound`, `widget_event` (overlay push), `play_tts`,
+  `send_message`, `wait`, and every other palette action. NEW trigger:
+  `engagement.session_first_message` fires the first time a user speaks during THIS stream
+  (session-scoped, cleared on stream start — distinct from `engagement.first_time_chatter` which is
+  first-EVER). Its preset is in the catalog endpoint. Also: the seeding now TOPS UP — revisiting the
+  page adds rows for newly shipped trigger types. UI work: (1) present Alerts / Events / Event
+  Responses as ONE surface (they are one backend concept now); (2) make "bind a pipeline" a
+  first-class flow from the event row (create-and-bind, not paste-an-id); (3) show the new trigger.
+- **Why:** owner items — reaction chains on any event, "alerts and events need to be merged with
+  event responses and triggers". Note: a "user joins/leaves the channel" trigger is NOT offered —
+  Twitch's supported API (EventSub) has no viewer presence events (IRC JOIN/PART is retired); the
+  session-first-message trigger is the honest equivalent.
+- **Where:** `feature/eventresponses` (+ wherever Alerts currently lives); contract in
+  `server/openapi/v1.json`.
+- **Done when:** one page lists every trigger incl. session-first-message, an operator can chain
+  sound+overlay+chat on it without leaving the page, and the chain fires live on dev.
+
 ### 2026-07-16 — Analytics: per-stream views ("stream by stream, not all-time")
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** two new management-plane reads under

@@ -48,22 +48,24 @@ public class EventResponseService : IEventResponseService
                 "VALIDATION_FAILED"
             );
 
-        int existingCount = await _db.EventResponses.CountAsync(
-            e => e.BroadcasterId == broadcaster,
-            cancellationToken
-        );
-
-        if (existingCount == 0)
+        // Top-up seed: any catalog event type this channel doesn't have a row for yet gets its disabled
+        // default — so a channel seeded before a NEW trigger shipped still sees it on the page.
+        List<string> existingTypes = await _db
+            .EventResponses.Where(e => e.BroadcasterId == broadcaster)
+            .Select(e => e.EventType)
+            .ToListAsync(cancellationToken);
+        List<EventResponse> seeds = DefaultEventTypes
+            .Where(et => !existingTypes.Contains(et))
+            .Select(et => new EventResponse
+            {
+                BroadcasterId = broadcaster,
+                EventType = et,
+                IsEnabled = false,
+                ResponseType = "chat_message",
+            })
+            .ToList();
+        if (seeds.Count > 0)
         {
-            List<EventResponse> seeds = DefaultEventTypes
-                .Select(et => new EventResponse
-                {
-                    BroadcasterId = broadcaster,
-                    EventType = et,
-                    IsEnabled = false,
-                    ResponseType = "chat_message",
-                })
-                .ToList();
             _db.EventResponses.AddRange(seeds);
             await _db.SaveChangesAsync(cancellationToken);
         }

@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Dtos;
@@ -93,7 +94,19 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         // Increment channel message counter (used by TimerService for activity gating; approximate is fine)
         ChannelContext? channelCtx = _registry.Get(@event.BroadcasterId);
         if (channelCtx is not null)
+        {
             channelCtx.MessageCount++;
+
+            // Track EVERY chatter here (not just command users) so {chatters} reflects the real room —
+            // and the first line a user types THIS stream fires the session-first-message trigger
+            // (the "welcome them in" chain: sound / overlay / chat, whatever the operator bound).
+            bool firstOfSession = channelCtx.SessionChatters.TryAdd(
+                @event.UserId,
+                @event.UserDisplayName
+            );
+            if (firstOfSession && channelCtx.IsLive)
+                await FireSessionFirstMessageAsync(@event, cancellationToken);
+        }
 
         string? text = @event.Message?.Trim();
         if (string.IsNullOrEmpty(text) || text[0] != '!')
@@ -122,7 +135,6 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         }
 
         ctx.LastActivityAt = _timeProvider.GetUtcNow();
-        ctx.SessionChatters.TryAdd(@event.UserId, @event.UserDisplayName);
 
         // Look up command in in-memory cache (O(1), no DB hit)
         if (!ctx.Commands.TryGetValue(commandName, out CachedCommand? command))
@@ -554,6 +566,45 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         if (responses.Length == 1)
             return responses[0];
         return responses[Random.Shared.Next(responses.Length)];
+    }
+
+    /// <summary>
+    /// The session-first-message trigger: dispatched through the shared executor the first time a user
+    /// speaks during THIS stream (session-deduped via <c>ChannelContext.SessionChatters</c>, which
+    /// <c>stream.online</c> clears). Failures never reach the chat hot path.
+    /// </summary>
+    private async Task FireSessionFirstMessageAsync(
+        ChatMessageReceivedEvent @event,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IEventResponseExecutor executor =
+                scope.ServiceProvider.GetRequiredService<IEventResponseExecutor>();
+            await executor.ExecuteAsync(
+                @event.BroadcasterId,
+                "engagement.session_first_message",
+                @event.UserId,
+                @event.UserDisplayName,
+                new(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["user"] = @event.UserDisplayName,
+                    ["user.id"] = @event.UserId,
+                    ["viewer.name"] = @event.UserDisplayName,
+                },
+                ct
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "session_first_message trigger failed for {Channel}",
+                @event.BroadcasterId
+            );
+        }
     }
 
     private static Dictionary<string, string> BuildInitialVariables(

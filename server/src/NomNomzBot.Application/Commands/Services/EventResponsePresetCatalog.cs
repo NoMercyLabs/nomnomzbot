@@ -93,6 +93,11 @@ public static class EventResponsePresetCatalog
             ["user", "user.id", "viewer.name", "engagement.streak"]
         ),
         new(
+            "engagement.session_first_message",
+            "Welcome in, {user}!",
+            ["user", "user.id", "viewer.name"]
+        ),
+        new(
             "supporter.tip",
             "{user} tipped {supporter.amount} {supporter.currency} — thank you!",
             SupporterVariables
