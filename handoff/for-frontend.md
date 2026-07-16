@@ -16,6 +16,23 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-16 — Chat triggers: keyword auto-replies ("someone says X → the bot reacts")
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** new CRUD under `channels/{channelId}/chat-triggers` (`ChatTriggerDto`): pattern +
+  matchType (`contains` | `exact` | `starts_with` | `regex`), caseSensitive, isEnabled, response
+  (template, same `{user}`/`{args}` variables as commands) OR pipelineId (chained reactions),
+  cooldownSeconds (spam guard, default 30), minPermissionLevel (0 = everyone). POST/PATCH validate
+  server-side (a regex must compile; a trigger needs a response or a pipeline) — surface those 400s
+  inline. Changes are live instantly (the bot's cache refreshes on every write). Build a "Chat
+  triggers" page (fits beside Commands): list + create/edit dialog with a match-type picker and a
+  response-vs-pipeline toggle.
+- **Why:** owner item — "Allow users to set up automated responses for specific chat messages or
+  commands" (the commands half already exists; this is the chat-message half).
+- **Where:** `feature/commands` (or a sibling); contract refreshed in `server/openapi/v1.json`
+  (2 new paths; note the snapshot reordered paths — structural diff only).
+- **Done when:** creating a "contains: good bot" trigger from the dashboard makes the bot reply in
+  live chat within seconds, edits apply without restart, verified on dev.
+
 ### 2026-07-16 — Rewards: countdown timers for time-limited redemptions
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** a reward can now carry `timerDurationSeconds` (set via the reward create/update DTOs; 0

@@ -102,7 +102,6 @@ commits; this is the collapsed record.
 ## work
 - [ ] Allow users to customize the appearance of chat messages, including font, color, and background.
 - [ ] Allow users to create and manage custom chat commands, including the ability to set permissions for who can use them.
-- [ ] Allow users to set up automated responses for specific chat messages or commands.
 - [ ] multi channel chat merging, for example if a user is streaming on multiple platforms at the same time, they can merge all chat messages into one unified chat window.
 - [ ] multi channel chat moderation, for example if a user is streaming on multiple platforms at the same time, they can moderate all chat messages from one unified chat window.
 - [ ] Allow users to set up custom alerts for specific events, such as new followers, subscribers, or donations.

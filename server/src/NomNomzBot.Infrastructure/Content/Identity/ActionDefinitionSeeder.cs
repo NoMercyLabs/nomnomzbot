@@ -132,6 +132,8 @@ public sealed class ActionDefinitionSeeder : ISeeder
         MFloor("pipelines:validate", Mod, Vip);
         MFloor("eventresponses:read", Mod, Vip);
         M("eventresponses:write", Editor);
+        MFloor("chattriggers:read", Mod, Vip);
+        M("chattriggers:write", Editor);
         MFloor("timers:read", Mod, Vip);
         M("timers:write", Editor);
 

@@ -109,8 +109,16 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         }
 
         string? text = @event.Message?.Trim();
-        if (string.IsNullOrEmpty(text) || text[0] != '!')
+        if (string.IsNullOrEmpty(text))
             return;
+
+        if (text[0] != '!')
+        {
+            // Ordinary chat line — the keyword chat-trigger surface ("someone says X → the bot reacts").
+            if (channelCtx is not null && !channelCtx.ChatTriggers.IsEmpty)
+                await FireChatTriggersAsync(channelCtx, @event, text, cancellationToken);
+            return;
+        }
 
         // Parse: !commandname arg1 arg2 ...
         int spaceIdx = text.IndexOf(' ');
@@ -566,6 +574,126 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         if (responses.Length == 1)
             return responses[0];
         return responses[Random.Shared.Next(responses.Length)];
+    }
+
+    /// <summary>
+    /// Matches the channel's cached keyword triggers against an ordinary chat line: role floor first,
+    /// then the pattern, then the per-trigger channel cooldown (the spam guard) — FIRST match wins, so
+    /// one line never fires a barrage. A matched trigger runs its bound pipeline (the full reaction
+    /// chain) or sends its resolved template line. Failures never reach the chat hot path.
+    /// </summary>
+    private async Task FireChatTriggersAsync(
+        ChannelContext ctx,
+        ChatMessageReceivedEvent @event,
+        string text,
+        CancellationToken ct
+    )
+    {
+        int speakerLevel = BadgeLevel(@event);
+        string cooldownChannelKey = @event.BroadcasterId.ToString();
+
+        foreach (CachedChatTrigger trigger in ctx.ChatTriggers.Values)
+        {
+            if (speakerLevel < trigger.MinPermissionLevel)
+                continue;
+            if (!TriggerMatches(trigger, text))
+                continue;
+
+            string cooldownKey = $"trigger:{trigger.Id:N}";
+            if (_cooldowns.IsOnCooldown(cooldownChannelKey, cooldownKey))
+                return; // matched but cooling down — first match still wins, silently.
+
+            if (trigger.CooldownSeconds > 0)
+                _cooldowns.SetCooldown(
+                    cooldownChannelKey,
+                    cooldownKey,
+                    TimeSpan.FromSeconds(trigger.CooldownSeconds)
+                );
+
+            try
+            {
+                await ExecuteChatTriggerAsync(trigger, @event, text, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Chat trigger {TriggerId} failed in {Channel}",
+                    trigger.Id,
+                    @event.BroadcasterId
+                );
+            }
+            return;
+        }
+    }
+
+    private static bool TriggerMatches(CachedChatTrigger trigger, string text)
+    {
+        StringComparison comparison = trigger.CaseSensitive
+            ? StringComparison.Ordinal
+            : StringComparison.OrdinalIgnoreCase;
+        try
+        {
+            return trigger.MatchType switch
+            {
+                Domain.Commands.Entities.ChatTriggerMatchType.Exact => text.Equals(
+                    trigger.Pattern,
+                    comparison
+                ),
+                Domain.Commands.Entities.ChatTriggerMatchType.StartsWith => text.StartsWith(
+                    trigger.Pattern,
+                    comparison
+                ),
+                Domain.Commands.Entities.ChatTriggerMatchType.Regex =>
+                    trigger.CompiledRegex?.IsMatch(text) == true,
+                _ => text.Contains(trigger.Pattern, comparison),
+            };
+        }
+        catch (System.Text.RegularExpressions.RegexMatchTimeoutException)
+        {
+            // A pathological pattern burned its 100ms budget — treat as no match, never stall chat.
+            return false;
+        }
+    }
+
+    private async Task ExecuteChatTriggerAsync(
+        CachedChatTrigger trigger,
+        ChatMessageReceivedEvent @event,
+        string text,
+        CancellationToken ct
+    )
+    {
+        Dictionary<string, string> variables = BuildInitialVariables(@event, text);
+
+        if (!string.IsNullOrWhiteSpace(trigger.PipelineGraphJson))
+        {
+            await _pipeline.ExecuteAsync(
+                new()
+                {
+                    BroadcasterId = @event.BroadcasterId,
+                    PipelineJson = trigger.PipelineGraphJson,
+                    TriggeredByUserId = @event.UserId,
+                    TriggeredByDisplayName = @event.UserDisplayName,
+                    MessageId = @event.MessageId,
+                    RawMessage = @event.Message ?? string.Empty,
+                    InitialVariables = variables,
+                },
+                ct
+            );
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(trigger.Response))
+            return;
+
+        string resolved = await _templateResolver.ResolveAsync(
+            trigger.Response,
+            variables,
+            @event.BroadcasterId,
+            ct
+        );
+        if (!string.IsNullOrWhiteSpace(resolved))
+            await _chat.SendMessageAsync(@event.BroadcasterId, resolved, ct);
     }
 
     /// <summary>
