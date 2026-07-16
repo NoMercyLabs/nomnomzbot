@@ -16,6 +16,23 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-16 — Desktop scope re-grant: route through the device flow (redirect can't widen there)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** in `IntegrationsController.regrantScopes()`, make the **desktop** target always use
+  `regrantScopesViaDevice` (the `POST /twitch/diagnostics/regrant` device flow) instead of the
+  redirect, even when a client secret is configured. Web can keep the redirect.
+- **Why:** the "permissions needed" banner never cleared because the redirect re-grant requested only
+  the static base scope set — a runtime-detected gap (e.g. `moderator:manage:announcements`) or an
+  extra held scope (`user:bot`) never rode along. The backend now widens the redirect's scope set to
+  `base ∪ granted ∪ recorded-missing` by peeking the web session cookie — but a **desktop** re-grant
+  opens the system browser, which carries no dashboard cookie, so only the device path (whose scope
+  set the backend computes server-side) is fully additive there.
+- **Where:** `feature/integrations/state/IntegrationsController.kt` (`regrantScopes`); no API
+  contract change (the device re-grant endpoint already exists and is what the secret-less path uses).
+- **Done when:** on desktop, pressing "Grant" on the missing-permissions card opens the device-code
+  panel (user code + twitch.tv/activate), and after approval the card clears — including for a
+  runtime-detected scope outside the base set.
+
 ### 2026-07-14 — Widget code editor: full Vue SFC + TypeScript IntelliSense (owner requirement)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the owner wants the in-dashboard widget code editor (the "VSCode-style" editor) to give

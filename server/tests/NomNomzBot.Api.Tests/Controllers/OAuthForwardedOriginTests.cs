@@ -43,7 +43,12 @@ public sealed class OAuthForwardedOriginTests
         state
             .IssueAsync(Arg.Any<TwitchOAuthFlowState>(), Arg.Any<CancellationToken>())
             .Returns("nonce");
-        auth.GetTwitchOAuthUrl("nonce", Arg.Any<string>(), Arg.Any<CancellationToken>())
+        auth.GetTwitchOAuthUrl(
+                "nonce",
+                Arg.Any<string>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Success("https://id.twitch.tv/oauth2/authorize?x=1"));
 
         AuthController controller = new(
@@ -56,7 +61,8 @@ public sealed class OAuthForwardedOriginTests
             Substitute.For<IUserIdentityService>(),
             Array.Empty<ILoginIdentityProvider>(),
             Array.Empty<IAuthCodeLoginProvider>(),
-            Substitute.For<IExternalLoginService>()
+            Substitute.For<IExternalLoginService>(),
+            Substitute.For<ISessionService>()
         )
         {
             ControllerContext = ForwardedContext(),
@@ -67,7 +73,12 @@ public sealed class OAuthForwardedOriginTests
         // The base URL the OAuth URL is built from is the tunnel origin — so the resulting Twitch
         // redirect_uri (…/api/v1/auth/twitch/callback) is the domain, exactly what the owner registers.
         await auth.Received(1)
-            .GetTwitchOAuthUrl("nonce", TunnelOrigin, Arg.Any<CancellationToken>());
+            .GetTwitchOAuthUrl(
+                "nonce",
+                TunnelOrigin,
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]

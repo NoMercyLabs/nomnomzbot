@@ -63,7 +63,8 @@ public sealed class AuthControllerAuthCodeLoginTests
             Substitute.For<IUserIdentityService>(),
             Array.Empty<ILoginIdentityProvider>(),
             [impl],
-            Substitute.For<IExternalLoginService>()
+            Substitute.For<IExternalLoginService>(),
+            Substitute.For<ISessionService>()
         )
         {
             ControllerContext = new ControllerContext { HttpContext = http },

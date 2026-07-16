@@ -17,6 +17,8 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Enums.Deployment;
+using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Deployment;
 using NSubstitute;
@@ -194,11 +196,88 @@ public sealed class AuthServiceStreamerScopesTests
         result.Value.Should().Contain(Uri.EscapeDataString("channel:manage:moderators"));
     }
 
+    /// <summary>
+    /// Proves EVERY scope any offered feature can require (<see cref="FeatureScopeMap"/>) is part of the base
+    /// streamer grant. This is the structural guard for the stuck permissions banner: the proactive
+    /// missing-scope read model reports every feature scope the connection lacks, so a feature scope absent
+    /// from the base grant (as <c>channel:manage:raids</c> / <c>channel:manage:vips</c> were) makes the banner
+    /// impossible to clear through the redirect re-auth — a permanent nag no consent can satisfy.
+    /// </summary>
+    [Fact]
+    public async Task GetTwitchOAuthUrl_RequestsEveryFeatureScopeMapScope()
+    {
+        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
+
+        Result<string> result = await service.GetTwitchOAuthUrl(
+            state: "nonce",
+            baseUrl: "https://api.example.test"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        foreach (string scope in FeatureScopeMap.Features.Values.SelectMany(scopes => scopes))
+            result
+                .Value.Should()
+                .Contain(
+                    Uri.EscapeDataString(scope),
+                    $"the base grant must cover feature scope '{scope}' or the missing-scope banner can never clear"
+                );
+    }
+
+    /// <summary>
+    /// Proves the additive re-auth for a KNOWN channel (the redirect re-grant a returning operator gets):
+    /// with a broadcaster hint the requested set is <c>base ∪ currently-granted ∪ recorded-missing</c> — the
+    /// extra scope the connection already holds (<c>user:bot</c>, single-account self-host) is re-consented
+    /// instead of silently dropped, and a runtime-detected gap OUTSIDE the base set is finally requested.
+    /// Without the hint (a fresh login) neither rides along.
+    /// </summary>
+    [Fact]
+    public async Task GetTwitchOAuthUrl_WithBroadcasterHint_UnionsGrantedAndRecordedGaps()
+    {
+        Guid channel = Guid.Parse("0192a000-0000-7000-8000-0000000000e1");
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.IntegrationConnections.Add(
+            new IntegrationConnection
+            {
+                BroadcasterId = channel,
+                Provider = "twitch",
+                Status = "connected",
+                Scopes = ["user:read:email", "user:bot"], // user:bot is NOT in the base set
+            }
+        );
+        db.ChannelMissingScopes.Add(
+            new ChannelMissingScope
+            {
+                BroadcasterId = channel,
+                Scope = "channel:edit:commercial", // runtime-detected, outside the base set
+                DetectedAt = new DateTime(2026, 7, 16, 0, 0, 0, DateTimeKind.Utc),
+            }
+        );
+        await db.SaveChangesAsync();
+        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"), db);
+
+        Result<string> withHint = await service.GetTwitchOAuthUrl(
+            state: "nonce",
+            baseUrl: "https://api.example.test",
+            broadcasterHint: channel
+        );
+        Result<string> without = await service.GetTwitchOAuthUrl(
+            state: "nonce",
+            baseUrl: "https://api.example.test"
+        );
+
+        withHint.IsSuccess.Should().BeTrue();
+        withHint.Value.Should().Contain(Uri.EscapeDataString("user:bot"));
+        withHint.Value.Should().Contain(Uri.EscapeDataString("channel:edit:commercial"));
+        withHint.Value.Should().Contain(Uri.EscapeDataString("user:read:chat")); // base still rides
+        without.Value.Should().NotContain(Uri.EscapeDataString("user:bot"));
+        without.Value.Should().NotContain(Uri.EscapeDataString("channel:edit:commercial"));
+    }
+
     // ─── scaffolding (mirrors AuthServiceBotDeviceTests.Build/ConfigWith) ──────────────────────────────
 
-    private static AuthService Build(IConfiguration config)
+    private static AuthService Build(IConfiguration config, AuthDbContext? existingDb = null)
     {
-        AuthDbContext db = AuthTestBuilder.NewContext();
+        AuthDbContext db = existingDb ?? AuthTestBuilder.NewContext();
         ITokenProtector protector = AuthTestBuilder.RealTokenProtector(db, out _);
         ISystemCredentialsProvider credentials = AuthTestBuilder.CredentialsProvider(
             db,

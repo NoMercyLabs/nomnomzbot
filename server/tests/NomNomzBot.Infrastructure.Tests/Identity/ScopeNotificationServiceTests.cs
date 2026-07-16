@@ -106,31 +106,13 @@ public sealed class ScopeNotificationServiceTests
     public async Task GetMissingScopes_WhenAllOfferedScopesGranted_IsEmpty()
     {
         (ScopeNotificationService service, AuthDbContext db, _, _) = Build();
-        // Every scope every offered feature needs, in one grant.
+        // Every scope every offered feature needs, in one grant — derived from the registry itself so this
+        // test can never drift behind a new FeatureScopeMap entry.
         string[] all =
         [
-            "channel:read:subscriptions",
-            "bits:read",
-            "channel:read:redemptions",
-            "channel:manage:redemptions",
-            "channel:manage:raids",
-            "channel:manage:broadcast",
-            "channel:read:polls",
-            "channel:manage:polls",
-            "channel:read:predictions",
-            "channel:manage:predictions",
-            "moderator:read:followers",
-            "moderator:manage:banned_users",
-            "moderator:manage:chat_messages",
-            "moderator:manage:automod",
-            "channel:read:vips",
-            "channel:manage:vips",
-            "user:read:chat",
-            "user:write:chat",
-            "channel:bot",
-            "user:read:emotes",
-            "channel:read:editors",
-            "channel:manage:moderators",
+            .. FeatureScopeMap
+                .Features.Values.SelectMany(scopes => scopes)
+                .Distinct(StringComparer.OrdinalIgnoreCase),
         ];
         await SeedTwitchConnectionAsync(db, all);
 
@@ -299,30 +281,12 @@ public sealed class ScopeNotificationServiceTests
     public async Task BuildRegrantScopeSet_WhenNothingMissing_ReportsNoMissingScopes()
     {
         (ScopeNotificationService service, AuthDbContext db, _, _) = Build();
+        // The full offered-feature scope set, derived from the registry so this can never drift behind it.
         string[] all =
         [
-            "channel:read:subscriptions",
-            "bits:read",
-            "channel:read:redemptions",
-            "channel:manage:redemptions",
-            "channel:manage:raids",
-            "channel:manage:broadcast",
-            "channel:read:polls",
-            "channel:manage:polls",
-            "channel:read:predictions",
-            "channel:manage:predictions",
-            "moderator:read:followers",
-            "moderator:manage:banned_users",
-            "moderator:manage:chat_messages",
-            "moderator:manage:automod",
-            "channel:read:vips",
-            "channel:manage:vips",
-            "user:read:chat",
-            "user:write:chat",
-            "channel:bot",
-            "user:read:emotes",
-            "channel:read:editors",
-            "channel:manage:moderators",
+            .. FeatureScopeMap
+                .Features.Values.SelectMany(scopes => scopes)
+                .Distinct(StringComparer.OrdinalIgnoreCase),
         ];
         await SeedTwitchConnectionAsync(db, all);
 

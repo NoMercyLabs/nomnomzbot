@@ -42,6 +42,7 @@ public class AuthController : BaseController
     private readonly IEnumerable<ILoginIdentityProvider> _loginImpls;
     private readonly IEnumerable<IAuthCodeLoginProvider> _authCodeImpls;
     private readonly IExternalLoginService _externalLogin;
+    private readonly ISessionService _sessions;
 
     public AuthController(
         IUserService userService,
@@ -53,7 +54,8 @@ public class AuthController : BaseController
         IUserIdentityService identities,
         IEnumerable<ILoginIdentityProvider> loginImpls,
         IEnumerable<IAuthCodeLoginProvider> authCodeImpls,
-        IExternalLoginService externalLogin
+        IExternalLoginService externalLogin,
+        ISessionService sessions
     )
     {
         _userService = userService;
@@ -66,6 +68,7 @@ public class AuthController : BaseController
         _loginImpls = loginImpls;
         _authCodeImpls = authCodeImpls;
         _externalLogin = externalLogin;
+        _sessions = sessions;
     }
 
     private ILoginIdentityProvider? FindLoginImpl(string key) =>
@@ -319,7 +322,9 @@ public class AuthController : BaseController
     /// Pass <c>redirect_uri</c> for mobile / desktop-loopback deep-link callbacks (e.g.
     /// <c>nomnomzbot://callback</c>). Pass <c>client=web</c> for the served-web dashboard: a full-page redirect
     /// can't receive a JSON token body, so the callback returns the tokens in the URL fragment + an HttpOnly
-    /// cookie instead.
+    /// cookie instead. A RETURNING operator's re-auth is additive: when the navigation carries a live web
+    /// session cookie, the requested scope set widens to <c>base ∪ granted ∪ recorded-missing</c> so a re-grant
+    /// clears every recorded gap and never drops an already-held scope (a fresh login gets the base set).
     /// </summary>
     [HttpGet("twitch")]
     [AllowAnonymous]
@@ -344,11 +349,28 @@ public class AuthController : BaseController
         Result<string> authUrl = await _authService.GetTwitchOAuthUrl(
             state,
             GetPublicBaseUrl(),
+            await ResolveArrivingBroadcasterAsync(ct),
             ct
         );
         if (authUrl.IsFailure)
             return ResultResponse(authUrl);
         return Redirect(authUrl.Value);
+    }
+
+    /// <summary>
+    /// The channel of the operator arriving on this anonymous navigation, when identifiable — a top-level
+    /// browser redirect carries no Authorization header, but the served-web session's HttpOnly refresh cookie
+    /// DOES ride along same-origin. Resolved via a read-only session peek (never consumes or rotates the
+    /// token); any stale/invalid cookie just means "unknown" and the flow proceeds with the base scopes.
+    /// </summary>
+    private async Task<Guid?> ResolveArrivingBroadcasterAsync(CancellationToken ct)
+    {
+        string? refreshToken = Request.Cookies["nnz_refresh_token"];
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            return null;
+
+        Result<AuthSessionDto> session = await _sessions.PeekSessionAsync(refreshToken, ct);
+        return session.IsSuccess ? session.Value.BroadcasterId : null;
     }
 
     /// <summary>

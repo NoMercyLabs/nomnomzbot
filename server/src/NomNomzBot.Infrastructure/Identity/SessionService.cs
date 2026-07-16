@@ -300,6 +300,49 @@ public sealed class SessionService : ISessionService
         );
     }
 
+    public async Task<Result<AuthSessionDto>> PeekSessionAsync(
+        string rawRefreshToken,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string hash = Hash(rawRefreshToken);
+        RefreshToken? token = await _db.RefreshTokens.FirstOrDefaultAsync(
+            t => t.TokenHash == hash,
+            cancellationToken
+        );
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
+
+        // A consumed/revoked/expired token fails the peek but is NOT treated as reuse — a peek is advisory
+        // (a stale cookie on an anonymous redirect must never nuke the session lineage).
+        if (
+            token is null
+            || token.ConsumedAt is not null
+            || token.RevokedAt is not null
+            || token.ExpiresAt <= now
+        )
+            return Result.Failure<AuthSessionDto>("Invalid refresh token.", "INVALID_TOKEN");
+
+        AuthSession? session = await _db.AuthSessions.FirstOrDefaultAsync(
+            s => s.Id == token.SessionId,
+            cancellationToken
+        );
+        if (session is null || session.RevokedAt is not null || session.ExpiresAt <= now)
+            return Result.Failure<AuthSessionDto>("Session is no longer valid.", "SESSION_INVALID");
+
+        // Read-only: no LastSeenAt bump, no SaveChanges — peeking leaves the lifecycle untouched.
+        return Result.Success(
+            new AuthSessionDto(
+                session.Id,
+                session.UserId,
+                session.BroadcasterId,
+                session.ClientType,
+                session.LastSeenAt,
+                session.ExpiresAt,
+                session.RevokedAt is not null
+            )
+        );
+    }
+
     private (string Raw, RefreshToken Token) NewRefreshToken(
         Guid sessionId,
         Guid userId,

@@ -27,11 +27,16 @@ public interface IAuthService
     /// Builds the Twitch login authorize URL, resolving the platform's Twitch client id from the
     /// configured app credentials (DB-vaulted first, then config). Fails <c>TWITCH_NOT_CONFIGURED</c> when no
     /// credentials are set yet — so the dashboard tells the operator to finish setup instead of starting a
-    /// broken OAuth flow.
+    /// broken OAuth flow. When <paramref name="broadcasterHint"/> resolves to an existing channel, the
+    /// requested scope set widens to <c>base ∪ currently-granted ∪ recorded-missing</c> (identity-auth §3.4a):
+    /// a returning operator's redirect re-auth is then ADDITIVE — it clears every recorded gap (even a
+    /// runtime-detected scope outside the base set) and never silently drops an extra scope the connection
+    /// already holds. A fresh login (no hint) requests the standard base set.
     /// </summary>
     Task<Result<string>> GetTwitchOAuthUrl(
         string? state = null,
         string? baseUrl = null,
+        Guid? broadcasterHint = null,
         CancellationToken cancellationToken = default
     );
 

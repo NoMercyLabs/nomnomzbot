@@ -138,6 +138,55 @@ public sealed class SessionServiceTests
     }
 
     [Fact]
+    public async Task Peek_ResolvesTheSession_WithoutConsumingTheToken()
+    {
+        (SessionService service, AuthDbContext db, _) = Build();
+        User user = await SeedUserAsync(db);
+        SessionTokensDto issued = (await service.CreateSessionAsync(user.Id, Tenant, Ctx())).Value;
+
+        Result<AuthSessionDto> peeked = await service.PeekSessionAsync(issued.RawRefreshToken);
+
+        peeked.IsSuccess.Should().BeTrue();
+        peeked.Value.Id.Should().Be(issued.SessionId);
+        peeked.Value.BroadcasterId.Should().Be(Tenant);
+
+        // Read-only: the token is untouched, so a normal rotation afterwards still succeeds — a peek that
+        // consumed the token would break the very refresh the cookie exists for.
+        RefreshToken stored = await db.RefreshTokens.AsNoTracking().SingleAsync();
+        stored.ConsumedAt.Should().BeNull();
+        (await service.RotateAsync(issued.RawRefreshToken, Ctx())).IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Peek_WithConsumedToken_Fails_ButNeverRevokesTheLineage()
+    {
+        (SessionService service, AuthDbContext db, RecordingEventBus bus) = Build();
+        User user = await SeedUserAsync(db);
+        SessionTokensDto first = (await service.CreateSessionAsync(user.Id, Tenant, Ctx())).Value;
+        await service.RotateAsync(first.RawRefreshToken, Ctx()); // consumes `first`
+
+        Result<AuthSessionDto> peeked = await service.PeekSessionAsync(first.RawRefreshToken);
+
+        peeked.IsFailure.Should().BeTrue();
+        // A stale cookie on an anonymous redirect is advisory — it must NOT count as reuse: no reuse event,
+        // and the live successor session stays valid.
+        bus.Published.OfType<RefreshTokenReuseDetectedEvent>().Should().BeEmpty();
+        AuthSession session = await db.AuthSessions.AsNoTracking().SingleAsync();
+        session.RevokedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Peek_WithUnknownToken_Fails()
+    {
+        (SessionService service, _, _) = Build();
+
+        Result<AuthSessionDto> peeked = await service.PeekSessionAsync("never-issued");
+
+        peeked.IsFailure.Should().BeTrue();
+        peeked.ErrorCode.Should().Be("INVALID_TOKEN");
+    }
+
+    [Fact]
     public async Task RevokeAllForUser_RevokesEverySessionAndToken()
     {
         (SessionService service, AuthDbContext db, _) = Build();

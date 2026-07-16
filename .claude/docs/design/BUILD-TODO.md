@@ -136,7 +136,6 @@ commits; this is the collapsed record.
 - [ ] the entire platform needs to be reworked and overhauled to be more user friendly and intuitive and usability.
 - [ ] data sources are not clear what they do and how they are used, they need to be reworked and overhauled to be more user friendly and intuitive and usability.
 - [ ] after redirecting from auth providers, the user is not redirected back to the page they were on before the redirect, instead they are redirected to the home page.
-- [ ] AND THE FUCKING PERMISSIONS NEEDED BANNER STILL STAYS ON THE SCREEN EVEN AFTER THE USER GRANTS THE PERMISSIONS NEEDED.
 - [ ] youtube needs a non-byoc provider for auth.
 - [ ] the bot personality responses need to be better, no emoji bullshit and be properly taken an example from my current bot. my current bots responses are way funnier and sassy and you need to do better.
 - [ ] i am missing the pre-filled templates in all the template input fields.

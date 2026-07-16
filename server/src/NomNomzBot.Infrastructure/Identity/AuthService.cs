@@ -116,6 +116,9 @@ public sealed class AuthService : IAuthService
         // (TwitchEventSubHostedService.SubscribeAsync) without blocking any other topic.
         "channel:read:ads", // channel.ad_break.begin
         "channel:read:vips", // channel.vip.add / channel.vip.remove
+        "channel:manage:vips", // dashboard VIP add/remove (Add/Remove Channel VIP — FeatureScopeMap "vips")
+        "channel:manage:raids", // raid responses / Start Raid (FeatureScopeMap "raids")
+        "moderator:manage:announcements", // announce pipeline action (Send Chat Announcement)
         "moderation:read", // channel.moderator.add / channel.moderator.remove
         // Core proactive management jobs (roles-permissions §4) — these ride the base grant, not a feature toggle,
         // because they run unconditionally for every onboarded channel: the 10-minute ManagementRoleReconcileService
@@ -202,18 +205,57 @@ public sealed class AuthService : IAuthService
 
     // ─── User OAuth ──────────────────────────────────────────────────────────
 
-    public Task<Result<string>> GetTwitchOAuthUrl(
+    public async Task<Result<string>> GetTwitchOAuthUrl(
         string? state = null,
         string? baseUrl = null,
+        Guid? broadcasterHint = null,
         CancellationToken cancellationToken = default
     ) =>
-        BuildAuthorizeUrlAsync(
-            RequiredScopes,
+        await BuildAuthorizeUrlAsync(
+            broadcasterHint is Guid channel
+                ? await WidenedStreamerScopesAsync(channel, cancellationToken)
+                : RequiredScopes,
             state,
             baseUrl,
             forceVerify: false,
             cancellationToken
         );
+
+    /// <summary>
+    /// The ADDITIVE streamer scope set for a known channel: <c>base ∪ currently-granted ∪ recorded-missing</c>.
+    /// This is what makes the redirect re-auth equivalent to the device-code re-grant
+    /// (<c>BuildRegrantScopeSetAsync</c>): a runtime-detected gap outside the base set still gets requested,
+    /// and an extra scope the connection already holds (e.g. <c>user:bot</c> on a single-account self-host) is
+    /// re-consented rather than silently dropped by the narrower base list.
+    /// </summary>
+    private async Task<string[]> WidenedStreamerScopesAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        SortedSet<string> union = new(RequiredScopes, StringComparer.OrdinalIgnoreCase);
+
+        List<string>? granted = await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c =>
+                c.BroadcasterId == broadcasterId
+                && c.Provider == AuthEnums.IntegrationProvider.Twitch
+                && c.DeletedAt == null
+            )
+            .Select(c => c.Scopes)
+            .FirstOrDefaultAsync(ct);
+        foreach (string scope in granted ?? [])
+            union.Add(scope);
+
+        List<string> recordedGaps = await _db
+            .ChannelMissingScopes.Where(m => m.BroadcasterId == broadcasterId)
+            .Select(m => m.Scope)
+            .ToListAsync(ct);
+        foreach (string scope in recordedGaps)
+            union.Add(scope);
+
+        return [.. union];
+    }
 
     public async Task<Result<AuthResultDto>> HandleTwitchCallbackAsync(
         OAuthCallbackDto callback,

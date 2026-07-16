@@ -40,7 +40,8 @@ public sealed class AuthControllerIdentitiesTests
             identities,
             Array.Empty<ILoginIdentityProvider>(),
             Array.Empty<IAuthCodeLoginProvider>(),
-            Substitute.For<IExternalLoginService>()
+            Substitute.For<IExternalLoginService>(),
+            Substitute.For<ISessionService>()
         )
         {
             ControllerContext = new ControllerContext

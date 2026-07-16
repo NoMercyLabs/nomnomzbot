@@ -68,4 +68,16 @@ public interface ISessionService
         Guid sessionId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Resolves the session a LIVE raw refresh token belongs to WITHOUT consuming or rotating it — a
+    /// read-only peek. Used where a browser navigation carries only the HttpOnly refresh cookie (no
+    /// Authorization header) and the caller just needs to know who is arriving — e.g. the streamer
+    /// authorize redirect widening its scope set for a returning operator. Fails for a consumed, revoked,
+    /// expired, or unknown token; peeking never counts as reuse and never revokes anything.
+    /// </summary>
+    Task<Result<AuthSessionDto>> PeekSessionAsync(
+        string rawRefreshToken,
+        CancellationToken cancellationToken = default
+    );
 }
