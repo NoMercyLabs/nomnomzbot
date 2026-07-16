@@ -18,6 +18,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -114,6 +115,19 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         if (text[0] != '!')
         {
+            // Open chat poll: a bare option number is a VOTE and is consumed — it never doubles as a
+            // trigger match while the poll runs.
+            if (
+                channelCtx?.ActiveChatPoll is CachedChatPoll poll
+                && int.TryParse(text, out int optionIndex)
+                && optionIndex >= 1
+                && optionIndex <= poll.OptionCount
+            )
+            {
+                await RecordPollVoteAsync(poll, @event, optionIndex, cancellationToken);
+                return;
+            }
+
             // Ordinary chat line — the keyword chat-trigger surface ("someone says X → the bot reacts").
             if (channelCtx is not null && !channelCtx.ChatTriggers.IsEmpty)
                 await FireChatTriggersAsync(channelCtx, @event, text, cancellationToken);
@@ -624,6 +638,41 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 );
             }
             return;
+        }
+    }
+
+    /// <summary>
+    /// Records (or changes) the speaker's vote in the open chat poll — one CURRENT vote per viewer per
+    /// poll, last vote wins. Failures never reach the chat hot path.
+    /// </summary>
+    private async Task RecordPollVoteAsync(
+        CachedChatPoll poll,
+        ChatMessageReceivedEvent @event,
+        int optionIndex,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IChatPollService polls = scope.ServiceProvider.GetRequiredService<IChatPollService>();
+            await polls.RecordVoteAsync(
+                @event.BroadcasterId,
+                poll.Id,
+                @event.Provider,
+                @event.UserId,
+                optionIndex,
+                ct
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Chat poll vote failed for poll {PollId} in {Channel}",
+                poll.Id,
+                @event.BroadcasterId
+            );
         }
     }
 

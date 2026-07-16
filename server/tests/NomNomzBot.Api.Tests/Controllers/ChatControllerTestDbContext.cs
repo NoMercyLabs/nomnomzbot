@@ -128,6 +128,10 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.ChatTrigger> ChatTriggers =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
+        throw new NotSupportedException();
     public DbSet<Quote> Quotes => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();

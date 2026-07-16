@@ -99,6 +99,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         await LoadBuiltinTogglesAsync(ctx, ct);
         await LoadChannelSettingsAsync(ctx, ct);
         await LoadChatTriggersAsync(ctx, ct);
+        await LoadActiveChatPollAsync(ctx, ct);
 
         _channels[broadcasterId] = ctx;
         _logger.LogInformation(
@@ -211,6 +212,41 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    private async Task LoadActiveChatPollAsync(ChannelContext ctx, CancellationToken ct)
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        Domain.Community.Entities.ChatPoll? open = await db.ChatPolls.FirstOrDefaultAsync(
+            p =>
+                p.BroadcasterId == ctx.BroadcasterId
+                && p.Status == Domain.Community.Entities.ChatPollStatus.Open,
+            ct
+        );
+        ctx.ActiveChatPoll = open is null
+            ? null
+            : new CachedChatPoll { Id = open.Id, OptionCount = CountPollOptions(open.OptionsJson) };
+    }
+
+    /// <summary>Options are a JSON string array; a malformed payload yields 0 (the poll can't be voted).</summary>
+    private static int CountPollOptions(string optionsJson)
+    {
+        try
+        {
+            using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(
+                optionsJson
+            );
+            return doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array
+                ? doc.RootElement.GetArrayLength()
+                : 0;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return 0;
+        }
+    }
 
     private async Task LoadChatTriggersAsync(ChannelContext ctx, CancellationToken ct)
     {

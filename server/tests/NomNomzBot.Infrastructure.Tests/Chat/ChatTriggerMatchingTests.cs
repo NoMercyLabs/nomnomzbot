@@ -252,6 +252,64 @@ public sealed class ChatTriggerMatchingTests
     }
 
     [Fact]
+    public async Task While_a_poll_is_open_a_bare_option_number_is_a_vote_not_a_trigger()
+    {
+        ChannelContext ctx = NewContext();
+        ctx.ActiveChatPoll = new CachedChatPoll { Id = Guid.CreateVersion7(), OptionCount = 3 };
+        CachedChatTrigger trigger = Trigger("2"); // would match the same line
+        ctx.ChatTriggers[trigger.Id] = trigger;
+
+        NomNomzBot.Application.Community.Services.IChatPollService polls =
+            Substitute.For<NomNomzBot.Application.Community.Services.IChatPollService>();
+        ServiceProvider provider = new ServiceCollection()
+            .AddSingleton(polls)
+            .BuildServiceProvider();
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        ChatMessageHandler sut = new(
+            registry,
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            new CooldownManager(TimeProvider.System),
+            chat,
+            Substitute.For<IPipelineEngine>(),
+            Substitute.For<IBuiltinCommandCatalog>(),
+            Substitute.For<ITemplateResolver>(),
+            Substitute.For<IEventBus>(),
+            TimeProvider.System,
+            NullLogger<ChatMessageHandler>.Instance
+        );
+
+        await sut.HandleAsync(Line("2"), CancellationToken.None);
+
+        await polls
+            .Received(1)
+            .RecordVoteAsync(
+                Broadcaster,
+                ctx.ActiveChatPoll.Id,
+                Arg.Any<string>(),
+                "tw-viewer-1",
+                2,
+                Arg.Any<CancellationToken>()
+            );
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+
+        // An out-of-range number is NOT a vote — it falls through to the trigger surface as usual.
+        await sut.HandleAsync(Line("9"), CancellationToken.None);
+        await polls
+            .Received(1)
+            .RecordVoteAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task A_command_line_never_reaches_the_trigger_surface()
     {
         ChannelContext ctx = NewContext();

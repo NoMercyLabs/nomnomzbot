@@ -57,6 +57,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Redemption> Redemptions => Set<Redemption>();
     public DbSet<RedemptionTimer> RedemptionTimers => Set<RedemptionTimer>();
     public DbSet<ChatTrigger> ChatTriggers => Set<ChatTrigger>();
+    public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
+        Set<NomNomzBot.Domain.Community.Entities.ChatPoll>();
+    public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
+        Set<NomNomzBot.Domain.Community.Entities.ChatPollVote>();
     public DbSet<Domain.Quotes.Entities.Quote> Quotes => Set<Domain.Quotes.Entities.Quote>();
 
     // Generic named pick-lists (the {list.pick.<name>} primitive).

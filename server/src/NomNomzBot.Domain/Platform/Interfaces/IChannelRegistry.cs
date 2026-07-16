@@ -113,6 +113,12 @@ public class ChannelContext
     public ConcurrentDictionary<Guid, CachedChatTrigger> ChatTriggers { get; } = new();
 
     /// <summary>
+    /// The channel's OPEN bot-run chat poll, or null — the hot path checks this before treating a bare
+    /// number as a vote. Set by the poll service on open/close and loaded at registration.
+    /// </summary>
+    public CachedChatPoll? ActiveChatPoll { get; set; }
+
+    /// <summary>
     /// Per-channel builtin-toggle cache: keys are the builtin's bare catalog key (lowercase, no leading "!"
     /// — the same form the builtin catalog and <c>ChatMessageHandler</c>'s parsed command name use) for every
     /// builtin explicitly disabled for this channel. Absence = enabled (the catalog default), mirroring
@@ -150,6 +156,13 @@ public class ChannelContext
     // Lock for compound operations
     private readonly object _lock = new();
     public object Lock => _lock;
+}
+
+/// <summary>The open chat poll's hot-path shape: enough to turn "2" into a vote without a DB read.</summary>
+public class CachedChatPoll
+{
+    public required Guid Id { get; init; }
+    public required int OptionCount { get; init; }
 }
 
 /// <summary>

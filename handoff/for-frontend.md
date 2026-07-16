@@ -16,6 +16,23 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Chat polls: bot-run polls with chat-number voting (every platform)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** new surface under `channels/{channelId}/chat-polls` (`ChatPollDto`): `POST` opens a poll
+  (question + 2–10 options, optional `durationSeconds` auto-close, `announce` posts it in chat),
+  viewers vote by typing the option number in chat on ANY platform (last vote wins, one per viewer),
+  `GET` lists (open poll first with LIVE per-option tallies + `totalVotes`, then history),
+  `GET {pollId}` one poll, `POST {pollId}/close` closes now (winner announced in chat). One open poll
+  per channel (409 otherwise). Distinct from the Twitch-native live-ops polls (affiliate-gated,
+  channel-point voting) — keep both on the polls page, labeled "Chat poll" vs "Twitch poll". UI:
+  open-poll card with live bars (poll the GET every few seconds), close button, history list.
+- **Why:** owner item — "custom polls and surveys ... view results in real-time"; works for
+  non-affiliates and across YouTube/Kick simulcasts.
+- **Where:** `feature/community` or the live-ops page; contract refreshed in `server/openapi/v1.json`
+  (3 new paths).
+- **Done when:** opening a poll from the dashboard announces it in chat, typed numbers move the bars,
+  and closing announces the winner — verified on dev.
+
 ### 2026-07-16 — Chat triggers: keyword auto-replies ("someone says X → the bot reacts")
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** new CRUD under `channels/{channelId}/chat-triggers` (`ChatTriggerDto`): pattern +
