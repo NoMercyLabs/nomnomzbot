@@ -35,6 +35,7 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
         AuthEnums.IntegrationProvider.Kick,
         AuthEnums.IntegrationProvider.Patreon,
         AuthEnums.IntegrationProvider.Shopify,
+        AuthEnums.IntegrationProvider.Treatstream,
     ];
 
     public Result<OAuthProviderDescriptor> Resolve(string provider, Guid broadcasterId)
@@ -47,6 +48,7 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
             AuthEnums.IntegrationProvider.Kick => Result.Success(Kick()),
             AuthEnums.IntegrationProvider.Patreon => Result.Success(Patreon()),
             AuthEnums.IntegrationProvider.Shopify => Result.Success(Shopify()),
+            AuthEnums.IntegrationProvider.Treatstream => Result.Success(Treatstream()),
             _ => Result.Failure<OAuthProviderDescriptor>(
                 $"Unknown OAuth provider '{provider}'.",
                 "UNKNOWN_PROVIDER"
@@ -153,6 +155,25 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
             IsByok: ResolveIsByok("Shopify"),
             RequiresShopDomain: true,
             IdentityTokenHeader: "X-Shopify-Access-Token"
+        );
+
+    private OAuthProviderDescriptor Treatstream() =>
+        new(
+            Provider: AuthEnums.IntegrationProvider.Treatstream,
+            // Verified against treatstream.com/api/details: a confidential client, no PKCE, and NO
+            // identity endpoint — the connect stores the connection identity-less.
+            AuthorizeEndpoint: "https://treatstream.com/Oauth2/Authorize",
+            TokenEndpoint: "https://treatstream.com/Oauth2/Authorize/token",
+            RevokeEndpoint: null,
+            AccountIdentityEndpoint: null,
+            UsesPkce: false,
+            ScopeSets: new Dictionary<string, IReadOnlyList<string>>
+            {
+                // TreatStream's whole API surface rides one scope; the socket token for realtime treats
+                // is exchanged from the access token (supporter-events.md D3).
+                ["treatstream.treats"] = ["userinfo"],
+            },
+            IsByok: ResolveIsByok("Treatstream")
         );
 
     private OAuthProviderDescriptor YouTube() =>

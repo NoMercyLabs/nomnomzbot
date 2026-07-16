@@ -437,6 +437,10 @@ public static class DependencyInjection
             Supporters.Sockets.ISupporterSocketProfile,
             Supporters.Sockets.TipeeeSocketProfile
         >();
+        services.AddSingleton<
+            Supporters.Sockets.ISupporterSocketProfile,
+            Supporters.Sockets.TreatstreamSocketProfile
+        >();
         services.AddHttpClient(
             Supporters.Sockets.SocketIoFrameSource.HttpClientName,
             client => client.Timeout = TimeSpan.FromSeconds(10)

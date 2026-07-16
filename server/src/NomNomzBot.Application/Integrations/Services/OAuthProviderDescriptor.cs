@@ -19,14 +19,16 @@ namespace NomNomzBot.Application.Integrations.Services;
 /// A shop-scoped provider (Shopify) marks <paramref name="RequiresShopDomain"/> and templates its endpoints
 /// with <c>{shop}</c> — the sanitized shop name from the connect request substitutes in. A provider whose
 /// identity endpoint takes the token in a custom header (Shopify's <c>X-Shopify-Access-Token</c>) names it
-/// in <paramref name="IdentityTokenHeader"/>; null = standard <c>Authorization: Bearer</c>.
+/// in <paramref name="IdentityTokenHeader"/>; null = standard <c>Authorization: Bearer</c>. A provider with
+/// NO identity endpoint at all (TreatStream) leaves <paramref name="AccountIdentityEndpoint"/> null — the
+/// connect stores the connection without an account identity rather than probing a nonexistent route.
 /// </summary>
 public sealed record OAuthProviderDescriptor(
     string Provider,
     string AuthorizeEndpoint,
     string TokenEndpoint,
     string? RevokeEndpoint,
-    string AccountIdentityEndpoint,
+    string? AccountIdentityEndpoint,
     bool UsesPkce,
     IReadOnlyDictionary<string, IReadOnlyList<string>> ScopeSets,
     bool IsByok,

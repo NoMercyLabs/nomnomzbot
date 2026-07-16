@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Supporters.Services;
 using NomNomzBot.Domain.Supporters.Entities;
 
@@ -108,7 +109,6 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
 
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        ITokenProtector protector = scope.ServiceProvider.GetRequiredService<ITokenProtector>();
 
         List<SupporterConnection> enabled = await db
             .SupporterConnections.Where(c =>
@@ -118,15 +118,15 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
             )
             .ToListAsync(ct);
 
-        // Stop runners whose connection disappeared, was disabled, or changed its sealed secret.
+        // Stop runners whose connection disappeared, was disabled, or changed its credential.
         Dictionary<Guid, SupporterConnection> byId = enabled.ToDictionary(c => c.Id);
         foreach ((Guid id, Runner runner) in _runners.ToList())
         {
             bool keep =
                 byId.TryGetValue(id, out SupporterConnection? current)
                 && string.Equals(
-                    current.AuthSecretCipher,
-                    runner.SecretCipher,
+                    CredentialFingerprint(current),
+                    runner.CredentialFingerprint,
                     StringComparison.Ordinal
                 );
             if (keep)
@@ -134,7 +134,7 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
             await StopRunnerAsync(id, runner);
         }
 
-        // Start runners for enabled connections that have a profile + a usable secret.
+        // Start runners for enabled connections that have a profile + a resolvable credential.
         foreach (SupporterConnection connection in enabled)
         {
             if (_runners.ContainsKey(connection.Id))
@@ -145,21 +145,37 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
                     out Sockets.ISupporterSocketProfile? profile
                 )
             )
-                continue; // provider has no live-socket dialect registered (e.g. Socket.IO pending).
+                continue; // provider has no live-socket dialect registered.
 
-            string? secret = await protector.TryUnprotectAsync(
-                connection.AuthSecretCipher,
-                SupporterConnectionService.SecretContext(
-                    connection.BroadcasterId,
-                    connection.SourceKey
-                ),
-                ct
-            );
+            string? fingerprint = CredentialFingerprint(connection);
+            if (fingerprint is null)
+            {
+                connection.Status = "error";
+                _logger.LogWarning(
+                    "Supporter socket for {Source} on {Channel} has no usable key — set the connection secret or link the OAuth connection.",
+                    connection.SourceKey,
+                    connection.BroadcasterId
+                );
+                continue;
+            }
+
+            // The credential resolves PER CONNECT ATTEMPT (a vaulted OAuth access token rotates on refresh,
+            // so a reconnect must never reuse the token captured at start). Validate it once now so a broken
+            // credential errors the connection immediately instead of silently backoff-looping.
+            Guid connectionId = connection.Id;
+            Guid broadcasterId = connection.BroadcasterId;
+            string sourceKey = connection.SourceKey;
+            string? cipher = connection.AuthSecretCipher;
+            Guid? oauthConnectionId = connection.IntegrationConnectionId;
+            Func<CancellationToken, Task<string?>> resolveSecret = token =>
+                ResolveSecretAsync(broadcasterId, sourceKey, cipher, oauthConnectionId, token);
+
+            string? secret = await resolveSecret(ct);
             if (string.IsNullOrWhiteSpace(secret))
             {
                 connection.Status = "error";
                 _logger.LogWarning(
-                    "Supporter socket for {Source} on {Channel} has no usable key — set the connection secret.",
+                    "Supporter socket for {Source} on {Channel} could not resolve its credential.",
                     connection.SourceKey,
                     connection.BroadcasterId
                 );
@@ -168,15 +184,15 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
 
             CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             Runner runner = new(
-                connection.AuthSecretCipher,
+                fingerprint,
                 cts,
                 Task.Run(
                     () =>
                         RunConnectionAsync(
-                            connection.Id,
-                            connection.BroadcasterId,
-                            connection.SourceKey,
-                            secret,
+                            connectionId,
+                            broadcasterId,
+                            sourceKey,
+                            resolveSecret,
                             profile,
                             cts.Token
                         ),
@@ -194,12 +210,56 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
         await db.SaveChangesAsync(ct); // persists any error-status flips
     }
 
+    /// <summary>
+    /// A stable identity for the connection's credential — the sealed cipher itself, or the linked OAuth
+    /// connection (whose rotating token must NOT restart the runner on every refresh). Null = no credential.
+    /// </summary>
+    private static string? CredentialFingerprint(SupporterConnection connection) =>
+        connection.AuthSecretCipher
+        ?? (connection.IntegrationConnectionId is Guid oauthId ? $"oauth:{oauthId}" : null);
+
+    /// <summary>
+    /// The live credential for one connect attempt: the unsealed connection secret, or — for an
+    /// OAuth-linked source (TreatStream) — the CURRENT vaulted access token, resolved fresh in its own
+    /// scope so a rotated token is picked up on reconnect.
+    /// </summary>
+    private async Task<string?> ResolveSecretAsync(
+        Guid broadcasterId,
+        string sourceKey,
+        string? cipher,
+        Guid? oauthConnectionId,
+        CancellationToken ct
+    )
+    {
+        await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
+        if (cipher is not null)
+        {
+            ITokenProtector protector = scope.ServiceProvider.GetRequiredService<ITokenProtector>();
+            return await protector.TryUnprotectAsync(
+                cipher,
+                SupporterConnectionService.SecretContext(broadcasterId, sourceKey),
+                ct
+            );
+        }
+
+        if (oauthConnectionId is Guid oauthId)
+        {
+            IIntegrationTokenVault vault =
+                scope.ServiceProvider.GetRequiredService<IIntegrationTokenVault>();
+            Result<Application.Identity.Dtos.DecryptedTokenDto> token =
+                await vault.GetAccessTokenAsync(oauthId, ct);
+            return token.IsSuccess ? token.Value.Value : null;
+        }
+
+        return null;
+    }
+
     /// <summary>One connection's receive loop: stream → translate → ingest, reconnecting with backoff.</summary>
     private async Task RunConnectionAsync(
         Guid connectionId,
         Guid broadcasterId,
         string sourceKey,
-        string secret,
+        Func<CancellationToken, Task<string?>> resolveSecret,
         Sockets.ISupporterSocketProfile profile,
         CancellationToken ct
     )
@@ -209,6 +269,13 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
         {
             try
             {
+                // Resolved per attempt: an OAuth access token may have rotated since the last connect.
+                string? secret = await resolveSecret(ct);
+                if (string.IsNullOrWhiteSpace(secret))
+                    throw new InvalidOperationException(
+                        "The connection's credential no longer resolves."
+                    );
+
                 await foreach (string frame in _frames.ConnectAndReceiveAsync(profile, secret, ct))
                 {
                     backoff = BackoffFloor; // a live frame proves the stream healthy — reset the backoff.
@@ -327,6 +394,10 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
         Dispose();
     }
 
-    /// <summary>A live per-connection receive loop + the sealed secret it was started with (restart signal).</summary>
-    private sealed record Runner(string? SecretCipher, CancellationTokenSource Cts, Task Loop);
+    /// <summary>A live per-connection receive loop + the credential identity it was started with (restart signal).</summary>
+    private sealed record Runner(
+        string CredentialFingerprint,
+        CancellationTokenSource Cts,
+        Task Loop
+    );
 }

@@ -16,6 +16,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Supporters.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -48,7 +51,13 @@ public sealed class SupporterSocketHostedServiceTests
         SupporterSocketHostedService Service,
         SupporterTestDbContext Db,
         QueueFrameSource Frames
-    )> BuildAsync(bool enabled = true, string? secret = "pally-key", IRunOnceGuard? guard = null)
+    )> BuildAsync(
+        bool enabled = true,
+        string? secret = "pally-key",
+        IRunOnceGuard? guard = null,
+        Guid? oauthConnectionId = null,
+        IIntegrationTokenVault? vault = null
+    )
     {
         SupporterTestDbContext db = SupporterTestDbContext.New();
         db.Channels.Add(
@@ -71,6 +80,7 @@ public sealed class SupporterSocketHostedServiceTests
                 IsEnabled = enabled,
                 Status = "idle",
                 AuthSecretCipher = secret is null ? null : $"sealed:{secret}",
+                IntegrationConnectionId = oauthConnectionId,
             }
         );
         await db.SaveChangesAsync();
@@ -88,6 +98,9 @@ public sealed class SupporterSocketHostedServiceTests
         services.AddSingleton<IApplicationDbContext>(db);
         services.AddSingleton<ITokenProtector>(new PrefixProtector());
         services.AddSingleton<ISupporterIngestService>(ingest);
+        services.AddSingleton<IIntegrationTokenVault>(
+            vault ?? Substitute.For<IIntegrationTokenVault>()
+        );
         ServiceProvider provider = services.BuildServiceProvider();
 
         QueueFrameSource frames = new();
@@ -174,6 +187,33 @@ public sealed class SupporterSocketHostedServiceTests
 
         // The runner's stream was cancelled — the frame source observed the disconnect.
         frames.ActiveStreams.Should().Be(0);
+        await service.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Reconcile_OAuthLinkedConnection_ResolvesTheVaultTokenAsTheCredential()
+    {
+        // A TreatStream-style connection: no sealed secret — the credential is the vaulted OAuth token.
+        Guid oauthId = Guid.Parse("019f2900-4444-7000-8000-0000000000bb");
+        IIntegrationTokenVault vault = Substitute.For<IIntegrationTokenVault>();
+        vault
+            .GetAccessTokenAsync(oauthId, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(new DecryptedTokenDto("vaulted-access", "Bearer", null, false))
+            );
+        (SupporterSocketHostedService service, _, QueueFrameSource frames) = await BuildAsync(
+            secret: null,
+            oauthConnectionId: oauthId,
+            vault: vault
+        );
+
+        await service.ReconcileOnceAsync(CancellationToken.None);
+        await frames.FirstConnected.WaitAsync(TimeSpan.FromSeconds(10));
+
+        frames
+            .ConnectedSecrets[0]
+            .Should()
+            .Be("vaulted-access", "the runner hands the transport the CURRENT vault token");
         await service.DisposeAsync();
     }
 

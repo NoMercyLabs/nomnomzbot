@@ -483,6 +483,10 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         CancellationToken cancellationToken
     )
     {
+        // A provider with no identity endpoint (TreatStream) simply connects identity-less.
+        if (descriptor.AccountIdentityEndpoint is null)
+            return (null, null);
+
         try
         {
             using HttpRequestMessage request = new(

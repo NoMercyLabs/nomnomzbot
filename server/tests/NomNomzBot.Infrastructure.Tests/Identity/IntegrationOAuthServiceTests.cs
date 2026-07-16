@@ -151,6 +151,47 @@ public sealed class IntegrationOAuthServiceTests
         handler.LastTokenRequestBody.Should().NotContain("code_verifier=");
     }
 
+    /// <summary>
+    /// Proves an identity-less provider (TreatStream — no identity endpoint exists, verified against
+    /// treatstream.com/api/details) connects cleanly: the callback vaults the tokens and stores the
+    /// connection WITHOUT probing a nonexistent identity route (the identity request is never made).
+    /// </summary>
+    [Fact]
+    public async Task HandleCallback_ForTreatstream_ConnectsIdentityLess_WithoutProbing()
+    {
+        StubHandler handler = new()
+        {
+            TokenJson =
+                """{"access_token":"ts-access","refresh_token":"ts-refresh","expires_in":3600,"scope":"userinfo"}""",
+        };
+        (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(handler);
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Treatstream,
+            "treatstream.treats",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+        start.IsSuccess.Should().BeTrue(start.ErrorMessage);
+        start.Value.AuthorizeUrl.Should().StartWith("https://treatstream.com/Oauth2/Authorize");
+
+        Result<OAuthCallbackResultDto> callback = await service.HandleCallbackAsync(
+            AuthEnums.IntegrationProvider.Treatstream,
+            new OAuthCallbackParams("the-auth-code", start.Value.State, null, null)
+        );
+
+        callback.IsSuccess.Should().BeTrue(callback.ErrorMessage);
+        handler.LastIdentityRequestUri.Should().BeNull("there is no identity endpoint to probe");
+        IntegrationConnection connection = await db
+            .IntegrationConnections.AsNoTracking()
+            .SingleAsync();
+        connection.Provider.Should().Be(AuthEnums.IntegrationProvider.Treatstream);
+        connection.ProviderAccountId.Should().BeNull("the connect is identity-less by design");
+        connection.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
+    }
+
     // ─── StartConnect: descriptor drives the URL ───────────────────────────────
 
     [Fact]
@@ -551,6 +592,7 @@ public sealed class IntegrationOAuthServiceTests
                 AuthEnums.IntegrationProvider.Kick,
                 AuthEnums.IntegrationProvider.Patreon,
                 AuthEnums.IntegrationProvider.Shopify,
+                AuthEnums.IntegrationProvider.Treatstream,
                 AuthEnums.IntegrationProvider.Discord,
             ]);
 
@@ -647,6 +689,8 @@ public sealed class IntegrationOAuthServiceTests
                     ["Patreon:ClientSecret"] = "patreon-secret",
                     ["Shopify:ClientId"] = "shopify-client",
                     ["Shopify:ClientSecret"] = "shopify-secret",
+                    ["Treatstream:ClientId"] = "ts-client",
+                    ["Treatstream:ClientSecret"] = "ts-secret",
                 }
             )
             .Build();
