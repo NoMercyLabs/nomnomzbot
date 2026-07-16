@@ -52,7 +52,7 @@ public class RewardsController : BaseController
     )
     {
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
-        Result<PagedList<RewardListItem>> result = await _rewardService.ListAsync(
+        Result<PagedList<RewardDetail>> result = await _rewardService.ListAsync(
             channelId,
             pagination,
             ct

@@ -10,19 +10,6 @@
 
 namespace NomNomzBot.Application.Rewards.Dtos;
 
-public sealed record RewardListItem(
-    string Id,
-    string Title,
-    int Cost,
-    bool IsEnabled,
-    // True when the bot created this reward under its own Twitch client and may edit/delete it; false for
-    // externally-created rewards (Twitch UI / other apps) the dashboard must show as read-only.
-    bool IsManageable,
-    string? BackgroundColor,
-    string? ImageUrl,
-    DateTime CreatedAt
-);
-
 /// <summary>One entry in the channel-points redemption queue (rewards.md) — a redemption with its current
 /// status (<c>unfulfilled</c> / <c>fulfilled</c> / <c>canceled</c>), folded from the journal.</summary>
 public sealed record RedemptionListItem(

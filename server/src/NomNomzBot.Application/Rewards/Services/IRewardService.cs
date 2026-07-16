@@ -41,7 +41,7 @@ public interface IRewardService
     );
 
     /// <summary>List all rewards for a channel with pagination.</summary>
-    Task<Result<PagedList<RewardListItem>>> ListAsync(
+    Task<Result<PagedList<RewardDetail>>> ListAsync(
         string broadcasterId,
         PaginationParams pagination,
         CancellationToken cancellationToken = default

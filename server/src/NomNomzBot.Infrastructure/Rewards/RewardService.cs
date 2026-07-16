@@ -130,14 +130,14 @@ public class RewardService : IRewardService
         return Result.Success();
     }
 
-    public async Task<Result<PagedList<RewardListItem>>> ListAsync(
+    public async Task<Result<PagedList<RewardDetail>>> ListAsync(
         string broadcasterId,
         PaginationParams pagination,
         CancellationToken cancellationToken = default
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
-            return Result.Failure<PagedList<RewardListItem>>(
+            return Result.Failure<PagedList<RewardDetail>>(
                 $"Invalid channel ID '{broadcasterId}'.",
                 "VALIDATION_FAILED"
             );
@@ -145,24 +145,20 @@ public class RewardService : IRewardService
         IQueryable<Reward> query = _db.Rewards.Where(r => r.BroadcasterId == broadcaster);
         int total = await query.CountAsync(cancellationToken);
 
-        List<RewardListItem> items = await query
+        List<Reward> rewards = await query
             .OrderBy(r => r.Title)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
-            .Select(r => new RewardListItem(
-                r.Id.ToString(),
-                r.Title,
-                r.Cost ?? 0,
-                r.IsEnabled,
-                r.IsManageable,
-                null,
-                null,
-                r.CreatedAt
-            ))
             .ToListAsync(cancellationToken);
 
+        // Project to the full RewardDetail the controller declares (PaginatedResponse<RewardDetail>) — a list row
+        // carries the SAME shape as get/create, including the viewer-facing Prompt (Reward.Description). The old
+        // RewardListItem projection silently dropped Prompt (and the other detail fields) from the list JSON, so
+        // the dashboard never saw the prompt an operator set on Twitch.
+        List<RewardDetail> items = rewards.Select(ToDetail).ToList();
+
         return Result.Success(
-            new PagedList<RewardListItem>(items, pagination.Page, pagination.PageSize, total)
+            new PagedList<RewardDetail>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 
