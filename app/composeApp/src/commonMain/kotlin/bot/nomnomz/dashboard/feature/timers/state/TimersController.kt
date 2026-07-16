@@ -103,6 +103,7 @@ class TimersController(
         messages: List<String>,
         intervalMinutes: Int,
         enabled: Boolean,
+        fireOnce: Boolean,
         pipelineId: String?,
     ) {
         val channelId: String = resolveChannelId() ?: return
@@ -112,6 +113,7 @@ class TimersController(
                 messages = messages,
                 intervalMinutes = intervalMinutes,
                 isEnabled = enabled,
+                fireOnce = fireOnce,
                 pipelineId = pipelineId,
             )
         runWrite { timersApi.create(channelId, request) }
@@ -124,6 +126,7 @@ class TimersController(
         messages: List<String>,
         intervalMinutes: Int,
         enabled: Boolean,
+        fireOnce: Boolean,
         pipelineId: String?,
     ) {
         val channelId: String = resolveChannelId() ?: return
@@ -133,6 +136,7 @@ class TimersController(
                 messages = messages,
                 intervalMinutes = intervalMinutes,
                 isEnabled = enabled,
+                fireOnce = fireOnce,
                 pipelineId = pipelineId,
             )
         runWrite { timersApi.update(channelId, id, request) }

@@ -71,6 +71,7 @@ import bot.nomnomz.dashboard.feature.timers.state.TimersState
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_timers
+import nomnomzbot.composeapp.generated.resources.timers_badge_once
 import nomnomzbot.composeapp.generated.resources.timers_delete
 import nomnomzbot.composeapp.generated.resources.timers_delete_action
 import nomnomzbot.composeapp.generated.resources.timers_delete_confirm
@@ -81,6 +82,8 @@ import nomnomzbot.composeapp.generated.resources.timers_dialog_create
 import nomnomzbot.composeapp.generated.resources.timers_dialog_create_title
 import nomnomzbot.composeapp.generated.resources.timers_dialog_edit_title
 import nomnomzbot.composeapp.generated.resources.timers_dialog_enabled
+import nomnomzbot.composeapp.generated.resources.timers_dialog_fire_once
+import nomnomzbot.composeapp.generated.resources.timers_dialog_fire_once_hint
 import nomnomzbot.composeapp.generated.resources.timers_dialog_interval
 import nomnomzbot.composeapp.generated.resources.timers_dialog_add_message
 import nomnomzbot.composeapp.generated.resources.timers_dialog_message
@@ -163,14 +166,22 @@ fun TimersScreen(controller: TimersController, role: ManagementRole?) {
             detail = editDetail,
             pipelines = pipelines,
             onDismiss = { editTarget = null },
-            onConfirm = { name, messages, interval, enabled, pipelineId ->
+            onConfirm = { name, messages, interval, enabled, fireOnce, pipelineId ->
                 editTarget = null
                 scope.launch {
                     when (target) {
                         is TimerEditTarget.New ->
-                            controller.createTimer(name, messages, interval, enabled, pipelineId)
+                            controller.createTimer(name, messages, interval, enabled, fireOnce, pipelineId)
                         is TimerEditTarget.Edit ->
-                            controller.updateTimer(target.timer.id, name, messages, interval, enabled, pipelineId)
+                            controller.updateTimer(
+                                target.timer.id,
+                                name,
+                                messages,
+                                interval,
+                                enabled,
+                                fireOnce,
+                                pipelineId,
+                            )
                     }
                 }
             },
@@ -290,6 +301,8 @@ private fun TimerTableRow(
     val messagesText: String = stringResource(Res.string.timers_message_count, timer.messageCount)
     val statusLabel: String =
         stringResource(if (timer.isEnabled) Res.string.timers_enabled else Res.string.timers_disabled)
+    // Announced only for one-shot timers, so the row's a11y node conveys the fire-once state the badge shows.
+    val onceLabel: String = if (timer.fireOnce) ", ${stringResource(Res.string.timers_badge_once)}" else ""
     val toggleLabel: String = stringResource(Res.string.timers_toggle, timer.name)
     val editLabel: String = stringResource(Res.string.timers_edit, timer.name)
     val deleteLabel: String = stringResource(Res.string.timers_delete, timer.name)
@@ -306,7 +319,8 @@ private fun TimerTableRow(
             modifier = Modifier
                 .weight(1f)
                 .clearAndSetSemantics {
-                    contentDescription = "${timer.name}, $intervalText, $messagesText, $statusLabel"
+                    contentDescription =
+                        "${timer.name}, $intervalText, $messagesText, $statusLabel$onceLabel"
                 },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
@@ -317,7 +331,10 @@ private fun TimerTableRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 // Interval badge — muted chip showing the repeat cadence.
                 Box(
                     modifier = Modifier
@@ -326,6 +343,21 @@ private fun TimerTableRow(
                         .padding(horizontal = spacing.s2, vertical = spacing.s0_5),
                 ) {
                     Text(text = intervalText, style = typography.xs, color = tokens.mutedForeground)
+                }
+                // One-shot marker — a primary-tinted chip so a fire-once timer is distinguishable at a glance.
+                if (timer.fireOnce) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(tokens.radius.sm))
+                            .background(tokens.primary)
+                            .padding(horizontal = spacing.s2, vertical = spacing.s0_5),
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.timers_badge_once),
+                            style = typography.xs,
+                            color = tokens.primaryForeground,
+                        )
+                    }
                 }
                 Text(text = messagesText, style = typography.xs, color = tokens.mutedForeground)
             }
@@ -360,7 +392,14 @@ private fun TimerEditDialog(
     detail: TimerDetail?,
     pipelines: List<PipelineSummary>,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, messages: List<String>, intervalMinutes: Int, enabled: Boolean, pipelineId: String?) -> Unit,
+    onConfirm: (
+        name: String,
+        messages: List<String>,
+        intervalMinutes: Int,
+        enabled: Boolean,
+        fireOnce: Boolean,
+        pipelineId: String?,
+    ) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -380,6 +419,7 @@ private fun TimerEditDialog(
         )
     }
     var enabled: Boolean by remember(detail) { mutableStateOf(detail?.isEnabled ?: existing?.isEnabled ?: true) }
+    var fireOnce: Boolean by remember(detail) { mutableStateOf(detail?.fireOnce ?: existing?.fireOnce ?: false) }
     var pipelineId: String? by remember(detail) { mutableStateOf(detail?.pipelineId) }
     var pipelineMenuOpen: Boolean by remember { mutableStateOf(false) }
 
@@ -502,12 +542,36 @@ private fun TimerEditDialog(
                         onCheckedChange = { enabled = it },
                     )
                 }
+                // One-shot: fire once at the interval, then the timer disables itself instead of looping.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(Res.string.timers_dialog_fire_once),
+                            color = tokens.cardForeground,
+                        )
+                        Text(
+                            text = stringResource(Res.string.timers_dialog_fire_once_hint),
+                            style = typography.sm,
+                            color = tokens.mutedForeground,
+                        )
+                    }
+                    Switch(
+                        checked = fireOnce,
+                        onCheckedChange = { fireOnce = it },
+                    )
+                }
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
-                    intervalMinutes?.let { onConfirm(name.trim(), cleanedMessages, it, enabled, pipelineId) }
+                    intervalMinutes?.let {
+                        onConfirm(name.trim(), cleanedMessages, it, enabled, fireOnce, pipelineId)
+                    }
                 },
                 enabled = canSubmit,
             ) {

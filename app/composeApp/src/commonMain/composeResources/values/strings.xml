@@ -530,6 +530,9 @@
     <string name="timers_dialog_pipeline_none">None</string>
     <string name="timers_dialog_interval">Interval (minutes)</string>
     <string name="timers_dialog_enabled">Enabled</string>
+    <string name="timers_dialog_fire_once">Fire once</string>
+    <string name="timers_dialog_fire_once_hint">Sends a single time, then disables itself instead of looping.</string>
+    <string name="timers_badge_once">Once</string>
     <string name="timers_dialog_create">Create</string>
     <string name="timers_dialog_save">Save</string>
     <string name="timers_dialog_cancel">Cancel</string>

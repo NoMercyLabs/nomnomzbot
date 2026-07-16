@@ -52320,6 +52320,9 @@
           },
           "isEnabled": {
             "type": "boolean"
+          },
+          "fireOnce": {
+            "type": "boolean"
           }
         },
         "description": "Request to create a new timer."
@@ -64420,6 +64423,7 @@
           "intervalMinutes",
           "minChatActivity",
           "isEnabled",
+          "fireOnce",
           "pipelineId",
           "lastFiredAt",
           "nextMessageIndex",
@@ -64459,6 +64463,9 @@
             "format": "int32"
           },
           "isEnabled": {
+            "type": "boolean"
+          },
+          "fireOnce": {
             "type": "boolean"
           },
           "pipelineId": {
@@ -64501,6 +64508,7 @@
           "name",
           "intervalMinutes",
           "isEnabled",
+          "fireOnce",
           "lastFiredAt",
           "messageCount",
           "createdAt"
@@ -64524,6 +64532,9 @@
             "format": "int32"
           },
           "isEnabled": {
+            "type": "boolean"
+          },
+          "fireOnce": {
             "type": "boolean"
           },
           "lastFiredAt": {
@@ -66556,6 +66567,12 @@
             "format": "int32"
           },
           "isEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "fireOnce": {
             "type": [
               "null",
               "boolean"

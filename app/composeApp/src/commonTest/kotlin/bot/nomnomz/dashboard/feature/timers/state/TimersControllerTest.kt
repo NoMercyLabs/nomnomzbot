@@ -116,7 +116,7 @@ class TimersControllerTest {
         val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        controller.createTimer(name = "Discord", messages = listOf("Join the Discord!"), intervalMinutes = 20, enabled = true, pipelineId = null)
+        controller.createTimer(name = "Discord", messages = listOf("Join the Discord!"), intervalMinutes = 20, enabled = true, fireOnce = true, pipelineId = null)
 
         // The write hit the backend with exactly the dialog's fields, single message folded into the list.
         assertEquals(1, api.created.size)
@@ -125,6 +125,7 @@ class TimersControllerTest {
         assertEquals(listOf("Join the Discord!"), request.messages)
         assertEquals(20, request.intervalMinutes)
         assertEquals(true, request.isEnabled)
+        assertEquals(true, request.fireOnce)
 
         // The list reloaded after the write, so the new row is now on the page (no fabricated state).
         val state: TimersState = controller.state.value
@@ -144,7 +145,7 @@ class TimersControllerTest {
         val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        controller.updateTimer(id = "00000003-0000-0000-0000-000000000003", name = "New", messages = listOf("Updated"), intervalMinutes = 15, enabled = true, pipelineId = null)
+        controller.updateTimer(id = "00000003-0000-0000-0000-000000000003", name = "New", messages = listOf("Updated"), intervalMinutes = 15, enabled = true, fireOnce = false, pipelineId = null)
 
         val updatedId = "00000003-0000-0000-0000-000000000003"
         val update: UpdateTimerRequest = api.updated.getValue(updatedId)
@@ -152,6 +153,7 @@ class TimersControllerTest {
         assertEquals(listOf("Updated"), update.messages)
         assertEquals(15, update.intervalMinutes)
         assertEquals(true, update.isEnabled)
+        assertEquals(false, update.fireOnce)
 
         val state: TimersState = controller.state.value
         assertTrue(state is TimersState.Ready)
@@ -204,7 +206,7 @@ class TimersControllerTest {
         val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        controller.createTimer(name = "Nope", messages = listOf("blocked"), intervalMinutes = 30, enabled = true, pipelineId = null)
+        controller.createTimer(name = "Nope", messages = listOf("blocked"), intervalMinutes = 30, enabled = true, fireOnce = false, pipelineId = null)
 
         // The error is surfaced verbatim, the list never reloaded, and the original row is still on the page.
         assertEquals("not allowed", controller.writeError.value)

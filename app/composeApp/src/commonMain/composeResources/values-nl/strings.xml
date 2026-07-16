@@ -527,6 +527,9 @@
     <string name="timers_dialog_pipeline_none">Geen</string>
     <string name="timers_dialog_interval">Interval (minuten)</string>
     <string name="timers_dialog_enabled">Ingeschakeld</string>
+    <string name="timers_dialog_fire_once">Eén keer uitvoeren</string>
+    <string name="timers_dialog_fire_once_hint">Verstuurt één keer en schakelt zichzelf daarna uit in plaats van te herhalen.</string>
+    <string name="timers_badge_once">Eén keer</string>
     <string name="timers_dialog_create">Aanmaken</string>
     <string name="timers_dialog_save">Opslaan</string>
     <string name="timers_dialog_cancel">Annuleren</string>
