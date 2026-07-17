@@ -26,6 +26,7 @@ using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -149,6 +150,67 @@ public sealed class ChatControllerTests
         // And explicitly NOT the raw persisted shape (no Emote, no badge Urls).
         message.Fragments[0].Emote.Should().NotBeNull();
         message.Badges[0].Urls.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public async Task GetMessages_labels_each_row_with_the_platform_it_arrived_on()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        db.Channels.Add(
+            new Channel
+            {
+                Id = Broadcaster,
+                OwnerUserId = Guid.CreateVersion7(),
+                TwitchChannelId = "998877",
+                Name = "stoney_eagle",
+                NameNormalized = "stoney_eagle",
+            }
+        );
+        db.ChatMessages.AddRange(
+            // No Provider set — the entity default (twitch) stands in, exactly as a Twitch-EventSub row persists.
+            new ChatMessage
+            {
+                Id = "m-twitch",
+                BroadcasterId = Broadcaster,
+                UserId = "u1",
+                Username = "viewer1",
+                DisplayName = "Viewer1",
+                UserType = "viewer",
+                Message = "from twitch",
+                Fragments = [new ChatMessageFragment { Type = "text", Text = "from twitch" }],
+                Badges = [],
+                CreatedAt = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc),
+            },
+            new ChatMessage
+            {
+                Id = "m-kick",
+                BroadcasterId = Broadcaster,
+                Provider = AuthEnums.Platform.Kick,
+                UserId = "u2",
+                Username = "viewer2",
+                DisplayName = "Viewer2",
+                UserType = "viewer",
+                Message = "from kick",
+                Fragments = [new ChatMessageFragment { Type = "text", Text = "from kick" }],
+                Badges = [],
+                CreatedAt = new DateTime(2026, 7, 1, 12, 0, 1, DateTimeKind.Utc),
+            }
+        );
+        await db.SaveChangesAsync();
+
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [], Badges = [] });
+
+        ChatController controller = Build(db, decorator);
+
+        IActionResult result = await controller.GetMessages(Broadcaster.ToString());
+
+        List<DashboardChatMessageDto> messages = Data(result);
+        messages.Should().HaveCount(2);
+        messages.Single(m => m.Id == "m-twitch").Provider.Should().Be(AuthEnums.Platform.Twitch);
+        messages.Single(m => m.Id == "m-kick").Provider.Should().Be(AuthEnums.Platform.Kick);
     }
 
     [Fact]

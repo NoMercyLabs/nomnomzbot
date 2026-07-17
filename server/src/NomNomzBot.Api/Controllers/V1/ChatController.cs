@@ -208,7 +208,8 @@ public class ChatController : BaseController
                     ReplyParentUserName: null,
                     Timestamp: row.CreatedAt.ToString("O"),
                     AvatarUrl: enrichment?.AvatarUrl,
-                    Pronouns: enrichment?.Pronouns
+                    Pronouns: enrichment?.Pronouns,
+                    Provider: row.Provider
                 )
             );
         }

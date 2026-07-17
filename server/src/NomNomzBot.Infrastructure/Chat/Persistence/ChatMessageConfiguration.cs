@@ -24,6 +24,10 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
 
         builder.Property(e => e.BroadcasterId).IsRequired();
 
+        // Twitch-native table historically — a DB default of twitch backfills every pre-existing row (and any
+        // insert path that doesn't set it) to the correct legacy source, matching the entity + DTO default.
+        builder.Property(e => e.Provider).IsRequired().HasMaxLength(20).HasDefaultValue("twitch");
+
         builder.Property(e => e.UserId).IsRequired().HasMaxLength(50);
 
         builder.Property(e => e.Username).IsRequired().HasMaxLength(255);

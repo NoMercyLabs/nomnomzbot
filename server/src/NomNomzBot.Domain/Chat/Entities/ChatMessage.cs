@@ -22,6 +22,13 @@ public class ChatMessage : SoftDeletableEntity, ITenantScoped
     public string Id { get; set; } = null!;
     public Guid BroadcasterId { get; set; }
 
+    // The platform this message arrived on (AuthEnums.Platform key: twitch | kick | youtube) — the same
+    // vocabulary the canonical ChatMessageReceivedEvent and Channel.Provider carry. Persisted so a merged
+    // multi-platform chat feed (and history scrollback) can label each line by its source; defaults to
+    // twitch, the dominant provider, so pre-existing rows read correctly.
+    [MaxLength(20)]
+    public string Provider { get; set; } = "twitch";
+
     // Platform-native user id (string) of the chatter under the channel's provider (Twitch id on a Twitch
     // channel, YouTube channel id on a YouTube channel) — a first-class indexed attribute, NOT an FK to
     // Users.Id (chat is high-volume and carries the id + denormalized Username/DisplayName inline).

@@ -46,6 +46,7 @@ public sealed class ChatMessagePersistenceHandler(IApplicationDbContext db)
         {
             Id = @event.MessageId,
             BroadcasterId = @event.BroadcasterId,
+            Provider = @event.Provider,
             UserId = @event.UserId,
             Username = @event.UserLogin,
             DisplayName = @event.UserDisplayName,

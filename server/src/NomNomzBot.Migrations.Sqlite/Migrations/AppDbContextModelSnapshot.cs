@@ -797,6 +797,13 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue("text");
 
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("twitch");
+
                     b.Property<string>("ReplyToMessageId")
                         .HasMaxLength(255)
                         .HasColumnType("TEXT");
