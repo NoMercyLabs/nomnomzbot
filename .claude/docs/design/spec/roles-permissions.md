@@ -380,12 +380,19 @@ Two new controllers + one extended. All `[ApiVersion("1.0")]`, inherit `BaseCont
 > Chat `!permit`/`!unpermit` are **not** HTTP — they enter via `ChatMessageHandler` → `IPermitService`, gated by `IActionAuthorizationService.AuthorizeActionAsync(..., "permit:issue")`. The HTTP `PermitsController` is the dashboard equivalent.
 
 ### 5.4 `PlatformIamController` — `[Route("api/v{version:apiVersion}/platform/iam")]` (SaaS only)
-`[Authorize]` **plus** Plane-C check in each action via `IPlatformIamService.AuthorizePlatformAsync`. Not a channel route — no tenant resolution.
+`[Authorize]` + Plane-C policy per action (policy name = `IamPermission.Key` verbatim, enforced by `PlatformIamAuthorizationHandler`, audited on SaaS). Not a channel route — no tenant resolution. Decided 2026-07-17: this is the FULL management surface the admin panel's IAM screen renders from.
 | Verb | Path | Request | Response | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|
-| GET | `/principals/{principalId:guid}/permissions` | `?scopeChannelId=` | `StatusResponseDto<List<string>>` | platform · `iam:manage` (or self) |
+| GET | `/roles` | — | `StatusResponseDto<List<IamRoleDto>>` | platform · `iam:manage` |
+| GET | `/principals` | — | `StatusResponseDto<List<IamPrincipalSummaryDto>>` | platform · `iam:manage` |
+| GET | `/principals/{principalId:guid}/permissions` | `?scopeChannelId=` | `StatusResponseDto<List<string>>` | platform · `iam:manage` |
+| POST | `/principals` | `CreatePrincipalRequest` | `StatusResponseDto<IamPrincipalDto>` (service-account key returned ONCE) | platform · `iam:principal:create` |
+| POST | `/principals/{principalId:guid}/deactivate` | `?reason=` | `StatusResponseDto<object>` | platform · `iam:manage` |
+| POST | `/principals/{principalId:guid}/reactivate` | — | `StatusResponseDto<object>` | platform · `iam:manage` |
 | POST | `/assignments` | `AssignIamRoleRequest` | `StatusResponseDto<IamRoleAssignmentDto>` | platform · `iam:manage` |
 | DELETE | `/assignments/{assignmentId:guid}` | `?reason=` | `StatusResponseDto<object>` | platform · `iam:manage` |
+
+Promote/demote wiring (decided 2026-07-17): creating an EMPLOYEE principal sets the backing `User.IsPlatformPrincipal = true` (the `admin` role claim mints on the next token refresh, ≤ the JWT expiry — no re-login); `deactivate` sets `IamPrincipal.IsActive = false` AND clears the employee's `User.IsPlatformPrincipal`; `reactivate` restores both. A principal cannot deactivate itself (`VALIDATION_FAILED`) — the lockout guard. Permission reads are manager-only (`iam:manage`; the earlier "(or self)" option is dropped — the screen is manager-facing). New DTOs: `IamRoleDto(Id, Name, Description, IsSystem, PermissionKeys)`, `IamPrincipalSummaryDto(Id, PrincipalType, UserId, Name, IsActive, ExpiresAt, ActiveAssignments: List<IamRoleAssignmentDto>)`, `AssignIamRoleRequest(PrincipalId, RoleId, ScopeChannelId?, ExpiresAt?, Reason?)`.
 
 ### 5.5 Extend existing `AdminController`
 Migrate its `User.IsAdmin` gate to `IPlatformIamService.AuthorizePlatformAsync(..., "tenant:access" | "tenant:suspend")`. No new routes here beyond rewiring the gate; this is the "replaces `User.IsAdmin`" step from the model doc.

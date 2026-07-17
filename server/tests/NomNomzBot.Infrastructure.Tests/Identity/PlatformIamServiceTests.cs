@@ -261,4 +261,174 @@ public sealed class PlatformIamServiceTests
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
     }
+
+    // ─── §5.4 management surface (roles-permissions, decided 2026-07-17) ────
+
+    [Fact]
+    public async Task Create_employee_promotes_the_backing_user_to_platform_principal()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        Guid creator = SeedPrincipalWithPermission(db, "iam:principal:create");
+        User user = NewUser("promoted");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        Result<IamPrincipalDto> result = await sut.CreatePrincipalAsync(
+            creator,
+            new CreatePrincipalRequest(
+                IamPrincipalType.Employee,
+                UserId: user.Id,
+                DisplayName: "Promoted Operator",
+                RoleIds: [],
+                ServiceAccountName: null
+            )
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        // The promote wiring: without this marker the new principal could never ENTER Plane-C
+        // (the authorization handler gates entry on the `admin` role claim it mints).
+        (await db.Users.SingleAsync(u => u.Id == user.Id))
+            .IsPlatformPrincipal.Should()
+            .BeTrue();
+    }
+
+    [Fact]
+    public async Task Create_employee_for_an_unknown_user_is_rejected()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        Guid creator = SeedPrincipalWithPermission(db, "iam:principal:create");
+        await db.SaveChangesAsync();
+
+        Result<IamPrincipalDto> result = await sut.CreatePrincipalAsync(
+            creator,
+            new CreatePrincipalRequest(
+                IamPrincipalType.Employee,
+                UserId: Guid.NewGuid(),
+                DisplayName: "ghost",
+                RoleIds: [],
+                ServiceAccountName: null
+            )
+        );
+
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task Deactivate_clears_the_user_marker_and_reactivate_restores_it()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        Guid manager = SeedPrincipalWithPermission(db, "iam:manage");
+        User user = NewUser("demotee");
+        user.IsPlatformPrincipal = true;
+        db.Users.Add(user);
+        Guid targetId = Guid.NewGuid();
+        db.IamPrincipals.Add(
+            new IamPrincipal
+            {
+                Id = targetId,
+                PrincipalType = IamPrincipalType.Employee,
+                UserId = user.Id,
+                Name = "demotee",
+                IsActive = true,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        // Deactivate = the demote: both the principal AND the user's Plane-C entry marker flip.
+        (await sut.DeactivatePrincipalAsync(manager, targetId, "offboarded"))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await db.IamPrincipals.SingleAsync(p => p.Id == targetId)).IsActive.Should().BeFalse();
+        (await db.Users.SingleAsync(u => u.Id == user.Id)).IsPlatformPrincipal.Should().BeFalse();
+
+        // Reactivate restores both.
+        (await sut.ReactivatePrincipalAsync(manager, targetId))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await db.IamPrincipals.SingleAsync(p => p.Id == targetId)).IsActive.Should().BeTrue();
+        (await db.Users.SingleAsync(u => u.Id == user.Id)).IsPlatformPrincipal.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_principal_cannot_deactivate_itself()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        Guid manager = SeedPrincipalWithPermission(db, "iam:manage");
+        await db.SaveChangesAsync();
+
+        Result result = await sut.DeactivatePrincipalAsync(manager, manager, reason: null);
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await db.IamPrincipals.SingleAsync(p => p.Id == manager)).IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task List_roles_returns_each_role_with_its_permission_bundle()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        SeedPrincipalWithPermission(db, "iam:manage"); // seeds one role bound to iam:manage
+        db.IamRoles.Add(
+            new IamRole
+            {
+                Id = Guid.NewGuid(),
+                Name = "empty-role",
+                IsSystem = true,
+                Description = "no permissions",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<IReadOnlyList<IamRoleDto>> result = await sut.ListRolesAsync();
+
+        result.Value.Should().HaveCount(2);
+        IamRoleDto bound = result.Value.Single(r => r.Name != "empty-role");
+        bound.PermissionKeys.Should().Equal("iam:manage");
+        IamRoleDto empty = result.Value.Single(r => r.Name == "empty-role");
+        empty.PermissionKeys.Should().BeEmpty();
+        empty.IsSystem.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task List_principals_carries_only_active_assignments()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        Guid principalId = SeedPrincipalWithPermission(db, "iam:manage");
+        Guid roleId = Guid.NewGuid();
+        db.IamRoles.Add(new IamRole { Id = roleId, Name = "stale-role" });
+        // A revoked and an expired assignment — both must be filtered out of the summary.
+        db.IamRoleAssignments.Add(
+            new IamRoleAssignment
+            {
+                PrincipalId = principalId,
+                RoleId = roleId,
+                AssignedByPrincipalId = principalId,
+                RevokedAt = Now.UtcDateTime.AddDays(-1),
+            }
+        );
+        db.IamRoleAssignments.Add(
+            new IamRoleAssignment
+            {
+                PrincipalId = principalId,
+                RoleId = roleId,
+                AssignedByPrincipalId = principalId,
+                ExpiresAt = Now.UtcDateTime.AddDays(-2),
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<IReadOnlyList<IamPrincipalSummaryDto>> result = await sut.ListPrincipalsAsync();
+
+        IamPrincipalSummaryDto summary = result.Value.Single();
+        summary.Id.Should().Be(principalId);
+        summary.ActiveAssignments.Should().ContainSingle(); // only the live one from the seed
+        summary.ActiveAssignments[0].RoleName.Should().NotBe("stale-role");
+    }
+
+    private static User NewUser(string name) =>
+        new()
+        {
+            Username = name,
+            UsernameNormalized = name,
+            DisplayName = name,
+        };
 }

@@ -83,4 +83,32 @@ public interface IPlatformIamService
         Guid? scopeChannelId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>The role catalog with each role's permission bundle — the admin screen's role picker.</summary>
+    Task<Result<IReadOnlyList<IamRoleDto>>> ListRolesAsync(
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Every principal with its ACTIVE assignments — the admin IAM screen's principal list.</summary>
+    Task<Result<IReadOnlyList<IamPrincipalSummaryDto>>> ListPrincipalsAsync(
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Deactivates a principal AND clears the backing employee user's <c>IsPlatformPrincipal</c> marker (the
+    /// demote). A principal cannot deactivate itself — the lockout guard. Requires caller <c>iam:manage</c>.
+    /// </summary>
+    Task<Result> DeactivatePrincipalAsync(
+        Guid actingPrincipalId,
+        Guid principalId,
+        string? reason,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Reactivates a principal and restores the employee user's <c>IsPlatformPrincipal</c> marker. Requires caller <c>iam:manage</c>.</summary>
+    Task<Result> ReactivatePrincipalAsync(
+        Guid actingPrincipalId,
+        Guid principalId,
+        CancellationToken cancellationToken = default
+    );
 }

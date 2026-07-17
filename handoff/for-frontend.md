@@ -16,6 +16,30 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Admin panel: the Plane-C IAM management surface now EXISTS — build the screen
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the owner's "cannot promote accounts to admin or grant saas permissions" is fixed
+  backend-side. New `PlatformIamController` under `api/v1/platform/iam`:
+  `GET roles` (role catalog + permission bundles), `GET principals` (each with active assignments),
+  `GET principals/{id}/permissions`, `POST principals` (promote a user → employee principal, or
+  create a service account — its key is returned ONCE, show-and-copy then never again),
+  `POST principals/{id}/deactivate?reason=` / `POST principals/{id}/reactivate` (demote/repromote —
+  also flips the user's platform marker; their `admin` claim updates on the next token refresh),
+  `POST assignments` (`AssignIamRoleRequest`: principalId, roleId, scopeChannelId?, expiresAt?,
+  reason?), `DELETE assignments/{id}?reason=`. All gated `iam:manage` except create-principal
+  (`iam:principal:create`). Build the admin panel's IAM screen: principal list (badge for inactive),
+  role picker from `GET roles`, promote dialog (user picker from the existing `GET admin/users`),
+  per-principal assignment list with revoke, deactivate with confirm + reason. Self-deactivation
+  returns `VALIDATION_FAILED` — surface the message.
+- **Why:** owner item — "the admin pannel for the saas is just show... i can not promote accounts
+  to admin or grant them specific saas permissions". Spec: roles-permissions.md §5.4 (revised
+  2026-07-17).
+- **Where:** `feature/admin` (or wherever the admin panel lives); routes + schemas in
+  `server/openapi/v1.json` (refreshed).
+- **Done when:** on dev, an operator can promote a user, assign/revoke a role, see effective
+  permissions, and deactivate a principal — entirely from the dashboard, with the changes surviving
+  reload.
+
 ### 2026-07-17 — Discord: the guild-notification backend is COMPLETE — the page just doesn't surface it
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the owner's "no way of adding it properly to a guild's channel" is a UI gap — the full

@@ -47,3 +47,35 @@ public sealed record CreatePrincipalRequest(
     IReadOnlyList<Guid> RoleIds,
     string? ServiceAccountName
 );
+
+/// <summary>A platform-IAM role with its permission bundle (roles-permissions §5.4) — the role picker's row.</summary>
+public sealed record IamRoleDto(
+    Guid Id,
+    string Name,
+    string? Description,
+    bool IsSystem,
+    IReadOnlyList<string> PermissionKeys
+);
+
+/// <summary>
+/// One principal with its ACTIVE (non-revoked, non-expired) role assignments — the admin IAM screen's row
+/// (roles-permissions §5.4).
+/// </summary>
+public sealed record IamPrincipalSummaryDto(
+    Guid Id,
+    IamPrincipalType PrincipalType,
+    Guid? UserId,
+    string Name,
+    bool IsActive,
+    DateTime? ExpiresAt,
+    IReadOnlyList<IamRoleAssignmentDto> ActiveAssignments
+);
+
+/// <summary>Request to assign a platform-IAM role to a principal (roles-permissions §5.4).</summary>
+public sealed record AssignIamRoleRequest(
+    Guid PrincipalId,
+    Guid RoleId,
+    Guid? ScopeChannelId,
+    DateTime? ExpiresAt,
+    string? Reason
+);

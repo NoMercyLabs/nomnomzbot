@@ -138,6 +138,20 @@ public sealed class PlatformIamService(
         }
         db.IamPrincipals.Add(principal);
 
+        // The promote wiring (roles-permissions §5.4): the platform-principal marker is what mints the
+        // `admin` role claim on the next token refresh — without it the new principal could never enter
+        // Plane-C (the authorization handler gates entry on that claim before consulting this service).
+        if (request.PrincipalType == IamPrincipalType.Employee)
+        {
+            User? user = await db.Users.FirstOrDefaultAsync(
+                u => u.Id == request.UserId,
+                cancellationToken
+            );
+            if (user is null)
+                return Result.Failure<IamPrincipalDto>("Unknown user.", "NOT_FOUND");
+            user.IsPlatformPrincipal = true;
+        }
+
         foreach (Guid roleId in request.RoleIds.Distinct())
             db.IamRoleAssignments.Add(
                 new IamRoleAssignment
@@ -227,6 +241,148 @@ public sealed class PlatformIamService(
         Result.Success(
             await EffectivePermissionsAsync(principalId, scopeChannelId, cancellationToken)
         );
+
+    public async Task<Result<IReadOnlyList<IamRoleDto>>> ListRolesAsync(
+        CancellationToken cancellationToken = default
+    )
+    {
+        List<IamRole> roles = await db.IamRoles.OrderBy(r => r.Name).ToListAsync(cancellationToken);
+
+        // Role → permission-key bundle, resolved in two set queries (never per role).
+        List<(Guid RoleId, string Key)> rolePermissionKeys = (
+            await db
+                .IamRolePermissions.Join(
+                    db.IamPermissions,
+                    rp => rp.PermissionId,
+                    p => p.Id,
+                    (rp, p) => new { rp.RoleId, p.Key }
+                )
+                .ToListAsync(cancellationToken)
+        )
+            .Select(x => (x.RoleId, x.Key))
+            .ToList();
+
+        IReadOnlyList<IamRoleDto> dtos =
+        [
+            .. roles.Select(r => new IamRoleDto(
+                r.Id,
+                r.Name,
+                r.Description,
+                r.IsSystem,
+                [.. rolePermissionKeys.Where(rp => rp.RoleId == r.Id).Select(rp => rp.Key).Order()]
+            )),
+        ];
+        return Result.Success(dtos);
+    }
+
+    public async Task<Result<IReadOnlyList<IamPrincipalSummaryDto>>> ListPrincipalsAsync(
+        CancellationToken cancellationToken = default
+    )
+    {
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        List<IamPrincipal> principals = await db
+            .IamPrincipals.OrderBy(p => p.Name)
+            .ToListAsync(cancellationToken);
+
+        List<(IamRoleAssignment Assignment, string RoleName)> active = (
+            await db
+                .IamRoleAssignments.Where(a =>
+                    a.RevokedAt == null && (a.ExpiresAt == null || a.ExpiresAt > now)
+                )
+                .Join(
+                    db.IamRoles,
+                    a => a.RoleId,
+                    r => r.Id,
+                    (a, r) => new { Assignment = a, RoleName = r.Name }
+                )
+                .ToListAsync(cancellationToken)
+        )
+            .Select(x => (x.Assignment, x.RoleName))
+            .ToList();
+
+        IReadOnlyList<IamPrincipalSummaryDto> dtos =
+        [
+            .. principals.Select(p => new IamPrincipalSummaryDto(
+                p.Id,
+                p.PrincipalType,
+                p.UserId,
+                p.Name,
+                p.IsActive,
+                p.ExpiresAt,
+                [
+                    .. active
+                        .Where(a => a.Assignment.PrincipalId == p.Id)
+                        .Select(a => ToDto(a.Assignment, a.RoleName)),
+                ]
+            )),
+        ];
+        return Result.Success(dtos);
+    }
+
+    public async Task<Result> DeactivatePrincipalAsync(
+        Guid actingPrincipalId,
+        Guid principalId,
+        string? reason,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!await HasPermissionAsync(actingPrincipalId, ManagePermission, null, cancellationToken))
+            return Result.Failure("Requires iam:manage.", "FORBIDDEN");
+
+        // The lockout guard: nobody deactivates themself — someone with iam:manage must always remain.
+        if (actingPrincipalId == principalId)
+            return Result.Failure("A principal cannot deactivate itself.", "VALIDATION_FAILED");
+
+        IamPrincipal? principal = await db.IamPrincipals.FirstOrDefaultAsync(
+            p => p.Id == principalId,
+            cancellationToken
+        );
+        if (principal is null)
+            return Result.Failure("Unknown principal.", "NOT_FOUND");
+
+        principal.IsActive = false;
+        await SetUserPlatformMarkerAsync(principal, isPlatformPrincipal: false, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    public async Task<Result> ReactivatePrincipalAsync(
+        Guid actingPrincipalId,
+        Guid principalId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!await HasPermissionAsync(actingPrincipalId, ManagePermission, null, cancellationToken))
+            return Result.Failure("Requires iam:manage.", "FORBIDDEN");
+
+        IamPrincipal? principal = await db.IamPrincipals.FirstOrDefaultAsync(
+            p => p.Id == principalId,
+            cancellationToken
+        );
+        if (principal is null)
+            return Result.Failure("Unknown principal.", "NOT_FOUND");
+
+        principal.IsActive = true;
+        await SetUserPlatformMarkerAsync(principal, isPlatformPrincipal: true, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    /// <summary>Mirrors an employee principal's active state onto the backing user's Plane-C entry marker
+    /// (the `admin` role claim source) — the demote/repromote half of the §5.4 promote wiring.</summary>
+    private async Task SetUserPlatformMarkerAsync(
+        IamPrincipal principal,
+        bool isPlatformPrincipal,
+        CancellationToken ct
+    )
+    {
+        if (principal.PrincipalType != IamPrincipalType.Employee || principal.UserId is null)
+            return;
+
+        User? user = await db.Users.FirstOrDefaultAsync(u => u.Id == principal.UserId, ct);
+        if (user is not null)
+            user.IsPlatformPrincipal = isPlatformPrincipal;
+    }
 
     public async Task<bool> HasAnyPrincipalsAsync(CancellationToken cancellationToken = default) =>
         await IsSaasAsync(cancellationToken);

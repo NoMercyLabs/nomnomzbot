@@ -92,6 +92,26 @@ public sealed class PlatformIamPolicyCoverageTests
         PolicyOf(typeof(FederationController), methodName).Should().Be(expectedKey);
     }
 
+    [Theory]
+    [InlineData(nameof(PlatformIamController.ListRoles), IamPermissionKeys.IamManage)]
+    [InlineData(nameof(PlatformIamController.ListPrincipals), IamPermissionKeys.IamManage)]
+    [InlineData(nameof(PlatformIamController.GetEffectivePermissions), IamPermissionKeys.IamManage)]
+    [InlineData(
+        nameof(PlatformIamController.CreatePrincipal),
+        IamPermissionKeys.IamPrincipalCreate
+    )]
+    [InlineData(nameof(PlatformIamController.DeactivatePrincipal), IamPermissionKeys.IamManage)]
+    [InlineData(nameof(PlatformIamController.ReactivatePrincipal), IamPermissionKeys.IamManage)]
+    [InlineData(nameof(PlatformIamController.AssignRole), IamPermissionKeys.IamManage)]
+    [InlineData(nameof(PlatformIamController.RevokeAssignment), IamPermissionKeys.IamManage)]
+    public void PlatformIamController_action_carries_the_expected_iam_policy(
+        string methodName,
+        string expectedKey
+    )
+    {
+        PolicyOf(typeof(PlatformIamController), methodName).Should().Be(expectedKey);
+    }
+
     [Fact]
     public void FeatureFlagAdminController_is_class_gated_on_featureflag_write()
     {
