@@ -51,6 +51,8 @@ public sealed class IamCatalogSeeder : ISeeder
         (IamPermissionKeys.PlatformAnalyticsRead, IamCategory.Tenant, false),
         // Gallery review approves community code that renders on streamers' overlays — sensitive.
         (IamPermissionKeys.GalleryReview, IamCategory.Iam, true),
+        // IPC dev-mode keys open a tokenless local control surface — sensitive, owner-only.
+        (IamPermissionKeys.SystemIpcManage, IamCategory.FeatureFlag, true),
     ];
 
     /// <summary>C.2 + C.3 rows: system role → its bundled permission keys, verbatim from §C.2.</summary>
@@ -70,6 +72,7 @@ public sealed class IamCatalogSeeder : ISeeder
                 IamPermissionKeys.BillingRefund,
                 IamPermissionKeys.PlatformAnalyticsRead,
                 IamPermissionKeys.GalleryReview,
+                IamPermissionKeys.SystemIpcManage,
             ]
         ),
         (

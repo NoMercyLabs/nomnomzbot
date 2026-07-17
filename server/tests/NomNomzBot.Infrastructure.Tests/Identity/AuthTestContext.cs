@@ -291,7 +291,11 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Identity.Entities.Permission>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.ChannelFeature>();
         b.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelBotAuthorization>();
-        b.Ignore<NomNomzBot.Domain.Identity.Entities.IpcDevModeKey>();
+
+        // IpcDevModeKey: mapped scalar-only (CreatedByUser nav ignored) so the IpcDevModeService tests
+        // can prove hash-only storage, tombstoning, and constant-time auth through this harness.
+        b.Entity<NomNomzBot.Domain.Identity.Entities.IpcDevModeKey>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Identity.Entities.IpcDevModeKey>().Ignore(e => e.CreatedByUser);
 
         // BotAccount is scalar-only (no navigation properties at all), so it materializes on InMemory as-is.
         // Mapped so BotJoinOnOnboardingHandler tests can seed/query the shared platform bot through this harness.
@@ -407,7 +411,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Identity.Entities.BotAccount> BotAccounts =>
         Set<NomNomzBot.Domain.Identity.Entities.BotAccount>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.IpcDevModeKey> IpcDevModeKeys =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Identity.Entities.IpcDevModeKey>();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection> DiscordGuildConnections =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig> DiscordNotificationConfigs =>

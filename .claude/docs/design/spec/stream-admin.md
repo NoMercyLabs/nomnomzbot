@@ -577,3 +577,21 @@ No **new** third-party dependency is introduced by this subsystem. `DistributedL
 - **Charity & Goals — ingest-only, EventSub-owned.** Charity campaigns and creator Goals have **no manageable Helix write endpoints** (Twitch exposes them only as read/EventSub topics — `channel.charity_campaign.*`, `channel.goal.*`). They are therefore **not** a stream-admin write surface. **Orchestrator pointer for the eventsub owner:** add them as an **EventSub ingest** in `twitch-eventsub.md` (subscribe the `channel.charity_campaign.start|progress|stop` and `channel.goal.begin|progress|end` topics → read-side domain events), no write-side service here. (Pointer only — do not heavily edit twitch-eventsub for this; the eventsub owner sizes the ingest.)
 
 All surfaces are pinned by the locked schema, the existing code conventions, and the stack/decisions docs; there is no remaining ambiguity.
+
+---
+
+## As-built — IPC dev-mode key registry (2026-07-17, item 23 slice A)
+
+- `IpcDevModeController` at `api/v1/system/ipc` (a NEW controller, not routes on `SystemController`),
+  gated by the Plane-C policy **`system:ipc:manage`** (sensitive, category FeatureFlag, granted to
+  `platform-super-admin`) — NOT a raw role string (repo invariant: Plane-C gates on IAM policy keys).
+  On self-host `AuthorizePlatformAsync` short-circuits to allow, so the bootstrapped owner needs no
+  IAM rows; on SaaS every route 503s first regardless.
+- Key mint = `nnzb_ipc_` + 64 hex (32 CSPRNG bytes), stored ONLY as SHA-256 lowercase hex; plaintext
+  returned exactly once on create. `AuthenticateConnectionAsync` = constant-time
+  `FixedTimeEquals` across live keys, refusing outright when dev mode is off or the profile is SaaS.
+- Dev mode "enabled" = at least one live, enabled, unexpired key AND profile != saas.
+- Revoke both tombstones (`DeletedAt`) and flips `IsEnabled=false`; create validates label ≤100 and
+  a future `ExpiresAt`.
+- The local socket listener (`IpcDevModeListenerService`) is NOT built yet — only the registry the
+  spec's §5.3 controller covers; the listener is its own follow-up.

@@ -58,7 +58,12 @@ what REMAINS.
   client (browse/install-as-update/publish with local pre-inspect, vaulted publisher token, rate
   buckets); the hosted service itself is a separate NoMercy deliverable — the bot degrades to
   `MARKETPLACE_UNAVAILABLE` until it exists.
-- [ ] **23. GDPR/compliance + IPC dev-mode controllers** (`gdpr-crypto.md`, `stream-admin.md`).
+- [ ] **23. GDPR/compliance controllers** (`gdpr-crypto.md`) — remaining: `ErasureRequest` +
+  `ComplianceAuditLog` tables, `IErasureService` (anonymize → crypto-shred → revoke → audit, one tx,
+  superseding the legacy `IGdprService`), `IConsentService`, the Gate-1 self-service
+  `GdprController` (§5.1) + Plane-C `ComplianceController` (§5.2, existing `tenant:access`/
+  `audit:read` keys), retire the two legacy `UsersController` GDPR routes. The IPC dev-mode key
+  registry (`stream-admin.md` §5.3) is DONE; its local socket listener is a separate follow-up.
 
 ### 🔒 Security & small fixes
 - [ ] **24d. OWNER-GATED:** confirm authz key names (Plane-C + Gate-2 buckets) — cannot close
