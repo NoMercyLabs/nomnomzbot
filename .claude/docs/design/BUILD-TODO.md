@@ -9,108 +9,66 @@ what REMAINS.
 **Owner directives for this push:**
 - Slice by slice, hardest → smallest. One validated vertical slice at a time; commit each.
 - **Test cadence (owner, 2026-07-09):** during iterative churn run only the *targeted local tests
-  that matter* — not the full suite, not `gh run watch`, every change. Reserve full `dotnet test` +
-  push + CI watch for **meaningful checkpoints** (schema/migration, auth, end-of-slice, full-matrix).
+  that matter*. Reserve full `dotnet test` + push + CI watch for **meaningful checkpoints**.
 - Frontend allowed **shadcn only** (no Material). Never touch `aaoa-dev`'s screens except to relocate.
-- Twitter/X is an extension beyond the current spec enum (`twitch|kick|youtube`) — added in slice 2.
 
 ---
 
-## 📋 Pending — open backend work only
+## 🔧 Backend — genuinely open (being finished now)
 
-### 🤖 StreamElements / Streamer.bot parity (remaining — each = backend + dashboard page)
-- [ ] **8. Automation API** (`automation-api.md`) — **(frontend — handoff 2026-07-17)** the
-  dashboard tokens screen (issue/rotate/revoke + show-once secret dialog). The backend is complete:
-  token management plane, `/automation/v1` REST data plane, event catalog, and the
-  `/automation/v1/stream` WebSocket.
-- [ ] **9. OBS control** (`obs-control.md`) — **(frontend — handoff 2026-07-17)** the dashboard OBS
-  config page + bridge status indicator, the `/obs-bridge` browser-source page (the widget that
-  dials local OBS-WS and executes leader commands), and the palette/trigger-picker entries. The
-  backend is complete: P.14 config + sealed password custody, direct OBS-WS v5 transport, all 19
-  pipeline actions, state/control routes, BridgeToken-authed relay hub with leader election,
-  `BridgeObsTransport`, and the `obs.*` trigger surface.
-- [ ] **10. VTube Studio** (`vtube-studio.md`) — **(frontend — handoff 2026-07-17)** the VTS config
-  page (mode/endpoint, the authorize button, inventory pickers) and the palette/trigger-picker
-  entries; the `/obs-bridge` page additionally handles the `vts_request` payload kind +
-  `ForwardVtsEvent`. The backend is complete: P.19 config + sealed plugin-token custody, direct
-  transport with token replay + interactive authorize, all 6 `vts_*` actions, inventory/control
-  routes, `vts.*` triggers, and the bridge leg over the shared OBS relay.
-- [ ] **15. Advanced moderation** (`moderation.md`) — remaining: wire the escalation invoker (the
-  chat-filter/automod execution path that calls `ResolveAndRecordAsync` when a rule's action is
-  `escalate` — the filter execution path itself is not built yet; it belongs with the J.6
-  ChatFilter migration).
-- [ ] **16. TTS advanced** (`tts.md`) — remaining follow-on: `client_edge` mode (the frontend
-  widget handler + dispatch plane; flip the new-channel `Mode` default from `self_host` to the
-  binding `client_edge` when it lands).
-- [ ] **19. Live overlay games** (`live-games.md`) — **(frontend — handoff 2026-07-17)** the
-  Games-page live-sessions panel + the two palette actions. The backend is complete: GameSession
-  persistence + economy stake/settle/refund, the generic engine/catalog/runner + REST + chat input,
-  and the reference `DropGame` + `drop_game` first-party widget + default config seed.
-- [ ] **20. Widget gallery + overlay manifest** (`widgets-overlays.md`) — **(frontend — handoff
-  2026-07-17)** the gallery submit form + admin review-queue screen. The backend is complete:
-  manifest, versions/build, install/clone, browse, submit→review→pin governance, all 14
-  first-party widgets, and every overlay feed they bind (chat, poll/prediction, sr_queue,
-  tts_speak, custom.<source>, canonical `gift` naming).
-- [ ] **22. Marketplace / bundles** (`marketplace.md`) — **(frontend — handoff 2026-07-17)** the
-  bundles UI (export picker, import wizard with the inspect/capability step + conflict policy,
-  installed list + uninstall) and the marketplace browse/install/publish screens (publisher-token
-  card). The backend is complete: local export/inspect/import/uninstall AND the hosted-marketplace
-  client (browse/install-as-update/publish with local pre-inspect, vaulted publisher token, rate
-  buckets); the hosted service itself is a separate NoMercy deliverable — the bot degrades to
-  `MARKETPLACE_UNAVAILABLE` until it exists.
-- [ ] **23. GDPR/crypto** (`gdpr-crypto.md`) — remaining: journal payload encryption (the
-  `EventSubjectKeys` WRITE seam — `EventJournalService` still writes `PayloadIsEncrypted=false`;
-  the read side + shred coverage are already wired), and **(frontend — handoff 2026-07-17)** the
-  "My data" privacy screen. Everything else is live: GDPR/Compliance controllers, the erasure
-  pipeline with generation-complete crypto-shred, consent ledger, §9 chat built-ins, §3.4 widening
-  (tenant/platform keys, lazy rotation, `KeyUsageBinding`), and the whole IPC dev-mode surface.
+- [ ] **16. TTS `client_edge` dispatch plane** (`tts.md`) — push a `TtsSpeakPayload` over OverlayHub
+  for `client_edge` channels (widget synthesizes edge-side); flip the new-channel `Mode` default to
+  `client_edge`. *(in flight)*
+- [ ] **ID search/autocomplete endpoints** — backend search for user / custom-data-source / channel
+  id inputs so the frontend pickers have data to autocomplete against. *(in flight)*
+- [ ] **Import — extend beyond StreamElements data** — SE commands+quotes+timers already import.
+  Remaining: whether Streamer.bot exports anything machine-readable we can map, and whether
+  provider **overlays** can import at all (proprietary formats → may be an owner/design call, see
+  below). *(scouting the real surface before building — no blind import)*
+- [ ] **Multi-channel moderation fan-out** (`work`) — one ban/timeout → every platform the viewer
+  chats on. Per-platform routing exists (`ChatPlatformRouter`); the moderation controller path is
+  Twitch-only. The channel-**link** model (how a user's single-provider tenants aggregate) is an
+  owner-design call (below); the fan-out execution is buildable once that's decided.
+- [ ] **Chat live-push (backend half)** — verify `DashboardHub` actually broadcasts
+  `channel.chat.message` live so the dashboard updates without reload; fix if the backend path is
+  missing. *(verifying — may be a pure frontend subscribe/render gap)*
+- [ ] **Analytics chart data** — confirm whether a chart is a pure frontend render of existing
+  series data or needs a new backend time-series endpoint; build the endpoint only if a metric
+  lacks a series. *(verifying)*
+- [ ] **Games vs commands double-fire** — confirm/fix whether one chat message can fire both a game
+  keyword and a command. *(verifying — the clean separation itself is design/frontend, below)*
 
-### 🔒 Security & small fixes
-- [ ] **24d. OWNER-GATED:** confirm authz key names (Plane-C + Gate-2 buckets) — cannot close
-  autonomously.
+## 🎨 Frontend track (aaoa) — backend shipped, UI pending (detail in `handoff/for-frontend.md`)
 
-## 🖌️ Designer reviews (open)
-- [ ] Dashboard Title view needs to support emojis
-- [ ] Chat needs styling controls (size, time and so on, like Twitch)
-- [ ] Chat input doesn't wrap but overflows right
-- [ ] StreamElements import: let a user grab their overlays, quotes, timers and all
-- [ ] Analytics metrics row should balance itself when possible
-- [ ] Analytics could benefit from some charts
-- [ ] Import things like quotes, timers, overlays from other providers (StreamElements, Streamer.bot, etc)
-- [ ] Ensure input + button combo are aligning the input itself and the button right now label+input is centered to button
+- [ ] **8. Automation API** — tokens screen (issue/rotate/revoke + show-once secret).
+- [ ] **9. OBS control** — config page + bridge status + `/obs-bridge` browser source + palette/trigger entries.
+- [ ] **10. VTube Studio** — config page (mode/endpoint/authorize/inventory) + palette/trigger entries + `/obs-bridge` VTS leg.
+- [ ] **19. Live overlay games** — Games-page live-sessions panel + the two palette actions.
+- [ ] **20. Widget gallery** — submit form + admin review-queue screen.
+- [ ] **22. Marketplace / bundles** — export picker, import wizard, installed list, marketplace browse/install/publish.
+- [ ] **23. GDPR — "My data" privacy screen** (backend erasure/consent/shred + journal encryption all shipped).
+- [ ] **TTS voice picker** — searchable voice list + viewer self-service (search / `!voice` / `/me/voice` backends shipped).
+- [ ] **Webhooks pickers** — inbound target-picker (pipeline/event) + outbound event-checklist (both directions + validated catalogue shipped).
+- [ ] **Pick-list picker** — the search/autocomplete UI + user-facing rename (pipeline action + `{list.pick}` + preview shipped).
+- [ ] **Pipeline block palette** — render from `GET /pipelines/actions` (catalogue endpoint with category/description shipped).
+- [ ] **Data-source clarity UI** — explain what a source is + wire the pickers (full poll/socket/trigger/template-var runtime shipped).
+- [ ] **Community section UI** — surface the truthful watch-hours/commands data (fake-zero fields fixed on the backend).
+- [ ] **Music page** rework: player wiring, reorganization by type, share-link button.
+- [ ] **Discord section UI** — guild announce flow + "Also DM members" toggle.
+- [ ] **Admin panel screens** — Plane-C IAM, tenants + audit, live AdminHub status panel.
+- [ ] **Designer reviews** — title-view emojis; chat styling controls (size/time); chat input wrap;
+  analytics metrics row balance; analytics charts render; input+button alignment.
+- [ ] **Broad UX polish pass** across the platform (owner's "more intuitive" ask — frontend-led).
 
-## work
-- [ ] multi channel chat: merging + moderation across a streamer's simultaneous platforms. Backend
-  prerequisites are in (all platforms normalize onto the canonical `ChatMessageReceivedEvent`; the
-  live chat DTO now carries `Provider` so a merged feed can label each line). Remaining is an
-  OWNER-DESIGN decision + build: how a user's multiple single-provider tenant channels are LINKED so
-  their feeds aggregate into one, and cross-platform viewer-identity resolution so one ban/timeout
-  fans out to every platform the viewer chats on (per-platform moderation via `ChatPlatformRouter`
-  already exists; the moderation controller path is Twitch-only today). Also `ChatMessage` needs a
-  `Provider` column for history to label platform (migration ×2).
-- [ ] **(frontend — handoff 2026-07-17)** the music page design/UX rework: player wiring, page
-  reorganization by music type, and the share-link button.
-- [ ] games and commands are overlapping and need to be clearly separated in their functionality and purpose.
-- [ ] pick lists makes no sense to what its purpose is and needs to be reworked to be more user friendly and intuitive.
-- [ ] tts needs a full rework, it's not intuitive and there is no way to search for voices properly or even setting your own voice as a viewer.
-- [ ] looks like pipelines need to be reworked into all the other things listed above, and also overhauled to be more user friendly and intuitive and usability.
-- [ ] every user id input, source id input, and channel id input needs to be a pick list with search and auto complete functionality.
-- [ ] code scripts seems to be completely useless now that we have the proper vscode editor for the overlays.
-- [ ] the community section is not useful at all.
-- [ ] **(frontend — handoff 2026-07-17)** the discord section UI: surface the guild announce flow
-  (connect → enable → announcement wizard → rules list + dispatch log) and the "Also DM members"
-  toggle on notify roles.
-- [ ] webhooks have no rule, structure and organization and are therefore totally useless and cannot be integrated.
-- [ ] federation needs to be reworked and overhauled to be more user friendly and intuitive and usability.
-- [ ] the entire platform needs to be reworked and overhauled to be more user friendly and intuitive and usability.
-- [ ] data sources are not clear what they do and how they are used, they need to be reworked and overhauled to be more user friendly and intuitive and usability.
-- [ ] **OWNER-GATED:** youtube non-BYOC auth — register a Google Cloud OAuth client, pass Google's
-  app verification for public use, and ship its id/secret as the `YouTube:ClientId/ClientSecret`
-  defaults. Only the owner can do this.
-- [ ] **(frontend — handoff 2026-07-17)** the admin panel screens: the Plane-C IAM screen
-  (promote/roles/assignments/effective permissions), the tenants + audit screens
-  (suspend/reinstate/support access), and the live status panel on the AdminHub pushes.
-- [ ] **OWNER-GATED + frontend** billing: create the Stripe account and seed `StripePriceId` on the
-  tiers (checkout/change-tier are unreachable without it, by design), and build the billing
-  dashboard UI (tiers, subscription, invoices, checkout/portal buttons — handoff pending the owner's
-  Stripe decision).
+## 🔒 Owner calls — gated, cannot close autonomously
+
+- [ ] **24d.** Confirm authz key names (Plane-C + Gate-2 buckets).
+- [ ] **Code scripts vs vscode editor** — plus **Bamo's JS-over-C# feedback**: decide the
+  user-scripting model + a rich built-in helper library so users never touch C#. *(highest leverage)*
+- [ ] **YouTube non-BYOC** — register a Google Cloud OAuth client + pass verification; ship as defaults.
+- [ ] **Billing / Stripe** — create the Stripe account + seed `StripePriceId`; then the billing UI (frontend).
+- [ ] **Design forks on shipped backends** (each needs an owner decision before its UI/next slice):
+  pipelines 6-surface unification; community reposition (loyalty view vs merge away); pick-lists
+  user-facing rename; games/commands precedence rule; data-sources push-bridge payload contract;
+  federation transport (mTLS/OIDC); multi-channel channel-link model; provider **overlay** import
+  feasibility.
