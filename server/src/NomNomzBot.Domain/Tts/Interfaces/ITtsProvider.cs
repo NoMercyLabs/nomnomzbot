@@ -41,4 +41,13 @@ public class TtsVoiceInfo
     public required string Locale { get; init; }
     public required string Gender { get; init; }
     public required string Provider { get; init; }
+
+    // Optional catalogue metadata a provider may expose (ElevenLabs labels + preview, Azure styles). Null when
+    // the provider does not carry it; the catalogue sync persists whatever is present onto TtsVoice.
+    public string? Accent { get; init; }
+    public string? Age { get; init; }
+    public IReadOnlyList<string>? Styles { get; init; }
+    public IReadOnlyList<string>? Tags { get; init; }
+    public string? Description { get; init; }
+    public string? PreviewUrl { get; init; }
 }

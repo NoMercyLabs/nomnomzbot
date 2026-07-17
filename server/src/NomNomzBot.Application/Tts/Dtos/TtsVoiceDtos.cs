@@ -12,7 +12,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace NomNomzBot.Application.Tts.Dtos;
 
-/// <summary>An available TTS voice.</summary>
+/// <summary>An available TTS voice, with the catalogue metadata that powers search/filter and preview-before-pick.</summary>
 public sealed record TtsVoiceDto(
     string Id,
     string Name,
@@ -20,7 +20,27 @@ public sealed record TtsVoiceDto(
     string Locale,
     string Gender,
     string Provider,
-    bool IsDefault
+    bool IsDefault,
+    string? Accent,
+    string? Age,
+    IReadOnlyList<string> Styles,
+    IReadOnlyList<string> Tags,
+    string? Description,
+    string? PreviewUrl
+);
+
+/// <summary>
+/// A catalogue search: free-text <see cref="Q"/> matches name/display-name/description/tags; the rest are
+/// equality filters. Ordered provider→locale→name, paged. An all-null query returns the first page whole.
+/// </summary>
+public sealed record TtsVoiceQuery(
+    string? Q = null,
+    string? Locale = null,
+    string? Gender = null,
+    string? Provider = null,
+    string? Accent = null,
+    int Page = 1,
+    int PageSize = 50
 );
 
 /// <summary>Request to test a TTS voice.</summary>

@@ -14,6 +14,8 @@
 > - **New table `TtsConfig`** replaces the JSON-blob config (`Configuration` row keyed `"tts:config"`) the live `TtsConfigService` reads/writes. The LOCKED schema is **gaining** the BYOK envelope columns to match gdpr-crypto's `CipherPayload`: `AzureApiKeyNonce`, `AzureKeyVersion`, `ElevenLabsApiKeyNonce`, `ElevenLabsKeyVersion` (alongside the existing `*Cipher` + `SubjectKeyId`).
 > - **New table `TtsApprovalQueueEntry`** for the mod-approval queue (no live equivalent).
 > - `TtsUsageRecord`: add `WasCensored`, `WasModApproved`, `StreamId`, `OccurredAt` and is **[APPEND-ONLY]** (`CreatedAt` only).
+> - `TtsVoice`: add `Accent`, `Age`, `StylesJson`, `TagsJson`, `Description`, `PreviewUrl` (all nullable) — catalog-search + preview metadata.
+> - `TtsConfig`: add `ViewerVoiceSelfServiceEnabled bool` (default true).
 
 ---
 
@@ -32,6 +34,7 @@ All from the LOCKED schema Domain P (TTS) + Q.1 (`CryptoKey`, referenced) + R.1 
 | `DefaultVoiceId` | `string(255)?` | →`TtsVoice.Id`. |
 | `ProfanityCensorEnabled` | `bool` | **Opt-OUT** light swear filter. New-channel default (binding): `true`; the streamer may disable. |
 | `ModApprovalRequired` | `bool` | When true, utterances enter the approval queue, not direct dispatch. New-channel default (binding): `false`. |
+| `ViewerVoiceSelfServiceEnabled` | `bool` | When true, a viewer may pick their OWN voice via the self-service route + `!voice` chat command (the moderator can still override any viewer). New-channel default (binding): `true`; the streamer may lock it off. |
 | `MinBitsToTts` | `int?` | Null = no bits gate. |
 | `MaxCharacters` | `int` | Per-utterance cap, **tier-scaled** (binding): a safety baseline on the Base tier, higher tiers get a higher cap. Not a single hardcoded value — resolved from the channel's billing tier. |
 | `AzureApiKeyCipher` | `text?` | **[PII-shred]** BYOK Azure key — base64 `CipherPayload.CipherText` (gdpr-crypto §4.1), AEAD under `SubjectKeyId`. |
@@ -47,7 +50,7 @@ All from the LOCKED schema Domain P (TTS) + Q.1 (`CryptoKey`, referenced) + R.1 
 > **BYOK cipher envelope (gdpr-crypto, do not duplicate).** Each BYOK key is stored as the gdpr-crypto `CipherPayload(CipherText, Nonce)` envelope split across `*Cipher`/`*Nonce` columns plus the `*KeyVersion`. Encrypt/decrypt **only** via the token vault — `IIntegrationTokenVault` / `ISubjectKeyService.ProtectAsync`/`UnprotectAsync` (gdpr-crypto §3.4) under `SubjectKeyId` — with `CipherAad(TenantId=BroadcasterId, Provider=azure|elevenlabs, TokenType=api_key, KeyVersion)`. This subsystem **does not** define its own AES-GCM primitive; `IFieldCipher` is gdpr-crypto's, reached through the vault.
 
 ### P.2 `TtsVoice` — global voice catalog (GLOBAL, seed)
-`Id string(255) PK` (external voice id, not PII); `Name string(100)`; `DisplayName string(255)`; `Locale string(10) Index`; `Gender string(10)`; `Provider string(50) Index` (`edge`\|`azure`\|`elevenlabs`); `IsDefault bool`. **No `BroadcasterId`.** (Live `TtsVoice : BaseEntity` already matches.)
+`Id string(255) PK` (external voice id, not PII); `Name string(100)`; `DisplayName string(255)`; `Locale string(10) Index`; `Gender string(10)`; `Provider string(50) Index` (`edge`\|`azure`\|`elevenlabs`); `IsDefault bool`; **NEW metadata (the ElevenLabs/Polly label model, all nullable):** `Accent string(50)? Index` (e.g. American, British); `Age string(20)?` (e.g. young, middle_aged, old); `StylesJson string? [VC:JSON]` (list of provider style/emotion names, e.g. Azure cheerful/angry); `TagsJson string? [VC:JSON]` (searchable use-case labels, e.g. narration, gaming); `Description string(1000)?`; `PreviewUrl string(2048)?` (provider sample-audio url; null for edge/self-synth). **No `BroadcasterId`.** These power catalogue search/filter and a preview-before-pick UX; provider metadata that the adapters currently discard (ElevenLabs `preview_url` + labels) is now captured. (Live `TtsVoice : BaseEntity` gains the metadata columns.)
 
 ### P.3 `UserTtsVoice` — per-viewer voice assignment (tenant-scoped)
 `Id Guid PK`; `BroadcasterId Guid FK→Channels Index`; `UserId Guid FK→Users Index`; `UserTwitchUserId string(50) Index` **[PII-hash]**; `VoiceId string(255)` (→`TtsVoice.Id`). **Unique** `(BroadcasterId, UserId)`.
@@ -280,21 +283,28 @@ public interface ITtsConfigService
     // EXISTING surface — keep names; broadcasterId widens string → Guid
     Task<Result<TtsConfigDto>> GetConfigAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
     Task<Result<TtsConfigDto>> UpdateConfigAsync(Guid broadcasterId, UpdateTtsConfigDto request, CancellationToken cancellationToken = default);
-    Task<Result<IReadOnlyList<TtsVoiceDto>>> GetVoicesAsync(CancellationToken cancellationToken = default);
+    Task<Result<PagedList<TtsVoiceDto>>> SearchVoicesAsync(TtsVoiceQuery query, CancellationToken cancellationToken = default);
     Task<Result<TtsTestResultDto>> TestVoiceAsync(Guid broadcasterId, TtsTestRequestDto request, CancellationToken cancellationToken = default);
 
     // NEW — per-viewer voice assignment (UserTtsVoice)
     Task<Result<UserTtsVoiceDto>> SetUserVoiceAsync(Guid broadcasterId, SetUserVoiceDto request, CancellationToken cancellationToken = default);
     Task<Result> ClearUserVoiceAsync(Guid broadcasterId, Guid userId, CancellationToken cancellationToken = default);
     Task<Result<UserTtsVoiceDto?>> GetUserVoiceAsync(Guid broadcasterId, Guid userId, CancellationToken cancellationToken = default);
+
+    // NEW — viewer self-service (caller acts on their OWN identity; gated on ViewerVoiceSelfServiceEnabled + IsEnabled)
+    Task<Result<UserTtsVoiceDto>> SetOwnVoiceAsync(Guid broadcasterId, Guid callerUserId, SetOwnVoiceDto request, CancellationToken cancellationToken = default);
+    Task<Result<UserTtsVoiceDto?>> GetOwnVoiceAsync(Guid broadcasterId, Guid callerUserId, CancellationToken cancellationToken = default);
+    Task<Result> ClearOwnVoiceAsync(Guid broadcasterId, Guid callerUserId, CancellationToken cancellationToken = default);
 }
 ```
 *Behavior:*
 - `GetConfigAsync` — reads the `TtsConfig` row (or returns the binding new-channel defaults if none: `Mode=client_edge`, `DefaultProvider=edge`, `ProfanityCensorEnabled=true`, `ModApprovalRequired=false`, `MaxCharacters`=the channel tier's resolved cap — `min(TtsCharacterLimits.AbsoluteMaxCharacters, IBillingTierService.GetLimitAsync(broadcasterId,"tts_max_characters"))`, where the resolver's `-1` (unlimited / self-host) maps to `AbsoluteMaxCharacters`); BYOK ciphers never returned in DTO (only `HasAzureKey`/`HasElevenLabsKey` booleans).
 - `UpdateConfigAsync` — upserts `TtsConfig`; a streamer-supplied `MaxCharacters` is **clamped to the channel tier's resolved cap** — `effectiveCap = min(TtsCharacterLimits.AbsoluteMaxCharacters, IBillingTierService.GetLimitAsync(broadcasterId,"tts_max_characters"))` (the binding tier-scaled rule: a safety baseline on Base, higher tiers a higher ceiling; resolver `-1`→`AbsoluteMaxCharacters`) — so it can never exceed the tier ceiling, and a supplied value over `effectiveCap` is rejected with `VALIDATION_FAILED` (not silently truncated); encrypts any supplied BYOK key via `IIntegrationTokenVault` / `ISubjectKeyService.ProtectAsync(SubjectKeyId, plaintextKey, CipherAad(BroadcasterId, provider, "api_key", keyVersion), resourceTable: "TtsConfig", resourceColumn: "{Azure|ElevenLabs}ApiKeyCipher")` (gdpr-crypto §3.4 — mints/`GetOrCreate`s the `SubjectKeyId` `CryptoKey` if absent), persisting the returned `CipherPayload` into the `*Cipher`/`*Nonce` columns and the bound `*KeyVersion`; `SaveChangesAsync` via `IUnitOfWork`; emits `TtsConfigUpdatedEvent`. Never defines a parallel cipher.
+- `SearchVoicesAsync` — free-text `Q` matches (case-insensitive contains) `Name`/`DisplayName`/`Description`/`TagsJson`; `Locale`/`Gender`/`Provider`/`Accent` are equality filters; ordered `Provider`→`Locale`→`Name`; paged; an empty query returns the first page of the whole catalog.
 - `TestVoiceAsync` — synthesizes a short sample through `ITtsService.SynthesizeForChannelAsync`; returns base64 audio; no ledger row, no events. (Live impl returns `ExternalServiceUnavailable` on failure → keep `SERVICE_UNAVAILABLE`.)
 - `SetUserVoiceAsync` — upserts `UserTtsVoice` `(BroadcasterId,UserId)`; validates `VoiceId` exists in `TtsVoice`; persists; no event.
 - `ClearUserVoiceAsync` — soft-deletes the `UserTtsVoice` row; `NOT_FOUND` if absent.
+- `SetOwnVoiceAsync`/`ClearOwnVoiceAsync`/`GetOwnVoiceAsync` — FIRST check the channel `TtsConfig`: `Failure(FEATURE_DISABLED)` when `IsEnabled==false` OR `ViewerVoiceSelfServiceEnabled==false`; then upsert/clear/read the caller's own `UserTtsVoice (BroadcasterId, callerUserId)`, validating the voice exists (Set). No event.
 
 ### 3.7 `ITtsAudioStore` (Application — NEW; cache `StorageRef` adapter)
 `Application/Contracts/Tts/ITtsAudioStore.cs`. Abstracts where cached audio bytes live, matching `TtsCacheEntry.StorageKind` (`inline`\|`disk`\|`object_store`). Profile adapter (see §7).
@@ -339,6 +349,7 @@ public sealed record TtsConfigDto(
     string? DefaultVoiceId,
     bool ProfanityCensorEnabled,    // opt-out censor
     bool ModApprovalRequired,
+    bool ViewerVoiceSelfServiceEnabled,  // viewers may self-pick their own voice
     int? MinBitsToTts,
     int MaxCharacters,
     bool HasAzureKey,               // presence only — ciphertext never leaves the server
@@ -353,6 +364,7 @@ public sealed record UpdateTtsConfigDto
     [MaxLength(255)] public string? DefaultVoiceId { get; init; }
     public bool? ProfanityCensorEnabled { get; init; }
     public bool? ModApprovalRequired { get; init; }
+    public bool? ViewerVoiceSelfServiceEnabled { get; init; }
     [Range(0, 100000)] public int? MinBitsToTts { get; init; }
     // No static [Range] cap — MaxCharacters is tier-scaled. The only static bound is the absolute
     // safety ceiling TtsCharacterLimits.AbsoluteMaxCharacters (the hard upper bound no tier exceeds);
@@ -364,8 +376,9 @@ public sealed record UpdateTtsConfigDto
     [MaxLength(4096)]  public string? ElevenLabsApiKey { get; init; }  // write-only
 }
 
-// EXISTING — TtsVoiceDtos.cs — unchanged
-public sealed record TtsVoiceDto(string Id, string Name, string DisplayName, string Locale, string Gender, string Provider, bool IsDefault);
+// EXISTING — TtsVoiceDtos.cs — TtsVoiceDto EXTENDED with the catalog metadata
+public sealed record TtsVoiceDto(string Id, string Name, string DisplayName, string Locale, string Gender, string Provider, bool IsDefault, string? Accent, string? Age, IReadOnlyList<string> Styles, IReadOnlyList<string> Tags, string? Description, string? PreviewUrl);
+public sealed record TtsVoiceQuery(string? Q, string? Locale, string? Gender, string? Provider, string? Accent, int Page = 1, int PageSize = 50);
 public sealed record TtsTestRequestDto { [Required, MaxLength(500)] public required string Text { get; init; } [Required, MaxLength(255)] public required string VoiceId { get; init; } }
 public sealed record TtsTestResultDto(string VoiceId, string Provider, int DurationMs, string AudioBase64);
 
@@ -376,6 +389,7 @@ public sealed record SetUserVoiceDto
     [Required] public required Guid UserId { get; init; }
     [Required, MaxLength(255)] public required string VoiceId { get; init; }
 }
+public sealed record SetOwnVoiceDto { [Required, MaxLength(255)] public required string VoiceId { get; init; } }
 
 // NEW — TtsQueueDtos.cs
 public sealed record TtsQueueEntryDto(
@@ -390,13 +404,16 @@ public sealed record TtsQueueEntryDto(
 
 **One controller — `TtsController`** (`Api/Controllers/V1/`). **Delete `TtsConfigController`** (duplicate route). Base route already established by the live code: `api/v{version:apiVersion}/channels/{channelId}/tts`. `[ApiVersion("1.0")]`, `[Authorize]`, `[Tags("TTS")]`. `channelId` resolves to `BroadcasterId Guid` via the tenant middleware. Responses via `BaseController.ResultResponse(...)` → `Api.Models.StatusResponseDto<T>` / `PaginatedResponse<T>`.
 
-**Role gate:** every route is tenant-scoped (management plane). Gate 1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's). Gate 2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the Gate-2 action-key column before the service call (403 FORBIDDEN when below). The keys are seeded global `ActionDefinitions` (schema Domain B); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. No platform-admin (Plane C) endpoints are owned here.
+**Role gate:** every route is tenant-scoped. The management-plane routes carry a Gate-2 floor; the three `self`-plane `/me/voice` routes carry NO action key — the caller acts on their OWN identity (a "my data" self route), gated only by Gate 1 + the channel's `ViewerVoiceSelfServiceEnabled` + `IsEnabled` toggles (the service returns `FEATURE_DISABLED` when either is off). Gate 1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's). Gate 2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the Gate-2 action-key column before the service call (403 FORBIDDEN when below). The keys are seeded global `ActionDefinitions` (schema Domain B); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. No platform-admin (Plane C) endpoints are owned here.
 
 | Route (relative to base) | Verb | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|
 | `/config` | GET | — | `StatusResponseDto<TtsConfigDto>` | management / Moderator · `tts:config:read` |
 | `/config` | PUT | `UpdateTtsConfigDto` | `StatusResponseDto<TtsConfigDto>` | management / Editor · `tts:config:write` (BYOK keys + safety toggles are sensitive) |
-| `/voices` | GET | — | `StatusResponseDto<IReadOnlyList<TtsVoiceDto>>` | management / Moderator · `tts:voice:read` |
+| `/voices` | GET | `?q=&locale=&gender=&provider=&accent=&page=&pageSize=` | `PaginatedResponse<TtsVoiceDto>` | management / Moderator · `tts:voice:read` |
+| `/me/voice` | GET | — | `StatusResponseDto<UserTtsVoiceDto>` | self / Everyone · self-scoped (no action key; gated on ViewerVoiceSelfServiceEnabled + IsEnabled) |
+| `/me/voice` | PUT | `SetOwnVoiceDto` | `StatusResponseDto<UserTtsVoiceDto>` | self / Everyone · self-scoped (no action key; gated on ViewerVoiceSelfServiceEnabled + IsEnabled) |
+| `/me/voice` | DELETE | — | `StatusResponseDto<object>` | self / Everyone · self-scoped (no action key; gated on ViewerVoiceSelfServiceEnabled + IsEnabled) |
 | `/test` | POST | `TtsTestRequestDto` | `StatusResponseDto<TtsTestResultDto>` | management / Moderator · `tts:voice:test` |
 | `/user-voice` | PUT | `SetUserVoiceDto` | `StatusResponseDto<UserTtsVoiceDto>` | management / Moderator · `tts:uservoice:write` |
 | `/user-voice/{userId}` | DELETE | — | `StatusResponseDto<object>` | management / Moderator · `tts:uservoice:write` |
@@ -407,7 +424,7 @@ public sealed record TtsQueueEntryDto(
 
 > `action key` mapping (Domain B `ActionDefinitions`): `tts:config:read`(floor Moderator), `tts:config:write`(floor Editor), `tts:voice:read`(Moderator), `tts:voice:test`(Moderator), `tts:uservoice:write`(Moderator), `tts:queue:review`(Moderator). Each section-5 endpoint is gated by Gate 2 — `IActionAuthorizationService.AuthorizeActionAsync(userId, channelId, actionKey)` — against its action key (`/voices` GET → `tts:voice:read`). Register these seeds in `DataSeeder`.
 
-No platform-admin (Plane C) endpoints are owned here. `TtsVoice` catalog seeding is reference data (DataSeeder), not an endpoint.
+No platform-admin (Plane C) endpoints are owned here. The `TtsVoice` catalog is reference data — seeded by `DataSeeder` AND periodically synced from live provider voice lists via `ITtsVoiceCatalogSync` (§7), still not a per-channel endpoint.
 
 ---
 
@@ -425,6 +442,18 @@ One action: **`PlayTts`** (the `PlayMusic`/`SendMessage` sibling). Files: `Appli
       bool BypassQueue);      // ignored unless caller has tts:queue:review; default false
   ```
 - **Behavior:** resolves the text template, builds a `TtsSpeakRequest` from `ActionContext` (`BroadcasterId`, `TriggeredByUserId`, display name, community standing supplied by the engine), calls `ITtsDispatchService.RequestSpeakAsync`. Returns `ActionResult.Success` with the spoken/queued text on `Dispatched`/`Queued`, `ActionResult.Failure(reason)` when the dispatch gate rejects. Emits no events directly (the dispatch service owns events). Registered in `ICommandActionRegistry`.
+
+## 6.1 Built-in chat command — `!voice` (viewer self-service)
+
+A code-defined built-in command family (NOT a pipeline action; a sibling of the reserved built-ins), named `voice`, that lets a viewer manage their OWN voice from chat:
+
+- `!voice` → replies with the caller's current voice (or the channel default if unset).
+- `!voice <query>` → fuzzy-matches the catalog (`SearchVoicesAsync` with `Q=query`) and sets the caller's own voice to the best match via `SetOwnVoiceAsync`; replies naming the match; on multiple matches replies with the top few to disambiguate; on none replies "no voice matched".
+- `!voice preview <query|id>` → synthesizes a short sample of the matched voice via `TestVoiceAsync`/dispatch (respects config); no persistence.
+- `!voice clear` → `ClearOwnVoiceAsync`, reply confirming reset to default.
+- `!voices` → replies with how to browse (the dashboard picker) + a couple example matches.
+
+**Gating:** requires `TtsConfig.IsEnabled` AND `ViewerVoiceSelfServiceEnabled`; respects the channel's TTS `MinPermission` floor; per-user cooldown. It is a normal (non-reserved) built-in — the channel may disable it. It reads/writes state **only** via `ITtsConfigService` (`SearchVoicesAsync`/`SetOwnVoiceAsync`/`GetOwnVoiceAsync`/`ClearOwnVoiceAsync`) — no direct DB.
 
 ---
 
@@ -457,7 +486,12 @@ services.AddSingleton<ITtsAudioStore>(sp =>
 
 // Pipeline action
 services.AddScoped<ICommandAction, PlayTtsAction>();              // auto-registered into ICommandActionRegistry
+
+// Voice catalog sync — pulls live provider voice lists into the TtsVoice catalog
+services.AddScoped<ITtsVoiceCatalogSync, TtsVoiceCatalogSync>();
 ```
+
+**Voice catalog sync.** `ITtsVoiceCatalogSync` / `TtsVoiceCatalogSync`, on startup/seed (and an operator-triggerable refresh), pulls each provider's live `GetVoicesAsync` (Azure + ElevenLabs when an operator/BYOK key is configured; Edge from the static seed) and UPSERTS them into `TtsVoice` by `(Id)`, capturing the rich metadata (accent/age/styles/tags/description/previewUrl) the provider exposes — replacing today's "10 hardcoded Edge voices, provider lists discarded".
 
 **Deployment-profile adapter variants:**
 - **TTS `Mode` / provider plane** (per-channel, from `TtsConfig.Mode`, resolved at request time by `IByokTtsProviderFactory`): `client_edge` → `EdgeTtsProvider` + `OverlayHub` dispatch via `IOverlayClient.TtsSpeak(TtsSpeakPayload)` (zero server cost; the OBS widget synthesizes/renders edge-side from the payload, no audio bytes leave the server); `byok` → per-channel `AzureTtsProvider`/`ElevenLabsTtsProvider` from decrypted key; `self_host` → operator-config provider.
@@ -491,6 +525,9 @@ No new third-party dependency is introduced by this subsystem.
 2. **`TtsApprovalQueueEntry`.** Lives in the LOCKED schema as Domain P **P.1a** (tenant-scoped, soft-delete). Reference the schema directly as the source of truth for its columns.
 3. **New-channel TTS defaults (binding).** A freshly created channel's `TtsConfig` materializes with `Mode=client_edge`, `DefaultProvider=edge` (zero server cost / no BYOK key required out of the box), `ProfanityCensorEnabled=true` (opt-out — the streamer may disable), and `ModApprovalRequired=false` (direct dispatch, no queue). These are the binding seeded defaults `GetConfigAsync` returns when no row exists.
 4. **`MaxCharacters` is tier-scaled (binding).** The per-utterance character cap is not a single hardcoded constant: it resolves from the channel's billing tier — a safety baseline on the Base tier, with higher tiers granted a higher ceiling. The EFFECTIVE cap is `min(TtsCharacterLimits.AbsoluteMaxCharacters, IBillingTierService.GetLimitAsync(broadcasterId,"tts_max_characters"))` (monetization-billing §3.2; resolver `-1`=unlimited/self-host → the absolute ceiling). `TtsCharacterLimits.AbsoluteMaxCharacters` (8000) is the hard ceiling no tier can exceed and the only static bound left on the surface (`UpdateTtsConfigDto.MaxCharacters` `[Range(1, AbsoluteMaxCharacters)]` — the old static `[Range(1,500)]` is removed). The dispatch gate (§3.4) rejects over-cap utterances with `VALIDATION_FAILED`; `UpdateConfigAsync` rejects an over-cap configured value with `VALIDATION_FAILED` (never silently truncates). **Dependency:** `"tts_max_characters"` must be a `TierLimit.LimitKey` enum value (LOCKED schema N.2) with seeded per-tier `LimitValue` rows (monetization-billing §8 pattern — additional `LimitKey` values read through the existing entitlement resolver); see report blocker — that enum addition + changelog entry lives in the schema/billing specs, not here.
+5. **Voice catalog is searchable + rich.** The catalog carries the ElevenLabs/Polly label model (locale/gender/accent/age/style/tags/description/preview) and is queried via `SearchVoicesAsync` (free-text + filters + paging), not returned whole — so it scales past a handful of voices and supports preview-before-pick. Provider metadata the adapters used to discard is now captured by the catalog sync.
+6. **Viewers self-select their voice (binding, toggle-default-on).** With TTS enabled, a viewer may set their OWN voice via `PUT /me/voice` (self-scoped, caller identity) and the `!voice` chat command — Firebot's model (each viewer owns their voice; the channel default reads for everyone else). Gated by `TtsConfig.ViewerVoiceSelfServiceEnabled` (default true; the streamer may lock it). Moderators retain the `/user-voice` override for setting others.
+7. **Catalog sync.** `ITtsVoiceCatalogSync` upserts live provider voice lists (Azure/ElevenLabs when keyed, Edge from seed) into `TtsVoice`, so the browsable catalog reflects real provider inventory instead of a static 10.
 
 ---
 

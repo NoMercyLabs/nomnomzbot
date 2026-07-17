@@ -34,4 +34,29 @@ public class TtsVoice : BaseEntity
     public string Provider { get; set; } = null!;
 
     public bool IsDefault { get; set; }
+
+    // ── Catalogue metadata (the ElevenLabs/Polly label model) — all nullable; powers search/filter and a
+    // preview-before-pick UX. Populated from the seed (Edge) and the live provider sync (Azure/ElevenLabs);
+    // metadata the adapters used to discard (ElevenLabs preview_url + labels) is now captured here.
+
+    // Spoken accent, e.g. American / British / Australian (derived from locale for Edge, from labels otherwise).
+    [MaxLength(50)]
+    public string? Accent { get; set; }
+
+    // Perceived age band, e.g. young / middle_aged / old — provider-supplied; null when unknown.
+    [MaxLength(20)]
+    public string? Age { get; set; }
+
+    // JSON array of provider style/emotion names (e.g. ["cheerful","angry"]); null when the voice has none.
+    public string? StylesJson { get; set; }
+
+    // JSON array of searchable use-case labels (e.g. ["narration","gaming"]); null when none.
+    public string? TagsJson { get; set; }
+
+    [MaxLength(1000)]
+    public string? Description { get; set; }
+
+    // Provider sample-audio url for preview-before-pick; null for Edge / self-synth voices.
+    [MaxLength(2048)]
+    public string? PreviewUrl { get; set; }
 }

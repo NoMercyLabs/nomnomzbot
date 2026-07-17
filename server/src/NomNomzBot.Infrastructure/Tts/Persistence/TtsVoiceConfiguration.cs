@@ -33,5 +33,14 @@ public class TtsVoiceConfiguration : IEntityTypeConfiguration<TtsVoice>
         builder.Property(e => e.Provider).IsRequired().HasMaxLength(50);
 
         builder.Property(e => e.IsDefault).HasDefaultValue(false);
+
+        builder.Property(e => e.Accent).HasMaxLength(50);
+        builder.Property(e => e.Age).HasMaxLength(20);
+        builder.Property(e => e.Description).HasMaxLength(1000);
+        builder.Property(e => e.PreviewUrl).HasMaxLength(2048);
+        // StylesJson / TagsJson are unbounded JSON-array text columns (no length cap).
+
+        // Accent is a first-class catalogue filter (browse "British female narration") — index it.
+        builder.HasIndex(e => e.Accent);
     }
 }

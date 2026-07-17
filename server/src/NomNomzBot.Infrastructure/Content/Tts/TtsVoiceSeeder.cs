@@ -40,6 +40,7 @@ public sealed class TtsVoiceSeeder : ISeeder
             Gender = "Female",
             Provider = "edge",
             IsDefault = true,
+            Accent = "American",
         },
         new()
         {
@@ -50,6 +51,7 @@ public sealed class TtsVoiceSeeder : ISeeder
             Gender = "Male",
             Provider = "edge",
             IsDefault = false,
+            Accent = "American",
         },
         new()
         {
@@ -60,6 +62,7 @@ public sealed class TtsVoiceSeeder : ISeeder
             Gender = "Female",
             Provider = "edge",
             IsDefault = false,
+            Accent = "British",
         },
         new()
         {
@@ -70,6 +73,7 @@ public sealed class TtsVoiceSeeder : ISeeder
             Gender = "Female",
             Provider = "edge",
             IsDefault = false,
+            Accent = "Australian",
         },
         new()
         {
@@ -80,6 +84,7 @@ public sealed class TtsVoiceSeeder : ISeeder
             Gender = "Female",
             Provider = "edge",
             IsDefault = false,
+            Accent = "German",
         },
         new()
         {
@@ -90,6 +95,7 @@ public sealed class TtsVoiceSeeder : ISeeder
             Gender = "Female",
             Provider = "edge",
             IsDefault = false,
+            Accent = "French",
         },
         new()
         {
@@ -100,6 +106,7 @@ public sealed class TtsVoiceSeeder : ISeeder
             Gender = "Female",
             Provider = "edge",
             IsDefault = false,
+            Accent = "Castilian",
         },
         new()
         {
@@ -110,6 +117,7 @@ public sealed class TtsVoiceSeeder : ISeeder
             Gender = "Female",
             Provider = "edge",
             IsDefault = false,
+            Accent = "Japanese",
         },
         new()
         {
@@ -120,6 +128,7 @@ public sealed class TtsVoiceSeeder : ISeeder
             Gender = "Female",
             Provider = "edge",
             IsDefault = false,
+            Accent = "Korean",
         },
         new()
         {
@@ -130,6 +139,7 @@ public sealed class TtsVoiceSeeder : ISeeder
             Gender = "Female",
             Provider = "edge",
             IsDefault = false,
+            Accent = "Brazilian",
         },
     ];
 
@@ -153,6 +163,7 @@ public sealed class TtsVoiceSeeder : ISeeder
                     Gender = voice.Gender,
                     Provider = voice.Provider,
                     IsDefault = voice.IsDefault,
+                    Accent = voice.Accent,
                 }
             );
         }

@@ -16,6 +16,26 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — TTS: the voices list is now a searchable, paginated, rich catalogue
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** `GET /channels/{channelId}/tts/voices` changed from a whole-list `StatusResponseDto<List<TtsVoiceDto>>`
+  to a **`PaginatedResponse<TtsVoiceDto>`** with query params `?q=&locale=&gender=&provider=&accent=&page=&pageSize=`
+  (default `pageSize` 50). Free-text `q` matches name/display-name/description/tags; the rest are equality filters.
+  `TtsVoiceDto` gained `accent`, `age`, `styles` (string[]), `tags` (string[]), `description`, `previewUrl`.
+  Build the TTS **voice picker** as a real searchable/filterable browser (like StreamElements/ElevenLabs):
+  a search box + locale/gender/accent/provider filters + paging, each row showing the metadata and a
+  **preview** (play `previewUrl` when present, else fall back to the existing `POST /tts/test`).
+- **Why:** BUILD-TODO "TTS rework — no way to search for voices properly". The catalogue will grow past a
+  handful of voices (a live Azure/ElevenLabs sync is a backend follow-up), so a flat list no longer works.
+- **Where:** `server/openapi/v1.json` (refreshed — `/voices` response + params changed, `TtsVoiceDto` extended);
+  spec `.claude/docs/design/spec/tts.md` §3.6/§5. **Kotlin sync:** update the `TtsVoiceDto` (add the new
+  nullable/list fields — additive, safe) and change the voices API call to consume `PaginatedResponse`.
+- **Done when:** the settings TTS voice picker searches + filters + pages against the new endpoint, shows the
+  metadata, and previews a voice; `ApiContractTest` stays green.
+- **Coming next (heads-up, not yet built):** a viewer self-service plane — `GET/PUT/DELETE /tts/me/voice` +
+  a `!voice` chat command + a `viewerVoiceSelfServiceEnabled` config toggle — so viewers pick their own voice
+  (a "My TTS voice" control for the logged-in viewer). Separate handoff will follow when it lands.
+
 ### 2026-07-17 — Chat: overlay chat_box now has font/size/background/timestamp controls; chat DTO carries Provider
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What (small):** two additive changes to surface in the UI:

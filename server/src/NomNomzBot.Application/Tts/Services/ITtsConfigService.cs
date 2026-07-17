@@ -43,7 +43,14 @@ public interface ITtsConfigService
         CancellationToken cancellationToken = default
     );
 
-    Task<Result<IReadOnlyList<TtsVoiceDto>>> GetVoicesAsync(
+    /// <summary>
+    /// Search the global voice catalogue: free-text <c>Q</c> matches name/display-name/description/tags,
+    /// the rest are equality filters, ordered provider→locale→name and paged. Backs the dashboard voice
+    /// picker and the <c>!voice</c> command's fuzzy match. Falls back to live provider enumeration only when
+    /// the catalogue table is empty (pre-sync).
+    /// </summary>
+    Task<Result<PagedList<TtsVoiceDto>>> SearchVoicesAsync(
+        TtsVoiceQuery query,
         CancellationToken cancellationToken = default
     );
     Task<Result<TtsTestResultDto>> TestVoiceAsync(

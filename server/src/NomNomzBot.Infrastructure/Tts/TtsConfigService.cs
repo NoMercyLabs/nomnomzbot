@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Models.Crypto;
@@ -244,48 +245,185 @@ public class TtsConfigService : ITtsConfigService
             ct
         );
 
-    public async Task<Result<IReadOnlyList<TtsVoiceDto>>> GetVoicesAsync(
+    public async Task<Result<PagedList<TtsVoiceDto>>> SearchVoicesAsync(
+        TtsVoiceQuery query,
         CancellationToken cancellationToken = default
     )
     {
-        List<TtsVoice> dbVoices = await _db
-            .TtsVoices.OrderBy(v => v.Provider)
-            .ThenBy(v => v.Locale)
-            .ThenBy(v => v.Name)
-            .ToListAsync(cancellationToken);
+        int page = query.Page < 1 ? 1 : query.Page;
+        int pageSize = Math.Clamp(query.PageSize, 1, 200);
 
-        if (dbVoices.Count > 0)
+        // Pre-sync: the catalogue table is empty → fall back to what the providers can enumerate live, filtered
+        // and paged in memory (the catalogue sync fills the table so this branch stops firing).
+        if (!await _db.TtsVoices.AnyAsync(cancellationToken))
+            return Result.Success(
+                await SearchProviderFallbackAsync(query, page, pageSize, cancellationToken)
+            );
+
+        IQueryable<TtsVoice> voices = _db.TtsVoices;
+
+        if (!string.IsNullOrWhiteSpace(query.Locale))
         {
-            IReadOnlyList<TtsVoiceDto> dbDtos = dbVoices
-                .Select(v => new TtsVoiceDto(
-                    v.Id,
-                    v.Name,
-                    v.DisplayName,
-                    v.Locale,
-                    v.Gender,
-                    v.Provider,
-                    v.IsDefault
-                ))
-                .ToList();
-            return Result.Success(dbDtos);
+            string locale = query.Locale.Trim().ToLower();
+            voices = voices.Where(v => v.Locale.ToLower() == locale);
+        }
+        if (!string.IsNullOrWhiteSpace(query.Gender))
+        {
+            string gender = query.Gender.Trim().ToLower();
+            voices = voices.Where(v => v.Gender.ToLower() == gender);
+        }
+        if (!string.IsNullOrWhiteSpace(query.Provider))
+        {
+            string provider = query.Provider.Trim().ToLower();
+            voices = voices.Where(v => v.Provider.ToLower() == provider);
+        }
+        if (!string.IsNullOrWhiteSpace(query.Accent))
+        {
+            string accent = query.Accent.Trim().ToLower();
+            voices = voices.Where(v => v.Accent != null && v.Accent.ToLower() == accent);
+        }
+        if (!string.IsNullOrWhiteSpace(query.Q))
+        {
+            string q = query.Q.Trim().ToLower();
+            voices = voices.Where(v =>
+                v.Name.ToLower().Contains(q)
+                || v.DisplayName.ToLower().Contains(q)
+                || (v.Description != null && v.Description.ToLower().Contains(q))
+                || (v.TagsJson != null && v.TagsJson.ToLower().Contains(q))
+            );
         }
 
-        // Fallback: enumerate directly from providers
+        int total = await voices.CountAsync(cancellationToken);
+        List<TtsVoice> pageRows = await voices
+            .OrderBy(v => v.Provider)
+            .ThenBy(v => v.Locale)
+            .ThenBy(v => v.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        IReadOnlyList<TtsVoiceDto> dtos = pageRows.Select(ToDto).ToList();
+        return Result.Success(new PagedList<TtsVoiceDto>(dtos, page, pageSize, total));
+    }
+
+    // Live-provider fallback used only while the catalogue table is empty (pre-sync). Enumerates, maps, filters
+    // and pages entirely in memory — the provider lists are small and this path disappears once the sync runs.
+    private async Task<PagedList<TtsVoiceDto>> SearchProviderFallbackAsync(
+        TtsVoiceQuery query,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken
+    )
+    {
         IReadOnlyList<TtsVoiceInfo> providerVoices = await _ttsService.GetAvailableVoicesAsync(
             cancellationToken
         );
-        IReadOnlyList<TtsVoiceDto> dtos = providerVoices
-            .Select(v => new TtsVoiceDto(
-                v.Id,
-                v.Name,
-                v.DisplayName,
-                v.Locale,
-                v.Gender,
-                v.Provider,
-                IsDefault: false
-            ))
+        List<TtsVoiceDto> ordered = ApplyInMemoryFilter(providerVoices.Select(ToDto), query)
+            .OrderBy(v => v.Provider)
+            .ThenBy(v => v.Locale)
+            .ThenBy(v => v.Name)
             .ToList();
-        return Result.Success(dtos);
+        IReadOnlyList<TtsVoiceDto> pageItems = ordered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+        return new PagedList<TtsVoiceDto>(pageItems, page, pageSize, ordered.Count);
+    }
+
+    private static IEnumerable<TtsVoiceDto> ApplyInMemoryFilter(
+        IEnumerable<TtsVoiceDto> voices,
+        TtsVoiceQuery query
+    )
+    {
+        if (!string.IsNullOrWhiteSpace(query.Locale))
+            voices = voices.Where(v =>
+                string.Equals(v.Locale, query.Locale, StringComparison.OrdinalIgnoreCase)
+            );
+        if (!string.IsNullOrWhiteSpace(query.Gender))
+            voices = voices.Where(v =>
+                string.Equals(v.Gender, query.Gender, StringComparison.OrdinalIgnoreCase)
+            );
+        if (!string.IsNullOrWhiteSpace(query.Provider))
+            voices = voices.Where(v =>
+                string.Equals(v.Provider, query.Provider, StringComparison.OrdinalIgnoreCase)
+            );
+        if (!string.IsNullOrWhiteSpace(query.Accent))
+            voices = voices.Where(v =>
+                string.Equals(v.Accent, query.Accent, StringComparison.OrdinalIgnoreCase)
+            );
+        if (!string.IsNullOrWhiteSpace(query.Q))
+        {
+            string q = query.Q.Trim();
+            voices = voices.Where(v =>
+                v.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || v.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || (v.Description?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
+                || v.Tags.Any(t => t.Contains(q, StringComparison.OrdinalIgnoreCase))
+            );
+        }
+        return voices;
+    }
+
+    private static TtsVoiceDto ToDto(TtsVoice v) =>
+        new(
+            v.Id,
+            v.Name,
+            v.DisplayName,
+            v.Locale,
+            v.Gender,
+            v.Provider,
+            v.IsDefault,
+            v.Accent,
+            v.Age,
+            ParseList(v.StylesJson),
+            ParseList(v.TagsJson),
+            v.Description,
+            v.PreviewUrl
+        );
+
+    private static TtsVoiceDto ToDto(TtsVoiceInfo v) =>
+        new(
+            v.Id,
+            v.Name,
+            v.DisplayName,
+            v.Locale,
+            v.Gender,
+            v.Provider,
+            IsDefault: false,
+            v.Accent,
+            v.Age,
+            v.Styles?.ToList() ?? [],
+            v.Tags?.ToList() ?? [],
+            v.Description,
+            v.PreviewUrl
+        );
+
+    // Parses a stored JSON array column (StylesJson / TagsJson) into a list; null/blank/malformed → empty.
+    private static IReadOnlyList<string> ParseList(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return [];
+        try
+        {
+            return JsonConvert.DeserializeObject<List<string>>(json) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    // True when the catalogue contains the voice, or (pre-sync, empty catalogue) a provider can enumerate it.
+    private async Task<bool> VoiceExistsAsync(string voiceId, CancellationToken cancellationToken)
+    {
+        if (await _db.TtsVoices.AnyAsync(v => v.Id == voiceId, cancellationToken))
+            return true;
+        if (await _db.TtsVoices.AnyAsync(cancellationToken))
+            return false; // catalogue present but no match
+        IReadOnlyList<TtsVoiceInfo> providerVoices = await _ttsService.GetAvailableVoicesAsync(
+            cancellationToken
+        );
+        return providerVoices.Any(v => v.Id == voiceId);
     }
 
     public async Task<Result<TtsTestResultDto>> TestVoiceAsync(
@@ -341,14 +479,7 @@ public class TtsConfigService : ITtsConfigService
 
         // Truthful: only accept a voice the channel can actually synthesize — the same set the picker shows and
         // the dispatch resolver hands to the provider. A voice that could never play is rejected, not stored.
-        Result<IReadOnlyList<TtsVoiceDto>> voices = await GetVoicesAsync(cancellationToken);
-        if (voices.IsFailure)
-            return Result.Failure<UserTtsVoiceDto>(
-                voices.ErrorMessage,
-                voices.ErrorCode,
-                voices.ErrorDetail
-            );
-        if (!voices.Value.Any(v => v.Id == request.VoiceId))
+        if (!await VoiceExistsAsync(request.VoiceId, cancellationToken))
             return Errors.NotFound<UserTtsVoiceDto>("TTS voice", request.VoiceId);
 
         UserTtsVoice? existing = await _db.UserTtsVoices.FirstOrDefaultAsync(

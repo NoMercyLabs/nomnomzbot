@@ -109,14 +109,42 @@ public class TtsConfigController : BaseController
         return ResultResponse(result);
     }
 
-    /// <summary>List the voices available from the configured TTS provider.</summary>
+    /// <summary>
+    /// Search the voice catalogue: free-text <c>q</c> matches name/display-name/description/tags; <c>locale</c>,
+    /// <c>gender</c>, <c>provider</c>, and <c>accent</c> are equality filters. Paged (default 50). Backs the
+    /// dashboard voice picker so a channel can browse thousands of voices instead of one flat list.
+    /// </summary>
     [HttpGet("voices")]
     [RequireAction("tts:voice:read")]
-    [ProducesResponseType<StatusResponseDto<IReadOnlyList<TtsVoiceDto>>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetVoices(string channelId, CancellationToken ct)
+    [ProducesResponseType<PaginatedResponse<TtsVoiceDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetVoices(
+        string channelId,
+        [FromQuery] string? q = null,
+        [FromQuery] string? locale = null,
+        [FromQuery] string? gender = null,
+        [FromQuery] string? provider = null,
+        [FromQuery] string? accent = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken ct = default
+    )
     {
-        Result<IReadOnlyList<TtsVoiceDto>> result = await _ttsConfigService.GetVoicesAsync(ct);
-        return ResultResponse(result);
+        Result<PagedList<TtsVoiceDto>> result = await _ttsConfigService.SearchVoicesAsync(
+            new TtsVoiceQuery(q, locale, gender, provider, accent, page, pageSize),
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+
+        PagedList<TtsVoiceDto> paged = result.Value;
+        return Ok(
+            new PaginatedResponse<TtsVoiceDto>
+            {
+                Data = paged.Items,
+                NextPage = paged.HasNextPage ? paged.Page + 1 : null,
+                HasMore = paged.HasNextPage,
+            }
+        );
     }
 
     /// <summary>Generate a short test TTS clip to preview a voice.</summary>
