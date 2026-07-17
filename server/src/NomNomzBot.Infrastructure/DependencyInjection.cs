@@ -833,6 +833,10 @@ public static class DependencyInjection
         ));
         services.AddSingleton<ITtsService, TtsService>();
 
+        // Voice catalogue sync (tts.md §7) — pulls each provider's live voice list into the TtsVoice catalogue.
+        // Scoped (writes through the scoped DbContext); does not end in "Service", so registered explicitly here.
+        services.AddScoped<ITtsVoiceCatalogSync, TtsVoiceCatalogSync>();
+
         // Light profanity mask for spoken TTS text (tts.md §3.5) — pure + stateless, so singleton. Does not end in
         // "Service", so it is not picked up by AddServicesByConvention; registered explicitly here.
         services.AddSingleton<Application.Contracts.Tts.ITtsProfanityCensor, TtsProfanityCensor>();

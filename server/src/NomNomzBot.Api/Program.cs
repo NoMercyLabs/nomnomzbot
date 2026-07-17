@@ -25,6 +25,7 @@ using NomNomzBot.Api.Middleware;
 using NomNomzBot.Application;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Infrastructure;
 using NomNomzBot.Infrastructure.Platform;
@@ -654,6 +655,22 @@ try
     {
         Log.Fatal(ex, "Content seeding failed");
         throw;
+    }
+
+    // Sync the TTS voice catalogue from live provider lists (tts.md §7) — AFTER seeding, in its own scope, because
+    // it makes outbound HTTP calls (Azure/ElevenLabs when keyed) that must not run inside the seed transaction.
+    // Best-effort: an upsert-only pass, so a failure leaves the seeded Edge catalogue intact and never blocks boot.
+    try
+    {
+        Log.Information("Syncing TTS voice catalogue from providers...");
+        await using AsyncServiceScope ttsScope = app.Services.CreateAsyncScope();
+        ITtsVoiceCatalogSync catalogSync =
+            ttsScope.ServiceProvider.GetRequiredService<ITtsVoiceCatalogSync>();
+        await catalogSync.SyncAsync(CancellationToken.None);
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "TTS voice catalogue sync failed; keeping the seeded catalogue.");
     }
 
     // Middleware pipeline

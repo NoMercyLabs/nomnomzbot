@@ -132,6 +132,9 @@ public sealed class AzureTtsProvider : ITtsProvider
                     Locale = v.Locale,
                     Gender = v.Gender,
                     Provider = ProviderName,
+                    // Azure's list carries per-voice expressive styles (e.g. cheerful, angry); the locale/gender
+                    // are the only other catalogue-relevant fields it exposes (no accent/age/preview url).
+                    Styles = v.StyleList is { Count: > 0 } ? v.StyleList : null,
                 })
                 .ToList();
         }
@@ -158,5 +161,6 @@ public sealed class AzureTtsProvider : ITtsProvider
         public string DisplayName { get; set; } = null!;
         public string Locale { get; set; } = null!;
         public string Gender { get; set; } = null!;
+        public List<string>? StyleList { get; set; }
     }
 }

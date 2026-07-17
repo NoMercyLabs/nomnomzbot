@@ -120,23 +120,39 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
                     cancellationToken: cancellationToken
                 );
 
-            return data?.Voices?.Select(v => new TtsVoiceInfo
-                    {
-                        Id = v.VoiceId,
-                        Name = v.Name,
-                        DisplayName = v.Name,
-                        Locale = "en-US",
-                        Gender = v.Labels?.GetValueOrDefault("gender") ?? "unknown",
-                        Provider = ProviderName,
-                    })
-                    .ToList()
-                ?? [];
+            return data?.Voices?.Select(MapVoice).ToList() ?? [];
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "ElevenLabs TTS: Failed to fetch voices");
             return [];
         }
+    }
+
+    // Maps one ElevenLabs voice onto the catalogue shape, capturing the metadata the adapter used to discard:
+    // preview_url, the top-level description, and the label model (accent / age / gender / use-case → tags).
+    private static TtsVoiceInfo MapVoice(ElevenLabsVoice v)
+    {
+        Dictionary<string, string> labels = v.Labels ?? new(StringComparer.OrdinalIgnoreCase);
+        string? useCase =
+            labels.GetValueOrDefault("use_case") ?? labels.GetValueOrDefault("use case");
+
+        return new TtsVoiceInfo
+        {
+            Id = v.VoiceId,
+            Name = v.Name,
+            DisplayName = v.Name,
+            Locale = "en-US",
+            Gender = labels.GetValueOrDefault("gender") ?? "unknown",
+            Provider = ProviderName,
+            Accent = labels.GetValueOrDefault("accent"),
+            Age = labels.GetValueOrDefault("age"),
+            Description = string.IsNullOrWhiteSpace(v.Description)
+                ? labels.GetValueOrDefault("description")
+                : v.Description,
+            PreviewUrl = v.PreviewUrl,
+            Tags = string.IsNullOrWhiteSpace(useCase) ? null : [useCase],
+        };
     }
 
     private static TtsSynthesisResult EmptyResult(string voiceId) =>
@@ -165,5 +181,11 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
 
         [JsonPropertyName("labels")]
         public Dictionary<string, string>? Labels { get; set; }
+
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        [JsonPropertyName("preview_url")]
+        public string? PreviewUrl { get; set; }
     }
 }
