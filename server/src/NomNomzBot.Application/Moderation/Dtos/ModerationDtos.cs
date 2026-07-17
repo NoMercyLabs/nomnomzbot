@@ -150,7 +150,11 @@ public sealed record AutomodConfigDto(
     AutomodLinkFilterDto LinkFilter,
     AutomodCapsFilterDto CapsFilter,
     AutomodBannedPhrasesDto BannedPhrases,
-    AutomodEmoteSpamDto EmoteSpam
+    AutomodEmoteSpamDto EmoteSpam,
+    // The J.5 heat threshold (moderation.md §3.8): UserHeatThresholdCrossedEvent fires when a viewer's
+    // HeatScore crosses this upward. Stored configs predating the field deserialize to 0 → readers treat
+    // <= 0 as the default (80).
+    int HeatTimeoutThreshold = 80
 );
 
 // ─── Bans ────────────────────────────────────────────────────────────────────

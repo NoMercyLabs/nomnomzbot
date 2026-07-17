@@ -5579,6 +5579,106 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("SharedBanTrustedChannels");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.UserModerationHistory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BanCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FirstSeenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastActionAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastActionType")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("MessagesDeletedCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SubjectTwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SubjectUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TimeoutCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("WarningCount")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "SubjectUserId")
+                        .IsUnique();
+
+                    b.ToTable("UserModerationHistories");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.UserTrustScore", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ComputedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("HeatScore")
+                        .HasPrecision(8, 4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastHeatEventAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SubjectTwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SubjectUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("TrustScore")
+                        .HasPrecision(8, 4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ComputedAt");
+
+                    b.HasIndex("BroadcasterId", "SubjectUserId")
+                        .IsUnique();
+
+                    b.ToTable("UserTrustScores");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ViewerReport", b =>
                 {
                     b.Property<Guid>("Id")

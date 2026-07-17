@@ -128,6 +128,9 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         typeof(NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel),
         // The network-nuke batch ledger (J.2a) — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch),
+        // The J.4/J.5 projections — nav-free, convention-mapped.
+        typeof(NomNomzBot.Domain.Moderation.Entities.UserModerationHistory),
+        typeof(NomNomzBot.Domain.Moderation.Entities.UserTrustScore),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -157,6 +160,10 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         Set<NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch> NetworkNukeBatches =>
         Set<NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>
+        Set<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>
+        Set<NomNomzBot.Domain.Moderation.Entities.UserTrustScore>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

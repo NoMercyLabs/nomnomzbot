@@ -54613,6 +54613,15 @@
           },
           "emoteSpam": {
             "$ref": "#/components/schemas/AutomodEmoteSpamDto"
+          },
+          "heatTimeoutThreshold": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 80
           }
         }
       },
