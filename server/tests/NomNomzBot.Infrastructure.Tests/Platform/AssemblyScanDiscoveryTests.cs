@@ -133,11 +133,20 @@ public class AssemblyScanDiscoveryTests
     {
         // Every concrete IEventHandler<TEvent> closed interface implemented in the assembly
         // must resolve to at least one handler — proves no handler type is missed.
+        // IsGenericTypeDefinition: false matches the scanner's own rule — the open-generic automation
+        // bridge handler yields an OPEN IEventHandler<TEvent> interface that can't (and shouldn't)
+        // resolve; its closed forms are registered per described event by the descriptor DI loop.
         List<Type> closedHandlerInterfaces = InfrastructureAssembly
             .GetTypes()
-            .Where(t => t is { IsAbstract: false, IsInterface: false })
+            .Where(t =>
+                t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false }
+            )
             .SelectMany(t => t.GetInterfaces())
-            .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventHandler<>))
+            .Where(i =>
+                i.IsGenericType
+                && i.GetGenericTypeDefinition() == typeof(IEventHandler<>)
+                && !i.ContainsGenericParameters
+            )
             .Distinct()
             .ToList();
 

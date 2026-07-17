@@ -802,6 +802,8 @@ public static class DependencyInjection
 
         // Public automation event catalog (automation-api.md D6): descriptors are AUTO-DISCOVERED —
         // exposing a new event = drop an IAutomationEventDescriptor implementation, no engine edit.
+        // Each described domain event ALSO gets a typed bridge handler on the bus, so only described
+        // events can ever reach the stream (default-deny by construction).
         foreach (
             Type descriptorType in infrastructure
                 .GetTypes()
@@ -817,11 +819,27 @@ public static class DependencyInjection
                 typeof(Application.AutomationApi.Services.IAutomationEventDescriptor),
                 descriptorType
             );
+            Application.AutomationApi.Services.IAutomationEventDescriptor descriptor =
+                (Application.AutomationApi.Services.IAutomationEventDescriptor)
+                    Activator.CreateInstance(descriptorType)!;
+            services.AddScoped(
+                typeof(IEventHandler<>).MakeGenericType(descriptor.DomainEventType),
+                typeof(AutomationApi.Stream.AutomationEventBridgeHandler<>).MakeGenericType(
+                    descriptor.DomainEventType
+                )
+            );
         }
         services.AddSingleton<
             Application.AutomationApi.Services.IAutomationEventRegistry,
             AutomationApi.Events.AutomationEventRegistry
         >();
+
+        // The automation stream (automation-api.md §4.2): per-node session book + the protocol engine.
+        services.AddSingleton<
+            Application.AutomationApi.Services.IAutomationSessionRegistry,
+            AutomationApi.Stream.AutomationSessionRegistry
+        >();
+        services.AddSingleton<AutomationApi.Stream.AutomationStreamCoordinator>();
 
         // Spotify HTTP clients with resilience (Music providers themselves are scanned by
         // IMusicProvider above; IMusicService is scanned by AddServicesByConvention).

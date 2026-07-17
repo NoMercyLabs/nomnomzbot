@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
+using NomNomzBot.Api.AutomationStream;
 using NomNomzBot.Api.Configuration;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Identifiers;
@@ -743,6 +744,11 @@ try
     app.MapHub<OverlayHub>("/hubs/overlay");
     app.MapHub<OBSRelayHub>("/hubs/obs");
     app.MapHub<AdminHub>("/hubs/admin");
+
+    // Automation stream — a RAW WebSocket (automation-api.md D1: deliberately not SignalR, so any
+    // language can integrate). UseWebSockets serves this endpoint; the hubs manage their own upgrade.
+    app.UseWebSockets();
+    app.MapAutomationStream();
 
     // Health check — returns JSON with per-check status
     app.MapHealthChecks(
