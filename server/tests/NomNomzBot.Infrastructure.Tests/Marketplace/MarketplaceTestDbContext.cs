@@ -22,6 +22,7 @@ using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Federation.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
+using NomNomzBot.Domain.Marketplace.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Quotes.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
@@ -29,39 +30,113 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Converters;
+using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
+using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
-namespace NomNomzBot.Api.Tests.Controllers;
+namespace NomNomzBot.Infrastructure.Tests.Marketplace;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> over only the few entities the Api controller/authorization
-/// tests read — platform <see cref="Configuration"/> rows (the Discord client credentials),
-/// <see cref="Channel"/>, <see cref="DiscordGuildConnection"/>, and the six Plane-C IAM tables (so the
-/// platform-IAM handler tests run the REAL <c>PlatformIamService</c> against a seeded store) — on the EF Core
-/// InMemory provider. Everything else throws, since these tests never reach it. The
-/// <c>DiscordGuildConnection</c> soft-delete global filter is applied so the "non-deleted connection" read
-/// semantics match production.
+/// A focused <see cref="IApplicationDbContext"/> over the bundle import/export surface — <see cref="Command"/>,
+/// <see cref="PipelineEntity"/>, <see cref="CustomDataSource"/>, and <see cref="InstalledBundle"/> — on the
+/// EF Core InMemory provider, for the marketplace round-trip tests. Everything else throws, since those
+/// tests never reach it. Mirrors the "declare every DbSet, auto-ignore the unmapped ones" shape of
+/// <c>Commands/CommandsTestDbContext.cs</c>.
 /// </summary>
-internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
+internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContext
 {
-    private ApiTestDbContext(DbContextOptions<ApiTestDbContext> options)
+    private MarketplaceTestDbContext(DbContextOptions<MarketplaceTestDbContext> options)
         : base(options) { }
 
-    public static ApiTestDbContext New() =>
+    public static MarketplaceTestDbContext New() =>
         new(
-            new DbContextOptionsBuilder<ApiTestDbContext>()
+            new DbContextOptionsBuilder<MarketplaceTestDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
 
-    public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
-        Set<NomNomzBot.Domain.Platform.Entities.Configuration>();
-    public DbSet<Channel> Channels => Set<Channel>();
-    public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
-        Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
-    public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.ChatTrigger> ChatTriggers =>
-        throw new NotSupportedException();
+    public DbSet<Command> Commands => Set<Command>();
+    public DbSet<PipelineEntity> Pipelines => Set<PipelineEntity>();
+    public DbSet<CustomDataSource> CustomDataSources => Set<CustomDataSource>();
+    public DbSet<InstalledBundle> InstalledBundles => Set<InstalledBundle>();
+
+    protected override void OnModelCreating(ModelBuilder b)
+    {
+        b.Entity<Command>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.Pipeline);
+            e.Ignore(c => c.Channel);
+            e.Property(c => c.Aliases)
+                .HasConversion(
+                    JsonValueConverter.Converter<List<string>>(),
+                    JsonValueConverter.Comparer<List<string>>()
+                );
+            e.Property(c => c.TemplateResponses)
+                .HasConversion(
+                    JsonValueConverter.Converter<List<string>>()!,
+                    JsonValueConverter.Comparer<List<string>>()!
+                );
+        });
+
+        b.Entity<PipelineEntity>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Ignore(p => p.Channel);
+            e.Ignore(p => p.Steps);
+        });
+
+        b.Entity<CustomDataSource>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Ignore(s => s.Channel);
+            e.Ignore(s => s.CreatedByUser);
+            e.Ignore(s => s.InboundWebhookEndpoint);
+        });
+
+        b.Entity<InstalledBundle>(e =>
+        {
+            e.HasKey(i => i.Id);
+            e.Ignore(i => i.Channel);
+            e.Ignore(i => i.InstalledByUser);
+        });
+
+        // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
+        // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
+        foreach (Type entity in UnmappedEntities)
+            b.Ignore(entity);
+    }
+
+    private static readonly HashSet<Type> Mapped =
+    [
+        typeof(Command),
+        typeof(PipelineEntity),
+        typeof(CustomDataSource),
+        typeof(InstalledBundle),
+    ];
+
+    private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
+        .GetProperties()
+        .Where(p =>
+            p.PropertyType.IsGenericType
+            && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
+        )
+        .Select(p => p.PropertyType.GetGenericArguments()[0])
+        .Where(t => !Mapped.Contains(t))
+        .ToList();
+
+    // ── Unused IApplicationDbContext surface — never reached by these tests ──
+    public DbSet<User> Users => throw new NotSupportedException();
+    public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
+    public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
+    public DbSet<Channel> Channels => throw new NotSupportedException();
+    public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
+    public DbSet<Service> Services => throw new NotSupportedException();
+    public DbSet<DomainTimer> Timers => throw new NotSupportedException();
+    public DbSet<Reward> Rewards => throw new NotSupportedException();
+    public DbSet<Redemption> Redemptions => throw new NotSupportedException();
+    public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
+    public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>
@@ -82,71 +157,6 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
         throw new NotSupportedException();
-    public DbSet<DiscordGuildConnection> DiscordGuildConnections => Set<DiscordGuildConnection>();
-
-    protected override void OnModelCreating(ModelBuilder b)
-    {
-        b.Entity<NomNomzBot.Domain.Platform.Entities.Configuration>().HasKey(e => e.Id);
-        b.Entity<NomNomzBot.Domain.Platform.Entities.Configuration>().Ignore(e => e.Channel);
-
-        b.Entity<Channel>().HasKey(e => e.Id);
-        b.Entity<Channel>()
-            .Ignore(e => e.Tags)
-            .Ignore(e => e.ContentLabels)
-            .Ignore(e => e.User)
-            .Ignore(e => e.Moderators)
-            .Ignore(e => e.Streams)
-            .Ignore(e => e.Events);
-
-        b.Entity<DiscordGuildConnection>().HasKey(e => e.Id);
-        b.Entity<DiscordGuildConnection>().Ignore(e => e.Channel);
-        b.Entity<DiscordGuildConnection>().HasQueryFilter(e => e.DeletedAt == null);
-
-        // Plane-C IAM tables — scalar/enum-only, so they materialize on InMemory as-is.
-        b.Entity<IamPermission>().HasKey(e => e.Id);
-        b.Entity<IamRole>().HasKey(e => e.Id);
-        b.Entity<IamRolePermission>().HasKey(e => e.Id);
-        b.Entity<IamPrincipal>().HasKey(e => e.Id);
-        b.Entity<IamRoleAssignment>().HasKey(e => e.Id);
-        b.Entity<IamAuditLog>().HasKey(e => e.Id);
-
-        // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
-        // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
-        foreach (Type entity in UnmappedEntities)
-            b.Ignore(entity);
-    }
-
-    private static readonly HashSet<Type> Mapped =
-    [
-        typeof(NomNomzBot.Domain.Platform.Entities.Configuration),
-        typeof(Channel),
-        typeof(DiscordGuildConnection),
-        typeof(IamPermission),
-        typeof(IamRole),
-        typeof(IamRolePermission),
-        typeof(IamPrincipal),
-        typeof(IamRoleAssignment),
-        typeof(IamAuditLog),
-    ];
-
-    private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
-        .GetProperties()
-        .Where(p =>
-            p.PropertyType.IsGenericType
-            && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
-        )
-        .Select(p => p.PropertyType.GetGenericArguments()[0])
-        .Where(t => !Mapped.Contains(t))
-        .ToList();
-
-    // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<User> Users => throw new NotSupportedException();
-    public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
-    public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
-    public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
-    public DbSet<Service> Services => throw new NotSupportedException();
-    public DbSet<Command> Commands => throw new NotSupportedException();
-    public DbSet<Reward> Rewards => throw new NotSupportedException();
     public DbSet<Quote> Quotes => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
@@ -176,6 +186,8 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
+        throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
         throw new NotSupportedException();
@@ -191,6 +203,8 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<IntegrationToken> IntegrationTokens => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
         throw new NotSupportedException();
+    public DbSet<DiscordGuildConnection> DiscordGuildConnections =>
+        throw new NotSupportedException();
     public DbSet<DiscordNotificationConfig> DiscordNotificationConfigs =>
         throw new NotSupportedException();
     public DbSet<DiscordNotificationRole> DiscordNotificationRoles =>
@@ -200,11 +214,11 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Vts.Entities.VtsConnection> VtsConnections =>
-        Set<NomNomzBot.Domain.Vts.Entities.VtsConnection>();
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
-        Set<NomNomzBot.Domain.Obs.Entities.ObsConnection>();
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
-        Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
+        throw new NotSupportedException();
     public DbSet<TtsConfig> TtsConfigs => throw new NotSupportedException();
     public DbSet<TtsVoice> TtsVoices => throw new NotSupportedException();
     public DbSet<UserTtsVoice> UserTtsVoices => throw new NotSupportedException();
@@ -214,12 +228,8 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
-        throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
-        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStep> PipelineSteps =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition> PipelineStepConditions =>
@@ -255,12 +265,12 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<PermitGrant> PermitGrants => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMissingScope> ChannelMissingScopes =>
         throw new NotSupportedException();
-    public DbSet<IamPermission> IamPermissions => Set<IamPermission>();
-    public DbSet<IamRole> IamRoles => Set<IamRole>();
-    public DbSet<IamRolePermission> IamRolePermissions => Set<IamRolePermission>();
-    public DbSet<IamPrincipal> IamPrincipals => Set<IamPrincipal>();
-    public DbSet<IamRoleAssignment> IamRoleAssignments => Set<IamRoleAssignment>();
-    public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();
+    public DbSet<IamPermission> IamPermissions => throw new NotSupportedException();
+    public DbSet<IamRole> IamRoles => throw new NotSupportedException();
+    public DbSet<IamRolePermission> IamRolePermissions => throw new NotSupportedException();
+    public DbSet<IamPrincipal> IamPrincipals => throw new NotSupportedException();
+    public DbSet<IamRoleAssignment> IamRoleAssignments => throw new NotSupportedException();
+    public DbSet<IamAuditLog> IamAuditLogs => throw new NotSupportedException();
     public DbSet<CurrencyConfig> CurrencyConfigs => throw new NotSupportedException();
     public DbSet<EarningRule> EarningRules => throw new NotSupportedException();
     public DbSet<CurrencyAccount> CurrencyAccounts => throw new NotSupportedException();
@@ -269,8 +279,6 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<CatalogPurchase> CatalogPurchases => throw new NotSupportedException();
     public DbSet<GameConfig> GameConfigs => throw new NotSupportedException();
     public DbSet<GamePlay> GamePlays => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
-        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.GameSession> GameSessions =>
         throw new NotSupportedException();
     public DbSet<ViewerAgeConsent> ViewerAgeConsents => throw new NotSupportedException();
@@ -311,7 +319,6 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<CodeScript> CodeScripts => throw new NotSupportedException();
     public DbSet<CodeScriptVersion> CodeScriptVersions => throw new NotSupportedException();
     public DbSet<SoundClip> SoundClips => throw new NotSupportedException();
-    public DbSet<CustomDataSource> CustomDataSources => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterConnection> SupporterConnections =>

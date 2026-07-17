@@ -51,8 +51,14 @@ what REMAINS.
   manifest, versions/build, install/clone, browse, submit→review→pin governance, all 14
   first-party widgets, and every overlay feed they bind (chat, poll/prediction, sr_queue,
   tts_speak, custom.<source>, canonical `gift` naming).
-- [ ] **22. Marketplace / bundles** (`marketplace.md`) — export/inspect/import/uninstall;
-  browse/install/publish.
+- [ ] **22. Marketplace / bundles** (`marketplace.md`) — remaining: the hosted-marketplace client
+  slice (`IMarketplaceClient` → `HttpMarketplaceClient`, `MarketplaceController` browse/install/
+  publish routes over the existing import path, vaulted publisher token, rate-limit buckets,
+  `AddMarketplace()` DI; base URL via `IDeploymentProfileService`), plus **(frontend — handoff
+  2026-07-17)** the bundles UI (export picker, import wizard with the inspect/capability step +
+  conflict policy, installed list + uninstall). The local half is live: export with secret-stripping
+  allowlists, ZIP inspect with capability summary, conflict-policy import (run_code lands disabled,
+  all-or-nothing), installed tracking + exact-scope uninstall, `bundles:*` keys seeded.
 - [ ] **23. GDPR/compliance + IPC dev-mode controllers** (`gdpr-crypto.md`, `stream-admin.md`).
 
 ### 🔒 Security & small fixes

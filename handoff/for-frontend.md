@@ -16,6 +16,28 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Bundles: export picker + import wizard + installed list
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** local bundle packs are live (marketplace.md §5, channel-routed under
+  `channels/{channelId}/bundles`):
+  1. **Export picker** (`bundles:export`, Editor): pick pipelines/commands/widgets/sounds/
+     custom-data-sources → `POST export` `{items:[{type,id}], metadata:{name,description,author?,
+     license?}}` → downloads a ZIP. A command's linked pipeline is auto-included.
+  2. **Import wizard** (`bundles:import`, Editor): upload ZIP → `POST inspect` first and SHOW the
+     result (manifest summary, dependency edges, **capabilities** — e.g. "executes custom code" —
+     and issues; block on issues); then `POST import` (multipart + `policy` = `rename` (default) |
+     `overwrite` | `skip`). Surface that run_code content lands DISABLED and secrets must be
+     re-entered after import. Import is all-or-nothing.
+  3. **Installed list** (`bundles:read`, Mod): `GET installed` (name/source/version/author/installed
+     entities count); `DELETE installed/{id}` uninstalls exactly what the bundle created (confirm
+     dialog listing the entity counts).
+- **Why:** BUILD-TODO item 22 — share/backup whole setups as portable packs.
+- **Where:** `server/openapi/v1.json` (refreshed — 5 new routes); spec `marketplace.md` (+§8
+  as-built notes).
+- **Done when:** on dev: export a command+pipeline, re-import with `rename` on the same channel →
+  renamed copies appear disabled where required, the bundle shows in the installed list, and
+  uninstall removes exactly those copies.
+
 ### 2026-07-17 — Widget gallery: community submit form + admin review queue
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the gallery's community import pipeline is live (widgets-overlays.md §3.3/§5c):

@@ -133,3 +133,32 @@ Seed in `roles-permissions.md`: **`bundles:read`** (Moderator 10, `Low`), **`bun
 ## 7. Decisions (resolved)
 
 ZIP bundles with a versioned per-type export contract (D1); secrets/PII stripped on export via field allowlist (D2); local import/export works zero-infra (D3); imported code sandboxed + disabled-until-enabled, no privilege imported, capability summary shown (D4); hosted marketplace with security vetting, bot is a client (D5); installs tracked for update/uninstall + conflict policy (D6); configurable marketplace URL defaulting to the NoMercy public marketplace, schema delta **H.11 `InstalledBundle`** only — catalog lives in the separate marketplace service (D7).
+
+---
+
+## 8. As-built notes (2026-07-17 — local bundle half shipped)
+
+- **Routes are channel-routed:** `api/v1/channels/{channelId}/bundles/...` (the explicit-target tenant
+  convention every management controller follows), not the bare `/bundles` shown in §5.
+- **Command export allowlist = the `CreateCommandDto` surface** (name/tier/minPermissionLevel/
+  templateResponse(s)/cooldowns/description/aliases + isEnabled + the `PipelineName` link).
+  PrefixMode/MatchMode/CustomPrefix/UserCooldownSeconds are not portable yet — the module create API
+  does not accept them.
+- **Pipelines export the builder `GraphJsonCache` document** (the persisted authoring truth); the
+  normalized `PipelineStep` rows are not separately exported.
+- **A command's pipeline is auto-pulled into the bundle** with a `pipeline:<name>` dependency edge in
+  the manifest.
+- **Sound clips export their audio bytes** (sibling ZIP entry) and re-upload through
+  `ISoundClipService.UploadAsync` on import so probing/validation re-run; bounded by the 20 MB
+  bundle cap enforced at inspect AND import.
+- **Rename policy semantics:** slug-typed names (command/sound/custom-data-source) suffix
+  `-bundle`/`-bundle-N`; free-text names (pipeline/widget) suffix ` (bundle)`/` (bundle N)`; the base
+  is trimmed to fit the column. Import is all-or-nothing — a mid-import failure rolls back everything
+  created.
+- **Capability summary** = a quoted-token scan of the graph JSON against a fixed action→capability
+  catalog (`BundleConventions.ActionCapabilities`) + per-type flags (widgets, sounds, data sources).
+- **DI is convention-bound** (`I<X>Service` scan); the spec's `AddMarketplace()` module,
+  `InstalledBundleRepository`, and the import/publish rate-limit buckets are deferred to the
+  marketplace-client slice. `bundles:publish` is already seeded (Broadcaster); its route ships with
+  that slice.
+- **`BundleInstalledEvent` is a sealed class** (the house domain-event style), not a record.

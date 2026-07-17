@@ -139,6 +139,14 @@ public sealed class ActionDefinitionSeeder : ISeeder
         MFloor("timers:read", Mod, Vip);
         M("timers:write", Editor);
 
+        // Bundles (marketplace.md §5) — export/import at Editor (imported code is sandboxed + disabled,
+        // destructive actions bound by the importer's own runtime roles, D4); publish is Broadcaster-only.
+        // `bundles:publish` is seeded now; its route ships with the marketplace-client slice.
+        M("bundles:read", Mod);
+        M("bundles:export", Editor);
+        M("bundles:import", Editor);
+        M("bundles:publish", Broadcaster);
+
         // Roles & permits & code
         M("roles:read", Mod);
         M("roles:manage", Broadcaster, DangerTier.Critical, grant: false);

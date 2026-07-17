@@ -247,6 +247,8 @@ internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDb
     public DbSet<CatalogPurchase> CatalogPurchases => throw new NotSupportedException();
     public DbSet<GameConfig> GameConfigs => throw new NotSupportedException();
     public DbSet<GamePlay> GamePlays => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.GameSession> GameSessions =>
         throw new NotSupportedException();
     public DbSet<ViewerAgeConsent> ViewerAgeConsents => throw new NotSupportedException();

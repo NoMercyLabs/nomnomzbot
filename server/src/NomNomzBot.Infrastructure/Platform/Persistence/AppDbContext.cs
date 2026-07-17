@@ -316,6 +316,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => Set<WidgetGalleryItem>();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         Set<WidgetGallerySubmissionEvent>();
+    public DbSet<Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
+        Set<Domain.Marketplace.Entities.InstalledBundle>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

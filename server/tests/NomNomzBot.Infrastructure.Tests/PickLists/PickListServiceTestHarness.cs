@@ -276,6 +276,8 @@ internal sealed class PickListTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.GamePlay> GamePlays =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.GameSession> GameSessions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent> ViewerAgeConsents =>

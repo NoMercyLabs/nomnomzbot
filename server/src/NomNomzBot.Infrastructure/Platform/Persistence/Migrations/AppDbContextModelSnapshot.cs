@@ -5463,6 +5463,76 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("IntegrationTokens");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Marketplace.Entities.InstalledBundle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Author")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("InstalledByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("InstalledEntityIdsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("License")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("ManifestJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MarketplaceItemId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("InstalledByUserId");
+
+                    b.HasIndex("BroadcasterId", "Source", "MarketplaceItemId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_InstalledBundle_BroadcasterId_Source_MarketplaceItemId")
+                        .HasFilter("\"MarketplaceItemId\" IS NOT NULL AND \"DeletedAt\" IS NULL");
+
+                    b.ToTable("InstalledBundles");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.MediaShare.Entities.MediaShareConfig", b =>
                 {
                     b.Property<Guid>("Id")
@@ -8925,6 +8995,25 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Navigation("Channel");
 
                     b.Navigation("Connection");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Marketplace.Entities.InstalledBundle", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.User", "InstalledByUser")
+                        .WithMany()
+                        .HasForeignKey("InstalledByUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("InstalledByUser");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.MediaShare.Entities.MediaShareConfig", b =>

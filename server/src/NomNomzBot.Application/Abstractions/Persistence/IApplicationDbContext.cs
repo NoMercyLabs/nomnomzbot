@@ -195,5 +195,8 @@ public interface IApplicationDbContext
     DbSet<SoundClip> SoundClips { get; }
     DbSet<CustomDataSource> CustomDataSources { get; }
 
+    // Marketplace — the installed-bundle ledger (marketplace.md D6, schema H.11).
+    DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
