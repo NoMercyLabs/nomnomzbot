@@ -380,6 +380,13 @@ public static class DependencyInjection
             CustomEvents.CustomDataPollService
         >();
         services.AddHostedService<CustomEvents.CustomDataPollHostedService>();
+        // Socket ingress: one long-lived wss client per enabled socket source (Pulsoid/HypeRate heart-rate),
+        // IRunOnceGuard-guarded, reconnecting with backoff (custom-events.md D2).
+        services.AddSingleton<
+            CustomEvents.Sockets.ICustomDataSocketFrameSource,
+            CustomEvents.Sockets.ClientWebSocketDataFrameSource
+        >();
+        services.AddHostedService<CustomEvents.CustomDataSocketHostedService>();
         services.AddSingleton<
             Application.CustomEvents.Services.ICustomDataSourcePreset,
             CustomEvents.Presets.PulsoidPreset
