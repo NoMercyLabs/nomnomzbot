@@ -46,12 +46,16 @@ what REMAINS.
   Games-page live-sessions panel + the two palette actions. The backend is complete: GameSession
   persistence + economy stake/settle/refund, the generic engine/catalog/runner + REST + chat input,
   and the reference `DropGame` + `drop_game` first-party widget + default config seed.
-- [ ] **20. Widget gallery + overlay manifest** (`widgets-overlays.md`) — remaining: the first-party
-  catalogue completion (§1.1 demands 13 widgets; 5 are seeded — missing `chat_box`, `now_playing`,
-  `sr_queue`, `tts_caption`, `poll_prediction`, `redemption_alert`, `countdown_timer`, `emote_wall`,
-  `custom_data`), plus **(frontend — handoff 2026-07-17)** the gallery submit form and the admin
-  review-queue screen. The manifest, versions/build pipeline, install/clone, browse, and the whole
-  submit→review→pin import governance are live.
+- [ ] **20. Widget gallery + overlay manifest** (`widgets-overlays.md`) — remaining: the overlay
+  FEED wiring the new catalogue widgets bound to (verified gaps, one slice): forward `ChatMessage`
+  to widget iframes (host forwards only `WidgetEvent` frames today — lights up `chat_box` +
+  `emote_wall`), push poll/prediction broadcasts `ToOverlaysAsync` (`poll_prediction`), a live
+  `sr_queue` snapshot feed, a `tts_speak` widget event on TTS dispatch (`tts_caption`), route
+  `CustomDataReceivedEvent` as `custom.<source>` widget events (`custom_data`), and fix the
+  pre-existing `gift` vs `gift_sub` name mismatch (emitter sends `gift_sub`, four widgets bind
+  `gift`). Plus **(frontend — handoff 2026-07-17)** the gallery submit form + admin review queue.
+  Manifest, versions/build, install/clone, browse, submit→review→pin, and all 14 first-party
+  widgets are live.
 - [ ] **22. Marketplace / bundles** (`marketplace.md`) — export/inspect/import/uninstall;
   browse/install/publish.
 - [ ] **23. GDPR/compliance + IPC dev-mode controllers** (`gdpr-crypto.md`, `stream-admin.md`).

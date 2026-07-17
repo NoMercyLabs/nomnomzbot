@@ -20,7 +20,7 @@ using NomNomzBot.Infrastructure.Widgets.Bundling;
 namespace NomNomzBot.Infrastructure.Tests.Widgets;
 
 /// <summary>
-/// End-to-end proof that the four shipped first-party <c>.vue</c> SFCs are real, compilable widgets: each embedded
+/// End-to-end proof that the fourteen shipped first-party <c>.vue</c> SFCs are real, compilable widgets: each embedded
 /// asset runs through the full build path — stage A compiles the SFC in a real <see cref="JintVueSfcCompiler"/>,
 /// stage B bundles it with esbuild (Vue kept external, mapped to the host <c>window.Vue</c>). When the esbuild
 /// binary is present the assertions cover the self-contained IIFE (Vue global + render output); when it is absent
@@ -50,6 +50,15 @@ public sealed class FirstPartyWidgetVueBuildTests : IClassFixture<VueSfcCompiler
     [InlineData("labels")]
     [InlineData("drop_game")]
     [InlineData("event_ticker")]
+    [InlineData("chat_box")]
+    [InlineData("now_playing")]
+    [InlineData("sr_queue")]
+    [InlineData("tts_caption")]
+    [InlineData("poll_prediction")]
+    [InlineData("redemption_alert")]
+    [InlineData("countdown_timer")]
+    [InlineData("emote_wall")]
+    [InlineData("custom_data")]
     public async Task First_party_sfc_compiles_and_bundles_to_a_vue_iife(string key)
     {
         string sfc = LoadAsset(key);

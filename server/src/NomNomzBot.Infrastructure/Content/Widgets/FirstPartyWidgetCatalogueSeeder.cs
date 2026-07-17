@@ -130,6 +130,151 @@ public sealed class FirstPartyWidgetCatalogueSeeder : ISeeder
             },
             DefaultEventSubscriptions: new(SupporterAndTwitchEvents)
         ),
+        new(
+            Key: "chat_box",
+            Name: "Chat Box",
+            Description: "Live chat rendered from the decorated message feed — resolved emotes, badges, name colours, "
+                + "and pronouns — with theming, command/bot filtering, and optional per-message fade.",
+            DefaultSettings: new()
+            {
+                ["theme"] = "dark",
+                ["maxMessages"] = 12,
+                ["fadeAfterMs"] = 0,
+                ["showBadges"] = true,
+                ["showEmotes"] = true,
+                ["hideCommands"] = true,
+                ["hideBots"] = true,
+                ["accentColor"] = "#9146ff",
+            },
+            DefaultEventSubscriptions: ["ChatMessage"]
+        ),
+        new(
+            Key: "now_playing",
+            Name: "Now Playing",
+            Description: "A standing display of the current track — pill or card layout, optional album art and an "
+                + "animated progress sweep — that hides itself while nothing plays.",
+            DefaultSettings: new()
+            {
+                ["layout"] = "pill",
+                ["showArt"] = true,
+                ["showProgressBar"] = true,
+                ["provider"] = "",
+                ["accentColor"] = "#9146ff",
+            },
+            DefaultEventSubscriptions: ["now_playing"]
+        ),
+        new(
+            Key: "sr_queue",
+            Name: "SR Queue",
+            Description: "The upcoming song-request queue as a compact list — position, title, and optional requester "
+                + "and duration — fed by sr_queue snapshot events and hidden while the queue is empty.",
+            DefaultSettings: new()
+            {
+                ["count"] = 5,
+                ["showRequester"] = true,
+                ["showDuration"] = true,
+                ["accentColor"] = "#9146ff",
+            },
+            DefaultEventSubscriptions: ["sr_queue"]
+        ),
+        new(
+            Key: "tts_caption",
+            Name: "TTS Caption",
+            Description: "A speaking indicator with a live caption for TTS playback — animated voice bars, the "
+                + "speaker's name, optional voice label, top or bottom placement — hidden while nothing speaks.",
+            DefaultSettings: new()
+            {
+                ["showText"] = true,
+                ["voiceLabel"] = false,
+                ["position"] = "bottom",
+                ["accentColor"] = "#9146ff",
+            },
+            DefaultEventSubscriptions: ["tts_speak"]
+        ),
+        new(
+            Key: "poll_prediction",
+            Name: "Poll / Prediction",
+            Description: "Live poll and prediction bars — choices with vote percentages, lock state, and the winning "
+                + "outcome highlighted on resolve — shown only while a round runs.",
+            DefaultSettings: new()
+            {
+                ["position"] = "left",
+                ["colors"] = new Dictionary<string, object>(),
+                ["accentColor"] = "#9146ff",
+            },
+            DefaultEventSubscriptions:
+            [
+                "poll_begin",
+                "poll_progress",
+                "poll_end",
+                "prediction_begin",
+                "prediction_progress",
+                "prediction_lock",
+                "prediction_end",
+            ]
+        ),
+        new(
+            Key: "redemption_alert",
+            Name: "Redemption Alert",
+            Description: "A channel-point redemption popup — one card at a time with the redeemer, reward, cost, and "
+                + "their input — filterable per reward and templatable.",
+            DefaultSettings: new()
+            {
+                ["rewards"] = new List<string>(),
+                ["textTemplate"] = "",
+                ["sound"] = "",
+                ["durationMs"] = 6000,
+                ["accentColor"] = "#9146ff",
+            },
+            DefaultEventSubscriptions: ["reward_redeemed"]
+        ),
+        new(
+            Key: "countdown_timer",
+            Name: "Countdown / Timer",
+            Description: "A countdown to a wall-clock target or for a fixed duration (BRB / starting soon) with a "
+                + "label and completion text — dashboard-controlled live through its widget settings.",
+            DefaultSettings: new()
+            {
+                ["target"] = "",
+                ["durationMs"] = 0,
+                ["label"] = "Starting soon",
+                ["onCompleteText"] = "",
+                ["accentColor"] = "#9146ff",
+            },
+            DefaultEventSubscriptions: []
+        ),
+        new(
+            Key: "emote_wall",
+            Name: "Emote Wall",
+            Description: "Emotes from chat float or rain across the screen — harvested from the decorated message "
+                + "feed's emote and cheermote fragments, with density, size, and provider filters.",
+            DefaultSettings: new()
+            {
+                ["density"] = 30,
+                ["size"] = 48,
+                ["animation"] = "float",
+                ["providers"] = new List<string>(),
+                ["accentColor"] = "#9146ff",
+            },
+            DefaultEventSubscriptions: ["ChatMessage"]
+        ),
+        new(
+            Key: "custom_data",
+            Name: "Custom Data",
+            Description: "The live value of a custom data source rendered as a number, gauge, or text — a heart-rate "
+                + "gauge is this widget bound to heartrate.bpm — re-binding live when the source changes.",
+            DefaultSettings: new()
+            {
+                ["source"] = "heartrate",
+                ["field"] = "bpm",
+                ["render"] = "number",
+                ["label"] = "",
+                ["min"] = 0,
+                ["max"] = 200,
+                ["accentColor"] = "#9146ff",
+            },
+            DefaultEventSubscriptions: ["custom.heartrate"]
+        ),
     ];
 
     public async Task SeedAsync(CancellationToken ct = default)
