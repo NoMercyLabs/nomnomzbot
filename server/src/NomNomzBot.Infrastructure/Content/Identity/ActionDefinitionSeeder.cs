@@ -281,6 +281,11 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("live-ops:marker:create", Mod);
         M("live-ops:clips:write", Mod);
 
+        // Automation API tokens (automation-api.md §5) — external credentials, so the write bundle
+        // (create/rotate/revoke) is broadcaster-only Critical and never grantable.
+        M("automation:tokens:read", Editor);
+        M("automation:tokens:write", Broadcaster, DangerTier.Critical, grant: false);
+
         // Webhooks / widgets / integrations / dashboard / community / setup / analytics
         M("webhooks:inbound:read", Mod);
         M("webhooks:inbound:write", Editor);

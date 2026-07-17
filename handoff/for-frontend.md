@@ -16,6 +16,25 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Automation: API tokens screen (issue / rotate / revoke external credentials)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the automation token management plane exists. Routes on
+  `channels/{channelId}/automation`: `GET tokens` (paged `AutomationTokenDto`: id, name,
+  tokenPrefix, scopes, allowedPipelineIds, lastUsedAt, expiresAt, revokedAt, createdAt),
+  `POST tokens` (`CreateAutomationTokenRequest`: name, scopes ⊆ `invoke|read|events|chat`,
+  allowedPipelineIds?, expiresAt?) → `IssuedAutomationTokenDto { secret, token }`,
+  `POST tokens/{id}/rotate` → same issued shape, `DELETE tokens/{id}` (revoke tombstone). **The
+  `secret` appears exactly once** in the create/rotate response and is never retrievable again —
+  build a show-once-and-copy dialog (like the IAM service-account key), then only ever display
+  `tokenPrefix`. UI: tokens table (revoked = badge, never hidden), create dialog with scope
+  checkboxes + optional pipeline picker + expiry, rotate + revoke with confirm. Writes are
+  broadcaster-only (`automation:tokens:write`, Critical) — disable with reason below that.
+- **Why:** BUILD-TODO item 8 (Streamer.bot-parity automation API) — external tools authenticate
+  with these tokens; the data plane + WS stream are landing next.
+- **Where:** `server/openapi/v1.json` (refreshed); spec `automation-api.md` §5.
+- **Done when:** on dev, a created token shows its secret once, survives reload as a prefix-only
+  row, rotate invalidates the old secret, and revoke marks the row revoked.
+
 ### 2026-07-17 — TTS: BYOK provider keys (bring-your-own Azure/ElevenLabs key)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** channels can now store their own TTS provider API keys, vault-encrypted. New routes on

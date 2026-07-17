@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Billing.Entities;
@@ -32,81 +31,69 @@ using NomNomzBot.Domain.Widgets.Entities;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 
-namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
+namespace NomNomzBot.Infrastructure.Tests.AutomationApi;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> over only the two entities the EventSub reconnect/subscribe
-/// tests touch — the <see cref="EventSubSubscription"/> registry and the <see cref="IntegrationConnection"/> the
-/// bot-user lookup reads — on the EF Core InMemory provider. The production <c>AppDbContext</c> is Npgsql-bound
-/// (jsonb complex types) and cannot host a test provider, so only the mapped entities are materialized; every
-/// other <see cref="IApplicationDbContext"/> set throws, since these tests never reach it. Mirrors the "declare
-/// every DbSet, auto-ignore the unmapped ones by reflection" shape of <c>Moderation/ModerationServiceTestDbContext.cs</c>.
-/// <para>
-/// It also stamps <c>CreatedAt</c>/<c>UpdatedAt</c> on save (production's <c>AuditableEntityInterceptor</c> is
-/// absent here): a row created by <c>SubscribeAsync</c> would otherwise keep <see cref="DateTime.MinValue"/>,
-/// and projecting that to the DTO's <see cref="DateTimeOffset"/> throws under a positive local UTC offset.
-/// </para>
+/// A focused <see cref="IApplicationDbContext"/> for the automation-token tests — on the EF Core
+/// InMemory provider. Maps <see cref="NomNomzBot.Domain.Automation.Entities.AutomationApiToken"/>
+/// (navs ignored — no Channels/Users tables here); the inherited TTS sets stay mapped harmlessly;
+/// every other set throws, since no exercised path reaches it.
 /// </summary>
-internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
+internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
 {
-    private EventSubTestDbContext(DbContextOptions<EventSubTestDbContext> options)
+    private AutomationTestDbContext(DbContextOptions<AutomationTestDbContext> options)
         : base(options) { }
 
-    public static EventSubTestDbContext New() =>
+    public static AutomationTestDbContext New() =>
         new(
-            new DbContextOptionsBuilder<EventSubTestDbContext>()
+            new DbContextOptionsBuilder<AutomationTestDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
 
-    public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
-    public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
+    public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();
+    public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();
+    public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
+        Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
+    public DbSet<TtsConfig> TtsConfigs => Set<TtsConfig>();
+    public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
+    public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries => Set<TtsApprovalQueueEntry>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
-        b.Entity<EventSubSubscription>(e =>
+        b.Entity<UserTtsVoice>(e => e.HasKey(v => v.Id));
+        b.Entity<TtsUsageRecord>(e => e.HasKey(r => r.Id));
+        b.Entity<TtsVoice>(e => e.HasKey(v => v.Id));
+        b.Entity<TtsApprovalQueueEntry>(e =>
         {
-            e.HasKey(x => x.Id);
-            // Dictionary<string,string> has no InMemory mapping (production uses a jsonb value converter); the
-            // tests never assert on it, so drop it from the model.
-            e.Ignore(x => x.Condition);
+            e.HasKey(q => q.Id);
+            e.Ignore(q => q.Channel); // no Channels table in this focused context
+        });
+        b.Entity<TtsConfig>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.Channel); // no Channels / CryptoKeys tables in this focused context
+            e.Ignore(c => c.SubjectKey);
+        });
+        b.Entity<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Ignore(t => t.Channel); // no Channels / Users tables in this focused context
+            e.Ignore(t => t.CreatedByUser);
         });
 
-        b.Entity<IntegrationConnection>(e =>
-        {
-            e.HasKey(x => x.Id);
-            e.Ignore(x => x.Channel);
-            e.Ignore(x => x.Tokens);
-            // Scopes stays mapped (a List<string> primitive collection materializes on InMemory):
-            // the scope-gate tests seed a grant set and prove SubscribeAsync holds/releases on it.
-        });
-
-        // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
-        // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
     }
 
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        DateTime now = DateTime.UtcNow;
-        foreach (
-            EntityEntry<NomNomzBot.Domain.Platform.BaseEntity> entry in ChangeTracker.Entries<NomNomzBot.Domain.Platform.BaseEntity>()
-        )
-        {
-            if (entry.State == EntityState.Added && entry.Entity.CreatedAt == default)
-                entry.Entity.CreatedAt = now;
-            if (entry.State is EntityState.Added or EntityState.Modified)
-                entry.Entity.UpdatedAt = now;
-        }
-
-        return base.SaveChangesAsync(cancellationToken);
-    }
-
     private static readonly HashSet<Type> Mapped =
     [
-        typeof(EventSubSubscription),
-        typeof(IntegrationConnection),
+        typeof(UserTtsVoice),
+        typeof(TtsUsageRecord),
+        typeof(TtsVoice),
+        typeof(TtsApprovalQueueEntry),
+        typeof(TtsConfig),
+        typeof(NomNomzBot.Domain.Automation.Entities.AutomationApiToken),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -120,10 +107,20 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
         .ToList();
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
+    public DbSet<TtsCacheEntry> TtsCacheEntries => throw new NotSupportedException();
+    public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<User> Users => throw new NotSupportedException();
+    public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
+    public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterConnection> SupporterConnections =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterEvent> SupporterEvents =>
+        throw new NotSupportedException();
+    public DbSet<RecordEntity> Records => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
+        throw new NotSupportedException();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
-    public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Service> Services => throw new NotSupportedException();
     public DbSet<Reward> Rewards => throw new NotSupportedException();
@@ -161,7 +158,7 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
-    public DbSet<RecordEntity> Records => throw new NotSupportedException();
+    public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
@@ -177,11 +174,9 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
         throw new NotSupportedException();
-    public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
-        throw new NotSupportedException();
+    public DbSet<Configuration> Configurations => throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
     public DbSet<Command> Commands => throw new NotSupportedException();
     public DbSet<DomainTimer> Timers => throw new NotSupportedException();
@@ -193,6 +188,7 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
     public DbSet<AuthSession> AuthSessions => throw new NotSupportedException();
     public DbSet<RefreshToken> RefreshTokens => throw new NotSupportedException();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => throw new NotSupportedException();
+    public DbSet<IntegrationConnection> IntegrationConnections => throw new NotSupportedException();
     public DbSet<IntegrationToken> IntegrationTokens => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
         throw new NotSupportedException();
@@ -206,18 +202,8 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
     public DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches =>
         throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
-        Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
-    public DbSet<TtsConfig> TtsConfigs => throw new NotSupportedException();
-    public DbSet<TtsVoice> TtsVoices => throw new NotSupportedException();
-    public DbSet<UserTtsVoice> UserTtsVoices => throw new NotSupportedException();
-    public DbSet<TtsUsageRecord> TtsUsageRecords => throw new NotSupportedException();
-    public DbSet<TtsCacheEntry> TtsCacheEntries => throw new NotSupportedException();
-    public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries =>
-        throw new NotSupportedException();
     public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
-    public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
         throw new NotSupportedException();
@@ -309,10 +295,4 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
     public DbSet<CodeScriptVersion> CodeScriptVersions => throw new NotSupportedException();
     public DbSet<SoundClip> SoundClips => throw new NotSupportedException();
     public DbSet<CustomDataSource> CustomDataSources => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterConnection> SupporterConnections =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterEvent> SupporterEvents =>
-        throw new NotSupportedException();
 }

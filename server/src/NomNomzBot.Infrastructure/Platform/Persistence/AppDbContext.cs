@@ -144,6 +144,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
     // DEK registry (schema Q.1) — wrapped per-subject/tenant DEKs; the crypto-shred + restart-survival linchpin.
     public DbSet<CryptoKey> CryptoKeys => Set<CryptoKey>();
 
+    // Automation API (external tokens — automation-api.md P.17)
+    public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
+        Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
+
     // TTS
     public DbSet<TtsConfig> TtsConfigs => Set<TtsConfig>();
     public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();

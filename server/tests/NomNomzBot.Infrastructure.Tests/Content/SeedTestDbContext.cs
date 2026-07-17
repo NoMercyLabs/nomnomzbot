@@ -42,6 +42,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         : base(options) { }
 
     // ── Entities the seeders touch ───────────────────────────────────────────
+    public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
+        Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
     public DbSet<TtsConfig> TtsConfigs => Set<TtsConfig>();
     public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>

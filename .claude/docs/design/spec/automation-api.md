@@ -187,7 +187,7 @@ The routes/protocol are identical on every profile. Binding is owned by the exis
 
 ## 5. REST surface (management plane)
 
-Controller `AutomationTokensController`, `[Route("api/v{version:apiVersion}/automation")]`. `[Authorize]` (JWT). Gate-1 management entry + Gate-2 per-action via `IActionAuthorizationService`; middleware in the pipeline, not the cells.
+Controller `AutomationTokensController`, `[Route("api/v{version:apiVersion}/channels/{channelId:guid}/automation")]` (as built 2026-07-17 — channel-routed like every other management controller, so the tenant rides the route as the middleware's primary resolution path; the original header-resolved `api/v1/automation` form was revised). `[Authorize]` (JWT). Gate-1 management entry + Gate-2 per-action via `IActionAuthorizationService`; middleware in the pipeline, not the cells.
 
 | Verb | Path | Request | Response | Gate |
 |---|---|---|---|---|
