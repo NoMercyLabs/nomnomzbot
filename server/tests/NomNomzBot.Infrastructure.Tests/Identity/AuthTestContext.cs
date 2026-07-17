@@ -284,6 +284,15 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<NomNomzBot.Domain.Commands.Entities.CommandUsage>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Commands.Entities.CommandUsage>().Ignore(e => e.Command);
 
+        // CustomDataSource: mapped scalar-only (navs ignored; FieldMapJson/EndpointUrl/AuthSecretCipher are
+        // plain string columns that materialize on InMemory) so the poll-ingress fetcher tests can seed sources
+        // + the H.7 allowlist and prove the SSRF egress gate through this harness.
+        b.Entity<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource>()
+            .Ignore(e => e.Channel)
+            .Ignore(e => e.CreatedByUser)
+            .Ignore(e => e.InboundWebhookEndpoint);
+
         // ChatMessage: mapped scalar-only (navs + jsonb fragment/badge collections ignored) so the
         // YouTube live-chat poll worker tests can prove the persisted-message dedupe through this harness.
         b.Entity<NomNomzBot.Domain.Chat.Entities.ChatMessage>().HasKey(e => e.Id);
@@ -608,7 +617,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Sound.Entities.SoundClip> SoundClips =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource> CustomDataSources =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterConnection> SupporterConnections =>

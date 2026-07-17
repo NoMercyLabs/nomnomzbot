@@ -374,6 +374,12 @@ public static class DependencyInjection
             Application.CustomEvents.Services.ICustomDataIngestService,
             CustomEvents.CustomDataIngestService
         >();
+        // Poll ingress: the SSRF-gated fetcher + its short-scan hosted loop (custom-events.md §6).
+        services.AddScoped<
+            Application.CustomEvents.Services.ICustomDataPollService,
+            CustomEvents.CustomDataPollService
+        >();
+        services.AddHostedService<CustomEvents.CustomDataPollHostedService>();
         services.AddSingleton<
             Application.CustomEvents.Services.ICustomDataSourcePreset,
             CustomEvents.Presets.PulsoidPreset
