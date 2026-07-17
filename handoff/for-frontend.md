@@ -40,6 +40,25 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   permissions, and deactivate a principal — entirely from the dashboard, with the changes surviving
   reload.
 
+### 2026-07-17 — Admin panel: tenant operations (suspend / reinstate / support access / audit search)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the "go into details of things / change behavior" half now exists under `api/v1/admin`:
+  `GET tenants?search=&status=&isLive=` (paged), `GET tenants/{id}` (detail: status, tier, owner,
+  membership count, suspension reason), `POST tenants/{id}/suspend` (body `{newStatus:
+  "suspended"|"platform_banned", reason}`), `POST tenants/{id}/reinstate` (body `{justification}`),
+  `POST tenants/{id}/access` (audited support access — body `{justification, breakGlass,
+  expiresAt?}`, returns the grant), `DELETE access/{grantId}`, `GET audit?principalId=&
+  targetBroadcasterId=&permission=&outcome=&from=&to=` (paged Plane-C audit log). Suspension is
+  ENFORCED: a suspended tenant's channel API surface 403s at Gate 1 and the bot drops the channel
+  on the next lifecycle sweep — show a clear "suspended" banner state on the tenant row/detail.
+  UI: tenants table with status filter + suspend/reinstate dialogs (reason required), tenant detail
+  drawer, an audit-log screen with the filters.
+- **Why:** owner item — admin panel "does not let me change behavior or go into details of things".
+  Spec: stream-admin.md §3.2 + §5 platform rows.
+- **Where:** admin feature area; routes + schemas in `server/openapi/v1.json` (refreshed).
+- **Done when:** on dev, suspending a tenant makes its dashboard/API go dark and the audit screen
+  shows the operator's action trail; reinstating restores it.
+
 ### 2026-07-17 — Discord: the guild-notification backend is COMPLETE — the page just doesn't surface it
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the owner's "no way of adding it properly to a guild's channel" is a UI gap — the full

@@ -112,6 +112,22 @@ public sealed class PlatformIamPolicyCoverageTests
         PolicyOf(typeof(PlatformIamController), methodName).Should().Be(expectedKey);
     }
 
+    [Theory]
+    [InlineData(nameof(PlatformAdminController.ListTenants), IamPermissionKeys.TenantRead)]
+    [InlineData(nameof(PlatformAdminController.GetTenant), IamPermissionKeys.TenantRead)]
+    [InlineData(nameof(PlatformAdminController.SuspendTenant), IamPermissionKeys.TenantSuspend)]
+    [InlineData(nameof(PlatformAdminController.ReinstateTenant), IamPermissionKeys.TenantSuspend)]
+    [InlineData(nameof(PlatformAdminController.BeginTenantAccess), IamPermissionKeys.TenantAccess)]
+    [InlineData(nameof(PlatformAdminController.EndTenantAccess), IamPermissionKeys.TenantAccess)]
+    [InlineData(nameof(PlatformAdminController.SearchAudit), IamPermissionKeys.AuditRead)]
+    public void PlatformAdminController_action_carries_the_expected_iam_policy(
+        string methodName,
+        string expectedKey
+    )
+    {
+        PolicyOf(typeof(PlatformAdminController), methodName).Should().Be(expectedKey);
+    }
+
     [Fact]
     public void FeatureFlagAdminController_is_class_gated_on_featureflag_write()
     {

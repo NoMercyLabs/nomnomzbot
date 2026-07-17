@@ -97,6 +97,21 @@ public sealed class ChannelAccessServiceTests
     }
 
     [Fact]
+    public async Task Denies_a_suspended_tenant_even_for_its_owner()
+    {
+        // Suspension enforcement (stream-admin.md §3.2): a suspended / platform-banned tenant refuses tenant
+        // resolution at Gate 1 — its whole channel-scoped API surface goes dark until reinstated.
+        (ChannelAccessService sut, AuthDbContext db) = Build();
+        await SeedChannelAsync(db, ownerUserId: User);
+        Channel channel = db.Channels.Single(c => c.Id == Channel);
+        channel.Status = AuthEnums.ChannelStatus.Suspended;
+        channel.SuspendedAt = Now;
+        await db.SaveChangesAsync();
+
+        (await sut.CanResolveTenantAsync(User.ToString(), Channel.ToString())).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Denies_when_the_channel_does_not_exist()
     {
         (ChannelAccessService sut, _) = Build();

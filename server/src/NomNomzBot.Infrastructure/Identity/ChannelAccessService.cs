@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -43,7 +44,10 @@ public sealed class ChannelAccessService : IChannelAccessService
         if (!Guid.TryParse(userId, out Guid _) || !Guid.TryParse(channelId, out Guid channelGuid))
             return false;
 
-        // The channel must exist (soft-deleted channels are excluded by the global query filter). Previously
+        // The channel must exist (soft-deleted channels are excluded by the global query filter) AND be an
+        // ACTIVE tenant — a suspended / platform-banned tenant (stream-admin.md §3.2 SuspendTenantAsync) is
+        // refused at the gate, taking its whole channel-scoped API surface dark until reinstated. Admin
+        // routes are not channel routes, so operators can still reinstate. Previously
         // this method also required the caller to be the owner, an active moderator, a management member, or a
         // platform principal — which fail-closed 403'd every community-plane participant (viewers, subs, VIPs)
         // before Gate 2 ever ran, since Gate 1 gates ALL explicit-channel-id requests regardless of the eventual
@@ -51,7 +55,10 @@ public sealed class ChannelAccessService : IChannelAccessService
         // participant can reach them; management actions remain protected because Gate 2 still requires the
         // caller's resolved level (IRoleResolver — MAX of community standing / management membership / permit
         // grants, defaulting to 0 for an unrelated user) to meet that action's floor.
-        return await _db.Channels.AnyAsync(c => c.Id == channelGuid, cancellationToken);
+        return await _db.Channels.AnyAsync(
+            c => c.Id == channelGuid && c.Status == AuthEnums.ChannelStatus.Active,
+            cancellationToken
+        );
     }
 
     public async Task<Guid> ResolveOwnChannelAsync(

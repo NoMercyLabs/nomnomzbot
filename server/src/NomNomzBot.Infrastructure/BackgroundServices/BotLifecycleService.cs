@@ -188,9 +188,14 @@ public sealed class BotLifecycleService : BackgroundService
             scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
         ITwitchStreamsApi streams = scope.ServiceProvider.GetRequiredService<ITwitchStreamsApi>();
 
-        // Get all currently enabled, onboarded channels.
+        // Get all currently enabled, onboarded, ACTIVE channels — a suspended / platform-banned tenant
+        // (stream-admin.md §3.2) drops out of the bot's working set on the next reconcile sweep.
         var activeChannels = await db
-            .Channels.Where(c => c.Enabled && c.IsOnboarded)
+            .Channels.Where(c =>
+                c.Enabled
+                && c.IsOnboarded
+                && c.Status == Domain.Identity.Enums.AuthEnums.ChannelStatus.Active
+            )
             .Select(c => new { c.Id, c.Name })
             .ToListAsync(ct);
 
