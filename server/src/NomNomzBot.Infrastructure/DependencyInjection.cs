@@ -229,6 +229,37 @@ public static class DependencyInjection
         // Music providers (scoped — multi-binding consumed as IEnumerable<IMusicProvider>).
         services.AddImplementationsOf<IMusicProvider>(infrastructure, ServiceLifetime.Scoped);
 
+        // Federation inbound handlers (scoped — multi-binding consumed as IEnumerable<IFederationInboundHandler>).
+        // The registered Types ARE the closed inbound accept-set (federation-oidc.md §3.7): moderation ships the
+        // ban handler, economy the reserved trust/savings handlers. Drop a handler class → its type is accepted.
+        services.AddImplementationsOf<Application.Contracts.Federation.IFederationInboundHandler>(
+            infrastructure,
+            ServiceLifetime.Scoped
+        );
+        // The inbound translator (routes envelope → handler per resolved target) and the inbound gateway (the
+        // fail-closed verify → trust → replay → journal → apply sequence). Explicit: neither matches the
+        // I<X>Service convention scan. Transport (outbound bus, subscribe) stays a separate, deployment-variant
+        // registration once the mTLS/Redis/WebSocket adapters land.
+        services.AddScoped<
+            Application.Contracts.Federation.IFederationInboundTranslator,
+            Federation.FederationInboundTranslator
+        >();
+        services.AddScoped<
+            Application.Contracts.Federation.IFederationInboundGateway,
+            Federation.FederationInboundGateway
+        >();
+        // Per-message envelope signer (rsa-sha256) + its config-backed signing key. Explicit: the …Signer /
+        // …Provider names do not match the I<X>Service scan. Scoped signer (it verifies against the scoped
+        // DbContext); singleton key provider (a stateless IConfiguration reader).
+        services.AddScoped<
+            Application.Contracts.Federation.IFederationEventSigner,
+            Federation.FederationEventSigner
+        >();
+        services.AddSingleton<
+            Application.Contracts.Federation.IFederationSigningKeyProvider,
+            Federation.FederationSigningKeyProvider
+        >();
+
         // §3.10 manage surface (music-sr.md) — capability-gating front over the registered providers;
         // scoped because it delegates to the scoped IMusicProvider instances. Explicit registration:
         // the interface does not match the I<X>Service convention scan.

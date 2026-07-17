@@ -53,4 +53,15 @@ public interface IFederationOptInService
         string direction,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Every local channel that accepts <paramref name="optInType"/> from this peer — an enabled <c>accept|both</c>
+    /// opt-in matching <c>(peerId OR any-trusted)</c> — for the inbound broadcast fan-out (federation-oidc.md §3.7).
+    /// Returns empty (never a failure) when the peer is untrusted or no channel opted in. No writes.
+    /// </summary>
+    Task<Result<IReadOnlyList<Guid>>> ListAcceptingBroadcasterIdsAsync(
+        Guid peerId,
+        string optInType,
+        CancellationToken cancellationToken = default
+    );
 }

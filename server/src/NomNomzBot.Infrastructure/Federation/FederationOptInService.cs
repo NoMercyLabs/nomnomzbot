@@ -132,6 +132,39 @@ public sealed class FederationOptInService(
         return Result.Success(permitted);
     }
 
+    public async Task<Result<IReadOnlyList<Guid>>> ListAcceptingBroadcasterIdsAsync(
+        Guid peerId,
+        string optInType,
+        CancellationToken cancellationToken = default
+    )
+    {
+        bool peerTrusted = await db.FederationPeers.AnyAsync(
+            p =>
+                p.Id == peerId
+                && p.TrustState == FederationTrustState.Trusted
+                && p.DeletedAt == null,
+            cancellationToken
+        );
+        if (!peerTrusted)
+            return Result.Success<IReadOnlyList<Guid>>([]); // untrusted peer reaches no channel
+
+        List<Guid> broadcasterIds = await db
+            .ChannelFederationOptIns.Where(o =>
+                o.OptInType == optInType
+                && o.IsEnabled
+                && o.DeletedAt == null
+                && (o.PeerId == peerId || o.PeerId == null) // null = any trusted peer
+                && (
+                    o.Direction == FederationDirection.Accept
+                    || o.Direction == FederationDirection.Both
+                )
+            )
+            .Select(o => o.BroadcasterId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        return Result.Success<IReadOnlyList<Guid>>(broadcasterIds);
+    }
+
     private Task PublishChangeAsync(ChannelFederationOptIn optIn, CancellationToken ct) =>
         eventBus.PublishAsync(
             new ChannelFederationOptInChangedEvent

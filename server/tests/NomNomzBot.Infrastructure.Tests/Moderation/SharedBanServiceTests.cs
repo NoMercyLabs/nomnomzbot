@@ -319,6 +319,68 @@ public sealed class SharedBanServiceTests
             .Be(0, "no ban happened, so nothing may be recorded");
     }
 
+    // ─── Federated inbound apply (cross-instance; federation-oidc.md §6) ──────
+
+    [Fact]
+    public async Task Federated_apply_bans_and_records_origin_federation_without_a_session_or_trust_list()
+    {
+        // The federation trust plane already authorized this upstream — so the Twitch-session and local
+        // trust-list gates that ApplyInboundSharedBanAsync enforces MUST NOT block it. Nothing is opted in,
+        // trusted, or in a session here, yet the ban must still land with Origin=federation.
+        (
+            SharedBanService sut,
+            ModerationServiceTestDbContext db,
+            _,
+            ITwitchModerationApi twitch
+        ) = Build();
+        await SeedChannelsAsync(db);
+
+        Result<SharedBanApplicationResult> result = await sut.ApplyInboundFederatedBanAsync(
+            Channel,
+            Inbound()
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Applied.Should().BeTrue(result.Value.SkippedReason);
+        result.Value.ActionId.Should().NotBeNull();
+
+        await twitch
+            .Received(1)
+            .BanUserAsync(Channel, "troll-42", "spam", Arg.Any<CancellationToken>());
+
+        Domain.Platform.Entities.Record record = await db.Records.SingleAsync(r =>
+            r.BroadcasterId == Channel && r.RecordType == "moderation_action"
+        );
+        record.Data.Should().Contain("\"Origin\":\"federation\"");
+        record.Data.Should().NotContain("shared_chat");
+        record.Data.Should().Contain("troll-42");
+    }
+
+    [Fact]
+    public async Task Federated_apply_reports_a_twitch_failure_without_recording()
+    {
+        (SharedBanService sut, ModerationServiceTestDbContext db, _, ITwitchModerationApi twitch) =
+            Build();
+        await SeedChannelsAsync(db);
+        twitch
+            .BanUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<TwitchBanResult>("missing scope", "TWITCH_MISSING_SCOPE"));
+
+        Result<SharedBanApplicationResult> result = await sut.ApplyInboundFederatedBanAsync(
+            Channel,
+            Inbound()
+        );
+
+        result.Value.Applied.Should().BeFalse();
+        result.Value.SkippedReason.Should().Be("twitch_ban_failed:TWITCH_MISSING_SCOPE");
+        (await db.Records.CountAsync()).Should().Be(0);
+    }
+
     [Fact]
     public async Task Writes_refuse_an_actor_below_the_supermod_floor_and_touch_nothing()
     {

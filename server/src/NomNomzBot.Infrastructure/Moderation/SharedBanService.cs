@@ -232,6 +232,52 @@ public sealed class SharedBanService(
             Result.Success(new SharedBanApplicationResult(false, reason, null));
     }
 
+    public async Task<Result<SharedBanApplicationResult>> ApplyInboundFederatedBanAsync(
+        Guid targetBroadcasterId,
+        SharedChatBanIssuedEvent inbound,
+        CancellationToken ct = default
+    )
+    {
+        // No Twitch-session and no local trust-list gate: the federation trust plane (verified peer + signed
+        // envelope + the channel's federation opt-in) already authorized this upstream (federation-oidc.md §6).
+        // Ban on the channel's OWN tenant token — system-initiated, no operator involved.
+        Result<TwitchBanResult> banned = await twitchModeration.BanUserAsync(
+            targetBroadcasterId,
+            inbound.TargetTwitchUserId,
+            inbound.Reason ?? "Federated ban from a trusted NomNomzBot instance.",
+            ct
+        );
+        if (banned.IsFailure)
+            return SkippedResult($"twitch_ban_failed:{banned.ErrorCode}");
+
+        // Provenance row — same shape ModerationService writes, tagged Origin=federation (distinct from the
+        // Twitch-native shared_chat origin) so the mod log shows the ban came across the federation trust plane.
+        Domain.Platform.Entities.Record record = new()
+        {
+            BroadcasterId = targetBroadcasterId,
+            RecordType = "moderation_action",
+            Data = JsonSerializer.Serialize(
+                new SharedBanActionData
+                {
+                    Action = "ban",
+                    TargetUserId = inbound.TargetTwitchUserId,
+                    TargetUsername = inbound.TargetDisplayName,
+                    Reason = inbound.Reason,
+                    Origin = "federation",
+                    OriginChannelId = inbound.OriginChannelId,
+                }
+            ),
+            UserId = inbound.OriginChannelId.ToString(),
+        };
+        db.Records.Add(record);
+        await db.SaveChangesAsync(ct);
+
+        return Result.Success(new SharedBanApplicationResult(true, null, record.Id));
+    }
+
+    private static Result<SharedBanApplicationResult> SkippedResult(string reason) =>
+        Result.Success(new SharedBanApplicationResult(false, reason, null));
+
     /// <summary>The recorded shape — a superset of ModerationService's action data (same JSON reader).</summary>
     private sealed class SharedBanActionData
     {

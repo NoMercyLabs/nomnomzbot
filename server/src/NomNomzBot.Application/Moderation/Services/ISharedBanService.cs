@@ -65,4 +65,21 @@ public interface ISharedBanService
         NomNomzBot.Domain.Moderation.Events.SharedChatBanIssuedEvent inbound,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Applies one inbound CROSS-INSTANCE federated ban to <paramref name="targetBroadcasterId"/>. This is a
+    /// DIFFERENT trust plane from <see cref="ApplyInboundSharedBanAsync"/> (federation-oidc.md §6): the
+    /// precondition is a verified NomNomzBot federation relationship — a trusted <c>FederationPeers</c> entry, a
+    /// valid signed envelope, and the channel's <c>ChannelFederationOptIns</c> opt-in — all already enforced
+    /// upstream by the federation inbound gateway. So this path requires NO active Twitch shared-chat session and
+    /// consults NO local shared-chat trust list; it bans on the channel's OWN tenant token and records a provenance
+    /// row with <c>Origin=federation</c> (explicitly distinct from <c>Origin=shared_chat</c>). A Twitch ban failure
+    /// is a truthful <c>Skipped(reason)</c>, never an error. Idempotency per <c>(EventId, target)</c> is the
+    /// caller's (the federation handler's) responsibility.
+    /// </summary>
+    Task<Result<SharedBanApplicationResult>> ApplyInboundFederatedBanAsync(
+        Guid targetBroadcasterId,
+        NomNomzBot.Domain.Moderation.Events.SharedChatBanIssuedEvent inbound,
+        CancellationToken ct = default
+    );
 }
