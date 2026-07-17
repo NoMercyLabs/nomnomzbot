@@ -44,6 +44,7 @@ internal sealed class CustomDataPollService : ICustomDataPollService
     private readonly ITokenProtector _tokenProtector;
     private readonly ICustomDataIngestService _ingest;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ICustomDataPollAttemptTracker _attempts;
     private readonly TimeProvider _clock;
     private readonly ILogger<CustomDataPollService> _logger;
 
@@ -52,6 +53,7 @@ internal sealed class CustomDataPollService : ICustomDataPollService
         ITokenProtector tokenProtector,
         ICustomDataIngestService ingest,
         IHttpClientFactory httpClientFactory,
+        ICustomDataPollAttemptTracker attempts,
         TimeProvider clock,
         ILogger<CustomDataPollService> logger
     )
@@ -60,13 +62,14 @@ internal sealed class CustomDataPollService : ICustomDataPollService
         _tokenProtector = tokenProtector;
         _ingest = ingest;
         _httpClientFactory = httpClientFactory;
+        _attempts = attempts;
         _clock = clock;
         _logger = logger;
     }
 
     public async Task PollDueSourcesAsync(CancellationToken ct = default)
     {
-        DateTime now = _clock.GetUtcNow().UtcDateTime;
+        DateTimeOffset now = _clock.GetUtcNow();
 
         List<CustomDataSource> sources = await _db
             .CustomDataSources.Where(s =>
@@ -78,6 +81,10 @@ internal sealed class CustomDataPollService : ICustomDataPollService
         {
             if (!IsDue(source, now))
                 continue;
+
+            // Stamp the attempt BEFORE fetching so a fault (or an SSRF-gate skip) still counts as an attempt —
+            // otherwise a source that never reaches a success would be re-attempted every ~5 s scan tick.
+            _attempts.RecordAttempt(source.Id, now);
 
             try
             {
@@ -95,14 +102,36 @@ internal sealed class CustomDataPollService : ICustomDataPollService
         }
     }
 
-    /// <summary>Due when never received, or the configured interval has elapsed since the last receive.</summary>
-    private static bool IsDue(CustomDataSource source, DateTime now)
+    /// <summary>
+    /// Due when the configured interval has elapsed since the last <em>attempt</em> — where the last attempt is the
+    /// later of the DB <c>LastReceivedAt</c> (stamped only on a successful ingest) and the in-memory last-attempt
+    /// stamp (recorded on every attempt, success or fail). Gating on attempts, not just successes, keeps a
+    /// persistently-failing source on its interval instead of hammering the host every scan tick.
+    /// </summary>
+    private bool IsDue(CustomDataSource source, DateTimeOffset now)
     {
-        if (source.LastReceivedAt is null)
+        DateTimeOffset? lastReceived = source.LastReceivedAt is null
+            ? null
+            : new DateTimeOffset(
+                DateTime.SpecifyKind(source.LastReceivedAt.Value, DateTimeKind.Utc)
+            );
+        DateTimeOffset? lastActivity = Latest(lastReceived, _attempts.LastAttempt(source.Id));
+
+        if (lastActivity is null)
             return true;
 
         int intervalSeconds = source.PollIntervalSeconds ?? DefaultPollIntervalSeconds;
-        return now - source.LastReceivedAt.Value >= TimeSpan.FromSeconds(intervalSeconds);
+        return now - lastActivity.Value >= TimeSpan.FromSeconds(intervalSeconds);
+    }
+
+    /// <summary>The later of two optional instants (either may be null).</summary>
+    private static DateTimeOffset? Latest(DateTimeOffset? a, DateTimeOffset? b)
+    {
+        if (a is null)
+            return b;
+        if (b is null)
+            return a;
+        return a.Value >= b.Value ? a : b;
     }
 
     private async Task PollSourceAsync(CustomDataSource source, CancellationToken ct)

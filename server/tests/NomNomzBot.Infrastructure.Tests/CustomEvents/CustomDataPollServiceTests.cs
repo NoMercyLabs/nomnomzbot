@@ -61,7 +61,8 @@ public sealed class CustomDataPollServiceTests
         CustomDataPollService Sut,
         AuthDbContext Db,
         ICustomDataIngestService Ingest,
-        RecordingHandler Handler
+        RecordingHandler Handler,
+        FakeTimeProvider Clock
     ) Build(HttpStatusCode status = HttpStatusCode.OK, string body = "{\"bpm\":128}")
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
@@ -89,15 +90,17 @@ public sealed class CustomDataPollServiceTests
         IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient(Arg.Any<string>()).Returns(_ => new HttpClient(handler));
 
+        FakeTimeProvider clock = new(Now);
         CustomDataPollService sut = new(
             db,
             protector,
             ingest,
             factory,
-            new FakeTimeProvider(Now),
+            new CustomDataPollAttemptTracker(),
+            clock,
             NullLogger<CustomDataPollService>.Instance
         );
-        return (sut, db, ingest, handler);
+        return (sut, db, ingest, handler, clock);
     }
 
     private static async Task SeedSourceAsync(
@@ -149,7 +152,8 @@ public sealed class CustomDataPollServiceTests
             CustomDataPollService sut,
             AuthDbContext db,
             ICustomDataIngestService ingest,
-            RecordingHandler handler
+            RecordingHandler handler,
+            FakeTimeProvider _
         ) = Build(body: "{\"bpm\":128}");
         await SeedSourceAsync(db); // LastReceivedAt null → due
         await SeedAllowlistAsync(db);
@@ -170,7 +174,8 @@ public sealed class CustomDataPollServiceTests
             CustomDataPollService sut,
             AuthDbContext db,
             ICustomDataIngestService ingest,
-            RecordingHandler handler
+            RecordingHandler handler,
+            FakeTimeProvider _
         ) = Build();
         await SeedSourceAsync(db); // due, but no allowlist row for api.example.com
         // Deliberately allowlist a DIFFERENT host to prove the match is host-specific.
@@ -196,7 +201,8 @@ public sealed class CustomDataPollServiceTests
             CustomDataPollService sut,
             AuthDbContext db,
             ICustomDataIngestService ingest,
-            RecordingHandler handler
+            RecordingHandler handler,
+            FakeTimeProvider _
         ) = Build();
         // Received 5 s ago with a 60 s interval → not due yet.
         await SeedSourceAsync(
@@ -217,5 +223,73 @@ public sealed class CustomDataPollServiceTests
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task A_persistently_failing_source_is_not_reattempted_before_its_interval_elapses()
+    {
+        // The endpoint always 500s: LastReceivedAt (stamped only on success) never advances, so without the
+        // attempt tracker the source would be re-fetched every scan tick. The in-memory last-attempt stamp must
+        // hold it back until PollIntervalSeconds elapses.
+        (
+            CustomDataPollService sut,
+            AuthDbContext db,
+            ICustomDataIngestService ingest,
+            RecordingHandler handler,
+            FakeTimeProvider clock
+        ) = Build(status: HttpStatusCode.InternalServerError);
+        await SeedSourceAsync(db, pollIntervalSeconds: 60); // LastReceivedAt null → due on the first pass
+        await SeedAllowlistAsync(db);
+
+        // First scan pass: the source is due, so it is fetched once (and fails).
+        await sut.PollDueSourcesAsync();
+        handler.CallCount.Should().Be(1);
+
+        // Second scan pass 5 s later (< 60 s interval): still inside the interval since the last ATTEMPT,
+        // so it must NOT be re-fetched despite LastReceivedAt never having advanced.
+        clock.Advance(TimeSpan.FromSeconds(5));
+        await sut.PollDueSourcesAsync();
+
+        handler.CallCount.Should().Be(1); // exactly one attempt, not two
+        await ingest
+            .DidNotReceive()
+            .IngestAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            ); // a 500 never reaches ingest
+    }
+
+    [Fact]
+    public async Task A_source_is_repolled_once_its_interval_elapses_since_the_last_attempt()
+    {
+        (
+            CustomDataPollService sut,
+            AuthDbContext db,
+            ICustomDataIngestService ingest,
+            RecordingHandler handler,
+            FakeTimeProvider clock
+        ) = Build(body: "{\"bpm\":128}");
+        await SeedSourceAsync(db, pollIntervalSeconds: 60); // due on the first pass
+        await SeedAllowlistAsync(db);
+
+        // First pass fetches and ingests once.
+        await sut.PollDueSourcesAsync();
+        handler.CallCount.Should().Be(1);
+
+        // Still inside the interval 30 s later → no second fetch.
+        clock.Advance(TimeSpan.FromSeconds(30));
+        await sut.PollDueSourcesAsync();
+        handler.CallCount.Should().Be(1);
+
+        // Past the 60 s interval since the last attempt → due again, fetched a second time.
+        clock.Advance(TimeSpan.FromSeconds(31));
+        await sut.PollDueSourcesAsync();
+
+        handler.CallCount.Should().Be(2);
+        await ingest
+            .Received(2)
+            .IngestAsync(Channel, "heartrate", "{\"bpm\":128}", Arg.Any<CancellationToken>());
     }
 }
