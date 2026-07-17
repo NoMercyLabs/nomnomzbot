@@ -56536,7 +56536,7 @@
         "tags": [
           "Widget Gallery"
         ],
-        "summary": "Browse the verified widget catalogue, paginated, filterable by framework and trust tier.",
+        "summary": "Browse the verified widget catalogue, paginated, filterable by framework and trust tier. A caller\r\nholding `gallery:review` may additionally filter by `reviewStatus` to read the moderation queue.",
         "parameters": [
           {
             "name": "Framework",
@@ -56550,6 +56550,14 @@
             "name": "TrustTier",
             "in": "query",
             "description": "Restrict to one trust tier: `first_party` | `verified_community` | `unverified`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ReviewStatus",
+            "in": "query",
+            "description": "Reviewer-only: `submitted` | `in_review` | `verified` | `rejected`.",
             "schema": {
               "type": "string"
             }
@@ -56680,6 +56688,114 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "Widget Gallery"
+        ],
+        "summary": "Submit a community widget (GitHub-pinned; enters the moderation queue as `submitted`/`unverified`).",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitGalleryItemRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitGalleryItemRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitGalleryItemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfGalleryItemDetail"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v{version}/widget-gallery/{galleryItemId}": {
@@ -56687,7 +56803,7 @@
         "tags": [
           "Widget Gallery"
         ],
-        "summary": "Get one verified gallery item in full (incl. its source, for preview). The `galleryItemId` route param is\r\na Guid, so the registered `UlidGuidModelBinder` decodes both a 26-char ULID and a raw guid;\r\nan unknown / non-verified id returns 404.",
+        "summary": "Get one verified gallery item in full (incl. its source, for preview). The `galleryItemId` route\r\nparam is a Guid, so the registered `UlidGuidModelBinder` decodes both a 26-char ULID\r\nand a raw guid; an unknown / non-verified id returns 404 (a `gallery:review` caller also reads\r\nnon-verified submissions).",
         "parameters": [
           {
             "name": "galleryItemId",
@@ -56775,6 +56891,226 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfGalleryItemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/widget-gallery/{galleryItemId}/review": {
+      "post": {
+        "tags": [
+          "Widget Gallery"
+        ],
+        "summary": "Review a submission: `in_review` | `verified` | `rejected` (platform moderation).",
+        "parameters": [
+          {
+            "name": "galleryItemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewGalleryItemRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewGalleryItemRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewGalleryItemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/widget-gallery/{galleryItemId}/pin": {
+      "post": {
+        "tags": [
+          "Widget Gallery"
+        ],
+        "summary": "Re-pin a submission to a new commit/tag — always forces it back through review.",
+        "parameters": [
+          {
+            "name": "galleryItemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePinRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePinRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               }
             }
@@ -63978,7 +64314,14 @@
           "sourceKind",
           "defaultSettings",
           "defaultEventSubscriptions",
-          "sourceCode"
+          "sourceCode",
+          "gitHubRepoUrl",
+          "pinnedCommitSha",
+          "pinnedTag",
+          "reviewStatus",
+          "reviewNotes",
+          "reviewedAt",
+          "createdAt"
         ],
         "type": "object",
         "properties": {
@@ -64030,9 +64373,47 @@
               "null",
               "string"
             ]
+          },
+          "gitHubRepoUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pinnedCommitSha": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pinnedTag": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reviewStatus": {
+            "type": "string"
+          },
+          "reviewNotes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reviewedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         },
-        "description": "A single verified gallery item in full: the summary fields plus everything the dashboard's install/clone UI needs\r\nto preview and pre-configure — the item's string? GalleryItemDetail.SourceCode (for the preview pane), its declared\r\nDictionary&lt;string, object&gt; GalleryItemDetail.DefaultSettings / List&lt;string&gt; GalleryItemDetail.DefaultEventSubscriptions (applied on install), and its\r\nstring GalleryItemDetail.SourceKind provenance (`in_repo` | `github`)."
+        "description": "A single gallery item in full: the summary fields plus everything the dashboard's install/clone UI needs\r\nto preview and pre-configure — the item's string? GalleryItemDetail.SourceCode (for the preview pane), its declared\r\nDictionary&lt;string, object&gt; GalleryItemDetail.DefaultSettings / List&lt;string&gt; GalleryItemDetail.DefaultEventSubscriptions (applied on install), its\r\nstring GalleryItemDetail.SourceKind provenance (`in_repo` | `github`) — and the review/pin fields the\r\nmoderation UI reads (GitHub provenance, string GalleryItemDetail.ReviewStatus, notes, timestamps)."
       },
       "GalleryItemSummary": {
         "required": [
@@ -69927,6 +70308,27 @@
           }
         },
         "description": "A moderator resolves a report — `dismiss` (no action) or `escalate` (they then act via the ban/timeout tools)."
+      },
+      "ReviewGalleryItemRequest": {
+        "required": [
+          "reviewStatus"
+        ],
+        "type": "object",
+        "properties": {
+          "reviewStatus": {
+            "type": "string"
+          },
+          "reviewNotes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "availableInSaaS": {
+            "type": "boolean"
+          }
+        },
+        "description": "A review decision: `in_review` | `verified` | `rejected`."
       },
       "RevokeFederationPeerRequest": {
         "required": [
@@ -76205,6 +76607,42 @@
           }
         }
       },
+      "SubmitGalleryItemRequest": {
+        "required": [
+          "name",
+          "framework",
+          "gitHubRepoUrl",
+          "pinnedCommitSha"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "framework": {
+            "type": "string"
+          },
+          "gitHubRepoUrl": {
+            "type": "string"
+          },
+          "pinnedCommitSha": {
+            "type": "string"
+          },
+          "pinnedTag": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "A community widget submission (widgets-overlays.md §3.3): GitHub-pinned source, never pulled at HEAD."
+      },
       "SubscriptionDto": {
         "required": [
           "id",
@@ -78580,6 +79018,30 @@
           }
         },
         "description": "Edit payload — the desired full state of the list (name is renamable, all items replaced)."
+      },
+      "UpdatePinRequest": {
+        "required": [
+          "pinnedCommitSha"
+        ],
+        "type": "object",
+        "properties": {
+          "pinnedCommitSha": {
+            "type": "string"
+          },
+          "pinnedTag": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "A re-pin to a new commit/tag — always forces the item back through review."
       },
       "UpdatePipelineDto": {
         "type": "object",

@@ -211,7 +211,7 @@ Behavior:
 - `GetAsync` — single item incl. pinned commit/tag + review notes.
 - `SubmitAsync` — inserts a `WidgetGalleryItem` (`ReviewStatus=submitted`, `TrustTier=unverified`, snapshot submitter display name), appends a `WidgetGallerySubmissionEvent` (`null→submitted`). GitHub URL is validated/normalized; never auto-pulls HEAD.
 - `ReviewAsync` — transitions `ReviewStatus` (`in_review`/`verified`/`rejected`), sets `TrustTier=verified_community` on verify, writes `ReviewedBy*`/`ReviewedAt`/`ReviewNotes`, appends a `WidgetGallerySubmissionEvent`, publishes `WidgetGalleryItemStatusChangedEvent`. Platform-IAM gated.
-- `UpdatePinAsync` — re-pins `PinnedCommitSha`/`PinnedTag`; **forces `ReviewStatus` back to `in_review`** (re-verify on update — never auto-pull HEAD), appends an event with `NewPinnedCommitSha`.
+- `UpdatePinAsync` — re-pins `PinnedCommitSha`/`PinnedTag`; **forces `ReviewStatus` back to `in_review`** (re-verify on update — never auto-pull HEAD), appends an event with `NewPinnedCommitSha`. AS-BUILT: the re-pin also drops `TrustTier` to `unverified` and clears `AvailableInSaaS` (fail-closed — new code carries no earned trust), and first-party `in_repo` rows are immutable to review/pin (`FIRST_PARTY_IMMUTABLE`) — the seeder owns them. The pinned commit must be a FULL 40-hex sha; the repo URL canonicalizes to `https://github.com/{owner}/{repo}`. `gallery:review` seeds sensitive, granted to `platform-super-admin` + `platform-trust-safety`.
 
 ### 3.4 `ILinkPreviewService` (NEW — OG-card + YouTube trust score for widget-rendered links)
 
@@ -306,18 +306,22 @@ public sealed record GalleryListRequest
 {
     public string? TrustTier { get; init; }
     public string? Framework { get; init; }
-    public string? ReviewStatus { get; init; }   // honored only with audit:read
+    public string? ReviewStatus { get; init; }   // AS-BUILT: honored only for a gallery:review principal (the reviewer's queue), not audit:read
 }
 
 public sealed record GalleryItemSummary(
     Guid Id, string Name, string Framework, string TrustTier,
     string ReviewStatus, int InstallCount, bool AvailableInSaaS);
 
+// AS-BUILT: the detail is the SUPERSET of the install/clone shape (SourceKind, DefaultSettings,
+// DefaultEventSubscriptions, SourceCode — what the preview/install UI reads) and the review/pin fields
+// below; GitHub provenance is nullable (null for the in-repo first-party catalogue).
 public sealed record GalleryItemDetail(
     Guid Id, string Name, string? Description, string Framework, string TrustTier,
-    string GitHubRepoUrl, string PinnedCommitSha, string? PinnedTag,
-    string ReviewStatus, string? ReviewNotes, DateTime? ReviewedAt,
-    bool AvailableInSaaS, int InstallCount, DateTime CreatedAt);
+    int InstallCount, bool AvailableInSaaS, string SourceKind,
+    Dictionary<string, object> DefaultSettings, List<string> DefaultEventSubscriptions, string? SourceCode,
+    string? GitHubRepoUrl, string? PinnedCommitSha, string? PinnedTag,
+    string ReviewStatus, string? ReviewNotes, DateTime? ReviewedAt, DateTime CreatedAt);
 
 public sealed record SubmitGalleryItemRequest
 {

@@ -49,6 +49,8 @@ public sealed class IamCatalogSeeder : ISeeder
         (IamPermissionKeys.BillingRead, IamCategory.Billing, false),
         (IamPermissionKeys.BillingRefund, IamCategory.Billing, true),
         (IamPermissionKeys.PlatformAnalyticsRead, IamCategory.Tenant, false),
+        // Gallery review approves community code that renders on streamers' overlays — sensitive.
+        (IamPermissionKeys.GalleryReview, IamCategory.Iam, true),
     ];
 
     /// <summary>C.2 + C.3 rows: system role → its bundled permission keys, verbatim from §C.2.</summary>
@@ -67,6 +69,7 @@ public sealed class IamCatalogSeeder : ISeeder
                 IamPermissionKeys.BillingRead,
                 IamPermissionKeys.BillingRefund,
                 IamPermissionKeys.PlatformAnalyticsRead,
+                IamPermissionKeys.GalleryReview,
             ]
         ),
         (
@@ -85,6 +88,7 @@ public sealed class IamCatalogSeeder : ISeeder
                 IamPermissionKeys.TenantSuspend,
                 IamPermissionKeys.TenantAccess,
                 IamPermissionKeys.AuditRead,
+                IamPermissionKeys.GalleryReview,
             ]
         ),
         ("platform-billing", [IamPermissionKeys.BillingRead, IamPermissionKeys.BillingRefund]),

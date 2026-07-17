@@ -25,6 +25,9 @@ public sealed class WidgetGalleryServiceTests
 {
     private static readonly PaginationParams FirstPage = new(1, 25);
 
+    private static WidgetGalleryService NewService(WidgetTestDbContext db) =>
+        new(db, new Identity.RecordingEventBus(), TimeProvider.System);
+
     private static async Task<Guid> SeedItemAsync(
         WidgetSqliteTestDatabase database,
         string name,
@@ -71,9 +74,8 @@ public sealed class WidgetGalleryServiceTests
         PagedList<GalleryItemSummary> page;
         await using (WidgetTestDbContext db = database.NewContext())
         {
-            Result<PagedList<GalleryItemSummary>> result = await new WidgetGalleryService(
-                db
-            ).ListAsync(new GalleryListRequest(), FirstPage);
+            Result<PagedList<GalleryItemSummary>> result = await NewService(db)
+                .ListAsync(new GalleryListRequest(), FirstPage);
             result.IsSuccess.Should().BeTrue(result.ErrorMessage);
             page = result.Value;
         }
@@ -99,10 +101,8 @@ public sealed class WidgetGalleryServiceTests
         await SeedItemAsync(database, "Goals", framework: "vue");
 
         await using WidgetTestDbContext db = database.NewContext();
-        Result<PagedList<GalleryItemSummary>> result = await new WidgetGalleryService(db).ListAsync(
-            new GalleryListRequest { Framework = "vue" },
-            FirstPage
-        );
+        Result<PagedList<GalleryItemSummary>> result = await NewService(db)
+            .ListAsync(new GalleryListRequest { Framework = "vue" }, FirstPage);
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.Items.Should().ContainSingle().Which.Name.Should().Be("Goals");
@@ -116,10 +116,8 @@ public sealed class WidgetGalleryServiceTests
         await SeedItemAsync(database, "Community", trustTier: "verified_community");
 
         await using WidgetTestDbContext db = database.NewContext();
-        Result<PagedList<GalleryItemSummary>> result = await new WidgetGalleryService(db).ListAsync(
-            new GalleryListRequest { TrustTier = "verified_community" },
-            FirstPage
-        );
+        Result<PagedList<GalleryItemSummary>> result = await NewService(db)
+            .ListAsync(new GalleryListRequest { TrustTier = "verified_community" }, FirstPage);
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.Items.Should().ContainSingle().Which.Name.Should().Be("Community");
@@ -138,9 +136,7 @@ public sealed class WidgetGalleryServiceTests
         );
 
         await using WidgetTestDbContext db = database.NewContext();
-        Result<GalleryItemDetail> result = await new WidgetGalleryService(db).GetAsync(
-            id.ToString()
-        );
+        Result<GalleryItemDetail> result = await NewService(db).GetAsync(id.ToString());
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         GalleryItemDetail detail = result.Value;
@@ -164,9 +160,7 @@ public sealed class WidgetGalleryServiceTests
         Guid id = await SeedItemAsync(database, "Sketchy", reviewStatus: "submitted");
 
         await using WidgetTestDbContext db = database.NewContext();
-        Result<GalleryItemDetail> result = await new WidgetGalleryService(db).GetAsync(
-            id.ToString()
-        );
+        Result<GalleryItemDetail> result = await NewService(db).GetAsync(id.ToString());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
@@ -178,9 +172,8 @@ public sealed class WidgetGalleryServiceTests
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
 
         await using WidgetTestDbContext db = database.NewContext();
-        Result<GalleryItemDetail> result = await new WidgetGalleryService(db).GetAsync(
-            Guid.CreateVersion7().ToString()
-        );
+        Result<GalleryItemDetail> result = await NewService(db)
+            .GetAsync(Guid.CreateVersion7().ToString());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");

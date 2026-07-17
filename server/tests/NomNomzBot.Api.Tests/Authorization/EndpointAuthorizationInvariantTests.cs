@@ -39,6 +39,8 @@ public sealed class EndpointAuthorizationInvariantTests
     >(StringComparer.Ordinal)
     {
         // ── Self-scoped in the action body: subject bound to the JWT caller (self-or-Gate-2 / self-only) ──
+        ["WidgetGalleryController.SubmitGalleryItem"] =
+            "any authenticated user submits a community widget (widgets-overlays.md §5c); moderation is the gated review step",
         ["AnalyticsController.GetViewer"] =
             "self-or-Gate-2 in body via CanReadViewerAsync (analytics.md §5 row: analytics:viewer:read, self-or-Gate-2)",
         ["AnalyticsController.GetViewerEngagement"] =

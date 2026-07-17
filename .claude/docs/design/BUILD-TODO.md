@@ -46,8 +46,12 @@ what REMAINS.
   Games-page live-sessions panel + the two palette actions. The backend is complete: GameSession
   persistence + economy stake/settle/refund, the generic engine/catalog/runner + REST + chat input,
   and the reference `DropGame` + `drop_game` first-party widget + default config seed.
-- [ ] **20. Widget gallery + overlay manifest** (`widgets-overlays.md`) — gallery, `OverlayController`
-  manifest, widget versions/build (the compiled-bundle/gallery/import pipeline).
+- [ ] **20. Widget gallery + overlay manifest** (`widgets-overlays.md`) — remaining: the first-party
+  catalogue completion (§1.1 demands 13 widgets; 5 are seeded — missing `chat_box`, `now_playing`,
+  `sr_queue`, `tts_caption`, `poll_prediction`, `redemption_alert`, `countdown_timer`, `emote_wall`,
+  `custom_data`), plus **(frontend — handoff 2026-07-17)** the gallery submit form and the admin
+  review-queue screen. The manifest, versions/build pipeline, install/clone, browse, and the whole
+  submit→review→pin import governance are live.
 - [ ] **22. Marketplace / bundles** (`marketplace.md`) — export/inspect/import/uninstall;
   browse/install/publish.
 - [ ] **23. GDPR/compliance + IPC dev-mode controllers** (`gdpr-crypto.md`, `stream-admin.md`).

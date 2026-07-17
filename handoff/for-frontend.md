@@ -16,6 +16,27 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Widget gallery: community submit form + admin review queue
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the gallery's community import pipeline is live (widgets-overlays.md §3.3/§5c):
+  1. **Submit form** (widgets page, any signed-in user): `POST /widget-gallery`
+     `{name, framework, gitHubRepoUrl, pinnedCommitSha, pinnedTag?, description?}` → 201 with the
+     item (`reviewStatus=submitted`). The sha must be the FULL 40-hex commit; the URL must be
+     `https://github.com/{owner}/{repo}` (surface the validation errors).
+  2. **Review queue** (admin panel, needs the `gallery:review` platform grant — seeded on
+     `platform-super-admin` + `platform-trust-safety`): `GET /widget-gallery?reviewStatus=submitted`
+     (the status filter only works for reviewers), item detail now carries
+     `gitHubRepoUrl/pinnedCommitSha/pinnedTag/reviewStatus/reviewNotes/reviewedAt`;
+     `POST /{id}/review` `{reviewStatus: in_review|verified|rejected, reviewNotes?, availableInSaaS}`;
+     `POST /{id}/pin` `{pinnedCommitSha, pinnedTag?, note?}` — a re-pin ALWAYS kicks the item back
+     to `in_review` and off the public list (tell the reviewer that in the UI).
+  3. `GalleryItemDetail` gained additive fields (see refreshed `v1.json`) — sync the Kotlin DTO.
+- **Why:** BUILD-TODO item 20 — community widgets can now actually enter the verified catalogue.
+- **Where:** `server/openapi/v1.json` (refreshed — +2 routes, widened detail DTO); spec
+  `widgets-overlays.md` §3.3/§4/§5c (as-built notes).
+- **Done when:** on dev: a submission from one account appears in the admin queue, verifying it
+  makes it installable in the public gallery, and a re-pin visibly pulls it back out.
+
 ### 2026-07-17 — Live games: session panel on the Games page + palette entries
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the live-games engine + REST surface exists (live-games.md §5); the dashboard Games page

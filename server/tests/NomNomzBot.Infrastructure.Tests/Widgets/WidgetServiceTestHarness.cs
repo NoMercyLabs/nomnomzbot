@@ -53,11 +53,20 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
             b.Ignore(c => c.Events);
         });
 
+        // A minimal User mapping — only so the gallery submit path's submitter-snapshot read works. Its
+        // navigation and any complex columns are ignored, mirroring the Channel mapping above.
+        modelBuilder.Entity<User>(b =>
+        {
+            b.HasKey(u => u.Id);
+            b.Ignore(u => u.Channel);
+        });
+
         // The REAL configurations — so the JSON converters and the unique (WidgetId, VersionNumber) index are
         // the ones under test, not a test-only stand-in.
         modelBuilder.ApplyConfiguration(new WidgetConfiguration());
         modelBuilder.ApplyConfiguration(new WidgetVersionConfiguration());
         modelBuilder.ApplyConfiguration(new WidgetGalleryItemConfiguration());
+        modelBuilder.ApplyConfiguration(new WidgetGallerySubmissionEventConfiguration());
 
         // EF discovers an entity type from EVERY DbSet<T> property on the context (an IApplicationDbContext
         // requirement) — even the throwing ones — and would then try to map their jsonb-of-complex-type columns,
@@ -88,7 +97,9 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
             t != typeof(Widget)
             && t != typeof(WidgetVersion)
             && t != typeof(Channel)
+            && t != typeof(User)
             && t != typeof(NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem)
+            && t != typeof(NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent)
         )
         .ToList();
 
@@ -129,7 +140,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
         throw new NotSupportedException();
     public DbSet<TenantSequence> TenantSequences => throw new NotSupportedException();
-    public DbSet<User> Users => throw new NotSupportedException();
+    public DbSet<User> Users => Set<User>();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
@@ -142,7 +153,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem> WidgetGalleryItems =>
         Set<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem>();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduit> EventSubConduits =>

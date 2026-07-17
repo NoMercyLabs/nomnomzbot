@@ -30,6 +30,10 @@ public static class IamPermissionKeys
     public const string BillingRefund = "billing:refund";
     public const string PlatformAnalyticsRead = "platform:analytics:read";
 
+    // Widget-gallery moderation (widgets-overlays.md §5c): review/pin community submissions —
+    // approving code that renders on other people's overlays, so it is a sensitive platform grant.
+    public const string GalleryReview = "gallery:review";
+
     /// <summary>Every seeded Plane-C key (§C.1). The legacy alias <c>iam:audit:read</c> collapses to <c>audit:read</c>.</summary>
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -43,5 +47,6 @@ public static class IamPermissionKeys
         BillingRead,
         BillingRefund,
         PlatformAnalyticsRead,
+        GalleryReview,
     };
 }
