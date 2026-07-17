@@ -44,7 +44,11 @@ public record DashboardChatMessageDto(
     string? ReplyParentUserName,
     string Timestamp,
     string? AvatarUrl = null,
-    string? Pronouns = null
+    string? Pronouns = null,
+    // The platform the message arrived on (twitch | kick | youtube) — lets a merged multi-platform chat
+    // feed label each line by source. Defaults to twitch (the dominant provider and stored-history default,
+    // since ChatMessage has no per-row provider column yet).
+    string Provider = "twitch"
 );
 
 /// <summary>A single fragment of a chat message: text | emote | cheermote | mention | link.</summary>

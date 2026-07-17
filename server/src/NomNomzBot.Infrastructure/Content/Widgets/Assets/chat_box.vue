@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later  (c) NoMercy Labs -->
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
 // The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
 const nnz = (window as any).NomNomz
@@ -17,6 +17,11 @@ interface ChatBoxConfig {
   hideCommands: boolean  // drop messages starting with '!'
   hideBots: boolean      // drop well-known bot accounts
   accentColor: string
+  fontFamily: string     // '' = system default
+  fontSize: number       // px
+  background: string     // '' = use the theme's line background; a hex overrides it
+  backgroundOpacity: number // 0..1, applied to the background override
+  showTimestamps: boolean
 }
 
 const cfg = reactive<ChatBoxConfig>({
@@ -28,7 +33,42 @@ const cfg = reactive<ChatBoxConfig>({
   hideCommands: true,
   hideBots: true,
   accentColor: '#9146ff',
+  fontFamily: '',
+  fontSize: 16,
+  background: '',
+  backgroundOpacity: 0.82,
+  showTimestamps: false,
 })
+
+// A hex (#RGB or #RRGGBB) + opacity → an rgba() string, so the streamer can set any line background.
+function hexToRgba(hex: string, opacity: number): string {
+  const h: string = hex.trim().replace('#', '')
+  const full: string = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  const r: number = parseInt(full.slice(0, 2), 16)
+  const g: number = parseInt(full.slice(2, 4), 16)
+  const b: number = parseInt(full.slice(4, 6), 16)
+  const a: number = Math.min(1, Math.max(0, opacity))
+  return `rgba(${r}, ${g}, ${b}, ${a})`
+}
+
+const rootStyle = computed<Record<string, string>>(() => {
+  const style: Record<string, string> = { '--accent': cfg.accentColor, 'font-size': cfg.fontSize + 'px' }
+  if (cfg.fontFamily) style['font-family'] = cfg.fontFamily
+  return style
+})
+
+// An explicit background hex overrides the theme's line background (inline styles beat the theme class).
+const lineStyle = computed<Record<string, string>>(() =>
+  hexColor(cfg.background) ? { background: hexToRgba(cfg.background, cfg.backgroundOpacity) } : {},
+)
+
+function clockLabel(iso: any): string {
+  const d: Date = new Date(String(iso || ''))
+  if (isNaN(d.getTime())) return ''
+  const hh: string = String(d.getHours()).padStart(2, '0')
+  const mm: string = String(d.getMinutes()).padStart(2, '0')
+  return hh + ':' + mm
+}
 
 const KNOWN_BOTS: string[] = ['nightbot', 'streamelements', 'streamlabs', 'moobot', 'fossabot', 'wizebot']
 
@@ -40,6 +80,7 @@ interface ChatLine {
   badgeUrls: string[]
   fragments: any[]
   message: string
+  time: string
   faded: boolean
 }
 
@@ -78,6 +119,7 @@ function onChat(m: any): void {
       : [],
     fragments: m.fragments || [],
     message: text,
+    time: clockLabel(m.timestamp),
     faded: false,
   }
   const next: ChatLine[] = lines.value.concat([line])
@@ -101,6 +143,12 @@ onMounted(() => {
     if (typeof s.hideCommands === 'boolean') cfg.hideCommands = s.hideCommands
     if (typeof s.hideBots === 'boolean') cfg.hideBots = s.hideBots
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
+    if (typeof s.fontFamily === 'string') cfg.fontFamily = s.fontFamily
+    if (isFinite(Number(s.fontSize)) && Number(s.fontSize) > 0) cfg.fontSize = Number(s.fontSize)
+    if (typeof s.background === 'string') cfg.background = s.background
+    if (isFinite(Number(s.backgroundOpacity)) && Number(s.backgroundOpacity) >= 0)
+      cfg.backgroundOpacity = Number(s.backgroundOpacity)
+    if (typeof s.showTimestamps === 'boolean') cfg.showTimestamps = s.showTimestamps
   })
   nnz.on('ChatMessage', onChat)
 })
@@ -113,9 +161,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="nnz-chatbox" :class="'theme-' + cfg.theme" :style="{ '--accent': cfg.accentColor }">
-    <div v-for="l in lines" :key="l.id" class="line" :class="{ faded: l.faded }">
+  <div class="nnz-chatbox" :class="'theme-' + cfg.theme" :style="rootStyle">
+    <div v-for="l in lines" :key="l.id" class="line" :class="{ faded: l.faded }" :style="lineStyle">
       <span class="head">
+        <span v-if="cfg.showTimestamps && l.time" class="time">{{ l.time }}</span>
         <img v-for="(b, i) in l.badgeUrls" :key="i" class="badge" :src="b" alt="">
         <span class="name" :style="l.color ? { color: l.color } : {}">{{ l.name }}</span>
         <span v-if="l.pronouns" class="pron">({{ l.pronouns }})</span>
@@ -193,6 +242,12 @@ onUnmounted(() => {
   font-size: 12px;
   opacity: 0.75;
   font-family: ui-monospace, monospace;
+}
+.time {
+  font-size: 0.72em;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+  margin-right: 2px;
 }
 .emote {
   height: 24px;

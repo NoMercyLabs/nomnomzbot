@@ -16,6 +16,24 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Chat: overlay chat_box now has font/size/background/timestamp controls; chat DTO carries Provider
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What (small):** two additive changes to surface in the UI:
+  1. The `chat_box` overlay widget gained settings `fontFamily` (''), `fontSize` (px), `background`
+     (hex, '' = theme), `backgroundOpacity` (0..1), `showTimestamps` (bool) — expose them in the
+     widget settings form so a streamer can style the overlay chat's font/colour/background. (The
+     dashboard chat-PANEL styling is still the separate designer-review item "Chat needs styling
+     controls" — this is the OVERLAY widget only.)
+  2. `DashboardChatMessageDto` (live chat + history) gained `provider` (`twitch|kick|youtube`,
+     default `twitch`) — render a small per-line platform tag so a merged multi-platform feed can
+     show source. NOTE: stored HISTORY messages all report `twitch` until `ChatMessage` gets a
+     provider column (a backend follow-up); the LIVE feed is accurate.
+- **Why:** BUILD-TODO "customize chat appearance" (overlay part) + the multi-channel-chat prerequisite.
+- **Where:** `server/openapi/v1.json` (refreshed — additive `provider` field, no route change); the
+  chat_box widget asset.
+- **Done when:** the chat_box settings form exposes the new knobs and the chat view shows a platform
+  tag per line off `provider`.
+
 ### 2026-07-17 — Privacy: the "My data" GDPR self-service screen
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the GDPR self-service plane is live under `/gdpr` (Gate-1 — always the signed-in user's

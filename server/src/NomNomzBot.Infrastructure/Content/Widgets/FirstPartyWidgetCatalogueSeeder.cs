@@ -158,10 +158,15 @@ public sealed class FirstPartyWidgetCatalogueSeeder : ISeeder
             Key: "chat_box",
             Name: "Chat Box",
             Description: "Live chat rendered from the decorated message feed — resolved emotes, badges, name colours, "
-                + "and pronouns — with theming, command/bot filtering, and optional per-message fade.",
+                + "and pronouns — with theming, font/size/background controls, timestamps, command/bot filtering, and optional per-message fade.",
             DefaultSettings: new()
             {
                 ["theme"] = "dark",
+                ["fontFamily"] = "",
+                ["fontSize"] = 16,
+                ["background"] = "",
+                ["backgroundOpacity"] = 0.82,
+                ["showTimestamps"] = false,
                 ["maxMessages"] = 12,
                 ["fadeAfterMs"] = 0,
                 ["showBadges"] = true,

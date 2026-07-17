@@ -120,7 +120,8 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             ReplyParentUserName: evt.ReplyParentUserName,
             Timestamp: _timeProvider.GetUtcNow().ToString("O"),
             AvatarUrl: enrichment?.AvatarUrl,
-            Pronouns: enrichment?.Pronouns
+            Pronouns: enrichment?.Pronouns,
+            Provider: evt.Provider
         );
 
         await _notifier.SendChatMessageAsync(evt.BroadcasterId.ToString(), dto, ct);

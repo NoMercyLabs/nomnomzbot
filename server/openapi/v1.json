@@ -65665,6 +65665,10 @@
               "null",
               "string"
             ]
+          },
+          "provider": {
+            "type": "string",
+            "default": "twitch"
           }
         },
         "description": "Rich chat message DTO sent to dashboard/overlay clients via SignalR. Includes structured fragments for\r\ninline emote, mention, and cheermote rendering; field names match the frontend ChatMessagePayload type\r\nexactly. `Message` is the raw plain-text fallback for clients that don't render fragments;\r\n`Fragments` are the structured text/emote/cheermote/mention pieces; `UserType` is the derived\r\nrole (broadcaster | moderator | vip | subscriber | viewer); `Color` is the user's chat color\r\n(#RRGGBB); `MessageType` is text | channel_points_highlighted | channel_points_sub_only | user_intro;\r\n`AvatarUrl` and `Pronouns` are additive hub-broadcast-layer enrichment (`IHubUserEnricher`),\r\nnull when unavailable."

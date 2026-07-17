@@ -80,13 +80,14 @@ what REMAINS.
 - [ ] Ensure input + button combo are aligning the input itself and the button right now label+input is centered to button
 
 ## work
-- [ ] Allow users to customize the appearance of chat messages, including font, color, and background.
-- [ ] Allow users to create and manage custom chat commands, including the ability to set permissions for who can use them.
-- [ ] multi channel chat merging, for example if a user is streaming on multiple platforms at the same time, they can merge all chat messages into one unified chat window.
-- [ ] multi channel chat moderation, for example if a user is streaming on multiple platforms at the same time, they can moderate all chat messages from one unified chat window.
-- [ ] Allow users to set up custom alerts for specific events, such as new followers, subscribers, or donations.
-- [ ] Allow users to create and manage custom overlays for their streams, including the ability to add text, images, and animations.
-- [ ] Allow users to set up automated actions based on specific events, such as triggering a sound effect or displaying a message in chat when a new follower is detected.
+- [ ] multi channel chat: merging + moderation across a streamer's simultaneous platforms. Backend
+  prerequisites are in (all platforms normalize onto the canonical `ChatMessageReceivedEvent`; the
+  live chat DTO now carries `Provider` so a merged feed can label each line). Remaining is an
+  OWNER-DESIGN decision + build: how a user's multiple single-provider tenant channels are LINKED so
+  their feeds aggregate into one, and cross-platform viewer-identity resolution so one ban/timeout
+  fans out to every platform the viewer chats on (per-platform moderation via `ChatPlatformRouter`
+  already exists; the moderation controller path is Twitch-only today). Also `ChatMessage` needs a
+  `Provider` column for history to label platform (migration ×2).
 - [ ] **(frontend — handoff 2026-07-17)** the music page design/UX rework: player wiring, page
   reorganization by music type, and the share-link button.
 - [ ] games and commands are overlapping and need to be clearly separated in their functionality and purpose.
