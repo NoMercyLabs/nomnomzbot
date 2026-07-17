@@ -29,11 +29,20 @@ public class PipelinesController : BaseController
 {
     private readonly IPipelineService _pipelineService;
     private readonly ICommandConfigValidator _validator;
+    private readonly IEnumerable<ICommandAction> _actions;
+    private readonly IEnumerable<ICommandCondition> _conditions;
 
-    public PipelinesController(IPipelineService pipelineService, ICommandConfigValidator validator)
+    public PipelinesController(
+        IPipelineService pipelineService,
+        ICommandConfigValidator validator,
+        IEnumerable<ICommandAction> actions,
+        IEnumerable<ICommandCondition> conditions
+    )
     {
         _pipelineService = pipelineService;
         _validator = validator;
+        _actions = actions;
+        _conditions = conditions;
     }
 
     /// <summary>List the channel's pipelines, paginated.</summary>
@@ -65,6 +74,33 @@ public class PipelinesController : BaseController
     {
         Result<PipelineDto> result = await _pipelineService.GetAsync(channelId, id, ct);
         return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// The action + condition palette the pipeline builder renders from — every registered <see cref="ICommandAction"/>
+    /// (grouped by category) and <see cref="ICommandCondition"/>. Sourced from the backend registry so the builder
+    /// never drifts out of sync with the ~66 available blocks.
+    /// </summary>
+    [RequireAction("pipelines:read")]
+    [HttpGet("actions")]
+    [ProducesResponseType<StatusResponseDto<PipelineCatalogueDto>>(StatusCodes.Status200OK)]
+    public IActionResult ListActionCatalogue(string channelId)
+    {
+        List<PipelineActionDescriptorDto> actions = _actions
+            .Select(a => new PipelineActionDescriptorDto(a.ActionType, a.Category, a.Description))
+            .OrderBy(a => a.Category, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(a => a.Type, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        List<PipelineConditionDescriptorDto> conditions = _conditions
+            .Select(c => new PipelineConditionDescriptorDto(c.ConditionType))
+            .OrderBy(c => c.Type, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return Ok(
+            new StatusResponseDto<PipelineCatalogueDto>
+            {
+                Data = new PipelineCatalogueDto(actions, conditions),
+            }
+        );
     }
 
     /// <summary>Create a new pipeline for the channel.</summary>

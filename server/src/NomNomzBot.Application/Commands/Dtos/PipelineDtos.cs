@@ -39,6 +39,21 @@ public sealed record PipelineListItemDto(
     DateTime UpdatedAt
 );
 
+/// <summary>One available pipeline action block, for the builder's palette (commands-pipelines.md §3.13).</summary>
+public sealed record PipelineActionDescriptorDto(string Type, string Category, string Description);
+
+/// <summary>One available pipeline condition type, for the builder's condition picker.</summary>
+public sealed record PipelineConditionDescriptorDto(string Type);
+
+/// <summary>
+/// The full palette the pipeline builder renders from — every registered action + condition, sourced from the
+/// backend so the builder can never drift out of sync (replaces the hand-maintained frontend catalogue).
+/// </summary>
+public sealed record PipelineCatalogueDto(
+    IReadOnlyList<PipelineActionDescriptorDto> Actions,
+    IReadOnlyList<PipelineConditionDescriptorDto> Conditions
+);
+
 /// <summary>Request to create a new pipeline.</summary>
 public sealed record CreatePipelineDto
 {
