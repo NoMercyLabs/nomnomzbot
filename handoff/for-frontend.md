@@ -16,6 +16,21 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Webhooks: inbound endpoints now RUN their target pipeline / event-response
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** an inbound webhook endpoint's `targetPipelineId` / `targetEventType` are now actually executed when a
+  verified webhook lands (previously they were stored but inert — the "webhooks can't be integrated" complaint).
+  The inbound create/edit form should expose the routing choice: **"On receive → run a pipeline"** (a pipeline
+  picker binding `targetPipelineId`) **or "→ trigger an event"** (`targetEventType`, e.g. `custom.github.star`).
+  The webhook payload reaches the pipeline/event as `payload.*` template variables (+ `webhook.provider`,
+  `webhook.event_type`) — surface that in the form's help text so users know what they can reference.
+- **Why:** BUILD-TODO "webhooks … cannot be integrated" — the backend seam is now built; the UI needs to let a
+  user pick the target so the integration is reachable.
+- **Where:** no contract change (the DTO already carried `targetPipelineId`/`targetEventType`); the inbound
+  webhook form + a pipeline picker. Backend: `InboundWebhookAutomationBridge` + spec `webhooks.md` §3.2.
+- **Done when:** creating an inbound endpoint with a target pipeline, then POSTing to its ingest URL, runs that
+  pipeline with the payload variables available.
+
 ### 2026-07-17 — TTS: the voices list is now a searchable, paginated, rich catalogue
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** `GET /channels/{channelId}/tts/voices` changed from a whole-list `StatusResponseDto<List<TtsVoiceDto>>`
