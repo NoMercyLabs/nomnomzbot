@@ -162,3 +162,28 @@ ZIP bundles with a versioned per-type export contract (D1); secrets/PII stripped
   marketplace-client slice. `bundles:publish` is already seeded (Broadcaster); its route ships with
   that slice.
 - **`BundleInstalledEvent` is a sealed class** (the house domain-event style), not a record.
+
+### §8 addendum — hosted-client slice (2026-07-17)
+
+- `MarketplaceController` is channel-routed (`channels/{channelId}/marketplace/...`) like Bundles;
+  routes: GET `items`, GET `items/{itemId}`, POST `items/{itemId}/install`, POST `publish`,
+  GET `submissions/{submissionId}`, PUT/DELETE `publisher-token`.
+- `GetSubmissionAsync` takes `broadcasterId` too (the status read needs the channel's publisher
+  token); `MarketplaceItemDto` adds `Type` + `Tags` (the browse filters need them).
+- **Publisher token custody = `IIntegrationTokenVault`** (provider `marketplace`, account sentinel
+  `publisher`) — the designated provider-token seam over `ITokenProtector`; NO new table. Write-only
+  PUT/DELETE + `hasToken` status; plaintext opens only for the outbound bearer.
+- **Marketplace-install identity:** `IBundleImportService.ImportAsync` gained optional
+  `marketplaceItemId`; non-null re-install deletes the previous version's entities through the shared
+  uninstall path and REWRITES the same `InstalledBundle` row — the partial unique index never sees a
+  duplicate (update, not pile-up).
+- **Base URL** = the `Marketplace:Url` option (default `https://marketplace.nomnomz.bot`);
+  `IDeploymentProfileService` exposes no marketplace field (spec §6 revised). Empty URL →
+  `MARKETPLACE_UNAVAILABLE`, zero requests. Named clients: 10 s browse/status, 60 s
+  download/publish; download/publish capped 20 MB; publish inspects the ZIP locally and refuses
+  `BUNDLE_INVALID` before any byte leaves the box.
+- **Wire API (defined here, versioned):** GET `/v1/items?q&type&tags&page&pageSize`,
+  GET `/v1/items/{id}`, GET `/v1/items/{id}/download`, POST `/v1/publish` (multipart metadata+bundle,
+  Bearer), GET `/v1/submissions/{id}` → `{submissionId, status pending|approved|rejected, reviewNote}`.
+- **Rate buckets:** install 10/hour, publish 5/hour per channel via `IRateLimiterPartitionStore`;
+  denial `RATE_LIMITED` + Retry-After.

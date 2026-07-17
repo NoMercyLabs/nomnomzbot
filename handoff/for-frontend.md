@@ -37,6 +37,15 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** on dev: export a command+pipeline, re-import with `rename` on the same channel →
   renamed copies appear disabled where required, the bundle shows in the installed list, and
   uninstall removes exactly those copies.
+- **Addendum (same day):** the marketplace client also shipped under
+  `channels/{channelId}/marketplace`: `GET items` (+`q`/`type`/`tags` filters, paged), `GET
+  items/{itemId}`, `POST items/{itemId}/install` `{policy}` (re-install = clean update, never a
+  duplicate), `POST publish` (multipart ZIP + metadata — the ZIP is inspected locally first; needs
+  the publisher token), `GET submissions/{submissionId}` (status `pending|approved|rejected` +
+  reviewNote), `PUT/DELETE publisher-token` (write-only; status exposes only `hasToken`). Until the
+  hosted service exists every browse/publish returns `MARKETPLACE_UNAVAILABLE` (503) — design the
+  screens to show that state honestly. Install 10/hour, publish 5/hour per channel (RATE_LIMITED +
+  Retry-After).
 
 ### 2026-07-17 — Widget gallery: community submit form + admin review queue
 - **From:** Stoney_Eagle (via Claude, backend track)

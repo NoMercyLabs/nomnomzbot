@@ -34,13 +34,16 @@ public interface IBundleImportService
     /// <summary>
     /// Install a ZIP: creates the entities (custom code disabled per D4) under the given conflict policy,
     /// records an <c>InstalledBundle</c>, and emits <c>BundleInstalledEvent</c>. A bundle with inspection
-    /// issues is rejected and nothing is created.
+    /// issues is rejected and nothing is created. A non-null <paramref name="marketplaceItemId"/> marks the
+    /// install as <c>Source=marketplace</c>; re-installing the same item UPDATES the existing install
+    /// (previous version's entities give way, the ledger row is rewritten) instead of duplicating (D6).
     /// </summary>
     Task<Result<InstalledBundleDto>> ImportAsync(
         Guid broadcasterId,
         Guid actorUserId,
         Stream zip,
         ImportConflictPolicy policy,
+        string? marketplaceItemId = null,
         CancellationToken ct = default
     );
 

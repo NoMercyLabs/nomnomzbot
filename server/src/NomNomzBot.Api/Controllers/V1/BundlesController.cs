@@ -87,7 +87,16 @@ public class BundlesController(
             return UnauthenticatedResponse();
 
         await using Stream zip = file.OpenReadStream();
-        return ResultResponse(await import.ImportAsync(broadcasterId, caller, zip, policy, ct));
+        return ResultResponse(
+            await import.ImportAsync(
+                broadcasterId,
+                caller,
+                zip,
+                policy,
+                marketplaceItemId: null,
+                ct
+            )
+        );
     }
 
     /// <summary>List the channel's installed bundles.</summary>

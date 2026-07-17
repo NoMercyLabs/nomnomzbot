@@ -90,6 +90,7 @@ public static class AuthEnums
         public const string Treatstream = "treatstream";
         public const string AzureTts = "azure_tts";
         public const string ElevenLabs = "elevenlabs";
+        public const string Marketplace = "marketplace";
     }
 
     /// <summary><c>IntegrationConnection.Status</c>.</summary>

@@ -39,6 +39,10 @@ namespace NomNomzBot.Infrastructure.Marketplace;
 /// </summary>
 public class BundleImportService : IBundleImportService
 {
+    /// <summary><c>InstalledBundle.Source</c> values (schema H.11 VC:enum).</summary>
+    internal const string LocalSource = "local";
+    internal const string MarketplaceSource = "marketplace";
+
     private readonly IApplicationDbContext _db;
     private readonly ICommandService _commands;
     private readonly IPipelineService _pipelines;
@@ -94,6 +98,7 @@ public class BundleImportService : IBundleImportService
         Guid actorUserId,
         System.IO.Stream zip,
         ImportConflictPolicy policy,
+        string? marketplaceItemId = null,
         CancellationToken ct = default
     )
     {
@@ -107,6 +112,32 @@ public class BundleImportService : IBundleImportService
                 $"The bundle failed inspection: {string.Join(" | ", bundle.Issues)}",
                 "BUNDLE_INVALID"
             );
+
+        // Marketplace re-install = UPDATE (D6): the previous version's entities give way first, then the
+        // new content installs under the caller's conflict policy, and the SAME ledger row is rewritten —
+        // the (BroadcasterId, Source, MarketplaceItemId) unique index never sees a second live row.
+        InstalledBundle? existingInstall = null;
+        if (marketplaceItemId is not null)
+        {
+            existingInstall = await _db.InstalledBundles.FirstOrDefaultAsync(
+                b =>
+                    b.BroadcasterId == broadcasterId
+                    && b.Source == MarketplaceSource
+                    && b.MarketplaceItemId == marketplaceItemId,
+                ct
+            );
+            if (existingInstall is not null)
+            {
+                Dictionary<string, List<Guid>> previous =
+                    JsonConvert.DeserializeObject<Dictionary<string, List<Guid>>>(
+                        existingInstall.InstalledEntityIdsJson
+                    ) ?? [];
+                List<(string Type, Guid Id, string Name)> previousTargets = previous
+                    .SelectMany(kv => kv.Value.Select(id => (kv.Key, id, string.Empty)))
+                    .ToList();
+                await DeleteCreatedAsync(broadcasterId, actorUserId, previousTargets, ct);
+            }
+        }
 
         string channelId = broadcasterId.ToString();
         List<(string Type, Guid Id, string Name)> created = [];
@@ -523,20 +554,23 @@ public class BundleImportService : IBundleImportService
             .GroupBy(c => c.Type)
             .ToDictionary(g => g.Key, g => g.Select(c => c.Id).ToList());
 
-        InstalledBundle row = new()
-        {
-            BroadcasterId = broadcasterId,
-            Name = bundle.Manifest.Metadata.Name,
-            Source = "local",
-            MarketplaceItemId = null,
-            Version = bundle.Manifest.Metadata.Version,
-            Author = bundle.Manifest.Metadata.Author,
-            License = bundle.Manifest.Metadata.License,
-            ManifestJson = BundleConventions.Serialize(bundle.Manifest),
-            InstalledEntityIdsJson = BundleConventions.Serialize(installedIds),
-            InstalledByUserId = actorUserId,
-        };
-        _db.InstalledBundles.Add(row);
+        InstalledBundle row =
+            existingInstall
+            ?? new InstalledBundle
+            {
+                BroadcasterId = broadcasterId,
+                Source = marketplaceItemId is null ? LocalSource : MarketplaceSource,
+                MarketplaceItemId = marketplaceItemId,
+            };
+        row.Name = bundle.Manifest.Metadata.Name;
+        row.Version = bundle.Manifest.Metadata.Version;
+        row.Author = bundle.Manifest.Metadata.Author;
+        row.License = bundle.Manifest.Metadata.License;
+        row.ManifestJson = BundleConventions.Serialize(bundle.Manifest);
+        row.InstalledEntityIdsJson = BundleConventions.Serialize(installedIds);
+        row.InstalledByUserId = actorUserId;
+        if (existingInstall is null)
+            _db.InstalledBundles.Add(row);
         await _db.SaveChangesAsync(ct);
 
         await _eventBus.PublishAsync(

@@ -447,6 +447,28 @@ public static class DependencyInjection
         );
         services.AddHostedService<Supporters.SupporterSocketHostedService>();
 
+        // ── Marketplace client (marketplace.md §6) ──────────────────────────
+        // The hosted-catalog base URL (D7 — configurable, default = the NoMercy public marketplace) and the
+        // two named clients: 10 s for catalog browsing, 60 s for the bundle transfers (download/publish).
+        // IMarketplaceService + IMarketplacePublisherTokenService are bound by the I<X>Service scan;
+        // the client is not a "*Service", so it is registered explicitly (scoped: it reads the vaulted
+        // publisher token through the scoped vault seam).
+        services.Configure<Marketplace.MarketplaceOptions>(
+            configuration.GetSection(Marketplace.MarketplaceOptions.SectionName)
+        );
+        services.AddHttpClient(
+            Marketplace.HttpMarketplaceClient.BrowseClientName,
+            client => client.Timeout = TimeSpan.FromSeconds(10)
+        );
+        services.AddHttpClient(
+            Marketplace.HttpMarketplaceClient.TransferClientName,
+            client => client.Timeout = TimeSpan.FromSeconds(60)
+        );
+        services.AddScoped<
+            Application.Marketplace.Services.IMarketplaceClient,
+            Marketplace.HttpMarketplaceClient
+        >();
+
         // The single SSRF-hardened egress client (sandbox + outbound webhooks): resolve-then-pin + https-only.
         services
             .AddHttpClient(NomNomzBot.Infrastructure.Sandbox.EgressHttpClient.Name)

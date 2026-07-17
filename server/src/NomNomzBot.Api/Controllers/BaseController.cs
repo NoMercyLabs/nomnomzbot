@@ -136,9 +136,13 @@ public abstract class BaseController : ControllerBase
             or "PER_STREAM_LIMIT"
             or "JAR_NOT_OPEN"
             or "JAR_CAP_EXCEEDED"
-            or "CAPABILITY_UNSUPPORTED" => ConflictResponse(result.ErrorMessage),
+            or "CAPABILITY_UNSUPPORTED"
+            or "MARKETPLACE_NO_PUBLISHER_TOKEN"
+            or "MARKETPLACE_AUTH_FAILED" => ConflictResponse(result.ErrorMessage),
             "RATE_LIMITED" => TooManyRequestsResponse(result.ErrorMessage),
-            "SERVICE_UNAVAILABLE" => ServiceUnavailableResponse(result.ErrorMessage),
+            "SERVICE_UNAVAILABLE" or "MARKETPLACE_UNAVAILABLE" => ServiceUnavailableResponse(
+                result.ErrorMessage
+            ),
             _ => InternalServerErrorResponse(result.ErrorMessage),
         };
     }
@@ -180,9 +184,13 @@ public abstract class BaseController : ControllerBase
             or "PER_STREAM_LIMIT"
             or "JAR_NOT_OPEN"
             or "JAR_CAP_EXCEEDED"
-            or "CAPABILITY_UNSUPPORTED" => ConflictResponse(result.ErrorMessage),
+            or "CAPABILITY_UNSUPPORTED"
+            or "MARKETPLACE_NO_PUBLISHER_TOKEN"
+            or "MARKETPLACE_AUTH_FAILED" => ConflictResponse(result.ErrorMessage),
             "RATE_LIMITED" => TooManyRequestsResponse(result.ErrorMessage),
-            "SERVICE_UNAVAILABLE" => ServiceUnavailableResponse(result.ErrorMessage),
+            "SERVICE_UNAVAILABLE" or "MARKETPLACE_UNAVAILABLE" => ServiceUnavailableResponse(
+                result.ErrorMessage
+            ),
             _ => InternalServerErrorResponse(result.ErrorMessage),
         };
     }
