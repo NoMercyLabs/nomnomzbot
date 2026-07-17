@@ -103,6 +103,22 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** installing to a test guild, enabling, picking a channel, and going live posts the
   announcement — configured entirely from the dashboard on dev.
 
+### 2026-07-17 — Moderation: shared-ban trust web (settings + trusted channels)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** new SuperMod-tier moderation surface under
+  `channels/{channelId}/moderation/shared-bans`: `GET` (policy + trust list), `PUT` (body
+  `{acceptSharedChatBans, shareOutgoingBans}` — both explicit), `POST shared-bans/trusted` (body
+  `{trustedChannelId}`, 201, idempotent), `DELETE shared-bans/trusted/{id}` (204). Both switches
+  default OFF (opt-in, default-deny). UI: a "Shared-chat bans" card on the moderation settings page —
+  two switches with explanations (accept = bans from TRUSTED partners during a shared-chat session
+  also apply here; share = offer our bans to partners), plus the trusted-channels list (channel
+  picker to add, row delete). Writes need SuperMod+ — disable below that with the reason tooltip.
+- **Why:** moderation item 15 (spec §3.5 J.9/J.9a) — the trust web the inbound shared-ban apply
+  (next backend increment) enforces against.
+- **Where:** moderation feature area; routes + schemas in `server/openapi/v1.json` (refreshed).
+- **Done when:** switches + trust list persist and survive reload on dev; a Moderator-level account
+  sees the card read-only.
+
 ### 2026-07-17 — Moderation: bot-side standing tiers (mute / shadowban / blacklist)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the per-user mod panel gains graduated BOT-SIDE tiers, distinct from Twitch ban/timeout:

@@ -217,7 +217,7 @@ public sealed class SharedBanService(
                     TargetUserId = inbound.TargetTwitchUserId,
                     TargetUsername = inbound.TargetDisplayName,
                     Reason = inbound.Reason,
-                    Origin = "federation",
+                    Origin = "shared_chat",
                     OriginChannelId = inbound.OriginChannelId,
                 }
             ),

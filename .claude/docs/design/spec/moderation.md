@@ -393,6 +393,22 @@ public interface ISharedBanService
 }
 ```
 
+> **Inbound model (decided 2026-07-17, as built):** the shared-ban web is a fully LOCAL chain — there is no
+> remote-peer inbound today (the federation handshake transport does not exist, and the J.9a trust list is
+> keyed by local `Channels` Guids). The chain: the `channel.shared_chat.begin/update/end` EventSub events
+> feed a singleton `ISharedChatSessionTracker` (in-memory active-session state per channel, keyed by tenant
+> Guid, carrying `SessionId` + participants); a subscriber on `UserBannedEvent` publishes
+> `SharedChatBanIssuedEvent { SharedChatSessionId, OriginChannelId, TargetTwitchUserId, TargetDisplayName?,
+> Reason? }` IFF the origin channel is tracked in a session AND opted in via `ShareOutgoingBans`; a consumer
+> fans it out to every OTHER local channel tracked in the same session, each applying through
+> `ApplyInboundSharedBanAsync` (accept + trust + same-session predicate enforced in-service). The ban
+> executes on the partner's OWN tenant token (`ITwitchModerationApi.BanUserAsync` — broadcaster =
+> moderator = the channel, system-initiated, no operator), and provenance is recorded as a
+> `moderation_action` Record whose JSON carries `Origin="shared_chat"` + `OriginChannelId` (the `federation` origin stays reserved for a true cross-instance transport) (additive to the
+> existing `ModerationActionData` shape; the record's `UserId` = the origin channel id). A future
+> cross-instance federation transport plugs in by publishing the same `SharedChatBanIssuedEvent` from its
+> inbound dispatcher — the consumer chain is transport-agnostic.
+
 ### 3.6 `IViewerReportService` — viewer reports + evidence (J.8/J.8a)
 
 ```csharp

@@ -237,7 +237,7 @@ public sealed class SharedBanServiceTests
         Domain.Platform.Entities.Record record = await db.Records.SingleAsync(r =>
             r.BroadcasterId == Channel && r.RecordType == "moderation_action"
         );
-        record.Data.Should().Contain("\"Origin\":\"federation\"");
+        record.Data.Should().Contain("\"Origin\":\"shared_chat\"");
         record.Data.Should().Contain(Partner.ToString());
         record.Data.Should().Contain("troll-42");
     }
