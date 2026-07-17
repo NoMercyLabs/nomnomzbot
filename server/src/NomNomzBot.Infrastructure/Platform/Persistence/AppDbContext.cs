@@ -170,6 +170,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
     // Audit
     public DbSet<DeletionAuditLog> DeletionAuditLogs => Set<DeletionAuditLog>();
 
+    // GDPR erasure pipeline (gdpr-crypto.md O.6/O.10) — request lifecycle + append-only compliance audit.
+    public DbSet<ErasureRequest> ErasureRequests => Set<ErasureRequest>();
+    public DbSet<ComplianceAuditLog> ComplianceAuditLogs => Set<ComplianceAuditLog>();
+
     // Timers
     public DbSet<Domain.Commands.Entities.Timer> Timers => Set<Domain.Commands.Entities.Timer>();
 

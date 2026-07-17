@@ -274,6 +274,8 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ConsentRecord> ConsentRecords =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ErasureRequest> ErasureRequests =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.Channel> Channels =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelModerator> ChannelModerators =>
@@ -381,6 +383,8 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Identity.Entities.Pronoun> Pronouns =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog> DeletionAuditLogs =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ComplianceAuditLog> ComplianceAuditLogs =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         throw new NotSupportedException();

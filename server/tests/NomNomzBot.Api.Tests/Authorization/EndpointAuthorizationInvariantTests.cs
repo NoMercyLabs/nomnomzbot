@@ -59,10 +59,23 @@ public sealed class EndpointAuthorizationInvariantTests
             "self-only in body (caller==userId or admin): the caller's own channel list",
         ["UsersController.GetUserStats"] =
             "self-only in body (caller==userId): GDPR data summary of the caller's own data",
-        ["UsersController.ExportUserData"] =
-            "self-only in body (caller==userId or admin): GDPR right of access on own data (gdpr-crypto.md §5.1 posture)",
-        ["UsersController.DeleteUserData"] =
-            "self-only in body (caller==userId or admin): GDPR erasure of own data (gdpr-crypto.md §5.1 posture)",
+        // ── GDPR self-service my-data plane: Gate-1 only, subject ALWAYS forced to the JWT sub (never body/route) ──
+        ["GdprController.ExportData"] =
+            "self-scoped in body: subject forced to JWT sub — gdpr-crypto.md §5.1 (right of access on own data)",
+        ["GdprController.RequestErasure"] =
+            "self-scoped in body: subject + RequestedBy forced to JWT sub / self_service — gdpr-crypto.md §5.1",
+        ["GdprController.RequestOptOut"] =
+            "self-scoped in body: subject forced to JWT sub — gdpr-crypto.md §5.1 (legitimate-interest opt-out)",
+        ["GdprController.ListRequests"] =
+            "self-scoped in body: list filtered to the caller's own requests — gdpr-crypto.md §5.1",
+        ["GdprController.GetRequest"] =
+            "self-scoped in body: a foreign subject's request 404s (existence is personal data) — gdpr-crypto.md §5.1",
+        ["GdprController.ListConsents"] =
+            "self-scoped in body: the caller's own consent ledger (subject = JWT sub) — gdpr-crypto.md §5.1",
+        ["GdprController.GrantConsent"] =
+            "self-scoped in body: SubjectUserId overwritten with JWT sub before the service call — gdpr-crypto.md §5.1",
+        ["GdprController.WithdrawConsent"] =
+            "self-scoped in body: withdraws the caller's own consent (subject = JWT sub) — gdpr-crypto.md §5.1",
         ["ChannelsController.ListChannels"] =
             "JWT-self-scoped in body: lists channels the CALLER owns/moderates (ids from the caller's claims only)",
         ["ChannelsController.GetModeratedChannels"] =

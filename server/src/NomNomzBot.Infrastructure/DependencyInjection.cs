@@ -729,7 +729,7 @@ public static class DependencyInjection
         // IAdminService, ICommandService, IChannelService, IRewardService, IWidgetService,
         // IUserService, IModerationService, IAuthService, IPermissionService, ITimerManagementService,
         // IMusicConfigService, ITtsConfigService, IEventResponseService, IPipelineService,
-        // IFeatureService, IGdprService) are now discovered by AddServicesByConvention above.
+        // IFeatureService, IErasureService, IConsentService) are now discovered by AddServicesByConvention above.
         services.AddHttpContextAccessor();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 

@@ -128,6 +128,17 @@ public sealed class PlatformIamPolicyCoverageTests
         PolicyOf(typeof(PlatformAdminController), methodName).Should().Be(expectedKey);
     }
 
+    [Theory]
+    [InlineData(nameof(ComplianceController.RequestErasure), IamPermissionKeys.TenantAccess)]
+    [InlineData(nameof(ComplianceController.ListErasureRequests), IamPermissionKeys.AuditRead)]
+    public void ComplianceController_action_carries_the_expected_iam_policy(
+        string methodName,
+        string expectedKey
+    )
+    {
+        PolicyOf(typeof(ComplianceController), methodName).Should().Be(expectedKey);
+    }
+
     [Fact]
     public void FeatureFlagAdminController_is_class_gated_on_featureflag_write()
     {

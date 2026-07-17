@@ -58,12 +58,14 @@ what REMAINS.
   client (browse/install-as-update/publish with local pre-inspect, vaulted publisher token, rate
   buckets); the hosted service itself is a separate NoMercy deliverable — the bot degrades to
   `MARKETPLACE_UNAVAILABLE` until it exists.
-- [ ] **23. GDPR/compliance controllers** (`gdpr-crypto.md`) — remaining: `ErasureRequest` +
-  `ComplianceAuditLog` tables, `IErasureService` (anonymize → crypto-shred → revoke → audit, one tx,
-  superseding the legacy `IGdprService`), `IConsentService`, the Gate-1 self-service
-  `GdprController` (§5.1) + Plane-C `ComplianceController` (§5.2, existing `tenant:access`/
-  `audit:read` keys), retire the two legacy `UsersController` GDPR routes. The IPC dev-mode key
-  registry (`stream-admin.md` §5.3) is DONE; its local socket listener is a separate follow-up.
+- [ ] **23. GDPR/crypto + IPC follow-ups** (`gdpr-crypto.md`, `stream-admin.md`) — remaining
+  beyond the shipped controllers: the IPC local socket listener (`IpcDevModeListenerService`,
+  stream-admin §7 — profile-branched Unix socket / named pipe over the shipped key registry), the
+  §3.4 crypto widening (`ResolveSubjectKeysAsync`, tenant/platform keys, rotation,
+  `KeyUsageBinding`, `EventSubjectKeys`), and the §9 in-chat GDPR built-ins
+  (`!forgetme`/`!mydata`/`!gdpr status` over the shipped `IErasureService`). Plus **(frontend —
+  handoff 2026-07-17)** the "My data" privacy screen. The GDPR/Compliance controllers, erasure
+  pipeline with crypto-shred, consent ledger, and the IPC key registry are live.
 
 ### 🔒 Security & small fixes
 - [ ] **24d. OWNER-GATED:** confirm authz key names (Plane-C + Gate-2 buckets) — cannot close

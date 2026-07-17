@@ -22,10 +22,10 @@ using NomNomzBot.Application.Identity.Services;
 namespace NomNomzBot.Api.Controllers.V1;
 
 /// <summary>
-/// Manages user profiles, search, and GDPR data requests. User reads are self-or-Gate-2: a user always
-/// reads/edits their OWN row (the Me page), while reading ANOTHER user requires <c>community:read</c> on the
-/// resolved tenant (dashboard viewer tooling). GDPR export/delete and profile writes are strictly
-/// self-or-platform-admin.
+/// Manages user profiles and search. User reads are self-or-Gate-2: a user always reads/edits their OWN row
+/// (the Me page), while reading ANOTHER user requires <c>community:read</c> on the resolved tenant
+/// (dashboard viewer tooling). Profile writes are strictly self-or-platform-admin. GDPR export/erasure moved
+/// to the dedicated <c>GdprController</c> (self-service) and <c>ComplianceController</c> (operator) planes.
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/users")]
@@ -34,24 +34,18 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class UsersController : BaseController
 {
     private readonly IUserService _userService;
-    private readonly IGdprService _gdpr;
-    private readonly TimeProvider _timeProvider;
     private readonly IActionAuthorizationService _authorization;
     private readonly ICurrentUserService _currentUser;
     private readonly ICurrentTenantService _currentTenant;
 
     public UsersController(
         IUserService userService,
-        IGdprService gdpr,
-        TimeProvider timeProvider,
         IActionAuthorizationService authorization,
         ICurrentUserService currentUser,
         ICurrentTenantService currentTenant
     )
     {
         _userService = userService;
-        _gdpr = gdpr;
-        _timeProvider = timeProvider;
         _authorization = authorization;
         _currentUser = currentUser;
         _currentTenant = currentTenant;
@@ -169,8 +163,6 @@ public class UsersController : BaseController
         return ResultResponse(result);
     }
 
-    // ─── GDPR endpoints ───────────────────────────────────────────────────────
-
     /// <summary>Returns a summary of the user's data (GDPR data summary).</summary>
     [HttpGet("{userId}/stats")]
     [ProducesResponseType<StatusResponseDto<UserStatsDto>>(StatusCodes.Status200OK)]
@@ -180,48 +172,6 @@ public class UsersController : BaseController
         if (callerId != userId)
             return UnauthorizedResponse("You may only view your own stats.");
         Result<UserStatsDto> result = await _userService.GetStatsAsync(userId, ct);
-        return ResultResponse(result);
-    }
-
-    /// <summary>
-    /// Export all personal data for the specified user (GDPR right of access).
-    /// Returns a JSON file download containing all data we hold for this user.
-    /// </summary>
-    [HttpGet("{userId}/data-export")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> ExportUserData(string userId, CancellationToken ct)
-    {
-        string? callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        bool isAdmin = User.IsInRole("admin");
-        if (callerId != userId && !isAdmin)
-            return UnauthorizedResponse("You may only export your own data.");
-
-        Result<string> result = await _gdpr.ExportUserDataAsync(userId, ct);
-        if (result.IsFailure)
-            return ResultResponse(result);
-
-        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(result.Value);
-        return File(
-            bytes,
-            "application/json",
-            $"user-data-export-{userId}-{_timeProvider.GetUtcNow().UtcDateTime:yyyyMMdd}.json"
-        );
-    }
-
-    /// <summary>
-    /// Delete all personal data for the specified user (GDPR right to erasure).
-    /// This action is irreversible.
-    /// </summary>
-    [HttpDelete("{userId}/data")]
-    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> DeleteUserData(string userId, CancellationToken ct)
-    {
-        string? callerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        bool isAdmin = User.IsInRole("admin");
-        if (callerId != userId && !isAdmin)
-            return UnauthorizedResponse("You may only delete your own data.");
-
-        Result result = await _gdpr.DeleteUserDataAsync(userId, ct);
         return ResultResponse(result);
     }
 }

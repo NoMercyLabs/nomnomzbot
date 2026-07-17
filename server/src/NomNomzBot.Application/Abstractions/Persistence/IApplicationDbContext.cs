@@ -107,6 +107,11 @@ public interface IApplicationDbContext
     DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries { get; }
     DbSet<Pronoun> Pronouns { get; }
     DbSet<DeletionAuditLog> DeletionAuditLogs { get; }
+
+    // GDPR erasure pipeline (gdpr-crypto.md O.6/O.10): request lifecycle + append-only compliance audit
+    // (ComplianceAuditLog supersedes DeletionAuditLog, which stays for its historical rows).
+    DbSet<ErasureRequest> ErasureRequests { get; }
+    DbSet<ComplianceAuditLog> ComplianceAuditLogs { get; }
     DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers { get; }
     DbSet<EventResponse> EventResponses { get; }
     DbSet<WatchStreak> WatchStreaks { get; }

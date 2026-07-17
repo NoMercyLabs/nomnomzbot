@@ -440,3 +440,32 @@ Default copy (part 1, customizable) with the always-appended mandatory clause (p
 - **Crypto-shred completeness.** O(1) ciphertext crypto-shred is the in-scope erasure mechanism. Plaintext `[PII-scrub]` snapshot row-level erasure (`ISurrogateKeyAnonymizer.AnonymizeSubjectAsync`) and multi-subject `EventSubjectKeys` handling are part of this subsystem and are fully specified here. Both ship as part of the erasure pipeline (§3.5, §3.7).
 - **`ITenantScoped` widens to `Guid`.** This subsystem is written against `Guid` `BroadcasterId`, per the locked schema (§1.1). The widening is the one-time rebuild change owned by the persistence/tenancy slice; it is a build dependency of these signatures.
 - **KEK rotation cadence / DataProtection key-ring.** Rotation scheduling is owned by the auth/persistence slices. `IKeyVault` exposes wrap/unwrap only and is intentionally agnostic to KEK rotation cadence; that is a dependency on the auth/persistence slices, not a property of this subsystem.
+
+---
+
+## As-built — erasure pipeline + controllers (2026-07-17, item 23 slice B)
+
+- `GdprController` (Gate-1, subject ALWAYS the JWT sub) + `ComplianceController` (Plane-C:
+  `tenant:access` / `audit:read` policies) shipped per §5; the legacy `UsersController`
+  `{userId}/data-export` + `{userId}/data` routes and `IGdprService`/`GdprService` are RETIRED —
+  their three proven behaviors (vault revocation targets only the subject, cross-channel ViewerData
+  scrub, bare-profile erasure) live on in `ErasureServiceTests`.
+- **Two-phase failure semantics:** the `ErasureRequest` row is written in its own save (phase 1);
+  the destructive pipeline runs in ONE `IUnitOfWork` tx with the completed status + `ComplianceAuditLog`
+  row inside it (phase 2 — neither exists without the other); on failure the tx rolls back,
+  `ChangeTracker.Clear()`, and the surviving request is stamped `failed` with an `Outcome=failed`
+  audit row in a separate save. The request row is always queryable.
+- `ErasureRequest.SubjectKeyId` is nullable (not every subject holds a DEK); the row carries
+  `ReportJson` (the AnonymizationReport). `DataExportDto` carries the Newtonsoft-serialized export
+  inline in a `Document` field (no file store); `ListRequestsAsync` gained a `subjectUserId`
+  self-scoping filter.
+- Consent IPs are NOT sealed (the `ConsentRecord` entity's own doc-comment defers
+  `IpAddressCipher`; `ProofOfConsentIp` is accepted but unpersisted — proportionate privacy).
+- Opt-out = withdraw marketing/leaderboard consents + `ViewerProfile.IsAnalyticsOptedOut`
+  cross-tenant, audited as `consent_change`.
+- Crypto-shred resolves `Users.SubjectKeyId` + active subject-scope `CryptoKey` rows by
+  `SubjectIdHash`; the full §3.4 widening (`ResolveSubjectKeysAsync`, tenant/platform keys,
+  rotation, `KeyUsageBinding`, `EventSubjectKeys`) is deferred to a later crypto slice.
+  `DeletionAuditLog` remains in place read-only; new writes go to `ComplianceAuditLog`.
+- Domain events (`Identity/Events/GdprEvents.cs`): SubjectErasureRequested/Completed/Failed,
+  SubjectDataExported, ConsentChanged — hashed subject only.

@@ -16,6 +16,27 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Privacy: the "My data" GDPR self-service screen
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the GDPR self-service plane is live under `/gdpr` (Gate-1 — always the signed-in user's
+  own data, no channel scope):
+  1. **Export**: `GET /gdpr/export` → the full machine-readable document inline (`document` field) —
+     offer it as a JSON download.
+  2. **Erasure**: `POST /gdpr/erasure` (confirm dialog — irreversible; explain crypto-shred),
+     `POST /gdpr/opt-out` (lighter: analytics/marketing opt-out, account stays);
+     `GET /gdpr/requests` (+`/{id}`) shows request history with status
+     `received|processing|completed|failed`.
+  3. **Consents**: `GET/POST /gdpr/consents`, `DELETE /gdpr/consents/{consentType}` — a consent
+     ledger card (type, granted/withdrawn, timestamps).
+  4. The old `users/{userId}/data-export` + `users/{userId}/data` routes are GONE (this replaces
+     them; the Kotlin client never called them — verified).
+- **Why:** BUILD-TODO item 23 — the right-of-access/erasure loop, self-service like every major
+  platform.
+- **Where:** `server/openapi/v1.json` (refreshed — 8 new routes, 2 legacy removed); spec
+  `gdpr-crypto.md` §5.1 + as-built notes.
+- **Done when:** on dev: export downloads the caller's real data, a test-account erasure lands
+  `completed` in the requests list, and a granted consent shows up and withdraws.
+
 ### 2026-07-17 — Bundles: export picker + import wizard + installed list
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** local bundle packs are live (marketplace.md §5, channel-routed under

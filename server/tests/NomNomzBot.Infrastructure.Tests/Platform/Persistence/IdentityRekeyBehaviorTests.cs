@@ -393,6 +393,8 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
             throw new NotSupportedException();
         public DbSet<ConsentRecord> ConsentRecords => inner.ConsentRecords;
+        public DbSet<NomNomzBot.Domain.Identity.Entities.ErasureRequest> ErasureRequests =>
+            throw new NotSupportedException();
         public DbSet<Channel> Channels => inner.Channels;
         public DbSet<Command> Commands => inner.Commands;
 
@@ -503,6 +505,8 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<NomNomzBot.Domain.Identity.Entities.Pronoun> Pronouns =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog> DeletionAuditLogs =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Identity.Entities.ComplianceAuditLog> ComplianceAuditLogs =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
             throw new NotSupportedException();

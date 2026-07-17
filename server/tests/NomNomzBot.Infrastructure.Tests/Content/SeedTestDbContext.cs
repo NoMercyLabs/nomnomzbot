@@ -85,6 +85,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ErasureRequest> ErasureRequests =>
+        Set<NomNomzBot.Domain.Identity.Entities.ErasureRequest>();
     public DbSet<ChannelModerator> ChannelModerators => Set<ChannelModerator>();
     public DbSet<Service> Services => Set<Service>();
     public DbSet<Reward> Rewards => Set<Reward>();
@@ -149,6 +151,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<TtsCacheEntry> TtsCacheEntries => Set<TtsCacheEntry>();
     public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries => Set<TtsApprovalQueueEntry>();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => Set<DeletionAuditLog>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.ComplianceAuditLog> ComplianceAuditLogs =>
+        Set<NomNomzBot.Domain.Identity.Entities.ComplianceAuditLog>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         Set<NomNomzBot.Domain.Commands.Entities.Timer>();
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();

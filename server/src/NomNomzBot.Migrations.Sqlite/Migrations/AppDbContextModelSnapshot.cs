@@ -4441,6 +4441,63 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("ChannelSubscriptions");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.ComplianceAuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ErasureRequestId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("KeysShredded")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RowsAffected")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SubjectIdHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.PrimitiveCollection<string>("TablesAffected")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ErasureRequestId");
+
+                    b.HasIndex("SubjectIdHash");
+
+                    b.ToTable("ComplianceAuditLogs");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.ConsentRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4582,6 +4639,90 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.HasIndex("KeyScope", "BroadcasterId", "SubjectIdHash", "Status");
 
                     b.ToTable("CryptoKeys");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.ErasureRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("AnonymizationApplied")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("CryptoShredApplied")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ExportFormat")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExportLocation")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FailureReason")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReportJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RowsAffected")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SubjectIdHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SubjectKeyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SubjectUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("SubjectUserId", "RequestedAt");
+
+                    b.ToTable("ErasureRequests");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.IamAuditLog", b =>

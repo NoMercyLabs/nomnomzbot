@@ -36,14 +36,12 @@ public sealed class UsersControllerAuthorizationTests
     private sealed record Fixture(
         UsersController Controller,
         IUserService Users,
-        IGdprService Gdpr,
         IActionAuthorizationService Gate2
     );
 
     private static Fixture Build(bool gate2Allows = false, bool tenantResolved = true)
     {
         IUserService users = Substitute.For<IUserService>();
-        IGdprService gdpr = Substitute.For<IGdprService>();
         IActionAuthorizationService gate2 = Substitute.For<IActionAuthorizationService>();
         gate2
             .AuthorizeActionAsync(
@@ -60,14 +58,7 @@ public sealed class UsersControllerAuthorizationTests
         ICurrentTenantService currentTenant = Substitute.For<ICurrentTenantService>();
         currentTenant.BroadcasterId.Returns(tenantResolved ? Tenant : null);
 
-        UsersController controller = new(
-            users,
-            gdpr,
-            TimeProvider.System,
-            gate2,
-            currentUser,
-            currentTenant
-        )
+        UsersController controller = new(users, gate2, currentUser, currentTenant)
         {
             ControllerContext = new ControllerContext
             {
@@ -82,7 +73,7 @@ public sealed class UsersControllerAuthorizationTests
                 },
             },
         };
-        return new Fixture(controller, users, gdpr, gate2);
+        return new Fixture(controller, users, gate2);
     }
 
     private static UserProfileDto Profile(Guid id) =>
