@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
+using Newtonsoft.Json;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Webhooks;
@@ -90,6 +91,14 @@ public sealed class OutboundWebhookEndpointServiceTests
             SubscribedEventTypes = ["*"],
         };
 
+    private static CreateOutboundWebhookRequest ReqWith(params string[] eventTypes) =>
+        new()
+        {
+            Name = "endpoint",
+            Fqdn = "api.example.com",
+            SubscribedEventTypes = [.. eventTypes],
+        };
+
     [Fact]
     public async Task Create_fails_closed_without_an_egress_allowlist_row()
     {
@@ -128,6 +137,121 @@ public sealed class OutboundWebhookEndpointServiceTests
                 && e.EntityId == created.Endpoint.Id.ToString()
                 && e.Action == "created"
             );
+    }
+
+    [Fact]
+    public void GetEventCatalogue_returns_curated_subscribable_business_events()
+    {
+        (OutboundWebhookEndpointService sut, _, _) = Build();
+
+        Result<IReadOnlyList<OutboundWebhookEventCatalogueEntry>> result = sut.GetEventCatalogue();
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeEmpty();
+        // Every entry is well-formed (real type + human label + category) — the checklist the dashboard renders.
+        result
+            .Value.Should()
+            .OnlyContain(e =>
+                !string.IsNullOrWhiteSpace(e.EventType)
+                && !string.IsNullOrWhiteSpace(e.Label)
+                && !string.IsNullOrWhiteSpace(e.Category)
+            );
+        result.Value.Select(e => e.EventType).Should().Contain("FollowEvent");
+        // The §9 deny-list is never offered as a subscribable option.
+        result.Value.Select(e => e.EventType).Should().NotContain("OutboundWebhookEnqueuedEvent");
+    }
+
+    [Fact]
+    public async Task Create_accepts_a_valid_catalogue_subset()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        await SeedAllowlistAsync(db);
+
+        Result<OutboundWebhookEndpointCreatedDto> result = await sut.CreateAsync(
+            Channel,
+            Actor,
+            ReqWith("FollowEvent", "CheerEvent", "RaidEvent")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result
+            .Value.Endpoint.SubscribedEventTypes.Should()
+            .BeEquivalentTo(["FollowEvent", "CheerEvent", "RaidEvent"]);
+    }
+
+    [Fact]
+    public async Task Create_accepts_the_wildcard_subscription()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        await SeedAllowlistAsync(db);
+
+        Result<OutboundWebhookEndpointCreatedDto> result = await sut.CreateAsync(
+            Channel,
+            Actor,
+            ReqWith("*")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Endpoint.SubscribedEventTypes.Should().ContainSingle().Which.Should().Be("*");
+    }
+
+    [Fact]
+    public async Task Create_rejects_an_unknown_event_type_naming_the_offender()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        await SeedAllowlistAsync(db);
+
+        Result<OutboundWebhookEndpointCreatedDto> result = await sut.CreateAsync(
+            Channel,
+            Actor,
+            ReqWith("FollowEvent", "NotARealEvent")
+        );
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.ErrorMessage.Should().Contain("NotARealEvent");
+        db.OutboundWebhookEndpoints.Should().BeEmpty(); // nothing persisted on a rejected create
+        bus.Published.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Create_rejects_a_webhook_lifecycle_event_type_deny_list()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        await SeedAllowlistAsync(db);
+
+        Result<OutboundWebhookEndpointCreatedDto> result = await sut.CreateAsync(
+            Channel,
+            Actor,
+            ReqWith("OutboundWebhookEnqueuedEvent")
+        );
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.ErrorMessage.Should().Contain("OutboundWebhookEnqueuedEvent");
+        result.ErrorMessage.Should().Contain("self-amplification");
+        db.OutboundWebhookEndpoints.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Update_rejects_an_unknown_event_type()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        await SeedAllowlistAsync(db);
+        Guid endpointId = (await sut.CreateAsync(Channel, Actor, Req())).Value.Endpoint.Id;
+
+        Result<OutboundWebhookEndpointDto> result = await sut.UpdateAsync(
+            Channel,
+            endpointId,
+            new UpdateOutboundWebhookRequest { SubscribedEventTypes = ["FollowEvent", "bogus"] }
+        );
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        // The rejected update did not mutate the stored subscription (still the original '*').
+        JsonConvert
+            .DeserializeObject<List<string>>(
+                db.OutboundWebhookEndpoints.Single().SubscribedEventTypesJson
+            )
+            .Should()
+            .BeEquivalentTo(["*"]);
     }
 
     [Fact]

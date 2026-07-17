@@ -88,6 +88,18 @@ public sealed record OutboundWebhookEndpointCreatedDto(
     string SigningSecret
 );
 
+/// <summary>
+/// One subscribable business event in the outbound webhook catalogue (webhooks.md §9). The <see cref="EventType"/>
+/// is the exact journaled event-type discriminator an endpoint puts in its <c>SubscribedEventTypes</c> (or <c>*</c>
+/// for all); <see cref="Label"/> is the human name and <see cref="Category"/> groups it for the subscribe checklist.
+/// Webhook-lifecycle events are deliberately absent — they are deny-listed to prevent self-amplification.
+/// </summary>
+public sealed record OutboundWebhookEventCatalogueEntry(
+    string EventType,
+    string Label,
+    string Category
+);
+
 public sealed record CreateOutboundWebhookRequest
 {
     public required string Name { get; init; }

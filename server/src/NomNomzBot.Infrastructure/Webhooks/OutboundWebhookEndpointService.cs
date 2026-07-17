@@ -41,6 +41,9 @@ public sealed class OutboundWebhookEndpointService(
 {
     private const string Provider = "webhook:out";
 
+    public Result<IReadOnlyList<OutboundWebhookEventCatalogueEntry>> GetEventCatalogue() =>
+        Result.Success(OutboundWebhookEventCatalogue.Entries);
+
     public async Task<Result<PagedList<OutboundWebhookEndpointDto>>> ListAsync(
         Guid broadcasterId,
         PaginationParams pagination,
@@ -156,6 +159,14 @@ public sealed class OutboundWebhookEndpointService(
                 "INVALID_PATH"
             );
 
+        // Every subscribed type must be a real catalogue event (or '*'); webhook-lifecycle types are refused (§9).
+        Result subscription = ValidateSubscribedEventTypes(request.SubscribedEventTypes);
+        if (subscription.IsFailure)
+            return Result.Failure<OutboundWebhookEndpointCreatedDto>(
+                subscription.ErrorMessage,
+                subscription.ErrorCode
+            );
+
         DateTime now = clock.GetUtcNow().UtcDateTime;
         OutboundWebhookEndpoint endpoint = new()
         {
@@ -196,9 +207,17 @@ public sealed class OutboundWebhookEndpointService(
         if (request.Name is not null)
             endpoint.Name = request.Name;
         if (request.SubscribedEventTypes is not null)
+        {
+            Result subscription = ValidateSubscribedEventTypes(request.SubscribedEventTypes);
+            if (subscription.IsFailure)
+                return Result.Failure<OutboundWebhookEndpointDto>(
+                    subscription.ErrorMessage,
+                    subscription.ErrorCode
+                );
             endpoint.SubscribedEventTypesJson = JsonConvert.SerializeObject(
                 request.SubscribedEventTypes
             );
+        }
         if (request.BodyTemplate is not null)
             endpoint.BodyTemplate = request.BodyTemplate;
         if (request.CustomHeaders is not null)
@@ -300,6 +319,31 @@ public sealed class OutboundWebhookEndpointService(
             },
             ct
         );
+
+    /// <summary>
+    /// Rejects a subscription list that names an unknown or webhook-lifecycle event type (webhooks.md §9). <c>*</c> is
+    /// always allowed (it means "all catalogue events" and never matches a lifecycle type). The lifecycle check runs
+    /// first so a deny-listed type gets the precise "not subscribable" reason instead of a generic "unknown".
+    /// </summary>
+    private static Result ValidateSubscribedEventTypes(IReadOnlyList<string> eventTypes)
+    {
+        foreach (string eventType in eventTypes)
+        {
+            if (eventType == OutboundWebhookEventCatalogue.Wildcard)
+                continue;
+            if (OutboundWebhookEventCatalogue.IsLifecycle(eventType))
+                return Result.Failure(
+                    $"Event type '{eventType}' is not subscribable — webhook-lifecycle events are deny-listed to prevent self-amplification.",
+                    "VALIDATION_FAILED"
+                );
+            if (!OutboundWebhookEventCatalogue.IsSubscribable(eventType))
+                return Result.Failure(
+                    $"Unknown event type '{eventType}'. Subscribe only to types from the event catalogue (or '*').",
+                    "VALIDATION_FAILED"
+                );
+        }
+        return Result.Success();
+    }
 
     private Task<OutboundWebhookEndpoint?> FindAsync(
         Guid broadcasterId,

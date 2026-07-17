@@ -61,6 +61,27 @@ public static class OverlayEventFilter
         "HypeTrainEndedEvent",
     };
 
+    /// <summary>
+    /// The curated roster of user-facing business events. On the overlay wire these are dropped from the generic
+    /// feed only because a dedicated broadcaster re-emits them decorated — for OTHER forwarders (outbound webhooks)
+    /// this is exactly the positive allowlist of "things a viewer/integration cares about". The outbound webhook
+    /// catalogue reuses this set as its seed rather than maintaining a parallel copy (webhooks.md §9).
+    /// </summary>
+    public static IReadOnlySet<string> UserFacingBusinessEvents => DecoratedElsewhere;
+
+    /// <summary>
+    /// True when the event is internal platform plumbing (EventSub/Helix lifecycle, integration/deployment/projection/
+    /// authorization machinery) that no user-facing forwarder should ever carry. Reused by the outbound webhook
+    /// catalogue to prove no catalogue entry is internal noise.
+    /// </summary>
+    public static bool IsInternalPlumbing(string eventType)
+    {
+        foreach (string prefix in InternalPrefixes)
+            if (eventType.StartsWith(prefix, StringComparison.Ordinal))
+                return true;
+        return false;
+    }
+
     public static bool ShouldForward(string eventType)
     {
         if (string.IsNullOrWhiteSpace(eventType))
@@ -70,9 +91,8 @@ public static class OverlayEventFilter
         if (DecoratedElsewhere.Contains(eventType))
             return false;
 
-        foreach (string prefix in InternalPrefixes)
-            if (eventType.StartsWith(prefix, StringComparison.Ordinal))
-                return false;
+        if (IsInternalPlumbing(eventType))
+            return false;
 
         // Raw Twitch EventSub topic names (lowercase, dotted — e.g. "channel.chat.message") are the wire duplicates
         // of the clean PascalCase domain events; forward the domain form only. The "custom." / "supporter." dotted

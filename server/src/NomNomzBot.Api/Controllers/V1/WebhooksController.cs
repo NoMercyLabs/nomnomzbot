@@ -106,6 +106,18 @@ public class WebhooksController(
         CancellationToken ct
     ) => ResultResponse(await inbound.DeleteAsync(channelId, endpointId, ct));
 
+    /// <summary>
+    /// The catalogue of subscribable business event types for outbound webhooks — the closed set an endpoint may
+    /// subscribe to (webhooks.md §9). Lets the dashboard render a checklist instead of a free-text box.
+    /// </summary>
+    [HttpGet("outbound/event-catalogue")]
+    [RequireAction("webhooks:outbound:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<OutboundWebhookEventCatalogueEntry>>>(
+        StatusCodes.Status200OK
+    )]
+    public IActionResult GetOutboundEventCatalogue(Guid channelId) =>
+        ResultResponse(outbound.GetEventCatalogue());
+
     /// <summary>List the channel's outbound webhook endpoints, paginated.</summary>
     [HttpGet("outbound")]
     [RequireAction("webhooks:outbound:read")]

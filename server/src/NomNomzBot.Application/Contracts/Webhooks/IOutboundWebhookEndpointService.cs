@@ -32,6 +32,13 @@ public interface IOutboundWebhookEndpointService
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// The catalogue of subscribable business event types (webhooks.md §9) — the closed set an endpoint's
+    /// <c>SubscribedEventTypes</c> is validated against, so the dashboard renders a checklist instead of a free-text
+    /// box. Webhook-lifecycle events are deliberately absent (self-amplification deny-list). Never fails.
+    /// </summary>
+    Result<IReadOnlyList<OutboundWebhookEventCatalogueEntry>> GetEventCatalogue();
+
     /// <summary>Validates the Fqdn against an enabled H.7 row, mints + seals the secret. Reveals the secret once.</summary>
     Task<Result<OutboundWebhookEndpointCreatedDto>> CreateAsync(
         Guid broadcasterId,
