@@ -34,6 +34,12 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Where:** `server/openapi/v1.json` (refreshed); spec `automation-api.md` §5.
 - **Done when:** on dev, a created token shows its secret once, survives reload as a prefix-only
   row, rotate invalidates the old secret, and revoke marks the row revoked.
+- **Addendum (device pairing, stream-deck.md):** the same screen gets a "Pair a device" button →
+  `POST api/v1/automation/pair-codes` (body `{deviceLabel, scopes?}` — scopes default to
+  invoke+events+read, add `chat` only via an explicit checkbox) → show the returned 8-char `code` big
+  and copyable with its 5-minute expiry countdown. The device redeems it itself on
+  `POST /automation/v1/pair` (no UI needed); after pairing the device simply appears in the token
+  list named "Kind: Label" — revoke = unpair.
 
 ### 2026-07-17 — TTS: BYOK provider keys (bring-your-own Azure/ElevenLabs key)
 - **From:** Stoney_Eagle (via Claude, backend track)

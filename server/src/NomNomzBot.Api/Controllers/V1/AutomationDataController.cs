@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authentication;
+using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.AutomationApi.Services;
@@ -29,8 +30,38 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("automation/v1")]
 [Authorize(AuthenticationSchemes = ApiTokenAuthenticationHandler.SchemeName)]
 [Tags("Automation data plane")]
-public class AutomationDataController(IAutomationCommandService commands) : BaseController
+public class AutomationDataController(
+    IAutomationCommandService commands,
+    IAutomationPairingService pairing,
+    IConfiguration configuration
+) : BaseController
 {
+    /// <summary>
+    /// Redeem a device pairing code (stream-deck.md §4). The DEVICE has no credential yet — the code
+    /// IS the credential — so this is the one anonymous data-plane action; it is single-use and
+    /// brute-force guarded per caller AND globally, and a successful redeem returns the one-time
+    /// automation token secret plus the backend URL the device should connect back to.
+    /// </summary>
+    [HttpPost("pair")]
+    [AllowAnonymous]
+    [ProducesResponseType<StatusResponseDto<PairingRedemptionDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RedeemPairing(
+        [FromBody] RedeemPairingCodeRequest request,
+        CancellationToken ct
+    )
+    {
+        string clientKey = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        Result<PairingRedemptionDto> result = await pairing.RedeemCodeAsync(
+            request.Code,
+            request.Device,
+            clientKey,
+            Request.ResolvePublicOrigin(configuration),
+            ct
+        );
+        SetRetryAfter(result.ErrorCode, result.ErrorDetail);
+        return ResultResponse(result);
+    }
+
     /// <summary>Broadcaster + instance summary (scope <c>read</c>).</summary>
     [HttpGet("info")]
     [ProducesResponseType<StatusResponseDto<AutomationInfo>>(StatusCodes.Status200OK)]

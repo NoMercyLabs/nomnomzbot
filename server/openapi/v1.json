@@ -4963,6 +4963,106 @@
         }
       }
     },
+    "/automation/v1/pair": {
+      "post": {
+        "tags": [
+          "Automation data plane"
+        ],
+        "summary": "Redeem a device pairing code (stream-deck.md §4). The DEVICE has no credential yet — the code\r\nIS the credential — so this is the one anonymous data-plane action; it is single-use and\r\nbrute-force guarded per caller AND globally, and a successful redeem returns the one-time\r\nautomation token secret plus the backend URL the device should connect back to.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemPairingCodeRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemPairingCodeRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemPairingCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPairingRedemptionDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/automation/v1/info": {
       "get": {
         "tags": [
@@ -5396,6 +5496,116 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/automation/pair-codes": {
+      "post": {
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Mint a pairing code for the caller's channel (single-use, ~5 minutes).",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MintPairingCodeRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MintPairingCodeRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/MintPairingCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPairingCodeDto"
                 }
               }
             }
@@ -59953,6 +60163,27 @@
         },
         "description": "A started Device Code Flow authorization (the no-secret login). The client shows string DeviceCodeStartDto.UserCode and\r\nsends the operator to string DeviceCodeStartDto.VerificationUri, then polls with string DeviceCodeStartDto.DeviceCode every\r\nint DeviceCodeStartDto.Interval seconds until int DeviceCodeStartDto.ExpiresIn elapses."
       },
+      "DeviceInfo": {
+        "required": [
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "maxLength": 50,
+            "type": "string",
+            "description": "Device family, e.g. `Stream Deck`, `Touch Portal`."
+          },
+          "name": {
+            "maxLength": 80,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "What the redeeming device says about itself (shown in the token list, e.g. \"Stream Deck: Office\")."
+      },
       "DeviceLoginPollDto": {
         "required": [
           "status"
@@ -63019,6 +63250,27 @@
       "MembershipSource": {
         "type": "integer"
       },
+      "MintPairingCodeRequest": {
+        "required": [
+          "deviceLabel"
+        ],
+        "type": "object",
+        "properties": {
+          "deviceLabel": {
+            "maxLength": 80,
+            "type": "string",
+            "description": "What the paired device will be called — becomes part of the minted token's name."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Scopes the paired device receives. Empty = the safe default (`invoke`, `events`,\r\n`read`); `chat` is granted ONLY when explicitly listed here."
+          }
+        },
+        "description": "Request to mint a device pairing code (stream-deck.md §3) — the dashboard side of pairing."
+      },
       "MissingScopeDto": {
         "required": [
           "scope",
@@ -65696,6 +65948,46 @@
           }
         }
       },
+      "PairingCodeDto": {
+        "required": [
+          "code",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "A short-lived single-use pairing code the operator types (or scans) into the device."
+      },
+      "PairingRedemptionDto": {
+        "required": [
+          "backendUrl",
+          "token",
+          "scopes"
+        ],
+        "type": "object",
+        "properties": {
+          "backendUrl": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Everything a freshly-paired device needs to talk to this instance: where (string PairingRedemptionDto.BackendUrl),\r\nas whom (string PairingRedemptionDto.Token — the one-time automation token secret, never retrievable again), and\r\nwhat it may do (IReadOnlyList&lt;string&gt; PairingRedemptionDto.Scopes)."
+      },
       "PerformModerationActionRequest": {
         "required": [
           "action",
@@ -66386,6 +66678,23 @@
           }
         },
         "description": "The result of redeeming an invite code."
+      },
+      "RedeemPairingCodeRequest": {
+        "required": [
+          "code",
+          "device"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "maxLength": 16,
+            "type": "string"
+          },
+          "device": {
+            "$ref": "#/components/schemas/DeviceInfo"
+          }
+        },
+        "description": "Body of `POST /automation/v1/pair` — the code IS the credential."
       },
       "RedemptionListItem": {
         "required": [
@@ -71122,6 +71431,66 @@
               },
               {
                 "$ref": "#/components/schemas/OverlayManifest"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfPairingCodeDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PairingCodeDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfPairingRedemptionDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PairingRedemptionDto"
               }
             ]
           },

@@ -54,7 +54,7 @@ public sealed record DeviceInfo(string Kind, string? Name);   // Kind: "streamde
 public sealed record PairingRedemptionDto(string BackendUrl, string Token, IReadOnlyList<string> Scopes);
 ```
 
-`MintCodeAsync` defaults scopes to `invoke`+`events`+`read` (never `chat` for a key-bound device unless explicitly added). `RedeemCodeAsync` calls `IAutomationApiTokenService.CreateAsync` (token name = `"{DeviceInfo.Kind}: {DeviceLabel}"`) and returns the one-time secret + the resolved `BackendUrl` (from `IDeploymentProfileService.Current`).
+`MintCodeAsync` defaults scopes to `invoke`+`events`+`read` (never `chat` for a key-bound device unless explicitly added). `RedeemCodeAsync` calls `IAutomationApiTokenService.CreateAsync` (token name = `"{DeviceInfo.Kind}: {DeviceLabel}"`, falling back to the mint-time label; a same-name re-pair disambiguates with the code's tail instead of failing) and returns the one-time secret + the resolved `BackendUrl` — **as built 2026-07-17: from `HttpRequest.ResolvePublicOrigin(configuration)`** (`PublicOriginExtensions`), the platform's access-origin source (`App:BaseUrl` → forwarded request origin → loopback), because `IDeploymentProfileService.Current` carries no URL; the controller resolves it from the redeeming request and passes it in.
 
 ---
 

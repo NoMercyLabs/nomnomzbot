@@ -35,7 +35,6 @@ what REMAINS.
 - [ ] **19. Live overlay games** (`live-games.md`) — session lifecycle + game catalog/manifest.
 - [ ] **20. Widget gallery + overlay manifest** (`widgets-overlays.md`) — gallery, `OverlayController`
   manifest, widget versions/build (the compiled-bundle/gallery/import pipeline).
-- [ ] **21. Stream Deck** (`stream-deck.md`) — pairing-code flow on automation tokens.
 - [ ] **22. Marketplace / bundles** (`marketplace.md`) — export/inspect/import/uninstall;
   browse/install/publish.
 - [ ] **23. GDPR/compliance + IPC dev-mode controllers** (`gdpr-crypto.md`, `stream-admin.md`).
