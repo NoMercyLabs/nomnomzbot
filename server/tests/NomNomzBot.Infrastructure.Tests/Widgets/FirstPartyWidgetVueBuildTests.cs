@@ -20,7 +20,7 @@ using NomNomzBot.Infrastructure.Widgets.Bundling;
 namespace NomNomzBot.Infrastructure.Tests.Widgets;
 
 /// <summary>
-/// End-to-end proof that the seventeen shipped first-party <c>.vue</c> SFCs are real, compilable widgets: each embedded
+/// End-to-end proof that the twenty-one shipped first-party <c>.vue</c> SFCs are real, compilable widgets: each embedded
 /// asset runs through the full build path — stage A compiles the SFC in a real <see cref="JintVueSfcCompiler"/>,
 /// stage B bundles it with esbuild (Vue kept external, mapped to the host <c>window.Vue</c>). When the esbuild
 /// binary is present the assertions cover the self-contained IIFE (Vue global + render output); when it is absent
@@ -52,6 +52,10 @@ public sealed class FirstPartyWidgetVueBuildTests : IClassFixture<VueSfcCompiler
     [InlineData("raffle")]
     [InlineData("heist")]
     [InlineData("crash")]
+    [InlineData("recent_followers")]
+    [InlineData("sub_train")]
+    [InlineData("socials")]
+    [InlineData("top_cheerers")]
     [InlineData("event_ticker")]
     [InlineData("chat_box")]
     [InlineData("now_playing")]

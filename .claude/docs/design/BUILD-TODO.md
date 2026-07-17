@@ -92,7 +92,6 @@ what REMAINS.
 - [ ] games and commands are overlapping and need to be clearly separated in their functionality and purpose.
 - [ ] pick lists makes no sense to what its purpose is and needs to be reworked to be more user friendly and intuitive.
 - [ ] tts needs a full rework, it's not intuitive and there is no way to search for voices properly or even setting your own voice as a viewer.
-- [ ] we need WAY more overlays, the current ones are very limited and not very useful for streamers.
 - [ ] looks like pipelines need to be reworked into all the other things listed above, and also overhauled to be more user friendly and intuitive and usability.
 - [ ] every user id input, source id input, and channel id input needs to be a pick list with search and auto complete functionality.
 - [ ] code scripts seems to be completely useless now that we have the proper vscode editor for the overlays.

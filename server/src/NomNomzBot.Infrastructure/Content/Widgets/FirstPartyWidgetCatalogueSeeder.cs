@@ -299,6 +299,53 @@ public sealed class FirstPartyWidgetCatalogueSeeder : ISeeder
             },
             DefaultEventSubscriptions: ["custom.heartrate"]
         ),
+        new(
+            Key: "recent_followers",
+            Name: "Recent Followers",
+            Description: "A persistent standings panel of the most recent followers, newest on top — a always-on "
+                + "list rather than a one-at-a-time alert, with a configurable count and title.",
+            DefaultSettings: new()
+            {
+                ["count"] = 5,
+                ["title"] = "Recent followers",
+                ["accentColor"] = "#9146ff",
+            },
+            DefaultEventSubscriptions: ["follow"]
+        ),
+        new(
+            Key: "sub_train",
+            Name: "Sub Train",
+            Description: "A hype counter that spikes on rapid subs and gift subs and cools down on its own — the "
+                + "count of subs still inside a rolling window (a gift of N counts as N), hidden when the train stops.",
+            DefaultSettings: new() { ["windowMs"] = 300000, ["accentColor"] = "#9146ff" },
+            DefaultEventSubscriptions: ["subscription", "resub", "gift"]
+        ),
+        new(
+            Key: "socials",
+            Name: "Socials",
+            Description: "A config-only rotating handles bar — the streamer's social accounts cross-faded through at "
+                + "a configurable interval. No event feed; the handles come from the widget settings.",
+            DefaultSettings: new()
+            {
+                ["handles"] = new List<object>(),
+                ["rotateMs"] = 8000,
+                ["accentColor"] = "#9146ff",
+            },
+            DefaultEventSubscriptions: []
+        ),
+        new(
+            Key: "top_cheerers",
+            Name: "Top Cheerers",
+            Description: "A ranked board of the session's biggest cheerers by bits — the full leaderboard the labels "
+                + "widget only hints at with its single top cheerer, with a configurable depth and title.",
+            DefaultSettings: new()
+            {
+                ["count"] = 5,
+                ["title"] = "Top cheerers",
+                ["accentColor"] = "#9146ff",
+            },
+            DefaultEventSubscriptions: ["cheer"]
+        ),
     ];
 
     public async Task SeedAsync(CancellationToken ct = default)
