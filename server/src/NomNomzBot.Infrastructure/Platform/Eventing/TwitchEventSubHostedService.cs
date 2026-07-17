@@ -103,10 +103,17 @@ public sealed class TwitchEventSubHostedService
         if (!await IsPlatformBotConfiguredAsync(cancellationToken))
         {
             _logger.LogInformation("EventSub: waiting for onboarding before connecting to Twitch.");
-            _dormancyCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            // Capture the token into a LOCAL before handing it to the lambda: the lambda may start on the
+            // thread pool after StopAsync has already disposed + nulled the field, and reading the field
+            // there is a null/disposed race (the CI-flaking NRE in the dormancy tests).
+            CancellationTokenSource dormancyCts = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken
+            );
+            CancellationToken dormancyToken = dormancyCts.Token;
+            _dormancyCts = dormancyCts;
             _dormancyWaiter = Task.Run(
-                () => WaitForReadinessThenStartAsync(_dormancyCts.Token),
-                _dormancyCts.Token
+                () => WaitForReadinessThenStartAsync(dormancyToken),
+                dormancyToken
             );
             return;
         }
@@ -116,12 +123,10 @@ public sealed class TwitchEventSubHostedService
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
+        // Cancel first, dispose only AFTER the waiter has been awaited — the waiter's PeriodicTimer
+        // registers on the token, and registering against a disposed source throws.
         if (_dormancyCts is not null)
-        {
             await _dormancyCts.CancelAsync();
-            _dormancyCts.Dispose();
-            _dormancyCts = null;
-        }
 
         if (_dormancyWaiter is not null)
         {
@@ -130,6 +135,13 @@ public sealed class TwitchEventSubHostedService
                 await _dormancyWaiter;
             }
             catch (OperationCanceledException) { }
+            _dormancyWaiter = null;
+        }
+
+        if (_dormancyCts is not null)
+        {
+            _dormancyCts.Dispose();
+            _dormancyCts = null;
         }
 
         await _transport.StopAsync(cancellationToken);
