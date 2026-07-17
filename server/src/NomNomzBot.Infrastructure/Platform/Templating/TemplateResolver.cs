@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Abstractions.Transport;
@@ -24,6 +25,7 @@ using NomNomzBot.Application.ViewerData.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.CustomEvents;
 
 namespace NomNomzBot.Infrastructure.Platform.Templating;
 
@@ -110,6 +112,19 @@ public sealed partial class TemplateResolver : ITemplateResolver
         )
             template = await ExpandListPicksAsync(template, broadcasterId.Value, cancellationToken);
 
+        // Expand {custom.<name>.<field>} — substitute each with the latest ingested value of that field from
+        // the broadcaster's named custom-data source (the D4 latest-value cache). A missing source/field or
+        // any read failure expands to empty; runs alongside the pick-list pre-pass, before the main pass.
+        if (
+            broadcasterId is not null
+            && template.Contains("{custom.", StringComparison.OrdinalIgnoreCase)
+        )
+            template = await ExpandCustomDataAsync(
+                template,
+                broadcasterId.Value,
+                cancellationToken
+            );
+
         // Build a merged variable bag: start with seeds, fill in auto-resolved on demand
         Dictionary<string, string> vars = new(seedVariables, StringComparer.OrdinalIgnoreCase);
 
@@ -179,6 +194,83 @@ public sealed partial class TemplateResolver : ITemplateResolver
         }
 
         return current;
+    }
+
+    /// <summary>
+    /// Replaces every <c>{custom.&lt;name&gt;.&lt;field&gt;}</c> placeholder with the latest ingested value of that field
+    /// from the broadcaster's named custom-data source — read from the D4 latest-value cache
+    /// (<c>customdata:{broadcasterId}:{name}</c>) written by <see cref="CustomDataIngestService"/>. A missing
+    /// source, a missing field, or any read failure resolves to an empty string; never throws, never leaves the
+    /// raw token. Runs before the main pass so surrounding text and other placeholders resolve normally.
+    /// </summary>
+    private async Task<string> ExpandCustomDataAsync(
+        string template,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        MatchCollection matches = CustomDataPattern().Matches(template);
+        if (matches.Count == 0)
+            return template;
+
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        ICacheService cache = scope.ServiceProvider.GetRequiredService<ICacheService>();
+
+        // One cache read per distinct source referenced, reused across its fields within this template.
+        Dictionary<string, CustomDataLatestValue?> bySource = new(StringComparer.OrdinalIgnoreCase);
+
+        System.Text.StringBuilder builder = new();
+        int cursor = 0;
+        foreach (Match match in matches)
+        {
+            builder.Append(template, cursor, match.Index - cursor);
+            string name = match.Groups[1].Value;
+            string field = match.Groups[2].Value;
+
+            if (!bySource.TryGetValue(name, out CustomDataLatestValue? latest))
+            {
+                latest = await ReadLatestCustomDataAsync(cache, broadcasterId, name, ct);
+                bySource[name] = latest;
+            }
+
+            // Missing source OR missing field → empty string (mirrors the pick-list missing-list path).
+            builder.Append(
+                latest is not null && latest.Fields.TryGetValue(field, out string? value)
+                    ? value
+                    : string.Empty
+            );
+            cursor = match.Index + match.Length;
+        }
+        builder.Append(template, cursor, template.Length - cursor);
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Reads the D4 latest-value cache for one source, matching the exact key
+    /// <see cref="CustomDataIngestService"/> writes. Any failure yields null, which expands to an empty string.
+    /// </summary>
+    private async Task<CustomDataLatestValue?> ReadLatestCustomDataAsync(
+        ICacheService cache,
+        Guid broadcasterId,
+        string sourceName,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            string cacheKey = $"customdata:{broadcasterId}:{sourceName}";
+            return await cache.GetAsync<CustomDataLatestValue>(cacheKey, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Failed to read latest custom-data value for source {Source} on tenant {BroadcasterId}",
+                sourceName,
+                broadcasterId
+            );
+            return null;
+        }
     }
 
     // ─── Built-in resolution ──────────────────────────────────────────────────
@@ -889,6 +981,9 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
     [GeneratedRegex(@"\{list\.pick\.([^{}]+)\}", RegexOptions.IgnoreCase)]
     private static partial Regex ListPickPattern();
+
+    [GeneratedRegex(@"\{custom\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)\}", RegexOptions.IgnoreCase)]
+    private static partial Regex CustomDataPattern();
 
     [GeneratedRegex(@"\{([^{}]+)\}")]
     private static partial Regex VariablePattern();
