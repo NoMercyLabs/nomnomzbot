@@ -59,6 +59,22 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** on dev, suspending a tenant makes its dashboard/API go dark and the audit screen
   shows the operator's action trail; reinstating restores it.
 
+### 2026-07-17 — Admin panel: AdminHub is live now + `admin/health` is real
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the admin SignalR hub (`/hubs/admin`, connectable by platform principals) now actually
+  pushes: `ReceiveSystemStatus` every 15s (`{ system: AdminSystemDto, stats: AdminStatsDto }` — wire
+  the live health/stats panel to it instead of polling), `ReceiveChannelRegistryUpdate` on channel
+  go-live/offline (`{ broadcasterId, channelName, isLive, streamTitle?, gameName? }`) and on tenant
+  suspension (`{ broadcasterId, status }`), `ReceiveLog` on suspensions (`{ message, type }`).
+  Also `GET admin/health` / `GET admin/system` now report REAL probes (per-profile database/redis
+  checks + bot token readiness) with an honest overall verdict (`healthy|degraded|unhealthy`) —
+  surface degraded/unhealthy states truthfully, don't restyle them green.
+- **Why:** owner item — admin panel "is just show"; the hub was mapped but nothing ever pushed.
+- **Where:** SignalR `/hubs/admin` (token as `?access_token=`), same shared KMP SignalR client as
+  the dashboard hub.
+- **Done when:** the admin home's status panel updates without reload while the API runs, and a
+  channel going live/offline moves the registry list in real time.
+
 ### 2026-07-17 — Discord: the guild-notification backend is COMPLETE — the page just doesn't surface it
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the owner's "no way of adding it properly to a guild's channel" is a UI gap — the full

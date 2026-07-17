@@ -11,8 +11,10 @@
 using System.Diagnostics;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 
@@ -22,11 +24,20 @@ public sealed class AdminService : IAdminService
 {
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
+    private readonly HealthCheckService _healthChecks;
+    private readonly IPlatformBotReadinessGate _botReadiness;
 
-    public AdminService(IApplicationDbContext db, TimeProvider timeProvider)
+    public AdminService(
+        IApplicationDbContext db,
+        TimeProvider timeProvider,
+        HealthCheckService healthChecks,
+        IPlatformBotReadinessGate botReadiness
+    )
     {
         _db = db;
         _timeProvider = timeProvider;
+        _healthChecks = healthChecks;
+        _botReadiness = botReadiness;
     }
 
     public async Task<Result<AdminStatsDto>> GetStatsAsync(CancellationToken ct = default)
@@ -116,26 +127,45 @@ public sealed class AdminService : IAdminService
         );
     }
 
-    public Task<Result<AdminSystemDto>> GetSystemHealthAsync(CancellationToken ct = default)
+    public async Task<Result<AdminSystemDto>> GetSystemHealthAsync(CancellationToken ct = default)
     {
         Process process = Process.GetCurrentProcess();
         long memoryMb = process.WorkingSet64 / (1024 * 1024);
-        long uptimeSeconds = (long)
-            (
-                _timeProvider.GetUtcNow().UtcDateTime - process.StartTime.ToUniversalTime()
-            ).TotalSeconds;
 
         string version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "0.0.0";
 
+        // REAL probes — the same registered health checks the public /health endpoint runs (per profile:
+        // postgres+redis on the durable tier, the lite checks on SQLite), never a canned "healthy" list.
+        HealthReport report = await _healthChecks.CheckHealthAsync(ct);
         List<ServiceHealthDto> services =
         [
-            new("api", "healthy", null),
-            new("database", "healthy", null),
-            new("bot", uptimeSeconds > 0 ? "healthy" : "degraded", null),
+            new("api", "healthy", null), // this code answering IS the probe
+            .. report.Entries.Select(e => new ServiceHealthDto(
+                e.Key,
+                ToStatus(e.Value.Status),
+                (int?)e.Value.Duration.TotalMilliseconds
+            )),
         ];
 
-        AdminSystemDto dto = new("healthy", services, version, memoryMb, 0);
+        // The bot is healthy when its token actually resolves and decrypts — the signal a bot-scoped
+        // Twitch call would succeed (false on a fresh install or after a KEK rotation pending re-auth).
+        bool botReady = await _botReadiness.IsPlatformBotConfiguredAsync(ct);
+        services.Add(new("bot", botReady ? "healthy" : "degraded", null));
 
-        return Task.FromResult(Result.Success(dto));
+        string overall =
+            services.Any(s => s.Status == "unhealthy") ? "unhealthy"
+            : services.Any(s => s.Status == "degraded") ? "degraded"
+            : "healthy";
+
+        AdminSystemDto dto = new(overall, services, version, memoryMb, 0);
+        return Result.Success(dto);
     }
+
+    private static string ToStatus(HealthStatus status) =>
+        status switch
+        {
+            HealthStatus.Healthy => "healthy",
+            HealthStatus.Degraded => "degraded",
+            _ => "unhealthy",
+        };
 }

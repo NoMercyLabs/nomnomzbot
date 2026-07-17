@@ -525,6 +525,9 @@ try
     if (SystemTrayGate.ShouldShowTray(bootMode))
         builder.Services.AddHostedService<SystemTrayHostedService>();
 
+    // The operator hub's live heartbeat — pushes the real admin system snapshot to AdminHub every 15s.
+    builder.Services.AddHostedService<NomNomzBot.Api.Hubs.Broadcasters.AdminHubStatusPublisher>();
+
     WebApplication app = builder.Build();
 
     // Publish the bound port so the self-host mDNS advertiser advertises the actual port (deployment-distribution §6).

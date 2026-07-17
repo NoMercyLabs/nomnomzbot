@@ -711,6 +711,10 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+        // Base health-check service — AdminService reports the REAL registered probes. The Api host's
+        // AddHealthChecks() call layers the per-profile checks (postgres/redis/lite) onto this same service.
+        services.AddHealthChecks();
+
         // Per-platform channel provisioning (cross-platform chat, item 6) — get-or-create the tenant Channel
         // for a streamer's YouTube/Kick presence. Not an I<X>Service, so registered explicitly.
         services.AddScoped<
