@@ -554,6 +554,146 @@ public sealed class OnboardingSeedHandlerTests
         log.Entries.Should().Contain(e => e.Level == LogLevel.Error);
     }
 
+    // ── Bot mod-grant backfill (shared bot connects AFTER channels onboarded) ─
+
+    [Fact]
+    public async Task BotBackfill_handler_mods_the_bot_on_every_enabled_onboarded_channel()
+    {
+        Guid onboardedA = Guid.Parse("0192a000-0000-7000-8000-00000000c0a1");
+        Guid onboardedB = Guid.Parse("0192a000-0000-7000-8000-00000000c0b2");
+        Guid notOnboarded = Guid.Parse("0192a000-0000-7000-8000-00000000c0c3");
+        Guid disabled = Guid.Parse("0192a000-0000-7000-8000-00000000c0d4");
+
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        BotAccount bot = SharedBot();
+        db.BotAccounts.Add(bot);
+        db.Channels.Add(Channel(onboardedA, "tw-a", "chan_a", isOnboarded: true));
+        db.Channels.Add(Channel(onboardedB, "tw-b", "chan_b", isOnboarded: true));
+        db.Channels.Add(Channel(notOnboarded, "tw-c", "chan_c", isOnboarded: false));
+        Channel disabledChannel = Channel(disabled, "tw-d", "chan_d", isOnboarded: true);
+        disabledChannel.Enabled = false;
+        db.Channels.Add(disabledChannel);
+        await db.SaveChangesAsync();
+
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .AddModeratorAsync(Arg.Any<Guid>(), "tw-bot-1", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        ListLogger<BotModGrantOnBotAuthorizedHandler> log = new();
+        BotModGrantOnBotAuthorizedHandler sut = new(db, moderators, log);
+
+        await sut.HandleAsync(BotAuthorized(bot.Id));
+
+        // Every LIVE channel got the mod-grant; the not-onboarded and disabled ones were skipped.
+        await moderators
+            .Received(1)
+            .AddModeratorAsync(onboardedA, "tw-bot-1", Arg.Any<CancellationToken>());
+        await moderators
+            .Received(1)
+            .AddModeratorAsync(onboardedB, "tw-bot-1", Arg.Any<CancellationToken>());
+        await moderators
+            .DidNotReceive()
+            .AddModeratorAsync(notOnboarded, Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await moderators
+            .DidNotReceive()
+            .AddModeratorAsync(disabled, Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task BotBackfill_handler_is_a_noop_for_a_non_shared_bot_identity()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        BotAccount bot = SharedBot();
+        db.BotAccounts.Add(bot);
+        db.Channels.Add(Channel(Broadcaster, "tw-123", "stoney_eagle", isOnboarded: true));
+        await db.SaveChangesAsync();
+
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        ListLogger<BotModGrantOnBotAuthorizedHandler> log = new();
+        BotModGrantOnBotAuthorizedHandler sut = new(db, moderators, log);
+
+        await sut.HandleAsync(
+            new BotAccountAuthorizedEvent
+            {
+                BroadcasterId = Guid.Empty,
+                BotAccountId = bot.Id,
+                IdentityType = AuthEnums.BotIdentityType.Custom,
+                BotUsername = "custombot",
+            }
+        );
+
+        await moderators
+            .DidNotReceive()
+            .AddModeratorAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task BotBackfill_handler_continues_past_a_failing_channel()
+    {
+        Guid failing = Guid.Parse("0192a000-0000-7000-8000-00000000c1a1");
+        Guid succeeding = Guid.Parse("0192a000-0000-7000-8000-00000000c1b2");
+
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        BotAccount bot = SharedBot();
+        db.BotAccounts.Add(bot);
+        db.Channels.Add(Channel(failing, "tw-f", "chan_f", isOnboarded: true));
+        db.Channels.Add(Channel(succeeding, "tw-s", "chan_s", isOnboarded: true));
+        await db.SaveChangesAsync();
+
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .AddModeratorAsync(failing, "tw-bot-1", Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure(
+                    "Missing required scope 'channel:manage:moderators'.",
+                    TwitchErrorCodes.MissingScope
+                )
+            );
+        moderators
+            .AddModeratorAsync(succeeding, "tw-bot-1", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        ListLogger<BotModGrantOnBotAuthorizedHandler> log = new();
+        BotModGrantOnBotAuthorizedHandler sut = new(db, moderators, log);
+
+        await sut.HandleAsync(BotAuthorized(bot.Id));
+
+        // The failing channel logged a warning and the sweep still reached the next channel.
+        await moderators
+            .Received(1)
+            .AddModeratorAsync(succeeding, "tw-bot-1", Arg.Any<CancellationToken>());
+        log.Entries.Should().Contain(e => e.Level == LogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task BotBackfill_handler_is_a_noop_when_the_bot_account_row_is_missing()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(Channel(Broadcaster, "tw-123", "stoney_eagle", isOnboarded: true));
+        await db.SaveChangesAsync();
+
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        ListLogger<BotModGrantOnBotAuthorizedHandler> log = new();
+        BotModGrantOnBotAuthorizedHandler sut = new(db, moderators, log);
+
+        Func<Task> act = () => sut.HandleAsync(BotAuthorized(Guid.NewGuid()));
+
+        await act.Should().NotThrowAsync();
+        await moderators
+            .DidNotReceive()
+            .AddModeratorAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    private static BotAccountAuthorizedEvent BotAuthorized(Guid botAccountId) =>
+        new()
+        {
+            BroadcasterId = Guid.Empty,
+            BotAccountId = botAccountId,
+            IdentityType = AuthEnums.BotIdentityType.Shared,
+            BotUsername = "nomnomzbot",
+        };
+
     // ── Default builtin-commands seed handler ─────────────────────────────────
 
     [Fact]

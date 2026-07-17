@@ -123,7 +123,6 @@ commits; this is the collapsed record.
 - [ ] the entire platform needs to be reworked and overhauled to be more user friendly and intuitive and usability.
 - [ ] data sources are not clear what they do and how they are used, they need to be reworked and overhauled to be more user friendly and intuitive and usability.
 - [ ] **OWNER-GATED:** youtube needs a non-byoc provider for auth. *(Code is DONE — `GoogleYouTubeLoginProvider` resolves via `ISystemCredentialsProvider` (DB-vaulted → shipped config default), same pattern as Twitch's shared `aajly3` default. Remaining is operational: register a Google Cloud OAuth client, pass Google's app verification for public use, and ship its id/secret as the `YouTube:ClientId/ClientSecret` defaults — only the owner can do this.)*
-- [ ] the bot account is not sending messages in chat with the app token on other channels, this is bad UX.
 - [ ] the admin pannel for the saas is just show and does not do anything useful, it does not let me change behavior or go into details of things. i can not promote accounts to admin or grant them specific saas permissions.
 - [ ] billing does not seem to be doing anything.
 - 

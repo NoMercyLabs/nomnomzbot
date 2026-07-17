@@ -993,6 +993,10 @@ public static class DependencyInjection
         // Chat platforms (BUILD slice 3 — the thin multi-platform seam): every send site keeps talking
         // to IChatProvider; the router selects the platform by the tenant channel's Channel.Provider.
         // Multi-bound platforms + the router are all scoped (DbContext + per-tenant token resolution).
+        // The badge-send gate is a singleton: the per-channel "app-token send rejected" memory must
+        // outlive one request so a channel without channel:bot / bot-mod doesn't pay a doomed extra
+        // Helix call on every message.
+        services.AddSingleton<IHelixBadgeSendGate, HelixBadgeSendGate>();
         services.AddScoped<IChatPlatform, HelixChatProvider>();
         services.AddScoped<IChatPlatform, YouTubeChatPlatform>();
         services.AddScoped<IChatPlatform, KickChatPlatform>();

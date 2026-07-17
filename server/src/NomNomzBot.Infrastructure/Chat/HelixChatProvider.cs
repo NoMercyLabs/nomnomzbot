@@ -40,6 +40,7 @@ public sealed class HelixChatProvider : IChatPlatform
     private readonly ITwitchModerationApi _moderation;
     private readonly ITwitchIdentityResolver _identityResolver;
     private readonly IApplicationDbContext _db;
+    private readonly IHelixBadgeSendGate _badgeGate;
     private readonly TwitchOptions _options;
     private readonly ILogger<HelixChatProvider> _logger;
 
@@ -56,6 +57,7 @@ public sealed class HelixChatProvider : IChatPlatform
         ITwitchModerationApi moderation,
         ITwitchIdentityResolver identityResolver,
         IApplicationDbContext db,
+        IHelixBadgeSendGate badgeGate,
         IOptions<TwitchOptions> options,
         ILogger<HelixChatProvider> logger
     )
@@ -64,6 +66,7 @@ public sealed class HelixChatProvider : IChatPlatform
         _moderation = moderation;
         _identityResolver = identityResolver;
         _db = db;
+        _badgeGate = badgeGate;
         _options = options.Value;
         _logger = logger;
     }
@@ -149,22 +152,48 @@ public sealed class HelixChatProvider : IChatPlatform
 
         // Prefer the app-access-token send when the bot has granted `user:bot`: Twitch shows the chatbot badge
         // ONLY for a message sent on an app token (bot `user:bot` + bot-is-mod / broadcaster `channel:bot`),
-        // never on a user token. If that send fails (e.g. the bot lost its moderator status and the broadcaster
-        // never granted `channel:bot`), fall back to the user-token send so the message still goes out — just
-        // without the badge. When the grant is absent there's no badge to earn, so we go straight to fallback.
-        if (
+        // never on a user token. The broadcaster-side half is per CHANNEL: when the broadcaster granted
+        // `channel:bot` the send is eligible by grant; otherwise the attempt itself is the only proof the bot
+        // is a moderator there — so we try optimistically, but a rejection gates that channel for a while
+        // (IHelixBadgeSendGate) instead of paying a doomed extra Helix call on every message. Either way a
+        // failed app-token send falls back to the user-token send so the message still goes out — just
+        // without the badge.
+        bool attemptAppToken =
             sender.CanUseAppToken
-            && await TrySendAsync(
-                broadcasterId,
-                twitchBroadcasterId,
-                sender,
-                message,
-                replyToMessageId,
-                TwitchHelixAuth.BotApp,
-                ct
+            && (sender.ChannelGrantsBotScope || !_badgeGate.IsBlocked(broadcasterId));
+
+        if (attemptAppToken)
+        {
+            if (
+                await TrySendAsync(
+                    broadcasterId,
+                    twitchBroadcasterId,
+                    sender,
+                    message,
+                    replyToMessageId,
+                    TwitchHelixAuth.BotApp,
+                    ct
+                )
             )
-        )
-            return true;
+            {
+                _badgeGate.Clear(broadcasterId);
+                return true;
+            }
+
+            // With `channel:bot` granted a rejection is transient (retry next message); without it the
+            // rejection means the bot isn't a moderator there either — gate the channel until the TTL
+            // re-proves it, and say exactly what restores the badge.
+            if (!sender.ChannelGrantsBotScope)
+            {
+                _badgeGate.Block(broadcasterId);
+                _logger.LogInformation(
+                    "HelixChatProvider: badge (app-token) send rejected in {BroadcasterId} — the broadcaster "
+                        + "has not granted channel:bot and the bot is not a moderator there. Falling back to the "
+                        + "bot's user token (no badge); grant channel:bot or mod the bot to restore it.",
+                    broadcasterId
+                );
+            }
+        }
 
         return await TrySendAsync(
             broadcasterId,
@@ -266,7 +295,8 @@ public sealed class HelixChatProvider : IChatPlatform
             return cached;
 
         BotSenderIdentity? sender =
-            await SharedBotSenderAsync(ct) ?? await OwnerSenderAsync(broadcasterId, ct);
+            await SharedBotSenderAsync(broadcasterId, ct)
+            ?? await OwnerSenderAsync(broadcasterId, ct);
 
         if (sender is not null)
             _senderByBroadcaster[broadcasterId] = sender;
@@ -278,9 +308,13 @@ public sealed class HelixChatProvider : IChatPlatform
     /// The shared platform bot account as the bot sender (<c>twitch_bot</c>, no broadcaster) — its fallback
     /// send rides the bot's own user token (<see cref="TwitchHelixAuth.App"/>). Null when no shared bot with a
     /// real account id exists. <c>CanUseAppToken</c> is set when the bot granted <c>user:bot</c>, so the send
-    /// can ride the badge-bearing app token.
+    /// can ride the badge-bearing app token; <c>ChannelGrantsBotScope</c> carries the broadcaster-side half —
+    /// whether THIS channel's broadcaster granted <c>channel:bot</c>.
     /// </summary>
-    private async Task<BotSenderIdentity?> SharedBotSenderAsync(CancellationToken ct)
+    private async Task<BotSenderIdentity?> SharedBotSenderAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
     {
         var row = await _db
             .IntegrationConnections.IgnoreQueryFilters()
@@ -289,13 +323,15 @@ public sealed class HelixChatProvider : IChatPlatform
             .Select(c => new { c.ProviderAccountId, c.Scopes })
             .FirstOrDefaultAsync(ct);
 
-        return row is null || string.IsNullOrEmpty(row.ProviderAccountId)
-            ? null
-            : new BotSenderIdentity(
-                TwitchHelixAuth.App,
-                row.ProviderAccountId,
-                HasBotScope(row.Scopes)
-            );
+        if (row is null || string.IsNullOrEmpty(row.ProviderAccountId))
+            return null;
+
+        return new BotSenderIdentity(
+            TwitchHelixAuth.App,
+            row.ProviderAccountId,
+            HasBotScope(row.Scopes),
+            await BroadcasterGrantsChannelBotAsync(broadcasterId, ct)
+        );
     }
 
     /// <summary>
@@ -326,21 +362,52 @@ public sealed class HelixChatProvider : IChatPlatform
             : new BotSenderIdentity(
                 TwitchHelixAuth.User,
                 row.ProviderAccountId,
-                HasBotScope(row.Scopes)
+                HasBotScope(row.Scopes),
+                HasChannelBotScope(row.Scopes)
             );
     }
 
+    /// <summary>
+    /// The broadcaster-side half of the app-token requirement for one channel: true when THIS channel's
+    /// owner connection granted <c>channel:bot</c>. When absent the channel may still be eligible via
+    /// bot-is-mod, which only the send attempt itself can prove.
+    /// </summary>
+    private async Task<bool> BroadcasterGrantsChannelBotAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        List<string>? scopes = await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c =>
+                c.Provider == UserProvider
+                && c.BroadcasterId == broadcasterId
+                && c.DeletedAt == null
+            )
+            .OrderBy(c => c.CreatedAt)
+            .Select(c => c.Scopes)
+            .FirstOrDefaultAsync(ct);
+
+        return scopes is not null && HasChannelBotScope(scopes);
+    }
+
     /// <summary>True when the sender's granted scope set carries <c>user:bot</c> — the prerequisite for the
-    /// app-token (badge) send. The other side (<c>channel:bot</c> / bot-is-mod) is proven only by the send
-    /// itself, so a false attempt gracefully falls back to the user-token send.</summary>
+    /// app-token (badge) send. The other side (<c>channel:bot</c> / bot-is-mod) is per channel — see
+    /// <see cref="BroadcasterGrantsChannelBotAsync"/> and the gate in <see cref="PostChatMessageAsync"/>.</summary>
     private static bool HasBotScope(IEnumerable<string> scopes) =>
         scopes.Contains(TwitchScopes.UserBot, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>True when the scope set carries the broadcaster-side <c>channel:bot</c> grant.</summary>
+    private static bool HasChannelBotScope(IEnumerable<string> scopes) =>
+        scopes.Contains(TwitchScopes.ChannelBot, StringComparer.OrdinalIgnoreCase);
+
     /// <summary>The resolved bot sender for one channel: the fallback token the send rides, the account id on
-    /// it, and whether the badge-bearing app-token send is available (<c>user:bot</c> granted).</summary>
+    /// it, whether the badge-bearing app-token send is available (<c>user:bot</c> granted), and whether this
+    /// channel's broadcaster granted <c>channel:bot</c> (the by-grant half of the app-token requirement).</summary>
     private sealed record BotSenderIdentity(
         TwitchHelixAuth FallbackAuth,
         string TwitchUserId,
-        bool CanUseAppToken
+        bool CanUseAppToken,
+        bool ChannelGrantsBotScope
     );
 }
