@@ -23,7 +23,7 @@
 | D2 | **One generic engine** (`ILiveGameEngine` + the `LiveGameRunner` hosted service) runs every game — lobby window, ticks, resolution, crash-recovery. |
 | D3 | **Config reuses `GameConfig` (K.7)**, keyed by `GameType == ILiveGame.GameKey`. A `GameConfig` whose `GameType` matches a discovered `ILiveGame` is a *live* game; one that does not is an *instant* economy game. No new config table. Config CRUD stays economy's (`IGameService.UpsertGameAsync`, key `economy:games:write`). |
 | D4 | **Currency stays economy's.** Live Games never posts a ledger entry directly; it calls three new `IGameService` methods (§3.3, an economy delta) that wrap debits/credits + `GamePlay` appends in one `IUnitOfWork` tx. Entry-fee debits and payout credits are tagged `SourceType=live_game`, `SourceId=sessionId` on `CurrencyLedgerEntry` — the durable link used for crash-refunds. |
-| D5 | **Overlay output reuses the existing push.** The engine sends frames via `IWidgetNotifier.SendWidgetEventAsync(broadcasterId, overlayWidgetId, WidgetEventDto{EventType="game.<phase>", Data})` (widgets-overlays §6) — **no new hub, no per-game socket**. One generic game-overlay protocol; each game declares an `OverlayWidgetKey` and emits frames. |
+| D5 | **Overlay output reuses the existing push.** The engine sends frames via the real notifier `IWidgetEventNotifier.SendWidgetEventAsync(broadcasterId, widgetId, "game.<phase>", data)` (AS-BUILT — the spec's earlier `IWidgetNotifier`/`WidgetEventDto` names never existed) — **no new hub, no per-game socket**. `OverlayWidgetKey` resolves through the `ILiveGameOverlayResolver` seam: gallery `NaturalKey` → the channel's installed, enabled `Widget`; an uninstalled widget skips the push (the round still runs, the overlay stays dark). |
 | D6 | **Start via the action seam; input via one generic subscription.** A round is **started** by the `start_live_game` `ICommandAction` (so a `!dropgame` command, a redemption, or a timer can launch it) or the dashboard. In-session **input** (`!drop`, a number, …) is routed by the engine's **single** chat-event subscription matching the active session's manifest keyword(s) — *one* dispatcher, never a listener per game. (Refines the earlier "input via a pipeline action" sketch: starting uses the action seam; high-frequency in-round input uses the engine's generic subscription — both keep games drop-in.) |
 | D7 | **At most one non-terminal session per channel.** The overlay shows one game at a time; `StartAsync` fails `SESSION_ALREADY_ACTIVE` if a `lobby`/`running`/`resolving` session exists for the channel. |
 | D8 | **Fun-money only.** Stakes/payouts are channel currency; the zero-value-out and optional-18+ rules of `economy.md` §3.5 apply unchanged (a live game with `Category=gambling` inherits the same `IAgeConsentService` gate). |
@@ -233,7 +233,12 @@ The `ILiveGame` class needs no art; only its `OverlayWidgetKey` does. Games ther
 
 ## 5. REST surface
 
-Controller `GameSessionsController`, `[Route("api/v{version:apiVersion}/games/sessions")]`. `[Authorize]`; Gate-2 keys via the roles middleware. Cells: `<plane> / <Role> · action:key` (per `roles-permissions.md`).
+Controller `GameSessionsController`, `[Route("api/v{version:apiVersion}/channels/{channelId}/games/sessions")]`
+(AS-BUILT: channel-routed like every management controller — the explicit-target tenant convention).
+`[Authorize]`; Gate-2 keys via the roles middleware. Cells: `<plane> / <Role> · action:key` (per
+`roles-permissions.md`). The catalog route returns `LiveGameCatalogEntryDto` rows (the manifest with
+wire-friendly `LobbyWindowSeconds`/`TickIntervalSeconds`) rather than raw `LiveGameManifest` (TimeSpan
+does not serialize cleanly).
 
 | Verb | Path | Request | Response | Gate |
 |---|---|---|---|---|
@@ -251,7 +256,7 @@ Seed `games:session:read/start/cancel` permission rows (Gate-2) in `roles-permis
 
 ## 6. Pipeline actions
 
-`ICommandAction` (canonical contract, commands-pipelines §3.13: `Type`/`Category`/`Description`/`Task<ActionResult> ExecuteAsync(ActionContext, CancellationToken)`; params from `ctx.Parameters`, tenant `ctx.BroadcasterId`). Registered `Transient` with the action set.
+`ICommandAction` (AS-BUILT contract: `string ActionType` + `Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)`; params via `action.GetString/GetInt`, tenant `ctx.BroadcasterId`, outputs into `ctx.Variables`). Registered `Transient` by the `ICommandAction` assembly scan — zero DI edits.
 
 | Type | Config | Behavior |
 |---|---|---|

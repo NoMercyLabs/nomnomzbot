@@ -509,6 +509,7 @@ public sealed class GameService(
                 continue;
 
             long? payoutEntryId = null;
+            Guid playerAccountId = award.AccountId;
             if (award.Payout > 0)
             {
                 Result<CurrencyLedgerEntryDto> credit = await accounts.PostLedgerEntryAsync(
@@ -535,6 +536,10 @@ public sealed class GameService(
                     continue;
                 }
                 payoutEntryId = credit.Value.Id;
+                // Feeless joiners carry no account id (no stake was posted) — the payout credit
+                // just resolved/created it.
+                if (playerAccountId == Guid.Empty)
+                    playerAccountId = credit.Value.AccountId;
             }
 
             pendingPlays.Add(
@@ -543,7 +548,7 @@ public sealed class GameService(
                     BroadcasterId = broadcasterId,
                     GameConfigId = settlement.GameConfigId,
                     GameSessionId = settlement.SessionId,
-                    PlayerAccountId = award.AccountId,
+                    PlayerAccountId = playerAccountId,
                     PlayerUserId = award.ViewerUserId,
                     BetAmount = award.Stake,
                     Outcome = award.Outcome,

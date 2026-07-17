@@ -875,6 +875,27 @@ public static class DependencyInjection
             Vts.Transport.VtsPluginAuthorizer
         >();
 
+        // ── Live games (live-games.md §7): one generic engine over drop-in ILiveGame classes ──
+        // Games auto-register by assembly scan (adding a game touches no engine code — D1); the catalog is
+        // built once from them and fails fast on a duplicate GameKey. The registry is the singleton holder
+        // of live per-channel round state shared by the scoped engine, the chat listener (IEventHandler
+        // scan), and the LiveGameRunner wall clock (AddHostedWorkers scan). The two pipeline actions ride
+        // the ICommandAction scan.
+        services.AddImplementationsOf<Application.Games.ILiveGame>(
+            infrastructure,
+            ServiceLifetime.Singleton
+        );
+        services.AddSingleton<Application.Games.Services.ILiveGameCatalog, Games.LiveGameCatalog>();
+        services.AddSingleton<Games.LiveGameSessionRegistry>();
+        services.AddScoped<
+            Application.Games.Services.ILiveGameOverlayResolver,
+            Games.LiveGameOverlayResolver
+        >();
+        services.AddScoped<Games.LiveGameEngine>();
+        services.AddScoped<Application.Games.Services.ILiveGameEngine>(sp =>
+            sp.GetRequiredService<Games.LiveGameEngine>()
+        );
+
         // Standalone-validation fallback — the API host replaces this with the hub-backed pusher.
         Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddSingleton<
             Application.Obs.Services.IObsBridgePusher,

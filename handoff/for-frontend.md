@@ -16,6 +16,29 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Live games: session panel on the Games page + palette entries
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the live-games engine + REST surface exists (live-games.md §5); the dashboard Games page
+  gains a **Live sessions** panel composing it with the existing per-game config CRUD:
+  1. Routes under `channels/{channelId}/games/sessions`: `GET catalog` (every discovered game —
+     `LiveGameCatalogEntryDto`: gameKey, displayName, inputKeywords, min/maxPlayers,
+     lobbyWindowSeconds, requiresEntryFee), `GET active` (the running round — status
+     `Lobby|Running|Resolving`, participantCount, joinClosesAt; 404-style when none),
+     `POST` `{gameType}` to start a round, `DELETE {sessionId}` to cancel (refunds every entry
+     fee), `GET` (paged settled/cancelled history, filter `gameType`/`status`).
+  2. Gate-2: `games:session:read`/`start`/`cancel`, all Moderator floor — enable the panel for
+     mods; per-game config stays `economy:games:write` (Broadcaster).
+  3. **Palette**: two new pipeline actions — `start_live_game` (`game_type` param; writes
+     `session_id`/`status` vars) and `cancel_live_game` (no params).
+  Note: no first-party game ships YET (the reference `drop_game` + its overlay widget is the next
+  backend slice) — the catalog is empty until then, so build the panel data-driven off the catalog
+  endpoint.
+- **Why:** BUILD-TODO item 19 (StreamElements/Streamer.bot parity) — dropgame-class multi-viewer
+  overlay rounds started from dashboard, chat, or a redemption.
+- **Where:** `server/openapi/v1.json` (refreshed — 4 new session routes); spec `live-games.md`.
+- **Done when:** with a seeded game on dev: starting a round from the panel shows the live session
+  card (participants climbing as chatters join), cancel refunds, and history lists the settled round.
+
 ### 2026-07-17 — VTube Studio: config page + authorize button + palette entries
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the whole VTS backend exists (vtube-studio.md). Frontend pieces:
