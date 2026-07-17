@@ -16,6 +16,38 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-18 — Dashboard chat live-push is a FRONTEND subscription gap (root-caused)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **Symptom (owner):** new Twitch chat only appears after a reload/re-nav; a prior fix (`1a4554c`,
+  "keep the chat WebSocket alive") did not resolve it.
+- **Backend is confirmed working — the push path is complete and correct:** EventSub
+  `channel.chat.message` → `ChatMessageReceivedEvent` → `DashboardBroadcastHandler.HandleAsync`
+  (`server/src/NomNomzBot.Api/Hubs/Broadcasters/DashboardBroadcastHandler.cs:63`) enriches then calls
+  `DashboardNotifier.SendChatMessageAsync` (`DashboardNotifier.cs:123-127`), which pushes to
+  `Clients.Group("{broadcasterId}:chat").ChatMessage(dto)` on `DashboardHub`. Dashboards join that
+  group via `DashboardHub.JoinChannel` / `JoinChannelClasses(["chat"])` (`DashboardHub.cs:86-153`).
+- **The gap is purely frontend — one of these two:** the chat screen's SignalR client either (a) never
+  calls `JoinChannelClasses` with the `"chat"` class (so it's not in the `{broadcasterId}:chat` group
+  and receives nothing), or (b) doesn't register a client handler for the `ChatMessage` hub method (so
+  pushes arrive but nothing renders). Keeping the socket alive (the prior fix) is necessary but not
+  sufficient — verify BOTH the join and the handler. NOTE: `HubSocket` is the browser-native WebSocket
+  path (Ktor WS is broken on wasmJs — see memory) — confirm the join/handler wiring runs on that path.
+- **Done when:** with the dashboard chat open on dev, a new live Twitch message renders WITHOUT reload.
+
+### 2026-07-18 — Analytics charts are a pure frontend render (series data already exists)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the backend already returns time-series suitable for charts — no new endpoint needed:
+  `GET channels/{channelId}/analytics/channel/daily?from=&to=` → an array of `ChannelAnalyticsDailyDto`
+  ordered by `ActivityDate`, **14 metrics per point** (uniqueChatters, totalMessages, totalWatchSeconds,
+  newFollowers, newSubscribers, bitsCheered, commandsRun, redemptionsCount, songRequests,
+  currencyEarnedTotal, currencySpentTotal, gamesPlayed, peakViewers). Plus a per-viewer series at
+  `GET analytics/viewers/{id}/engagement`. Build the "analytics could use charts" review by rendering
+  these as line/bar charts over the selected range.
+- **Only real limit:** grain is **daily** (`DateOnly ActivityDate`); there is no hourly / intra-stream
+  series. If a chart needs sub-day points, flag it back — that needs a new backend endpoint. Everything
+  daily-or-coarser is frontend-only.
+- **Done when:** the analytics page charts the daily metrics from `channel/daily` over a date range.
+
 ### 2026-07-17 — Pipelines: ~40 of 66 actions are invisible in the builder (drifting hand-maintained catalogue)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **Diagnosis:** the pipeline builder's block palette comes from a HAND-MAINTAINED Kotlin list (`PipelineCatalogue.kt`,
