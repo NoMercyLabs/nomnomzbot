@@ -5466,6 +5466,59 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("ChannelModerationStandings");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ChannelCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("InitiatedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MatchTerm")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("OriginBroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RevertedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("RevertedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetTwitchUserId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TargetUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OriginBroadcasterId", "CreatedAt");
+
+                    b.ToTable("NetworkNukeBatches");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.SharedBanSettings", b =>
                 {
                     b.Property<Guid>("Id")

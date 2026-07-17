@@ -103,6 +103,22 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** installing to a test guild, enabling, picking a channel, and going live posts the
   announcement — configured entirely from the dashboard on dev.
 
+### 2026-07-17 — Moderation: network nuke (cross-channel mass ban + one-shot revert)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** SuperMod-tier routes under `channels/{channelId}/moderation`:
+  `POST nuke` (body `{targetTwitchUserId, reason?, matchTerm?, requireConfirmation}` —
+  `requireConfirmation` MUST be true; the UI must show a confirm dialog stating the blast radius
+  first), `POST nuke/{batchId}/revert` (the un-nuke), `GET nuke` (paged batch history:
+  target, channel count, status active/partial/reverted, who reverted, when). The fan-out bans the
+  target on every tenant channel the ACTOR holds SuperMod+ on; `partial` means some legs failed.
+  UI: a "Network nuke" action on the user mod panel (SuperMod+, confirm dialog with channel count
+  wording) + a batches table with a revert button per active/partial row.
+- **Why:** moderation item 15 (spec §3.4 J.2a) — the platform half of nuking; the un-nuke queue
+  already shipped earlier.
+- **Where:** moderation feature area; routes + schemas in `server/openapi/v1.json` (refreshed).
+- **Done when:** on dev, nuking a test user bans them in the operator's channels, the batch shows
+  in the history, and revert lifts every leg.
+
 ### 2026-07-17 — Moderation: shared-ban trust web (settings + trusted channels)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** new SuperMod-tier moderation surface under

@@ -23,11 +23,10 @@ what REMAINS.
   WebSocket stream. *(Streamer.bot core.)*
 - [ ] **9. OBS control** (`obs-control.md`) — scenes/inputs, ~20 pipeline actions, `obs_event`.
 - [ ] **10. VTube Studio** (`vtube-studio.md`) — connect/authorize/bridge, model control, `vts_event`.
-- [ ] **15. Advanced moderation** (`moderation.md`) — remaining legs: SuperMod platform
-  `moderation:nuke` (tenant-wide `NetworkNukeBatch` J.2a fan-out + revert + list, distinct from the
-  operator fan-out), escalation ladder (J.10/J.11 — needs the `escalate` ChatFilter case + new
-  `moderation:escalation:read/write` action keys), and the J.4/J.5 history+trust projections
-  (event-driven; reuse the existing `TrustScoreCalculator`, never fork).
+- [ ] **15. Advanced moderation** (`moderation.md`) — remaining legs: escalation ladder
+  (J.10/J.11 — needs the `escalate` ChatFilter case + new `moderation:escalation:read/write`
+  action keys) and the J.4/J.5 history+trust projections (event-driven; reuse the existing
+  `TrustScoreCalculator`, never fork).
 - [ ] **16. TTS advanced** (`tts.md`) — remaining follow-ons: `client_edge` mode (frontend widget
   handler), the `TtsConfig` TABLE migration + config re-target (adds `WasCensored`/`WasModApproved`/
   `StreamId`/`OccurredAt` to the ledger), BYOK provider factory (§3.2, vaulted keys).

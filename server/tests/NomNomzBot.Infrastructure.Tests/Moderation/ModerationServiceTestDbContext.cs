@@ -126,6 +126,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         // The shared-ban trust web (J.9/J.9a) — navs ignored above.
         typeof(NomNomzBot.Domain.Moderation.Entities.SharedBanSettings),
         typeof(NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel),
+        // The network-nuke batch ledger (J.2a) — nav-free, convention-mapped.
+        typeof(NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -153,6 +155,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         Set<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel> SharedBanTrustedChannels =>
         Set<NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch> NetworkNukeBatches =>
+        Set<NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

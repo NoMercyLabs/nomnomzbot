@@ -39,6 +39,7 @@ public class ModerationController : BaseController
     private readonly IOperatorNetworkBanService _networkBan;
     private readonly IViewerReportService _reports;
     private readonly ISharedBanService _sharedBans;
+    private readonly INetworkNukeService _nuke;
     private readonly ICurrentUserService _currentUser;
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
@@ -49,6 +50,7 @@ public class ModerationController : BaseController
         IOperatorNetworkBanService networkBan,
         IViewerReportService reports,
         ISharedBanService sharedBans,
+        INetworkNukeService nuke,
         ICurrentUserService currentUser,
         IApplicationDbContext db,
         TimeProvider timeProvider,
@@ -59,6 +61,7 @@ public class ModerationController : BaseController
         _networkBan = networkBan;
         _reports = reports;
         _sharedBans = sharedBans;
+        _nuke = nuke;
         _currentUser = currentUser;
         _db = db;
         _timeProvider = timeProvider;
@@ -634,6 +637,64 @@ public class ModerationController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<SuspiciousStatusDto> { Data = result.Value });
+    }
+
+    /// <summary>
+    /// The SuperMod platform nuke (moderation.md §3.4): bans the target across every tenant channel the
+    /// actor holds SuperMod+ on. Requires explicit confirmation in the request body.
+    /// </summary>
+    [RequireAction("moderation:nuke")]
+    [HttpPost("nuke")]
+    [ProducesResponseType<StatusResponseDto<NetworkNukeBatchDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Nuke(
+        string channelId,
+        [FromBody] NetworkNukeRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcaster))
+            return ResultResponse(Result.Failure("Invalid channel id.", "VALIDATION_FAILED"));
+        if (!Guid.TryParse(_currentUser.UserId, out Guid actorUserId))
+            return UnauthenticatedResponse();
+        return ResultResponse(await _nuke.NukeAsync(broadcaster, actorUserId, request, ct));
+    }
+
+    /// <summary>The one-shot reversal (un-nuke) of a whole batch.</summary>
+    [RequireAction("moderation:nuke")]
+    [HttpPost("nuke/{batchId:guid}/revert")]
+    [ProducesResponseType<StatusResponseDto<NetworkNukeBatchDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RevertNuke(
+        string channelId,
+        Guid batchId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid actorUserId))
+            return UnauthenticatedResponse();
+        return ResultResponse(await _nuke.RevertAsync(actorUserId, batchId, ct));
+    }
+
+    /// <summary>The origin channel's nuke-batch history, newest first.</summary>
+    [RequireAction("moderation:nuke:read")]
+    [HttpGet("nuke")]
+    [ProducesResponseType<PaginatedResponse<NetworkNukeBatchDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListNukeBatches(
+        string channelId,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcaster))
+            return ResultResponse(Result.Failure("Invalid channel id.", "VALIDATION_FAILED"));
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<NetworkNukeBatchDto>> result = await _nuke.ListBatchesAsync(
+            broadcaster,
+            pagination,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
     }
 
     /// <summary>The channel's shared-chat ban policy + trust list (moderation.md §3.5, J.9/J.9a).</summary>
