@@ -382,6 +382,12 @@ public static class DependencyInjection
             Application.Sound.Services.ISoundClipOverlayNotifier,
             Sound.NullSoundClipOverlayNotifier
         >();
+        // No-op fallback; the API host replaces this with the SignalR-backed TtsOverlayNotifierAdapter
+        // (drives the client_edge TTS dispatch push — tts.md §3.4).
+        services.AddScoped<
+            Application.Tts.Services.ITtsOverlayNotifier,
+            Tts.NullTtsOverlayNotifier
+        >();
         // No-op fallback; the API host replaces this with the SignalR-backed WidgetEventNotifierAdapter
         // (drives the widget_event pipeline action's overlay push — widgets-overlays.md §6).
         services.AddScoped<

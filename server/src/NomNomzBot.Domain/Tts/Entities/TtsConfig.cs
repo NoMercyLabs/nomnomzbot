@@ -32,12 +32,12 @@ public class TtsConfig : SoftDeletableEntity, ITenantScoped
     public bool IsEnabled { get; set; } = true;
 
     /// <summary>
-    /// Dispatch plane: <c>client_edge</c> | <c>byok</c> | <c>self_host</c>. Defaults to
-    /// <c>self_host</c> — the only plane the dispatcher executes today; the binding spec default
-    /// (<c>client_edge</c>) takes over when the client-edge widget handler ships.
+    /// Dispatch plane: <c>client_edge</c> | <c>byok</c> | <c>self_host</c>. Defaults to the binding
+    /// new-channel plane <c>client_edge</c> (tts.md decision 3) — zero server cost, the OBS widget
+    /// synthesizes edge-side; <c>byok</c> and <c>self_host</c> synthesize server-side on demand.
     /// </summary>
     [MaxLength(20)]
-    public string Mode { get; set; } = "self_host";
+    public string Mode { get; set; } = "client_edge";
 
     /// <summary>Synthesis provider the channel prefers: <c>edge</c> | <c>azure</c> | <c>elevenlabs</c>.</summary>
     [MaxLength(20)]

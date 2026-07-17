@@ -26,13 +26,14 @@ using NomNomzBot.Domain.Tts.Interfaces;
 namespace NomNomzBot.Infrastructure.Tts;
 
 /// <summary>
-/// The TTS utterance orchestrator (tts.md §3.4), self-host dispatch leg. Gates a request on the channel's
-/// enabled flag + character cap, applies the opt-out light profanity censor (§3.5), resolves the voice (per-viewer
-/// → channel default → first available), synthesizes the audio, stores it through the shared sound-clip store,
-/// pushes it to the overlay via the same audio bus the walk-in sounds use, and appends a truthful usage-ledger row —
-/// unless the channel requires moderator approval, in which case the utterance is held in the approval queue (P.1a)
-/// for a mod to approve (synthesize + play) or reject. A rejected request synthesizes nothing and charges nothing.
-/// BYOK and the client-edge mode are follow-on slices.
+/// The TTS utterance orchestrator (tts.md §3.4). Gates a request on the channel's enabled flag + character cap,
+/// applies the opt-out light profanity censor (§3.5), resolves the voice (per-viewer → channel default → first
+/// available), then dispatches on the channel's <c>Mode</c>: <c>client_edge</c> (the binding default) pushes the
+/// resolved voice + censored text to the overlay for the OBS widget to synthesize edge-side (zero server audio);
+/// <c>self_host</c>/<c>byok</c> synthesize the audio server-side, store it through the shared sound-clip store, and
+/// push it to the overlay's audio bus. Every plane appends a truthful usage-ledger row — unless the channel requires
+/// moderator approval, in which case the utterance is held in the approval queue (P.1a) for a mod to approve or
+/// reject. A rejected request synthesizes nothing and charges nothing.
 /// </summary>
 public sealed class TtsDispatchService : ITtsDispatchService
 {
@@ -45,6 +46,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     private readonly ITtsProfanityCensor _censor;
     private readonly ISoundClipStore _audioStore;
     private readonly ISoundClipOverlayNotifier _overlay;
+    private readonly ITtsOverlayNotifier _ttsOverlay;
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
     private readonly IBillingTierService _tiers;
@@ -58,6 +60,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         ITtsProfanityCensor censor,
         ISoundClipStore audioStore,
         ISoundClipOverlayNotifier overlay,
+        ITtsOverlayNotifier ttsOverlay,
         IApplicationDbContext db,
         IEventBus eventBus,
         IBillingTierService tiers,
@@ -71,6 +74,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         _censor = censor;
         _audioStore = audioStore;
         _overlay = overlay;
+        _ttsOverlay = ttsOverlay;
         _db = db;
         _eventBus = eventBus;
         _tiers = tiers;
@@ -179,7 +183,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ct
             );
 
-        return await SynthesizeStorePlayAsync(
+        return await DispatchAsync(
             request.BroadcasterId,
             config,
             spokenText,
@@ -215,7 +219,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             return Result.Failure(configResult.ErrorMessage!, configResult.ErrorCode!);
 
         string spokenText = entry.CensoredText ?? entry.OriginalText;
-        Result<TtsDispatchOutcome> played = await SynthesizeStorePlayAsync(
+        Result<TtsDispatchOutcome> played = await DispatchAsync(
             broadcasterId,
             configResult.Value,
             spokenText,
@@ -375,6 +379,120 @@ public sealed class TtsDispatchService : ITtsDispatchService
         );
     }
 
+    /// <summary>
+    /// Routes a passing utterance to the channel's dispatch plane (tts.md §3.4): <c>client_edge</c> pushes the text
+    /// to the OBS widget to render edge-side (no server audio); <c>byok</c>/<c>self_host</c> synthesize server-side.
+    /// Shared by direct dispatch and post-approval so both planes obey the channel's <c>Mode</c>.
+    /// </summary>
+    private Task<Result<TtsDispatchOutcome>> DispatchAsync(
+        Guid broadcasterId,
+        TtsConfigDto config,
+        string text,
+        string voiceId,
+        string requestedByTwitchUserId,
+        bool wasCensored,
+        bool? wasModApproved,
+        Guid? streamId,
+        CancellationToken ct
+    ) =>
+        config.Mode == "client_edge"
+            ? DispatchClientEdgeAsync(
+                broadcasterId,
+                config,
+                text,
+                voiceId,
+                requestedByTwitchUserId,
+                wasCensored,
+                wasModApproved,
+                streamId,
+                ct
+            )
+            : SynthesizeStorePlayAsync(
+                broadcasterId,
+                config,
+                text,
+                voiceId,
+                requestedByTwitchUserId,
+                wasCensored,
+                wasModApproved,
+                streamId,
+                ct
+            );
+
+    /// <summary>
+    /// Client-edge leg (tts.md §3.4, decision 3): the server synthesizes NOTHING — it pushes the resolved voice +
+    /// censored text to the channel's overlays (<c>IOverlayClient.TtsSpeak</c>), and the OBS widget renders the audio
+    /// edge-side. Still ledgers a truthful usage row and emits <c>TtsUtteranceDispatchedEvent(client_edge)</c> — with
+    /// no <c>ContentHash</c> (no server audio) and no measured <c>DurationMs</c>.
+    /// </summary>
+    private async Task<Result<TtsDispatchOutcome>> DispatchClientEdgeAsync(
+        Guid broadcasterId,
+        TtsConfigDto config,
+        string text,
+        string voiceId,
+        string requestedByTwitchUserId,
+        bool wasCensored,
+        bool? wasModApproved,
+        Guid? streamId,
+        CancellationToken ct
+    )
+    {
+        // The catalogue provider for the voice, falling back to the channel's preferred provider when the voice
+        // is not catalogued (e.g. a viewer-chosen id) — the widget needs a provider to pick its edge synthesizer.
+        string provider = await ResolveProviderAsync(voiceId, ct);
+        if (string.IsNullOrWhiteSpace(provider))
+            provider = config.DefaultProvider;
+
+        await _ttsOverlay.SpeakAsync(
+            broadcasterId,
+            new TtsOverlaySpeakDto(text, voiceId, provider, CueId: null),
+            ct
+        );
+
+        _db.TtsUsageRecords.Add(
+            new TtsUsageRecord
+            {
+                BroadcasterId = broadcasterId,
+                UserId = requestedByTwitchUserId,
+                CharacterCount = text.Length,
+                Provider = provider,
+                VoiceId = voiceId,
+                WasCensored = wasCensored,
+                WasModApproved = wasModApproved,
+                StreamId = streamId,
+                OccurredAt = _clock.GetUtcNow().UtcDateTime,
+            }
+        );
+        await _db.SaveChangesAsync(ct);
+
+        await _eventBus.PublishAsync(
+            new TtsUtteranceDispatchedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Text = text,
+                VoiceId = voiceId,
+                Provider = provider,
+                CharacterCount = text.Length,
+                DurationMs = 0,
+                RequestedByTwitchUserId = requestedByTwitchUserId,
+                DispatchMode = "client_edge",
+                ContentHash = null,
+            },
+            ct
+        );
+
+        return Result.Success(
+            new TtsDispatchOutcome(
+                TtsDispatchDisposition.Dispatched,
+                voiceId,
+                provider,
+                text.Length,
+                0,
+                null
+            )
+        );
+    }
+
     /// <summary>Synthesizes → stores → plays on the overlay → ledgers → emits dispatched. Shared by direct dispatch and approval.</summary>
     private async Task<Result<TtsDispatchOutcome>> SynthesizeStorePlayAsync(
         Guid broadcasterId,
@@ -495,6 +613,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 CharacterCount = text.Length,
                 DurationMs = synth.DurationMs,
                 RequestedByTwitchUserId = requestedByTwitchUserId,
+                DispatchMode = "self_host",
+                ContentHash = null,
             },
             ct
         );

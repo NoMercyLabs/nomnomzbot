@@ -54,6 +54,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
                 CharacterCount = 10,
                 DurationMs = 2500,
                 RequestedByTwitchUserId = "u1",
+                DispatchMode = "self_host",
             }
         );
 
@@ -98,6 +99,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
                 CharacterCount = 10,
                 DurationMs = 2500,
                 RequestedByTwitchUserId = "u1",
+                DispatchMode = "self_host",
             }
         );
 

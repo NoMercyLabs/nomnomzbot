@@ -175,6 +175,10 @@ try
         NomNomzBot.Api.Hubs.SoundClipOverlayNotifierAdapter
     >();
     builder.Services.AddScoped<
+        NomNomzBot.Application.Tts.Services.ITtsOverlayNotifier,
+        NomNomzBot.Api.Hubs.TtsOverlayNotifierAdapter
+    >();
+    builder.Services.AddScoped<
         NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier,
         NomNomzBot.Api.Hubs.WidgetEventNotifierAdapter
     >();

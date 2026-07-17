@@ -163,3 +163,22 @@ public record PlaySoundPayload(string PlaybackUrl, int Volume, string? Handle);
 
 /// <summary>Payload the overlay receives to stop in-progress clip playback.</summary>
 public record StopSoundPayload(string? Handle, bool All);
+
+// ─── TTS overlay (client_edge dispatch) ─────────────────────────────────────────
+
+/// <summary>
+/// Server-sent utterance the browser-source widget renders edge-side (tts.md §3.4 <c>client_edge</c> plane) — the
+/// server never synthesizes or ships audio bytes; the overlay speaks the text with the resolved provider voice.
+/// Owned here (the <c>IOverlayClient</c> contract lives in widgets-overlays); consumed by the TTS dispatcher.
+/// </summary>
+public record TtsSpeakPayload(
+    Guid BroadcasterId,
+    string Text,
+    string VoiceId,
+    string Provider,
+    string? CueId,
+    TtsSpeakOptions? Options
+);
+
+/// <summary>Optional prosody overrides for a client-edge utterance (all null = provider defaults).</summary>
+public record TtsSpeakOptions(double? Rate, double? Pitch, double? Volume);

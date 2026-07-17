@@ -52,6 +52,13 @@ public interface IWidgetNotifier
         CancellationToken ct = default
     );
 
+    /// <summary>Pushes a client-edge TTS utterance to all overlay clients for the given broadcaster.</summary>
+    Task TtsSpeakAsync(
+        string broadcasterId,
+        TtsSpeakPayload payload,
+        CancellationToken ct = default
+    );
+
     /// <summary>Broadcasts one generic overlay-feed event to every overlay client for the given broadcaster.</summary>
     Task BroadcastOverlayEventAsync(
         string broadcasterId,
@@ -104,6 +111,12 @@ public class WidgetNotifier : IWidgetNotifier
         StopSoundPayload payload,
         CancellationToken ct = default
     ) => _hub.Clients.Group($"overlay-{broadcasterId}").StopSound(payload);
+
+    public Task TtsSpeakAsync(
+        string broadcasterId,
+        TtsSpeakPayload payload,
+        CancellationToken ct = default
+    ) => _hub.Clients.Group($"overlay-{broadcasterId}").TtsSpeak(payload);
 
     public Task BroadcastOverlayEventAsync(
         string broadcasterId,

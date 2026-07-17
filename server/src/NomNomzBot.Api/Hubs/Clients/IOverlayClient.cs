@@ -31,6 +31,12 @@ public interface IOverlayClient
     /// <summary>Instructs the overlay's audio bus to start playing a clip (spec §4).</summary>
     Task PlaySound(PlaySoundPayload payload);
 
+    /// <summary>
+    /// Server-sent TTS utterance the browser-source renders client-side (tts.md §3.4 <c>client_edge</c> plane) —
+    /// no server audio bytes; the widget synthesizes/speaks from the payload voice + text.
+    /// </summary>
+    Task TtsSpeak(TtsSpeakPayload payload);
+
     /// <summary>Instructs the overlay to stop a named clip handle, or all playback when <see cref="StopSoundPayload.All"/> is true.</summary>
     Task StopSound(StopSoundPayload payload);
 }

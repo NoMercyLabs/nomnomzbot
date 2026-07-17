@@ -28,6 +28,12 @@ public sealed class TtsUtteranceDispatchedEvent : DomainEventBase
 
     /// <summary>The requesting viewer's raw platform id (empty for a system/timer-triggered utterance).</summary>
     public required string RequestedByTwitchUserId { get; init; }
+
+    /// <summary>Which dispatch plane carried the utterance (tts.md §3.4): <c>client_edge</c> | <c>self_host</c>.</summary>
+    public required string DispatchMode { get; init; }
+
+    /// <summary>Content-addressed hash of the server-synthesized audio; <c>null</c> on the client-edge plane (no server audio).</summary>
+    public string? ContentHash { get; init; }
 }
 
 /// <summary>
