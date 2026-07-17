@@ -207,6 +207,9 @@ public sealed class DropGameTests
         drop.PayoutMultiplier.Should().Be(2m);
         (await Task.FromResult(db.GameConfigs.Count(g => g.BroadcasterId == Channel)))
             .Should()
-            .Be(8, "the four instant games plus the four live games (drop_game, raffle, heist, crash)");
+            .Be(
+                8,
+                "the four instant games plus the four live games (drop_game, raffle, heist, crash)"
+            );
     }
 }
