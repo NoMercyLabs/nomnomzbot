@@ -96,6 +96,17 @@ public sealed class EndpointAuthorizationInvariantTests
             "own session: revokes the caller's own session tokens (identity-auth.md §5)",
         ["AuthController.LogoutAll"] =
             "own sessions: revokes every session of the caller themselves (identity-auth.md §5)",
+        // ── Automation data plane: token-scheme authed, scope-gated in the service (automation-api.md D4) ──
+        ["AutomationDataController.GetInfo"] =
+            "API-token plane: [Authorize(AuthenticationSchemes=AutomationToken)] + scope 'read' enforced in AutomationCommandService (automation-api.md §4.1; no Gate-2 by design)",
+        ["AutomationDataController.ListPipelines"] =
+            "API-token plane: token scheme + scope 'read' + allowlist enforced in AutomationCommandService (automation-api.md §4.1)",
+        ["AutomationDataController.ListCommands"] =
+            "API-token plane: token scheme + scope 'read' enforced in AutomationCommandService (automation-api.md §4.1)",
+        ["AutomationDataController.Invoke"] =
+            "API-token plane: token scheme + scope 'invoke' + pipeline allowlist enforced in AutomationCommandService (automation-api.md §4.1/D5)",
+        ["AutomationDataController.SendChat"] =
+            "API-token plane: token scheme + scope 'chat' enforced in AutomationCommandService (automation-api.md §4.1)",
         // ── Community-plane Everyone floor with NO seeded action key (spec-cited) ──
         ["MusicController.GetQueue"] =
             "community / Everyone with no action key (music-sr.md §5.1 'GET queue — community / Everyone'; 'No new action keys are introduced')",

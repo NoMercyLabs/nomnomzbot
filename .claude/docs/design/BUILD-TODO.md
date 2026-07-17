@@ -19,11 +19,10 @@ what REMAINS.
 ## 📋 Pending — open backend work only
 
 ### 🤖 StreamElements / Streamer.bot parity (remaining — each = backend + dashboard page)
-- [ ] **8. Automation API** (`automation-api.md`) — remaining: the data plane (`/automation/v1`
-  REST — info/pipelines/commands/invoke/chat — with the `ApiTokenAuthenticationHandler` + per-token
-  rate limits), the event catalog/descriptor registry (`GetEventCatalogAsync` +
-  `GET events/catalog`), and the raw WebSocket stream (`/automation/v1/stream` + session registry +
-  event bridge). *(Streamer.bot core; token management plane is built.)* Plus the frontend tokens
+- [ ] **8. Automation API** (`automation-api.md`) — remaining: the event catalog/descriptor
+  registry (`GetEventCatalogAsync` + `GET events/catalog`) and the raw WebSocket stream
+  (`/automation/v1/stream` + session registry + event bridge). *(Streamer.bot core; token
+  management plane + the `/automation/v1` REST data plane are built.)* Plus the frontend tokens
   screen (see handoff 2026-07-17).
 - [ ] **9. OBS control** (`obs-control.md`) — scenes/inputs, ~20 pipeline actions, `obs_event`.
 - [ ] **10. VTube Studio** (`vtube-studio.md`) — connect/authorize/bridge, model control, `vts_event`.

@@ -793,6 +793,13 @@ public static class DependencyInjection
             ByokTtsProviderFactory
         >();
 
+        // Automation data-plane credential check (automation-api.md §3) — scoped (hash lookup + LastUsedAt);
+        // not convention-scanned (does not end in "Service").
+        services.AddScoped<
+            Application.AutomationApi.Services.IAutomationTokenAuthenticator,
+            AutomationApi.AutomationTokenAuthenticator
+        >();
+
         // Spotify HTTP clients with resilience (Music providers themselves are scanned by
         // IMusicProvider above; IMusicService is scanned by AddServicesByConvention).
         services.AddHttpClient("spotify").AddSpotifyResilienceHandler();

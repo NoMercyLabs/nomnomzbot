@@ -260,7 +260,13 @@ try
                     return Task.CompletedTask;
                 },
             };
-        });
+        })
+        // Automation data plane (automation-api.md D3/D4): channel API tokens over the
+        // Authorization header — a separate scheme so /automation/v1 never accepts a dashboard JWT.
+        .AddScheme<
+            Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
+            NomNomzBot.Api.Authentication.ApiTokenAuthenticationHandler
+        >(NomNomzBot.Api.Authentication.ApiTokenAuthenticationHandler.SchemeName, null);
 
     builder.Services.AddAuthorization();
 

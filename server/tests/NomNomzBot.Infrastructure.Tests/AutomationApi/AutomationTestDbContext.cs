@@ -78,8 +78,29 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
         b.Entity<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>(e =>
         {
             e.HasKey(t => t.Id);
-            e.Ignore(t => t.Channel); // no Channels / Users tables in this focused context
+            e.Ignore(t => t.Channel); // Channel is mapped standalone below (navs ignored)
             e.Ignore(t => t.CreatedByUser);
+        });
+        // The data-plane command surface reads these three (info / pipelines / commands).
+        b.Entity<Channel>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.User);
+            e.Ignore(c => c.Moderators);
+            e.Ignore(c => c.Streams);
+            e.Ignore(c => c.Events);
+        });
+        b.Entity<NomNomzBot.Domain.Commands.Entities.Pipeline>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Ignore(p => p.Steps);
+            e.Ignore(p => p.Channel);
+        });
+        b.Entity<Command>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.Pipeline);
+            e.Ignore(c => c.Channel);
         });
 
         foreach (Type entity in UnmappedEntities)
@@ -94,6 +115,9 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
         typeof(TtsApprovalQueueEntry),
         typeof(TtsConfig),
         typeof(NomNomzBot.Domain.Automation.Entities.AutomationApiToken),
+        typeof(Channel),
+        typeof(NomNomzBot.Domain.Commands.Entities.Pipeline),
+        typeof(Command),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -108,7 +132,7 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<TtsCacheEntry> TtsCacheEntries => throw new NotSupportedException();
-    public DbSet<Channel> Channels => throw new NotSupportedException();
+    public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<User> Users => throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
@@ -178,7 +202,7 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<Configuration> Configurations => throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
-    public DbSet<Command> Commands => throw new NotSupportedException();
+    public DbSet<Command> Commands => Set<Command>();
     public DbSet<DomainTimer> Timers => throw new NotSupportedException();
     public DbSet<Permission> Permissions => throw new NotSupportedException();
     public DbSet<ChannelFeature> ChannelFeatures => throw new NotSupportedException();
@@ -206,7 +230,7 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Commands.Entities.Pipeline>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStep> PipelineSteps =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition> PipelineStepConditions =>
