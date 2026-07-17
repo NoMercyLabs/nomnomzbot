@@ -125,6 +125,24 @@ public sealed record OutboundEnqueueResult(
     WebhookDeliveryStatus Status
 );
 
+/// <summary>
+/// One row of an outbound endpoint's delivery log (webhooks.md §5.1) — the visibility that makes a webhook
+/// integration debuggable: which event, which attempt, the resulting status/HTTP code, and the next retry time.
+/// The rendered request body is intentionally omitted (it can carry sensitive payload); use the receiver's own logs.
+/// </summary>
+public sealed record OutboundWebhookDeliveryDto(
+    long Id,
+    Guid EndpointId,
+    string EventType,
+    int Attempt,
+    string Status,
+    int? ResponseCode,
+    int? DurationMs,
+    DateTime? NextRetryAt,
+    string? Error,
+    DateTime CreatedAt
+);
+
 /// <summary>Generic / Standard-Webhooks adapter config (Zapier/IFTTT/Make/Stream Deck/custom).</summary>
 public sealed record GenericInboundConfig(
     string? SignatureHeaderName,

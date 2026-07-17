@@ -17,6 +17,7 @@ using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Webhooks.Entities;
+using NomNomzBot.Domain.Webhooks.Enums;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Webhooks;
 using NSubstitute;
@@ -183,5 +184,64 @@ public sealed class OutboundWebhookEndpointServiceTests
         (await sut.SendTestAsync(Channel, created.Endpoint.Id))
             .ErrorCode.Should()
             .Be("SERVICE_UNAVAILABLE");
+    }
+
+    private static OutboundWebhookDelivery Delivery(
+        long id,
+        Guid endpointId,
+        string eventType,
+        WebhookDeliveryStatus status
+    ) =>
+        new()
+        {
+            Id = id,
+            BroadcasterId = Channel,
+            EndpointId = endpointId,
+            WebhookMessageId = Guid.Empty,
+            EventType = eventType,
+            RenderedBody = "{}",
+            Attempt = 1,
+            Status = status,
+            CreatedAt = Now.UtcDateTime,
+        };
+
+    [Fact]
+    public async Task ListDeliveries_returns_the_endpoints_attempts_newest_first()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        await SeedAllowlistAsync(db);
+        Guid endpointId = (await sut.CreateAsync(Channel, Actor, Req())).Value.Endpoint.Id;
+        db.OutboundWebhookDeliveries.AddRange(
+            Delivery(1, endpointId, "webhook.older", WebhookDeliveryStatus.Failed),
+            Delivery(2, endpointId, "webhook.newer", WebhookDeliveryStatus.Delivered)
+        );
+        await db.SaveChangesAsync();
+
+        Result<PagedList<OutboundWebhookDeliveryDto>> result = await sut.ListDeliveriesAsync(
+            Channel,
+            endpointId,
+            new PaginationParams(1, 10, null, null)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.TotalCount.Should().Be(2);
+        result.Value.Items[0].EventType.Should().Be("webhook.newer"); // ordered by id descending
+        result.Value.Items[0].Status.Should().Be("Delivered");
+    }
+
+    [Fact]
+    public async Task ListDeliveries_is_NOT_FOUND_for_an_unknown_endpoint()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        await SeedAllowlistAsync(db);
+        await sut.CreateAsync(Channel, Actor, Req());
+
+        Result<PagedList<OutboundWebhookDeliveryDto>> result = await sut.ListDeliveriesAsync(
+            Channel,
+            Guid.NewGuid(),
+            new PaginationParams(1, 10, null, null)
+        );
+
+        result.ErrorCode.Should().Be("NOT_FOUND");
     }
 }

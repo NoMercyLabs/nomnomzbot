@@ -78,6 +78,55 @@ public sealed class OutboundWebhookEndpointService(
             : Result.Success(ToDto(endpoint));
     }
 
+    public async Task<Result<PagedList<OutboundWebhookDeliveryDto>>> ListDeliveriesAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        // Confirm the endpoint exists under this tenant first, so a bad/foreign id is a clean NOT_FOUND rather
+        // than an empty page that hides whether the endpoint or just its history is missing.
+        OutboundWebhookEndpoint? endpoint = await FindAsync(broadcasterId, endpointId, ct);
+        if (endpoint is null)
+            return Result.Failure<PagedList<OutboundWebhookDeliveryDto>>(
+                "Endpoint not found.",
+                "NOT_FOUND"
+            );
+
+        IQueryable<OutboundWebhookDelivery> query = db.OutboundWebhookDeliveries.Where(d =>
+            d.BroadcasterId == broadcasterId && d.EndpointId == endpointId
+        );
+        int total = await query.CountAsync(ct);
+        List<OutboundWebhookDelivery> rows = await query
+            .OrderByDescending(d => d.Id) // append-only bigint id — newest attempt first
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .ToListAsync(ct);
+        return Result.Success(
+            new PagedList<OutboundWebhookDeliveryDto>(
+                [.. rows.Select(ToDeliveryDto)],
+                pagination.Page,
+                pagination.PageSize,
+                total
+            )
+        );
+    }
+
+    private static OutboundWebhookDeliveryDto ToDeliveryDto(OutboundWebhookDelivery d) =>
+        new(
+            d.Id,
+            d.EndpointId,
+            d.EventType,
+            d.Attempt,
+            d.Status.ToString(),
+            d.ResponseCode,
+            d.DurationMs,
+            d.NextRetryAt,
+            d.Error,
+            d.CreatedAt
+        );
+
     public async Task<Result<OutboundWebhookEndpointCreatedDto>> CreateAsync(
         Guid broadcasterId,
         Guid actorUserId,

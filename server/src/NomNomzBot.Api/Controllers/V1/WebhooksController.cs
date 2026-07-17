@@ -136,6 +136,29 @@ public class WebhooksController(
         CancellationToken ct
     ) => ResultResponse(await outbound.GetAsync(channelId, endpointId, ct));
 
+    /// <summary>List an outbound endpoint's delivery attempts (newest first) — the delivery log for debugging integrations.</summary>
+    [HttpGet("outbound/{endpointId:guid}/deliveries")]
+    [RequireAction("webhooks:outbound:read")]
+    [ProducesResponseType<PaginatedResponse<OutboundWebhookDeliveryDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListOutboundDeliveries(
+        Guid channelId,
+        Guid endpointId,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<OutboundWebhookDeliveryDto>> result = await outbound.ListDeliveriesAsync(
+            channelId,
+            endpointId,
+            pagination,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
     /// <summary>Create an outbound webhook endpoint for the channel, recording the caller as its creator.</summary>
     [HttpPost("outbound")]
     [RequireAction("webhooks:outbound:write")]

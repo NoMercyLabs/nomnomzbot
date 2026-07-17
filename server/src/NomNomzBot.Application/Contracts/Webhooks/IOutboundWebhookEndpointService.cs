@@ -63,6 +63,15 @@ public interface IOutboundWebhookEndpointService
 
     Task<Result> DeleteAsync(Guid broadcasterId, Guid endpointId, CancellationToken ct = default);
 
+    /// <summary>The endpoint's delivery log (webhooks.md §5.1), newest attempt first, paged. NOT_FOUND when the
+    /// endpoint doesn't exist under this tenant (never leaks another channel's deliveries).</summary>
+    Task<Result<PagedList<OutboundWebhookDeliveryDto>>> ListDeliveriesAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
     /// <summary>Sends a synthetic ping NOW (single attempt) to verify wiring.</summary>
     Task<Result<WebhookTestResultDto>> SendTestAsync(
         Guid broadcasterId,
