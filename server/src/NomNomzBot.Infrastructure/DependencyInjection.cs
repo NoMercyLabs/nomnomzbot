@@ -800,6 +800,29 @@ public static class DependencyInjection
             AutomationApi.AutomationTokenAuthenticator
         >();
 
+        // Public automation event catalog (automation-api.md D6): descriptors are AUTO-DISCOVERED —
+        // exposing a new event = drop an IAutomationEventDescriptor implementation, no engine edit.
+        foreach (
+            Type descriptorType in infrastructure
+                .GetTypes()
+                .Where(t =>
+                    !t.IsAbstract
+                    && typeof(Application.AutomationApi.Services.IAutomationEventDescriptor).IsAssignableFrom(
+                        t
+                    )
+                )
+        )
+        {
+            services.AddSingleton(
+                typeof(Application.AutomationApi.Services.IAutomationEventDescriptor),
+                descriptorType
+            );
+        }
+        services.AddSingleton<
+            Application.AutomationApi.Services.IAutomationEventRegistry,
+            AutomationApi.Events.AutomationEventRegistry
+        >();
+
         // Spotify HTTP clients with resilience (Music providers themselves are scanned by
         // IMusicProvider above; IMusicService is scanned by AddServicesByConvention).
         services.AddHttpClient("spotify").AddSpotifyResilienceHandler();

@@ -48,4 +48,9 @@ public interface IAutomationApiTokenService
         Guid actorUserId,
         CancellationToken ct = default
     );
+
+    /// <summary>The subscribable public event types, for integrators building against the stream.</summary>
+    Task<Result<IReadOnlyList<AutomationEventCatalogItem>>> GetEventCatalogAsync(
+        CancellationToken ct = default
+    );
 }

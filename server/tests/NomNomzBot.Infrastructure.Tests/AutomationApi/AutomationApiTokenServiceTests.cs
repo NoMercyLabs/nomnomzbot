@@ -42,7 +42,14 @@ public sealed class AutomationApiTokenServiceTests
     {
         AutomationTestDbContext db = AutomationTestDbContext.New();
         RecordingEventBus bus = new();
-        AutomationApiTokenService sut = new(db, bus, new FakeTimeProvider(new DateTimeOffset(T0)));
+        AutomationApiTokenService sut = new(
+            db,
+            bus,
+            new FakeTimeProvider(new DateTimeOffset(T0)),
+            new Infrastructure.AutomationApi.Events.AutomationEventRegistry([
+                new Infrastructure.AutomationApi.Events.SupporterReceivedEventDescriptor(),
+            ])
+        );
         return (sut, db, bus);
     }
 

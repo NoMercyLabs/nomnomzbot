@@ -37,17 +37,24 @@ public class AutomationApiTokenService : IAutomationApiTokenService
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
     private readonly TimeProvider _clock;
+    private readonly IAutomationEventRegistry _eventRegistry;
 
     public AutomationApiTokenService(
         IApplicationDbContext db,
         IEventBus eventBus,
-        TimeProvider clock
+        TimeProvider clock,
+        IAutomationEventRegistry eventRegistry
     )
     {
         _db = db;
         _eventBus = eventBus;
         _clock = clock;
+        _eventRegistry = eventRegistry;
     }
+
+    public Task<Result<IReadOnlyList<AutomationEventCatalogItem>>> GetEventCatalogAsync(
+        CancellationToken ct = default
+    ) => Task.FromResult(Result.Success(_eventRegistry.Catalog));
 
     public async Task<Result<PagedList<AutomationTokenDto>>> ListAsync(
         Guid broadcasterId,

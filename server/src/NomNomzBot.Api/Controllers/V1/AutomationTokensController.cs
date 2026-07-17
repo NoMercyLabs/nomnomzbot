@@ -82,6 +82,15 @@ public class AutomationTokensController(
         return ResultResponse(await tokens.RotateAsync(channelId, tokenId, caller, ct));
     }
 
+    /// <summary>The subscribable public event catalog — the wire names an events-scoped token may stream.</summary>
+    [HttpGet("events/catalog")]
+    [RequireAction("automation:tokens:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<AutomationEventCatalogItem>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetEventCatalog(Guid channelId, CancellationToken ct) =>
+        ResultResponse(await tokens.GetEventCatalogAsync(ct));
+
     /// <summary>Revoke a token (tombstone — the row stays for the audit trail).</summary>
     [HttpDelete("tokens/{tokenId:guid}")]
     [RequireAction("automation:tokens:write")]
