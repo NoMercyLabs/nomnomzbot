@@ -62,7 +62,8 @@ public sealed class LegacyRealDatabaseImportTests
                 db,
                 new TenantSequenceAllocator(db),
                 new EventStoreTestUnitOfWork(db),
-                Clock
+                Clock,
+                new PassthroughEventPayloadProtector()
             );
             LegacyChannelEventImporter importer = new(journal, new LegacyChannelEventMapper());
             Guid tenant = Guid.Parse("0192a000-0000-7000-8000-00000000cc01");

@@ -1262,6 +1262,12 @@ public static class DependencyInjection
             Application.Contracts.EventStore.IEventJournal,
             EventStore.EventJournalService
         >();
+        // Journal payload-encryption seam (gdpr-crypto §3.4): seals PII-bearing payloads under the subject DEK on
+        // append, opens them on read. Scoped — composes the scoped ISubjectKeyService (DbContext-backed registry).
+        services.AddScoped<
+            Application.Contracts.EventStore.IEventPayloadProtector,
+            EventStore.EventPayloadProtector
+        >();
         services.AddScoped<
             Application.Contracts.EventStore.IEventStoreSubscriber,
             EventStore.EventStoreSubscriber

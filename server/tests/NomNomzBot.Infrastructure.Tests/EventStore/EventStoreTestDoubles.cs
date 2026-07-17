@@ -77,6 +77,30 @@ internal sealed class CounterV1ToV2Upcaster : IEventUpcaster
     }
 }
 
+/// <summary>
+/// A payload protector that never encrypts — every payload passes through as plaintext (<c>IsEncrypted = false</c>,
+/// <c>SubjectKeyId = null</c>), matching the seam's behavior for a subject-less event. Lets the journal/sequence
+/// tests assert their concerns (ordering, positions, idempotency) without standing up the crypto stack; the
+/// encryption round-trip is proven separately over the real <c>EventPayloadProtector</c>.
+/// </summary>
+internal sealed class PassthroughEventPayloadProtector : IEventPayloadProtector
+{
+    public Task<Result<ProtectedPayload>> ProtectAsync(
+        AppendEventRequest request,
+        CancellationToken cancellationToken = default
+    ) =>
+        Task.FromResult(
+            Result.Success(
+                new ProtectedPayload(request.PayloadJson, IsEncrypted: false, SubjectKeyId: null)
+            )
+        );
+
+    public Task<Result<string>> UnprotectAsync(
+        EventRecord record,
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult(Result.Success(record.PayloadJson));
+}
+
 /// <summary>Records every committed journal row the decorator hands it, so a test can assert the hook fired.</summary>
 internal sealed class RecordingPostCommitHook : IJournalPostCommitHook
 {

@@ -57,7 +57,8 @@ public sealed class ReadModelRebuildFromJournalTests
             db,
             new TenantSequenceAllocator(db),
             new RebuildTestUnitOfWork(db),
-            Clock
+            Clock,
+            new PassthroughEventPayloadProtector()
         );
 
         await AppendRepresentativeSpreadAsync(journal);

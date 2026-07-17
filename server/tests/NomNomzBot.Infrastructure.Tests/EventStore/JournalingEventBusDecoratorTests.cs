@@ -124,7 +124,8 @@ public sealed class JournalingEventBusDecoratorTests
                 sp.GetRequiredService<IApplicationDbContext>(),
                 sp.GetRequiredService<ITenantSequenceAllocator>(),
                 sp.GetRequiredService<IUnitOfWork>(),
-                sp.GetRequiredService<TimeProvider>()
+                sp.GetRequiredService<TimeProvider>(),
+                new PassthroughEventPayloadProtector()
             ));
         services.AddScoped<IEventStoreSubscriber>(sp => new EventStoreSubscriber(
             sp.GetRequiredService<IEventJournal>(),
@@ -168,7 +169,8 @@ public sealed class JournalingEventBusDecoratorTests
             verify,
             new TenantSequenceAllocator(verify),
             new EventStoreTestUnitOfWork(verify),
-            Clock
+            Clock,
+            new PassthroughEventPayloadProtector()
         );
         Result<EventRecord> stored = await journal.GetByEventIdAsync(@event.EventId);
         stored.IsSuccess.Should().BeTrue();

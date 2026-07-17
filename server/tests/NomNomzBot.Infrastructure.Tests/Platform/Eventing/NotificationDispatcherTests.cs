@@ -40,7 +40,13 @@ public sealed class NotificationDispatcherTests
     {
         EventStoreTestUnitOfWork uow = new(db);
         TenantSequenceAllocator allocator = new(db);
-        return new EventJournalService(db, allocator, uow, Clock);
+        return new EventJournalService(
+            db,
+            allocator,
+            uow,
+            Clock,
+            new PassthroughEventPayloadProtector()
+        );
     }
 
     private static EventSubNotification Notification(

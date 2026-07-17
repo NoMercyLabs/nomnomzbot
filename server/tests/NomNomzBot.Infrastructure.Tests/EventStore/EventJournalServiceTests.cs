@@ -48,7 +48,13 @@ public sealed class EventJournalServiceTests
     {
         EventStoreTestUnitOfWork uow = new(db);
         TenantSequenceAllocator allocator = new(db);
-        return new EventJournalService(db, allocator, uow, Clock);
+        return new EventJournalService(
+            db,
+            allocator,
+            uow,
+            Clock,
+            new PassthroughEventPayloadProtector()
+        );
     }
 
     [Fact]

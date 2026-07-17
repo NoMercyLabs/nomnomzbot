@@ -207,7 +207,13 @@ public sealed class TwitchChannelEventLogProjectionTests
         new(db);
 
     private static EventJournalService NewJournal(ReadModelRebuildDbContext db) =>
-        new(db, new TenantSequenceAllocator(db), new RebuildTestUnitOfWork(db), Clock);
+        new(
+            db,
+            new TenantSequenceAllocator(db),
+            new RebuildTestUnitOfWork(db),
+            Clock,
+            new PassthroughEventPayloadProtector()
+        );
 
     private static ProjectionRunner NewRunner(
         ReadModelRebuildDbContext db,

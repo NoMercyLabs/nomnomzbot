@@ -30,18 +30,21 @@ public sealed class EventJournalService : IEventJournal
     private readonly ITenantSequenceAllocator _sequences;
     private readonly IUnitOfWork _unitOfWork;
     private readonly TimeProvider _clock;
+    private readonly IEventPayloadProtector _payloadProtector;
 
     public EventJournalService(
         IApplicationDbContext db,
         ITenantSequenceAllocator sequences,
         IUnitOfWork unitOfWork,
-        TimeProvider clock
+        TimeProvider clock,
+        IEventPayloadProtector payloadProtector
     )
     {
         _db = db;
         _sequences = sequences;
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _payloadProtector = payloadProtector;
     }
 
     public async Task<Result<EventRecord>> AppendAsync(
@@ -53,10 +56,23 @@ public sealed class EventJournalService : IEventJournal
         if (existing is not null)
             return Result.Success(Map(existing));
 
+        // Seal PII-bearing payloads under the subject DEK BEFORE opening the row transaction — fails closed, so a
+        // seal failure aborts the append rather than journaling PII in the clear (gdpr-crypto.md §3.4).
+        Result<ProtectedPayload> protectedPayload = await _payloadProtector.ProtectAsync(
+            request,
+            cancellationToken
+        );
+        if (protectedPayload.IsFailure)
+            return protectedPayload.ToTyped<EventRecord>();
+
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            Result<EventJournal> appended = await AppendOneAsync(request, cancellationToken);
+            Result<EventJournal> appended = await AppendOneAsync(
+                request,
+                protectedPayload.Value,
+                cancellationToken
+            );
             if (appended.IsFailure)
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
@@ -98,25 +114,39 @@ public sealed class EventJournalService : IEventJournal
             cancellationToken
         );
 
+        // The genuinely-new requests in arrival order (first occurrence wins; a later in-batch repeat of the same
+        // EventId reuses the first's row), grouped by sequence tenant so each tenant's positions come from ONE
+        // block reservation — arrival order within a tenant keeps positions monotonic-by-arrival, exactly as the
+        // old per-row NextAsync assigned them.
+        HashSet<Guid> seen = [];
+        Dictionary<Guid, List<AppendEventRequest>> newByTenant = [];
+        foreach (AppendEventRequest request in requests)
+        {
+            if (stored.ContainsKey(request.EventId) || !seen.Add(request.EventId))
+                continue;
+            Guid sequenceTenant = request.BroadcasterId ?? Guid.Empty;
+            if (!newByTenant.TryGetValue(sequenceTenant, out List<AppendEventRequest>? slice))
+                newByTenant[sequenceTenant] = slice = [];
+            slice.Add(request);
+        }
+
+        // Seal PII-bearing payloads under their subject DEKs BEFORE the row transaction — fails closed, so a
+        // seal failure aborts the whole batch rather than journaling PII in the clear (gdpr-crypto.md §3.4).
+        Dictionary<Guid, ProtectedPayload> protectedByEventId = new(seen.Count);
+        foreach (AppendEventRequest request in newByTenant.Values.SelectMany(slice => slice))
+        {
+            Result<ProtectedPayload> protectedPayload = await _payloadProtector.ProtectAsync(
+                request,
+                cancellationToken
+            );
+            if (protectedPayload.IsFailure)
+                return protectedPayload.ToTyped<IReadOnlyList<EventRecord>>();
+            protectedByEventId[request.EventId] = protectedPayload.Value;
+        }
+
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            // The genuinely-new requests in arrival order (first occurrence wins; a later in-batch repeat of the
-            // same EventId reuses the first's row), grouped by sequence tenant so each tenant's positions come
-            // from ONE block reservation — arrival order within a tenant keeps positions monotonic-by-arrival,
-            // exactly as the old per-row NextAsync assigned them.
-            HashSet<Guid> seen = [];
-            Dictionary<Guid, List<AppendEventRequest>> newByTenant = [];
-            foreach (AppendEventRequest request in requests)
-            {
-                if (stored.ContainsKey(request.EventId) || !seen.Add(request.EventId))
-                    continue;
-                Guid sequenceTenant = request.BroadcasterId ?? Guid.Empty;
-                if (!newByTenant.TryGetValue(sequenceTenant, out List<AppendEventRequest>? slice))
-                    newByTenant[sequenceTenant] = slice = [];
-                slice.Add(request);
-            }
-
             DateTime now = _clock.GetUtcNow().UtcDateTime;
             Dictionary<Guid, EventJournal> appended = [];
             List<EventJournal> toInsert = new(seen.Count);
@@ -143,7 +173,12 @@ public sealed class EventJournalService : IEventJournal
                 long position = block.Value;
                 foreach (AppendEventRequest request in slice)
                 {
-                    EventJournal entity = BuildJournalEntity(request, position++, now);
+                    EventJournal entity = BuildJournalEntity(
+                        request,
+                        protectedByEventId[request.EventId],
+                        position++,
+                        now
+                    );
                     appended[request.EventId] = entity;
                     toInsert.Add(entity);
                 }
@@ -192,6 +227,7 @@ public sealed class EventJournalService : IEventJournal
     // allocation and the insert commit (or roll back) together.
     private async Task<Result<EventJournal>> AppendOneAsync(
         AppendEventRequest request,
+        ProtectedPayload protectedPayload,
         CancellationToken cancellationToken
     )
     {
@@ -212,6 +248,7 @@ public sealed class EventJournalService : IEventJournal
 
         EventJournal entity = BuildJournalEntity(
             request,
+            protectedPayload,
             position.Value,
             _clock.GetUtcNow().UtcDateTime
         );
@@ -220,9 +257,12 @@ public sealed class EventJournalService : IEventJournal
     }
 
     // Materializes one journal row from a request at an already-allocated StreamPosition. Shared by the single
-    // and batch append paths so the row shape stays identical regardless of how the position was reserved.
+    // and batch append paths so the row shape stays identical regardless of how the position was reserved. The
+    // Payload / PayloadIsEncrypted / SubjectKeyId trio comes from the already-resolved <paramref name="protectedPayload"/>
+    // (a subject-attributed event is sealed under its DEK; a subject-less event stays plaintext).
     private static EventJournal BuildJournalEntity(
         AppendEventRequest request,
+        ProtectedPayload protectedPayload,
         long position,
         DateTime recordedAt
     ) =>
@@ -234,9 +274,9 @@ public sealed class EventJournalService : IEventJournal
             EventType = request.EventType,
             EventVersion = request.EventVersion,
             Source = request.Source,
-            Payload = request.PayloadJson,
-            PayloadIsEncrypted = false,
-            SubjectKeyId = null,
+            Payload = protectedPayload.PayloadJson,
+            PayloadIsEncrypted = protectedPayload.IsEncrypted,
+            SubjectKeyId = protectedPayload.SubjectKeyId,
             CorrelationId = request.CorrelationId,
             CausationId = request.CausationId,
             ActorUserId = request.ActorUserId,

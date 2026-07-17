@@ -32,7 +32,13 @@ public sealed class LegacyChannelEventImporterTests
     private static readonly Guid Tenant = Guid.Parse("0192a000-0000-7000-8000-00000000bb01");
 
     private static EventJournalService NewJournal(EventStoreTestDbContext db) =>
-        new(db, new TenantSequenceAllocator(db), new EventStoreTestUnitOfWork(db), Clock);
+        new(
+            db,
+            new TenantSequenceAllocator(db),
+            new EventStoreTestUnitOfWork(db),
+            Clock,
+            new PassthroughEventPayloadProtector()
+        );
 
     private static LegacyChannelEventRow Row(string type, string data, string id) =>
         new(

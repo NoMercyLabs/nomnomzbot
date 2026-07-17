@@ -36,7 +36,13 @@ public sealed class EventJournalPortabilityServiceTests
     );
 
     private static EventJournalService NewJournal(EventStoreTestDbContext db) =>
-        new(db, new TenantSequenceAllocator(db), new EventStoreTestUnitOfWork(db), Clock);
+        new(
+            db,
+            new TenantSequenceAllocator(db),
+            new EventStoreTestUnitOfWork(db),
+            Clock,
+            new PassthroughEventPayloadProtector()
+        );
 
     private static EventJournalPortabilityService NewPortability(
         EventJournalService journal,

@@ -28,7 +28,13 @@ public sealed class ProjectionRunnerTests
     );
 
     private static EventJournalService NewJournal(EventStoreTestDbContext db) =>
-        new(db, new TenantSequenceAllocator(db), new EventStoreTestUnitOfWork(db), Clock);
+        new(
+            db,
+            new TenantSequenceAllocator(db),
+            new EventStoreTestUnitOfWork(db),
+            Clock,
+            new PassthroughEventPayloadProtector()
+        );
 
     private static AppendEventRequest CounterEvent(
         Guid tenant,
