@@ -16,8 +16,8 @@ using NomNomzBot.Infrastructure.Content.Widgets;
 namespace NomNomzBot.Infrastructure.Tests.Widgets;
 
 /// <summary>
-/// Proves the first-party widget catalogue seeder writes the fourteen first-party overlay widgets (the thirteen
-/// spec §1.1 items plus <c>drop_game</c>) as global gallery items — each a verified, SaaS-available <c>vue</c>
+/// Proves the first-party widget catalogue seeder writes the seventeen first-party overlay widgets (the thirteen
+/// spec §1.1 items plus the four live-game overlays drop_game/raffle/heist/crash) as global gallery items — each a verified, SaaS-available <c>vue</c>
 /// in-repo item carrying its real SFC source — and that a re-seed is idempotent: it refreshes source/metadata in
 /// place while preserving each row's <c>Id</c> and <c>InstallCount</c>, never duplicating. Runs on the real
 /// relational SQLite harness with the production <see cref="WidgetGalleryItemConfiguration"/> so the JSON
@@ -31,6 +31,9 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         "goal_bar",
         "labels",
         "drop_game",
+        "raffle",
+        "heist",
+        "crash",
         "event_ticker",
         "chat_box",
         "now_playing",
@@ -51,7 +54,7 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
     }
 
     [Fact]
-    public async Task Seeds_the_fourteen_first_party_vue_widgets_with_their_real_source()
+    public async Task Seeds_the_seventeen_first_party_vue_widgets_with_their_real_source()
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
 
@@ -60,7 +63,7 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         await using WidgetTestDbContext db = database.NewContext();
         List<WidgetGalleryItem> items = await db.WidgetGalleryItems.ToListAsync();
 
-        items.Should().HaveCount(14);
+        items.Should().HaveCount(17);
         items.Select(i => i.NaturalKey).Should().BeEquivalentTo(ExpectedKeys);
 
         // Every seeded item is a verified, SaaS-available, platform-owned in-repo Vue widget with real source.
@@ -130,7 +133,7 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         List<WidgetGalleryItem> after = await read.WidgetGalleryItems.ToListAsync();
 
         // No duplicates — still exactly one row per natural key, with the same ids.
-        after.Should().HaveCount(14);
+        after.Should().HaveCount(17);
         after.ToDictionary(i => i.NaturalKey!, i => i.Id).Should().BeEquivalentTo(idsByKey);
 
         // The install count set between seeds survived the re-seed (metadata refreshed, counters preserved).

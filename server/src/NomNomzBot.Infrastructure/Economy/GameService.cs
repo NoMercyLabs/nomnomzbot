@@ -52,9 +52,14 @@ public sealed class GameService(
         ("dice", GameCategory.Gambling, 50m, 5m, 1.9m),
         ("slots", GameCategory.Gambling, 30m, 20m, 2.5m),
         ("duel", GameCategory.Minigame, null, null, null),
-        // Live overlay game (live-games.md §4.1) — the reference DropGame; payout = multiplier × stake
-        // for landings inside the win radius (ConfigJson win_radius, default 10).
+        // Live overlay games (live-games.md §4.1/§4.2) — seeded disabled like every game; each reads its
+        // own knobs from ConfigJson with in-code defaults. drop_game: payout = multiplier × stake inside
+        // the win radius. raffle: pot-based single-winner draw (no multiplier). heist: independent escape
+        // rolls, payout = 1.8× on success. crash: dynamic rising multiplier (no fixed multiplier column).
         ("drop_game", GameCategory.Minigame, null, null, 2m),
+        ("raffle", GameCategory.Gambling, null, null, null),
+        ("heist", GameCategory.Gambling, null, null, 1.8m),
+        ("crash", GameCategory.Gambling, null, null, null),
     ];
 
     // Safe baseline (limits-safety-baseline-then-tier): a GAMBLING game always has at least this per-user

@@ -117,6 +117,30 @@ public sealed class FirstPartyWidgetCatalogueSeeder : ISeeder
             DefaultEventSubscriptions: ["game.lobby", "game.running", "game.resolved"]
         ),
         new(
+            Key: "raffle",
+            Name: "Raffle",
+            Description: "The live raffle round: the entrant roster and climbing pot as chatters type !raffle, and "
+                + "the winner reveal + payout board when one entrant takes the whole pot.",
+            DefaultSettings: new() { ["accentColor"] = "#9146ff", ["hideAfterMs"] = 12000 },
+            DefaultEventSubscriptions: ["game.lobby", "game.running", "game.resolved"]
+        ),
+        new(
+            Key: "heist",
+            Name: "Heist",
+            Description: "The live heist round: the crew roster and rising escape odds as chatters type !heist, and "
+                + "each member's getaway outcome + payout when the job resolves.",
+            DefaultSettings: new() { ["accentColor"] = "#9146ff", ["hideAfterMs"] = 12000 },
+            DefaultEventSubscriptions: ["game.lobby", "game.running", "game.resolved"]
+        ),
+        new(
+            Key: "crash",
+            Name: "Crash",
+            Description: "The live crash round: a big rising multiplier readout, the cash-out ticker as chatters "
+                + "!crash to lock in their multiplier, and the bust/max reveal + payout board.",
+            DefaultSettings: new() { ["accentColor"] = "#9146ff", ["hideAfterMs"] = 12000 },
+            DefaultEventSubscriptions: ["game.lobby", "game.running", "game.resolved"]
+        ),
+        new(
             Key: "event_ticker",
             Name: "Event Ticker",
             Description: "A horizontal scrolling ticker of recent channel events as compact chips, newest appended and the "
