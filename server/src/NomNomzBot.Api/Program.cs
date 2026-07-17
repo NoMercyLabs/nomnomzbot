@@ -197,6 +197,16 @@ try
     // Register event handlers declared in the API layer (e.g. ChatMessageBroadcastHandler)
     builder.Services.AddEventHandlersFromAssembly(typeof(Program).Assembly);
 
+    // OBS bridge push seam (obs-control.md §3.2): the Infrastructure transport pushes to the leader
+    // bridge through this host-side adapter over the relay hub (replacing the standalone fallback).
+    Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.Replace(
+        builder.Services,
+        Microsoft.Extensions.DependencyInjection.ServiceDescriptor.Singleton<
+            NomNomzBot.Application.Obs.Services.IObsBridgePusher,
+            NomNomzBot.Api.Hubs.ObsBridgePusher
+        >()
+    );
+
     // JWT Auth. The self-host single executable must run on a clean first launch — the operator never edits a
     // config file — so when no strong Jwt:Secret was supplied we generate one and persist it OS-natively
     // (SelfHostSecretStore: DPAPI / user-only file) so tokens survive restarts. A strong configured value always

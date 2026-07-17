@@ -9,86 +9,158 @@
 // -----------------------------------------------------------------------------
 
 using System.Collections.Concurrent;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Clients;
-using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Obs.Dtos;
+using NomNomzBot.Application.Obs.Services;
+using NomNomzBot.Domain.Obs.Entities;
+using NomNomzBot.Domain.Obs.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Obs.Bridge;
 
 namespace NomNomzBot.Api.Hubs;
 
-[Authorize]
+/// <summary>
+/// The OBS bridge relay (obs-control.md §4/§7): the browser-source bridge INSIDE OBS connects here
+/// with the channel's <c>BridgeToken</c> (query <c>?token=</c> — the token IS the credential; this
+/// hub never accepts a dashboard JWT), registers into the per-channel election, receives
+/// <c>ExecuteObsRequest</c> pushes when it is the leader, acks each command by id, and forwards the
+/// OBS events it sees as <see cref="ObsEventReceivedEvent"/> for the trigger surface.
+/// </summary>
+[AllowAnonymous]
 public class OBSRelayHub : Hub<IOBSRelayClient>
 {
-    private static readonly ConcurrentDictionary<string, string> _connectionBroadcaster = new();
-    private readonly ILogger<OBSRelayHub> _logger;
-    private readonly IChannelAccessService _access;
+    private static readonly ConcurrentDictionary<string, Guid> ConnectionChannels = new();
 
-    public OBSRelayHub(ILogger<OBSRelayHub> logger, IChannelAccessService access)
+    private readonly IApplicationDbContext _db;
+    private readonly IObsBridgeRegistry _bridges;
+    private readonly ObsBridgeCommandBook _commands;
+    private readonly IEventBus _eventBus;
+    private readonly TimeProvider _clock;
+    private readonly ILogger<OBSRelayHub> _logger;
+
+    public OBSRelayHub(
+        IApplicationDbContext db,
+        IObsBridgeRegistry bridges,
+        ObsBridgeCommandBook commands,
+        IEventBus eventBus,
+        TimeProvider clock,
+        ILogger<OBSRelayHub> logger
+    )
     {
+        _db = db;
+        _bridges = bridges;
+        _commands = commands;
+        _eventBus = eventBus;
+        _clock = clock;
         _logger = logger;
-        _access = access;
     }
 
     public override async Task OnConnectedAsync()
     {
-        string? userId = Context.UserIdentifier ?? Context.User?.FindFirst("sub")?.Value;
-        if (userId == null)
+        string? token = Context.GetHttpContext()?.Request.Query["token"];
+        if (string.IsNullOrWhiteSpace(token))
         {
             Context.Abort();
             return;
         }
 
-        Guid broadcasterId = await _access.ResolveOwnChannelAsync(userId);
-        if (broadcasterId == Guid.Empty)
+        // The bridge token IS the tenant selector — the lookup ignores the (unset) tenant filter.
+        ObsConnection? connection = await _db
+            .ObsConnections.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.BridgeToken == token && c.DeletedAt == null && c.IsEnabled);
+        if (connection is null)
         {
+            _logger.LogWarning("OBS bridge rejected: unknown or disabled bridge token.");
             Context.Abort();
             return;
         }
 
-        _connectionBroadcaster[Context.ConnectionId] = broadcasterId.ToString();
-        await Groups.AddToGroupAsync(Context.ConnectionId, $"obs-{broadcasterId}");
-        _logger.LogDebug("OBSRelay connected for {BroadcasterId}", broadcasterId);
+        ConnectionChannels[Context.ConnectionId] = connection.BroadcasterId;
+        await _bridges.RegisterAsync(
+            connection.BroadcasterId,
+            Context.ConnectionId,
+            _clock.GetUtcNow().UtcDateTime,
+            Context.ConnectionAborted
+        );
+        _logger.LogInformation(
+            "OBS bridge connected for {Channel} ({Connection}).",
+            connection.BroadcasterId,
+            Context.ConnectionId
+        );
         await base.OnConnectedAsync();
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        if (_connectionBroadcaster.TryRemove(Context.ConnectionId, out string? broadcasterId))
+        if (ConnectionChannels.TryRemove(Context.ConnectionId, out Guid broadcasterId))
         {
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"obs-{broadcasterId}");
-            // Implicitly fire OBSDisconnected event
-            await Clients.Group($"obs-{broadcasterId}").OBSCommand(new("", "disconnected", null));
+            await _bridges.UnregisterAsync(broadcasterId, Context.ConnectionId);
+            _logger.LogInformation(
+                "OBS bridge disconnected for {Channel} ({Connection}).",
+                broadcasterId,
+                Context.ConnectionId
+            );
         }
         await base.OnDisconnectedAsync(exception);
     }
 
-    public Task OBSResponse(OBSResponseDto response)
+    /// <summary>The bridge answers one pushed command: same id, the OBS outcome as JSON.</summary>
+    public Task AckCommand(Guid commandId, bool ok, string? responseDataJson, string? error)
     {
-        _logger.LogDebug("OBS response for request {R}: {S}", response.RequestId, response.Success);
+        if (!ConnectionChannels.ContainsKey(Context.ConnectionId))
+            return Task.CompletedTask; // never authenticated — ignore
+
+        Dictionary<string, object?>? data = null;
+        if (!string.IsNullOrWhiteSpace(responseDataJson))
+        {
+            try
+            {
+                using JsonDocument doc = JsonDocument.Parse(responseDataJson);
+                if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    data = new Dictionary<string, object?>();
+                    foreach (JsonProperty property in doc.RootElement.EnumerateObject())
+                        data[property.Name] = property.Value.ValueKind switch
+                        {
+                            JsonValueKind.String => property.Value.GetString(),
+                            JsonValueKind.Number => property.Value.GetDouble(),
+                            JsonValueKind.True => true,
+                            JsonValueKind.False => false,
+                            JsonValueKind.Null => null,
+                            _ => property.Value.GetRawText(),
+                        };
+                }
+            }
+            catch (JsonException)
+            {
+                // A malformed ack still settles the command as-is.
+            }
+        }
+        _commands.Complete(commandId, new ObsResponse(ok, data, error));
         return Task.CompletedTask;
     }
 
-    public Task OBSStateUpdate(OBSStateUpdateDto update)
+    /// <summary>The LEADER bridge forwards each OBS event it sees; non-leaders stay quiet client-side.</summary>
+    public async Task ForwardObsEvent(string eventType, string? eventDataJson)
     {
-        _logger.LogDebug("OBS state update: {S}", update.State);
-        return Task.CompletedTask;
-    }
+        if (!ConnectionChannels.TryGetValue(Context.ConnectionId, out Guid broadcasterId))
+            return; // never authenticated — ignore
+        if (string.IsNullOrWhiteSpace(eventType))
+            return;
 
-    public async Task OBSConnected(OBSConnectedDto dto)
-    {
-        _logger.LogInformation(
-            "OBS WebSocket connected for {B}, version {V}",
-            dto.BroadcasterId,
-            dto.Version
-        );
-    }
-
-    public async Task OBSDisconnected()
-    {
-        _logger.LogInformation(
-            "OBS WebSocket disconnected for connection {C}",
-            Context.ConnectionId
+        await _eventBus.PublishAsync(
+            new ObsEventReceivedEvent
+            {
+                BroadcasterId = broadcasterId,
+                OccurredAt = _clock.GetUtcNow(),
+                ObsEventType = eventType,
+                DataJson = eventDataJson ?? "{}",
+            }
         );
     }
 }

@@ -15,4 +15,7 @@ namespace NomNomzBot.Api.Hubs.Clients;
 public interface IOBSRelayClient
 {
     Task OBSCommand(OBSCommandDto command);
+
+    /// <summary>Server → the LEADER bridge: execute one command against local OBS and ack it by id.</summary>
+    Task ExecuteObsRequest(Guid commandId, string payloadJson);
 }

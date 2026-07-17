@@ -110,6 +110,32 @@ public static class EventResponsePresetCatalog
             SupporterVariables
         ),
         new("supporter.any", "{user} just supported the stream — thank you!", SupporterVariables),
+        // OBS events (obs-control.md §6) — fields arrive as {obs.event.<name>} from the trigger source.
+        new(
+            "obs.CurrentProgramSceneChanged",
+            "Scene changed to {obs.event.sceneName}",
+            ["obs.event.type", "obs.event.sceneName"]
+        ),
+        new(
+            "obs.StreamStateChanged",
+            "OBS stream state: {obs.event.outputState}",
+            ["obs.event.type", "obs.event.outputActive", "obs.event.outputState"]
+        ),
+        new(
+            "obs.RecordStateChanged",
+            "OBS recording state: {obs.event.outputState}",
+            ["obs.event.type", "obs.event.outputActive", "obs.event.outputState"]
+        ),
+        new(
+            "obs.ReplayBufferSaved",
+            "Replay saved!",
+            ["obs.event.type", "obs.event.savedReplayPath"]
+        ),
+        new(
+            "obs.VendorEvent",
+            "OBS vendor event from {obs.event.vendorName}",
+            ["obs.event.type", "obs.event.vendorName", "obs.event.eventType"]
+        ),
     ];
 
     /// <summary>The configurable event-type keys, in catalog order — the per-channel seeding set.</summary>

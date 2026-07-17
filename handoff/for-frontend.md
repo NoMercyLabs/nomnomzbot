@@ -16,6 +16,32 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — OBS control: config page + browser-source bridge page + palette entries
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the whole OBS backend exists (obs-control.md). Three frontend pieces:
+  1. **Config page** under `channels/{channelId}/obs`: `GET/PUT connection` (mode `direct|bridge`,
+     host/port, `password` write-only — show only the `hasPassword` flag, empty string clears),
+     `GET bridge/setup` (returns `bridgeUrl` — show-and-copy for pasting into OBS as a browser
+     source), `POST bridge/rotate-token`, `GET bridge/status` (`instanceCount`/`hasLeader` — a live
+     "bridge online" dot), plus live control: `GET state|scenes|inputs`, `POST scene`
+     (`{scene}`), `POST streaming|recording` (broadcast keys — disable below Broadcaster with
+     reason).
+  2. **The `/obs-bridge` page** (public widget surface, like overlays): reads `?token=`, connects
+     SignalR to `/hubs/obs` with `?token=` (NOT a JWT), opens `ws://127.0.0.1:4455` to local OBS
+     (v5 Identify), executes `ExecuteObsRequest(commandId, payloadJson)` pushes (payload
+     `{kind: "request"|"batch", ...}`) against local OBS, calls `AckCommand(commandId, ok,
+     responseDataJson, error)`, and forwards subscribed OBS events via
+     `ForwardObsEvent(eventType, eventDataJson)`. Renders nothing (1×1).
+  3. **Palette + trigger picker**: 19 `obs_*` pipeline actions (obs_switch_scene …
+     obs_call_vendor — configs in obs-control.md §5) and the `obs.*` event-response presets
+     already in the catalog endpoint.
+- **Why:** BUILD-TODO item 9 (Streamer.bot parity) — scene switching, source toggles, recording
+  control, and OBS-event triggers from pipelines and the dashboard.
+- **Where:** `server/openapi/v1.json` (refreshed); spec `obs-control.md` §4/§5/§7.
+- **Done when:** on dev with a real OBS: direct mode switches a scene from the dashboard; bridge
+  mode executes through the browser source and the status dot reflects it; an `obs_switch_scene`
+  pipeline block works; an `obs.CurrentProgramSceneChanged` response fires on a scene change.
+
 ### 2026-07-17 — Automation: API tokens screen (issue / rotate / revoke external credentials)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the automation token management plane exists. Routes on

@@ -33,9 +33,22 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class ObsController(
     IObsConnectionService connections,
     IObsControlService control,
+    IObsBridgeRegistry bridges,
     IConfiguration configuration
 ) : BaseController
 {
+    /// <summary>Live bridge fleet status (instances online, whether a leader executes).</summary>
+    [HttpGet("bridge/status")]
+    [RequireAction("obs:config:read")]
+    [ProducesResponseType<StatusResponseDto<ObsBridgeStatusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetBridgeStatus(Guid channelId, CancellationToken ct) =>
+        Ok(
+            new StatusResponseDto<ObsBridgeStatusDto>
+            {
+                Data = await bridges.GetStatusAsync(channelId, ct),
+            }
+        );
+
     /// <summary>Live OBS state (current scene, stream/record/replay status).</summary>
     [HttpGet("state")]
     [RequireAction("obs:control")]

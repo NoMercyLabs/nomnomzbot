@@ -841,16 +841,30 @@ public static class DependencyInjection
         >();
         services.AddSingleton<AutomationApi.Stream.AutomationStreamCoordinator>();
 
-        // OBS control (obs-control.md §8): the direct transport holds per-channel OBS-WS v5 sockets,
-        // so it is a singleton; the bridge transport joins with its slice. Neither is convention-scanned.
+        // OBS control (obs-control.md §8). Two concrete transports — the direct one holds per-channel
+        // OBS-WS v5 sockets, the bridge one routes to the leader browser-source — behind a per-channel
+        // Mode router that IS the IObsTransport. Election state + in-flight bridge commands are
+        // singletons; none of this is convention-scanned.
         services.AddSingleton<
             Obs.Transport.IObsSocketFactory,
             Obs.Transport.ClientObsSocketFactory
         >();
+        services.AddSingleton<Obs.Transport.DirectObsTransport>();
+        services.AddSingleton<Obs.Bridge.BridgeObsTransport>();
         services.AddSingleton<
             Application.Obs.Services.IObsTransport,
-            Obs.Transport.DirectObsTransport
+            Obs.Transport.ObsTransportRouter
         >();
+        services.AddSingleton<
+            Application.Obs.Services.IObsBridgeRegistry,
+            Obs.Bridge.ObsBridgeRegistry
+        >();
+        services.AddSingleton<Obs.Bridge.ObsBridgeCommandBook>();
+        // Standalone-validation fallback — the API host replaces this with the hub-backed pusher.
+        Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddSingleton<
+            Application.Obs.Services.IObsBridgePusher,
+            Obs.Bridge.UnavailableObsBridgePusher
+        >(services);
 
         // Spotify HTTP clients with resilience (Music providers themselves are scanned by
         // IMusicProvider above; IMusicService is scanned by AddServicesByConvention).
