@@ -17,7 +17,7 @@ using NomNomzBot.Domain.Widgets.Entities;
 namespace NomNomzBot.Infrastructure.Content.Widgets;
 
 /// <summary>
-/// Seeds the four first-party overlay widgets into the GLOBAL gallery catalogue (schema §P.8, Order 10 — global
+/// Seeds the first-party overlay widgets into the GLOBAL gallery catalogue (schema §P.8, Order 10 — global
 /// reference data, no FK dependencies). Each is a <c>vue</c> SFC that ships in-repo (its source embedded as
 /// <c>Content/Widgets/Assets/{key}.vue</c>) and is copied verbatim into
 /// <see cref="WidgetGalleryItem.SourceCode"/> so a channel can install or clone-to-edit it. Idempotent: upserts by
@@ -107,6 +107,14 @@ public sealed class FirstPartyWidgetCatalogueSeeder : ISeeder
                 ["accentColor"] = "#9146ff",
             },
             DefaultEventSubscriptions: ["follow", "subscription", "resub", "gift", "cheer", "goal"]
+        ),
+        new(
+            Key: "drop_game",
+            Name: "Drop Game",
+            Description: "The live drop-game round on a horizontal track: the target zone, every chatter's landing "
+                + "marker as they type !drop, and the payout scoreboard when the round resolves.",
+            DefaultSettings: new() { ["accentColor"] = "#9146ff", ["hideAfterMs"] = 12000 },
+            DefaultEventSubscriptions: ["game.lobby", "game.running", "game.resolved"]
         ),
         new(
             Key: "event_ticker",

@@ -48,6 +48,7 @@ public sealed class FirstPartyWidgetVueBuildTests : IClassFixture<VueSfcCompiler
     [InlineData("alerts")]
     [InlineData("goal_bar")]
     [InlineData("labels")]
+    [InlineData("drop_game")]
     [InlineData("event_ticker")]
     public async Task First_party_sfc_compiles_and_bundles_to_a_vue_iife(string key)
     {

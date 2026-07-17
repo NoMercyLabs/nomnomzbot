@@ -16,7 +16,7 @@ using NomNomzBot.Infrastructure.Content.Widgets;
 namespace NomNomzBot.Infrastructure.Tests.Widgets;
 
 /// <summary>
-/// Proves the first-party widget catalogue seeder writes the four flagship overlay widgets as global gallery
+/// Proves the first-party widget catalogue seeder writes the five flagship overlay widgets as global gallery
 /// items — each a verified, SaaS-available <c>vue</c> in-repo item carrying its real SFC source — and that a
 /// re-seed is idempotent: it refreshes source/metadata in place while preserving each row's <c>Id</c> and
 /// <c>InstallCount</c>, never duplicating. Runs on the real relational SQLite harness with the production
@@ -30,6 +30,7 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         "alerts",
         "goal_bar",
         "labels",
+        "drop_game",
         "event_ticker",
     ];
 
@@ -41,7 +42,7 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
     }
 
     [Fact]
-    public async Task Seeds_the_four_first_party_vue_widgets_with_their_real_source()
+    public async Task Seeds_the_five_first_party_vue_widgets_with_their_real_source()
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
 
@@ -50,7 +51,7 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         await using WidgetTestDbContext db = database.NewContext();
         List<WidgetGalleryItem> items = await db.WidgetGalleryItems.ToListAsync();
 
-        items.Should().HaveCount(4);
+        items.Should().HaveCount(5);
         items.Select(i => i.NaturalKey).Should().BeEquivalentTo(ExpectedKeys);
 
         // Every seeded item is a verified, SaaS-available, platform-owned in-repo Vue widget with real source.
@@ -120,7 +121,7 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         List<WidgetGalleryItem> after = await read.WidgetGalleryItems.ToListAsync();
 
         // No duplicates — still exactly one row per natural key, with the same ids.
-        after.Should().HaveCount(4);
+        after.Should().HaveCount(5);
         after.ToDictionary(i => i.NaturalKey!, i => i.Id).Should().BeEquivalentTo(idsByKey);
 
         // The install count set between seeds survived the re-seed (metadata refreshed, counters preserved).

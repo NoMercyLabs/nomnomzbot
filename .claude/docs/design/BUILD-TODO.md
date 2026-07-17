@@ -42,10 +42,10 @@ what REMAINS.
 - [ ] **16. TTS advanced** (`tts.md`) — remaining follow-on: `client_edge` mode (the frontend
   widget handler + dispatch plane; flip the new-channel `Mode` default from `self_host` to the
   binding `client_edge` when it lands).
-- [ ] **19. Live overlay games** (`live-games.md`) — remaining: the reference `DropGame : ILiveGame`
-  + its `drop_game` first-party overlay widget (catalogue seeder — overlaps item 20) + default
-  `GameConfig` seed (§4.1), plus **(frontend — handoff 2026-07-17)** the Games-page live-sessions
-  panel + the two palette actions.
+- [ ] **19. Live overlay games** (`live-games.md`) — **(frontend — handoff 2026-07-17)** the
+  Games-page live-sessions panel + the two palette actions. The backend is complete: GameSession
+  persistence + economy stake/settle/refund, the generic engine/catalog/runner + REST + chat input,
+  and the reference `DropGame` + `drop_game` first-party widget + default config seed.
 - [ ] **20. Widget gallery + overlay manifest** (`widgets-overlays.md`) — gallery, `OverlayController`
   manifest, widget versions/build (the compiled-bundle/gallery/import pipeline).
 - [ ] **22. Marketplace / bundles** (`marketplace.md`) — export/inspect/import/uninstall;

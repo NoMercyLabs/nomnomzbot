@@ -30,9 +30,9 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
      mods; per-game config stays `economy:games:write` (Broadcaster).
   3. **Palette**: two new pipeline actions — `start_live_game` (`game_type` param; writes
      `session_id`/`status` vars) and `cancel_live_game` (no params).
-  Note: no first-party game ships YET (the reference `drop_game` + its overlay widget is the next
-  backend slice) — the catalog is empty until then, so build the panel data-driven off the catalog
-  endpoint.
+  Note: one first-party game ships — `drop_game` (viewers type `!drop`; closest to the target wins
+  `2× stake`; its `drop_game` overlay widget is in the first-party gallery, installable like alerts).
+  Build the panel data-driven off the catalog endpoint anyway — more games arrive as drop-ins.
 - **Why:** BUILD-TODO item 19 (StreamElements/Streamer.bot parity) — dropgame-class multi-viewer
   overlay rounds started from dashboard, chat, or a redemption.
 - **Where:** `server/openapi/v1.json` (refreshed — 4 new session routes); spec `live-games.md`.

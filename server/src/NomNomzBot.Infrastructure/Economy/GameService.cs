@@ -52,6 +52,9 @@ public sealed class GameService(
         ("dice", GameCategory.Gambling, 50m, 5m, 1.9m),
         ("slots", GameCategory.Gambling, 30m, 20m, 2.5m),
         ("duel", GameCategory.Minigame, null, null, null),
+        // Live overlay game (live-games.md §4.1) — the reference DropGame; payout = multiplier × stake
+        // for landings inside the win radius (ConfigJson win_radius, default 10).
+        ("drop_game", GameCategory.Minigame, null, null, 2m),
     ];
 
     // Safe baseline (limits-safety-baseline-then-tier): a GAMBLING game always has at least this per-user
