@@ -44,7 +44,7 @@ class TtsControllerTest {
                         TtsConfig(
                             isEnabled = true,
                             defaultVoiceId = "en-US-Brian",
-                            maxLength = 200,
+                            maxCharacters = 200,
                             minPermission = "subscribers",
                             skipBotMessages = true,
                             readUsernames = false,
@@ -60,7 +60,7 @@ class TtsControllerTest {
         val config: TtsConfig = (state as TtsState.Ready).config
         assertEquals(true, config.isEnabled)
         assertEquals("en-US-Brian", config.defaultVoiceId)
-        assertEquals(200, config.maxLength)
+        assertEquals(200, config.maxCharacters)
         assertEquals("subscribers", config.minPermission)
         assertEquals(true, config.skipBotMessages)
         assertEquals(false, config.readUsernames)
@@ -123,13 +123,13 @@ class TtsControllerTest {
     @Test
     fun save_sends_the_edit_and_reflects_the_backend_echoed_config() = runTest {
         // The backend canonicalizes and echoes the saved config back; the controller adopts THAT, not the
-        // value the user typed. Here the echo flips readUsernames on and clamps maxLength, proving the
+        // value the user typed. Here the echo flips readUsernames on and clamps maxCharacters, proving the
         // controller surfaces the persisted server values rather than the request.
         val loaded =
             TtsConfig(
                 isEnabled = false,
                 defaultVoiceId = "en-US-Brian",
-                maxLength = 200,
+                maxCharacters = 200,
                 minPermission = "everyone",
                 skipBotMessages = false,
                 readUsernames = false,
@@ -138,7 +138,7 @@ class TtsControllerTest {
             TtsConfig(
                 isEnabled = true,
                 defaultVoiceId = "en-GB-Sonia",
-                maxLength = 300,
+                maxCharacters = 300,
                 minPermission = "subscribers",
                 skipBotMessages = true,
                 readUsernames = true,
@@ -156,7 +156,7 @@ class TtsControllerTest {
             TtsConfigUpdate(
                 isEnabled = true,
                 defaultVoiceId = "en-US-Brian",
-                maxLength = 200,
+                maxCharacters = 200,
                 minPermission = "subscribers",
                 skipBotMessages = false,
                 readUsernames = false,
@@ -182,7 +182,7 @@ class TtsControllerTest {
             TtsConfig(
                 isEnabled = true,
                 defaultVoiceId = "en-US-Brian",
-                maxLength = 200,
+                maxCharacters = 200,
                 minPermission = "everyone",
                 skipBotMessages = false,
                 readUsernames = false,
@@ -195,7 +195,7 @@ class TtsControllerTest {
         val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
         controller.load()
 
-        controller.save(loaded.copy(maxLength = 50))
+        controller.save(loaded.copy(maxCharacters = 50))
 
         // The page stays Ready on the loaded config (no data loss) but surfaces the save error, save cleared.
         val state: TtsState = controller.state.value

@@ -175,7 +175,7 @@ class TtsController(
             TtsConfigUpdate(
                 isEnabled = config.isEnabled,
                 defaultVoiceId = config.defaultVoiceId,
-                maxLength = config.maxLength,
+                maxCharacters = config.maxCharacters,
                 minPermission = config.minPermission,
                 skipBotMessages = config.skipBotMessages,
                 readUsernames = config.readUsernames,

@@ -210,8 +210,8 @@ private fun ReadyContent(
     // it screen-side keeps the controller a thin persistence boundary; `remember(loaded)` resets every field
     // to the saved baseline so the "differs from loaded" check below is exact.
     var isEnabled: Boolean by remember(loaded) { mutableStateOf(loaded.isEnabled) }
-    var defaultVoiceId: String by remember(loaded) { mutableStateOf(loaded.defaultVoiceId) }
-    var maxLengthText: String by remember(loaded) { mutableStateOf(loaded.maxLength.toString()) }
+    var defaultVoiceId: String by remember(loaded) { mutableStateOf(loaded.defaultVoiceId ?: "") }
+    var maxLengthText: String by remember(loaded) { mutableStateOf(loaded.maxCharacters.toString()) }
     var minPermission: String by remember(loaded) { mutableStateOf(loaded.minPermission) }
     var skipBotMessages: Boolean by remember(loaded) { mutableStateOf(loaded.skipBotMessages) }
     var readUsernames: Boolean by remember(loaded) { mutableStateOf(loaded.readUsernames) }
@@ -221,11 +221,13 @@ private fun ReadyContent(
     val maxLength: Int? = maxLengthText.toIntOrNull()
     val maxLengthValid: Boolean = maxLength != null && maxLength in 1..500
 
+    // copy() keeps the fields this form doesn't edit yet (mode, defaultProvider, minBitsToTts) at their
+    // loaded values, so the differs-from-loaded check and the full-config save never clobber them.
     val edited: TtsConfig =
-        TtsConfig(
+        loaded.copy(
             isEnabled = isEnabled,
-            defaultVoiceId = defaultVoiceId,
-            maxLength = maxLength ?: loaded.maxLength,
+            defaultVoiceId = defaultVoiceId.ifBlank { null },
+            maxCharacters = maxLength ?: loaded.maxCharacters,
             minPermission = minPermission,
             skipBotMessages = skipBotMessages,
             readUsernames = readUsernames,

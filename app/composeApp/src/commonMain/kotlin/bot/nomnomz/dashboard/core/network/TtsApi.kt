@@ -127,8 +127,12 @@ class RestTtsApi(private val client: ApiClient) : TtsApi {
 @Serializable
 data class TtsConfig(
     val isEnabled: Boolean = false,
-    val defaultVoiceId: String = "",
-    val maxLength: Int = 0,
+    // Dispatch plane: client_edge | byok | self_host. Display-only until the client-edge handler ships.
+    val mode: String = "self_host",
+    // Preferred synthesis provider: edge | azure | elevenlabs.
+    val defaultProvider: String = "edge",
+    val defaultVoiceId: String? = null,
+    val maxCharacters: Int = 0,
     val minPermission: String = "",
     val skipBotMessages: Boolean = false,
     val readUsernames: Boolean = false,
@@ -137,23 +141,29 @@ data class TtsConfig(
     val profanityCensorEnabled: Boolean = true,
     // Opt-IN: hold every TTS utterance in the moderator approval queue until a mod approves it. Default OFF.
     val modApprovalRequired: Boolean = false,
+    // Minimum bits attached to a message for it to be read out; null = no bits gate.
+    val minBitsToTts: Int? = null,
 )
 
 // The TTS config update request (backend `UpdateTtsConfigDto`). Every field is nullable: the backend
 // treats null as "leave unchanged", so a partial edit only sends the fields that moved. `explicitNulls =
 // false` on the shared Json means absent fields are omitted from the wire body, not sent as JSON null.
 // Field names mirror the DTO camelCase exactly (ApiClient never renames). `minPermission` must be one of
-// everyone|subscribers|vip|moderators|broadcaster; `maxLength` is 1..500 — both validated server-side.
+// everyone|subscribers|vip|moderators|broadcaster; `maxCharacters` is 1..500; `minBitsToTts` 0 clears the
+// gate — all validated server-side.
 @Serializable
 data class TtsConfigUpdate(
     val isEnabled: Boolean? = null,
+    val mode: String? = null,
+    val defaultProvider: String? = null,
     val defaultVoiceId: String? = null,
-    val maxLength: Int? = null,
+    val maxCharacters: Int? = null,
     val minPermission: String? = null,
     val skipBotMessages: Boolean? = null,
     val readUsernames: Boolean? = null,
     val profanityCensorEnabled: Boolean? = null,
     val modApprovalRequired: Boolean? = null,
+    val minBitsToTts: Int? = null,
 )
 
 /**
