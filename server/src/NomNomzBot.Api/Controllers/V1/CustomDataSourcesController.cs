@@ -86,6 +86,40 @@ public sealed class CustomDataSourcesController : BaseController
         );
     }
 
+    // ── GET /custom-data-sources/search ──────────────────────────────────────
+
+    /// <summary>Autocomplete search over the channel's custom data sources by name or display name.</summary>
+    [HttpGet("search")]
+    [RequireAction("customdata:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<CustomDataSourceOptionDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> Search(
+        [FromQuery] string? q,
+        [FromQuery] int? limit,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetIds(out Guid broadcasterId, out Guid _))
+            return Unauthorized();
+
+        Result<IReadOnlyList<CustomDataSourceOptionDto>> result = await _service.SearchAsync(
+            broadcasterId,
+            q,
+            limit ?? 20,
+            ct
+        );
+
+        return result.IsSuccess
+            ? Ok(
+                new StatusResponseDto<IReadOnlyList<CustomDataSourceOptionDto>>
+                {
+                    Data = result.Value,
+                }
+            )
+            : BadRequest(new StatusResponseDto<object> { Message = result.ErrorMessage });
+    }
+
     // ── GET /custom-data-sources/presets ────────────────────────────────────
 
     /// <summary>List available custom data source presets.</summary>

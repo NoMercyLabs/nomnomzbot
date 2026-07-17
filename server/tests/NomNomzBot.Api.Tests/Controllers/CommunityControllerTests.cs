@@ -17,6 +17,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Analytics.Entities;
+using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NSubstitute;
 
@@ -151,5 +152,122 @@ public sealed class CommunityControllerTests
         PaginatedResponse<CommunityController.CommunityUserDto> body =
             (PaginatedResponse<CommunityController.CommunityUserDto>)ok.Value!;
         return body.Data.ToList();
+    }
+
+    [Fact]
+    public async Task SearchViewers_returns_only_channel_viewers_whose_name_matches_the_query()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+
+        // Two channel viewers whose names match "ali": alice is seen via a chat message in this channel,
+        // alicia via a tracked ViewerProfile in this channel — both must surface.
+        AddUser(db, "twitch-1", "alice", "Alice");
+        AddChat(db, "twitch-1");
+        AddUser(db, "twitch-2", "alicia", "Alicia");
+        db.ViewerProfiles.Add(
+            new ViewerProfile
+            {
+                BroadcasterId = Broadcaster,
+                ViewerUserId = Guid.CreateVersion7(),
+                ViewerTwitchUserId = "twitch-2",
+                TotalMessages = 3,
+            }
+        );
+
+        // A channel viewer whose name does NOT match the query — excluded by the filter.
+        AddUser(db, "twitch-3", "bob", "Bob");
+        AddChat(db, "twitch-3");
+
+        // A name-matching user with NO activity in this channel — excluded (not a viewer here).
+        AddUser(db, "twitch-4", "alien", "Alien");
+
+        await db.SaveChangesAsync();
+
+        CommunityController controller = Build(db, Substitute.For<ITwitchChannelsApi>());
+
+        IActionResult result = await controller.SearchViewers(
+            Broadcaster.ToString(),
+            q: "ali",
+            limit: 20,
+            CancellationToken.None
+        );
+
+        List<CommunityController.ViewerOptionDto> options = SearchData(result);
+
+        // The consequence: exactly the two in-channel, name-matching viewers — keyed by Twitch user id.
+        options.Select(o => o.Id).Should().BeEquivalentTo(["twitch-1", "twitch-2"]);
+
+        CommunityController.ViewerOptionDto alice = options.Single(o => o.Id == "twitch-1");
+        alice.Label.Should().Be("Alice"); // label = display name
+        alice.SubLabel.Should().Be("alice"); // subLabel = username
+
+        // bob is in-channel but name-mismatched; alien matches the name but has no channel activity.
+        options.Should().NotContain(o => o.Id == "twitch-3" || o.Id == "twitch-4");
+    }
+
+    [Fact]
+    public async Task SearchViewers_respects_the_limit()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+
+        for (int i = 0; i < 5; i++)
+        {
+            string twitchId = $"twitch-{i}";
+            AddUser(db, twitchId, $"streamfan{i}", $"StreamFan{i}");
+            AddChat(db, twitchId);
+        }
+        await db.SaveChangesAsync();
+
+        CommunityController controller = Build(db, Substitute.For<ITwitchChannelsApi>());
+
+        IActionResult result = await controller.SearchViewers(
+            Broadcaster.ToString(),
+            q: "streamfan",
+            limit: 2,
+            CancellationToken.None
+        );
+
+        // Five viewers match the query; the limit caps the result at two.
+        SearchData(result).Should().HaveCount(2);
+    }
+
+    private static void AddUser(
+        CommunityControllerTestDbContext db,
+        string twitchId,
+        string username,
+        string displayName
+    ) =>
+        db.Users.Add(
+            new User
+            {
+                Id = Guid.CreateVersion7(),
+                TwitchUserId = twitchId,
+                Username = username,
+                UsernameNormalized = username,
+                DisplayName = displayName,
+            }
+        );
+
+    private static void AddChat(CommunityControllerTestDbContext db, string twitchId) =>
+        db.ChatMessages.Add(
+            new ChatMessage
+            {
+                Id = Guid.CreateVersion7().ToString(),
+                BroadcasterId = Broadcaster,
+                UserId = twitchId,
+                Username = twitchId,
+                DisplayName = twitchId,
+                UserType = "viewer",
+                Message = "hi",
+            }
+        );
+
+    private static List<CommunityController.ViewerOptionDto> SearchData(IActionResult result)
+    {
+        result.Should().BeOfType<OkObjectResult>();
+        OkObjectResult ok = (OkObjectResult)result;
+        StatusResponseDto<List<CommunityController.ViewerOptionDto>> body =
+            (StatusResponseDto<List<CommunityController.ViewerOptionDto>>)ok.Value!;
+        return body.Data!;
     }
 }

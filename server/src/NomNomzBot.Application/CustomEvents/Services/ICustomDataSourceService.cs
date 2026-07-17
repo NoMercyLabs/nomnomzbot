@@ -23,6 +23,18 @@ public interface ICustomDataSourceService
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Autocomplete search over the channel's custom data sources by name or display name — powers the
+    /// "pick a source" inputs. An empty query returns the first <paramref name="limit"/> sources ordered by
+    /// display name; <paramref name="limit"/> is clamped to a safe ceiling.
+    /// </summary>
+    Task<Result<IReadOnlyList<CustomDataSourceOptionDto>>> SearchAsync(
+        Guid broadcasterId,
+        string? query,
+        int limit,
+        CancellationToken ct = default
+    );
+
     Task<Result<CustomDataSourceDto>> GetAsync(
         Guid broadcasterId,
         Guid id,
@@ -99,3 +111,6 @@ public sealed record CustomDataSourceDto(
 );
 
 public sealed record CustomDataSourcePresetDto(string Key, string DisplayName, string SourceKind);
+
+/// <summary>Minimal option projection for pick-list / autocomplete inputs (id + name + display name).</summary>
+public sealed record CustomDataSourceOptionDto(Guid Id, string Name, string DisplayName);

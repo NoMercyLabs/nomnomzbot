@@ -135,6 +135,13 @@ public class CommunityController : BaseController
 
     public record CommunityStatsDto(int Followers, int Subscribers, int Vips, int Moderators);
 
+    /// <summary>
+    /// Minimal option projection for the "pick a viewer" autocomplete inputs. <c>Id</c> is the Twitch user id
+    /// (the identifier the moderation / trust / VIP / TTS-voice inputs all consume — never the internal
+    /// <c>User.Id</c> Guid); <c>Label</c> is the display name, <c>SubLabel</c> the username.
+    /// </summary>
+    public record ViewerOptionDto(string Id, string Label, string SubLabel);
+
     public record BannedUserDto(
         string Id,
         string Username,
@@ -163,6 +170,58 @@ public class CommunityController : BaseController
         string BannedBy,
         DateTime BannedAt
     );
+
+    // ── Viewer autocomplete ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Autocomplete search over the channel's known viewers — the users who have chatted in this channel or
+    /// carry a tracked <see cref="ViewerProfile"/> — by username or display name. Powers the "pick a viewer"
+    /// inputs that feed moderation, trust, VIP, and TTS-voice assignment; each option's id is the Twitch user
+    /// id those flows consume. An empty query returns the first page of viewers ordered by display name.
+    /// </summary>
+    [RequireAction("community:read")]
+    [HttpGet("search")]
+    [ProducesResponseType<StatusResponseDto<List<ViewerOptionDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SearchViewers(
+        string channelId,
+        [FromQuery] string? q,
+        [FromQuery] int? limit,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        int take = Math.Clamp(limit ?? 20, 1, 50);
+        string term = (q ?? string.Empty).Trim().ToLowerInvariant();
+
+        // A "channel viewer" is a User who has chatted here or has a tracked ViewerProfile here — both keyed
+        // on the Twitch user id (ChatMessage.UserId / ViewerProfile.ViewerTwitchUserId == User.TwitchUserId).
+        IQueryable<User> viewers = _db.Users.Where(u =>
+            u.TwitchUserId != null
+            && (
+                _db.ChatMessages.Any(m =>
+                    m.BroadcasterId == broadcasterId && m.UserId == u.TwitchUserId
+                )
+                || _db.ViewerProfiles.Any(p =>
+                    p.BroadcasterId == broadcasterId && p.ViewerTwitchUserId == u.TwitchUserId
+                )
+            )
+        );
+
+        if (term.Length > 0)
+            viewers = viewers.Where(u =>
+                u.UsernameNormalized.Contains(term) || u.DisplayName.ToLower().Contains(term)
+            );
+
+        List<ViewerOptionDto> options = await viewers
+            .OrderBy(u => u.DisplayName)
+            .Take(take)
+            .Select(u => new ViewerOptionDto(u.TwitchUserId!, u.DisplayName, u.Username))
+            .ToListAsync(ct);
+
+        return Ok(new StatusResponseDto<List<ViewerOptionDto>> { Data = options });
+    }
 
     // ── Paginated user list ──────────────────────────────────────────────────
 

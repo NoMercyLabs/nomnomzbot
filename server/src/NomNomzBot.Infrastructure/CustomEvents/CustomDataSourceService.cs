@@ -65,6 +65,34 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         );
     }
 
+    public async Task<Result<IReadOnlyList<CustomDataSourceOptionDto>>> SearchAsync(
+        Guid broadcasterId,
+        string? query,
+        int limit,
+        CancellationToken ct = default
+    )
+    {
+        int take = Math.Clamp(limit, 1, 50);
+
+        IQueryable<CustomDataSource> sources = _db.CustomDataSources.Where(s =>
+            s.BroadcasterId == broadcasterId
+        );
+
+        string term = (query ?? string.Empty).Trim().ToLowerInvariant();
+        if (term.Length > 0)
+            sources = sources.Where(s =>
+                s.Name.ToLower().Contains(term) || s.DisplayName.ToLower().Contains(term)
+            );
+
+        List<CustomDataSourceOptionDto> options = await sources
+            .OrderBy(s => s.DisplayName)
+            .Take(take)
+            .Select(s => new CustomDataSourceOptionDto(s.Id, s.Name, s.DisplayName))
+            .ToListAsync(ct);
+
+        return Result<IReadOnlyList<CustomDataSourceOptionDto>>.Success(options);
+    }
+
     public async Task<Result<CustomDataSourceDto>> GetAsync(
         Guid broadcasterId,
         Guid id,
