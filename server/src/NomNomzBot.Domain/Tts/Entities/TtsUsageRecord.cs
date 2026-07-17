@@ -28,4 +28,16 @@ public class TtsUsageRecord : BaseEntity, ITenantScoped
 
     [MaxLength(255)]
     public string VoiceId { get; set; } = null!;
+
+    /// <summary>Whether the profanity censor altered the spoken text (tts.md §3.5) — the ledger records what was actually said.</summary>
+    public bool WasCensored { get; set; }
+
+    /// <summary>True when a moderator approved the utterance from the P.1a queue; null when the channel dispatched directly.</summary>
+    public bool? WasModApproved { get; set; }
+
+    /// <summary>The live stream the utterance played during, when one was running.</summary>
+    public Guid? StreamId { get; set; }
+
+    /// <summary>When the utterance was dispatched to the overlay.</summary>
+    public DateTime OccurredAt { get; set; }
 }

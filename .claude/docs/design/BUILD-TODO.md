@@ -28,8 +28,8 @@ what REMAINS.
   `escalate` — the filter execution path itself is not built yet; it belongs with the J.6
   ChatFilter migration).
 - [ ] **16. TTS advanced** (`tts.md`) — remaining follow-ons: `client_edge` mode (frontend widget
-  handler), the `TtsConfig` TABLE migration + config re-target (adds `WasCensored`/`WasModApproved`/
-  `StreamId`/`OccurredAt` to the ledger), BYOK provider factory (§3.2, vaulted keys).
+  handler), the `TtsConfig` TABLE migration + config re-target, BYOK provider factory (§3.2,
+  vaulted keys).
 - [ ] **19. Live overlay games** (`live-games.md`) — session lifecycle + game catalog/manifest.
 - [ ] **20. Widget gallery + overlay manifest** (`widgets-overlays.md`) — gallery, `OverlayController`
   manifest, widget versions/build (the compiled-bundle/gallery/import pipeline).

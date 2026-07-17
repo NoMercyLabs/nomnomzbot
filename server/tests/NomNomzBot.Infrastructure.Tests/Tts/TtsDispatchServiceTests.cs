@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Services;
@@ -38,6 +39,7 @@ public sealed class TtsDispatchServiceTests
 {
     private static readonly Guid Tenant = Guid.Parse("019f2a00-0000-7000-8000-000000000001");
     private const string Viewer = "viewer-123";
+    private static readonly DateTime T0 = new(2026, 7, 17, 8, 0, 0, DateTimeKind.Utc);
 
     private sealed class Harness
     {
@@ -114,6 +116,7 @@ public sealed class TtsDispatchServiceTests
             db,
             bus,
             tiers ?? Billing.TestTiers.Unlimited(),
+            new FakeTimeProvider(new DateTimeOffset(T0)),
             NullLogger<TtsDispatchService>.Instance
         );
         return new Harness
@@ -127,7 +130,7 @@ public sealed class TtsDispatchServiceTests
         };
     }
 
-    private static TtsSpeakRequest Speak(string text) =>
+    private static TtsSpeakRequest Speak(string text, Guid? streamId = null) =>
         new(
             BroadcasterId: Tenant,
             RequestedByUserId: Guid.Empty,
@@ -138,7 +141,7 @@ public sealed class TtsDispatchServiceTests
             BitsAmount: 0,
             CommunityStanding: "everyone",
             SourceMessageId: null,
-            StreamId: null
+            StreamId: streamId
         );
 
     [Fact]
@@ -222,9 +225,10 @@ public sealed class TtsDispatchServiceTests
     public async Task RequestSpeakAsync_Enabled_Synthesizes_Stores_Pushes_Records_Publishes()
     {
         Harness h = Build();
+        Guid liveStream = Guid.Parse("019f2a00-5555-7000-8000-000000000042");
 
         Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
-            Speak("  hello world  ")
+            Speak("  hello world  ", streamId: liveStream)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -246,13 +250,17 @@ public sealed class TtsDispatchServiceTests
                 Arg.Any<CancellationToken>()
             );
 
-        // A truthful usage-ledger row.
+        // A truthful usage-ledger row, stamped with when/during-what it played.
         TtsUsageRecord usage = await h.Db.TtsUsageRecords.SingleAsync();
         usage.BroadcasterId.Should().Be(Tenant);
         usage.UserId.Should().Be(Viewer);
         usage.CharacterCount.Should().Be("hello world".Length);
         usage.Provider.Should().Be("edge");
         usage.VoiceId.Should().Be("default-voice");
+        usage.WasCensored.Should().BeFalse();
+        usage.WasModApproved.Should().BeNull("no moderator was involved on the direct path");
+        usage.StreamId.Should().Be(liveStream);
+        usage.OccurredAt.Should().Be(T0);
 
         await h
             .Bus.Received(1)
@@ -307,6 +315,9 @@ public sealed class TtsDispatchServiceTests
                 Arg.Is<TtsUtteranceDispatchedEvent>(e => e.Text == "you piece of s***"),
                 Arg.Any<CancellationToken>()
             );
+        (await h.Db.TtsUsageRecords.SingleAsync())
+            .WasCensored.Should()
+            .BeTrue("the ledger records that the censor altered the spoken text");
     }
 
     [Fact]
@@ -382,11 +393,13 @@ public sealed class TtsDispatchServiceTests
     {
         Harness h = Build();
         Guid reviewer = Guid.Parse("019f2a00-3333-7000-8000-000000000009");
+        Guid liveStream = Guid.Parse("019f2a00-5555-7000-8000-000000000043");
         TtsApprovalQueueEntry entry = SeedPending(
             h,
             original: "raw message",
             censored: "raw m*****e",
-            voice: "queued-voice"
+            voice: "queued-voice",
+            streamId: liveStream
         );
 
         Result result = await h.Service.ApproveAsync(Tenant, entry.Id, reviewer);
@@ -399,7 +412,13 @@ public sealed class TtsDispatchServiceTests
         await h
             .Overlay.Received(1)
             .PlaySoundAsync(Tenant, Arg.Any<SoundPlaybackDto>(), Arg.Any<CancellationToken>());
-        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(1);
+
+        // The ledger row carries the approval provenance from the queue entry.
+        TtsUsageRecord usage = await h.Db.TtsUsageRecords.SingleAsync();
+        usage.WasModApproved.Should().BeTrue("a moderator released this utterance");
+        usage.WasCensored.Should().BeTrue();
+        usage.StreamId.Should().Be(liveStream);
+        usage.OccurredAt.Should().Be(T0);
 
         TtsApprovalQueueEntry updated = await h.Db.TtsApprovalQueueEntries.SingleAsync();
         updated.Status.Should().Be("approved");
@@ -495,7 +514,8 @@ public sealed class TtsDispatchServiceTests
         string original,
         string? censored,
         string voice,
-        DateTime createdAt = default
+        DateTime createdAt = default,
+        Guid? streamId = null
     )
     {
         TtsApprovalQueueEntry entry = new()
@@ -511,6 +531,7 @@ public sealed class TtsDispatchServiceTests
             VoiceId = voice,
             Provider = "edge",
             Status = "pending",
+            StreamId = streamId,
             ExpiresAt = createdAt == default ? default : createdAt.AddMinutes(10),
             CreatedAt = createdAt,
         };

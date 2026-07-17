@@ -7250,9 +7250,15 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Provider")
                         .IsRequired()
                         .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("StreamId")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -7268,7 +7274,17 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("WasCensored")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool?>("WasModApproved")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "OccurredAt");
+
+                    b.HasIndex("BroadcasterId", "StreamId");
 
                     b.ToTable("TtsUsageRecords");
                 });

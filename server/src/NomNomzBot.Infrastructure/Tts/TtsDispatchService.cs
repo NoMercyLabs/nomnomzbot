@@ -47,6 +47,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
     private readonly IBillingTierService _tiers;
+    private readonly TimeProvider _clock;
     private readonly ILogger<TtsDispatchService> _logger;
 
     public TtsDispatchService(
@@ -58,6 +59,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         IApplicationDbContext db,
         IEventBus eventBus,
         IBillingTierService tiers,
+        TimeProvider clock,
         ILogger<TtsDispatchService> logger
     )
     {
@@ -69,6 +71,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         _db = db;
         _eventBus = eventBus;
         _tiers = tiers;
+        _clock = clock;
         _logger = logger;
     }
 
@@ -171,6 +174,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
             spokenText,
             voiceId,
             request.RequestedByTwitchUserId,
+            wasCensored,
+            wasModApproved: null,
+            request.StreamId,
             ct
         );
     }
@@ -199,6 +205,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
             spokenText,
             entry.VoiceId,
             entry.RequestedByTwitchUserId,
+            entry.WasCensored,
+            wasModApproved: true,
+            entry.StreamId,
             ct
         );
         if (played.IsFailure)
@@ -206,7 +215,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
 
         entry.Status = "approved";
         entry.ReviewedByUserId = reviewedByUserId;
-        entry.ReviewedAt = DateTime.UtcNow;
+        entry.ReviewedAt = _clock.GetUtcNow().UtcDateTime;
         await _db.SaveChangesAsync(ct);
 
         await _eventBus.PublishAsync(
@@ -241,7 +250,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
 
         entry.Status = "rejected";
         entry.ReviewedByUserId = reviewedByUserId;
-        entry.ReviewedAt = DateTime.UtcNow;
+        entry.ReviewedAt = _clock.GetUtcNow().UtcDateTime;
         await _db.SaveChangesAsync(ct);
 
         await _eventBus.PublishAsync(
@@ -321,7 +330,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             WasCensored = wasCensored,
             SourceMessageId = request.SourceMessageId,
             StreamId = request.StreamId,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(QueueTtlMinutes),
+            ExpiresAt = _clock.GetUtcNow().UtcDateTime.AddMinutes(QueueTtlMinutes),
         };
         _db.TtsApprovalQueueEntries.Add(entry);
         await _db.SaveChangesAsync(ct);
@@ -356,6 +365,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
         string text,
         string voiceId,
         string requestedByTwitchUserId,
+        bool wasCensored,
+        bool? wasModApproved,
+        Guid? streamId,
         CancellationToken ct
     )
     {
@@ -417,6 +429,10 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 CharacterCount = text.Length,
                 Provider = synth.Provider,
                 VoiceId = synth.VoiceId,
+                WasCensored = wasCensored,
+                WasModApproved = wasModApproved,
+                StreamId = streamId,
+                OccurredAt = _clock.GetUtcNow().UtcDateTime,
             }
         );
         await _db.SaveChangesAsync(ct);
