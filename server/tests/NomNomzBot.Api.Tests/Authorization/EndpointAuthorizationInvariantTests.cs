@@ -94,6 +94,12 @@ public sealed class EndpointAuthorizationInvariantTests
             "self-scoped: the caller's own pronoun state (subject = JWT sub)",
         ["CurrencyController.GetMyAccount"] =
             "self-bound: only ever returns the CALLER's wallet (economy.md §5 accounts/me, community / Everyone)",
+        ["TtsConfigController.GetOwnVoice"] =
+            "self-scoped in body: resolves the caller's OWN on-provider external id (JWT sub → UserIdentity) — a viewer reads only their own voice (tts.md §5 /tts/me/voice)",
+        ["TtsConfigController.SetOwnVoice"] =
+            "self-scoped in body: caller picks their OWN voice keyed on their JWT-resolved external id; the service enforces the ViewerVoiceSelfServiceEnabled toggle (tts.md §5 /tts/me/voice)",
+        ["TtsConfigController.ClearOwnVoice"] =
+            "self-scoped in body: caller resets their OWN voice keyed on their JWT-resolved external id; toggle-gated in the service (tts.md §5 /tts/me/voice)",
         // ── Own-session auth surface (identity-auth.md §5: '— (any authenticated user, own session)') ──
         ["AuthController.GetCurrentUser"] =
             "own session: auth/me returns the caller's own identity (identity-auth.md §5)",

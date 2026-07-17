@@ -11,8 +11,11 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
@@ -27,10 +30,18 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class TtsConfigController : BaseController
 {
     private readonly ITtsConfigService _ttsConfigService;
+    private readonly IApplicationDbContext _db;
+    private readonly ICurrentUserService _currentUser;
 
-    public TtsConfigController(ITtsConfigService ttsConfigService)
+    public TtsConfigController(
+        ITtsConfigService ttsConfigService,
+        IApplicationDbContext db,
+        ICurrentUserService currentUser
+    )
     {
         _ttsConfigService = ttsConfigService;
+        _db = db;
+        _currentUser = currentUser;
     }
 
     /// <summary>Get the channel's TTS configuration.</summary>
@@ -225,5 +236,114 @@ public class TtsConfigController : BaseController
             return BadRequestResponse("Invalid channel id.");
         Result result = await _ttsConfigService.ClearUserVoiceAsync(broadcasterId, userId, ct);
         return ResultResponse(result);
+    }
+
+    // ── Viewer self-service (the caller's OWN voice) ───────────────────────────
+    // Self-scoped: [Authorize] only, no [RequireAction] — a viewer manages only their own voice. The service
+    // enforces the channel's ViewerVoiceSelfServiceEnabled toggle (FEATURE_DISABLED → 403). The caller is a
+    // dashboard User (JWT sub = internal User.Id), but a per-viewer voice keys on the PLATFORM external id the
+    // dispatch resolver reads, so we map User.Id → the caller's identity under THIS channel's provider first.
+
+    /// <summary>Get the caller's own assigned voice for this channel (Data is null when they use the channel default).</summary>
+    [HttpGet("me/voice")]
+    [ProducesResponseType<StatusResponseDto<UserTtsVoiceDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOwnVoice(string channelId, CancellationToken ct)
+    {
+        CallerVoice caller = await ResolveCallerAsync(channelId, ct);
+        if (caller.Error is not null)
+            return caller.Error;
+
+        Result<UserTtsVoiceDto?> result = await _ttsConfigService.GetOwnVoiceAsync(
+            caller.BroadcasterId,
+            caller.ExternalUserId!,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<UserTtsVoiceDto?> { Data = result.Value });
+    }
+
+    /// <summary>Pick the caller's own voice for this channel (toggle-gated; the voice must be one the channel can synthesize).</summary>
+    [HttpPut("me/voice")]
+    [ProducesResponseType<StatusResponseDto<UserTtsVoiceDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetOwnVoice(
+        string channelId,
+        [FromBody] SetUserVoiceDto request,
+        CancellationToken ct
+    )
+    {
+        CallerVoice caller = await ResolveCallerAsync(channelId, ct);
+        if (caller.Error is not null)
+            return caller.Error;
+
+        Result<UserTtsVoiceDto> result = await _ttsConfigService.SetOwnVoiceAsync(
+            caller.BroadcasterId,
+            caller.ExternalUserId!,
+            request,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Reset the caller's own voice back to the channel default (toggle-gated).</summary>
+    [HttpDelete("me/voice")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ClearOwnVoice(string channelId, CancellationToken ct)
+    {
+        CallerVoice caller = await ResolveCallerAsync(channelId, ct);
+        if (caller.Error is not null)
+            return caller.Error;
+
+        Result result = await _ttsConfigService.ClearOwnVoiceAsync(
+            caller.BroadcasterId,
+            caller.ExternalUserId!,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    // Resolves the authenticated caller to their platform external id ON THIS CHANNEL'S provider — the id the TTS
+    // dispatch resolver keys a per-viewer voice on. A caller with no linked identity under the channel's provider
+    // has never spoken on this platform, so the self-service routes 404 ("connect your <provider> account") rather
+    // than writing a voice row against an id that will never be dispatched.
+    private async Task<CallerVoice> ResolveCallerAsync(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return CallerVoice.Fail(BadRequestResponse("Invalid channel id."));
+
+        if (!Guid.TryParse(_currentUser.UserId, out Guid callerUserId))
+            return CallerVoice.Fail(UnauthenticatedResponse());
+
+        string? provider = await _db
+            .Channels.Where(c => c.Id == broadcasterId)
+            .Select(c => c.Provider)
+            .FirstOrDefaultAsync(ct);
+        if (provider is null)
+            return CallerVoice.Fail(NotFoundResponse("Channel not found."));
+
+        string? externalUserId = await _db
+            .UserIdentities.Where(i => i.UserId == callerUserId && i.Provider == provider)
+            .Select(i => i.ProviderUserId)
+            .FirstOrDefaultAsync(ct);
+        if (externalUserId is null)
+            return CallerVoice.Fail(
+                NotFoundResponse($"Connect your {provider} account to pick a voice.")
+            );
+
+        return CallerVoice.Ok(broadcasterId, externalUserId);
+    }
+
+    // The outcome of resolving the caller to their on-provider external id: either the ids to act on, or the
+    // short-circuit error response to return unchanged.
+    private readonly record struct CallerVoice(
+        Guid BroadcasterId,
+        string? ExternalUserId,
+        IActionResult? Error
+    )
+    {
+        public static CallerVoice Ok(Guid broadcasterId, string externalUserId) =>
+            new(broadcasterId, externalUserId, null);
+
+        public static CallerVoice Fail(IActionResult error) => new(default, null, error);
     }
 }

@@ -28,3 +28,6 @@ public sealed record PickListDto(
     DateTime CreatedAt,
     DateTime UpdatedAt
 );
+
+/// <summary>A single sampled entry from a pick-list — backs the dashboard's "Test" button preview.</summary>
+public sealed record PickListPreviewDto(string Pick);

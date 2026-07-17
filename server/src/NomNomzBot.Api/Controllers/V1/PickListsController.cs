@@ -79,6 +79,34 @@ public class PickListsController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>
+    /// Sample one random entry from a pick-list by its id — the read the dashboard's "Test" button calls to preview
+    /// what <c>{list.pick.&lt;name&gt;}</c> would draw. <c>NOT_FOUND</c> when the list is missing, <c>PICKLIST_EMPTY</c>
+    /// (also 404) when it has no entries.
+    /// </summary>
+    [RequireAction("picklists:read")]
+    [HttpGet("{id:guid}/pick")]
+    [ProducesResponseType<StatusResponseDto<PickListPreviewDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PreviewPick(Guid id, CancellationToken ct)
+    {
+        if (_tenant.BroadcasterId is not Guid broadcasterId)
+            return UnauthenticatedResponse("No tenant resolved.");
+
+        // Resolve the list by id first so we sample the exact list the dashboard opened (and 404 a bad id), then
+        // pick by its unique name — the same read the template variable rides on.
+        Result<PickListDto> list = await _pickLists.GetAsync(broadcasterId, id, ct);
+        if (list.IsFailure)
+            return ResultResponse(list);
+
+        Result<string> pick = await _pickLists.PickRandomAsync(broadcasterId, list.Value.Name, ct);
+        if (pick.IsFailure)
+            return ResultResponse(pick);
+
+        return Ok(
+            new StatusResponseDto<PickListPreviewDto> { Data = new PickListPreviewDto(pick.Value) }
+        );
+    }
+
     /// <summary>Create a new pick-list, returning 201 with its id.</summary>
     [RequireAction("picklists:write")]
     [HttpPost]
