@@ -208,6 +208,304 @@ public sealed class DiscordNotificationDispatcherTests
         result.Value.Error.Should().Be("Discord down");
     }
 
+    // ─── Personal DM fan-out (discord-notifications: decided 2026-07-17) ────
+
+    [Fact]
+    public async Task DispatchAsync_DmEnabledRole_DmsEveryOptedInMember_AndCachesDmChannel()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid connectionId = await SeedActiveConnectionAsync(database, channel);
+        Guid roleId = await SeedNotifyRoleAsync(database, channel, connectionId, dmEnabled: true);
+        await SeedOptInAsync(database, channel, roleId, "member-1");
+        await SeedOptInAsync(database, channel, roleId, "member-2");
+        await SeedConfigAsync(database, channel, connectionId, "{{title}}", "chan-1", roleId);
+        RecordingGateway gateway = new();
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            Result<DiscordDispatchOutcomeDto> result = await NewDispatcher(
+                    db,
+                    gateway,
+                    new RecordingEventBus()
+                )
+                .DispatchAsync(
+                    new DiscordDispatchRequest(
+                        channel,
+                        "go_live",
+                        "go_live:s1",
+                        null,
+                        new Dictionary<string, string> { ["title"] = "live now" }
+                    )
+                );
+            result.Value.Status.Should().Be("sent");
+        }
+
+        // Channel post + one DM per opted-in member, each carrying the SAME rendered content, no ping.
+        gateway.Posts.Should().HaveCount(3);
+        gateway.Posts[0].ChannelId.Should().Be("chan-1");
+        gateway.DmOpens.Should().Equal("member-1", "member-2");
+        gateway.Posts[1].ChannelId.Should().Be("dm-member-1");
+        gateway.Posts[1].Message.Content.Should().Be("live now");
+        gateway.Posts[1].Message.PingRoleId.Should().BeNull();
+        gateway.Posts[2].ChannelId.Should().Be("dm-member-2");
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            // Each DM is its own append-only dispatch row keyed {base}:dm:{memberId}.
+            List<DiscordNotificationDispatch> dmRows = await db
+                .DiscordNotificationDispatches.Where(d => d.DedupeKey.Contains(":dm:"))
+                .OrderBy(d => d.DedupeKey)
+                .ToListAsync();
+            dmRows.Should().HaveCount(2);
+            dmRows[0].DedupeKey.Should().Be("go_live:s1:dm:member-1");
+            dmRows[0].Status.Should().Be("sent");
+            dmRows[0].PostedMessageId.Should().Be("posted-msg-id");
+            dmRows[1].DedupeKey.Should().Be("go_live:s1:dm:member-2");
+
+            // The opened DM channel is cached on the opt-in row for the next go-live.
+            List<string?> cached = await db
+                .DiscordMemberOptIns.OrderBy(o => o.DiscordMemberId)
+                .Select(o => o.DmChannelId)
+                .ToListAsync();
+            cached.Should().Equal("dm-member-1", "dm-member-2");
+        }
+    }
+
+    [Fact]
+    public async Task DispatchAsync_DmFanOut_SkipsOptedOutMembers()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid connectionId = await SeedActiveConnectionAsync(database, channel);
+        Guid roleId = await SeedNotifyRoleAsync(database, channel, connectionId, dmEnabled: true);
+        await SeedOptInAsync(database, channel, roleId, "active-member");
+        await SeedOptInAsync(database, channel, roleId, "gone-member", optedOut: true);
+        await SeedConfigAsync(database, channel, connectionId, "live!", "chan-1", roleId);
+        RecordingGateway gateway = new();
+
+        await using DiscordTestDbContext db = database.NewContext();
+        await NewDispatcher(db, gateway, new RecordingEventBus())
+            .DispatchAsync(
+                new DiscordDispatchRequest(
+                    channel,
+                    "go_live",
+                    "go_live:s2",
+                    null,
+                    new Dictionary<string, string>()
+                )
+            );
+
+        // Only the active member is DMed — the opted-out row is history, not a recipient.
+        gateway.DmOpens.Should().Equal("active-member");
+        gateway.Posts.Should().HaveCount(2); // channel + one DM
+    }
+
+    [Fact]
+    public async Task DispatchAsync_DmDisabledRole_PostsToChannelOnly()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid connectionId = await SeedActiveConnectionAsync(database, channel);
+        Guid roleId = await SeedNotifyRoleAsync(database, channel, connectionId, dmEnabled: false);
+        await SeedOptInAsync(database, channel, roleId, "member-1");
+        await SeedConfigAsync(database, channel, connectionId, "live!", "chan-1", roleId);
+        RecordingGateway gateway = new();
+
+        await using DiscordTestDbContext db = database.NewContext();
+        await NewDispatcher(db, gateway, new RecordingEventBus())
+            .DispatchAsync(
+                new DiscordDispatchRequest(
+                    channel,
+                    "go_live",
+                    "go_live:s3",
+                    null,
+                    new Dictionary<string, string>()
+                )
+            );
+
+        gateway.DmOpens.Should().BeEmpty();
+        gateway.Posts.Should().ContainSingle(); // the channel post — no DMs without DmEnabled
+    }
+
+    [Fact]
+    public async Task DispatchAsync_ClosedDm_FailsThatMemberAndContinuesTheRest()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid connectionId = await SeedActiveConnectionAsync(database, channel);
+        Guid roleId = await SeedNotifyRoleAsync(database, channel, connectionId, dmEnabled: true);
+        await SeedOptInAsync(database, channel, roleId, "blocked-member");
+        await SeedOptInAsync(database, channel, roleId, "open-member");
+        await SeedConfigAsync(database, channel, connectionId, "live!", "chan-1", roleId);
+        RecordingGateway gateway = new();
+        // Discord 50007: cannot send messages to this user — surfaces at send time on the DM channel.
+        gateway.PostResultsByChannel["dm-blocked-member"] = Result.Failure<string>(
+            "Cannot send messages to this user",
+            "DISCORD_ERROR"
+        );
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            Result<DiscordDispatchOutcomeDto> result = await NewDispatcher(
+                    db,
+                    gateway,
+                    new RecordingEventBus()
+                )
+                .DispatchAsync(
+                    new DiscordDispatchRequest(
+                        channel,
+                        "go_live",
+                        "go_live:s4",
+                        null,
+                        new Dictionary<string, string>()
+                    )
+                );
+            result.Value.Status.Should().Be("sent"); // the channel outcome is untouched by DM failures
+        }
+
+        // Both members were attempted — the closed DM did not stop the fan-out.
+        gateway.DmOpens.Should().Equal("blocked-member", "open-member");
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            DiscordNotificationDispatch failedRow =
+                await db.DiscordNotificationDispatches.SingleAsync(d =>
+                    d.DedupeKey == "go_live:s4:dm:blocked-member"
+                );
+            failedRow.Status.Should().Be("failed");
+            failedRow.Error.Should().Be("Cannot send messages to this user");
+
+            DiscordNotificationDispatch sentRow =
+                await db.DiscordNotificationDispatches.SingleAsync(d =>
+                    d.DedupeKey == "go_live:s4:dm:open-member"
+                );
+            sentRow.Status.Should().Be("sent");
+        }
+    }
+
+    [Fact]
+    public async Task DispatchAsync_MemberAlreadyDmed_IsAPerMemberNoOp()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid connectionId = await SeedActiveConnectionAsync(database, channel);
+        Guid roleId = await SeedNotifyRoleAsync(database, channel, connectionId, dmEnabled: true);
+        await SeedOptInAsync(database, channel, roleId, "already-dmed");
+        await SeedOptInAsync(database, channel, roleId, "fresh-member");
+        Guid configId = await SeedConfigAsync(
+            database,
+            channel,
+            connectionId,
+            "live!",
+            "chan-1",
+            roleId
+        );
+
+        // A prior partial run already DMed one member — its dedupe row exists, the channel row does not.
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            db.DiscordNotificationDispatches.Add(
+                new DiscordNotificationDispatch
+                {
+                    Id = Guid.CreateVersion7(),
+                    BroadcasterId = channel,
+                    NotificationConfigId = configId,
+                    TriggerType = "go_live",
+                    DedupeKey = "go_live:s5:dm:already-dmed",
+                    Status = "sent",
+                    PostedMessageId = "earlier-dm-msg",
+                    DispatchedAt = Clock.GetUtcNow().UtcDateTime,
+                }
+            );
+            await db.SaveChangesAsync();
+        }
+
+        RecordingGateway gateway = new();
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            await NewDispatcher(db, gateway, new RecordingEventBus())
+                .DispatchAsync(
+                    new DiscordDispatchRequest(
+                        channel,
+                        "go_live",
+                        "go_live:s5",
+                        null,
+                        new Dictionary<string, string>()
+                    )
+                );
+        }
+
+        // Only the fresh member was DMed — the unique dedupe row made the repeat a no-op.
+        gateway.DmOpens.Should().Equal("fresh-member");
+
+        await using (DiscordTestDbContext dbCheck = database.NewContext())
+        {
+            int rowsForAlreadyDmed = await dbCheck.DiscordNotificationDispatches.CountAsync(d =>
+                d.DedupeKey == "go_live:s5:dm:already-dmed"
+            );
+            rowsForAlreadyDmed.Should().Be(1); // still just the original row
+        }
+    }
+
+    [Fact]
+    public async Task DispatchAsync_CachedDmChannel_SkipsOpenCall_AndOpenFailureContinues()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid connectionId = await SeedActiveConnectionAsync(database, channel);
+        Guid roleId = await SeedNotifyRoleAsync(database, channel, connectionId, dmEnabled: true);
+        await SeedOptInAsync(database, channel, roleId, "uncached-member");
+        await SeedOptInAsync(
+            database,
+            channel,
+            roleId,
+            "cached-member",
+            dmChannelId: "dm-cached-77"
+        );
+        await SeedConfigAsync(database, channel, connectionId, "live!", "chan-1", roleId);
+        RecordingGateway gateway = new()
+        {
+            // Every open fails (e.g. Discord API hiccup) — only the uncached member needs one.
+            NextDmOpenResult = Result.Failure<string>("open failed", "DISCORD_ERROR"),
+        };
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            await NewDispatcher(db, gateway, new RecordingEventBus())
+                .DispatchAsync(
+                    new DiscordDispatchRequest(
+                        channel,
+                        "go_live",
+                        "go_live:s6",
+                        null,
+                        new Dictionary<string, string>()
+                    )
+                );
+        }
+
+        // The cached member never triggers an open; the uncached member's failed open didn't block them.
+        gateway.DmOpens.Should().Equal("uncached-member");
+        gateway.Posts.Should().HaveCount(2); // channel + the cached member's DM
+        gateway.Posts[1].ChannelId.Should().Be("dm-cached-77");
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            DiscordNotificationDispatch failedOpen =
+                await db.DiscordNotificationDispatches.SingleAsync(d =>
+                    d.DedupeKey == "go_live:s6:dm:uncached-member"
+                );
+            failedOpen.Status.Should().Be("failed");
+            failedOpen.Error.Should().Be("open failed");
+
+            DiscordNotificationDispatch cachedSent =
+                await db.DiscordNotificationDispatches.SingleAsync(d =>
+                    d.DedupeKey == "go_live:s6:dm:cached-member"
+                );
+            cachedSent.Status.Should().Be("sent");
+        }
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private static DiscordNotificationDispatcher NewDispatcher(
@@ -280,26 +578,81 @@ public sealed class DiscordNotificationDispatcherTests
         return id;
     }
 
-    private static async Task SeedConfigAsync(
+    private static async Task<Guid> SeedConfigAsync(
         DiscordSqliteTestDatabase database,
         Guid channel,
         Guid connectionId,
         string template,
-        string targetChannel
+        string targetChannel,
+        Guid? pingRoleId = null
     )
     {
+        Guid configId = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.DiscordNotificationConfigs.Add(
             new DiscordNotificationConfig
             {
-                Id = Guid.CreateVersion7(),
+                Id = configId,
                 BroadcasterId = channel,
                 GuildConnectionId = connectionId,
                 TriggerType = "go_live",
                 Enabled = true,
                 TargetChannelId = targetChannel,
                 MessageTemplate = template,
+                PingRoleId = pingRoleId,
                 ConfigSchemaVersion = 1,
+            }
+        );
+        await db.SaveChangesAsync();
+        return configId;
+    }
+
+    private static async Task<Guid> SeedNotifyRoleAsync(
+        DiscordSqliteTestDatabase database,
+        Guid channel,
+        Guid connectionId,
+        bool dmEnabled
+    )
+    {
+        Guid roleId = Guid.CreateVersion7();
+        await using DiscordTestDbContext db = database.NewContext();
+        db.DiscordNotificationRoles.Add(
+            new DiscordNotificationRole
+            {
+                Id = roleId,
+                BroadcasterId = channel,
+                GuildConnectionId = connectionId,
+                DiscordRoleId = "discord-role-1",
+                RoleName = "Notify Squad",
+                SelfAssignEnabled = true,
+                DmEnabled = dmEnabled,
+            }
+        );
+        await db.SaveChangesAsync();
+        return roleId;
+    }
+
+    private static async Task SeedOptInAsync(
+        DiscordSqliteTestDatabase database,
+        Guid channel,
+        Guid roleId,
+        string memberId,
+        bool optedOut = false,
+        string? dmChannelId = null
+    )
+    {
+        await using DiscordTestDbContext db = database.NewContext();
+        db.DiscordMemberOptIns.Add(
+            new DiscordMemberOptIn
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = channel,
+                NotificationRoleId = roleId,
+                DiscordMemberId = memberId,
+                OptInSource = "button",
+                OptedInAt = Clock.GetUtcNow().UtcDateTime,
+                OptedOutAt = optedOut ? Clock.GetUtcNow().UtcDateTime : null,
+                DmChannelId = dmChannelId,
             }
         );
         await db.SaveChangesAsync();

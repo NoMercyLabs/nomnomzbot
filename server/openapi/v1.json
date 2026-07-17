@@ -54150,6 +54150,10 @@
           },
           "selfAssignEnabled": {
             "type": "boolean"
+          },
+          "dmEnabled": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -55878,6 +55882,7 @@
           "discordRoleId",
           "roleName",
           "selfAssignEnabled",
+          "dmEnabled",
           "buttonMessageId",
           "buttonChannelId",
           "optInCount",
@@ -55906,6 +55911,9 @@
             ]
           },
           "selfAssignEnabled": {
+            "type": "boolean"
+          },
+          "dmEnabled": {
             "type": "boolean"
           },
           "buttonMessageId": {
@@ -68743,6 +68751,10 @@
           },
           "selfAssignEnabled": {
             "type": "boolean"
+          },
+          "dmEnabled": {
+            "type": "boolean",
+            "default": false
           }
         }
       },

@@ -117,7 +117,7 @@ commits; this is the collapsed record.
 - [ ] every user id input, source id input, and channel id input needs to be a pick list with search and auto complete functionality.
 - [ ] code scripts seems to be completely useless now that we have the proper vscode editor for the overlays.
 - [ ] the community section is not useful at all.
-- [ ] the discord section is not useful at all, there is no way of adding it properly to a guild's channel, and there is no option for a user to get personal live notification dm's.
+- [~] the discord section is not useful at all, there is no way of adding it properly to a guild's channel, and there is no option for a user to get personal live notification dm's. *(Backend COMPLETE: guild announce flow was already built end-to-end (install → streamer-enabled → live channel/role pickers → go_live config → dedupe dispatch + log); personal live DMs shipped — notify roles carry `dmEnabled`, opted-in members get the rendered go-live as a DM, per-member dedupe/best-effort, DM channel cached. Remaining is FRONTEND-ONLY: surface the flow + the "Also DM members" toggle — handoff entry in `handoff/for-frontend.md` 2026-07-17.)*
 - [ ] webhooks have no rule, structure and organization and are therefore totally useless and cannot be integrated.
 - [ ] federation needs to be reworked and overhauled to be more user friendly and intuitive and usability.
 - [ ] the entire platform needs to be reworked and overhauled to be more user friendly and intuitive and usability.

@@ -199,7 +199,110 @@ public sealed class DiscordNotificationDispatcher : IDiscordNotificationDispatch
             dispatch.Error
         );
         await PublishDispatchedAsync(request, config, dispatch, ct);
+
+        // 5. Personal DMs (decided 2026-07-17): an independent output of the same dispatch — a channel
+        // failure never blocks them, and vice versa.
+        await FanOutDmsAsync(request, config, content, renderedEmbed, ct);
+
         return outcome;
+    }
+
+    /// <summary>
+    /// DMs the rendered notification to every opted-in member of the config's ping role when that role
+    /// has <c>DmEnabled</c>. Sequential, per-member best-effort (closed DMs are logged and skipped);
+    /// each DM is its own append-only dispatch row keyed <c>{baseDedupeKey}:dm:{memberId}</c>, so a
+    /// re-dispatch is a per-member no-op. The member's DM channel id is cached on the opt-in row.
+    /// </summary>
+    private async Task FanOutDmsAsync(
+        DiscordDispatchRequest request,
+        DiscordNotificationConfig config,
+        string content,
+        DiscordEmbedDto? renderedEmbed,
+        CancellationToken ct
+    )
+    {
+        if (config.PingRoleId is null)
+            return;
+
+        bool dmEnabled = await _db.DiscordNotificationRoles.AnyAsync(
+            r => r.Id == config.PingRoleId.Value && r.DmEnabled,
+            ct
+        );
+        if (!dmEnabled)
+            return;
+
+        List<DiscordMemberOptIn> recipients = await _db
+            .DiscordMemberOptIns.Where(o =>
+                o.NotificationRoleId == config.PingRoleId.Value && o.OptedOutAt == null
+            )
+            .ToListAsync(ct);
+
+        foreach (DiscordMemberOptIn recipient in recipients)
+        {
+            DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
+            DiscordNotificationDispatch dmDispatch = new()
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = request.BroadcasterId,
+                NotificationConfigId = config.Id,
+                TriggerType = request.TriggerType,
+                DedupeKey = $"{request.DedupeKey}:dm:{recipient.DiscordMemberId}",
+                StreamId = request.StreamId,
+                Status = StatusSent, // optimistic; corrected below on failure
+                DispatchedAt = now,
+            };
+            _db.DiscordNotificationDispatches.Add(dmDispatch);
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException)
+            {
+                // Already DMed for this dedupe key — a re-dispatch is a per-member no-op.
+                _db.DiscordNotificationDispatches.Entry(dmDispatch).State = EntityState.Detached;
+                continue;
+            }
+
+            string? dmChannelId = recipient.DmChannelId;
+            if (string.IsNullOrEmpty(dmChannelId))
+            {
+                Result<string> opened = await _gateway.OpenDmChannelAsync(
+                    request.BroadcasterId,
+                    recipient.DiscordMemberId,
+                    ct
+                );
+                if (opened.IsSuccess)
+                {
+                    dmChannelId = opened.Value;
+                    recipient.DmChannelId = dmChannelId; // cache for the next go-live
+                }
+                else
+                {
+                    dmDispatch.Status = StatusFailed;
+                    dmDispatch.Error = opened.ErrorMessage;
+                    await _db.SaveChangesAsync(ct);
+                    continue;
+                }
+            }
+
+            Result<string> sent = await _gateway.PostMessageAsync(
+                request.BroadcasterId,
+                dmChannelId,
+                new DiscordOutboundMessage(content, renderedEmbed, PingRoleId: null),
+                ct
+            );
+            if (sent.IsSuccess)
+            {
+                dmDispatch.PostedMessageId = sent.Value;
+            }
+            else
+            {
+                // Closed DMs (Discord 50007) land here — best-effort, never fails the others.
+                dmDispatch.Status = StatusFailed;
+                dmDispatch.Error = sent.ErrorMessage;
+            }
+            await _db.SaveChangesAsync(ct);
+        }
     }
 
     public async Task<Result<PagedList<DiscordDispatchLogDto>>> GetDispatchLogAsync(

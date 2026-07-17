@@ -84,6 +84,57 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
         return await PostMessagePayloadAsync(token.Value, targetChannelId, payload, ct);
     }
 
+    public async Task<Result<string>> OpenDmChannelAsync(
+        Guid broadcasterId,
+        string discordMemberId,
+        CancellationToken ct = default
+    )
+    {
+        Result<string> token = await ResolveBotTokenAsync(broadcasterId, ct);
+        if (token.IsFailure)
+            return token;
+
+        using HttpRequestMessage request = new(
+            HttpMethod.Post,
+            $"{DiscordApiBase}/users/@me/channels"
+        )
+        {
+            Content = JsonContent.Create(new { recipient_id = discordMemberId }, options: WireJson),
+        };
+        request.Headers.TryAddWithoutValidation("Authorization", $"Bot {token.Value}");
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await _http.SendAsync(request, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Discord DM-channel open failed (transport).");
+            return Result.Failure<string>("Discord request failed.", "DISCORD_TRANSPORT");
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+                return await MapPostErrorAsync(response, ct);
+
+            try
+            {
+                DiscordMessageResponse? body =
+                    await response.Content.ReadFromJsonAsync<DiscordMessageResponse>(WireJson, ct);
+                return body is null || string.IsNullOrEmpty(body.Id)
+                    ? Result.Failure<string>("Discord returned no DM channel id.", "DISCORD_ERROR")
+                    : Result.Success(body.Id);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Malformed Discord DM-channel response.");
+                return Result.Failure<string>("Discord returned malformed data.", "DISCORD_ERROR");
+            }
+        }
+    }
+
     public async Task<Result<string>> PostButtonMessageAsync(
         Guid broadcasterId,
         string targetChannelId,

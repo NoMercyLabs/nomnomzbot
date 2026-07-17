@@ -39,6 +39,10 @@ public class DiscordMemberOptIn : SoftDeletableEntity, ITenantScoped
 
     public DateTime? OptedOutAt { get; set; }
 
+    /// <summary>Cached Discord DM channel snowflake — set on the first DM so repeat go-lives skip the open call.</summary>
+    [MaxLength(32)]
+    public string? DmChannelId { get; set; }
+
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;
 

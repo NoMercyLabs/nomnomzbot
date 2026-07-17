@@ -1929,6 +1929,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("DmChannelId")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<Guid>("NotificationRoleId")
                         .HasColumnType("uuid");
 
@@ -2119,6 +2123,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("DmEnabled")
+                        .HasColumnType("boolean");
 
                     b.Property<Guid>("GuildConnectionId")
                         .HasColumnType("uuid");

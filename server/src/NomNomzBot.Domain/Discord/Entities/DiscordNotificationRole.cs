@@ -35,6 +35,10 @@ public class DiscordNotificationRole : SoftDeletableEntity, ITenantScoped
 
     public bool SelfAssignEnabled { get; set; }
 
+    /// <summary>This role also DELIVERS BY DM: on dispatch, its opted-in members each get the rendered
+    /// notification as a direct message (spec: discord-notifications, decided 2026-07-17).</summary>
+    public bool DmEnabled { get; set; }
+
     /// <summary>The id of the posted opt-in button message (set by <c>PostOptInButtonAsync</c>).</summary>
     [MaxLength(50)]
     public string? ButtonMessageId { get; set; }

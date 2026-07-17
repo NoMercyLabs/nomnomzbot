@@ -16,6 +16,34 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Discord: the guild-notification backend is COMPLETE — the page just doesn't surface it
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the owner's "no way of adding it properly to a guild's channel" is a UI gap — the full
+  flow exists under `channels/{channelId}/discord/...`: (1) install the bot via
+  `GET .../integrations/discord/callback/start` (OAuth, consent auto-approved on install);
+  (2) toggle `PUT connections/{id}/streamer-enabled` — **nothing fires until this is on**, surface it
+  prominently; (3) pick a channel from the LIVE directory `GET connections/{id}/guild/channels`
+  (+ `/guild/roles` for the ping role); (4) create a `go_live` rule via `POST connections/{id}/configs`
+  (targetChannelId, pingRoleId?, messageTemplate, embed) — the bot then announces on stream.online
+  with dedupe; `GET connections/{id}/dispatch-log` shows every send. Notify roles + the self-assign
+  button: `POST connections/{id}/roles` then `POST roles/{id}/button` posts a click-to-opt-in button
+  into a chosen channel. Build the Discord page as: connect → enable → "Add announcement" wizard
+  (channel picker + role picker + template) → rules list with dispatch log.
+  **Personal live DMs (new):** notify roles now carry `dmEnabled` (in `DiscordNotificationRoleDto`,
+  create + update requests). When ON, every opted-in member of that role also gets the go-live
+  notification as a Discord DM (best-effort — members with closed DMs are skipped, visible as
+  `failed` rows in the dispatch log with dedupe keys ending `:dm:{memberId}`). UI: a "Also DM
+  members" switch on the notify-role card (create + edit), with a hint that members opt in via the
+  button and can block DMs server-side. Kotlin mirrors to sync: `DiscordNotificationRole`,
+  `CreateDiscordRoleBody`, `UpdateDiscordRoleBody` in `core/network/DiscordApi.kt` — add
+  `dmEnabled: Boolean = false` to each; refresh from `server/openapi/v1.json`.
+- **Why:** owner item — "the discord section is not useful at all, there is no way of adding it
+  properly to a guild's channel, and there is no option for a user to get personal live
+  notification dm's" — both halves are now backend-complete.
+- **Where:** `feature/integrations` Discord screen; all routes already in `server/openapi/v1.json`.
+- **Done when:** installing to a test guild, enabling, picking a channel, and going live posts the
+  announcement — configured entirely from the dashboard on dev.
+
 ### 2026-07-17 — Moderation: bot-side standing tiers (mute / shadowban / blacklist)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the per-user mod panel gains graduated BOT-SIDE tiers, distinct from Twitch ban/timeout:

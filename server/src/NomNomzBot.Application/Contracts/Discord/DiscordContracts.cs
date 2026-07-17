@@ -104,6 +104,9 @@ public sealed record DiscordNotificationRoleDto(
     string DiscordRoleId,
     string? RoleName,
     bool SelfAssignEnabled,
+    // This role also DELIVERS BY DM: opted-in members each get the go-live notification as a direct
+    // message (decided 2026-07-17).
+    bool DmEnabled,
     string? ButtonMessageId,
     string? ButtonChannelId,
     int OptInCount,
@@ -114,10 +117,15 @@ public sealed record DiscordNotificationRoleDto(
 public sealed record CreateDiscordNotificationRoleRequest(
     string DiscordRoleId,
     string? RoleName,
-    bool SelfAssignEnabled
+    bool SelfAssignEnabled,
+    bool DmEnabled = false
 );
 
-public sealed record UpdateDiscordNotificationRoleRequest(string? RoleName, bool SelfAssignEnabled);
+public sealed record UpdateDiscordNotificationRoleRequest(
+    string? RoleName,
+    bool SelfAssignEnabled,
+    bool DmEnabled = false
+);
 
 public sealed record DiscordMemberOptInRequest(string DiscordMemberId, string Source);
 

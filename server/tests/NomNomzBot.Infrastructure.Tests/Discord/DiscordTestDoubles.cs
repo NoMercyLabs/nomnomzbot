@@ -109,6 +109,9 @@ internal sealed class RecordingGateway : IDiscordBotGateway
 
     public Result<string> NextPostResult { get; set; } = Result.Success("posted-msg-id");
 
+    /// <summary>Per-channel post overrides (e.g. one closed DM channel failing while others succeed).</summary>
+    public Dictionary<string, Result<string>> PostResultsByChannel { get; } = [];
+
     public Task<Result<string>> PostMessageAsync(
         Guid broadcasterId,
         string targetChannelId,
@@ -117,7 +120,26 @@ internal sealed class RecordingGateway : IDiscordBotGateway
     )
     {
         Posts.Add((targetChannelId, message));
-        return Task.FromResult(NextPostResult);
+        return Task.FromResult(
+            PostResultsByChannel.TryGetValue(targetChannelId, out Result<string>? scripted)
+                ? scripted
+                : NextPostResult
+        );
+    }
+
+    public List<string> DmOpens { get; } = [];
+
+    /// <summary>When set, every DM-channel open replays this instead of the default <c>dm-{memberId}</c>.</summary>
+    public Result<string>? NextDmOpenResult { get; set; }
+
+    public Task<Result<string>> OpenDmChannelAsync(
+        Guid broadcasterId,
+        string discordMemberId,
+        CancellationToken ct = default
+    )
+    {
+        DmOpens.Add(discordMemberId);
+        return Task.FromResult(NextDmOpenResult ?? Result.Success($"dm-{discordMemberId}"));
     }
 
     public Task<Result<string>> PostButtonMessageAsync(

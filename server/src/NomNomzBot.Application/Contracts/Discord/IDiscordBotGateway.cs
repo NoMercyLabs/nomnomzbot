@@ -31,6 +31,18 @@ public interface IDiscordBotGateway
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Opens (or returns the existing) DM channel with a member — <c>POST /users/@me/channels</c> with
+    /// <c>recipient_id</c> — returning the DM channel id. Messages then go through
+    /// <see cref="PostMessageAsync"/> against that id. A member who blocks DMs surfaces as failure at
+    /// send time (Discord 50007), not here.
+    /// </summary>
+    Task<Result<string>> OpenDmChannelAsync(
+        Guid broadcasterId,
+        string discordMemberId,
+        CancellationToken ct = default
+    );
+
     /// <summary>Posts the role self-assign button message; returns its message id.</summary>
     Task<Result<string>> PostButtonMessageAsync(
         Guid broadcasterId,

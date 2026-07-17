@@ -119,6 +119,7 @@ public sealed class DiscordNotificationRoleService : IDiscordNotificationRoleSer
             DiscordRoleId = request.DiscordRoleId.Trim(),
             RoleName = request.RoleName?.Trim(),
             SelfAssignEnabled = request.SelfAssignEnabled,
+            DmEnabled = request.DmEnabled,
         };
 
         _db.DiscordNotificationRoles.Add(role);
@@ -140,6 +141,7 @@ public sealed class DiscordNotificationRoleService : IDiscordNotificationRoleSer
 
         role.RoleName = request.RoleName?.Trim();
         role.SelfAssignEnabled = request.SelfAssignEnabled;
+        role.DmEnabled = request.DmEnabled;
         await _db.SaveChangesAsync(ct);
 
         int count = await ActiveOptInCountAsync(roleId, ct);
@@ -369,6 +371,7 @@ public sealed class DiscordNotificationRoleService : IDiscordNotificationRoleSer
             r.DiscordRoleId,
             r.RoleName,
             r.SelfAssignEnabled,
+            r.DmEnabled,
             r.ButtonMessageId,
             r.ButtonChannelId,
             optInCount,

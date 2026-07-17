@@ -36,7 +36,7 @@ public interface IDiscordNotificationRoleService
         CancellationToken ct = default
     );
 
-    /// <summary>Updates <c>RoleName</c> / <c>SelfAssignEnabled</c>. <c>NOT_FOUND</c> if absent.</summary>
+    /// <summary>Updates <c>RoleName</c> / <c>SelfAssignEnabled</c> / <c>DmEnabled</c>. <c>NOT_FOUND</c> if absent.</summary>
     Task<Result<DiscordNotificationRoleDto>> UpdateRoleAsync(
         Guid broadcasterId,
         Guid roleId,

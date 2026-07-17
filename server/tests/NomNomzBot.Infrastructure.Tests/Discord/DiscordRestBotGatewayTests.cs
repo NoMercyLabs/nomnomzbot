@@ -183,6 +183,45 @@ public sealed class DiscordRestBotGatewayTests
     }
 
     [Fact]
+    public async Task OpenDmChannelAsync_PostsRecipientIdToUsersMeChannels_AndReturnsChannelId()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid connectionId = await SeedDiscordConnectionAsync(database);
+        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+
+        CapturingHandler handler = new(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """{"id":"dm-chan-42","type":1}""",
+                    Encoding.UTF8,
+                    "application/json"
+                ),
+            }
+        );
+
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+
+        Result<string> result = await gateway.OpenDmChannelAsync(Channel, "member-777");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().Be("dm-chan-42"); // the DM channel id, to be cached and posted to
+
+        handler.Request!.Method.Should().Be(HttpMethod.Post);
+        handler
+            .Request!.RequestUri!.ToString()
+            .Should()
+            .Be("https://discord.com/api/v10/users/@me/channels");
+        handler
+            .Request!.Headers.GetValues("Authorization")
+            .Single()
+            .Should()
+            .Be($"Bot {DecryptedToken}");
+        handler.Body.Should().Contain("\"recipient_id\":\"member-777\"");
+    }
+
+    [Fact]
     public async Task AddMemberRoleAsync_IssuesPutToGuildMemberRolesEndpoint()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
