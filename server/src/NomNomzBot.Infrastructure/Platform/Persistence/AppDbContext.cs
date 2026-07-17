@@ -152,6 +152,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
         Set<NomNomzBot.Domain.Obs.Entities.ObsConnection>();
 
+    // VTube Studio (per-channel connection config — vtube-studio.md P.19)
+    public DbSet<NomNomzBot.Domain.Vts.Entities.VtsConnection> VtsConnections =>
+        Set<NomNomzBot.Domain.Vts.Entities.VtsConnection>();
+
     // TTS
     public DbSet<TtsConfig> TtsConfigs => Set<TtsConfig>();
     public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();

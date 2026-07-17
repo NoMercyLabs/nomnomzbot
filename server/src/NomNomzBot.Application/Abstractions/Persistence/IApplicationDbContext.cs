@@ -98,6 +98,7 @@ public interface IApplicationDbContext
     DbSet<ChannelSubscription> ChannelSubscriptions { get; }
     DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens { get; }
     DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections { get; }
+    DbSet<NomNomzBot.Domain.Vts.Entities.VtsConnection> VtsConnections { get; }
     DbSet<TtsConfig> TtsConfigs { get; }
     DbSet<TtsVoice> TtsVoices { get; }
     DbSet<UserTtsVoice> UserTtsVoices { get; }

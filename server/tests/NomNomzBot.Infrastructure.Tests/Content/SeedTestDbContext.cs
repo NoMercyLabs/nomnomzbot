@@ -42,6 +42,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         : base(options) { }
 
     // ── Entities the seeders touch ───────────────────────────────────────────
+    public DbSet<NomNomzBot.Domain.Vts.Entities.VtsConnection> VtsConnections =>
+        Set<NomNomzBot.Domain.Vts.Entities.VtsConnection>();
     public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
         Set<NomNomzBot.Domain.Obs.Entities.ObsConnection>();
     public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>

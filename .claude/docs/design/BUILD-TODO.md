@@ -29,7 +29,11 @@ what REMAINS.
   backend is complete: P.14 config + sealed password custody, direct OBS-WS v5 transport, all 19
   pipeline actions, state/control routes, BridgeToken-authed relay hub with leader election,
   `BridgeObsTransport`, and the `obs.*` trigger surface.
-- [ ] **10. VTube Studio** (`vtube-studio.md`) — connect/authorize/bridge, model control, `vts_event`.
+- [ ] **10. VTube Studio** (`vtube-studio.md`) — remaining: the direct transport (VTS API WS client
+  with the plugin-token `AuthenticationRequest` replay + the interactive `AuthorizeAsync` approval
+  flow), `IVtsControlService` + the 6 `vts_*` pipeline actions + inventory/control routes, the
+  `vts_event` trigger source, and the bridge leg over the OBS relay. *(Built: P.19 connection
+  config + sealed plugin-token custody + the 3 `vts:*` Gate-2 keys.)*
 - [ ] **15. Advanced moderation** (`moderation.md`) — remaining: wire the escalation invoker (the
   chat-filter/automod execution path that calls `ResolveAndRecordAsync` when a rule's action is
   `escalate` — the filter execution path itself is not built yet; it belongs with the J.6

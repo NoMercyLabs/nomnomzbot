@@ -482,6 +482,8 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelSubscription> ChannelSubscriptions =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Vts.Entities.VtsConnection> VtsConnections =>
+            throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>

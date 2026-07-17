@@ -294,6 +294,12 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("obs:control", Mod);
         M("obs:control:broadcast", Broadcaster, DangerTier.Critical);
 
+        // VTube Studio (vtube-studio.md §5): the plugin token is minted by the in-VTS approval, never
+        // typed into a form, so the write bundle stays plain (unlike obs:config:write).
+        M("vts:config:read", Mod);
+        M("vts:config:write", Broadcaster);
+        M("vts:control", Mod);
+
         // Webhooks / widgets / integrations / dashboard / community / setup / analytics
         M("webhooks:inbound:read", Mod);
         M("webhooks:inbound:write", Editor);
