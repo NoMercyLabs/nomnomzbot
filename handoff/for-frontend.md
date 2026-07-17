@@ -16,6 +16,29 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Pipelines: ~40 of 66 actions are invisible in the builder (drifting hand-maintained catalogue)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **Diagnosis:** the pipeline builder's block palette comes from a HAND-MAINTAINED Kotlin list (`PipelineCatalogue.kt`,
+  ~25 actions + 2 conditions) that must be manually kept in sync with the backend's ~66 auto-discovered
+  `ICommandAction` types. It has drifted badly — ~40 actions (all OBS ~20, all VTS 6, giveaways, counters,
+  viewer-data, permit/unpermit, submit_media, widget_event, pick_from_list, send_webhook, live-game, stop_sound)
+  and the `var_compare` condition are **not surfaced in the builder at all**, so a streamer literally cannot add
+  them.
+- **Backend follow-up Claude will build:** a server action-catalogue (add `Category` + `Description` to
+  `ICommandAction` per commands-pipelines.md §3.13, and a `GET /pipelines/actions` manifest endpoint) so the
+  builder renders the palette from the backend and can never drift again. When that lands, **replace the
+  hand-maintained `PipelineCatalogue.kt` with the fetched manifest.**
+- **Bigger owner design call (NOT building blind):** there are SIX separate "when X happens, do Y" surfaces —
+  Commands, Event-responses, Chat-triggers, Timers, Reward-redemptions, and Inbound-webhooks — each its own
+  entity + controller + screen, each re-implementing the identical "inline template OR bound pipeline" fork, and
+  redemptions/webhooks can reach a pipeline two different ways. That's the "pipelines reworked into all the other
+  things" the owner means. Unifying them (one trigger→action model) is a large architectural change that needs an
+  owner decision before either track builds it. Flagged, not started.
+- **Also friction (frontend, longer-term):** the builder is a flat step list, not the "visual graph builder" the
+  entity docs claim; then/else branching is in the schema but the engine runs a flat loop (unimplemented) and only
+  the FIRST condition per step is honored; params are raw snake_case JSON with `{{...}}` templating and no
+  variable picker; there's no dry-run/test-fire. These are known gaps for the pipeline UX rework.
+
 ### 2026-07-17 — Games vs commands: build the missing live-games UI + clarify the boundary
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **Diagnosis:** "games and commands overlap" is mostly a UI/mental-model gap — the backend is separated, but
