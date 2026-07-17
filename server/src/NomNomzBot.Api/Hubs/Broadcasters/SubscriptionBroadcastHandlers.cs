@@ -145,7 +145,7 @@ public sealed class GiftSubscriptionBroadcastHandler : IEventHandler<GiftSubscri
 
         await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
-            "gift_sub",
+            "gift",
             dto,
             ct,
             userId: @event.IsAnonymous ? null : @event.GifterUserId,
@@ -156,7 +156,7 @@ public sealed class GiftSubscriptionBroadcastHandler : IEventHandler<GiftSubscri
             _db,
             _widgets,
             @event.BroadcasterId,
-            "gift_sub",
+            "gift",
             dto,
             ct
         );

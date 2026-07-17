@@ -30,6 +30,9 @@ namespace NomNomzBot.Infrastructure.Music;
 /// </summary>
 public sealed class MusicService : IMusicService
 {
+    /// <summary>Upper bound on the queue-changed snapshot — overlays render a top-of-queue list, never the full backlog.</summary>
+    private const int QueueSnapshotSize = 10;
+
     private readonly IEnumerable<IMusicProvider> _providers;
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
@@ -154,10 +157,11 @@ public sealed class MusicService : IMusicService
         if (!HasCapability(provider, MusicProviderCapabilities.Skip))
             return Unsupported("skipping");
 
+        SongRequestEntry? next = null;
         try
         {
             // Dequeue next from fair queue and add to provider queue
-            SongRequestEntry? next = DequeueNext(broadcasterId);
+            next = DequeueNext(broadcasterId);
             if (next is not null)
             {
                 await provider.AddToQueueAsync(tenantId, next.TrackUri, cancellationToken);
@@ -169,6 +173,10 @@ public sealed class MusicService : IMusicService
         {
             return PremiumRequired(ex);
         }
+
+        // A dequeue changed the fair queue — push the fresh snapshot to the sr_queue overlay surfaces.
+        if (next is not null)
+            await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
 
         await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
         return Result.Success();
@@ -324,6 +332,8 @@ public sealed class MusicService : IMusicService
             cancellationToken
         );
 
+        await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
+
         return true;
     }
 
@@ -458,19 +468,24 @@ public sealed class MusicService : IMusicService
     private static Result PremiumRequired(PremiumRequiredException ex) =>
         Result.Failure(ex.Message, "PREMIUM_REQUIRED");
 
-    public Task<bool> RemoveFromQueueAsync(
+    public async Task<bool> RemoveFromQueueAsync(
         string broadcasterId,
         int position,
         CancellationToken cancellationToken = default
     )
     {
+        bool removed;
         lock (_queueLock)
         {
-            if (!_queues.TryGetValue(broadcasterId, out FairQueue<SongRequestEntry>? queue))
-                return Task.FromResult(false);
-
-            return Task.FromResult(queue.RemoveAt(position));
+            removed =
+                _queues.TryGetValue(broadcasterId, out FairQueue<SongRequestEntry>? queue)
+                && queue.RemoveAt(position);
         }
+
+        if (removed && Guid.TryParse(broadcasterId, out Guid tenantId))
+            await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
+
+        return removed;
     }
 
     // ── Remote controls (capability-gated §3.5 members) ─────────────────────────
@@ -699,6 +714,43 @@ public sealed class MusicService : IMusicService
             },
             cancellationToken
         );
+    }
+
+    /// <summary>
+    /// Publishes <see cref="SongRequestQueueChangedEvent"/> with the fresh top-of-queue snapshot right after any
+    /// fair-queue mutation (add / skip-dequeue / remove), so the standing <c>sr_queue</c> overlay widget re-renders
+    /// from the event alone instead of polling.
+    /// </summary>
+    private Task PublishQueueChangedAsync(
+        Guid tenantId,
+        string broadcasterId,
+        CancellationToken cancellationToken
+    ) =>
+        _eventBus.PublishAsync(
+            new SongRequestQueueChangedEvent
+            {
+                BroadcasterId = tenantId,
+                Items = SnapshotQueue(broadcasterId),
+            },
+            cancellationToken
+        );
+
+    private IReadOnlyList<SongRequestQueueSnapshotItem> SnapshotQueue(string broadcasterId)
+    {
+        lock (_queueLock)
+        {
+            return _queues.TryGetValue(broadcasterId, out FairQueue<SongRequestEntry>? queue)
+                ? queue
+                    .GetSnapshot()
+                    .Take(QueueSnapshotSize)
+                    .Select(e => new SongRequestQueueSnapshotItem(
+                        e.Item.TrackName,
+                        e.Item.RequestedBy,
+                        e.Item.DurationMs / 1000
+                    ))
+                    .ToList()
+                : [];
+        }
     }
 
     private SongRequestEntry? DequeueNext(string broadcasterId)

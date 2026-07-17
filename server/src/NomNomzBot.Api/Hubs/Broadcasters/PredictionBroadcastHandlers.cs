@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -25,106 +26,198 @@ internal static class PredictionAlertMapper
             .ToList();
 }
 
-/// <summary>Broadcasts a prediction opening (<c>channel.prediction.begin</c>) to dashboard clients.</summary>
+/// <summary>Broadcasts a prediction opening (<c>channel.prediction.begin</c>) to dashboard clients AND,
+/// identically, to overlay widgets + the feed (the <c>poll_prediction</c> widget binds <c>prediction_begin</c>).</summary>
 public sealed class PredictionBeganBroadcastHandler : IEventHandler<PredictionBeganEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public PredictionBeganBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public PredictionBeganBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(PredictionBeganEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(PredictionBeganEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        PredictionBeganAlertDto dto = new(
+            @event.PredictionId,
+            @event.Title,
+            PredictionAlertMapper.MapOutcomes(@event.Outcomes),
+            @event.WindowSeconds,
+            @event.LocksAt
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "prediction_begin",
-            new PredictionBeganAlertDto(
-                @event.PredictionId,
-                @event.Title,
-                PredictionAlertMapper.MapOutcomes(@event.Outcomes),
-                @event.WindowSeconds,
-                @event.LocksAt
-            ),
+            dto,
+            ct
+        );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "prediction_begin",
+            dto,
             ct
         );
     }
 }
 
-/// <summary>Broadcasts a running prediction's pools (<c>channel.prediction.progress</c>) to dashboard clients.</summary>
+/// <summary>Broadcasts a running prediction's pools (<c>channel.prediction.progress</c>) to dashboard clients
+/// AND, identically, to overlay widgets + the feed.</summary>
 public sealed class PredictionProgressBroadcastHandler : IEventHandler<PredictionProgressEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public PredictionProgressBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public PredictionProgressBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(PredictionProgressEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(PredictionProgressEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        PredictionProgressAlertDto dto = new(
+            @event.PredictionId,
+            @event.Title,
+            PredictionAlertMapper.MapOutcomes(@event.Outcomes),
+            @event.LocksAt
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "prediction_progress",
-            new PredictionProgressAlertDto(
-                @event.PredictionId,
-                @event.Title,
-                PredictionAlertMapper.MapOutcomes(@event.Outcomes),
-                @event.LocksAt
-            ),
+            dto,
+            ct
+        );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "prediction_progress",
+            dto,
             ct
         );
     }
 }
 
-/// <summary>Broadcasts a prediction's vote lock (<c>channel.prediction.lock</c>) to dashboard clients.</summary>
+/// <summary>Broadcasts a prediction's vote lock (<c>channel.prediction.lock</c>) to dashboard clients AND,
+/// identically, to overlay widgets + the feed.</summary>
 public sealed class PredictionLockedBroadcastHandler : IEventHandler<PredictionLockedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public PredictionLockedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public PredictionLockedBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(PredictionLockedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(PredictionLockedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        PredictionLockedAlertDto dto = new(
+            @event.PredictionId,
+            @event.Title,
+            PredictionAlertMapper.MapOutcomes(@event.Outcomes)
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "prediction_lock",
-            new PredictionLockedAlertDto(
-                @event.PredictionId,
-                @event.Title,
-                PredictionAlertMapper.MapOutcomes(@event.Outcomes)
-            ),
+            dto,
+            ct
+        );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "prediction_lock",
+            dto,
             ct
         );
     }
 }
 
-/// <summary>Broadcasts a prediction's resolution/cancellation (<c>channel.prediction.end</c>) to dashboard clients.</summary>
+/// <summary>Broadcasts a prediction's resolution/cancellation (<c>channel.prediction.end</c>) to dashboard
+/// clients AND, identically, to overlay widgets + the feed.</summary>
 public sealed class PredictionEndedBroadcastHandler : IEventHandler<PredictionEndedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public PredictionEndedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public PredictionEndedBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(PredictionEndedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(PredictionEndedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        PredictionEndedAlertDto dto = new(
+            @event.PredictionId,
+            @event.Title,
+            @event.Status,
+            PredictionAlertMapper.MapOutcomes(@event.Outcomes),
+            @event.WinningOutcomeId
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "prediction_end",
-            new PredictionEndedAlertDto(
-                @event.PredictionId,
-                @event.Title,
-                @event.Status,
-                PredictionAlertMapper.MapOutcomes(@event.Outcomes),
-                @event.WinningOutcomeId
-            ),
+            dto,
+            ct
+        );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "prediction_end",
+            dto,
             ct
         );
     }

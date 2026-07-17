@@ -16,6 +16,7 @@ using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -34,6 +35,7 @@ public sealed class ChatMessageBroadcastHandlerTests
         IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
 
         decorator
@@ -48,6 +50,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             decorator,
             enricher,
             widgets,
+            db,
             TimeProvider.System
         );
 
@@ -71,6 +74,7 @@ public sealed class ChatMessageBroadcastHandlerTests
         IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
 
         decorator
@@ -85,6 +89,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             decorator,
             enricher,
             widgets,
+            db,
             TimeProvider.System
         );
 
@@ -108,6 +113,7 @@ public sealed class ChatMessageBroadcastHandlerTests
         IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
 
         ChatMessageBroadcastHandler handler = new(
@@ -115,6 +121,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             decorator,
             enricher,
             widgets,
+            db,
             TimeProvider.System
         );
 
@@ -169,6 +176,7 @@ public sealed class ChatMessageBroadcastHandlerTests
         IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
 
         decorator
@@ -183,6 +191,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             decorator,
             enricher,
             widgets,
+            db,
             TimeProvider.System
         );
 
@@ -201,6 +210,80 @@ public sealed class ChatMessageBroadcastHandlerTests
                     && evt.Payload.Contains("\"pronouns\":\"they/them\"")
                     && evt.Payload.Contains("\"displayName\":\"Stoney\"")
                 ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Message_reaches_only_widgets_subscribed_to_ChatMessage_as_a_widget_event()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [] });
+        enricher
+            .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
+            .Returns((HubUserEnrichment?)null);
+
+        // A chat widget bound to "ChatMessage" (chat_box/emote_wall) and a bystander bound to "follow".
+        Widget chatWidget = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = channel,
+            Name = "Chat box",
+            IsEnabled = true,
+            EventSubscriptions = ["ChatMessage"],
+        };
+        Widget followWidget = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = channel,
+            Name = "Follow alert",
+            IsEnabled = true,
+            EventSubscriptions = ["follow"],
+        };
+        db.Widgets.AddRange(chatWidget, followWidget);
+        await db.SaveChangesAsync();
+
+        ChatMessageBroadcastHandler handler = new(
+            notifier,
+            decorator,
+            enricher,
+            widgets,
+            db,
+            TimeProvider.System
+        );
+
+        await handler.HandleAsync(Event(channel));
+
+        // The subscribed widget gets the SAME decorated dto as a "ChatMessage" WidgetEvent — the only frame
+        // the overlay host forwards into a widget's sandboxed iframe…
+        await widgets
+            .Received(1)
+            .SendWidgetEventAsync(
+                channel.ToString(),
+                chatWidget.Id.ToString(),
+                Arg.Is<WidgetEventDto>(evt =>
+                    evt.EventType == "ChatMessage"
+                    && evt.Data is DashboardChatMessageDto
+                    && ((DashboardChatMessageDto)evt.Data!).Message == "hello"
+                    && ((DashboardChatMessageDto)evt.Data!).DisplayName == "Stoney"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        // …and the chat-hot push never reaches a widget that did not subscribe to it.
+        await widgets
+            .DidNotReceive()
+            .SendWidgetEventAsync(
+                channel.ToString(),
+                followWidget.Id.ToString(),
+                Arg.Any<WidgetEventDto>(),
                 Arg.Any<CancellationToken>()
             );
     }

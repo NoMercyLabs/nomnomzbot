@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -23,81 +24,140 @@ internal static class PollAlertMapper
             .ToList();
 }
 
-/// <summary>Broadcasts a poll opening (<c>channel.poll.begin</c>) to dashboard clients.</summary>
+/// <summary>Broadcasts a poll opening (<c>channel.poll.begin</c>) to dashboard clients AND, identically, to
+/// overlay widgets + the feed (the <c>poll_prediction</c> widget binds <c>poll_begin</c>).</summary>
 public sealed class PollBeganBroadcastHandler : IEventHandler<PollBeganEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public PollBeganBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public PollBeganBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(PollBeganEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(PollBeganEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
-            @event.BroadcasterId.ToString(),
+        PollBeganAlertDto dto = new(
+            @event.PollId,
+            @event.Title,
+            PollAlertMapper.MapChoices(@event.Choices),
+            @event.DurationSeconds,
+            @event.EndsAt
+        );
+
+        await _notifier.NotifyChannelAsync(@event.BroadcasterId.ToString(), "poll_begin", dto, ct);
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
             "poll_begin",
-            new PollBeganAlertDto(
-                @event.PollId,
-                @event.Title,
-                PollAlertMapper.MapChoices(@event.Choices),
-                @event.DurationSeconds,
-                @event.EndsAt
-            ),
+            dto,
             ct
         );
     }
 }
 
-/// <summary>Broadcasts a running poll's vote tallies (<c>channel.poll.progress</c>) to dashboard clients.</summary>
+/// <summary>Broadcasts a running poll's vote tallies (<c>channel.poll.progress</c>) to dashboard clients AND,
+/// identically, to overlay widgets + the feed.</summary>
 public sealed class PollProgressBroadcastHandler : IEventHandler<PollProgressEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public PollProgressBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public PollProgressBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(PollProgressEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(PollProgressEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        PollProgressAlertDto dto = new(
+            @event.PollId,
+            @event.Title,
+            PollAlertMapper.MapChoices(@event.Choices),
+            @event.EndsAt
+        );
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "poll_progress",
-            new PollProgressAlertDto(
-                @event.PollId,
-                @event.Title,
-                PollAlertMapper.MapChoices(@event.Choices),
-                @event.EndsAt
-            ),
+            dto,
+            ct
+        );
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "poll_progress",
+            dto,
             ct
         );
     }
 }
 
-/// <summary>Broadcasts a poll's terminal result (<c>channel.poll.end</c>) to dashboard clients.</summary>
+/// <summary>Broadcasts a poll's terminal result (<c>channel.poll.end</c>) to dashboard clients AND, identically,
+/// to overlay widgets + the feed.</summary>
 public sealed class PollEndedBroadcastHandler : IEventHandler<PollEndedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public PollEndedBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public PollEndedBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(PollEndedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(PollEndedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
-            @event.BroadcasterId.ToString(),
+        PollEndedAlertDto dto = new(
+            @event.PollId,
+            @event.Title,
+            @event.Status,
+            PollAlertMapper.MapChoices(@event.Choices),
+            @event.WinningChoiceId
+        );
+
+        await _notifier.NotifyChannelAsync(@event.BroadcasterId.ToString(), "poll_end", dto, ct);
+
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
             "poll_end",
-            new PollEndedAlertDto(
-                @event.PollId,
-                @event.Title,
-                @event.Status,
-                PollAlertMapper.MapChoices(@event.Choices),
-                @event.WinningChoiceId
-            ),
+            dto,
             ct
         );
     }

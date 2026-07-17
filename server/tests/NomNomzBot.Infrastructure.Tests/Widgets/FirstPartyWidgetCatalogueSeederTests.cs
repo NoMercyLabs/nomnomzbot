@@ -138,6 +138,28 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
     }
 
     [Fact]
+    public async Task Gift_alerts_bind_the_canonical_gift_event_name_never_gift_sub()
+    {
+        // The GiftSubscriptionBroadcastHandler emits "gift" — the name the alerts/goal_bar/labels/event_ticker
+        // SFCs bind. A "gift_sub" appearing anywhere in the seeded catalogue (subscriptions OR SFC source) would
+        // silently disconnect gift alerts from every seeded widget.
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+
+        await SeedAsync(database);
+
+        await using WidgetTestDbContext db = database.NewContext();
+        List<WidgetGalleryItem> items = await db.WidgetGalleryItems.ToListAsync();
+
+        items.Should().OnlyContain(i => !i.DefaultEventSubscriptions.Contains("gift_sub"));
+        items.Should().OnlyContain(i => i.SourceCode == null || !i.SourceCode.Contains("gift_sub"));
+        items
+            .Where(i => i.NaturalKey is "alerts" or "goal_bar" or "labels" or "event_ticker")
+            .Should()
+            .HaveCount(4)
+            .And.OnlyContain(i => i.DefaultEventSubscriptions.Contains("gift"));
+    }
+
+    [Fact]
     public void Orders_with_global_reference_data()
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();

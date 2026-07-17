@@ -12,15 +12,17 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Domain.Community.Events;
+using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
 
 /// <summary>
 /// Proves the poll broadcasters forward begin/progress/end to dashboard clients over the generic
-/// <c>ChannelEvent</c> taxonomy (<see cref="IDashboardNotifier.NotifyChannelAsync"/>), with choices mapped onto
-/// <see cref="PollChoiceDto"/> — the gap this closes: the pipeline-trigger handlers fired
-/// <c>event_response:poll_begin</c>/<c>poll_end</c> but no hub client ever saw the poll.
+/// <c>ChannelEvent</c> taxonomy (<see cref="IDashboardNotifier.NotifyChannelAsync"/>) AND fan the SAME alert dto
+/// to the overlays (generic feed + widgets subscribed to <c>poll_begin</c>/<c>poll_progress</c>/<c>poll_end</c>) —
+/// the gap this closes: the <c>poll_prediction</c> overlay widget bound those event types but no handler ever
+/// pushed them to the overlay surface.
 /// </summary>
 public sealed class PollBroadcastHandlersTests
 {
@@ -30,11 +32,23 @@ public sealed class PollBroadcastHandlersTests
         new("c2", "Dogs", 7, 1),
     ];
 
+    private static (
+        IDashboardNotifier Notifier,
+        IWidgetNotifier Widgets,
+        WidgetTestDbContext Db
+    ) Build() =>
+        (
+            Substitute.For<IDashboardNotifier>(),
+            Substitute.For<IWidgetNotifier>(),
+            WidgetTestDbContext.New()
+        );
+
     [Fact]
     public async Task PollBegan_MapsChoicesAndWindow_AsPollBeginChannelEvent()
     {
-        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
-        PollBeganBroadcastHandler handler = new(notifier);
+        (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
+        await using WidgetTestDbContext _ = db;
+        PollBeganBroadcastHandler handler = new(notifier, db, widgets);
         Guid channel = Guid.CreateVersion7();
         DateTimeOffset endsAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero);
 
@@ -71,10 +85,67 @@ public sealed class PollBroadcastHandlersTests
     }
 
     [Fact]
-    public async Task PollProgress_MapsRunningTallies_AsPollProgressChannelEvent()
+    public async Task PollBegan_reaches_the_overlay_feed_and_a_subscribed_widget()
     {
-        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
-        PollProgressBroadcastHandler handler = new(notifier);
+        (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
+        await using WidgetTestDbContext _ = db;
+        Guid channel = Guid.CreateVersion7();
+        Widget widget = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = channel,
+            Name = "Poll bar",
+            IsEnabled = true,
+            EventSubscriptions = ["poll_begin", "poll_progress", "poll_end"],
+        };
+        db.Widgets.Add(widget);
+        await db.SaveChangesAsync();
+        PollBeganBroadcastHandler handler = new(notifier, db, widgets);
+
+        await handler.HandleAsync(
+            new PollBeganEvent
+            {
+                BroadcasterId = channel,
+                PollId = "poll-1",
+                Title = "Cats or dogs?",
+                Choices = Choices,
+                DurationSeconds = 300,
+                EndsAt = new DateTimeOffset(2026, 7, 1, 12, 5, 0, TimeSpan.Zero),
+            }
+        );
+
+        await widgets
+            .Received(1)
+            .BroadcastOverlayEventAsync(
+                channel.ToString(),
+                Arg.Is<OverlayEventDto>(evt =>
+                    evt.Type == "poll_begin"
+                    && evt.Payload.Contains("\"pollId\":\"poll-1\"")
+                    && evt.Payload.Contains("\"title\":\"Cats or dogs?\"")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await widgets
+            .Received(1)
+            .SendWidgetEventAsync(
+                channel.ToString(),
+                widget.Id.ToString(),
+                Arg.Is<WidgetEventDto>(evt =>
+                    evt.EventType == "poll_begin"
+                    && evt.Data is PollBeganAlertDto
+                    && ((PollBeganAlertDto)evt.Data!).PollId == "poll-1"
+                    && ((PollBeganAlertDto)evt.Data!).Choices.Count == 2
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task PollProgress_MapsRunningTallies_AsPollProgressChannelEvent_AndOverlayEvent()
+    {
+        (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
+        await using WidgetTestDbContext _ = db;
+        PollProgressBroadcastHandler handler = new(notifier, db, widgets);
         Guid channel = Guid.CreateVersion7();
         DateTimeOffset endsAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero);
 
@@ -102,13 +173,23 @@ public sealed class PollBroadcastHandlersTests
                 ),
                 Arg.Any<CancellationToken>()
             );
+        await widgets
+            .Received(1)
+            .BroadcastOverlayEventAsync(
+                channel.ToString(),
+                Arg.Is<OverlayEventDto>(evt =>
+                    evt.Type == "poll_progress" && evt.Payload.Contains("\"pollId\":\"poll-1\"")
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
-    public async Task PollEnded_MapsStatusAndWinner_AsPollEndChannelEvent()
+    public async Task PollEnded_MapsStatusAndWinner_AsPollEndChannelEvent_AndOverlayEvent()
     {
-        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
-        PollEndedBroadcastHandler handler = new(notifier);
+        (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
+        await using WidgetTestDbContext _ = db;
+        PollEndedBroadcastHandler handler = new(notifier, db, widgets);
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -136,13 +217,25 @@ public sealed class PollBroadcastHandlersTests
                 ),
                 Arg.Any<CancellationToken>()
             );
+        await widgets
+            .Received(1)
+            .BroadcastOverlayEventAsync(
+                channel.ToString(),
+                Arg.Is<OverlayEventDto>(evt =>
+                    evt.Type == "poll_end"
+                    && evt.Payload.Contains("\"status\":\"completed\"")
+                    && evt.Payload.Contains("\"winningChoiceId\":\"c1\"")
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
     public async Task PollBegan_PlatformSentinelChannel_DoesNotNotify()
     {
-        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
-        PollBeganBroadcastHandler handler = new(notifier);
+        (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
+        await using WidgetTestDbContext _ = db;
+        PollBeganBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
             new PollBeganEvent
@@ -164,5 +257,8 @@ public sealed class PollBroadcastHandlersTests
                 Arg.Any<object>(),
                 Arg.Any<CancellationToken>()
             );
+        await widgets
+            .DidNotReceiveWithAnyArgs()
+            .BroadcastOverlayEventAsync(default!, default!, default);
     }
 }

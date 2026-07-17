@@ -11,6 +11,7 @@
 using System.Text.Json;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Events;
@@ -39,6 +40,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
     private readonly IChatMessageDecorator _decorator;
     private readonly IHubUserEnricher _enricher;
     private readonly IWidgetNotifier _widgets;
+    private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
 
     public ChatMessageBroadcastHandler(
@@ -46,6 +48,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
         IChatMessageDecorator decorator,
         IHubUserEnricher enricher,
         IWidgetNotifier widgets,
+        IApplicationDbContext db,
         TimeProvider timeProvider
     )
     {
@@ -53,6 +56,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
         _decorator = decorator;
         _enricher = enricher;
         _widgets = widgets;
+        _db = db;
         _timeProvider = timeProvider;
     }
 
@@ -129,6 +133,19 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
         await _widgets.BroadcastOverlayEventAsync(
             evt.BroadcasterId.ToString(),
             new OverlayEventDto("ChatMessage", JsonSerializer.Serialize(dto, OverlayJson)),
+            ct
+        );
+
+        // Authored widgets (chat_box / emote_wall) live in a sandboxed iframe, and the overlay host page
+        // forwards ONLY WidgetEvent frames into it — the generic feed push above never reaches them. Route
+        // the SAME decorated dto through the shared subscription-matched dispatch, so chat volume only hits
+        // widgets whose EventSubscriptions declare "ChatMessage"; everything else stays quiet.
+        await WidgetAlertDispatch.RouteAsync(
+            _db,
+            _widgets,
+            evt.BroadcasterId,
+            "ChatMessage",
+            dto,
             ct
         );
     }

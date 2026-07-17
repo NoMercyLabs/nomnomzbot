@@ -197,7 +197,7 @@ public sealed class SubscriptionCheerRaidBroadcastTests
             .Received(1)
             .NotifyChannelAsync(
                 channel.ToString(),
-                "gift_sub",
+                "gift",
                 Arg.Is<object>(data =>
                     data is GiftSubAlertDto
                     && ((GiftSubAlertDto)data).GifterDisplayName == "Generous"
@@ -213,9 +213,56 @@ public sealed class SubscriptionCheerRaidBroadcastTests
             .BroadcastOverlayEventAsync(
                 channel.ToString(),
                 Arg.Is<OverlayEventDto>(evt =>
-                    evt.Type == "gift_sub"
+                    evt.Type == "gift"
                     && evt.Payload.Contains("\"gifterDisplayName\":\"Generous\"")
                     && evt.Payload.Contains("\"count\":5")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task GiftSubscription_reaches_a_widget_subscribed_to_gift()
+    {
+        // "gift" — NOT "gift_sub" — is the canonical event name: it is what the first-party SFCs
+        // (alerts/goal_bar/labels/event_ticker) bind and what the seeder's DefaultEventSubscriptions carry.
+        (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
+        await using WidgetTestDbContext _ = db;
+        Guid channel = Guid.CreateVersion7();
+        Widget widget = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = channel,
+            Name = "Alerts",
+            IsEnabled = true,
+            EventSubscriptions = ["gift"],
+        };
+        db.Widgets.Add(widget);
+        await db.SaveChangesAsync();
+        GiftSubscriptionBroadcastHandler handler = new(notifier, db, widgets);
+
+        await handler.HandleAsync(
+            new GiftSubscriptionEvent
+            {
+                BroadcasterId = channel,
+                GifterUserId = "g1",
+                GifterDisplayName = "Generous",
+                Tier = "1000",
+                GiftCount = 5,
+                IsAnonymous = false,
+                Recipients = [new GiftRecipient("r1", "Lucky")],
+            }
+        );
+
+        await widgets
+            .Received(1)
+            .SendWidgetEventAsync(
+                channel.ToString(),
+                widget.Id.ToString(),
+                Arg.Is<WidgetEventDto>(evt =>
+                    evt.EventType == "gift"
+                    && evt.Data is GiftSubAlertDto
+                    && ((GiftSubAlertDto)evt.Data!).Count == 5
                 ),
                 Arg.Any<CancellationToken>()
             );
