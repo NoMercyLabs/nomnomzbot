@@ -170,6 +170,209 @@ public sealed class SubscriptionServiceTests
             .ContainSingle(e => e.FromStatus == "incomplete" && e.ToStatus == "active");
     }
 
+    // ─── Self-serve tier change (§3.1 ChangeTierAsync — no longer a stub) ───
+
+    private static async Task<Subscription> SeedStripeSubscriptionAsync(
+        AuthDbContext db,
+        string tierKey = "base",
+        string stripeId = "sub_live_1"
+    )
+    {
+        BillingTier tier = await db.BillingTiers.FirstAsync(t => t.Key == tierKey);
+        Subscription sub = new()
+        {
+            BroadcasterId = Channel,
+            TierId = tier.Id,
+            Status = SubscriptionStatus.Active,
+            StripeSubscriptionId = stripeId,
+        };
+        db.Subscriptions.Add(sub);
+        await db.SaveChangesAsync();
+        return sub;
+    }
+
+    private static async Task MakePurchasableAsync(AuthDbContext db, string tierKey, string priceId)
+    {
+        BillingTier tier = await db.BillingTiers.FirstAsync(t => t.Key == tierKey);
+        tier.StripePriceId = priceId;
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task ChangeTier_reprices_stripe_switches_locally_and_publishes()
+    {
+        IStripeGateway stripe = Substitute.For<IStripeGateway>();
+        stripe
+            .ChangeSubscriptionPriceAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        (SubscriptionService sut, AuthDbContext db, RecordingEventBus bus) = Build(stripe);
+        await SeedAsync(db);
+        await MakePurchasableAsync(db, "pro", "price_pro");
+        Subscription sub = await SeedStripeSubscriptionAsync(db, tierKey: "base");
+
+        Result<SubscriptionDto> result = await sut.ChangeTierAsync(
+            Channel,
+            new ChangeTierRequest("pro", AtPeriodEnd: false)
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        // Stripe was repriced FIRST, with immediate proration (AtPeriodEnd=false).
+        await stripe
+            .Received(1)
+            .ChangeSubscriptionPriceAsync(
+                "sub_live_1",
+                "price_pro",
+                true,
+                Arg.Any<CancellationToken>()
+            );
+        // The local subscription and the channel's tier mirror both switched.
+        BillingTier pro = await db.BillingTiers.FirstAsync(t => t.Key == "pro");
+        (await db.Subscriptions.SingleAsync(s => s.Id == sub.Id)).TierId.Should().Be(pro.Id);
+        (await db.Channels.SingleAsync(c => c.Id == Channel)).BillingTierKey.Should().Be("pro");
+        SubscriptionTierChangedEvent published = bus
+            .Published.OfType<SubscriptionTierChangedEvent>()
+            .Single();
+        published.FromTierKey.Should().Be("base");
+        published.ToTierKey.Should().Be("pro");
+    }
+
+    [Fact]
+    public async Task ChangeTier_at_period_end_switches_without_proration()
+    {
+        IStripeGateway stripe = Substitute.For<IStripeGateway>();
+        stripe
+            .ChangeSubscriptionPriceAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        (SubscriptionService sut, AuthDbContext db, _) = Build(stripe);
+        await SeedAsync(db);
+        await MakePurchasableAsync(db, "pro", "price_pro");
+        await SeedStripeSubscriptionAsync(db, tierKey: "base");
+
+        await sut.ChangeTierAsync(Channel, new ChangeTierRequest("pro", AtPeriodEnd: true));
+
+        await stripe
+            .Received(1)
+            .ChangeSubscriptionPriceAsync(
+                "sub_live_1",
+                "price_pro",
+                false,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ChangeTier_without_a_stripe_backed_subscription_is_refused()
+    {
+        IStripeGateway stripe = Substitute.For<IStripeGateway>();
+        (SubscriptionService sut, AuthDbContext db, _) = Build(stripe);
+        await SeedAsync(db);
+        await MakePurchasableAsync(db, "pro", "price_pro");
+        // A grant-style subscription: local row, no Stripe id — nothing to reprice.
+        BillingTier baseTier = await db.BillingTiers.FirstAsync(t => t.Key == "base");
+        db.Subscriptions.Add(
+            new Subscription
+            {
+                BroadcasterId = Channel,
+                TierId = baseTier.Id,
+                Status = SubscriptionStatus.Active,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<SubscriptionDto> result = await sut.ChangeTierAsync(
+            Channel,
+            new ChangeTierRequest("pro", AtPeriodEnd: false)
+        );
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        await stripe
+            .DidNotReceive()
+            .ChangeSubscriptionPriceAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ChangeTier_gateway_failure_leaves_local_state_untouched()
+    {
+        IStripeGateway stripe = Substitute.For<IStripeGateway>();
+        stripe
+            .ChangeSubscriptionPriceAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("Stripe down", "SERVICE_UNAVAILABLE"));
+        (SubscriptionService sut, AuthDbContext db, RecordingEventBus bus) = Build(stripe);
+        await SeedAsync(db);
+        await MakePurchasableAsync(db, "pro", "price_pro");
+        Subscription sub = await SeedStripeSubscriptionAsync(db, tierKey: "base");
+        Guid tierBefore = sub.TierId;
+
+        Result<SubscriptionDto> result = await sut.ChangeTierAsync(
+            Channel,
+            new ChangeTierRequest("pro", AtPeriodEnd: false)
+        );
+
+        result.ErrorCode.Should().Be("SERVICE_UNAVAILABLE");
+        (await db.Subscriptions.SingleAsync(s => s.Id == sub.Id)).TierId.Should().Be(tierBefore);
+        bus.Published.OfType<SubscriptionTierChangedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ChangeTier_to_the_current_tier_is_a_noop_without_a_stripe_call()
+    {
+        IStripeGateway stripe = Substitute.For<IStripeGateway>();
+        (SubscriptionService sut, AuthDbContext db, _) = Build(stripe);
+        await SeedAsync(db);
+        await MakePurchasableAsync(db, "base", "price_base");
+        await SeedStripeSubscriptionAsync(db, tierKey: "base");
+
+        Result<SubscriptionDto> result = await sut.ChangeTierAsync(
+            Channel,
+            new ChangeTierRequest("base", AtPeriodEnd: false)
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        await stripe
+            .DidNotReceive()
+            .ChangeSubscriptionPriceAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ChangeTier_to_a_non_purchasable_tier_is_refused()
+    {
+        (SubscriptionService sut, AuthDbContext db, _) = Build();
+        await SeedAsync(db); // seeded tiers carry no Stripe price id by default
+        await SeedStripeSubscriptionAsync(db, tierKey: "base");
+
+        (await sut.ChangeTierAsync(Channel, new ChangeTierRequest("pro", false)))
+            .ErrorCode.Should()
+            .Be("VALIDATION_FAILED");
+        (await sut.ChangeTierAsync(Channel, new ChangeTierRequest("nope", false)))
+            .ErrorCode.Should()
+            .Be("NOT_FOUND");
+    }
+
     [Fact]
     public async Task StartCheckout_for_a_tier_without_a_stripe_price_is_validation_failed()
     {

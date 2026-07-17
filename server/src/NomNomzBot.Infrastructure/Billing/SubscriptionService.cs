@@ -23,11 +23,12 @@ namespace NomNomzBot.Infrastructure.Billing;
 
 /// <summary>
 /// Subscription lifecycle (monetization-billing.md §3.1). The reads, the invite/admin <see cref="GrantTierAsync"/>,
-/// the local cancel/resume, and the inbound Stripe webhook appliers are fully implemented and sync
-/// <c>Channels.BillingTierKey</c>. Outbound hosted checkout + the self-serve billing portal go through
-/// <see cref="IStripeGateway"/> (fail-closed to <c>SERVICE_UNAVAILABLE</c> when Stripe is unconfigured, so self-host
-/// is unaffected). (Deferred — documented: proration tier change still routes through the portal; webhook
-/// idempotency relies on the upsert being state-convergent pending a processed-event store.)
+/// the local cancel/resume, the inbound Stripe webhook appliers, AND the self-serve
+/// <see cref="ChangeTierAsync"/> (Stripe reprice with optional proration) are fully implemented and sync
+/// <c>Channels.BillingTierKey</c>. Outbound hosted checkout, the tier reprice, and the self-serve billing portal
+/// go through <see cref="IStripeGateway"/> (fail-closed to <c>SERVICE_UNAVAILABLE</c> when Stripe is
+/// unconfigured, so self-host is unaffected). (Deferred — documented: webhook idempotency relies on the upsert
+/// being state-convergent pending a processed-event store.)
 /// </summary>
 public sealed class SubscriptionService(
     IApplicationDbContext db,
@@ -106,11 +107,71 @@ public sealed class SubscriptionService(
         );
     }
 
-    public Task<Result<SubscriptionDto>> ChangeTierAsync(
+    public async Task<Result<SubscriptionDto>> ChangeTierAsync(
         Guid broadcasterId,
         ChangeTierRequest request,
         CancellationToken ct = default
-    ) => Task.FromResult(Result.Failure<SubscriptionDto>(StripeDeferred, "SERVICE_UNAVAILABLE"));
+    )
+    {
+        BillingTier? tier = await db.BillingTiers.FirstOrDefaultAsync(
+            t => t.Key == request.TierKey,
+            ct
+        );
+        if (tier is null)
+            return Result.Failure<SubscriptionDto>("Unknown billing tier.", "NOT_FOUND");
+        if (!tier.IsPublic || string.IsNullOrWhiteSpace(tier.StripePriceId))
+            return Result.Failure<SubscriptionDto>(
+                "This tier is not purchasable.",
+                "VALIDATION_FAILED"
+            );
+
+        // Self-serve tier change only reprices a LIVE Stripe subscription. Grants/invites have no Stripe
+        // side to switch, and a channel with no subscription buys via checkout — never a silent free move.
+        Subscription? sub = await FindAsync(broadcasterId, ct);
+        if (sub is null || string.IsNullOrWhiteSpace(sub.StripeSubscriptionId))
+            return Result.Failure<SubscriptionDto>(
+                "No active paid subscription to change — start a checkout for this tier instead.",
+                "VALIDATION_FAILED"
+            );
+        if (sub.TierId == tier.Id)
+            return Result.Success(await ToDtoAsync(broadcasterId, sub, ct)); // already there — no-op
+
+        // Stripe first (the money side), local second: AtPeriodEnd=false bills the prorated difference
+        // now; true switches without proration (charged from the next renewal). The webhook remains the
+        // authoritative converger; the local switch below just keeps the dashboard immediate.
+        Result switched = await stripe.ChangeSubscriptionPriceAsync(
+            sub.StripeSubscriptionId,
+            tier.StripePriceId,
+            prorate: !request.AtPeriodEnd,
+            ct
+        );
+        if (switched.IsFailure)
+            return switched.WithValue<SubscriptionDto>(null!);
+
+        string fromTierKey =
+            await db
+                .BillingTiers.Where(t => t.Id == sub.TierId)
+                .Select(t => t.Key)
+                .FirstOrDefaultAsync(ct)
+            ?? "";
+        sub.TierId = tier.Id;
+        await SyncChannelTierAsync(broadcasterId, tier.Key, ct);
+        await db.SaveChangesAsync(ct);
+
+        await eventBus.PublishAsync(
+            new SubscriptionTierChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                SubscriptionId = sub.Id,
+                FromTierKey = fromTierKey,
+                ToTierKey = tier.Key,
+                Status = StatusString(sub.Status),
+                IsInviteOnlyGrant = false,
+            },
+            ct
+        );
+        return Result.Success(await ToDtoAsync(broadcasterId, sub, ct));
+    }
 
     public async Task<Result<SubscriptionDto>> CancelAsync(
         Guid broadcasterId,

@@ -43,4 +43,16 @@ public interface IStripeGateway
         string returnUrl,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Switches the live Stripe subscription's price (the self-serve tier change, §3.1):
+    /// <paramref name="prorate"/> true bills the difference immediately (<c>create_prorations</c>); false
+    /// switches without proration — the new price simply applies from the next renewal invoice.
+    /// </summary>
+    Task<Result> ChangeSubscriptionPriceAsync(
+        string stripeSubscriptionId,
+        string newPriceId,
+        bool prorate,
+        CancellationToken cancellationToken = default
+    );
 }

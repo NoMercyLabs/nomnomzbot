@@ -70,6 +70,51 @@ public sealed class StripeGateway : IStripeGateway
         }
     }
 
+    public async Task<Result> ChangeSubscriptionPriceAsync(
+        string stripeSubscriptionId,
+        string newPriceId,
+        bool prorate,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (_client is null)
+            return Result.Failure("Stripe billing is not configured.", "SERVICE_UNAVAILABLE");
+
+        try
+        {
+            Stripe.SubscriptionService subscriptions = new(_client);
+            Subscription current = await subscriptions.GetAsync(
+                stripeSubscriptionId,
+                cancellationToken: cancellationToken
+            );
+            string? itemId = current.Items?.Data?.FirstOrDefault()?.Id;
+            if (itemId is null)
+                return Result.Failure(
+                    "The Stripe subscription carries no items to switch.",
+                    "VALIDATION_FAILED"
+                );
+
+            SubscriptionUpdateOptions options = new()
+            {
+                Items = [new SubscriptionItemOptions { Id = itemId, Price = newPriceId }],
+                ProrationBehavior = prorate ? "create_prorations" : "none",
+            };
+            await subscriptions.UpdateAsync(
+                stripeSubscriptionId,
+                options,
+                cancellationToken: cancellationToken
+            );
+            return Result.Success();
+        }
+        catch (StripeException ex)
+        {
+            return Result.Failure(
+                $"Stripe tier change failed: {ex.Message}",
+                "SERVICE_UNAVAILABLE"
+            );
+        }
+    }
+
     public async Task<Result<BillingPortalDto>> CreateBillingPortalSessionAsync(
         string stripeSubscriptionId,
         string returnUrl,
