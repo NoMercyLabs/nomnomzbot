@@ -17,7 +17,7 @@
 - DI via typed interfaces; **no MediatR, no Roslyn**.
 - Responses: `StatusResponseDto<T>` / `PaginatedResponse<T>`. Controllers `[ApiVersion("1.0")] [Route("api/v{version:apiVersion}/...")]`.
 - App JSON: Newtonsoft.Json for `[VC:JSON]` EF converters (per schema §1.4). Inbound request DTOs ride the host's System.Text.Json (existing controller convention) — converters are an EF persistence concern only.
-- Surrogate PKs = `Guid` via `Guid.CreateVersion7()`; append-only journals use `bigint` identity (J.1, J.2, J.3, J.4, J.5, J.8, O.8 are `bigint PK`; J.2a, J.7, J.8a, J.9, J.9a, J.10, J.11 are `guid PK`).
+- Surrogate PKs = `Guid` via `Guid.CreateVersion7()`; append-only journals use `bigint` identity (J.1, J.2, J.3, J.4, J.5, J.8, O.8 are `bigint PK`; J.2a, J.7, J.8a, J.9, J.9a, J.10, J.11, J.12 are `guid PK`).
 - Twitch ids are indexed attribute columns, never keys. Tenant key `BroadcasterId` is `Guid` (FK→`Channels.Id`).
 - Soft-delete (`IsDeleted`/`DeletedAt`) global filter on `[soft-delete]` tables; append-only tables carry `CreatedAt` only.
 
@@ -47,7 +47,10 @@ All defined in `docs/design/2026-06-16-database-schema.md` Domain J (+ O.8). Lis
 | J.9a | `SharedBanTrustedChannel` | `Id guid` | join | `BroadcasterId guid` (trusting); `TrustedChannelId guid`; `AddedByUserId guid?`. **Unique** `(BroadcasterId, TrustedChannelId)`. |
 | J.10 | `ModerationEscalationPolicy` | `Id guid` | `[soft-delete]` | `BroadcasterId guid` **Unique**; `IsEnabled bool`; `LadderJson text` **[VC:JSON]** `List<EscalationLadderStep>`; `OffenseWindowHours int` (default 168); `CountAutoModViolations bool` (default false); `ConfigSchemaVersion int`. |
 | J.11 | `ModerationEscalationState` | `Id guid` | mutable | `BroadcasterId guid`; `SubjectUserId guid`; `SubjectTwitchUserId` **[PII-hash]**; `OffenseCount int`; `WindowStartedAt`; `LastOffenseAt`. **Unique** `(BroadcasterId, SubjectUserId)`. |
+| J.12 | `ChannelModerationStanding` | `Id guid` | mutable | `BroadcasterId guid`; `Provider string(20)` (platform key: `twitch`\|`youtube`\|`kick`); `UserId string(64)` (that platform's user id); `Standing {muted\|shadowbanned\|blacklisted}` — an **absent row means normal** (there is no stored "none"); `Reason string(500)?`; `CreatedByUserId guid?` (acting operator). **Unique** `(BroadcasterId, Provider, UserId)`; **Index** `(BroadcasterId, Standing)`. |
 | O.8 | `ModerationAuditLog` | `Id bigint` | `[APPEND-ONLY]` | `BroadcasterId guid?`; `ModerationActionId bigint?`; `ActorUserId guid?`; `ActorIamPrincipalId guid?` (staff cross-tenant); `EventType {action_taken\|action_reverted\|queue_resolved\|cross_tenant_access}`; `Justification string(500)?`; `MetadataJson text?` **[VC:JSON]**. |
+
+> **J.12 axis note.** `ChannelModerationStanding` is the **negative, bot-side** standing axis — deliberately distinct from `ChannelCommunityStanding` (positive, badge-sourced, overwritten by chat tags) and from Twitch-native ban/timeout (which stay Helix-enforced and are **not** mirrored here). It keys on the **platform identity** (`Provider` + that platform's `UserId`), not the surrogate `Users.Id`, so each of a human's platform identities carries its own standing. Rows carry `CreatedAt`/`UpdatedAt`; clearing a standing **deletes the row** (no soft-delete — absence is the "normal" state). In the schema doc it sits beside its per-user Domain-J siblings (J.3–J.5).
 
 **Cross-subsystem references (owned elsewhere — referenced, not redefined):** `Channels` (A.2, tenant root), `Users` (A.1), `ChatMessages` (Content domain), `ChannelMemberships` (B.1, management ladder — gate source), `ActionDefinitions` (B.3, floor/permit catalog), `ChannelFederationOptIns` (D.3, cross-instance shared-ban leg), `FederationPeers` (D.1).
 
@@ -253,7 +256,7 @@ All in `NomNomzBot.Application.Services.Moderation` (new folder) except the **ex
 
 ### 3.1 `IModerationService` — direct mod actions (EXTEND existing)
 
-Replaces the `string`-keyed signatures with `Guid`; keeps method names. Each writes a `ModerationAction` (J.2) row, calls Helix via `ITwitchModerationApi`, fires `ModerationActionAppliedEvent`/`ModerationActionRevertedEvent`, and appends `ModerationAuditLog` (O.8). `actorUserId` is the authenticated principal (no longer implicit).
+Replaces the `string`-keyed signatures with `Guid`; keeps method names. Each writes a `ModerationAction` (J.2) row, calls Helix via `ITwitchModerationApi`, fires `ModerationActionAppliedEvent`/`ModerationActionRevertedEvent`, and appends `ModerationAuditLog` (O.8). `actorUserId` is the authenticated principal (no longer implicit). The two bot-side standing methods are the deliberate exception: they never call Helix and write no `ModerationAction` row — their audit is a SYSTEM `UserNote` (J.3), and each write is one `IUnitOfWork` op (standing row + note, all-or-nothing).
 
 ```csharp
 namespace NomNomzBot.Application.Services;
@@ -277,6 +280,12 @@ public interface IModerationService
 
     /// Issues a Twitch-native warning via Helix (POST /moderation/warnings, scope moderator:manage:warnings) — the warned user must acknowledge before chatting again; inserts ModerationAction(warn); fires event + audit; bumps WarningCount.
     Task<Result<ModerationActionResult>> WarnAsync(Guid broadcasterId, Guid actorUserId, Guid targetUserId, string reason, CancellationToken ct = default);
+
+    /// Upserts the bot-side ChannelModerationStanding (J.12) for one platform identity (standing = muted|shadowbanned|blacklisted; userId is that platform's user id). Rejects the broadcaster themselves (CONFLICT — mirror of the "broadcaster can't be banned" guard). Appends a SYSTEM UserNote (J.3, "standing set to muted — <reason>") so the audit rides the existing notes surface (no new domain event); refreshes the per-channel in-process standing map (ChannelContext, via IChannelRegistry invalidation). Never calls Helix.
+    Task<Result<ModerationStandingDto>> SetModerationStandingAsync(Guid broadcasterId, Guid actorUserId, string userId, string provider, string standing, string? reason, CancellationToken ct = default);
+
+    /// Deletes the ChannelModerationStanding row (J.12) — back to normal (an absent row means normal). Same SYSTEM-UserNote + standing-map-refresh side effects as the setter. NOT_FOUND if absent.
+    Task<Result> ClearModerationStandingAsync(Guid broadcasterId, Guid actorUserId, string userId, string provider, CancellationToken ct = default);
 
     /// Append-only action history for a channel (J.2), newest first, filtered/paged. Read-only; no side effects.
     Task<Result<PagedList<ModerationActionLog>>> GetActionsAsync(Guid broadcasterId, ModerationActionQuery query, CancellationToken ct = default);
@@ -412,7 +421,7 @@ namespace NomNomzBot.Application.Services.Moderation;
 
 public interface IUserContextService
 {
-    /// Aggregated per-user context: pinned+recent notes (J.3), rollup counts (J.4), trust/heat (J.5), recent actions (J.2). Read-only.
+    /// Aggregated per-user context: pinned+recent notes (J.3), rollup counts (J.4), trust/heat (J.5), recent actions (J.2), current bot-side standings (J.12 — one per platform identity; empty = normal). Read-only.
     Task<Result<UserContextDto>> GetContextAsync(Guid broadcasterId, Guid subjectUserId, CancellationToken ct = default);
 
     /// Adds a shared UserNote (J.3). Returns created note. Content is [PII-scrub].
@@ -584,6 +593,9 @@ public sealed record ModerationActionQuery(
 
 public sealed record BannedUserDto(string TwitchUserId, string Username, string? Reason, string BannedBy, DateTime BannedAt);
 
+// Bot-side moderation standing (J.12) — UserId is the platform user id, Standing ∈ muted|shadowbanned|blacklisted.
+public sealed record ModerationStandingDto(string UserId, string Provider, string Standing, string? Reason, DateTime UpdatedAt);
+
 // ── AutoMod config (J.7) ───────────────────────────────────────────────────
 public sealed record AutoModConfigDto(
     Guid Id, bool IsEnabled, int OverallLevel, IReadOnlyDictionary<string,int> CategoryLevels,
@@ -727,7 +739,8 @@ public sealed record FileViewerReportRequest
 // ── User context (J.3/J.4/J.5) ─────────────────────────────────────────────
 public sealed record UserContextDto(
     Guid SubjectUserId, string? Username, UserModerationHistoryDto History,
-    UserTrustScoreDto? Trust, IReadOnlyList<UserNoteDto> Notes, IReadOnlyList<ModerationActionLog> RecentActions);
+    UserTrustScoreDto? Trust, IReadOnlyList<UserNoteDto> Notes, IReadOnlyList<ModerationActionLog> RecentActions,
+    IReadOnlyList<ModerationStandingDto> Standings);   // bot-side standings (J.12), one per platform identity; empty = normal
 
 public sealed record UserModerationHistoryDto(
     int TimeoutCount, int BanCount, int WarningCount, int MessagesDeletedCount,
@@ -831,6 +844,8 @@ The keys are seeded global `ActionDefinitions` (schema B.3) with `Plane=Manageme
 | POST | `/users/{subjectUserId:guid}/notes` | `AddUserNoteRequest` | `StatusResponseDto<UserNoteDto>` (201) | management / Moderator · `moderation:note:write` |
 | PATCH | `/notes/{noteId:long}/pin` | `SetNotePinnedRequest` | `StatusResponseDto<UserNoteDto>` | management / Moderator · `moderation:note:write` |
 | DELETE | `/notes/{noteId:long}` | — | 204 | management / Moderator · `moderation:note:write` |
+| POST | `/users/{userId}/standing` | `SetModerationStandingRequest` | `StatusResponseDto<ModerationStandingDto>` | management / SuperMod · `moderation:suspicioususer:write` ⁴ |
+| DELETE | `/users/{userId}/standing` | `provider` (query) | 204 | management / SuperMod · `moderation:suspicioususer:write` ⁴ |
 | GET | `/shared-bans` | — | `StatusResponseDto<SharedBanSettingsDto>` | management / SuperMod · `moderation:sharedban:read` |
 | PUT | `/shared-bans` | `SaveSharedBanSettingsRequest` | `StatusResponseDto<SharedBanSettingsDto>` | management / SuperMod · `moderation:sharedban:write` |
 | POST | `/shared-bans/trusted` | `AddTrustedChannelRequest` | `StatusResponseDto<SharedBanTrustedChannelDto>` (201) | management / SuperMod · `moderation:sharedban:write` |
@@ -858,6 +873,8 @@ The keys are seeded global `ActionDefinitions` (schema B.3) with `Plane=Manageme
 ² Network-nuke + shared-ban writes are **SuperMod tier** (design: "Risky → super-mod tier only"). Beyond Gate 2, the service re-verifies the floor in-process via `IRoleResolver.ResolveEffectiveLevelAsync ≥ SuperMod(20)` — never trust the gate alone (defense in depth; existing cross-tenant IDOR is a tracked live defect).
 ³ VIP grant/removal (`moderation:vip:write`) and moderator removal (`moderation:moderator:write`) mutate the channel's Twitch role directory and floor at **Broadcaster(40)** — these are management-ladder changes the owner delegates per-user, never raised on a role tier. `moderation:moderator:write` is **Critical / not permit-grantable** (mirrors `roles:manage`); `moderation:vip:write` is reversible and **Low / permit-grantable**. Shield Mode *write* floors at **SuperMod(20)** (emergency lockdown, beside `moderation:automod:write`); its *read* and chat-settings/announce stay at **Moderator(10)**; bot chat-color is config-tier **Editor(30)**.
 
+⁴ `{userId}` on the standing rows is the **platform** user id (`ChannelModerationStanding.UserId`, varchar 64) paired with its `provider` — not the surrogate `Users.Id` guid the other per-user rows take (a standing targets one platform identity). Both rows reuse the existing `moderation:suspicioususer:write` action key verbatim: same per-user-treatment surface, same **SuperMod** floor, no new `ActionDefinitions` seed.
+
 **Thin request records added for controller binding** (namespace `NomNomzBot.Application.DTOs.Moderation`):
 
 ```csharp
@@ -867,6 +884,7 @@ public sealed record DeleteMessageRequest(string MessageId, Guid TargetUserId);
 public sealed record WarnUserRequest(Guid TargetUserId, string Reason);
 public sealed record SetReportStatusRequest(ViewerReportStatus Status);
 public sealed record SetNotePinnedRequest(bool Pinned);
+public sealed record SetModerationStandingRequest(string Provider, string Standing, string? Reason);   // standing ∈ muted|shadowbanned|blacklisted
 public sealed record AddTrustedChannelRequest(Guid TrustedChannelId);
 public sealed record SetShieldModeRequest(bool IsActive);
 public sealed record SetChatColorRequest(string Color);   // bot's own chat color: blue/green/orange/… or hex (Prime/Turbo)
@@ -956,3 +974,5 @@ This subsystem uses **only second-party + already-present** packages — **zero 
 1. **Authorization is the canonical Gate 2 — no moderation-local mechanism.** Every §5 endpoint gates via `IActionAuthorizationService.AuthorizeActionAsync(userId, channelId, actionKey)` against its `moderation:*` `ActionDefinitions` (B.3) row, resolved through `IRoleResolver` (`roles-permissions.md` §0/§3.3). This is a hard **dependency** on the roles/permissions subsystem, not an interim or parallel attribute — the `moderation:*` action keys listed in §5 are that subsystem's seed catalog for this domain.
 
 2. **"Active Shared Chat session" verification source.** `ISharedBanService.ApplyInboundSharedBanAsync` reads active-session state from an EventSub-owned shared-chat session projection; moderation only consumes it. Twitch exposes shared-chat session state via EventSub `channel.shared_chat.begin`/`channel.shared_chat.update`/`channel.shared_chat.end`; the EventSub/Twitch subsystem persists current session membership as a one-row-per-active-session projection (`SharedChatSessions`) that this subsystem queries at apply time. That projection is **not** part of Domain J — it is owned by the EventSub/Twitch subsystem, and moderation's only coupling to it is the read at `ApplyInboundSharedBanAsync`. This is a **dependency** on the EventSub subsystem owning and populating that projection.
+
+3. **Bot-side standing tiers (muted / shadowbanned / blacklisted).** `ChannelModerationStanding` (J.12) is the graduated bot-side ignore axis; an absent row means normal, and the broadcaster can never be assigned a standing. **Semantics:** `muted` — the bot ignores the user's interactions (commands, chat triggers, session-first-message welcome, poll votes, giveaway keyword entries, chat currency/engagement earning; chat song requests are covered because they are commands) while their chat still displays, persists, and folds into analytics. `shadowbanned` — everything `muted` does, PLUS the user's lines are excluded from bot-driven public overlay surfaces (the overlay event filter never pushes them). `blacklisted` — the user's chat events are DROPPED at the publisher seams (Twitch EventSub translation, the YouTube live-chat poll publisher, the Kick webhook ingest) before the bus fan-out: no persistence, no dashboard display, no feature sees them. **Enforcement placement:** blacklist at the 3 publishers; mute/shadowban as a guard at the top of the 4 feature subscribers (`ChatMessageHandler`, `ChatEarningHandler`, `EngagementChatActivityHandler`, `GiveawayKeywordListener`) reading a per-channel in-memory standing map on `ChannelContext` (loaded by `ChannelRegistry`, invalidated on standing writes) — never a per-message DB read; shadowban's overlay exclusion lives in the overlay event filter. **Separation from Twitch-native:** Twitch-native ban/timeout remain the only Twitch-visible punishments; bot-side standing never calls Helix. Standing is per-platform (a Twitch mute does not mute the same human's Kick identity). Every standing write's audit is a SYSTEM `UserNote` (J.3) riding the existing notes surface — no new domain event.

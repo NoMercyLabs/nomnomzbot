@@ -144,6 +144,9 @@ Every item from `2026-06-16-database-schema-AUDIT.md` applied as targeted edits 
 **Pronoun provider integration added (owner `pronouns.md`):**
 - `Users.AltPronounId` (A.1) `guid FK→Pronouns Null Index` **[PII-S9]** added beside `PronounId`/`PronounManualOverride` — secondary pronoun (alejo `alt_pronoun_id`) driving the `{{user.pronouns}}` display badge's second half; FK + Index added to the A.1 footer; nulled on erasure with `PronounId` (§5 [PII-S9] scrub list + erasure step 1). No new table — the per-viewer value lives on `Users`, lookups cache in `ICacheService` (`commands-pipelines.md` gains the `{{user.pronouns}}`/`{{target.pronouns}}` helper).
 
+**Bot-side moderation standing added (owner `moderation.md`, 2026-07-17):**
+- `ChannelModerationStanding` (J.12) added beside the escalation siblings (J.10/J.11) — the negative bot-side moderation axis (graduated ignore tiers `muted`\|`shadowbanned`\|`blacklisted`; absent row = normal); raw platform `UserId` (deliberately **not** [PII-hash] — hot-path equality match on live inbound chat ids + operator panel); **Unique** `(BroadcasterId, Provider, UserId)`, **Index** `(BroadcasterId, Standing)` (`moderation.md` §1 J.12 + §9 decision 3).
+
 **Pipeline control-flow tree added (owner `pipeline-control-flow.md`):**
 - `PipelineSteps` (H.2) extended with two columns (no new table) — `BlockKind string(20) Null` [VC:enum] (`switch`\|`switch_case`\|`loop`\|`random_branch`\|`random_case`; null = leaf action step) + `BlockConfigJson text Null` [VC:JSON] (block params: switch value/case-match + comparison; loop mode/list-var/count/while-condition; case weight). The existing `ParentStepId` self-FK→`PipelineSteps.Id` + its Index now also carry block nesting; `Order` is reframed as **order-within-parent** and the step set forms a **tree** (block steps own ordered children, walked depth-first under iteration/recursion/total-action/runtime caps). New pipeline actions `run_pipeline`/`break`/`continue` + the block-kinds are config-only (no new role keys; `PipelineStep` stays tenant-scoped via `Pipeline`).
 
@@ -1346,6 +1349,10 @@ Purpose: viewer reports feeding the queue + legitimate-individual evidence packe
 | CreatedAt/UpdatedAt | timestamp | | Mutable tally (no soft-delete; cleared by the forgiveness reset). |
 
 **Unique** `(BroadcasterId, SubjectUserId)`. Purpose: per-subject offense tally driving the J.10 ladder; a mutable counter (not append-only) — the forgiveness reset clears it (owner `moderation.md`).
+
+### J.12 ChannelModerationStanding
+`Id guid PK`; `BroadcasterId guid FK→Channels Index`; `Provider string(20)` (`twitch`\|`youtube`\|`kick` [VC:enum]); `UserId string(64)` — the platform user id, stored **RAW** (deliberate: this is an operational enforcement row equality-matched against live inbound chat ids on the hot path, same posture as `ChatPollVote.VoterUserId` and the RedemptionTimer ids — **not** [PII-hash] like the Domain-J history tables; the operator-facing panel also needs the plain id); `Standing string(20)` (`muted`\|`shadowbanned`\|`blacklisted` [VC:enum]; an absent row means normal — no stored `none`); `Reason string(500) Null`; `CreatedByUserId guid FK→Users Null`; `CreatedAt/UpdatedAt`.
+**Unique** `(BroadcasterId, Provider, UserId)`. **Index** `(BroadcasterId, Standing)`. Purpose: the negative bot-side moderation axis (graduated ignore tiers) — owner `moderation.md` §1 J.12 + §9 decision 3.
 
 ---
 
