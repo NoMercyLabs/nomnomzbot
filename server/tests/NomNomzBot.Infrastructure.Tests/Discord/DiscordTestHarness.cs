@@ -203,6 +203,8 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
     public DbSet<RefreshToken> RefreshTokens => throw new NotSupportedException();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Tts.Entities.TtsConfig> TtsConfigs =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsVoice> TtsVoices =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.UserTtsVoice> UserTtsVoices =>

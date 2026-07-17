@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -18,14 +17,17 @@ using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Tts.Interfaces;
-using ChannelConfiguration = NomNomzBot.Domain.Platform.Entities.Configuration;
 
 namespace NomNomzBot.Infrastructure.Tts;
 
+/// <summary>
+/// Per-channel TTS settings over the <see cref="TtsConfig"/> table (tts.md P.1) — one row per channel,
+/// created on first write; a channel with no row reads as the binding new-channel defaults. Also owns the
+/// voice catalog read and the per-viewer voice assignments. BYOK cipher columns are written by the key
+/// vault flow, never through this surface.
+/// </summary>
 public class TtsConfigService : ITtsConfigService
 {
-    private const string ConfigKey = "tts:config";
-
     private readonly IApplicationDbContext _db;
     private readonly ITtsService _ttsService;
     private readonly IEventBus _eventBus;
@@ -38,78 +40,69 @@ public class TtsConfigService : ITtsConfigService
     }
 
     public async Task<Result<TtsConfigDto>> GetConfigAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken cancellationToken = default
     )
     {
-        TtsConfigDto config = await LoadConfigAsync(broadcasterId, cancellationToken);
-        return Result.Success(config);
+        TtsConfig? config = await _db.TtsConfigs.FirstOrDefaultAsync(
+            c => c.BroadcasterId == broadcasterId,
+            cancellationToken
+        );
+        // No row yet = the binding new-channel defaults; the row is created on first write, not on read.
+        return Result.Success(ToDto(config ?? new TtsConfig()));
     }
 
     public async Task<Result<TtsConfigDto>> UpdateConfigAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         UpdateTtsConfigDto request,
         CancellationToken cancellationToken = default
     )
     {
-        Guid? tenantId = Guid.TryParse(broadcasterId, out Guid g) ? g : null;
-        ChannelConfiguration? existing = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == tenantId && c.Key == ConfigKey,
+        TtsConfig? config = await _db.TtsConfigs.FirstOrDefaultAsync(
+            c => c.BroadcasterId == broadcasterId,
             cancellationToken
         );
-
-        TtsConfigData current = existing is not null
-            ? JsonSerializer.Deserialize<TtsConfigData>(existing.Value ?? "{}")
-                ?? new TtsConfigData()
-            : new();
+        if (config is null)
+        {
+            config = new TtsConfig { BroadcasterId = broadcasterId };
+            _db.TtsConfigs.Add(config);
+        }
 
         if (request.IsEnabled.HasValue)
-            current.IsEnabled = request.IsEnabled.Value;
+            config.IsEnabled = request.IsEnabled.Value;
+        if (request.Mode is not null)
+            config.Mode = request.Mode;
+        if (request.DefaultProvider is not null)
+            config.DefaultProvider = request.DefaultProvider;
         if (request.DefaultVoiceId is not null)
-            current.DefaultVoiceId = request.DefaultVoiceId;
-        if (request.MaxLength.HasValue)
-            current.MaxLength = request.MaxLength.Value;
+            config.DefaultVoiceId = request.DefaultVoiceId;
+        if (request.MaxCharacters.HasValue)
+            config.MaxCharacters = request.MaxCharacters.Value;
         if (request.MinPermission is not null)
-            current.MinPermission = request.MinPermission;
+            config.MinPermission = request.MinPermission;
         if (request.SkipBotMessages.HasValue)
-            current.SkipBotMessages = request.SkipBotMessages.Value;
+            config.SkipBotMessages = request.SkipBotMessages.Value;
         if (request.ReadUsernames.HasValue)
-            current.ReadUsernames = request.ReadUsernames.Value;
+            config.ReadUsernames = request.ReadUsernames.Value;
         if (request.ProfanityCensorEnabled.HasValue)
-            current.ProfanityCensorEnabled = request.ProfanityCensorEnabled.Value;
+            config.ProfanityCensorEnabled = request.ProfanityCensorEnabled.Value;
         if (request.ModApprovalRequired.HasValue)
-            current.ModApprovalRequired = request.ModApprovalRequired.Value;
-
-        string json = JsonSerializer.Serialize(current);
-
-        if (existing is not null)
-        {
-            existing.Value = json;
-        }
-        else
-        {
-            _db.Configurations.Add(
-                new()
-                {
-                    BroadcasterId = tenantId,
-                    Key = ConfigKey,
-                    Value = json,
-                }
-            );
-        }
+            config.ModApprovalRequired = request.ModApprovalRequired.Value;
+        if (request.MinBitsToTts.HasValue)
+            config.MinBitsToTts = request.MinBitsToTts.Value == 0 ? null : request.MinBitsToTts;
 
         await _db.SaveChangesAsync(cancellationToken);
         await _eventBus.PublishAsync(
             new ChannelConfigChangedEvent
             {
-                BroadcasterId = tenantId ?? Guid.Empty,
+                BroadcasterId = broadcasterId,
                 Domain = "tts-config",
                 Action = "updated",
             },
             cancellationToken
         );
 
-        return Result.Success(ToDto(current));
+        return Result.Success(ToDto(config));
     }
 
     public async Task<Result<IReadOnlyList<TtsVoiceDto>>> GetVoicesAsync(
@@ -157,7 +150,7 @@ public class TtsConfigService : ITtsConfigService
     }
 
     public async Task<Result<TtsTestResultDto>> TestVoiceAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         TtsTestRequestDto request,
         CancellationToken cancellationToken = default
     )
@@ -181,18 +174,13 @@ public class TtsConfigService : ITtsConfigService
     }
 
     public async Task<Result<UserTtsVoiceDto>> GetUserVoiceAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string userId,
         CancellationToken cancellationToken = default
     )
     {
-        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return Errors
-                .ValidationFailed("A valid channel id is required.")
-                .ToTyped<UserTtsVoiceDto>();
-
         UserTtsVoice? assignment = await _db.UserTtsVoices.FirstOrDefaultAsync(
-            v => v.BroadcasterId == tenantId && v.UserId == userId,
+            v => v.BroadcasterId == broadcasterId && v.UserId == userId,
             cancellationToken
         );
 
@@ -203,17 +191,12 @@ public class TtsConfigService : ITtsConfigService
     }
 
     public async Task<Result<UserTtsVoiceDto>> SetUserVoiceAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string userId,
         SetUserVoiceDto request,
         CancellationToken cancellationToken = default
     )
     {
-        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return Errors
-                .ValidationFailed("A valid channel id is required.")
-                .ToTyped<UserTtsVoiceDto>();
-
         if (string.IsNullOrWhiteSpace(userId))
             return Errors.ValidationFailed("A viewer id is required.").ToTyped<UserTtsVoiceDto>();
 
@@ -230,7 +213,7 @@ public class TtsConfigService : ITtsConfigService
             return Errors.NotFound<UserTtsVoiceDto>("TTS voice", request.VoiceId);
 
         UserTtsVoice? existing = await _db.UserTtsVoices.FirstOrDefaultAsync(
-            v => v.BroadcasterId == tenantId && v.UserId == userId,
+            v => v.BroadcasterId == broadcasterId && v.UserId == userId,
             cancellationToken
         );
 
@@ -243,7 +226,7 @@ public class TtsConfigService : ITtsConfigService
             _db.UserTtsVoices.Add(
                 new UserTtsVoice
                 {
-                    BroadcasterId = tenantId,
+                    BroadcasterId = broadcasterId,
                     UserId = userId,
                     VoiceId = request.VoiceId,
                 }
@@ -255,16 +238,13 @@ public class TtsConfigService : ITtsConfigService
     }
 
     public async Task<Result> ClearUserVoiceAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string userId,
         CancellationToken cancellationToken = default
     )
     {
-        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return Errors.ValidationFailed("A valid channel id is required.");
-
         UserTtsVoice? existing = await _db.UserTtsVoices.FirstOrDefaultAsync(
-            v => v.BroadcasterId == tenantId && v.UserId == userId,
+            v => v.BroadcasterId == broadcasterId && v.UserId == userId,
             cancellationToken
         );
 
@@ -276,50 +256,18 @@ public class TtsConfigService : ITtsConfigService
         return Result.Success();
     }
 
-    private async Task<TtsConfigDto> LoadConfigAsync(
-        string broadcasterId,
-        CancellationToken cancellationToken
-    )
-    {
-        Guid? tenantId = Guid.TryParse(broadcasterId, out Guid g) ? g : null;
-        ChannelConfiguration? entry = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == tenantId && c.Key == ConfigKey,
-            cancellationToken
-        );
-
-        if (entry?.Value is null)
-            return ToDto(new());
-
-        TtsConfigData data =
-            JsonSerializer.Deserialize<TtsConfigData>(entry.Value) ?? new TtsConfigData();
-        return ToDto(data);
-    }
-
-    private static TtsConfigDto ToDto(TtsConfigData d) =>
+    private static TtsConfigDto ToDto(TtsConfig c) =>
         new(
-            d.IsEnabled,
-            d.DefaultVoiceId,
-            d.MaxLength,
-            d.MinPermission,
-            d.SkipBotMessages,
-            d.ReadUsernames,
-            d.ProfanityCensorEnabled,
-            d.ModApprovalRequired
+            c.IsEnabled,
+            c.Mode,
+            c.DefaultProvider,
+            c.DefaultVoiceId,
+            c.MaxCharacters,
+            c.MinPermission,
+            c.SkipBotMessages,
+            c.ReadUsernames,
+            c.ProfanityCensorEnabled,
+            c.ModApprovalRequired,
+            c.MinBitsToTts
         );
-
-    private sealed class TtsConfigData
-    {
-        public bool IsEnabled { get; set; } = true;
-        public string DefaultVoiceId { get; set; } = "en-US-AriaNeural";
-        public int MaxLength { get; set; } = 200;
-        public string MinPermission { get; set; } = "everyone";
-        public bool SkipBotMessages { get; set; } = true;
-        public bool ReadUsernames { get; set; } = true;
-
-        // tts.md §3.6 binding new-channel default: opt-OUT light swear filter defaults ON.
-        public bool ProfanityCensorEnabled { get; set; } = true;
-
-        // tts.md §3.6 binding new-channel default: mod approval OFF (utterances play immediately).
-        public bool ModApprovalRequired { get; set; }
-    }
 }

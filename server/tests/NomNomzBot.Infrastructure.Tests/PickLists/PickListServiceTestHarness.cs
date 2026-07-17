@@ -189,6 +189,8 @@ internal sealed class PickListTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch> DiscordNotificationDispatches =>
         throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Tts.Entities.TtsConfig> TtsConfigs =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsVoice> TtsVoices =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.UserTtsVoice> UserTtsVoices =>

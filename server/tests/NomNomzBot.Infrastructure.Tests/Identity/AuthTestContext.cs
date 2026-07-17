@@ -420,6 +420,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelSubscription> ChannelSubscriptions =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Tts.Entities.TtsConfig> TtsConfigs =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsVoice> TtsVoices =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.UserTtsVoice> UserTtsVoices =>

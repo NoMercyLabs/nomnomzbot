@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost:5099/"
+      "url": "http://localhost:5080/"
     }
   ],
   "paths": {
@@ -71542,23 +71542,35 @@
       "TtsConfigDto": {
         "required": [
           "isEnabled",
+          "mode",
+          "defaultProvider",
           "defaultVoiceId",
-          "maxLength",
+          "maxCharacters",
           "minPermission",
           "skipBotMessages",
           "readUsernames",
           "profanityCensorEnabled",
-          "modApprovalRequired"
+          "modApprovalRequired",
+          "minBitsToTts"
         ],
         "type": "object",
         "properties": {
           "isEnabled": {
             "type": "boolean"
           },
-          "defaultVoiceId": {
+          "mode": {
             "type": "string"
           },
-          "maxLength": {
+          "defaultProvider": {
+            "type": "string"
+          },
+          "defaultVoiceId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "maxCharacters": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -71580,9 +71592,18 @@
           },
           "modApprovalRequired": {
             "type": "boolean"
+          },
+          "minBitsToTts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
-        "description": "TTS configuration for a channel."
+        "description": "TTS configuration for a channel (tts.md P.1). BYOK ciphers never leave the server — not surfaced here."
       },
       "TtsQueueEntryDto": {
         "required": [
@@ -73596,6 +73617,22 @@
               "boolean"
             ]
           },
+          "mode": {
+            "pattern": "^(client_edge|byok|self_host)$",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Dispatch plane: client_edge | byok | self_host."
+          },
+          "defaultProvider": {
+            "pattern": "^(edge|azure|elevenlabs)$",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Preferred synthesis provider: edge | azure | elevenlabs."
+          },
           "defaultVoiceId": {
             "maxLength": 255,
             "type": [
@@ -73603,7 +73640,7 @@
               "string"
             ]
           },
-          "maxLength": {
+          "maxCharacters": {
             "maximum": 500,
             "minimum": 1,
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -73646,9 +73683,21 @@
               "boolean"
             ],
             "description": "When true, utterances enter the moderator approval queue instead of playing immediately."
+          },
+          "minBitsToTts": {
+            "maximum": 1000000,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Minimum bits attached to a message for TTS; 0 clears the gate.",
+            "format": "int32"
           }
         },
-        "description": "Request to update TTS configuration."
+        "description": "Request to update TTS configuration; every field optional — only what is sent changes."
       },
       "UpdateUserNoteRequest": {
         "type": "object",

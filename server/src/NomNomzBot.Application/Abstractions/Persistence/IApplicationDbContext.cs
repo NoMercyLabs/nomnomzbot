@@ -96,6 +96,7 @@ public interface IApplicationDbContext
     DbSet<DiscordMemberOptIn> DiscordMemberOptIns { get; }
     DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches { get; }
     DbSet<ChannelSubscription> ChannelSubscriptions { get; }
+    DbSet<TtsConfig> TtsConfigs { get; }
     DbSet<TtsVoice> TtsVoices { get; }
     DbSet<UserTtsVoice> UserTtsVoices { get; }
     DbSet<TtsUsageRecord> TtsUsageRecords { get; }

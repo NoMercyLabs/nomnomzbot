@@ -19,11 +19,11 @@ namespace NomNomzBot.Application.Tts.Services;
 public interface ITtsConfigService
 {
     Task<Result<TtsConfigDto>> GetConfigAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         CancellationToken cancellationToken = default
     );
     Task<Result<TtsConfigDto>> UpdateConfigAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         UpdateTtsConfigDto request,
         CancellationToken cancellationToken = default
     );
@@ -31,21 +31,21 @@ public interface ITtsConfigService
         CancellationToken cancellationToken = default
     );
     Task<Result<TtsTestResultDto>> TestVoiceAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         TtsTestRequestDto request,
         CancellationToken cancellationToken = default
     );
 
     /// <summary>Get a viewer's assigned voice for the channel, or NOT_FOUND when they use the channel default.</summary>
     Task<Result<UserTtsVoiceDto>> GetUserVoiceAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string userId,
         CancellationToken cancellationToken = default
     );
 
     /// <summary>Assign (or reassign) a viewer's voice; validated against the channel's synthesizable voices.</summary>
     Task<Result<UserTtsVoiceDto>> SetUserVoiceAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string userId,
         SetUserVoiceDto request,
         CancellationToken cancellationToken = default
@@ -53,7 +53,7 @@ public interface ITtsConfigService
 
     /// <summary>Remove a viewer's voice assignment so they fall back to the channel default.</summary>
     Task<Result> ClearUserVoiceAsync(
-        string broadcasterId,
+        Guid broadcasterId,
         string userId,
         CancellationToken cancellationToken = default
     );

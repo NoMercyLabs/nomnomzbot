@@ -9,10 +9,12 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tts;
 using NSubstitute;
@@ -20,34 +22,67 @@ using NSubstitute;
 namespace NomNomzBot.Infrastructure.Tests.Tts;
 
 /// <summary>
-/// Proves <see cref="TtsConfigService.UpdateConfigAsync"/> publishes the E5 dashboard live-sync event so a second
-/// open dashboard's TTS settings page refetches after a change, and that an unresolvable channel id (no real
-/// tenant) never reaches a hub group (the broadcast handler's <c>Guid.Empty</c> guard).
+/// Proves the P.1 config table behavior: a channel with no row reads as the binding new-channel defaults
+/// (censor ON, self_host/edge, no row created by the read); the first update CREATES the row and persists
+/// exactly the patched fields; a later partial update leaves untouched fields alone; MinBitsToTts=0 clears
+/// the bits gate; and every update publishes the E5 dashboard live-sync event.
 /// </summary>
 public sealed class TtsConfigServiceTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-000000000d01");
 
-    private static (TtsConfigService Sut, RecordingEventBus Bus) Build()
+    private static (TtsConfigService Sut, TtsTestDbContext Db, RecordingEventBus Bus) Build()
     {
-        AuthDbContext db = AuthTestBuilder.NewContext();
+        TtsTestDbContext db = TtsTestDbContext.New();
         ITtsService ttsService = Substitute.For<ITtsService>();
         RecordingEventBus bus = new();
-        return (new TtsConfigService(db, ttsService, bus), bus);
+        return (new TtsConfigService(db, ttsService, bus), db, bus);
     }
 
     [Fact]
-    public async Task Update_publishes_ChannelConfigChangedEvent_for_the_tts_config_domain()
+    public async Task Get_without_a_row_returns_the_binding_defaults_and_creates_nothing()
     {
-        (TtsConfigService sut, RecordingEventBus bus) = Build();
+        (TtsConfigService sut, TtsTestDbContext db, _) = Build();
+
+        Result<TtsConfigDto> result = await sut.GetConfigAsync(Channel);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.IsEnabled.Should().BeTrue();
+        result.Value.Mode.Should().Be("self_host");
+        result.Value.DefaultProvider.Should().Be("edge");
+        result.Value.ProfanityCensorEnabled.Should().BeTrue("the swear filter is opt-OUT");
+        result.Value.ModApprovalRequired.Should().BeFalse();
+        result.Value.MinBitsToTts.Should().BeNull();
+        (await db.TtsConfigs.CountAsync()).Should().Be(0, "reads never write");
+    }
+
+    [Fact]
+    public async Task First_update_creates_the_row_and_persists_the_patched_fields()
+    {
+        (TtsConfigService sut, TtsTestDbContext db, RecordingEventBus bus) = Build();
 
         Result<TtsConfigDto> result = await sut.UpdateConfigAsync(
-            Channel.ToString(),
-            new UpdateTtsConfigDto { IsEnabled = false, MaxLength = 120 }
+            Channel,
+            new UpdateTtsConfigDto
+            {
+                IsEnabled = false,
+                MaxCharacters = 120,
+                MinBitsToTts = 50,
+            }
         );
 
         result.IsSuccess.Should().BeTrue();
         result.Value.IsEnabled.Should().BeFalse();
+        result.Value.MaxCharacters.Should().Be(120);
+        result.Value.MinBitsToTts.Should().Be(50);
+
+        TtsConfig row = await db.TtsConfigs.SingleAsync();
+        row.BroadcasterId.Should().Be(Channel);
+        row.IsEnabled.Should().BeFalse();
+        row.MaxCharacters.Should().Be(120);
+        row.MinBitsToTts.Should().Be(50);
+        row.ProfanityCensorEnabled.Should().BeTrue("unpatched fields keep their defaults");
+
         bus.Published.OfType<ChannelConfigChangedEvent>()
             .Should()
             .ContainSingle(e =>
@@ -56,17 +91,37 @@ public sealed class TtsConfigServiceTests
     }
 
     [Fact]
-    public async Task Update_with_an_unresolvable_channel_id_never_reaches_a_real_hub_group()
+    public async Task A_partial_update_changes_only_what_was_sent()
     {
-        (TtsConfigService sut, RecordingEventBus bus) = Build();
+        (TtsConfigService sut, TtsTestDbContext db, _) = Build();
+        await sut.UpdateConfigAsync(
+            Channel,
+            new UpdateTtsConfigDto { MaxCharacters = 120, DefaultVoiceId = "en-GB-SoniaNeural" }
+        );
 
-        await sut.UpdateConfigAsync("not-a-guid", new UpdateTtsConfigDto { IsEnabled = true });
+        await sut.UpdateConfigAsync(Channel, new UpdateTtsConfigDto { ModApprovalRequired = true });
 
-        // The service still fires the generic event, but with the Guid.Empty sentinel — the
-        // ChannelConfigChangedBroadcastHandler's platform-level guard is what stops it from ever
-        // reaching a dashboard group, so no channel is falsely notified.
-        bus.Published.OfType<ChannelConfigChangedEvent>()
+        TtsConfig row = await db.TtsConfigs.SingleAsync();
+        row.ModApprovalRequired.Should().BeTrue();
+        row.MaxCharacters.Should().Be(120, "the earlier write survives a partial patch");
+        row.DefaultVoiceId.Should().Be("en-GB-SoniaNeural");
+        (await db.TtsConfigs.CountAsync())
             .Should()
-            .ContainSingle(e => e.BroadcasterId == Guid.Empty);
+            .Be(1, "updates upsert the single per-channel row");
+    }
+
+    [Fact]
+    public async Task MinBitsToTts_zero_clears_the_bits_gate()
+    {
+        (TtsConfigService sut, TtsTestDbContext db, _) = Build();
+        await sut.UpdateConfigAsync(Channel, new UpdateTtsConfigDto { MinBitsToTts = 100 });
+
+        Result<TtsConfigDto> result = await sut.UpdateConfigAsync(
+            Channel,
+            new UpdateTtsConfigDto { MinBitsToTts = 0 }
+        );
+
+        result.Value.MinBitsToTts.Should().BeNull();
+        (await db.TtsConfigs.SingleAsync()).MinBitsToTts.Should().BeNull();
     }
 }

@@ -75,7 +75,7 @@ public sealed class TtsConfigUserVoiceTests
         Harness h = Build(); // empty catalogue, provider returns nothing
 
         Result<UserTtsVoiceDto> result = await h.Service.SetUserVoiceAsync(
-            Tenant.ToString(),
+            Tenant,
             Viewer,
             Set("voice-that-does-not-exist")
         );
@@ -91,7 +91,7 @@ public sealed class TtsConfigUserVoiceTests
         Harness h = Build("voice-a", "voice-b");
 
         Result<UserTtsVoiceDto> result = await h.Service.SetUserVoiceAsync(
-            Tenant.ToString(),
+            Tenant,
             Viewer,
             Set("voice-a")
         );
@@ -121,7 +121,7 @@ public sealed class TtsConfigUserVoiceTests
         await h.Db.SaveChangesAsync();
 
         Result<UserTtsVoiceDto> result = await h.Service.SetUserVoiceAsync(
-            Tenant.ToString(),
+            Tenant,
             Viewer,
             Set("voice-b")
         );
@@ -137,10 +137,7 @@ public sealed class TtsConfigUserVoiceTests
     {
         Harness h = Build("voice-a");
 
-        Result<UserTtsVoiceDto> result = await h.Service.GetUserVoiceAsync(
-            Tenant.ToString(),
-            Viewer
-        );
+        Result<UserTtsVoiceDto> result = await h.Service.GetUserVoiceAsync(Tenant, Viewer);
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
@@ -160,10 +157,7 @@ public sealed class TtsConfigUserVoiceTests
         );
         await h.Db.SaveChangesAsync();
 
-        Result<UserTtsVoiceDto> result = await h.Service.GetUserVoiceAsync(
-            Tenant.ToString(),
-            Viewer
-        );
+        Result<UserTtsVoiceDto> result = await h.Service.GetUserVoiceAsync(Tenant, Viewer);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.UserId.Should().Be(Viewer);
@@ -184,7 +178,7 @@ public sealed class TtsConfigUserVoiceTests
         );
         await h.Db.SaveChangesAsync();
 
-        Result result = await h.Service.ClearUserVoiceAsync(Tenant.ToString(), Viewer);
+        Result result = await h.Service.ClearUserVoiceAsync(Tenant, Viewer);
 
         result.IsSuccess.Should().BeTrue();
         (await h.Db.UserTtsVoices.CountAsync()).Should().Be(0);
@@ -195,7 +189,7 @@ public sealed class TtsConfigUserVoiceTests
     {
         Harness h = Build("voice-a");
 
-        Result result = await h.Service.ClearUserVoiceAsync(Tenant.ToString(), Viewer);
+        Result result = await h.Service.ClearUserVoiceAsync(Tenant, Viewer);
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");

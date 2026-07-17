@@ -39,7 +39,9 @@ public class TtsConfigController : BaseController
     [ProducesResponseType<StatusResponseDto<TtsConfigDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetConfig(string channelId, CancellationToken ct)
     {
-        Result<TtsConfigDto> result = await _ttsConfigService.GetConfigAsync(channelId, ct);
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        Result<TtsConfigDto> result = await _ttsConfigService.GetConfigAsync(broadcasterId, ct);
         return ResultResponse(result);
     }
 
@@ -53,8 +55,10 @@ public class TtsConfigController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
         Result<TtsConfigDto> result = await _ttsConfigService.UpdateConfigAsync(
-            channelId,
+            broadcasterId,
             request,
             ct
         );
@@ -83,8 +87,10 @@ public class TtsConfigController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
         Result<TtsTestResultDto> result = await _ttsConfigService.TestVoiceAsync(
-            channelId,
+            broadcasterId,
             request,
             ct
         );
@@ -103,8 +109,10 @@ public class TtsConfigController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
         Result<UserTtsVoiceDto> result = await _ttsConfigService.GetUserVoiceAsync(
-            channelId,
+            broadcasterId,
             userId,
             ct
         );
@@ -122,8 +130,10 @@ public class TtsConfigController : BaseController
         CancellationToken ct
     )
     {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
         Result<UserTtsVoiceDto> result = await _ttsConfigService.SetUserVoiceAsync(
-            channelId,
+            broadcasterId,
             userId,
             request,
             ct
@@ -141,7 +151,9 @@ public class TtsConfigController : BaseController
         CancellationToken ct
     )
     {
-        Result result = await _ttsConfigService.ClearUserVoiceAsync(channelId, userId, ct);
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        Result result = await _ttsConfigService.ClearUserVoiceAsync(broadcasterId, userId, ct);
         return ResultResponse(result);
     }
 }

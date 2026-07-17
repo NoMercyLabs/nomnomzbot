@@ -57,6 +57,7 @@ public sealed class TtsDispatchServiceTests
         string defaultVoice = "default-voice",
         bool censorEnabled = false,
         bool modApprovalRequired = false,
+        int? minBitsToTts = null,
         Application.Contracts.Billing.IBillingTierService? tiers = null
     )
     {
@@ -64,18 +65,21 @@ public sealed class TtsDispatchServiceTests
 
         ITtsConfigService config = Substitute.For<ITtsConfigService>();
         config
-            .GetConfigAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .GetConfigAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success(
                     new TtsConfigDto(
                         enabled,
+                        "self_host",
+                        "edge",
                         defaultVoice,
                         maxLength,
                         "everyone",
                         false,
                         false,
                         censorEnabled,
-                        modApprovalRequired
+                        modApprovalRequired,
+                        minBitsToTts
                     )
                 )
             );
@@ -219,6 +223,41 @@ public sealed class TtsDispatchServiceTests
                 Arg.Is<TtsUtteranceRejectedEvent>(e => e.Reason == "too_long"),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_BitsGate_RejectsBelowAndSpeaksAtOrAbove()
+    {
+        Harness h = Build(minBitsToTts: 100);
+
+        // 40 bits < the 100-bit gate: rejected, nothing synthesized.
+        Result<TtsDispatchOutcome> below = await h.Service.RequestSpeakAsync(
+            Speak("hello") with
+            {
+                BitsAmount = 40,
+            }
+        );
+        below.IsFailure.Should().BeTrue();
+        below.ErrorCode.Should().Be("VALIDATION_FAILED");
+        await h
+            .Tts.DidNotReceive()
+            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await h
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<TtsUtteranceRejectedEvent>(e => e.Reason == "bits_gate"),
+                Arg.Any<CancellationToken>()
+            );
+
+        // Exactly at the gate: speaks.
+        Result<TtsDispatchOutcome> at = await h.Service.RequestSpeakAsync(
+            Speak("hello") with
+            {
+                BitsAmount = 100,
+            }
+        );
+        at.IsSuccess.Should().BeTrue();
+        at.Value.Disposition.Should().Be(TtsDispatchDisposition.Dispatched);
     }
 
     [Fact]

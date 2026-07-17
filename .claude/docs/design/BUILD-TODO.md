@@ -27,9 +27,10 @@ what REMAINS.
   chat-filter/automod execution path that calls `ResolveAndRecordAsync` when a rule's action is
   `escalate` — the filter execution path itself is not built yet; it belongs with the J.6
   ChatFilter migration).
-- [ ] **16. TTS advanced** (`tts.md`) — remaining follow-ons: `client_edge` mode (frontend widget
-  handler), the `TtsConfig` TABLE migration + config re-target, BYOK provider factory (§3.2,
-  vaulted keys).
+- [ ] **16. TTS advanced** (`tts.md`) — remaining follow-ons: `client_edge` mode (the frontend
+  widget handler + dispatch plane; flip the new-channel `Mode` default from `self_host` to the
+  binding `client_edge` when it lands), BYOK provider factory (§3.2, vaulted keys — the `TtsConfig`
+  cipher columns exist and wait unused).
 - [ ] **19. Live overlay games** (`live-games.md`) — session lifecycle + game catalog/manifest.
 - [ ] **20. Widget gallery + overlay manifest** (`widgets-overlays.md`) — gallery, `OverlayController`
   manifest, widget versions/build (the compiled-bundle/gallery/import pipeline).

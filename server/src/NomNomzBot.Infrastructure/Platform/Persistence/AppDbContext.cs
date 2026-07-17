@@ -145,6 +145,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<CryptoKey> CryptoKeys => Set<CryptoKey>();
 
     // TTS
+    public DbSet<TtsConfig> TtsConfigs => Set<TtsConfig>();
     public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
     public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();
     public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();

@@ -16,6 +16,26 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — TTS: config DTO reshape (BREAKING field rename) + two new settings
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the TTS config moved from a JSON blob to its own table and the contract changed shape.
+  `TtsConfigDto` (GET/PUT `channels/{channelId}/tts/config`) now is: `isEnabled`, `mode`
+  (`client_edge|byok|self_host` — display only for now, the dispatcher runs self_host), `defaultProvider`
+  (`edge|azure|elevenlabs`), `defaultVoiceId` (now nullable), **`maxCharacters` (RENAMED from
+  `maxLength`)**, `minPermission`, `skipBotMessages`, `readUsernames`, `profanityCensorEnabled`,
+  `modApprovalRequired`, `minBitsToTts` (int?, null = no gate; PUT `0` clears it). The update DTO
+  gained `mode`, `defaultProvider`, `minBitsToTts` and renamed `maxLength`→`maxCharacters`. Sync the
+  Kotlin DTO mirror + the TTS settings card: rename the character-cap binding, add a "minimum bits"
+  number input (empty = off), and keep mode/provider as read-only or a simple select.
+- **Why:** tts.md P.1 — the config table is the base for BYOK keys and client-edge dispatch; the
+  bits gate is now actually ENFORCED at dispatch (a message with fewer bits is rejected with reason
+  `bits_gate`).
+- **Where:** `server/openapi/v1.json` (refreshed); backend `TtsConfigController`, spec
+  `.claude/docs/design/spec/tts.md` P.1.
+- **Done when:** the TTS settings card round-trips all fields against dev (values survive reload),
+  `jvmTest`/`ApiContractTest` is green on the new shapes, and setting min-bits > 0 visibly blocks a
+  no-bits TTS attempt.
+
 ### 2026-07-17 — Admin panel: the Plane-C IAM management surface now EXISTS — build the screen
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the owner's "cannot promote accounts to admin or grant saas permissions" is fixed

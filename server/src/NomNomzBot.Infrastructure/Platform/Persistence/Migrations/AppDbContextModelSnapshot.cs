@@ -7330,6 +7330,99 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("TtsCacheEntries");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Tts.Entities.TtsConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AzureApiKeyCipher")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AzureApiKeyNonce")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("AzureKeyVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("AzureRegion")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DefaultProvider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("DefaultVoiceId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ElevenLabsApiKeyCipher")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ElevenLabsApiKeyNonce")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("ElevenLabsKeyVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MaxCharacters")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("MinBitsToTts")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("MinPermission")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("ModApprovalRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("ProfanityCensorEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("ReadUsernames")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SkipBotMessages")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("SubjectKeyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId")
+                        .IsUnique();
+
+                    b.HasIndex("SubjectKeyId");
+
+                    b.ToTable("TtsConfigs");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Tts.Entities.TtsUsageRecord", b =>
                 {
                     b.Property<int>("Id")
@@ -8813,6 +8906,24 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Channel");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Tts.Entities.TtsConfig", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.CryptoKey", "SubjectKey")
+                        .WithMany()
+                        .HasForeignKey("SubjectKeyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("SubjectKey");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.ViewerData.Entities.ViewerDatum", b =>

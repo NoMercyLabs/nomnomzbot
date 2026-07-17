@@ -80,10 +80,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         CancellationToken ct = default
     )
     {
-        Result<TtsConfigDto> configResult = await _config.GetConfigAsync(
-            request.BroadcasterId.ToString(),
-            ct
-        );
+        Result<TtsConfigDto> configResult = await _config.GetConfigAsync(request.BroadcasterId, ct);
         if (configResult.IsFailure)
             return Result.Failure<TtsDispatchOutcome>(
                 configResult.ErrorMessage!,
@@ -100,6 +97,16 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ct
             );
 
+        // Bits gate (P.1 MinBitsToTts): when set, only messages carrying at least that many bits are read.
+        if (config.MinBitsToTts is int minBits && request.BitsAmount < minBits)
+            return await RejectRequestAsync(
+                request,
+                "bits_gate",
+                $"TTS on this channel needs at least {minBits} bits.",
+                "VALIDATION_FAILED",
+                ct
+            );
+
         string text = request.Text?.Trim() ?? string.Empty;
         if (text.Length == 0)
             return await RejectRequestAsync(
@@ -112,7 +119,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
 
         // The effective cap is the STRICTER of the streamer's own setting and the plan's
         // tts_max_characters tier limit (monetization-billing §3.3; -1 / self-host = no tier clamp).
-        int cap = config.MaxLength > 0 ? config.MaxLength : 500;
+        int cap = config.MaxCharacters > 0 ? config.MaxCharacters : 500;
         Result<long> tierCap = await _tiers.GetLimitAsync(
             request.BroadcasterId,
             "tts_max_characters",

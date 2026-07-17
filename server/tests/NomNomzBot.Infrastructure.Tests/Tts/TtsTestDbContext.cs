@@ -53,6 +53,7 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
 
     public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();
     public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();
+    public DbSet<TtsConfig> TtsConfigs => Set<TtsConfig>();
     public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
     public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries => Set<TtsApprovalQueueEntry>();
 
@@ -66,6 +67,12 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
             e.HasKey(q => q.Id);
             e.Ignore(q => q.Channel); // no Channels table in this focused context
         });
+        b.Entity<TtsConfig>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.Channel); // no Channels / CryptoKeys tables in this focused context
+            e.Ignore(c => c.SubjectKey);
+        });
 
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
@@ -77,6 +84,7 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
         typeof(TtsUsageRecord),
         typeof(TtsVoice),
         typeof(TtsApprovalQueueEntry),
+        typeof(TtsConfig),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
