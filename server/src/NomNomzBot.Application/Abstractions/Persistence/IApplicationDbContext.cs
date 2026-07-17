@@ -97,6 +97,7 @@ public interface IApplicationDbContext
     DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches { get; }
     DbSet<ChannelSubscription> ChannelSubscriptions { get; }
     DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens { get; }
+    DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections { get; }
     DbSet<TtsConfig> TtsConfigs { get; }
     DbSet<TtsVoice> TtsVoices { get; }
     DbSet<UserTtsVoice> UserTtsVoices { get; }

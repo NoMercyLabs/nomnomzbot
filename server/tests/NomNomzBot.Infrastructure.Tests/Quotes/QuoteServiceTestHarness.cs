@@ -193,6 +193,8 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch> DiscordNotificationDispatches =>
         throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
+        Set<NomNomzBot.Domain.Obs.Entities.ObsConnection>();
     public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
         Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsConfig> TtsConfigs =>

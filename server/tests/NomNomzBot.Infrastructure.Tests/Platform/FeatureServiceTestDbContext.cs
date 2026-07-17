@@ -168,6 +168,8 @@ internal sealed class FeatureServiceTestDbContext : DbContext, IApplicationDbCon
     public DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches =>
         throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
+        Set<NomNomzBot.Domain.Obs.Entities.ObsConnection>();
     public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
         Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
     public DbSet<TtsConfig> TtsConfigs => throw new NotSupportedException();

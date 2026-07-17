@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Billing.Entities;
@@ -32,70 +31,102 @@ using NomNomzBot.Domain.Widgets.Entities;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 
-namespace NomNomzBot.Infrastructure.Tests.Chat.YouTube;
+namespace NomNomzBot.Infrastructure.Tests.Obs;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> over ONLY the <see cref="YouTubeLiveChatBan"/> ledger, on
-/// the EF Core InMemory provider — the production <c>AppDbContext</c> is Npgsql-bound (jsonb complex types)
-/// and cannot host a test provider. Every other <see cref="IApplicationDbContext"/> set throws, since the
-/// ledger tests never reach it; mirrors the "declare every DbSet, auto-ignore the unmapped ones by
-/// reflection" shape of <c>Platform/Eventing/EventSubTestDbContext.cs</c>. Stamps
-/// <c>CreatedAt</c>/<c>UpdatedAt</c> on save (production's <c>AuditableEntityInterceptor</c> is absent
-/// here) — the ledger's latest-wins consume orders on <c>CreatedAt</c>.
+/// A focused <see cref="IApplicationDbContext"/> for the OBS-control tests — on the EF Core InMemory
+/// provider. Maps <see cref="NomNomzBot.Domain.Obs.Entities.ObsConnection"/> (navs ignored); the
+/// sets inherited from the template stay mapped harmlessly; every other set throws, since no
+/// exercised path reaches it.
 /// </summary>
-internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
+internal sealed class ObsTestDbContext : DbContext, IApplicationDbContext
 {
-    private BanLedgerTestDbContext(DbContextOptions<BanLedgerTestDbContext> options)
+    private ObsTestDbContext(DbContextOptions<ObsTestDbContext> options)
         : base(options) { }
 
-    public static BanLedgerTestDbContext New() =>
+    public static ObsTestDbContext New() =>
         new(
-            new DbContextOptionsBuilder<BanLedgerTestDbContext>()
+            new DbContextOptionsBuilder<ObsTestDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
 
-    public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();
-    public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayEntry> GiveawayEntries =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayWinner> GiveawayWinners =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCodePool> GiveawayCodePools =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
-        throw new NotSupportedException();
-    public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
+    public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();
+    public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();
+    public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
+        Set<NomNomzBot.Domain.Obs.Entities.ObsConnection>();
+    public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
+        Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
+    public DbSet<TtsConfig> TtsConfigs => Set<TtsConfig>();
+    public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
+    public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries => Set<TtsApprovalQueueEntry>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
-        // All-scalar entity — the real configuration adds only lengths/indexes, which InMemory ignores.
-        b.Entity<YouTubeLiveChatBan>(e => e.HasKey(x => x.Id));
+        b.Entity<UserTtsVoice>(e => e.HasKey(v => v.Id));
+        b.Entity<TtsUsageRecord>(e => e.HasKey(r => r.Id));
+        b.Entity<TtsVoice>(e => e.HasKey(v => v.Id));
+        b.Entity<TtsApprovalQueueEntry>(e =>
+        {
+            e.HasKey(q => q.Id);
+            e.Ignore(q => q.Channel); // no Channels table in this focused context
+        });
+        b.Entity<TtsConfig>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.Channel); // no Channels / CryptoKeys tables in this focused context
+            e.Ignore(c => c.SubjectKey);
+        });
+        b.Entity<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Ignore(t => t.Channel); // Channel is mapped standalone below (navs ignored)
+            e.Ignore(t => t.CreatedByUser);
+        });
+        // The data-plane command surface reads these three (info / pipelines / commands).
+        b.Entity<Channel>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.User);
+            e.Ignore(c => c.Moderators);
+            e.Ignore(c => c.Streams);
+            e.Ignore(c => c.Events);
+        });
+        b.Entity<NomNomzBot.Domain.Commands.Entities.Pipeline>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Ignore(p => p.Steps);
+            e.Ignore(p => p.Channel);
+        });
+        b.Entity<Command>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.Pipeline);
+            e.Ignore(c => c.Channel);
+        });
+        b.Entity<NomNomzBot.Domain.Obs.Entities.ObsConnection>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.Channel); // Channel is mapped standalone above (navs ignored)
+        });
 
-        // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
-        // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
     }
 
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        DateTime now = DateTime.UtcNow;
-        foreach (
-            EntityEntry<NomNomzBot.Domain.Platform.BaseEntity> entry in ChangeTracker.Entries<NomNomzBot.Domain.Platform.BaseEntity>()
-        )
-        {
-            if (entry.State == EntityState.Added && entry.Entity.CreatedAt == default)
-                entry.Entity.CreatedAt = now;
-            if (entry.State is EntityState.Added or EntityState.Modified)
-                entry.Entity.UpdatedAt = now;
-        }
-
-        return base.SaveChangesAsync(cancellationToken);
-    }
-
-    private static readonly HashSet<Type> Mapped = [typeof(YouTubeLiveChatBan)];
+    private static readonly HashSet<Type> Mapped =
+    [
+        typeof(UserTtsVoice),
+        typeof(TtsUsageRecord),
+        typeof(TtsVoice),
+        typeof(TtsApprovalQueueEntry),
+        typeof(TtsConfig),
+        typeof(NomNomzBot.Domain.Automation.Entities.AutomationApiToken),
+        typeof(Channel),
+        typeof(NomNomzBot.Domain.Commands.Entities.Pipeline),
+        typeof(Command),
+        typeof(NomNomzBot.Domain.Obs.Entities.ObsConnection),
+    ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
         .GetProperties()
@@ -108,10 +139,20 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
         .ToList();
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
+    public DbSet<TtsCacheEntry> TtsCacheEntries => throw new NotSupportedException();
+    public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<User> Users => throw new NotSupportedException();
+    public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
+    public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterConnection> SupporterConnections =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterEvent> SupporterEvents =>
+        throw new NotSupportedException();
+    public DbSet<RecordEntity> Records => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
+        throw new NotSupportedException();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
-    public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Service> Services => throw new NotSupportedException();
     public DbSet<Reward> Rewards => throw new NotSupportedException();
@@ -149,19 +190,27 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
-    public DbSet<RecordEntity> Records => throw new NotSupportedException();
-    public DbSet<IntegrationConnection> IntegrationConnections => throw new NotSupportedException();
+    public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
     public DbSet<ChatMessage> ChatMessages => throw new NotSupportedException();
-    public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
+    public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayEntry> GiveawayEntries =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayWinner> GiveawayWinners =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCodePool> GiveawayCodePools =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
-        throw new NotSupportedException();
+    public DbSet<Configuration> Configurations => throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
-    public DbSet<Command> Commands => throw new NotSupportedException();
+    public DbSet<Command> Commands => Set<Command>();
     public DbSet<DomainTimer> Timers => throw new NotSupportedException();
     public DbSet<Permission> Permissions => throw new NotSupportedException();
     public DbSet<ChannelFeature> ChannelFeatures => throw new NotSupportedException();
@@ -171,6 +220,7 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
     public DbSet<AuthSession> AuthSessions => throw new NotSupportedException();
     public DbSet<RefreshToken> RefreshTokens => throw new NotSupportedException();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => throw new NotSupportedException();
+    public DbSet<IntegrationConnection> IntegrationConnections => throw new NotSupportedException();
     public DbSet<IntegrationToken> IntegrationTokens => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
         throw new NotSupportedException();
@@ -184,23 +234,11 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
     public DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches =>
         throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
-        Set<NomNomzBot.Domain.Obs.Entities.ObsConnection>();
-    public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
-        Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
-    public DbSet<TtsConfig> TtsConfigs => throw new NotSupportedException();
-    public DbSet<TtsVoice> TtsVoices => throw new NotSupportedException();
-    public DbSet<UserTtsVoice> UserTtsVoices => throw new NotSupportedException();
-    public DbSet<TtsUsageRecord> TtsUsageRecords => throw new NotSupportedException();
-    public DbSet<TtsCacheEntry> TtsCacheEntries => throw new NotSupportedException();
-    public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries =>
-        throw new NotSupportedException();
     public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
-    public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Commands.Entities.Pipeline>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStep> PipelineSteps =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition> PipelineStepConditions =>
@@ -289,10 +327,4 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
     public DbSet<CodeScriptVersion> CodeScriptVersions => throw new NotSupportedException();
     public DbSet<SoundClip> SoundClips => throw new NotSupportedException();
     public DbSet<CustomDataSource> CustomDataSources => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterConnection> SupporterConnections =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterEvent> SupporterEvents =>
-        throw new NotSupportedException();
 }

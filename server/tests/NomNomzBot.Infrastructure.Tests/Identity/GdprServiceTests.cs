@@ -464,6 +464,8 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Configuration> Configurations => Set<Configuration>();
     public DbSet<Command> Commands => Set<Command>();
     public DbSet<Pronoun> Pronouns => Set<Pronoun>();
+    public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
+        Set<NomNomzBot.Domain.Obs.Entities.ObsConnection>();
     public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
         Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsConfig> TtsConfigs =>

@@ -286,6 +286,14 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("automation:tokens:read", Editor);
         M("automation:tokens:write", Broadcaster, DangerTier.Critical, grant: false);
 
+        // OBS control (obs-control.md §7): config carries a vaulted secret + the bridge credential
+        // (write = Critical, never grantable); scene/source control is the Moderator floor while the
+        // broadcast bundle (start/stop stream & recording, raw requests) stays broadcaster-only.
+        M("obs:config:read", Broadcaster);
+        M("obs:config:write", Broadcaster, DangerTier.Critical, grant: false);
+        M("obs:control", Mod);
+        M("obs:control:broadcast", Broadcaster, DangerTier.Critical);
+
         // Webhooks / widgets / integrations / dashboard / community / setup / analytics
         M("webhooks:inbound:read", Mod);
         M("webhooks:inbound:write", Editor);

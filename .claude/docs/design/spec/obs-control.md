@@ -243,7 +243,7 @@ All fail closed (`ActionResult.Fail`) when disconnected / no leader / OBS error,
 
 ## 7. REST surface
 
-Controller `ObsController`, `[Route("api/v{version:apiVersion}/obs")]`. `[Authorize]`; Gate-2 keys. Cells `<plane> / <Role> · action:key`.
+Controller `ObsController`, `[Route("api/v{version:apiVersion}/channels/{channelId:guid}/obs")]` (as built 2026-07-17 — channel-routed like every other management controller so the tenant rides the route; the original channel-less form was revised). `[Authorize]`; Gate-2 keys. Cells `<plane> / <Role> · action:key`.
 
 | Verb | Path | Request | Response | Gate |
 |---|---|---|---|---|

@@ -148,6 +148,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
         Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
 
+    // OBS control (per-channel connection config — obs-control.md P.14)
+    public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
+        Set<NomNomzBot.Domain.Obs.Entities.ObsConnection>();
+
     // TTS
     public DbSet<TtsConfig> TtsConfigs => Set<TtsConfig>();
     public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();

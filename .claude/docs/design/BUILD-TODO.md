@@ -23,7 +23,11 @@ what REMAINS.
   dashboard tokens screen (issue/rotate/revoke + show-once secret dialog). The backend is complete:
   token management plane, `/automation/v1` REST data plane, event catalog, and the
   `/automation/v1/stream` WebSocket.
-- [ ] **9. OBS control** (`obs-control.md`) — scenes/inputs, ~20 pipeline actions, `obs_event`.
+- [ ] **9. OBS control** (`obs-control.md`) — remaining: the direct transport (OBS-WS v5 client +
+  `IObsControlService` + the 19 pipeline actions + state/control routes), the browser bridge half
+  (`OBSRelayHub` rework to BridgeToken auth + leader election + `BridgeObsTransport` +
+  `obs_event` triggers), and the frontend (config page, `/obs-bridge` control-source page, palette
+  entries). *(The P.14 connection config + sealed password custody + Gate-2 keys are built.)*
 - [ ] **10. VTube Studio** (`vtube-studio.md`) — connect/authorize/bridge, model control, `vts_event`.
 - [ ] **15. Advanced moderation** (`moderation.md`) — remaining: wire the escalation invoker (the
   chat-filter/automod execution path that calls `ResolveAndRecordAsync` when a rule's action is

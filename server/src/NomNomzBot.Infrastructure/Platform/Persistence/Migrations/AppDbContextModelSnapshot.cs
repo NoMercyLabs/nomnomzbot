@@ -5951,6 +5951,67 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("ViewerReports");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Obs.Entities.ObsConnection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BridgeToken")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("EventSubscriptionsMask")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Host")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastConnectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("PasswordCipher")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("Port")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BridgeToken")
+                        .IsUnique();
+
+                    b.HasIndex("BroadcasterId")
+                        .IsUnique();
+
+                    b.ToTable("ObsConnections");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.PickLists.Entities.PickList", b =>
                 {
                     b.Property<Guid>("Id")
@@ -8813,6 +8874,17 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Navigation("Channel");
 
                     b.Navigation("ReportedUser");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Obs.Entities.ObsConnection", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.PickLists.Entities.PickList", b =>
