@@ -58,6 +58,13 @@ public interface IChannelRegistry
     /// </summary>
     Task InvalidateChatTriggersAsync(Guid broadcasterId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Reloads the bot-side moderation-standing map (J.12) for an already-registered channel. Call after
+    /// any standing set/clear so enforcement changes apply without a restart. No-ops if the channel is
+    /// not yet in the registry.
+    /// </summary>
+    Task InvalidateModerationStandingsAsync(Guid broadcasterId, CancellationToken ct = default);
+
     Task RemoveAsync(Guid broadcasterId, CancellationToken ct = default);
     IReadOnlyCollection<ChannelContext> GetAll();
     IReadOnlyCollection<ChannelContext> GetLiveChannels();
@@ -117,6 +124,19 @@ public class ChannelContext
     /// number as a vote. Set by the poll service on open/close and loaded at registration.
     /// </summary>
     public CachedChatPoll? ActiveChatPoll { get; set; }
+
+    /// <summary>
+    /// Bot-side moderation standings (J.12): key <c>"{provider}:{userId}"</c> → muted | shadowbanned |
+    /// blacklisted; absence = normal. Read on every chat event by the publishers (blacklist drop) and
+    /// the feature handlers (mute/shadowban) — never a per-message DB read. Populated by
+    /// <c>ChannelRegistry</c>; refresh via <see cref="IChannelRegistry.InvalidateModerationStandingsAsync"/>.
+    /// </summary>
+    public ConcurrentDictionary<string, string> ModerationStandings { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The user's bot-side standing (muted/shadowbanned/blacklisted), or null when normal.</summary>
+    public string? ModerationStandingFor(string provider, string userId) =>
+        ModerationStandings.GetValueOrDefault($"{provider}:{userId}");
 
     /// <summary>
     /// Per-channel builtin-toggle cache: keys are the builtin's bare catalog key (lowercase, no leading "!"

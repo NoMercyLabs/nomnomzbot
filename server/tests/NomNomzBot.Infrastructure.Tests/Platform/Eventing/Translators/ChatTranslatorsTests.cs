@@ -17,6 +17,7 @@ using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Platform.Eventing.Translators;
 using NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing.Translators;
 
@@ -53,7 +54,11 @@ public sealed class ChatTranslatorsTests
     public async Task ChatMessage_PlainText_PublishesReceivedEvent_WithFragmentsAndTenant()
     {
         CapturingEventBus bus = new();
-        ChannelChatMessageTranslator translator = new(bus, Clock);
+        ChannelChatMessageTranslator translator = new(
+            bus,
+            Clock,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+        );
 
         await translator.TranslateAsync(
             Notification(
@@ -118,7 +123,11 @@ public sealed class ChatTranslatorsTests
     public async Task ChatMessage_DerivesRoleFlags_FromBadgeSetIds()
     {
         CapturingEventBus bus = new();
-        ChannelChatMessageTranslator translator = new(bus, Clock);
+        ChannelChatMessageTranslator translator = new(
+            bus,
+            Clock,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+        );
 
         await translator.TranslateAsync(
             Notification(
@@ -157,7 +166,11 @@ public sealed class ChatTranslatorsTests
     public async Task ChatMessage_FounderBadge_CountsAsSubscriber()
     {
         CapturingEventBus bus = new();
-        ChannelChatMessageTranslator translator = new(bus, Clock);
+        ChannelChatMessageTranslator translator = new(
+            bus,
+            Clock,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+        );
 
         await translator.TranslateAsync(
             Notification(
@@ -191,7 +204,11 @@ public sealed class ChatTranslatorsTests
     public async Task ChatMessage_Reply_PublishesParentFields()
     {
         CapturingEventBus bus = new();
-        ChannelChatMessageTranslator translator = new(bus, Clock);
+        ChannelChatMessageTranslator translator = new(
+            bus,
+            Clock,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+        );
 
         await translator.TranslateAsync(
             Notification(
@@ -230,7 +247,11 @@ public sealed class ChatTranslatorsTests
     public async Task ChatMessage_Cheer_PublishesBits()
     {
         CapturingEventBus bus = new();
-        ChannelChatMessageTranslator translator = new(bus, Clock);
+        ChannelChatMessageTranslator translator = new(
+            bus,
+            Clock,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+        );
 
         await translator.TranslateAsync(
             Notification(
@@ -275,7 +296,11 @@ public sealed class ChatTranslatorsTests
     public async Task ChatMessage_Mention_PublishesMentionFragment()
     {
         CapturingEventBus bus = new();
-        ChannelChatMessageTranslator translator = new(bus, Clock);
+        ChannelChatMessageTranslator translator = new(
+            bus,
+            Clock,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+        );
 
         await translator.TranslateAsync(
             Notification(
@@ -319,7 +344,11 @@ public sealed class ChatTranslatorsTests
     public async Task ChatMessage_NoTextField_ConcatenatesFragmentTexts()
     {
         CapturingEventBus bus = new();
-        ChannelChatMessageTranslator translator = new(bus, Clock);
+        ChannelChatMessageTranslator translator = new(
+            bus,
+            Clock,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+        );
 
         await translator.TranslateAsync(
             Notification(

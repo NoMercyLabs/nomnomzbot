@@ -17,6 +17,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -32,18 +33,24 @@ public class ModerationService : IModerationService
 
     private readonly IApplicationDbContext _db;
     private readonly ITwitchModerationApi _moderation;
+    private readonly IChannelRegistry _registry;
+    private readonly TimeProvider _clock;
     private readonly ILogger<ModerationService> _logger;
     private readonly IEventBus _eventBus;
 
     public ModerationService(
         IApplicationDbContext db,
         ITwitchModerationApi moderation,
+        IChannelRegistry registry,
+        TimeProvider clock,
         ILogger<ModerationService> logger,
         IEventBus eventBus
     )
     {
         _db = db;
         _moderation = moderation;
+        _registry = registry;
+        _clock = clock;
         _logger = logger;
         _eventBus = eventBus;
     }
@@ -1333,6 +1340,20 @@ public class ModerationService : IModerationService
             ))
             .ToList();
 
+        // The viewer's bot-side standings (J.12) — the panel shows muted/shadowbanned/blacklisted inline.
+        List<ModerationStandingDto> standings = await _db
+            .ChannelModerationStandings.Where(s =>
+                s.BroadcasterId == tenantId && s.UserId == targetTwitchUserId
+            )
+            .Select(s => new ModerationStandingDto(
+                s.UserId,
+                s.Provider,
+                s.Standing,
+                s.Reason,
+                s.UpdatedAt
+            ))
+            .ToListAsync(cancellationToken);
+
         return Result.Success(
             new UserModerationContextDto(
                 targetTwitchUserId,
@@ -1343,9 +1364,157 @@ public class ModerationService : IModerationService
                 Count("unban"),
                 forTarget.Count > 0 ? forTarget[0].Data.Action : null,
                 forTarget.Count > 0 ? forTarget[0].Record.CreatedAt : null,
-                recent
+                recent,
+                standings
             )
         );
+    }
+
+    // ─── Bot-side moderation standing (J.12) ──────────────────────────────────
+
+    public async Task<Result<ModerationStandingDto>> SetModerationStandingAsync(
+        string broadcasterId,
+        Guid operatorUserId,
+        string targetUserId,
+        string provider,
+        string standing,
+        string? reason,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<ModerationStandingDto>(broadcasterId);
+        if (!ModerationStanding.IsValid(standing))
+            return Result.Failure<ModerationStandingDto>(
+                "Standing must be muted, shadowbanned, or blacklisted.",
+                "VALIDATION_FAILED"
+            );
+        if (string.IsNullOrWhiteSpace(targetUserId) || string.IsNullOrWhiteSpace(provider))
+            return Result.Failure<ModerationStandingDto>(
+                "A target user id and its platform are required.",
+                "VALIDATION_FAILED"
+            );
+
+        // The broadcaster can never be assigned a standing — the mirror of "the broadcaster can't be banned".
+        bool isBroadcaster = await _db.Channels.AnyAsync(
+            c =>
+                c.Id == tenantId
+                && (c.TwitchChannelId == targetUserId || c.ExternalChannelId == targetUserId),
+            cancellationToken
+        );
+        if (isBroadcaster)
+            return Result.Failure<ModerationStandingDto>(
+                "The broadcaster cannot be muted, shadowbanned, or blacklisted.",
+                "CONFLICT"
+            );
+
+        DateTime now = _clock.GetUtcNow().UtcDateTime;
+        ChannelModerationStanding? row = await _db.ChannelModerationStandings.FirstOrDefaultAsync(
+            s => s.BroadcasterId == tenantId && s.Provider == provider && s.UserId == targetUserId,
+            cancellationToken
+        );
+        if (row is null)
+        {
+            row = new ChannelModerationStanding
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = tenantId,
+                Provider = provider,
+                UserId = targetUserId,
+                Standing = standing,
+                Reason = reason,
+                CreatedByUserId = operatorUserId,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+            _db.ChannelModerationStandings.Add(row);
+        }
+        else
+        {
+            row.Standing = standing;
+            row.Reason = reason;
+            row.CreatedByUserId = operatorUserId;
+            row.UpdatedAt = now;
+        }
+        await _db.SaveChangesAsync(cancellationToken);
+
+        await AuditStandingChangeAsync(
+            broadcasterId,
+            targetUserId,
+            $"standing set to {standing} ({provider})"
+                + (string.IsNullOrWhiteSpace(reason) ? "" : $" — {reason}"),
+            operatorUserId,
+            cancellationToken
+        );
+        await _registry.InvalidateModerationStandingsAsync(tenantId, cancellationToken);
+
+        return Result.Success(
+            new ModerationStandingDto(
+                row.UserId,
+                row.Provider,
+                row.Standing,
+                row.Reason,
+                row.UpdatedAt
+            )
+        );
+    }
+
+    public async Task<Result> ClearModerationStandingAsync(
+        string broadcasterId,
+        Guid operatorUserId,
+        string targetUserId,
+        string provider,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound(broadcasterId);
+
+        ChannelModerationStanding? row = await _db.ChannelModerationStandings.FirstOrDefaultAsync(
+            s => s.BroadcasterId == tenantId && s.Provider == provider && s.UserId == targetUserId,
+            cancellationToken
+        );
+        if (row is null)
+            return Result.Failure("The user has no standing to clear.", "NOT_FOUND");
+
+        _db.ChannelModerationStandings.Remove(row);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        await AuditStandingChangeAsync(
+            broadcasterId,
+            targetUserId,
+            $"standing cleared ({provider}, was {row.Standing})",
+            operatorUserId,
+            cancellationToken
+        );
+        await _registry.InvalidateModerationStandingsAsync(tenantId, cancellationToken);
+
+        return Result.Success();
+    }
+
+    /// <summary>The audit trail rides the existing notes surface — a system note per standing change.</summary>
+    private async Task AuditStandingChangeAsync(
+        string broadcasterId,
+        string targetUserId,
+        string text,
+        Guid operatorUserId,
+        CancellationToken ct
+    )
+    {
+        Result<UserNoteDto> note = await AddUserNoteAsync(
+            broadcasterId,
+            targetUserId,
+            new CreateUserNoteRequest { Content = text },
+            operatorUserId.ToString(),
+            ct
+        );
+        if (note.IsFailure)
+            _logger.LogWarning(
+                "Standing audit note failed for {Target} in {Channel}: {Error}",
+                targetUserId,
+                broadcasterId,
+                note.ErrorMessage
+            );
     }
 
     // ─── User notes (mod panel) ────────────────────────────────────────────────

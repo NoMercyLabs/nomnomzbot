@@ -94,6 +94,13 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         // Increment channel message counter (used by TimerService for activity gating; approximate is fine)
         ChannelContext? channelCtx = _registry.Get(@event.BroadcasterId);
+
+        // Bot-side standing (J.12): a muted/shadowbanned user's chat still displays, persists, and counts
+        // toward room activity/{chatters} (it IS visible chat) — but every bot feature ignores them:
+        // no welcome, no commands, no triggers, no poll votes.
+        bool featureIgnored =
+            channelCtx?.ModerationStandingFor(@event.Provider, @event.UserId) is not null;
+
         if (channelCtx is not null)
         {
             channelCtx.MessageCount++;
@@ -105,9 +112,12 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 @event.UserId,
                 @event.UserDisplayName
             );
-            if (firstOfSession && channelCtx.IsLive)
+            if (firstOfSession && channelCtx.IsLive && !featureIgnored)
                 await FireSessionFirstMessageAsync(@event, cancellationToken);
         }
+
+        if (featureIgnored)
+            return;
 
         string? text = @event.Message?.Trim();
         if (string.IsNullOrEmpty(text))

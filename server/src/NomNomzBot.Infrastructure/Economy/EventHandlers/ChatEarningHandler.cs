@@ -27,8 +27,11 @@ namespace NomNomzBot.Infrastructure.Economy.EventHandlers;
 /// <see cref="NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext"/> never contends with the
 /// parallel <c>ChatMessagePersistenceHandler</c> that runs in the EventBus dispatch scope.
 /// </summary>
-public sealed class ChatEarningHandler(IServiceScopeFactory scopeFactory, IUserService userService)
-    : IEventHandler<ChatMessageReceivedEvent>
+public sealed class ChatEarningHandler(
+    IServiceScopeFactory scopeFactory,
+    IUserService userService,
+    IChannelRegistry registry
+) : IEventHandler<ChatMessageReceivedEvent>
 {
     public async Task HandleAsync(
         ChatMessageReceivedEvent @event,
@@ -36,6 +39,15 @@ public sealed class ChatEarningHandler(IServiceScopeFactory scopeFactory, IUserS
     )
     {
         if (@event.BroadcasterId == Guid.Empty || string.IsNullOrEmpty(@event.UserId))
+            return;
+
+        // Bot-side standing (J.12): a muted/shadowbanned chatter earns nothing.
+        if (
+            registry
+                .Get(@event.BroadcasterId)
+                ?.ModerationStandingFor(@event.Provider, @event.UserId)
+            is not null
+        )
             return;
 
         // Resolve or create the viewer's internal User row — uses its own DB scope internally. The

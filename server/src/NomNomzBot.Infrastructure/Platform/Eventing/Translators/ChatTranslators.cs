@@ -175,10 +175,14 @@ internal static class ChatPayload
 /// full payload: identity (<c>chatter_user_*</c>), text + structured <c>message.fragments</c>, <c>color</c>,
 /// <c>message_type</c>, <c>badges</c> (and the role flags derived from their set ids), <c>cheer.bits</c>, and the
 /// <c>reply</c> parent fields. The raw Twitch broadcaster id rides on the event for the send/reply boundary while
-/// the resolved tenant comes from the dispatcher.
+/// the resolved tenant comes from the dispatcher. A BLACKLISTED chatter (J.12) is dropped HERE, before the
+/// bus fan-out — no persistence, no display, no feature ever sees the line.
 /// </summary>
-public sealed class ChannelChatMessageTranslator(IEventBus bus, TimeProvider clock)
-    : EventSubEventTranslator(bus, clock)
+public sealed class ChannelChatMessageTranslator(
+    IEventBus bus,
+    TimeProvider clock,
+    IChannelRegistry registry
+) : EventSubEventTranslator(bus, clock)
 {
     public override string SubscriptionType => "channel.chat.message";
 
@@ -193,13 +197,22 @@ public sealed class ChannelChatMessageTranslator(IEventBus bus, TimeProvider clo
         JsonElement? reply = payload.GetObject("reply");
         IReadOnlyList<ChatBadge> badges = ChatPayload.ReadBadges(payload);
 
+        string chatterUserId = payload.GetRequiredString("chatter_user_id");
+        if (
+            registry
+                .Get(notification.BroadcasterId)
+                ?.ModerationStandings.GetValueOrDefault($"twitch:{chatterUserId}")
+            == NomNomzBot.Domain.Moderation.Entities.ModerationStanding.Blacklisted
+        )
+            return Task.CompletedTask;
+
         ChatMessageReceivedEvent received = new()
         {
             BroadcasterId = notification.BroadcasterId,
             OccurredAt = Clock.GetUtcNow(),
             TwitchBroadcasterId = notification.TwitchBroadcasterUserId,
             MessageId = payload.GetRequiredString("message_id"),
-            UserId = payload.GetRequiredString("chatter_user_id"),
+            UserId = chatterUserId,
             UserLogin = payload.GetRequiredString("chatter_user_login"),
             UserDisplayName = payload.GetRequiredString("chatter_user_name"),
             Message = ChatPayload.ReadMessageText(message),

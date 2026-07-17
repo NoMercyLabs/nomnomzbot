@@ -46,7 +46,15 @@ public sealed class ModerationServiceBanTests
     private static ModerationService NewService(
         ModerationServiceTestDbContext db,
         ITwitchModerationApi moderation
-    ) => new(db, moderation, NullLogger<ModerationService>.Instance, Substitute.For<IEventBus>());
+    ) =>
+        new(
+            db,
+            moderation,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            TimeProvider.System,
+            NullLogger<ModerationService>.Instance,
+            Substitute.For<IEventBus>()
+        );
 
     /// <summary>A tenant channel whose broadcaster Twitch id is <see cref="BroadcasterTwitchId"/>.</summary>
     private static async Task SeedChannelAsync(ModerationServiceTestDbContext db)

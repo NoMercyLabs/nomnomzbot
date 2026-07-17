@@ -61,6 +61,8 @@ public sealed class ModerationServiceTwitchReadsTests
         return new ModerationService(
             db,
             moderation,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            TimeProvider.System,
             NullLogger<ModerationService>.Instance,
             Substitute.For<IEventBus>()
         );
@@ -659,6 +661,8 @@ public sealed class ModerationServiceTwitchReadsTests
             new ModerationService(
                 db,
                 moderation,
+                Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+                TimeProvider.System,
                 NullLogger<ModerationService>.Instance,
                 Substitute.For<IEventBus>()
             ),
@@ -903,6 +907,8 @@ public sealed class ModerationServiceTwitchReadsTests
         ModerationService service = new(
             db,
             Substitute.For<ITwitchModerationApi>(),
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            TimeProvider.System,
             NullLogger<ModerationService>.Instance,
             Substitute.For<IEventBus>()
         );

@@ -16,6 +16,24 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Moderation: bot-side standing tiers (mute / shadowban / blacklist)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the per-user mod panel gains graduated BOT-SIDE tiers, distinct from Twitch ban/timeout:
+  `POST channels/{channelId}/moderation/users/{userId}/standing` (body: `provider`, `standing`
+  = `muted` | `shadowbanned` | `blacklisted`, `reason?`) and `DELETE .../standing?provider=` to
+  restore normal. `GET users/{userId}/context` now carries `standings` (one per platform identity).
+  Semantics to surface in the UI: **muted** — chat still shows, the bot ignores them (no commands/
+  triggers/votes/giveaways/earning); **shadowbanned** — muted + hidden from overlays; **blacklisted**
+  — the bot drops their chat entirely (not persisted, not displayed). Per-platform (a Twitch mute
+  doesn't mute their Kick identity); the broadcaster can't be assigned one (409); every change
+  auto-writes a system note (visible in the notes list). UI: a standing selector on the user panel
+  beside warn/suspicious, with tier explanations and the current standing badge.
+- **Why:** owner item — "moderation needs to be more robust ... muted ... shadow banned ...
+  blacklisted". Spec: moderation.md §9 decision 3 (J.12).
+- **Where:** `feature/moderation` user panel; contract refreshed in `server/openapi/v1.json`.
+- **Done when:** muting a test user from the panel stops their commands within seconds while their
+  chat stays visible, and blacklisting makes their lines vanish from the dashboard feed — on dev.
+
 ### 2026-07-17 — Music: shareable song-request link + the player controls that already exist
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** (1) NEW shareable SR link: `GET/POST /api/v1/public/sr/by-channel/{channelName}` mirror

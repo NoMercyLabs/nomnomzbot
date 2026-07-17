@@ -41,6 +41,8 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.ChatTrigger> ChatTriggers =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

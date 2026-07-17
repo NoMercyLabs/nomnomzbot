@@ -310,6 +310,36 @@ public sealed class ChatTriggerMatchingTests
     }
 
     [Fact]
+    public async Task A_muted_user_is_feature_silent_but_still_counts_as_visible_chat()
+    {
+        // J.12 mute semantics: the room still sees them (message count + {chatters}), the bot doesn't.
+        ChannelContext ctx = NewContext();
+        ctx.IsLive = true;
+        ctx.ModerationStandings["twitch:tw-viewer-1"] = NomNomzBot
+            .Domain
+            .Moderation
+            .Entities
+            .ModerationStanding
+            .Muted;
+        CachedChatTrigger trigger = Trigger("hello");
+        ctx.ChatTriggers[trigger.Id] = trigger;
+        (ChatMessageHandler sut, IChatProvider chat, IPipelineEngine pipeline) = Build(ctx);
+
+        await sut.HandleAsync(Line("hello everyone"), CancellationToken.None);
+        await sut.HandleAsync(Line("!uptime"), CancellationToken.None);
+
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendReplyAsync(default, default!, default!, Arg.Any<CancellationToken>());
+        await pipeline
+            .DidNotReceiveWithAnyArgs()
+            .ExecuteAsync(default!, Arg.Any<CancellationToken>());
+        ctx.MessageCount.Should().Be(2, "muted chat is still visible room activity");
+        ctx.SessionChatters.Keys.Should().Contain("tw-viewer-1", "{chatters} shows the real room");
+    }
+
+    [Fact]
     public async Task A_command_line_never_reaches_the_trigger_surface()
     {
         ChannelContext ctx = NewContext();

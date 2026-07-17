@@ -110,6 +110,7 @@ public sealed class GiveawayChatFlowTests
         GiveawayKeywordListener listener = new(
             provider.GetRequiredService<IServiceScopeFactory>(),
             users,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
             NullLogger<GiveawayKeywordListener>.Instance
         );
         return (listener, db, giveaways);

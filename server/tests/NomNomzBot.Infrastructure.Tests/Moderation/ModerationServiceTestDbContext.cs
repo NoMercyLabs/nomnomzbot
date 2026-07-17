@@ -108,6 +108,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         typeof(Channel),
         typeof(User),
         typeof(NomNomzBot.Domain.Moderation.Entities.ViewerReport),
+        // The bot-side standing rows (J.12) — nav-free, convention-mapped.
+        typeof(NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -129,6 +131,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
     public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
     public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

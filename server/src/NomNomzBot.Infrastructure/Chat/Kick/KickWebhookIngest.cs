@@ -47,18 +47,21 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
 
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _bus;
+    private readonly IChannelRegistry _registry;
     private readonly TimeProvider _clock;
     private readonly ILogger<KickWebhookIngest> _logger;
 
     public KickWebhookIngest(
         IApplicationDbContext db,
         IEventBus bus,
+        IChannelRegistry registry,
         TimeProvider clock,
         ILogger<KickWebhookIngest> logger
     )
     {
         _db = db;
         _bus = bus;
+        _registry = registry;
         _clock = clock;
         _logger = logger;
     }
@@ -116,6 +119,16 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
 
         Guid tenantId = await ResolveTenantIdAsync(broadcasterKickId, ct);
         if (tenantId == Guid.Empty)
+            return;
+
+        // Blacklisted chatters (J.12) are dropped HERE, before the bus fan-out.
+        string senderKickIdText = senderKickId.ToString(CultureInfo.InvariantCulture);
+        if (
+            _registry
+                .Get(tenantId)
+                ?.ModerationStandings.GetValueOrDefault($"kick:{senderKickIdText}")
+            == Domain.Moderation.Entities.ModerationStanding.Blacklisted
+        )
             return;
 
         // Kick retries undelivered webhooks — anything already persisted has already been broadcast.

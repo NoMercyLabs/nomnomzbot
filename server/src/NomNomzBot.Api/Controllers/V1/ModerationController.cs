@@ -634,6 +634,64 @@ public class ModerationController : BaseController
     }
 
     /// <summary>
+    /// Set a viewer's BOT-SIDE standing (J.12): muted (features ignore them, chat still shows),
+    /// shadowbanned (muted + hidden from overlays), or blacklisted (dropped entirely). Never touches
+    /// Twitch — ban/timeout stay the Twitch-native punishments.
+    /// </summary>
+    [RequireAction("moderation:suspicioususer:write")]
+    [HttpPost("users/{userId}/standing")]
+    [ProducesResponseType<StatusResponseDto<ModerationStandingDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetModerationStanding(
+        string channelId,
+        string userId,
+        [FromBody] SetModerationStandingRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
+        Result<ModerationStandingDto> result = await _moderationService.SetModerationStandingAsync(
+            channelId,
+            operatorUserId,
+            userId,
+            request.Provider,
+            request.Standing,
+            request.Reason,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<ModerationStandingDto> { Data = result.Value });
+    }
+
+    /// <summary>Clear a viewer's bot-side standing back to normal.</summary>
+    [RequireAction("moderation:suspicioususer:write")]
+    [HttpDelete("users/{userId}/standing")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ClearModerationStanding(
+        string channelId,
+        string userId,
+        [FromQuery] string provider,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
+        Result result = await _moderationService.ClearModerationStandingAsync(
+            channelId,
+            operatorUserId,
+            userId,
+            provider,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return NoContent();
+    }
+
+    /// <summary>
     /// The per-user moderation summary for the mod panel — the bot's recorded actions against this viewer
     /// (ban/timeout/warn/unban counts + recent actions). The bot's own history, not Twitch's complete record.
     /// </summary>

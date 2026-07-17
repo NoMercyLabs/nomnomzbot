@@ -64,6 +64,8 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Commands.Entities.ChatTrigger> ChatTriggers =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
+            throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
@@ -355,6 +357,8 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Commands.Entities.ChatTrigger> ChatTriggers =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
             throw new NotSupportedException();

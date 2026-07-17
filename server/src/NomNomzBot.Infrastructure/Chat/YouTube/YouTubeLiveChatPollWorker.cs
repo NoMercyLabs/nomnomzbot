@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -348,6 +349,11 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
     {
         IApplicationDbContext db = services.GetRequiredService<IApplicationDbContext>();
         IEventBus bus = services.GetRequiredService<IEventBus>();
+        IChannelRegistry registry = services.GetRequiredService<IChannelRegistry>();
+        // Blacklisted chatters (J.12) are dropped HERE, before the bus fan-out.
+        ConcurrentDictionary<string, string>? standings = registry
+            .Get(state.TenantId)
+            ?.ModerationStandings;
 
         // Safety net against page overlap: anything already persisted has already been broadcast.
         List<string> pageIds = messages.Select(m => m.Id).ToList();
@@ -360,6 +366,11 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         foreach (YouTubeLiveChatMessage message in messages)
         {
             if (string.IsNullOrEmpty(message.Id) || !seen.Add(message.Id))
+                continue;
+            if (
+                standings?.GetValueOrDefault($"youtube:{message.AuthorChannelId}")
+                == Domain.Moderation.Entities.ModerationStanding.Blacklisted
+            )
                 continue;
 
             await bus.PublishAsync(

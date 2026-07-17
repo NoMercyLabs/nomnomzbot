@@ -159,6 +159,8 @@ internal sealed class ViewerDataTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
     public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
     public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

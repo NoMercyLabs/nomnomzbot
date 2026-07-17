@@ -60,8 +60,22 @@ public sealed record UserModerationContextDto(
     int UnbanCount,
     string? LastActionType,
     DateTime? LastActionAt,
-    IReadOnlyList<ModerationActionLog> RecentActions
+    IReadOnlyList<ModerationActionLog> RecentActions,
+    // The viewer's bot-side standings (J.12) — one entry per platform identity, empty when normal.
+    IReadOnlyList<ModerationStandingDto> Standings
 );
+
+/// <summary>One platform identity's bot-side standing (J.12): muted | shadowbanned | blacklisted.</summary>
+public sealed record ModerationStandingDto(
+    string UserId,
+    string Provider,
+    string Standing,
+    string? Reason,
+    DateTime UpdatedAt
+);
+
+/// <summary>Request body for setting a viewer's bot-side standing.</summary>
+public sealed record SetModerationStandingRequest(string Provider, string Standing, string? Reason);
 
 public sealed record CreateModerationRuleRequest
 {

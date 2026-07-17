@@ -31,7 +31,14 @@ public sealed class OverlayEventFeedHookTests
     private static (OverlayEventFeedHook Hook, IOverlayEventFeed Feed) Build()
     {
         IOverlayEventFeed feed = Substitute.For<IOverlayEventFeed>();
-        return (new OverlayEventFeedHook(feed, NullLogger<OverlayEventFeedHook>.Instance), feed);
+        return (
+            new OverlayEventFeedHook(
+                feed,
+                Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+                NullLogger<OverlayEventFeedHook>.Instance
+            ),
+            feed
+        );
     }
 
     private static EventRecord Record(

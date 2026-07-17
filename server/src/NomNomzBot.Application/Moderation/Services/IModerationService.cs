@@ -206,6 +206,31 @@ public interface IModerationService
     );
 
     /// <summary>
+    /// Sets (upserts) a viewer's bot-side standing (J.12): <c>muted</c> | <c>shadowbanned</c> |
+    /// <c>blacklisted</c>. Rejects the broadcaster themselves (CONFLICT). Appends a system note as the
+    /// audit trail and refreshes the in-process enforcement cache — live without a restart. Never calls
+    /// Helix; Twitch-native ban/timeout stay separate.
+    /// </summary>
+    Task<Result<ModerationStandingDto>> SetModerationStandingAsync(
+        string broadcasterId,
+        Guid operatorUserId,
+        string targetUserId,
+        string provider,
+        string standing,
+        string? reason,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Clears a viewer's bot-side standing back to normal (row delete), with the same audit + cache refresh.</summary>
+    Task<Result> ClearModerationStandingAsync(
+        string broadcasterId,
+        Guid operatorUserId,
+        string targetUserId,
+        string provider,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// The per-user moderation summary for the mod panel — the bot's recorded actions against one viewer (counts +
     /// the most recent). The bot's own history, NOT Twitch's complete record.
     /// </summary>

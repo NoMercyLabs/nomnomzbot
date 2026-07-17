@@ -374,6 +374,8 @@ public sealed class YouTubeLiveChatPollWorkerTests
         services.AddSingleton<IYouTubeAccessTokenProvider>(new FixedTokenProvider(accessToken));
         services.AddScoped<IPlatformChannelProvisioner, PlatformChannelProvisioner>();
         services.AddSingleton<IEventBus>(bus);
+        // The publisher's blacklist gate (J.12) resolves the registry; an empty one = nobody blacklisted.
+        services.AddSingleton(NSubstitute.Substitute.For<IChannelRegistry>());
         ServiceProvider provider = services.BuildServiceProvider();
 
         YouTubeLiveChatPollWorker worker = new(

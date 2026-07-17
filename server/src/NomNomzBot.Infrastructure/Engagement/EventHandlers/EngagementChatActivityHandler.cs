@@ -30,8 +30,10 @@ namespace NomNomzBot.Infrastructure.Engagement.EventHandlers;
 /// (engagement moments are a live-only feature). Uses its own DB scope to avoid contending with the
 /// parallel chat-persistence handler in the dispatch scope.
 /// </summary>
-public sealed class EngagementChatActivityHandler(IServiceScopeFactory scopeFactory)
-    : IEventHandler<ChatMessageReceivedEvent>
+public sealed class EngagementChatActivityHandler(
+    IServiceScopeFactory scopeFactory,
+    IChannelRegistry registry
+) : IEventHandler<ChatMessageReceivedEvent>
 {
     public async Task HandleAsync(
         ChatMessageReceivedEvent @event,
@@ -39,6 +41,15 @@ public sealed class EngagementChatActivityHandler(IServiceScopeFactory scopeFact
     )
     {
         if (@event.BroadcasterId == Guid.Empty || string.IsNullOrEmpty(@event.UserId))
+            return;
+
+        // Bot-side standing (J.12): a muted/shadowbanned chatter triggers no engagement moments.
+        if (
+            registry
+                .Get(@event.BroadcasterId)
+                ?.ModerationStandingFor(@event.Provider, @event.UserId)
+            is not null
+        )
             return;
 
         using IServiceScope scope = scopeFactory.CreateScope();

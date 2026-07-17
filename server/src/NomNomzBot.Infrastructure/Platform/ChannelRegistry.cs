@@ -100,6 +100,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         await LoadChannelSettingsAsync(ctx, ct);
         await LoadChatTriggersAsync(ctx, ct);
         await LoadActiveChatPollAsync(ctx, ct);
+        await LoadModerationStandingsAsync(ctx, ct);
 
         _channels[broadcasterId] = ctx;
         _logger.LogInformation(
@@ -162,6 +163,24 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         );
     }
 
+    public async Task InvalidateModerationStandingsAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        if (!_channels.TryGetValue(broadcasterId, out ChannelContext? ctx))
+            return;
+
+        ctx.ModerationStandings.Clear();
+        await LoadModerationStandingsAsync(ctx, ct);
+
+        _logger.LogDebug(
+            "Reloaded {Count} moderation standing(s) for channel {BroadcasterId}",
+            ctx.ModerationStandings.Count,
+            broadcasterId
+        );
+    }
+
     public async Task InvalidateSettingsAsync(Guid broadcasterId, CancellationToken ct = default)
     {
         if (!_channels.TryGetValue(broadcasterId, out ChannelContext? ctx))
@@ -212,6 +231,19 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    private async Task LoadModerationStandingsAsync(ChannelContext ctx, CancellationToken ct)
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        List<Domain.Moderation.Entities.ChannelModerationStanding> standings = await db
+            .ChannelModerationStandings.Where(s => s.BroadcasterId == ctx.BroadcasterId)
+            .ToListAsync(ct);
+        foreach (Domain.Moderation.Entities.ChannelModerationStanding standing in standings)
+            ctx.ModerationStandings[$"{standing.Provider}:{standing.UserId}"] = standing.Standing;
+    }
 
     private async Task LoadActiveChatPollAsync(ChannelContext ctx, CancellationToken ct)
     {

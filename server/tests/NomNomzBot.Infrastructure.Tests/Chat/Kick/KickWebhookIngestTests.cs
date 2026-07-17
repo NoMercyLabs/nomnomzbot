@@ -20,6 +20,7 @@ using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Chat.Kick;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat.Kick;
 
@@ -82,6 +83,7 @@ public sealed class KickWebhookIngestTests
         KickWebhookIngest ingest = new(
             db,
             bus,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
             TimeProvider.System,
             NullLogger<KickWebhookIngest>.Instance
         );

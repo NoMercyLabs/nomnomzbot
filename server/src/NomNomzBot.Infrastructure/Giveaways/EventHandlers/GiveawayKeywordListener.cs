@@ -34,6 +34,7 @@ namespace NomNomzBot.Infrastructure.Giveaways.EventHandlers;
 public sealed class GiveawayKeywordListener(
     IServiceScopeFactory scopeFactory,
     IUserService userService,
+    IChannelRegistry registry,
     ILogger<GiveawayKeywordListener> logger
 ) : IEventHandler<ChatMessageReceivedEvent>
 {
@@ -43,6 +44,15 @@ public sealed class GiveawayKeywordListener(
     )
     {
         if (@event.BroadcasterId == Guid.Empty || string.IsNullOrWhiteSpace(@event.Message))
+            return;
+
+        // Bot-side standing (J.12): a muted/shadowbanned chatter cannot enter or claim giveaways.
+        if (
+            registry
+                .Get(@event.BroadcasterId)
+                ?.ModerationStandingFor(@event.Provider, @event.UserId)
+            is not null
+        )
             return;
 
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();

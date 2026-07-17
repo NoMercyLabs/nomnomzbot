@@ -45,6 +45,7 @@ public interface IApplicationDbContext
     DbSet<Redemption> Redemptions { get; }
     DbSet<RedemptionTimer> RedemptionTimers { get; }
     DbSet<ChatTrigger> ChatTriggers { get; }
+    DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings { get; }
     DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls { get; }
     DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes { get; }
     DbSet<Quote> Quotes { get; }
