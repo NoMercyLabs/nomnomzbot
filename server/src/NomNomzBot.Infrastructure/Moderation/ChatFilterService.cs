@@ -49,6 +49,22 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
         );
     }
 
+    public async Task<Result<ChatFilterDto>> GetAsync(
+        Guid broadcasterId,
+        Guid filterId,
+        CancellationToken ct = default
+    )
+    {
+        ChatFilter? filter = await db.ChatFilters.FirstOrDefaultAsync(
+            f => f.BroadcasterId == broadcasterId && f.Id == filterId,
+            ct
+        );
+        if (filter is null)
+            return Result.Failure<ChatFilterDto>("Filter not found.", "NOT_FOUND");
+
+        return Result.Success(ToDto(filter));
+    }
+
     public async Task<Result<ChatFilterDto>> CreateAsync(
         Guid broadcasterId,
         CreateChatFilterRequest request,

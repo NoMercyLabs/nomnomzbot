@@ -27,6 +27,13 @@ public interface IChatFilterService
         CancellationToken ct = default
     );
 
+    /// <summary>Fetches a single chat filter by id. <c>NOT_FOUND</c> if absent or soft-deleted.</summary>
+    Task<Result<ChatFilterDto>> GetAsync(
+        Guid broadcasterId,
+        Guid filterId,
+        CancellationToken ct = default
+    );
+
     /// <summary>Creates a chat filter. A regex filter is rejected (<c>VALIDATION_FAILED</c>) if its pattern does not compile.</summary>
     Task<Result<ChatFilterDto>> CreateAsync(
         Guid broadcasterId,
