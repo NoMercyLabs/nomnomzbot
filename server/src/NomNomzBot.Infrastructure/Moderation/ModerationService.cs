@@ -1354,6 +1354,28 @@ public class ModerationService : IModerationService
             ))
             .ToListAsync(cancellationToken);
 
+        // The J.4/J.5 projections — the EventSub-fed rollup + trust/heat pair, when the viewer has one.
+        UserModerationHistorySummaryDto? history = await _db
+            .UserModerationHistories.Where(h =>
+                h.BroadcasterId == tenantId && h.SubjectTwitchUserId == targetTwitchUserId
+            )
+            .Select(h => new UserModerationHistorySummaryDto(
+                h.TimeoutCount,
+                h.BanCount,
+                h.WarningCount,
+                h.MessagesDeletedCount,
+                h.FirstSeenAt,
+                h.LastActionAt,
+                h.LastActionType
+            ))
+            .FirstOrDefaultAsync(cancellationToken);
+        UserTrustSummaryDto? trust = await _db
+            .UserTrustScores.Where(s =>
+                s.BroadcasterId == tenantId && s.SubjectTwitchUserId == targetTwitchUserId
+            )
+            .Select(s => new UserTrustSummaryDto(s.TrustScore, s.HeatScore, s.ComputedAt))
+            .FirstOrDefaultAsync(cancellationToken);
+
         return Result.Success(
             new UserModerationContextDto(
                 targetTwitchUserId,
@@ -1365,7 +1387,9 @@ public class ModerationService : IModerationService
                 forTarget.Count > 0 ? forTarget[0].Data.Action : null,
                 forTarget.Count > 0 ? forTarget[0].Record.CreatedAt : null,
                 recent,
-                standings
+                standings,
+                history,
+                trust
             )
         );
     }

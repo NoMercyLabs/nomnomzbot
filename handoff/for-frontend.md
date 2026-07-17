@@ -103,6 +103,19 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** installing to a test guild, enabling, picking a channel, and going live posts the
   announcement — configured entirely from the dashboard on dev.
 
+### 2026-07-17 — Moderation: history + trust/heat on the user mod panel
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** `GET channels/{channelId}/moderation/users/{userId}/context` gains two nullable fields:
+  `history` (`{timeoutCount, banCount, warningCount, messagesDeletedCount, firstSeenAt?,
+  lastActionAt?, lastActionType?}` — counts EVERY Twitch-side action, not only bot-issued) and
+  `trust` (`{trustScore, heatScore, computedAt}` — trust 0–100 long-term, heat 0–100 recent
+  pressure that decays with a 24h half-life). Kotlin mirror: add the two nullable fields to the
+  user-context DTO. UI: a small "History" stat row + a trust/heat badge pair on the user mod panel
+  (heat above the channel threshold deserves a warning color).
+- **Why:** moderation item 15 (spec §3.8 J.4/J.5) — the projections now feed the panel.
+- **Where:** moderation user panel; schema in `server/openapi/v1.json` (refreshed).
+- **Done when:** banning a test viewer on dev moves their history counts + heat on the panel.
+
 ### 2026-07-17 — Moderation: escalation ladder (repeat-offender policy)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** routes under `channels/{channelId}/moderation`: `GET escalation` (policy — when unset

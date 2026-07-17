@@ -184,6 +184,33 @@ public sealed class ModerationProjectionServiceTests
     }
 
     [Fact]
+    public async Task The_user_context_read_surfaces_the_projected_history_and_trust()
+    {
+        (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build();
+        await SeedSubjectAsync(db);
+        await sut.ApplyActionAsync(Channel, SubjectTwitchId, "ban", T0);
+
+        ModerationService moderation = new(
+            db,
+            NSubstitute.Substitute.For<Application.Contracts.Twitch.ITwitchModerationApi>(),
+            NSubstitute.Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            TimeProvider.System,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ModerationService>.Instance,
+            NSubstitute.Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IEventBus>()
+        );
+        Result<UserModerationContextDto> context = await moderation.GetUserContextAsync(
+            Channel.ToString(),
+            SubjectTwitchId
+        );
+
+        context.IsSuccess.Should().BeTrue(context.ErrorMessage);
+        context.Value.History.Should().NotBeNull("the projection feeds the mod panel");
+        context.Value.History!.BanCount.Should().Be(1);
+        context.Value.Trust.Should().NotBeNull();
+        context.Value.Trust!.HeatScore.Should().Be(40m);
+    }
+
+    [Fact]
     public async Task Rebuild_reproduces_the_rollup_from_recorded_actions_and_resets_heat()
     {
         (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build();

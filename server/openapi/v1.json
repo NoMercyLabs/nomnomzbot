@@ -74629,9 +74629,96 @@
             "items": {
               "$ref": "#/components/schemas/ModerationStandingDto"
             }
+          },
+          "history": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/UserModerationHistorySummaryDto"
+              }
+            ]
+          },
+          "trust": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/UserTrustSummaryDto"
+              }
+            ]
           }
         },
         "description": "A per-user moderation summary for the mod panel — the bot's RECORDED actions against one viewer in a channel\r\n(bans / timeouts / warns / unbans, counts + the most recent). This is the bot's own action history, not Twitch's\r\ncomplete record: actions taken outside the bot (Twitch's UI, other tools) are not counted here."
+      },
+      "UserModerationHistorySummaryDto": {
+        "required": [
+          "timeoutCount",
+          "banCount",
+          "warningCount",
+          "messagesDeletedCount",
+          "firstSeenAt",
+          "lastActionAt",
+          "lastActionType"
+        ],
+        "type": "object",
+        "properties": {
+          "timeoutCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "banCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "warningCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "messagesDeletedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "firstSeenAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastActionAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastActionType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "The J.4 rollup as the mod panel shows it."
       },
       "UserNoteDto": {
         "required": [
@@ -74856,6 +74943,37 @@
           }
         },
         "description": "GDPR data summary for a user."
+      },
+      "UserTrustSummaryDto": {
+        "required": [
+          "trustScore",
+          "heatScore",
+          "computedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "trustScore": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "heatScore": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "computedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "The J.5 trust + heat pair as the mod panel shows it."
       },
       "UserTtsVoiceDto": {
         "required": [

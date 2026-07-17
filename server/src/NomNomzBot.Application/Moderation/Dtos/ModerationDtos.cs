@@ -62,7 +62,30 @@ public sealed record UserModerationContextDto(
     DateTime? LastActionAt,
     IReadOnlyList<ModerationActionLog> RecentActions,
     // The viewer's bot-side standings (J.12) — one entry per platform identity, empty when normal.
-    IReadOnlyList<ModerationStandingDto> Standings
+    IReadOnlyList<ModerationStandingDto> Standings,
+    // The J.4/J.5 projections (moderation.md §3.8) — null until the viewer has projected history.
+    // Unlike the counts above (the bot's own recorded actions), the projection counts EVERY
+    // Twitch-side action the EventSub facts carried.
+    UserModerationHistorySummaryDto? History = null,
+    UserTrustSummaryDto? Trust = null
+);
+
+/// <summary>The J.4 rollup as the mod panel shows it.</summary>
+public sealed record UserModerationHistorySummaryDto(
+    int TimeoutCount,
+    int BanCount,
+    int WarningCount,
+    int MessagesDeletedCount,
+    DateTime? FirstSeenAt,
+    DateTime? LastActionAt,
+    string? LastActionType
+);
+
+/// <summary>The J.5 trust + heat pair as the mod panel shows it.</summary>
+public sealed record UserTrustSummaryDto(
+    decimal TrustScore,
+    decimal HeatScore,
+    DateTime ComputedAt
 );
 
 /// <summary>One platform identity's bot-side standing (J.12): muted | shadowbanned | blacklisted.</summary>
