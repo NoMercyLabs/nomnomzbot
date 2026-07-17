@@ -136,6 +136,22 @@ public static class EventResponsePresetCatalog
             "OBS vendor event from {obs.event.vendorName}",
             ["obs.event.type", "obs.event.vendorName", "obs.event.eventType"]
         ),
+        // VTube Studio events (vtube-studio.md §4) — fields arrive as {vts.event.<name>}.
+        new(
+            "vts.ModelLoadedEvent",
+            "Model {vts.event.modelName} loaded!",
+            ["vts.event.type", "vts.event.modelName", "vts.event.modelID"]
+        ),
+        new(
+            "vts.HotkeyTriggeredEvent",
+            "Hotkey {vts.event.hotkeyName} fired!",
+            ["vts.event.type", "vts.event.hotkeyID", "vts.event.hotkeyName"]
+        ),
+        new(
+            "vts.ModelClickedEvent",
+            "Someone poked the model!",
+            ["vts.event.type", "vts.event.modelLoaded", "vts.event.mouseButtonID"]
+        ),
     ];
 
     /// <summary>The configurable event-type keys, in catalog order — the per-channel seeding set.</summary>

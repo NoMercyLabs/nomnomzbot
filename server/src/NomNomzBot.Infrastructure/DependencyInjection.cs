@@ -860,6 +860,19 @@ public static class DependencyInjection
             Obs.Bridge.ObsBridgeRegistry
         >();
         services.AddSingleton<Obs.Bridge.ObsBridgeCommandBook>();
+
+        // VTube Studio (vtube-studio.md §6): the direct transport holds per-channel VTS sockets
+        // (singleton); the interactive authorizer is scoped (db + connection service). The bridge
+        // leg joins with its slice; until then the direct transport IS the IVtsTransport.
+        services.AddSingleton<
+            Application.Vts.Services.IVtsTransport,
+            Vts.Transport.DirectVtsTransport
+        >();
+        services.AddScoped<
+            Application.Vts.Services.IVtsPluginAuthorizer,
+            Vts.Transport.VtsPluginAuthorizer
+        >();
+
         // Standalone-validation fallback — the API host replaces this with the hub-backed pusher.
         Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddSingleton<
             Application.Obs.Services.IObsBridgePusher,

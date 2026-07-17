@@ -28,8 +28,45 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("api/v{version:apiVersion}/channels/{channelId:guid}/vts")]
 [Authorize]
 [Tags("VTube Studio")]
-public class VtsController(IVtsConnectionService connections) : BaseController
+public class VtsController(
+    IVtsConnectionService connections,
+    IVtsPluginAuthorizer authorizer,
+    IVtsControlService control
+) : BaseController
 {
+    /// <summary>
+    /// Run the one-time plugin approval: VTube Studio pops its Allow dialog and this call waits for
+    /// the streamer's click (up to ~60s); a granted token is sealed onto the connection.
+    /// </summary>
+    [HttpPost("connection/authorize")]
+    [RequireAction("vts:config:write")]
+    [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Authorize(Guid channelId, CancellationToken ct)
+    {
+        Result result = await authorizer.AuthorizeAsync(channelId, ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>Models + current-model hotkeys + expressions, for the editor pickers.</summary>
+    [HttpGet("inventory")]
+    [RequireAction("vts:config:read")]
+    [ProducesResponseType<StatusResponseDto<VtsModelInventory>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetInventory(Guid channelId, CancellationToken ct) =>
+        ResultResponse(await control.GetInventoryAsync(channelId, ct));
+
+    /// <summary>Raw VTS API pass-through (the full surface).</summary>
+    [HttpPost("control")]
+    [RequireAction("vts:control")]
+    [ProducesResponseType<StatusResponseDto<VtsRequestResult>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Control(
+        Guid channelId,
+        [FromBody] VtsControlRequest request,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await control.SendAsync(channelId, request.RequestType, request.PayloadJson, ct)
+        );
+
     /// <summary>The channel's VTS connection configuration (defaults when none is stored yet).</summary>
     [HttpGet("connection")]
     [RequireAction("vts:config:read")]
