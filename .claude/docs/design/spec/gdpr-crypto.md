@@ -469,3 +469,20 @@ Default copy (part 1, customizable) with the always-appended mandatory clause (p
   `DeletionAuditLog` remains in place read-only; new writes go to `ComplianceAuditLog`.
 - Domain events (`Identity/Events/GdprEvents.cs`): SubjectErasureRequested/Completed/Failed,
   SubjectDataExported, ConsentChanged — hashed subject only.
+
+### As-built addendum — §9 chat built-ins (2026-07-17)
+
+- `!forgetme` (+ `!gdpr forget`): two-step — first call arms a per-subject 60 s in-memory confirm
+  window (`ErasureConfirmationTracker`, TimeProvider-driven, self-sweeping) and warns;
+  `!forgetme confirm` files the `self_service` erasure. Args can NEVER target another user.
+- `!mydata` (+ `!gdpr export`): records the export request and replies with a neutral pointer to the
+  dashboard privacy page/operator — the whisper-a-one-time-link path is NOT built (no link/token
+  infra; `DataExportDto` carries the document inline), matching §9's no-HTTP self-host branch. No
+  PII ever enters chat; `!gdpr status` replies with state words only.
+- Reserved semantics: the three built-ins resolve BEFORE any authored command
+  (`ChatMessageHandler` short-circuit), skip the disable check, and `SetEnabledAsync` refuses to
+  toggle them; `IBuiltinCommand.IsReserved` is a default-interface-member (false). `BuiltinCommandDto`
+  is unchanged — no contract churn; the refusal is server-side.
+- The completion reply = customizable first part (override → tone → default copy, zero-emoji) + the
+  MANDATORY informed-re-entry clause always appended OUTSIDE any template. A `forgetme/done`
+  personality slot exists; tone-catalog variations are not yet authored.

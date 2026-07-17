@@ -60,12 +60,11 @@ what REMAINS.
   `MARKETPLACE_UNAVAILABLE` until it exists.
 - [ ] **23. GDPR/crypto + IPC follow-ups** (`gdpr-crypto.md`, `stream-admin.md`) — remaining
   beyond the shipped controllers: the IPC local socket listener (`IpcDevModeListenerService`,
-  stream-admin §7 — profile-branched Unix socket / named pipe over the shipped key registry), the
-  §3.4 crypto widening (`ResolveSubjectKeysAsync`, tenant/platform keys, rotation,
-  `KeyUsageBinding`, `EventSubjectKeys`), and the §9 in-chat GDPR built-ins
-  (`!forgetme`/`!mydata`/`!gdpr status` over the shipped `IErasureService`). Plus **(frontend —
-  handoff 2026-07-17)** the "My data" privacy screen. The GDPR/Compliance controllers, erasure
-  pipeline with crypto-shred, consent ledger, and the IPC key registry are live.
+  stream-admin §7 — profile-branched Unix socket / named pipe over the shipped key registry) and
+  the §3.4 crypto widening (`ResolveSubjectKeysAsync`, tenant/platform keys, rotation,
+  `KeyUsageBinding`, `EventSubjectKeys`). Plus **(frontend — handoff 2026-07-17)** the "My data"
+  privacy screen. The GDPR/Compliance controllers, erasure pipeline with crypto-shred, consent
+  ledger, the §9 chat built-ins (`!forgetme`/`!mydata`/`!gdpr`), and the IPC key registry are live.
 
 ### 🔒 Security & small fixes
 - [ ] **24d. OWNER-GATED:** confirm authz key names (Plane-C + Gate-2 buckets) — cannot close

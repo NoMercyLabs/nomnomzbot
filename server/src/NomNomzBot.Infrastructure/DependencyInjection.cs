@@ -781,6 +781,14 @@ public static class DependencyInjection
         services.AddScoped<IBuiltinCommand, ViewerData.Builtins.ProfileBuiltin>();
         // Media share (!media <url>) — submits a clip/video for the caller.
         services.AddScoped<IBuiltinCommand, MediaShare.Builtins.MediaBuiltin>();
+        // Reserved in-chat data-subject rights surface (gdpr-crypto.md §9): !forgetme / !mydata /
+        // !gdpr over IErasureService. The confirmation tracker is a singleton so the 60s
+        // !forgetme window survives across the per-message scopes.
+        services.AddSingleton<Identity.Builtins.ErasureConfirmationTracker>();
+        services.AddScoped<Identity.Builtins.GdprSelfServiceExecutor>();
+        services.AddScoped<IBuiltinCommand, Identity.Builtins.ForgetMeBuiltin>();
+        services.AddScoped<IBuiltinCommand, Identity.Builtins.MyDataBuiltin>();
+        services.AddScoped<IBuiltinCommand, Identity.Builtins.GdprBuiltin>();
         services.AddScoped<IBuiltinCommandCatalog, BuiltinCommandCatalog>();
         // Per-channel enable/disable toggle management.
         services.AddScoped<IBuiltinCommandService, BuiltinCommandService>();

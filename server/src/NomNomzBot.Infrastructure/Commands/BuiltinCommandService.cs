@@ -59,8 +59,10 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
             .GetAll()
             .Select(cmd =>
             {
+                // A reserved built-in (gdpr-crypto.md §9) is always on — any stray toggle row is ignored.
                 bool isEnabled =
-                    !toggles.TryGetValue(cmd.BuiltinKey, out ChannelBuiltinCommand? toggle)
+                    cmd.IsReserved
+                    || !toggles.TryGetValue(cmd.BuiltinKey, out ChannelBuiltinCommand? toggle)
                     || toggle.IsEnabled;
 
                 return new BuiltinCommandDto(
@@ -86,8 +88,17 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
         if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
             return Result.Failure($"Invalid channel ID '{broadcasterId}'.", "VALIDATION_FAILED");
 
-        if (_catalog.Get(builtinKey) is null)
+        IBuiltinCommand? command = _catalog.Get(builtinKey);
+        if (command is null)
             return Result.Failure($"Unknown built-in command '{builtinKey}'.", "NOT_FOUND");
+
+        // The data-subject rights floor (gdpr-crypto.md §9) is always-on: reserved built-ins cannot
+        // be disabled (or pointlessly toggled) by any channel.
+        if (command.IsReserved)
+            return Result.Failure(
+                $"'{builtinKey}' is a reserved data-rights command — it is always on and cannot be toggled.",
+                "VALIDATION_FAILED"
+            );
 
         ChannelBuiltinCommand? existing = await _db.ChannelBuiltinCommands.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcaster && c.BuiltinKey == builtinKey,

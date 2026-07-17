@@ -24,6 +24,13 @@ public interface IBuiltinCommand
     int DefaultCooldownSeconds { get; }
     int DefaultMinPermissionLevel { get; }
 
+    /// <summary>
+    /// A reserved built-in (the data-subject rights floor, gdpr-crypto.md §9) resolves BEFORE any
+    /// authored channel command and cannot be shadowed, overridden, or disabled by a channel.
+    /// Defaults to false — ordinary built-ins stay channel-toggleable.
+    /// </summary>
+    bool IsReserved => false;
+
     Task<Result<string>> ExecuteAsync(
         BuiltinCommandContext context,
         CancellationToken ct = default

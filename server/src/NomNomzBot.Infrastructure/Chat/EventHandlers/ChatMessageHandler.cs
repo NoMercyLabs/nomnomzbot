@@ -168,15 +168,20 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         ctx.LastActivityAt = _timeProvider.GetUtcNow();
 
+        // Reserved built-ins (the data-subject rights floor, gdpr-crypto.md §9) resolve BEFORE any
+        // authored command: a channel command can never shadow them and a channel toggle never
+        // disables them — the rights floor is always-on.
+        IBuiltinCommand? builtin = _builtins.Get(commandName);
+        bool isReserved = builtin is { IsReserved: true };
+
         // Look up command in in-memory cache (O(1), no DB hit)
-        if (!ctx.Commands.TryGetValue(commandName, out CachedCommand? command))
+        if (isReserved || !ctx.Commands.TryGetValue(commandName, out CachedCommand? command))
         {
             // Fall back to built-in catalog (code-defined commands like !uptime).
-            IBuiltinCommand? builtin = _builtins.Get(commandName);
             if (builtin is null)
                 return;
 
-            if (IsBuiltinDisabled(ctx, commandName))
+            if (!isReserved && IsBuiltinDisabled(ctx, commandName))
                 return;
 
             if (
@@ -341,7 +346,8 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 string response = PickResponse(command.TemplateResponses);
                 if (string.IsNullOrEmpty(response))
                 {
-                    IBuiltinCommand? builtin = _builtins.Get(commandName);
+                    // Reuses the catalog lookup done up front (reserved built-ins never reach here —
+                    // they short-circuit before the authored-command path).
                     if (builtin is null)
                         return;
 

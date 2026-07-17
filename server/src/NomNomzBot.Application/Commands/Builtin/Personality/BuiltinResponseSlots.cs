@@ -75,6 +75,19 @@ public static class BuiltinResponseSlots
         public const string Skipped = "skipped";
     }
 
+    /// <summary>
+    /// <c>!forgetme</c> — self-service GDPR erasure (gdpr-crypto.md §9). Only the friendly completion
+    /// copy is customizable; the informed-re-entry clause is appended by the built-in itself and is
+    /// NOT part of any template.
+    /// </summary>
+    public static class Forgetme
+    {
+        public const string Key = "forgetme";
+
+        /// <summary>Erasure completed — the streamer-stylable "clean slate" sentence (part 1 of the reply).</summary>
+        public const string Done = "done";
+    }
+
     /// <summary><c>!stats</c> / <c>!profile</c> — a viewer's headline stats line.</summary>
     public static class Stats
     {
