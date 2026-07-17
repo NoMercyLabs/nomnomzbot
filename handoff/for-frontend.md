@@ -16,6 +16,23 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — TTS: BYOK provider keys (bring-your-own Azure/ElevenLabs key)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** channels can now store their own TTS provider API keys, vault-encrypted. New routes on
+  `channels/{channelId}/tts`: `PUT config/byok/{provider}` (provider = `azure|elevenlabs`, body
+  `{apiKey, region?}` — region is Azure-only) and `DELETE config/byok/{provider}`; both return the
+  config DTO. The config DTO gained `hasAzureByokKey`, `hasElevenLabsByokKey`, `azureRegion`
+  (additive — the key itself is NEVER echoed). UI: a "Bring your own key" section on the TTS
+  settings card — per-provider key input (password field, write-only: show "key stored" from the
+  `has*` flag, never a value), Azure region input, remove button. Setting `mode` to `byok` +
+  `defaultProvider` picks which key speaks; with `mode=byok` and no usable key, dispatch rejects
+  with reason `byok_unavailable`.
+- **Why:** tts.md §3.2 — BYOK lets a channel run Azure/ElevenLabs voices on their own quota; keys
+  are AEAD-sealed under the channel's DEK (crypto-shreddable).
+- **Where:** `server/openapi/v1.json` (refreshed); `TtsConfigController`.
+- **Done when:** on dev, storing a key flips the stored-flag after reload, removing clears it, and
+  a `byok` mode channel with a bad/absent key gets the visible rejection instead of silence.
+
 ### 2026-07-17 — TTS: config DTO reshape (BREAKING field rename) + two new settings
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the TTS config moved from a JSON blob to its own table and the contract changed shape.

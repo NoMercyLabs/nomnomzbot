@@ -11,6 +11,8 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Common.Models.Crypto;
+using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Platform.Events;
@@ -28,15 +30,25 @@ namespace NomNomzBot.Infrastructure.Tts;
 /// </summary>
 public class TtsConfigService : ITtsConfigService
 {
+    /// <summary>Bound into every BYOK cipher's AAD; bump only alongside a re-encryption pass.</summary>
+    private const int ByokKeyVersion = 1;
+
     private readonly IApplicationDbContext _db;
     private readonly ITtsService _ttsService;
     private readonly IEventBus _eventBus;
+    private readonly ISubjectKeyService _subjectKeys;
 
-    public TtsConfigService(IApplicationDbContext db, ITtsService ttsService, IEventBus eventBus)
+    public TtsConfigService(
+        IApplicationDbContext db,
+        ITtsService ttsService,
+        IEventBus eventBus,
+        ISubjectKeyService subjectKeys
+    )
     {
         _db = db;
         _ttsService = ttsService;
         _eventBus = eventBus;
+        _subjectKeys = subjectKeys;
     }
 
     public async Task<Result<TtsConfigDto>> GetConfigAsync(
@@ -92,6 +104,134 @@ public class TtsConfigService : ITtsConfigService
             config.MinBitsToTts = request.MinBitsToTts.Value == 0 ? null : request.MinBitsToTts;
 
         await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(broadcasterId, cancellationToken);
+
+        return Result.Success(ToDto(config));
+    }
+
+    public async Task<Result<TtsConfigDto>> SetByokKeyAsync(
+        Guid broadcasterId,
+        string provider,
+        SetTtsByokKeyDto request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (provider is not ("azure" or "elevenlabs"))
+            return Errors
+                .ValidationFailed($"Unknown BYOK TTS provider '{provider}'.")
+                .ToTyped<TtsConfigDto>();
+        if (string.IsNullOrWhiteSpace(request.ApiKey))
+            return Errors.ValidationFailed("An API key is required.").ToTyped<TtsConfigDto>();
+
+        TtsConfig? config = await _db.TtsConfigs.FirstOrDefaultAsync(
+            c => c.BroadcasterId == broadcasterId,
+            cancellationToken
+        );
+        if (config is null)
+        {
+            config = new TtsConfig { BroadcasterId = broadcasterId };
+            _db.TtsConfigs.Add(config);
+        }
+
+        // One DEK per channel wraps both provider keys; destroying it crypto-shreds them (gdpr-crypto §3.4).
+        if (config.SubjectKeyId is null)
+        {
+            Result<Guid> keyId = await ResolveSubjectKeyAsync(broadcasterId, cancellationToken);
+            if (keyId.IsFailure)
+                return Result.Failure<TtsConfigDto>(keyId.ErrorMessage!, keyId.ErrorCode!);
+            config.SubjectKeyId = keyId.Value;
+        }
+
+        Result<CipherPayload> sealedKey = await _subjectKeys.ProtectAsync(
+            config.SubjectKeyId.Value,
+            request.ApiKey,
+            new CipherAad(
+                TenantId: broadcasterId.ToString(),
+                Provider: provider,
+                TokenType: "api_key",
+                KeyVersion: ByokKeyVersion.ToString()
+            ),
+            cancellationToken
+        );
+        if (sealedKey.IsFailure)
+            return Result.Failure<TtsConfigDto>(sealedKey.ErrorMessage!, sealedKey.ErrorCode!);
+
+        if (provider == "azure")
+        {
+            config.AzureApiKeyCipher = sealedKey.Value.CipherText;
+            config.AzureApiKeyNonce = sealedKey.Value.Nonce;
+            config.AzureKeyVersion = ByokKeyVersion;
+            if (request.Region is not null)
+                config.AzureRegion = request.Region;
+        }
+        else
+        {
+            config.ElevenLabsApiKeyCipher = sealedKey.Value.CipherText;
+            config.ElevenLabsApiKeyNonce = sealedKey.Value.Nonce;
+            config.ElevenLabsKeyVersion = ByokKeyVersion;
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(broadcasterId, cancellationToken);
+        return Result.Success(ToDto(config));
+    }
+
+    public async Task<Result<TtsConfigDto>> ClearByokKeyAsync(
+        Guid broadcasterId,
+        string provider,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (provider is not ("azure" or "elevenlabs"))
+            return Errors
+                .ValidationFailed($"Unknown BYOK TTS provider '{provider}'.")
+                .ToTyped<TtsConfigDto>();
+
+        TtsConfig? config = await _db.TtsConfigs.FirstOrDefaultAsync(
+            c => c.BroadcasterId == broadcasterId,
+            cancellationToken
+        );
+        if (config is null)
+            return Errors.NotFound<TtsConfigDto>("BYOK TTS key", provider);
+
+        if (provider == "azure")
+        {
+            config.AzureApiKeyCipher = null;
+            config.AzureApiKeyNonce = null;
+            config.AzureKeyVersion = null;
+            config.AzureRegion = null;
+        }
+        else
+        {
+            config.ElevenLabsApiKeyCipher = null;
+            config.ElevenLabsApiKeyNonce = null;
+            config.ElevenLabsKeyVersion = null;
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(broadcasterId, cancellationToken);
+        return Result.Success(ToDto(config));
+    }
+
+    /// <summary>The channel's TTS DEK identity, derived the same deterministic way the token vault does it.</summary>
+    private async Task<Result<Guid>> ResolveSubjectKeyAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        byte[] hash = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes($"tts:{broadcasterId}")
+        );
+        Guid subjectUserId = new(hash.AsSpan(0, 16));
+        string subjectIdHash = Convert.ToHexStringLower(hash);
+        return await _subjectKeys.GetOrCreateSubjectKeyAsync(
+            subjectUserId,
+            subjectIdHash,
+            cancellationToken
+        );
+    }
+
+    private async Task PublishConfigChangedAsync(Guid broadcasterId, CancellationToken ct) =>
         await _eventBus.PublishAsync(
             new ChannelConfigChangedEvent
             {
@@ -99,11 +239,8 @@ public class TtsConfigService : ITtsConfigService
                 Domain = "tts-config",
                 Action = "updated",
             },
-            cancellationToken
+            ct
         );
-
-        return Result.Success(ToDto(config));
-    }
 
     public async Task<Result<IReadOnlyList<TtsVoiceDto>>> GetVoicesAsync(
         CancellationToken cancellationToken = default
@@ -268,6 +405,9 @@ public class TtsConfigService : ITtsConfigService
             c.ReadUsernames,
             c.ProfanityCensorEnabled,
             c.ModApprovalRequired,
-            c.MinBitsToTts
+            c.MinBitsToTts,
+            HasAzureByokKey: c.AzureApiKeyCipher is not null,
+            HasElevenLabsByokKey: c.ElevenLabsApiKeyCipher is not null,
+            AzureRegion: c.AzureRegion
         );
 }

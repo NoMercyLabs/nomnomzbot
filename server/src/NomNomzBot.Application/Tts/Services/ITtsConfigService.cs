@@ -27,6 +27,22 @@ public interface ITtsConfigService
         UpdateTtsConfigDto request,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>Vault-encrypt and store a BYOK provider API key (azure | elevenlabs) on the channel's config.</summary>
+    Task<Result<TtsConfigDto>> SetByokKeyAsync(
+        Guid broadcasterId,
+        string provider,
+        SetTtsByokKeyDto request,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Remove a stored BYOK key so the provider falls back to the operator/app configuration.</summary>
+    Task<Result<TtsConfigDto>> ClearByokKeyAsync(
+        Guid broadcasterId,
+        string provider,
+        CancellationToken cancellationToken = default
+    );
+
     Task<Result<IReadOnlyList<TtsVoiceDto>>> GetVoicesAsync(
         CancellationToken cancellationToken = default
     );

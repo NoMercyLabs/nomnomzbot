@@ -12,7 +12,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace NomNomzBot.Application.Tts.Dtos;
 
-/// <summary>TTS configuration for a channel (tts.md P.1). BYOK ciphers never leave the server — not surfaced here.</summary>
+/// <summary>
+/// TTS configuration for a channel (tts.md P.1). BYOK keys never leave the server — only their
+/// presence is surfaced, so the dashboard can show configured-state truthfully.
+/// </summary>
 public sealed record TtsConfigDto(
     bool IsEnabled,
     string Mode,
@@ -24,8 +27,23 @@ public sealed record TtsConfigDto(
     bool ReadUsernames,
     bool ProfanityCensorEnabled,
     bool ModApprovalRequired,
-    int? MinBitsToTts
+    int? MinBitsToTts,
+    bool HasAzureByokKey = false,
+    bool HasElevenLabsByokKey = false,
+    string? AzureRegion = null
 );
+
+/// <summary>Request to store a BYOK provider API key; the key is vault-encrypted at rest and never echoed.</summary>
+public sealed record SetTtsByokKeyDto
+{
+    [Required]
+    [MaxLength(512)]
+    public string ApiKey { get; init; } = null!;
+
+    /// <summary>Azure only — the Cognitive Services region the key belongs to.</summary>
+    [MaxLength(50)]
+    public string? Region { get; init; }
+}
 
 /// <summary>Request to update TTS configuration; every field optional — only what is sent changes.</summary>
 public sealed record UpdateTtsConfigDto

@@ -63,8 +63,10 @@ public sealed class TtsConfigUserVoiceTests
             .Returns(Task.FromResult<IReadOnlyList<TtsVoiceInfo>>([]));
 
         IEventBus bus = Substitute.For<IEventBus>();
+        Application.Services.ISubjectKeyService subjectKeys =
+            Substitute.For<Application.Services.ISubjectKeyService>();
 
-        return new Harness { Service = new TtsConfigService(db, tts, bus), Db = db };
+        return new Harness { Service = new TtsConfigService(db, tts, bus, subjectKeys), Db = db };
     }
 
     private static SetUserVoiceDto Set(string voiceId) => new() { VoiceId = voiceId };

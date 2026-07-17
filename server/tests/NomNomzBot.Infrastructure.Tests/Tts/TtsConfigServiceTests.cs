@@ -8,9 +8,12 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Common.Models.Crypto;
+using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Platform.Events;
@@ -30,13 +33,43 @@ namespace NomNomzBot.Infrastructure.Tests.Tts;
 public sealed class TtsConfigServiceTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-000000000d01");
+    private static readonly Guid DekId = Guid.Parse("0192a000-0000-7000-8000-000000000d0e");
 
     private static (TtsConfigService Sut, TtsTestDbContext Db, RecordingEventBus Bus) Build()
     {
         TtsTestDbContext db = TtsTestDbContext.New();
         ITtsService ttsService = Substitute.For<ITtsService>();
         RecordingEventBus bus = new();
-        return (new TtsConfigService(db, ttsService, bus), db, bus);
+
+        // A reversible fake vault: "seals" by base64ing the plaintext, so tests can prove the stored
+        // cipher is NOT the raw key while remaining deterministic.
+        ISubjectKeyService subjectKeys = Substitute.For<ISubjectKeyService>();
+        subjectKeys
+            .GetOrCreateSubjectKeyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(DekId));
+        subjectKeys
+            .ProtectAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CipherAad>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci =>
+                Result.Success(
+                    new CipherPayload(
+                        CipherText: Convert.ToBase64String(
+                            Encoding.UTF8.GetBytes(ci.ArgAt<string>(1))
+                        ),
+                        Nonce: "nonce-1"
+                    )
+                )
+            );
+
+        return (new TtsConfigService(db, ttsService, bus, subjectKeys), db, bus);
     }
 
     [Fact]
@@ -108,6 +141,67 @@ public sealed class TtsConfigServiceTests
         (await db.TtsConfigs.CountAsync())
             .Should()
             .Be(1, "updates upsert the single per-channel row");
+    }
+
+    [Fact]
+    public async Task SetByokKey_stores_the_sealed_envelope_never_the_raw_key()
+    {
+        (TtsConfigService sut, TtsTestDbContext db, _) = Build();
+
+        Result<TtsConfigDto> result = await sut.SetByokKeyAsync(
+            Channel,
+            "azure",
+            new SetTtsByokKeyDto { ApiKey = "azure-secret-key", Region = "westus2" }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.HasAzureByokKey.Should().BeTrue();
+        result.Value.HasElevenLabsByokKey.Should().BeFalse();
+        result.Value.AzureRegion.Should().Be("westus2");
+
+        TtsConfig row = await db.TtsConfigs.SingleAsync();
+        row.AzureApiKeyCipher.Should().NotBeNull();
+        row.AzureApiKeyCipher.Should()
+            .NotContain("azure-secret-key", "the key is sealed, never stored raw");
+        row.AzureApiKeyNonce.Should().Be("nonce-1");
+        row.AzureKeyVersion.Should().Be(1);
+        row.SubjectKeyId.Should().Be(DekId, "the channel's DEK wraps the BYOK keys");
+        row.ElevenLabsApiKeyCipher.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ClearByokKey_wipes_the_envelope_and_the_flag()
+    {
+        (TtsConfigService sut, TtsTestDbContext db, _) = Build();
+        await sut.SetByokKeyAsync(
+            Channel,
+            "elevenlabs",
+            new SetTtsByokKeyDto { ApiKey = "el-secret" }
+        );
+
+        Result<TtsConfigDto> result = await sut.ClearByokKeyAsync(Channel, "elevenlabs");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.HasElevenLabsByokKey.Should().BeFalse();
+        TtsConfig row = await db.TtsConfigs.SingleAsync();
+        row.ElevenLabsApiKeyCipher.Should().BeNull();
+        row.ElevenLabsApiKeyNonce.Should().BeNull();
+        row.ElevenLabsKeyVersion.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SetByokKey_rejects_an_unknown_provider()
+    {
+        (TtsConfigService sut, TtsTestDbContext db, _) = Build();
+
+        Result<TtsConfigDto> result = await sut.SetByokKeyAsync(
+            Channel,
+            "edge",
+            new SetTtsByokKeyDto { ApiKey = "whatever" }
+        );
+
+        result.IsFailure.Should().BeTrue("edge needs no key; only azure/elevenlabs are BYOK");
+        (await db.TtsConfigs.CountAsync()).Should().Be(0);
     }
 
     [Fact]

@@ -67,6 +67,48 @@ public class TtsConfigController : BaseController
         return Ok(new StatusResponseDto<TtsConfigDto> { Data = result.Value });
     }
 
+    /// <summary>Store a BYOK provider API key (azure | elevenlabs). Vault-encrypted at rest; never echoed back.</summary>
+    [HttpPut("config/byok/{provider}")]
+    [RequireAction("tts:config:write")]
+    [ProducesResponseType<StatusResponseDto<TtsConfigDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetByokKey(
+        string channelId,
+        string provider,
+        [FromBody] SetTtsByokKeyDto request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        Result<TtsConfigDto> result = await _ttsConfigService.SetByokKeyAsync(
+            broadcasterId,
+            provider,
+            request,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Remove a stored BYOK key so the provider falls back to the operator/app configuration.</summary>
+    [HttpDelete("config/byok/{provider}")]
+    [RequireAction("tts:config:write")]
+    [ProducesResponseType<StatusResponseDto<TtsConfigDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ClearByokKey(
+        string channelId,
+        string provider,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        Result<TtsConfigDto> result = await _ttsConfigService.ClearByokKeyAsync(
+            broadcasterId,
+            provider,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
     /// <summary>List the voices available from the configured TTS provider.</summary>
     [HttpGet("voices")]
     [RequireAction("tts:voice:read")]

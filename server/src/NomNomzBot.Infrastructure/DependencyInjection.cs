@@ -786,6 +786,13 @@ public static class DependencyInjection
         // "Service", so it is not picked up by AddServicesByConvention; registered explicitly here.
         services.AddSingleton<Application.Contracts.Tts.ITtsProfanityCensor, TtsProfanityCensor>();
 
+        // BYOK provider factory (tts.md §3.2) — scoped (reads TtsConfig + decrypts through the vault);
+        // not convention-scanned (does not end in "Service").
+        services.AddScoped<
+            Application.Contracts.Tts.IByokTtsProviderFactory,
+            ByokTtsProviderFactory
+        >();
+
         // Spotify HTTP clients with resilience (Music providers themselves are scanned by
         // IMusicProvider above; IMusicService is scanned by AddServicesByConvention).
         services.AddHttpClient("spotify").AddSpotifyResilienceHandler();

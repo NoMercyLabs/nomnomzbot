@@ -40,6 +40,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     private const int QueueTtlMinutes = 10;
 
     private readonly ITtsService _tts;
+    private readonly IByokTtsProviderFactory _byokProviders;
     private readonly ITtsConfigService _config;
     private readonly ITtsProfanityCensor _censor;
     private readonly ISoundClipStore _audioStore;
@@ -52,6 +53,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
 
     public TtsDispatchService(
         ITtsService tts,
+        IByokTtsProviderFactory byokProviders,
         ITtsConfigService config,
         ITtsProfanityCensor censor,
         ISoundClipStore audioStore,
@@ -64,6 +66,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     )
     {
         _tts = tts;
+        _byokProviders = byokProviders;
         _config = config;
         _censor = censor;
         _audioStore = audioStore;
@@ -178,6 +181,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
 
         return await SynthesizeStorePlayAsync(
             request.BroadcasterId,
+            config,
             spokenText,
             voiceId,
             request.RequestedByTwitchUserId,
@@ -206,9 +210,14 @@ public sealed class TtsDispatchService : ITtsDispatchService
             );
 
         // Speak the censored text the moderator reviewed. A synthesis failure leaves the entry pending for retry.
+        Result<TtsConfigDto> configResult = await _config.GetConfigAsync(broadcasterId, ct);
+        if (configResult.IsFailure)
+            return Result.Failure(configResult.ErrorMessage!, configResult.ErrorCode!);
+
         string spokenText = entry.CensoredText ?? entry.OriginalText;
         Result<TtsDispatchOutcome> played = await SynthesizeStorePlayAsync(
             broadcasterId,
+            configResult.Value,
             spokenText,
             entry.VoiceId,
             entry.RequestedByTwitchUserId,
@@ -369,6 +378,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     /// <summary>Synthesizes → stores → plays on the overlay → ledgers → emits dispatched. Shared by direct dispatch and approval.</summary>
     private async Task<Result<TtsDispatchOutcome>> SynthesizeStorePlayAsync(
         Guid broadcasterId,
+        TtsConfigDto config,
         string text,
         string voiceId,
         string requestedByTwitchUserId,
@@ -381,7 +391,38 @@ public sealed class TtsDispatchService : ITtsDispatchService
         TtsResult synth;
         try
         {
-            synth = await _tts.SynthesizeAsync(text, voiceId, ct);
+            // byok runs on the channel's own vault-decrypted provider key (tts.md §3.2); every other
+            // mode synthesizes through the shared operator-configured service.
+            if (config.Mode == "byok")
+            {
+                Result<Domain.Tts.Interfaces.ITtsProvider> provider =
+                    await _byokProviders.CreateForChannelAsync(
+                        broadcasterId,
+                        config.DefaultProvider,
+                        ct
+                    );
+                if (provider.IsFailure)
+                    return await PublishRejectAsync(
+                        broadcasterId,
+                        requestedByTwitchUserId,
+                        "byok_unavailable",
+                        $"The channel's {config.DefaultProvider} key is not usable: {provider.ErrorMessage}",
+                        "SERVICE_UNAVAILABLE",
+                        ct
+                    );
+                Domain.Tts.Interfaces.TtsSynthesisResult byokSynth =
+                    await provider.Value.SynthesizeAsync(text, voiceId, ct);
+                synth = new TtsResult(
+                    byokSynth.AudioData,
+                    byokSynth.DurationMs,
+                    byokSynth.VoiceId,
+                    byokSynth.Provider
+                );
+            }
+            else
+            {
+                synth = await _tts.SynthesizeAsync(text, voiceId, ct);
+            }
         }
         catch (Exception ex)
         {

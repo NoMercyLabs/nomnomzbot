@@ -46,6 +46,7 @@ public sealed class TtsDispatchServiceTests
         public required TtsDispatchService Service { get; init; }
         public required TtsTestDbContext Db { get; init; }
         public required ITtsService Tts { get; init; }
+        public required IByokTtsProviderFactory ByokProviders { get; init; }
         public required ISoundClipStore Store { get; init; }
         public required ISoundClipOverlayNotifier Overlay { get; init; }
         public required IEventBus Bus { get; init; }
@@ -58,6 +59,8 @@ public sealed class TtsDispatchServiceTests
         bool censorEnabled = false,
         bool modApprovalRequired = false,
         int? minBitsToTts = null,
+        string mode = "self_host",
+        string defaultProvider = "edge",
         Application.Contracts.Billing.IBillingTierService? tiers = null
     )
     {
@@ -70,8 +73,8 @@ public sealed class TtsDispatchServiceTests
                 Result.Success(
                     new TtsConfigDto(
                         enabled,
-                        "self_host",
-                        "edge",
+                        mode,
+                        defaultProvider,
                         defaultVoice,
                         maxLength,
                         "everyone",
@@ -110,9 +113,11 @@ public sealed class TtsDispatchServiceTests
 
         ISoundClipOverlayNotifier overlay = Substitute.For<ISoundClipOverlayNotifier>();
         IEventBus bus = Substitute.For<IEventBus>();
+        IByokTtsProviderFactory byokProviders = Substitute.For<IByokTtsProviderFactory>();
 
         TtsDispatchService service = new(
             tts,
+            byokProviders,
             config,
             new TtsProfanityCensor(),
             store,
@@ -128,6 +133,7 @@ public sealed class TtsDispatchServiceTests
             Service = service,
             Db = db,
             Tts = tts,
+            ByokProviders = byokProviders,
             Store = store,
             Overlay = overlay,
             Bus = bus,
@@ -577,6 +583,62 @@ public sealed class TtsDispatchServiceTests
         h.Db.TtsApprovalQueueEntries.Add(entry);
         h.Db.SaveChanges();
         return entry;
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_ByokMode_SynthesizesOnTheChannelsOwnProvider()
+    {
+        Harness h = Build(mode: "byok", defaultProvider: "azure");
+        ITtsProvider byok = Substitute.For<ITtsProvider>();
+        byok.SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+                Task.FromResult(
+                    new TtsSynthesisResult
+                    {
+                        AudioData = [9, 9, 9],
+                        DurationMs = 900,
+                        Provider = "azure",
+                        VoiceId = ci.ArgAt<string>(1),
+                        ContentHash = "hash",
+                    }
+                )
+            );
+        h.ByokProviders.CreateForChannelAsync(Tenant, "azure", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(byok));
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        // The BYOK provider did the work; the shared service was never touched.
+        await byok.Received(1)
+            .SynthesizeAsync("hello", "default-voice", Arg.Any<CancellationToken>());
+        await h
+            .Tts.DidNotReceive()
+            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        // The ledger records the provider that actually spoke.
+        (await h.Db.TtsUsageRecords.SingleAsync())
+            .Provider.Should()
+            .Be("azure");
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_ByokKeyUnusable_RejectsWithoutLedger()
+    {
+        Harness h = Build(mode: "byok", defaultProvider: "elevenlabs");
+        h.ByokProviders.CreateForChannelAsync(Tenant, "elevenlabs", Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<ITtsProvider>("The DEK was crypto-shredded.", "KEY_DESTROYED"));
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("SERVICE_UNAVAILABLE");
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
+        await h
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<TtsUtteranceRejectedEvent>(e => e.Reason == "byok_unavailable"),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
