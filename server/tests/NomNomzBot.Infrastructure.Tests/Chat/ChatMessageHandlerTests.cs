@@ -16,11 +16,14 @@ using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Games;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
+using NomNomzBot.Infrastructure.Games;
+using NomNomzBot.Infrastructure.Games.Catalog;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat;
@@ -277,6 +280,7 @@ public sealed class ChatMessageHandlerTests
             Substitute.For<IBuiltinCommandCatalog>(),
             Substitute.For<ITemplateResolver>(),
             Substitute.For<IEventBus>(),
+            new LiveGameSessionRegistry(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );
@@ -315,6 +319,7 @@ public sealed class ChatMessageHandlerTests
             builtins,
             Substitute.For<ITemplateResolver>(),
             Substitute.For<IEventBus>(),
+            new LiveGameSessionRegistry(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );
@@ -350,6 +355,7 @@ public sealed class ChatMessageHandlerTests
             builtins,
             Substitute.For<ITemplateResolver>(),
             Substitute.For<IEventBus>(),
+            new LiveGameSessionRegistry(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );
@@ -473,10 +479,116 @@ public sealed class ChatMessageHandlerTests
             Substitute.For<IBuiltinCommandCatalog>(),
             Substitute.For<ITemplateResolver>(),
             Substitute.For<IEventBus>(),
+            new LiveGameSessionRegistry(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );
         return (sut, executor);
+    }
+
+    // ── live-game precedence: an active round shadows a same-named command ────
+
+    private const string HeistKeyword = "!heist";
+    private const string HeistCommand = "heist";
+
+    [Fact]
+    public async Task An_active_game_session_shadows_a_same_named_command_which_never_dispatches()
+    {
+        // THE BUG: !heist is both an authored command AND the active Heist round's input keyword. The chat
+        // event fans out to ChatMessageHandler and LiveGameInputListener independently, so both would fire —
+        // the operator's command AND the join. During a live round the game must win (typing !heist means
+        // JOIN the heist), so the command path stands down.
+        ChannelContext ctx = NewChannelContext();
+        AddTemplateCommand(ctx, HeistCommand, "Command heist fired");
+
+        LiveGameSessionRegistry games = new();
+        games.TryRegister(ActiveHeistSession()).Should().BeTrue();
+
+        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(ctx, games);
+
+        await sut.HandleAsync(MessageEvent(HeistKeyword), CancellationToken.None);
+
+        // No reply, no send, and — critically — no fabricated execution fact (analytics must not count it).
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await bus.DidNotReceiveWithAnyArgs()
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+                default!,
+                default
+            );
+
+        // The guard is a READ-ONLY deferral: it never mutated or terminated the round, so LiveGameInputListener
+        // (the authoritative consumer on its own fan-out) still owns the message and its !heist keyword.
+        games.TryGet(Broadcaster, out LiveGameSessionRuntime? still).Should().BeTrue();
+        still!.Terminal.Should().BeFalse();
+        still.Phase.Should().Be(LiveGamePhase.Lobby);
+        still.Game.Manifest.InputKeywords.Should().Contain(HeistKeyword);
+    }
+
+    [Fact]
+    public async Task With_no_active_game_session_the_same_named_command_dispatches_normally()
+    {
+        // No round running: the guard finds nothing in the registry and the !heist command runs as usual —
+        // proving the guard suppresses ONLY while a live session claims the keyword, never otherwise.
+        ChannelContext ctx = NewChannelContext();
+        AddTemplateCommand(ctx, HeistCommand, "Command heist fired");
+
+        LiveGameSessionRegistry games = new(); // empty — no active round
+
+        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(ctx, games);
+
+        await sut.HandleAsync(MessageEvent(HeistKeyword), CancellationToken.None);
+
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                "msg-1",
+                "Command heist fired",
+                Arg.Any<CancellationToken>()
+            );
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.CommandName == HeistCommand && e.Succeeded
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task An_active_game_session_does_not_shadow_a_command_it_does_not_claim()
+    {
+        // A Heist round is live (it claims !heist only). An UNRELATED authored command (!drop) must still
+        // dispatch — the guard is scoped to the ACTIVE session's keywords, it does not swallow every command
+        // while a game runs. This is the discriminating case: if the guard over-matched, !drop would vanish.
+        ChannelContext ctx = NewChannelContext();
+        AddTemplateCommand(ctx, "drop", "Command drop fired");
+
+        LiveGameSessionRegistry games = new();
+        games.TryRegister(ActiveHeistSession()).Should().BeTrue();
+
+        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(ctx, games);
+
+        await sut.HandleAsync(MessageEvent("!drop"), CancellationToken.None);
+
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                "msg-1",
+                "Command drop fired",
+                Arg.Any<CancellationToken>()
+            );
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.CommandName == "drop" && e.Succeeded
+                ),
+                Arg.Any<CancellationToken>()
+            );
+
+        // The Heist round is untouched — still active and still owning !heist for its listener.
+        games.TryGet(Broadcaster, out LiveGameSessionRuntime? still).Should().BeTrue();
+        still!.Terminal.Should().BeFalse();
     }
 
     // ── shared scaffolding ──────────────────────────────────────────────────
@@ -488,6 +600,75 @@ public sealed class ChatMessageHandlerTests
             TwitchChannelId = "tw-777",
             ChannelName = "stoney_eagle",
         };
+
+    /// <summary>A live Heist round in its join lobby — the real <see cref="HeistGame"/> so its manifest keyword
+    /// (<c>!heist</c>) is exactly what the guard matches against, no test-only stand-in.</summary>
+    private static LiveGameSessionRuntime ActiveHeistSession() =>
+        new()
+        {
+            SessionId = Guid.CreateVersion7(),
+            BroadcasterId = Broadcaster,
+            Game = new HeistGame(),
+            GameConfigId = Guid.CreateVersion7(),
+            Config = new GameConfigView(null, null, null, null),
+            JoinClosesAt = DateTime.UtcNow.AddSeconds(60),
+            Phase = LiveGamePhase.Lobby,
+        };
+
+    private static void AddTemplateCommand(ChannelContext ctx, string name, string response) =>
+        ctx.Commands[name] = new CachedCommand
+        {
+            Name = name,
+            TemplateResponses = [response],
+            GlobalCooldown = 0,
+            UserCooldown = 0,
+            MinPermissionLevel = 0,
+            Tier = "template",
+        };
+
+    private static (ChatMessageHandler Sut, IChatProvider Chat, IEventBus Bus) BuildWithGames(
+        ChannelContext ctx,
+        LiveGameSessionRegistry games
+    )
+    {
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+
+        // No builtins in play here — an unconfigured catalog returns null, so a resolved command is the ONLY
+        // thing that could dispatch, keeping the collision assertions unambiguous.
+        IBuiltinCommandCatalog builtins = Substitute.For<IBuiltinCommandCatalog>();
+        builtins.Get(Arg.Any<string>()).Returns((IBuiltinCommand?)null);
+
+        // Echo the picked template back so a dispatched command produces an assertable reply body.
+        ITemplateResolver templates = Substitute.For<ITemplateResolver>();
+        templates
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo => Task.FromResult(callInfo.ArgAt<string>(0)));
+
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        IEventBus bus = Substitute.For<IEventBus>();
+
+        ChatMessageHandler sut = new(
+            registry,
+            Substitute.For<IServiceScopeFactory>(),
+            Substitute.For<ICooldownManager>(),
+            chat,
+            Substitute.For<IPipelineEngine>(),
+            builtins,
+            templates,
+            bus,
+            games,
+            TimeProvider.System,
+            NullLogger<ChatMessageHandler>.Instance
+        );
+
+        return (sut, chat, bus);
+    }
 
     private static (ChatMessageHandler Sut, IChatProvider Chat) Build(ChannelContext ctx)
     {
@@ -517,6 +698,7 @@ public sealed class ChatMessageHandlerTests
             builtins,
             Substitute.For<ITemplateResolver>(),
             bus,
+            new LiveGameSessionRegistry(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );

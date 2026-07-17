@@ -20,6 +20,7 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Games;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Events;
@@ -29,6 +30,7 @@ using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Games;
 
 namespace NomNomzBot.Infrastructure.Chat.EventHandlers;
 
@@ -53,6 +55,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     private readonly IBuiltinCommandCatalog _builtins;
     private readonly ITemplateResolver _templateResolver;
     private readonly IEventBus _eventBus;
+    private readonly LiveGameSessionRegistry _gameSessions;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ChatMessageHandler> _logger;
 
@@ -65,6 +68,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         IBuiltinCommandCatalog builtins,
         ITemplateResolver templateResolver,
         IEventBus eventBus,
+        LiveGameSessionRegistry gameSessions,
         TimeProvider timeProvider,
         ILogger<ChatMessageHandler> logger
     )
@@ -77,6 +81,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         _builtins = builtins;
         _templateResolver = templateResolver;
         _eventBus = eventBus;
+        _gameSessions = gameSessions;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -143,6 +148,15 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 await FireChatTriggersAsync(channelCtx, @event, text, cancellationToken);
             return;
         }
+
+        // Live-game precedence (live-games.md D6): while a round is in its Lobby/Running phase, that game
+        // OWNS its input keywords. If this message's first token IS an active session's keyword (e.g. !heist
+        // typed mid-heist), it means JOIN the round — not run a same-named authored command. The event fans
+        // out independently to LiveGameInputListener, which is the authoritative consumer for that message,
+        // so the command path stands down here to avoid a double-fire. This is a read-only lookup against the
+        // same singleton registry the listener uses (no cross-handler "handled" flag).
+        if (IsClaimedByActiveGame(@event.BroadcasterId, text))
+            return;
 
         // Parse: !commandname arg1 arg2 ...
         int spaceIdx = text.IndexOf(' ');
@@ -421,6 +435,30 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             );
             await PublishExecutedAsync(@event, command.Name, false, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// True when an ACTIVE live-game round for this channel claims the message's first token as one of its
+    /// input keywords — the guard that lets a live round shadow a same-named authored command (typing
+    /// <c>!heist</c> mid-heist JOINS the heist rather than running a <c>!heist</c> command). Mirrors
+    /// <c>LiveGameInputListener</c>'s hot-path gate exactly (non-terminal session, Lobby/Running phase,
+    /// case-insensitive first-token keyword match) against the shared singleton
+    /// <see cref="LiveGameSessionRegistry"/>, so the two handlers agree on ownership. Purely read-only: a
+    /// lock-free registry lookup on the miss path, so chat stays cheap while no game runs.
+    /// </summary>
+    private bool IsClaimedByActiveGame(Guid broadcasterId, string text)
+    {
+        if (
+            !_gameSessions.TryGet(broadcasterId, out LiveGameSessionRuntime? runtime)
+            || runtime.Terminal
+            || runtime.Phase is not (LiveGamePhase.Lobby or LiveGamePhase.Running)
+        )
+            return false;
+
+        string first = text.Split(' ', 2)[0];
+        return runtime.Game.Manifest.InputKeywords.Any(k =>
+            string.Equals(k, first, StringComparison.OrdinalIgnoreCase)
+        );
     }
 
     /// <summary>

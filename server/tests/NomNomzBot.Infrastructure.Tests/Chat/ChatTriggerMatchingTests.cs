@@ -20,6 +20,7 @@ using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
+using NomNomzBot.Infrastructure.Games;
 using NomNomzBot.Infrastructure.Platform.RateLimiting;
 using NSubstitute;
 
@@ -107,6 +108,7 @@ public sealed class ChatTriggerMatchingTests
             builtins,
             templates,
             Substitute.For<IEventBus>(),
+            new LiveGameSessionRegistry(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );
@@ -276,6 +278,7 @@ public sealed class ChatTriggerMatchingTests
             Substitute.For<IBuiltinCommandCatalog>(),
             Substitute.For<ITemplateResolver>(),
             Substitute.For<IEventBus>(),
+            new LiveGameSessionRegistry(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );
