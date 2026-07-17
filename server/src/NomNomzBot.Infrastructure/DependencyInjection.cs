@@ -841,6 +841,17 @@ public static class DependencyInjection
         >();
         services.AddSingleton<AutomationApi.Stream.AutomationStreamCoordinator>();
 
+        // OBS control (obs-control.md §8): the direct transport holds per-channel OBS-WS v5 sockets,
+        // so it is a singleton; the bridge transport joins with its slice. Neither is convention-scanned.
+        services.AddSingleton<
+            Obs.Transport.IObsSocketFactory,
+            Obs.Transport.ClientObsSocketFactory
+        >();
+        services.AddSingleton<
+            Application.Obs.Services.IObsTransport,
+            Obs.Transport.DirectObsTransport
+        >();
+
         // Spotify HTTP clients with resilience (Music providers themselves are scanned by
         // IMusicProvider above; IMusicService is scanned by AddServicesByConvention).
         services.AddHttpClient("spotify").AddSpotifyResilienceHandler();

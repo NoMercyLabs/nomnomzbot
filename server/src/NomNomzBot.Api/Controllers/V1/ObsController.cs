@@ -30,9 +30,73 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("api/v{version:apiVersion}/channels/{channelId:guid}/obs")]
 [Authorize]
 [Tags("OBS")]
-public class ObsController(IObsConnectionService connections, IConfiguration configuration)
-    : BaseController
+public class ObsController(
+    IObsConnectionService connections,
+    IObsControlService control,
+    IConfiguration configuration
+) : BaseController
 {
+    /// <summary>Live OBS state (current scene, stream/record/replay status).</summary>
+    [HttpGet("state")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<ObsStateDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetState(Guid channelId, CancellationToken ct) =>
+        ResultResponse(await control.GetStateAsync(channelId, ct));
+
+    /// <summary>The scene list (current one flagged).</summary>
+    [HttpGet("scenes")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsSceneDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetScenes(Guid channelId, CancellationToken ct) =>
+        ResultResponse(await control.GetScenesAsync(channelId, ct));
+
+    /// <summary>The input list.</summary>
+    [HttpGet("inputs")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsInputDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetInputs(Guid channelId, CancellationToken ct) =>
+        ResultResponse(await control.GetInputsAsync(channelId, ct));
+
+    /// <summary>Switch the program scene.</summary>
+    [HttpPost("scene")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SwitchScene(
+        Guid channelId,
+        [FromBody] ObsSceneRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await control.SwitchSceneAsync(channelId, request.Scene, ct));
+
+    /// <summary>Streaming start/stop/toggle (broadcast-impacting).</summary>
+    [HttpPost("streaming")]
+    [RequireAction("obs:control:broadcast")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetStreaming(
+        Guid channelId,
+        [FromBody] ObsToggleRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await control.SetStreamingAsync(channelId, request.Action, ct));
+
+    /// <summary>Recording control (broadcast-impacting).</summary>
+    [HttpPost("recording")]
+    [RequireAction("obs:control:broadcast")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetRecording(
+        Guid channelId,
+        [FromBody] ObsRecordRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await control.SetRecordingAsync(channelId, request.Action, ct));
+
+    /// <summary>Raw OBS-WS pass-through (the full surface; broadcast-tier).</summary>
+    [HttpPost("request")]
+    [RequireAction("obs:control:broadcast")]
+    [ProducesResponseType<StatusResponseDto<ObsResponse>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RawRequest(
+        Guid channelId,
+        [FromBody] ObsRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await control.RequestAsync(channelId, request, ct));
+
     /// <summary>The channel's OBS connection configuration (defaults when none is stored yet).</summary>
     [HttpGet("connection")]
     [RequireAction("obs:config:read")]
