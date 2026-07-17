@@ -14,29 +14,17 @@ what REMAINS.
 
 ---
 
-## 🔧 Backend — genuinely open (being finished now)
+## 🔧 Backend — genuinely open
 
-- [ ] **16. TTS `client_edge` dispatch plane** (`tts.md`) — push a `TtsSpeakPayload` over OverlayHub
-  for `client_edge` channels (widget synthesizes edge-side); flip the new-channel `Mode` default to
-  `client_edge`. *(in flight)*
-- [ ] **ID search/autocomplete endpoints** — backend search for user / custom-data-source / channel
-  id inputs so the frontend pickers have data to autocomplete against. *(in flight)*
-- [ ] **Import — extend beyond StreamElements data** — SE commands+quotes+timers already import.
-  Remaining: whether Streamer.bot exports anything machine-readable we can map, and whether
-  provider **overlays** can import at all (proprietary formats → may be an owner/design call, see
-  below). *(scouting the real surface before building — no blind import)*
-- [ ] **Multi-channel moderation fan-out** (`work`) — one ban/timeout → every platform the viewer
-  chats on. Per-platform routing exists (`ChatPlatformRouter`); the moderation controller path is
-  Twitch-only. The channel-**link** model (how a user's single-provider tenants aggregate) is an
-  owner-design call (below); the fan-out execution is buildable once that's decided.
-- [ ] **Chat live-push (backend half)** — verify `DashboardHub` actually broadcasts
-  `channel.chat.message` live so the dashboard updates without reload; fix if the backend path is
-  missing. *(verifying — may be a pure frontend subscribe/render gap)*
-- [ ] **Analytics chart data** — confirm whether a chart is a pure frontend render of existing
-  series data or needs a new backend time-series endpoint; build the endpoint only if a metric
-  lacks a series. *(verifying)*
-- [ ] **Games vs commands double-fire** — confirm/fix whether one chat message can fire both a game
-  keyword and a command. *(verifying — the clean separation itself is design/frontend, below)*
+**None.** Every buildable backend item is shipped + deployed (git history is the record). Finished
+this session: TTS `client_edge` dispatch plane, id-picker search endpoints (viewer +
+custom-data-source), and the games/commands double-fire fix (an active live round now shadows a
+same-named command). The rest that briefly lived here reclassified after root-causing:
+- **Chat live-push** and **analytics charts** are **frontend-only** — the backend push path is
+  confirmed correct and the daily analytics series already exists (both diagnosed into
+  `handoff/for-frontend.md`).
+- **Import (Streamer.bot / overlays)** and **multi-channel moderation fan-out** are **owner/design
+  calls** (opaque export formats; the channel-link model) — see the design-forks bullet below.
 
 ## 🎨 Frontend track (aaoa) — backend shipped, UI pending (detail in `handoff/for-frontend.md`)
 
@@ -69,6 +57,6 @@ what REMAINS.
 - [ ] **Billing / Stripe** — create the Stripe account + seed `StripePriceId`; then the billing UI (frontend).
 - [ ] **Design forks on shipped backends** (each needs an owner decision before its UI/next slice):
   pipelines 6-surface unification; community reposition (loyalty view vs merge away); pick-lists
-  user-facing rename; games/commands precedence rule; data-sources push-bridge payload contract;
-  federation transport (mTLS/OIDC); multi-channel channel-link model; provider **overlay** import
-  feasibility.
+  user-facing rename; data-sources push-bridge payload contract; federation transport (mTLS/OIDC);
+  multi-channel channel-link model; **import** feasibility for Streamer.bot (`.sb`) exports +
+  provider overlays (opaque/proprietary formats — no clean mapping to our primitives yet).
