@@ -30,6 +30,10 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   webhook form + a pipeline picker. Backend: `InboundWebhookAutomationBridge` + spec `webhooks.md` §3.2.
 - **Done when:** creating an inbound endpoint with a target pipeline, then POSTing to its ingest URL, runs that
   pipeline with the payload variables available.
+- **Also (outbound side):** a new **`send_webhook`** pipeline action now exists — add it to the pipeline builder's
+  block palette. Its config is `endpoint` (an outbound-webhook endpoint id — offer a picker of the channel's
+  outbound endpoints) and optional `event_type` (default `pipeline.send_webhook`). It POSTs the pipeline's current
+  variables to that endpoint. Together with the inbound routing above, webhooks are now wired both directions.
 
 ### 2026-07-17 — TTS: the voices list is now a searchable, paginated, rich catalogue
 - **From:** Stoney_Eagle (via Claude, backend track)
