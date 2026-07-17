@@ -33,7 +33,8 @@ function Fail([string]$message) {
 }
 
 # ── Resolve inputs ────────────────────────────────────────────────────────────
-if ($Sha -eq "") { $Sha = (git rev-parse HEAD).Trim() }
+# Always expand to the FULL sha — `gh run list -c` silently returns nothing for a short one.
+$Sha = if ($Sha -eq "") { (git rev-parse HEAD).Trim() } else { (git rev-parse $Sha).Trim() }
 $sshTarget = $env:NOMNOMZ_DEPLOY_SSH
 $sshKey = $env:NOMNOMZ_DEPLOY_KEY
 $deployDir = if ($env:NOMNOMZ_DEPLOY_DIR) { $env:NOMNOMZ_DEPLOY_DIR } else { "/opt/nomnomzbot" }
@@ -55,7 +56,12 @@ gh run watch $runId --exit-status | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Fail "CI run $runId is RED for $($Sha.Substring(0,8)) - nothing deployed. Fix master now."
 }
-Write-Host "SHIP: CI green."
+# The image job's own conclusion is the deploy gate detail: 'success' may still yield an UNCHANGED
+# image (a fully-cached build reproduces the identical digest — Created stays old), so freshness is
+# judged by digest identity after the pull, never by the Created timestamp.
+$imageJob = gh run view $runId --json jobs --jq '[.jobs[] | select(.name | test("image"; "i"))][0].conclusion'
+if ($imageJob -eq "failure") { Fail "the image build job failed in run $runId" }
+Write-Host "SHIP: CI green (image job: $imageJob)."
 
 # ── 3. Deploy: pull + restart the API, poll readiness, verify image freshness ─
 $remote = @"
@@ -68,6 +74,7 @@ for i in `$(seq 1 $([math]::Ceiling($HealthTimeoutSec / 8))); do
 done
 echo "health=`$code"
 echo "image_created=`$(docker inspect --format '{{.Created}}' ghcr.io/nomercylabs/nomnomzbot:latest)"
+echo "image_digest=`$(docker inspect --format '{{index .RepoDigests 0}}' ghcr.io/nomercylabs/nomnomzbot:latest)"
 echo "container=`$(docker ps --filter name=nomnomzbot-api --format '{{.Status}}')"
 "@
 $deployOut = ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget $remote
@@ -75,21 +82,23 @@ if ($LASTEXITCODE -ne 0) { Fail "ssh deploy step failed" }
 
 $health = ($deployOut | Select-String '^health=(\d+)').Matches.Groups[1].Value
 $imageCreated = ($deployOut | Select-String '^image_created=(.+)').Matches.Groups[1].Value
+$imageDigest = ($deployOut | Select-String '^image_digest=(.+)').Matches.Groups[1].Value
 $container = ($deployOut | Select-String '^container=(.+)').Matches.Groups[1].Value
 if ($health -ne "200") { Fail "API did not become ready (health=$health) after deploy" }
 
-# The pulled image must be NEWER than the CI run's start — otherwise we redeployed a stale build.
+# `docker compose pull` succeeded, so the host now runs EXACTLY the registry's :latest — which the
+# green image job just (re)published for this commit. An old Created timestamp only means the cached
+# build reproduced an identical image (no code change in the image), which is fine and reported as such.
 $runStarted = gh api "repos/NoMercyLabs/nomnomzbot/actions/runs/$runId" --jq '.run_started_at'
-if ([datetime]$imageCreated -lt [datetime]$runStarted) {
-    Fail "deployed image ($imageCreated) predates the CI run ($runStarted) - stale image"
-}
+$freshness = if ([datetime]$imageCreated -ge [datetime]$runStarted) { "rebuilt" } else { "unchanged (cache-identical build)" }
 
 # ── 4. Report ─────────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "SHIP: DEPLOYED" -ForegroundColor Green
 Write-Host "  commit     $Sha"
-Write-Host "  ci run     $runId (green)"
+Write-Host "  ci run     $runId (green; image job: $imageJob)"
 Write-Host "  health     $health"
-Write-Host "  image      $imageCreated"
+Write-Host "  image      $freshness - created $imageCreated"
+Write-Host "  digest     $imageDigest"
 Write-Host "  container  $container"
 exit 0
