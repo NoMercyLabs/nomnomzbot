@@ -109,12 +109,12 @@ public sealed class BridgeObsTransport : IObsTransport
                 "OBS_BRIDGE_OFFLINE"
             );
 
-        Task<ObsResponse> ack = _commands.BeginAsync(commandId);
+        Task<ObsBridgeAck> ack = _commands.BeginAsync(commandId);
         try
         {
             await _pusher.PushExecuteAsync(leader, commandId, payload, ct);
-            ObsResponse response = await ack.WaitAsync(CommandTimeout, _clock, ct);
-            return Result.Success(response);
+            ObsBridgeAck answered = await ack.WaitAsync(CommandTimeout, _clock, ct);
+            return Result.Success(ToObsResponse(answered));
         }
         catch (TimeoutException)
         {
@@ -131,5 +131,36 @@ public sealed class BridgeObsTransport : IObsTransport
                 "OBS_BRIDGE_OFFLINE"
             );
         }
+    }
+
+    private static ObsResponse ToObsResponse(ObsBridgeAck ack)
+    {
+        Dictionary<string, object?>? data = null;
+        if (!string.IsNullOrWhiteSpace(ack.DataJson))
+        {
+            try
+            {
+                using JsonDocument doc = JsonDocument.Parse(ack.DataJson);
+                if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    data = new Dictionary<string, object?>();
+                    foreach (JsonProperty property in doc.RootElement.EnumerateObject())
+                        data[property.Name] = property.Value.ValueKind switch
+                        {
+                            JsonValueKind.String => property.Value.GetString(),
+                            JsonValueKind.Number => property.Value.GetDouble(),
+                            JsonValueKind.True => true,
+                            JsonValueKind.False => false,
+                            JsonValueKind.Null => null,
+                            _ => property.Value.GetRawText(),
+                        };
+                }
+            }
+            catch (JsonException)
+            {
+                // A malformed ack still settles the command as-is.
+            }
+        }
+        return new ObsResponse(ack.Ok, data, ack.Error);
     }
 }

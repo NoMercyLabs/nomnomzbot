@@ -9,39 +9,43 @@
 // -----------------------------------------------------------------------------
 
 using System.Collections.Concurrent;
-using NomNomzBot.Application.Obs.Dtos;
 
 namespace NomNomzBot.Infrastructure.Obs.Bridge;
 
+/// <summary>One bridge ack, raw off the wire — each transport shapes it for its own protocol.</summary>
+public sealed record ObsBridgeAck(bool Ok, string? DataJson, string? Error);
+
 /// <summary>
-/// In-flight bridge commands (obs-control.md D3): the transport begins a command, the hub's
-/// <c>AckCommand</c> completes it. Per-node by design — the ack always lands on the node that pushed
+/// In-flight bridge commands (obs-control.md D3): a transport begins a command, the hub's
+/// <c>AckCommand</c> completes it. Shared by the OBS AND VTS bridge transports (one relay carries
+/// both — vtube-studio.md D1). Per-node by design — the ack always lands on the node that pushed
 /// (the bridge answers over its own socket). A duplicate ack for an unknown/settled id is a no-op
 /// (idempotent CommandId).
 /// </summary>
 public sealed class ObsBridgeCommandBook
 {
-    private readonly ConcurrentDictionary<Guid, TaskCompletionSource<ObsResponse>> _pending = new();
+    private readonly ConcurrentDictionary<Guid, TaskCompletionSource<ObsBridgeAck>> _pending =
+        new();
 
-    public Task<ObsResponse> BeginAsync(Guid commandId)
+    public Task<ObsBridgeAck> BeginAsync(Guid commandId)
     {
-        TaskCompletionSource<ObsResponse> tcs = new(
+        TaskCompletionSource<ObsBridgeAck> tcs = new(
             TaskCreationOptions.RunContinuationsAsynchronously
         );
         _pending[commandId] = tcs;
         return tcs.Task;
     }
 
-    public bool Complete(Guid commandId, ObsResponse response)
+    public bool Complete(Guid commandId, ObsBridgeAck ack)
     {
-        if (!_pending.TryRemove(commandId, out TaskCompletionSource<ObsResponse>? tcs))
+        if (!_pending.TryRemove(commandId, out TaskCompletionSource<ObsBridgeAck>? tcs))
             return false;
-        return tcs.TrySetResult(response);
+        return tcs.TrySetResult(ack);
     }
 
     public void Abandon(Guid commandId)
     {
-        if (_pending.TryRemove(commandId, out TaskCompletionSource<ObsResponse>? tcs))
+        if (_pending.TryRemove(commandId, out TaskCompletionSource<ObsBridgeAck>? tcs))
             tcs.TrySetCanceled();
     }
 }

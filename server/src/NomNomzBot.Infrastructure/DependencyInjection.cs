@@ -861,12 +861,14 @@ public static class DependencyInjection
         >();
         services.AddSingleton<Obs.Bridge.ObsBridgeCommandBook>();
 
-        // VTube Studio (vtube-studio.md §6): the direct transport holds per-channel VTS sockets
-        // (singleton); the interactive authorizer is scoped (db + connection service). The bridge
-        // leg joins with its slice; until then the direct transport IS the IVtsTransport.
+        // VTube Studio (vtube-studio.md §6): the direct transport holds per-channel VTS sockets and
+        // the bridge one rides the OBS relay's leader (one relay carries both — D1) — behind a
+        // per-channel Mode router that IS the IVtsTransport. The interactive authorizer is scoped.
+        services.AddSingleton<Vts.Transport.DirectVtsTransport>();
+        services.AddSingleton<Vts.Transport.BridgeVtsTransport>();
         services.AddSingleton<
             Application.Vts.Services.IVtsTransport,
-            Vts.Transport.DirectVtsTransport
+            Vts.Transport.VtsTransportRouter
         >();
         services.AddScoped<
             Application.Vts.Services.IVtsPluginAuthorizer,

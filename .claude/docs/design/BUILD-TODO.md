@@ -29,12 +29,12 @@ what REMAINS.
   backend is complete: P.14 config + sealed password custody, direct OBS-WS v5 transport, all 19
   pipeline actions, state/control routes, BridgeToken-authed relay hub with leader election,
   `BridgeObsTransport`, and the `obs.*` trigger surface.
-- [ ] **10. VTube Studio** (`vtube-studio.md`) — remaining: the bridge leg over the OBS relay
-  (`BridgeVtsTransport` + a `VtsTransportRouter` on the row's `Mode`, extending the relay payload
-  kind) and the frontend (config page with the authorize button, palette + trigger-picker entries).
-  *(Built: P.19 config + sealed plugin-token custody + keys, the direct VTS transport with the
-  token replay + interactive authorize flow, `IVtsControlService`, all 6 `vts_*` actions,
-  inventory/control routes, and the `vts.*` trigger surface.)*
+- [ ] **10. VTube Studio** (`vtube-studio.md`) — **(frontend — handoff 2026-07-17)** the VTS config
+  page (mode/endpoint, the authorize button, inventory pickers) and the palette/trigger-picker
+  entries; the `/obs-bridge` page additionally handles the `vts_request` payload kind +
+  `ForwardVtsEvent`. The backend is complete: P.19 config + sealed plugin-token custody, direct
+  transport with token replay + interactive authorize, all 6 `vts_*` actions, inventory/control
+  routes, `vts.*` triggers, and the bridge leg over the shared OBS relay.
 - [ ] **15. Advanced moderation** (`moderation.md`) — remaining: wire the escalation invoker (the
   chat-filter/automod execution path that calls `ResolveAndRecordAsync` when a rule's action is
   `escalate` — the filter execution path itself is not built yet; it belongs with the J.6

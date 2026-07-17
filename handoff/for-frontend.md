@@ -16,6 +16,30 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — VTube Studio: config page + authorize button + palette entries
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** the whole VTS backend exists (vtube-studio.md). Frontend pieces:
+  1. **Config page** under `channels/{channelId}/vts`: `GET/PUT connection` (mode `direct|bridge`,
+     endpoint default `ws://localhost:8001`, `isEnabled`; show `hasPluginToken` + `status`
+     `unauthorized|authorized|connected|error` as a state chip), **`POST connection/authorize`** —
+     a button that tells the streamer "click Allow in VTube Studio" and waits (the call blocks up
+     to 60s for the in-VTS popup; surface grant/deny/timeout messages),
+     `POST connection/rotate-bridge-token`, `GET inventory` (models/hotkeys/expressions for
+     pickers), `POST control` (`{requestType, payloadJson}`, `vts:control`).
+  2. **The `/obs-bridge` page** (same page as OBS) additionally executes `ExecuteObsRequest`
+     payloads with `kind: "vts_request"` (`{requestType, data}`) against local
+     `ws://localhost:8001` using the VTS API envelope, acks with the response `data` JSON, and
+     forwards subscribed VTS events via `ForwardVtsEvent(eventType, payloadJson)`.
+  3. **Palette + trigger picker**: 6 `vts_*` actions (vts_load_model, vts_trigger_hotkey,
+     vts_set_expression, vts_move_model, vts_color_tint, vts_request — configs in vtube-studio.md
+     §4) and the `vts.*` presets already in the catalog endpoint.
+- **Why:** BUILD-TODO item 10 (Streamer.bot parity) — VTuber model control from pipelines, chat,
+  and Stream Deck.
+- **Where:** `server/openapi/v1.json` (refreshed); spec `vtube-studio.md`.
+- **Done when:** on dev with a real VTube Studio: the authorize button lands a token after clicking
+  Allow (status flips to authorized), a `vts_trigger_hotkey` pipeline block fires a hotkey, and a
+  `vts.ModelLoadedEvent` response triggers on a model swap.
+
 ### 2026-07-17 — OBS control: config page + browser-source bridge page + palette entries
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** the whole OBS backend exists (obs-control.md). Three frontend pieces:

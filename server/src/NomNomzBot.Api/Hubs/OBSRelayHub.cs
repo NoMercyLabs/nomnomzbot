@@ -109,39 +109,12 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
         await base.OnDisconnectedAsync(exception);
     }
 
-    /// <summary>The bridge answers one pushed command: same id, the OBS outcome as JSON.</summary>
+    /// <summary>The bridge answers one pushed command: same id, the raw outcome — OBS or VTS alike.</summary>
     public Task AckCommand(Guid commandId, bool ok, string? responseDataJson, string? error)
     {
         if (!ConnectionChannels.ContainsKey(Context.ConnectionId))
             return Task.CompletedTask; // never authenticated — ignore
-
-        Dictionary<string, object?>? data = null;
-        if (!string.IsNullOrWhiteSpace(responseDataJson))
-        {
-            try
-            {
-                using JsonDocument doc = JsonDocument.Parse(responseDataJson);
-                if (doc.RootElement.ValueKind == JsonValueKind.Object)
-                {
-                    data = new Dictionary<string, object?>();
-                    foreach (JsonProperty property in doc.RootElement.EnumerateObject())
-                        data[property.Name] = property.Value.ValueKind switch
-                        {
-                            JsonValueKind.String => property.Value.GetString(),
-                            JsonValueKind.Number => property.Value.GetDouble(),
-                            JsonValueKind.True => true,
-                            JsonValueKind.False => false,
-                            JsonValueKind.Null => null,
-                            _ => property.Value.GetRawText(),
-                        };
-                }
-            }
-            catch (JsonException)
-            {
-                // A malformed ack still settles the command as-is.
-            }
-        }
-        _commands.Complete(commandId, new ObsResponse(ok, data, error));
+        _commands.Complete(commandId, new ObsBridgeAck(ok, responseDataJson, error));
         return Task.CompletedTask;
     }
 
@@ -160,6 +133,25 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
                 OccurredAt = _clock.GetUtcNow(),
                 ObsEventType = eventType,
                 DataJson = eventDataJson ?? "{}",
+            }
+        );
+    }
+
+    /// <summary>The LEADER bridge forwards each VTS event it sees (one relay carries both — vtube-studio.md D1).</summary>
+    public async Task ForwardVtsEvent(string eventType, string? payloadJson)
+    {
+        if (!ConnectionChannels.TryGetValue(Context.ConnectionId, out Guid broadcasterId))
+            return; // never authenticated — ignore
+        if (string.IsNullOrWhiteSpace(eventType))
+            return;
+
+        await _eventBus.PublishAsync(
+            new NomNomzBot.Domain.Vts.Events.VtsEventReceived
+            {
+                BroadcasterId = broadcasterId,
+                OccurredAt = _clock.GetUtcNow(),
+                EventType = eventType,
+                PayloadJson = payloadJson ?? "{}",
             }
         );
     }

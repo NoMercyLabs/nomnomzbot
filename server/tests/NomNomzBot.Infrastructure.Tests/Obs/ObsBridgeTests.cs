@@ -145,10 +145,10 @@ public sealed class ObsBridgeTests
             .Returns(ci =>
             {
                 pushedCommand = ci.ArgAt<Guid>(1);
-                // The bridge acks out-of-band, like the hub would.
+                // The bridge acks out-of-band, like the hub would — the raw wire shape.
                 commands.Complete(
                     pushedCommand,
-                    new ObsResponse(true, new Dictionary<string, object?> { ["ok"] = true }, null)
+                    new ObsBridgeAck(true, """{ "ok": true }""", null)
                 );
                 return Task.CompletedTask;
             });
@@ -171,7 +171,7 @@ public sealed class ObsBridgeTests
                 Arg.Any<CancellationToken>()
             );
         // A duplicate ack for a settled id is a no-op (idempotent CommandId).
-        commands.Complete(pushedCommand, new ObsResponse(false, null, "late")).Should().BeFalse();
+        commands.Complete(pushedCommand, new ObsBridgeAck(false, null, "late")).Should().BeFalse();
     }
 
     [Fact]
