@@ -12,8 +12,11 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Moderation.Events;
+using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Moderation;
 using NSubstitute;
 
@@ -31,9 +34,12 @@ public sealed class SharedBanServiceTests
     private static readonly Guid Partner = Guid.Parse("0192a000-0000-7000-8000-00000000ba02");
     private static readonly Guid Actor = Guid.Parse("0192a000-0000-7000-8000-00000000ba03");
 
-    private static (SharedBanService Sut, ModerationServiceTestDbContext Db) Build(
-        int actorLevel = 20
-    )
+    private static (
+        SharedBanService Sut,
+        ModerationServiceTestDbContext Db,
+        SharedChatSessionTracker Sessions,
+        ITwitchModerationApi Twitch
+    ) Build(int actorLevel = 20)
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         IRoleResolver roles = Substitute.For<IRoleResolver>();
@@ -44,7 +50,21 @@ public sealed class SharedBanServiceTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success(actorLevel));
-        return (new SharedBanService(db, roles), db);
+        SharedChatSessionTracker sessions = new();
+        ITwitchModerationApi twitch = Substitute.For<ITwitchModerationApi>();
+        twitch
+            .BanUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchBanResult("b", "b", "troll-42", DateTimeOffset.UnixEpoch, null)
+                )
+            );
+        return (new SharedBanService(db, roles, sessions, twitch), db, sessions, twitch);
     }
 
     private static async Task SeedChannelsAsync(ModerationServiceTestDbContext db)
@@ -67,7 +87,7 @@ public sealed class SharedBanServiceTests
     [Fact]
     public async Task A_channel_with_no_row_reads_as_the_safe_defaults()
     {
-        (SharedBanService sut, ModerationServiceTestDbContext db) = Build();
+        (SharedBanService sut, ModerationServiceTestDbContext db, _, _) = Build();
         await SeedChannelsAsync(db);
 
         Result<SharedBanSettingsDto> result = await sut.GetSettingsAsync(Channel);
@@ -81,7 +101,7 @@ public sealed class SharedBanServiceTests
     [Fact]
     public async Task Save_upserts_the_policy_and_a_second_save_updates_the_same_row()
     {
-        (SharedBanService sut, ModerationServiceTestDbContext db) = Build();
+        (SharedBanService sut, ModerationServiceTestDbContext db, _, _) = Build();
         await SeedChannelsAsync(db);
 
         Result<SharedBanSettingsDto> first = await sut.SaveSettingsAsync(
@@ -107,7 +127,7 @@ public sealed class SharedBanServiceTests
     [Fact]
     public async Task Add_trusted_channel_persists_and_readds_idempotently()
     {
-        (SharedBanService sut, ModerationServiceTestDbContext db) = Build();
+        (SharedBanService sut, ModerationServiceTestDbContext db, _, _) = Build();
         await SeedChannelsAsync(db);
 
         Result<SharedBanTrustedChannelDto> added = await sut.AddTrustedChannelAsync(
@@ -137,7 +157,7 @@ public sealed class SharedBanServiceTests
     [Fact]
     public async Task Add_refuses_self_trust_and_unknown_channels()
     {
-        (SharedBanService sut, ModerationServiceTestDbContext db) = Build();
+        (SharedBanService sut, ModerationServiceTestDbContext db, _, _) = Build();
         await SeedChannelsAsync(db);
 
         (await sut.AddTrustedChannelAsync(Channel, Actor, Channel))
@@ -151,7 +171,7 @@ public sealed class SharedBanServiceTests
     [Fact]
     public async Task Remove_deletes_the_entry_and_absence_is_not_found()
     {
-        (SharedBanService sut, ModerationServiceTestDbContext db) = Build();
+        (SharedBanService sut, ModerationServiceTestDbContext db, _, _) = Build();
         await SeedChannelsAsync(db);
         await sut.AddTrustedChannelAsync(Channel, Actor, Partner);
 
@@ -163,10 +183,146 @@ public sealed class SharedBanServiceTests
             .Be("NOT_FOUND");
     }
 
+    // ─── Inbound apply (the trust predicate + the ban itself) ────────────────
+
+    private static SharedChatBanIssuedEvent Inbound(string sessionId = "session-1") =>
+        new()
+        {
+            BroadcasterId = Partner,
+            SharedChatSessionId = sessionId,
+            OriginChannelId = Partner, // the PARTNER issued the ban; Channel decides whether to apply
+            TargetTwitchUserId = "troll-42",
+            TargetDisplayName = "Troll",
+            Reason = "spam",
+        };
+
+    private static async Task OptInAndTrustAsync(SharedBanService sut)
+    {
+        await sut.SaveSettingsAsync(
+            Channel,
+            Actor,
+            new SaveSharedBanSettingsRequest(AcceptSharedChatBans: true, ShareOutgoingBans: false)
+        );
+        await sut.AddTrustedChannelAsync(Channel, Actor, Partner);
+    }
+
+    [Fact]
+    public async Task Inbound_apply_bans_records_provenance_when_the_full_predicate_holds()
+    {
+        (
+            SharedBanService sut,
+            ModerationServiceTestDbContext db,
+            SharedChatSessionTracker sessions,
+            ITwitchModerationApi twitch
+        ) = Build();
+        await SeedChannelsAsync(db);
+        await OptInAndTrustAsync(sut);
+        sessions.SetSession(Channel, new SharedChatSessionInfo("session-1", "host-1", ["a", "b"]));
+
+        Result<SharedBanApplicationResult> result = await sut.ApplyInboundSharedBanAsync(
+            Channel,
+            Inbound()
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Applied.Should().BeTrue(result.Value.SkippedReason);
+        result.Value.ActionId.Should().NotBeNull();
+
+        // The Twitch ban ran on the PARTNER channel's own tenant token.
+        await twitch
+            .Received(1)
+            .BanUserAsync(Channel, "troll-42", "spam", Arg.Any<CancellationToken>());
+
+        // The provenance row: same moderation_action record type, carrying WHERE the ban came from.
+        Domain.Platform.Entities.Record record = await db.Records.SingleAsync(r =>
+            r.BroadcasterId == Channel && r.RecordType == "moderation_action"
+        );
+        record.Data.Should().Contain("\"Origin\":\"federation\"");
+        record.Data.Should().Contain(Partner.ToString());
+        record.Data.Should().Contain("troll-42");
+    }
+
+    [Fact]
+    public async Task Inbound_apply_skips_without_acceptance_trust_or_a_matching_session()
+    {
+        (
+            SharedBanService sut,
+            ModerationServiceTestDbContext db,
+            SharedChatSessionTracker sessions,
+            ITwitchModerationApi twitch
+        ) = Build();
+        await SeedChannelsAsync(db);
+
+        // 1. No settings row (accept defaults to OFF).
+        (await sut.ApplyInboundSharedBanAsync(Channel, Inbound()))
+            .Value.SkippedReason.Should()
+            .Be("not_accepting");
+
+        // 2. Accepting, but the origin is not on the trust list.
+        await sut.SaveSettingsAsync(Channel, Actor, new SaveSharedBanSettingsRequest(true, false));
+        (await sut.ApplyInboundSharedBanAsync(Channel, Inbound()))
+            .Value.SkippedReason.Should()
+            .Be("origin_not_trusted");
+
+        // 3. Trusted, but the partner is not in that shared-chat session right now.
+        await sut.AddTrustedChannelAsync(Channel, Actor, Partner);
+        (await sut.ApplyInboundSharedBanAsync(Channel, Inbound()))
+            .Value.SkippedReason.Should()
+            .Be("no_shared_session");
+        sessions.SetSession(Channel, new SharedChatSessionInfo("OTHER-session", "host-1", []));
+        (await sut.ApplyInboundSharedBanAsync(Channel, Inbound()))
+            .Value.SkippedReason.Should()
+            .Be("no_shared_session");
+
+        // No predicate ever passed — Twitch was never called, nothing recorded.
+        await twitch
+            .DidNotReceive()
+            .BanUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        (await db.Records.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Inbound_apply_reports_a_twitch_failure_without_recording()
+    {
+        (
+            SharedBanService sut,
+            ModerationServiceTestDbContext db,
+            SharedChatSessionTracker sessions,
+            ITwitchModerationApi twitch
+        ) = Build();
+        await SeedChannelsAsync(db);
+        await OptInAndTrustAsync(sut);
+        sessions.SetSession(Channel, new SharedChatSessionInfo("session-1", "host-1", []));
+        twitch
+            .BanUserAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<TwitchBanResult>("missing scope", "TWITCH_MISSING_SCOPE"));
+
+        Result<SharedBanApplicationResult> result = await sut.ApplyInboundSharedBanAsync(
+            Channel,
+            Inbound()
+        );
+
+        result.Value.Applied.Should().BeFalse();
+        result.Value.SkippedReason.Should().Be("twitch_ban_failed:TWITCH_MISSING_SCOPE");
+        (await db.Records.CountAsync())
+            .Should()
+            .Be(0, "no ban happened, so nothing may be recorded");
+    }
+
     [Fact]
     public async Task Writes_refuse_an_actor_below_the_supermod_floor_and_touch_nothing()
     {
-        (SharedBanService sut, ModerationServiceTestDbContext db) = Build(actorLevel: 10); // Moderator
+        (SharedBanService sut, ModerationServiceTestDbContext db, _, _) = Build(actorLevel: 10); // Moderator
         await SeedChannelsAsync(db);
 
         Result<SharedBanSettingsDto> save = await sut.SaveSettingsAsync(

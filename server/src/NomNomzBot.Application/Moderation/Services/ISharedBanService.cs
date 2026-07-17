@@ -51,4 +51,18 @@ public interface ISharedBanService
         Guid trustedChannelId,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Applies one inbound shared-chat ban to <paramref name="partnerBroadcasterId"/> IFF the partner
+    /// opted in (<c>AcceptSharedChatBans</c>), trusts the origin (J.9a), and is verified to be in the
+    /// SAME active shared-chat session — the predicate is enforced HERE, never by the caller. On apply:
+    /// bans via the partner's own tenant token and records a <c>ModerationAction(ban,
+    /// origin=federation, OriginChannelId)</c> row. A failed predicate is a truthful
+    /// <c>Skipped(reason)</c>, never an error.
+    /// </summary>
+    Task<Result<SharedBanApplicationResult>> ApplyInboundSharedBanAsync(
+        Guid partnerBroadcasterId,
+        NomNomzBot.Domain.Moderation.Events.SharedChatBanIssuedEvent inbound,
+        CancellationToken ct = default
+    );
 }

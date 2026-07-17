@@ -1001,6 +1001,9 @@ public static class DependencyInjection
         // outlive one request so a channel without channel:bot / bot-mod doesn't pay a doomed extra
         // Helix call on every message.
         services.AddSingleton<IHelixBadgeSendGate, HelixBadgeSendGate>();
+        // Live shared-chat session state (singleton): the shared-ban trust web's "active session"
+        // precondition — fed by the shared_chat begin/update/end handlers, read at ban time.
+        services.AddSingleton<ISharedChatSessionTracker, SharedChatSessionTracker>();
         services.AddScoped<IChatPlatform, HelixChatProvider>();
         services.AddScoped<IChatPlatform, YouTubeChatPlatform>();
         services.AddScoped<IChatPlatform, KickChatPlatform>();

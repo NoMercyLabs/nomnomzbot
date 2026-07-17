@@ -33,3 +33,6 @@ public sealed record SharedBanTrustedChannelDto(
 
 /// <summary>Adds one partner to the inbound-ban trust list.</summary>
 public sealed record AddTrustedChannelRequest(Guid TrustedChannelId);
+
+/// <summary>The outcome of one inbound shared-ban application attempt (moderation.md §3.5).</summary>
+public sealed record SharedBanApplicationResult(bool Applied, string? SkippedReason, int? ActionId);
