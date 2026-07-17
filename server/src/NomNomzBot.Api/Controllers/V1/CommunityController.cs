@@ -21,6 +21,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
@@ -64,6 +65,30 @@ public class CommunityController : BaseController
         _timeProvider = timeProvider;
         _communityStanding = communityStanding;
         _currentUser = currentUser;
+    }
+
+    // ── Viewer analytics lookup ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Loads the per-viewer-per-channel <see cref="ViewerProfile"/> aggregates (watch seconds, commands used)
+    /// for a page of Twitch user ids, keyed by <see cref="ViewerProfile.ViewerTwitchUserId"/>. A viewer with no
+    /// profile row simply has no entry — the caller keeps 0/0 (truthful: no analytics folded yet).
+    /// </summary>
+    private async Task<Dictionary<string, ViewerProfile>> LoadViewerProfilesAsync(
+        Guid broadcasterId,
+        IReadOnlyCollection<string> twitchUserIds,
+        CancellationToken ct
+    )
+    {
+        if (twitchUserIds.Count == 0)
+            return [];
+
+        return await _db
+            .ViewerProfiles.AsNoTracking()
+            .Where(p =>
+                p.BroadcasterId == broadcasterId && twitchUserIds.Contains(p.ViewerTwitchUserId)
+            )
+            .ToDictionaryAsync(p => p.ViewerTwitchUserId, ct);
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -193,11 +218,18 @@ public class CommunityController : BaseController
                 })
                 .ToDictionaryAsync(c => c.UserId, ct);
 
+            Dictionary<string, ViewerProfile> followerProfiles = await LoadViewerProfilesAsync(
+                broadcasterId,
+                followerIds,
+                ct
+            );
+
             List<CommunityUserDto> followerItems = followers
                 .Select(f =>
                 {
                     users.TryGetValue(f.UserId, out User? user);
                     chatStats.TryGetValue(f.UserId, out var stats);
+                    followerProfiles.TryGetValue(f.UserId, out ViewerProfile? profile);
 
                     return new CommunityUserDto(
                         f.UserId,
@@ -205,8 +237,8 @@ public class CommunityController : BaseController
                         user?.DisplayName ?? f.UserName,
                         user?.ProfileImageUrl,
                         stats?.MessageCount ?? 0,
-                        0,
-                        0,
+                        profile is null ? 0 : (int)(profile.TotalWatchSeconds / 3600),
+                        profile is null ? 0 : (int)profile.TotalCommandsUsed,
                         "viewer",
                         false,
                         f.FollowedAt.UtcDateTime,
@@ -262,6 +294,12 @@ public class CommunityController : BaseController
                 })
                 .ToDictionaryAsync(c => c.UserId, ct);
 
+            Dictionary<string, ViewerProfile> vipProfiles = await LoadViewerProfilesAsync(
+                broadcasterId,
+                vipIds,
+                ct
+            );
+
             bool vipHasMore = pagedVips.Count > request.Take;
 
             List<CommunityUserDto> vipItems = pagedVips
@@ -270,14 +308,15 @@ public class CommunityController : BaseController
                 {
                     vipUsers.TryGetValue(v.UserId, out User? user);
                     vipChatStats.TryGetValue(v.UserId, out var stats);
+                    vipProfiles.TryGetValue(v.UserId, out ViewerProfile? profile);
                     return new CommunityUserDto(
                         v.UserId,
                         user?.Username ?? v.UserLogin,
                         user?.DisplayName ?? v.UserName,
                         user?.ProfileImageUrl,
                         stats?.MessageCount ?? 0,
-                        0,
-                        0,
+                        profile is null ? 0 : (int)(profile.TotalWatchSeconds / 3600),
+                        profile is null ? 0 : (int)profile.TotalCommandsUsed,
                         "vip",
                         false,
                         stats?.FirstSeen
@@ -373,12 +412,19 @@ public class CommunityController : BaseController
             .Select(c => c.Key.Substring(4))
             .ToHashSetAsync(ct);
 
+        Dictionary<string, ViewerProfile> viewerProfiles = await LoadViewerProfilesAsync(
+            broadcasterId,
+            pagedIds,
+            ct
+        );
+
         List<CommunityUserDto> items = pagedIds
             .Take(request.Take)
             .Select(userId =>
             {
                 users2.TryGetValue(userId, out User? user);
                 chatStats2.TryGetValue(userId, out var stats);
+                viewerProfiles.TryGetValue(userId, out ViewerProfile? profile);
 
                 string trustLevel =
                     trustConfigs.TryGetValue($"trust:{userId}", out string? t) ? t
@@ -393,8 +439,8 @@ public class CommunityController : BaseController
                     user?.DisplayName ?? "",
                     user?.ProfileImageUrl,
                     stats?.MessageCount ?? 0,
-                    0,
-                    0,
+                    profile is null ? 0 : (int)(profile.TotalWatchSeconds / 3600),
+                    profile is null ? 0 : (int)profile.TotalCommandsUsed,
                     trustLevel,
                     isBanned,
                     stats?.FirstSeen ?? user?.CreatedAt ?? _timeProvider.GetUtcNow().UtcDateTime,
@@ -607,6 +653,13 @@ public class CommunityController : BaseController
 
         bool isBanned = banConfig is not null;
 
+        ViewerProfile? profile = await _db
+            .ViewerProfiles.AsNoTracking()
+            .FirstOrDefaultAsync(
+                p => p.BroadcasterId == broadcasterId && p.ViewerTwitchUserId == userId,
+                ct
+            );
+
         List<BanRecordDto> banHistory = [];
         if (banConfig?.Value is not null)
         {
@@ -631,8 +684,8 @@ public class CommunityController : BaseController
             user.DisplayName,
             user.ProfileImageUrl,
             messageStats?.Count ?? 0,
-            0,
-            0,
+            profile is null ? 0 : (int)(profile.TotalWatchSeconds / 3600),
+            profile is null ? 0 : (int)profile.TotalCommandsUsed,
             trustLevel,
             isBanned,
             messageStats?.FirstSeen ?? user.CreatedAt,
