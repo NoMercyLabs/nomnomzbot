@@ -16,6 +16,35 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Games vs commands: build the missing live-games UI + clarify the boundary
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **Diagnosis:** "games and commands overlap" is mostly a UI/mental-model gap — the backend is separated, but
+  the dashboard hides half of it:
+  1. **The "Games" page today only tunes the instant economy minigames** (coinflip/dice/slots → `GameConfig`
+     via `/economy/games`). Those are actually builtin *commands* under the hood, configured as "games".
+  2. **The live overlay games (drop/raffle/heist/crash) have NO dashboard page at all** — full backend
+     (`GameSessionsController` at `/games/sessions`, `LiveGameCatalog`, `start_live_game` pipeline action) but
+     zero UI. A streamer can only launch one by hand-authoring a pipeline/timer. **This is the biggest gap.**
+- **What to build (frontend):**
+  1. A **live-games surface** on the Games page: list the catalog (drop/raffle/heist/crash with their
+     overlay widget), configure each (`GameConfig`: min/max bet, cooldown, 18+), **start a round** (`POST
+     /games/sessions`), and show the **active session** + participants live. This is the flashy half that's
+     currently invisible.
+  2. **Unify the mental model on ONE Games page**: a "Gambling minigames" section (instant, `!coinflip`-style)
+     and an "Interactive overlay games" section (live, join-by-keyword). Make clear instant games ARE commands
+     you tune here; live games are started (by you/a command/timer) and joined by viewers with a keyword.
+  3. Surface each live game's **join keyword** (`!drop` etc.) read-only so streamers know it's reserved.
+- **Known backend edge case (design call, NOT yet fixed):** `ChatMessageHandler` and `LiveGameInputListener`
+  both consume chat independently, so during an active round a custom command named `drop`/`raffle`/etc. would
+  double-fire (command + game-join). The fix is a *precedence rule* (does the active game-join win, or the
+  command?) — NOT a blanket keyword reservation, because a streamer may legitimately want a `!drop` command
+  that *starts* the drop game. Flagged for a decision; left unbuilt so we don't block a valid pattern.
+- **Owner design note:** the cooldown/permission fields are duplicated on `Command` vs `GameConfig` for instant
+  games (only `GameConfig` honored). Long-term we may want to drop the dead command-side knobs — flagging, not
+  changing.
+- **Done when:** the Games page lets a streamer see/configure/start live overlay games and see an active
+  session, and it's clear what's a command vs a game.
+
 ### 2026-07-17 — Pick lists: make the feature discoverable + reconsider the name (UX rework)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **Context/diagnosis:** "pick lists makes no sense" is a *discoverability + naming* problem, not a broken feature.
