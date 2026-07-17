@@ -73,6 +73,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState> ModerationEscalationStates =>
         Set<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ChatFilter> ChatFilters =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ChatFilter>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         Set<NomNomzBot.Domain.Community.Entities.ChatPoll>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

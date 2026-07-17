@@ -134,6 +134,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         // The escalation ladder (J.10/J.11) — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy),
         typeof(NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState),
+        // The custom chat filters (J.6) — nav-free, convention-mapped.
+        typeof(NomNomzBot.Domain.Moderation.Entities.ChatFilter),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -173,6 +175,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         Set<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState> ModerationEscalationStates =>
         Set<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ChatFilter> ChatFilters =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ChatFilter>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

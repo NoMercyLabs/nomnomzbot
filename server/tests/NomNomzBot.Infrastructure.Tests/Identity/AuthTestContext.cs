@@ -167,6 +167,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState> ModerationEscalationStates =>
         Set<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ChatFilter> ChatFilters =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         Set<NomNomzBot.Domain.Community.Entities.ChatPoll>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

@@ -149,6 +149,8 @@ internal sealed class MediaShareTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState> ModerationEscalationStates =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ChatFilter> ChatFilters =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

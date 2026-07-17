@@ -5889,6 +5889,71 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("ChannelModerationStandings");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ChatFilter", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ExemptMinRoleLevel")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FilterType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsCaseSensitive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LinkPolicyJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("MatchCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Pattern")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TermsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("TimeoutSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "IsEnabled");
+
+                    b.ToTable("ChatFilters");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy", b =>
                 {
                     b.Property<Guid>("Id")
