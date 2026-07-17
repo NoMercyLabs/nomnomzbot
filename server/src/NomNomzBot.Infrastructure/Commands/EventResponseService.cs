@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -23,11 +24,17 @@ public class EventResponseService : IEventResponseService
 {
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
+    private readonly IBillingTierService _tiers;
 
-    public EventResponseService(IApplicationDbContext db, IEventBus eventBus)
+    public EventResponseService(
+        IApplicationDbContext db,
+        IEventBus eventBus,
+        IBillingTierService tiers
+    )
     {
         _db = db;
         _eventBus = eventBus;
+        _tiers = tiers;
     }
 
     // The canonical set of events a streamer can configure responses for — sourced from the preset
@@ -133,6 +140,30 @@ public class EventResponseService : IEventResponseService
             e => e.BroadcasterId == broadcaster && e.EventType == eventType,
             cancellationToken
         );
+
+        // Tier quota (monetization-billing §3.3): `event_responses` caps ENABLED responses, never raw
+        // rows — ListAsync lazily seeds a disabled row per catalog event type, so raw counts are always
+        // at catalog size. Gate only a write that ENABLES a currently-disabled (or new) response.
+        bool wantsEnabled = request.IsEnabled ?? entity is null; // create default is enabled
+        if (wantsEnabled && entity is not { IsEnabled: true })
+        {
+            Result<long> cap = await _tiers.GetLimitAsync(
+                broadcaster,
+                "event_responses",
+                cancellationToken
+            );
+            if (cap is { IsSuccess: true, Value: >= 0 })
+            {
+                int enabled = await _db.EventResponses.CountAsync(
+                    e => e.BroadcasterId == broadcaster && e.IsEnabled,
+                    cancellationToken
+                );
+                if (enabled >= cap.Value)
+                    return Errors
+                        .QuotaExceeded("enabled event responses", cap.Value)
+                        .ToTyped<EventResponseDto>();
+            }
+        }
 
         bool isNew = entity is null;
         if (entity is null)

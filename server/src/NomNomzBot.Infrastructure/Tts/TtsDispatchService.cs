@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Sound.Services;
@@ -45,6 +46,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     private readonly ISoundClipOverlayNotifier _overlay;
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
+    private readonly IBillingTierService _tiers;
     private readonly ILogger<TtsDispatchService> _logger;
 
     public TtsDispatchService(
@@ -55,6 +57,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         ISoundClipOverlayNotifier overlay,
         IApplicationDbContext db,
         IEventBus eventBus,
+        IBillingTierService tiers,
         ILogger<TtsDispatchService> logger
     )
     {
@@ -65,6 +68,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         _overlay = overlay;
         _db = db;
         _eventBus = eventBus;
+        _tiers = tiers;
         _logger = logger;
     }
 
@@ -103,7 +107,16 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ct
             );
 
+        // The effective cap is the STRICTER of the streamer's own setting and the plan's
+        // tts_max_characters tier limit (monetization-billing §3.3; -1 / self-host = no tier clamp).
         int cap = config.MaxLength > 0 ? config.MaxLength : 500;
+        Result<long> tierCap = await _tiers.GetLimitAsync(
+            request.BroadcasterId,
+            "tts_max_characters",
+            ct
+        );
+        if (tierCap is { IsSuccess: true, Value: >= 0 })
+            cap = (int)Math.Min(cap, tierCap.Value);
         if (text.Length > cap)
             return await RejectRequestAsync(
                 request,

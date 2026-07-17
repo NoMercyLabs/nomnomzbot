@@ -31,14 +31,37 @@ public sealed class BillingTierSeeder : ISeeder
 
     public async Task SeedAsync(CancellationToken ct = default)
     {
-        HashSet<string> present = (
-            await _db.BillingTiers.Select(t => t.Key).ToListAsync(ct)
-        ).ToHashSet(StringComparer.Ordinal);
+        Dictionary<string, BillingTier> present = await _db.BillingTiers.ToDictionaryAsync(
+            t => t.Key,
+            StringComparer.Ordinal,
+            ct
+        );
 
         foreach (TierSeed seed in Catalogue)
         {
-            if (present.Contains(seed.Key))
+            if (present.TryGetValue(seed.Key, out BillingTier? existing))
+            {
+                // The tier exists — backfill any limit KEYS added to the catalogue since it was seeded
+                // (values of already-present keys are never overwritten: operators may have tuned them).
+                HashSet<string> existingKeys = (
+                    await _db
+                        .TierLimits.Where(l => l.TierId == existing.Id)
+                        .Select(l => l.LimitKey)
+                        .ToListAsync(ct)
+                ).ToHashSet(StringComparer.Ordinal);
+
+                foreach ((string limitKey, long limitValue) in seed.Limits)
+                    if (!existingKeys.Contains(limitKey))
+                        _db.TierLimits.Add(
+                            new TierLimit
+                            {
+                                TierId = existing.Id,
+                                LimitKey = limitKey,
+                                LimitValue = limitValue,
+                            }
+                        );
                 continue;
+            }
 
             BillingTier tier = new()
             {
@@ -94,6 +117,8 @@ public sealed class BillingTierSeeder : ISeeder
                 ("timers", 20),
                 ("event_responses", 40),
                 ("tts_max_characters", 500),
+                // Monthly sandbox budget (custom-code.md §3.3) — ~5 min of script execution per month.
+                ("sandbox_exec_ms", 300_000),
             ]
         ),
         new(
@@ -110,6 +135,7 @@ public sealed class BillingTierSeeder : ISeeder
                 ("timers", 60),
                 ("event_responses", 120),
                 ("tts_max_characters", 2000),
+                ("sandbox_exec_ms", 1_800_000), // ~30 min / month
             ]
         ),
         new(
@@ -126,6 +152,7 @@ public sealed class BillingTierSeeder : ISeeder
                 ("timers", 200),
                 ("event_responses", 400),
                 ("tts_max_characters", 8000),
+                ("sandbox_exec_ms", 7_200_000), // ~2 h / month
             ]
         ),
     ];

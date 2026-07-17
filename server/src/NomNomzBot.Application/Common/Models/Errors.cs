@@ -64,6 +64,14 @@ public static class Errors
     public static Result AlreadyExists(string entityName, string identifier) =>
         Result.Failure($"A {entityName} named '{identifier}' already exists.", "ALREADY_EXISTS");
 
+    /// <summary>A billing-tier quota refused the write (monetization-billing.md §3.3) — the plan caps this
+    /// resource at <paramref name="limit"/>. Matches the metered path's <c>UsageQuotaExceededEvent</c> naming.</summary>
+    public static Result QuotaExceeded(string what, long limit) =>
+        Result.Failure(
+            $"Your plan allows up to {limit} {what}. Upgrade your tier or remove one first.",
+            "QUOTA_EXCEEDED"
+        );
+
     public static Result ChannelNotFound(string channelId) =>
         Result.Failure(
             "Channel not found.",

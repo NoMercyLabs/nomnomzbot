@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
@@ -23,11 +24,17 @@ public class TimerManagementService : ITimerManagementService
 {
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
+    private readonly IBillingTierService _tiers;
 
-    public TimerManagementService(IApplicationDbContext db, IEventBus eventBus)
+    public TimerManagementService(
+        IApplicationDbContext db,
+        IEventBus eventBus,
+        IBillingTierService tiers
+    )
     {
         _db = db;
         _eventBus = eventBus;
+        _tiers = tiers;
     }
 
     public async Task<Result<PagedList<TimerListItem>>> ListAsync(
@@ -109,6 +116,31 @@ public class TimerManagementService : ITimerManagementService
         if (exists)
             return Errors.AlreadyExists("timer", request.Name).ToTyped<TimerDto>();
 
+        // Tier quotas (monetization-billing §3.3): the timer count and the per-timer message-variation
+        // list are both capped by the plan; -1 (self-host / unseeded) is unlimited.
+        Result<long> timerCap = await _tiers.GetLimitAsync(
+            broadcaster,
+            "timers",
+            cancellationToken
+        );
+        if (timerCap is { IsSuccess: true, Value: >= 0 })
+        {
+            int current = await _db.Timers.CountAsync(
+                t => t.BroadcasterId == broadcaster,
+                cancellationToken
+            );
+            if (current >= timerCap.Value)
+                return Errors.QuotaExceeded("timers", timerCap.Value).ToTyped<TimerDto>();
+        }
+
+        Result variationsOk = await CheckVariationCapAsync(
+            broadcaster,
+            request.Messages.Count,
+            cancellationToken
+        );
+        if (variationsOk.IsFailure)
+            return variationsOk.ToTyped<TimerDto>();
+
         DomainTimer timer = new()
         {
             BroadcasterId = broadcaster,
@@ -152,7 +184,16 @@ public class TimerManagementService : ITimerManagementService
         if (request.Name is not null)
             timer.Name = request.Name;
         if (request.Messages is not null)
+        {
+            Result variationsOk = await CheckVariationCapAsync(
+                broadcaster,
+                request.Messages.Count,
+                cancellationToken
+            );
+            if (variationsOk.IsFailure)
+                return variationsOk.ToTyped<TimerDto>();
             timer.Messages = request.Messages;
+        }
         if (request.PipelineId.HasValue)
             timer.PipelineId = request.PipelineId.Value;
         if (request.IntervalMinutes.HasValue)
@@ -220,6 +261,23 @@ public class TimerManagementService : ITimerManagementService
         await PublishConfigChangedAsync(broadcaster, timer.Id, "toggled", cancellationToken);
 
         return Result.Success(ToDto(timer));
+    }
+
+    /// <summary>The per-trigger variation cap (<c>response_variations_per_trigger</c>) — -1 is unlimited.</summary>
+    private async Task<Result> CheckVariationCapAsync(
+        Guid broadcaster,
+        int requestedCount,
+        CancellationToken ct
+    )
+    {
+        Result<long> cap = await _tiers.GetLimitAsync(
+            broadcaster,
+            "response_variations_per_trigger",
+            ct
+        );
+        return cap is { IsSuccess: true, Value: >= 0 } && requestedCount > cap.Value
+            ? Errors.QuotaExceeded("message variations per timer", cap.Value)
+            : Result.Success();
     }
 
     /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>

@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -26,18 +27,21 @@ public class CommandService : ICommandService
     private readonly IPipelineEngine _pipelineEngine;
     private readonly IChannelRegistry _registry;
     private readonly IEventBus _eventBus;
+    private readonly IBillingTierService _tiers;
 
     public CommandService(
         IApplicationDbContext db,
         IPipelineEngine pipelineEngine,
         IChannelRegistry registry,
-        IEventBus eventBus
+        IEventBus eventBus,
+        IBillingTierService tiers
     )
     {
         _db = db;
         _pipelineEngine = pipelineEngine;
         _registry = registry;
         _eventBus = eventBus;
+        _tiers = tiers;
     }
 
     public async Task<Result<CommandDto>> CreateAsync(
@@ -61,6 +65,33 @@ public class CommandService : ICommandService
 
         if (exists)
             return Errors.AlreadyExists("command", request.Name).ToTyped<CommandDto>();
+
+        // Tier quotas (monetization-billing §3.3): the command count and the per-trigger variation list
+        // are both capped by the plan; -1 (self-host / unseeded) is unlimited.
+        Result<long> commandCap = await _tiers.GetLimitAsync(
+            broadcaster,
+            "custom_commands",
+            cancellationToken
+        );
+        if (commandCap is { IsSuccess: true, Value: >= 0 })
+        {
+            int current = await _db.Commands.CountAsync(
+                c => c.BroadcasterId == broadcaster,
+                cancellationToken
+            );
+            if (current >= commandCap.Value)
+                return Errors
+                    .QuotaExceeded("custom commands", commandCap.Value)
+                    .ToTyped<CommandDto>();
+        }
+
+        Result variationsOk = await CheckVariationCapAsync(
+            broadcaster,
+            request.TemplateResponses?.Count ?? 0,
+            cancellationToken
+        );
+        if (variationsOk.IsFailure)
+            return variationsOk.ToTyped<CommandDto>();
 
         Command command = new()
         {
@@ -117,7 +148,16 @@ public class CommandService : ICommandService
         if (request.TemplateResponse is not null)
             command.TemplateResponse = request.TemplateResponse;
         if (request.TemplateResponses is not null)
+        {
+            Result variationsOk = await CheckVariationCapAsync(
+                broadcaster,
+                request.TemplateResponses.Count,
+                cancellationToken
+            );
+            if (variationsOk.IsFailure)
+                return variationsOk.ToTyped<CommandDto>();
             command.TemplateResponses = request.TemplateResponses;
+        }
         if (request.PipelineId.HasValue)
             command.PipelineId = request.PipelineId.Value;
         if (request.CooldownSeconds.HasValue)
@@ -290,6 +330,23 @@ public class CommandService : ICommandService
             ?? (command.TemplateResponses is { Count: > 0 } ? command.TemplateResponses[0] : null);
 
         return Result.Success(response ?? string.Empty);
+    }
+
+    /// <summary>The per-trigger variation cap (<c>response_variations_per_trigger</c>) — -1 is unlimited.</summary>
+    private async Task<Result> CheckVariationCapAsync(
+        Guid broadcaster,
+        int requestedCount,
+        CancellationToken ct
+    )
+    {
+        Result<long> cap = await _tiers.GetLimitAsync(
+            broadcaster,
+            "response_variations_per_trigger",
+            ct
+        );
+        return cap is { IsSuccess: true, Value: >= 0 } && requestedCount > cap.Value
+            ? Errors.QuotaExceeded("response variations per command", cap.Value)
+            : Result.Success();
     }
 
     /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>

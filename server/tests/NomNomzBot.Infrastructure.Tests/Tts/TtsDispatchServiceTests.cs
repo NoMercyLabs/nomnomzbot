@@ -54,7 +54,8 @@ public sealed class TtsDispatchServiceTests
         int maxLength = 500,
         string defaultVoice = "default-voice",
         bool censorEnabled = false,
-        bool modApprovalRequired = false
+        bool modApprovalRequired = false,
+        Application.Contracts.Billing.IBillingTierService? tiers = null
     )
     {
         TtsTestDbContext db = TtsTestDbContext.New();
@@ -112,6 +113,7 @@ public sealed class TtsDispatchServiceTests
             overlay,
             db,
             bus,
+            tiers ?? Billing.TestTiers.Unlimited(),
             NullLogger<TtsDispatchService>.Instance
         );
         return new Harness
@@ -171,6 +173,33 @@ public sealed class TtsDispatchServiceTests
     public async Task RequestSpeakAsync_OverCap_RejectsTooLong()
     {
         Harness h = Build(maxLength: 10);
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("this is definitely longer than ten characters")
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        await h
+            .Tts.DidNotReceive()
+            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await h
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<TtsUtteranceRejectedEvent>(e => e.Reason == "too_long"),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_TierCharacterCap_ClampsBelowTheStreamerSetting()
+    {
+        // The plan's tts_max_characters (10) is STRICTER than the streamer's own MaxLength (500) —
+        // the tier cap governs (monetization-billing §3.3), so this 40+ char message is rejected.
+        Harness h = Build(
+            maxLength: 500,
+            tiers: Billing.TestTiers.WithLimit("tts_max_characters", 10)
+        );
 
         Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
             Speak("this is definitely longer than ten characters")

@@ -35,7 +35,10 @@ public sealed class CommandServiceTests
         IPipelineEngine pipelineEngine = Substitute.For<IPipelineEngine>();
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         RecordingEventBus bus = new();
-        return (new CommandService(db, pipelineEngine, registry, bus), bus);
+        return (
+            new CommandService(db, pipelineEngine, registry, bus, Billing.TestTiers.Unlimited()),
+            bus
+        );
     }
 
     private static CreateCommandDto Req(string name = "hello") => new() { Name = name };

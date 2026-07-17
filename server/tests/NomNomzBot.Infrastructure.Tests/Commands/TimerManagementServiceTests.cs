@@ -30,7 +30,7 @@ public sealed class TimerManagementServiceTests
     {
         CommandsTestDbContext db = CommandsTestDbContext.New();
         RecordingEventBus bus = new();
-        return (new TimerManagementService(db, bus), bus);
+        return (new TimerManagementService(db, bus, Billing.TestTiers.Unlimited()), bus);
     }
 
     private static CreateTimerDto Req(string name = "greeting") =>

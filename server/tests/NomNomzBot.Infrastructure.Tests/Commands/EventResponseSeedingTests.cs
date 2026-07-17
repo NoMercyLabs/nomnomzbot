@@ -34,7 +34,14 @@ public sealed class EventResponseSeedingTests
     private static (EventResponseService Service, SupporterTestDbContext Db) Build()
     {
         SupporterTestDbContext db = SupporterTestDbContext.New();
-        return (new EventResponseService(db, Substitute.For<IEventBus>()), db);
+        return (
+            new EventResponseService(
+                db,
+                Substitute.For<IEventBus>(),
+                Billing.TestTiers.Unlimited()
+            ),
+            db
+        );
     }
 
     private static Task ListAsync(EventResponseService service) =>
