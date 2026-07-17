@@ -103,6 +103,22 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** installing to a test guild, enabling, picking a channel, and going live posts the
   announcement — configured entirely from the dashboard on dev.
 
+### 2026-07-17 — Moderation: escalation ladder (repeat-offender policy)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** routes under `channels/{channelId}/moderation`: `GET escalation` (policy — when unset
+  returns the DISABLED default ladder: warn → 60s → 600s → 3600s → 86400s → ban, 168h window),
+  `PUT escalation` (body `{isEnabled, ladder: [{atOffense, action: warn|timeout|ban,
+  timeoutSeconds?}], offenseWindowHours, countAutoModViolations}` — whole ladder replaced, steps
+  strictly ascending), `POST escalation/users/{userId}/reset` (forgiveness, 204). UI: an
+  "Escalation ladder" card on moderation settings — enable switch, editable rung list (offense # +
+  action + duration), window hours; plus a "Forgive (reset ladder)" action on the user mod panel.
+  Reads floor at Moderator, writes at SuperMod (disable below with reason tooltip).
+- **Why:** moderation item 15 (spec §3.11 J.10/J.11).
+- **Where:** moderation feature area; routes + schemas in `server/openapi/v1.json` (refreshed —
+  also carries the new `heatTimeoutThreshold` field on the automod config from the projections
+  slice: surface it as a number input on the automod card).
+- **Done when:** the ladder persists + survives reload on dev; forgiveness resets a viewer's tally.
+
 ### 2026-07-17 — Moderation: network nuke (cross-channel mass ban + one-shot revert)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** SuperMod-tier routes under `channels/{channelId}/moderation`:

@@ -23,10 +23,11 @@ what REMAINS.
   WebSocket stream. *(Streamer.bot core.)*
 - [ ] **9. OBS control** (`obs-control.md`) — scenes/inputs, ~20 pipeline actions, `obs_event`.
 - [ ] **10. VTube Studio** (`vtube-studio.md`) — connect/authorize/bridge, model control, `vts_event`.
-- [ ] **15. Advanced moderation** (`moderation.md`) — remaining legs: escalation ladder
-  (J.10/J.11 — needs the `escalate` ChatFilter case + new `moderation:escalation:read/write`
-  action keys), and surfacing the J.4/J.5 projections in the user-context read (history rollup +
-  trust/heat on the mod panel's `users/{id}/context` payload).
+- [ ] **15. Advanced moderation** (`moderation.md`) — remaining: surface the J.4/J.5 projections in
+  the user-context read (history rollup + trust/heat on the mod panel's `users/{id}/context`
+  payload), and wire the escalation invoker (the chat-filter/automod execution path that calls
+  `ResolveAndRecordAsync` when a rule's action is `escalate` — the filter execution path itself is
+  not built yet; it belongs with the J.6 ChatFilter migration).
 - [ ] **16. TTS advanced** (`tts.md`) — remaining follow-ons: `client_edge` mode (frontend widget
   handler), the `TtsConfig` TABLE migration + config re-target (adds `WasCensored`/`WasModApproved`/
   `StreamId`/`OccurredAt` to the ledger), BYOK provider factory (§3.2, vaulted keys).

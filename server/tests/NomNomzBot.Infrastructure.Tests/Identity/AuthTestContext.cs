@@ -163,6 +163,10 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>
         Set<NomNomzBot.Domain.Moderation.Entities.UserTrustScore>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy> ModerationEscalationPolicies =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState> ModerationEscalationStates =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         Set<NomNomzBot.Domain.Community.Entities.ChatPoll>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

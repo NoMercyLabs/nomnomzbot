@@ -76,6 +76,10 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy> ModerationEscalationPolicies =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState> ModerationEscalationStates =>
+            throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
@@ -379,6 +383,10 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy> ModerationEscalationPolicies =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState> ModerationEscalationStates =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
             throw new NotSupportedException();

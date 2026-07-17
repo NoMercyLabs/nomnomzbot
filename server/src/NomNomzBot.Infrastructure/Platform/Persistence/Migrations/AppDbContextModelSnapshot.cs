@@ -5531,6 +5531,88 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("ChannelModerationStandings");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ConfigSchemaVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("CountAutoModViolations")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LadderJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("OffenseWindowHours")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId")
+                        .IsUnique();
+
+                    b.ToTable("ModerationEscalationPolicies");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("LastOffenseAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("OffenseCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SubjectTwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("SubjectUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("WindowStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "SubjectUserId")
+                        .IsUnique();
+
+                    b.ToTable("ModerationEscalationStates");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch", b =>
                 {
                     b.Property<Guid>("Id")

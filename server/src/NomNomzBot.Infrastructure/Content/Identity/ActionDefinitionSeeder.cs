@@ -189,6 +189,8 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("moderation:nuke:read", LeadModerator);
         M("moderation:sharedban:read", LeadModerator);
         M("moderation:sharedban:write", LeadModerator, DangerTier.Critical, grant: false);
+        M("moderation:escalation:read", Mod);
+        M("moderation:escalation:write", LeadModerator);
         M("moderation:report:read", Mod);
         M("moderation:report:triage", LeadModerator);
         M("moderation:evidence:build", Mod);

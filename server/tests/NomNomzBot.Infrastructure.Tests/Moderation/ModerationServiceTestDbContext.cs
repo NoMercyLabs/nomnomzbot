@@ -131,6 +131,9 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         // The J.4/J.5 projections — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Moderation.Entities.UserModerationHistory),
         typeof(NomNomzBot.Domain.Moderation.Entities.UserTrustScore),
+        // The escalation ladder (J.10/J.11) — nav-free, convention-mapped.
+        typeof(NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy),
+        typeof(NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -164,6 +167,10 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         Set<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>
         Set<NomNomzBot.Domain.Moderation.Entities.UserTrustScore>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy> ModerationEscalationPolicies =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState> ModerationEscalationStates =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

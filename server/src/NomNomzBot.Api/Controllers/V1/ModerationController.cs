@@ -40,6 +40,7 @@ public class ModerationController : BaseController
     private readonly IViewerReportService _reports;
     private readonly ISharedBanService _sharedBans;
     private readonly INetworkNukeService _nuke;
+    private readonly IModerationEscalationService _escalation;
     private readonly ICurrentUserService _currentUser;
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
@@ -51,6 +52,7 @@ public class ModerationController : BaseController
         IViewerReportService reports,
         ISharedBanService sharedBans,
         INetworkNukeService nuke,
+        IModerationEscalationService escalation,
         ICurrentUserService currentUser,
         IApplicationDbContext db,
         TimeProvider timeProvider,
@@ -62,6 +64,7 @@ public class ModerationController : BaseController
         _reports = reports;
         _sharedBans = sharedBans;
         _nuke = nuke;
+        _escalation = escalation;
         _currentUser = currentUser;
         _db = db;
         _timeProvider = timeProvider;
@@ -637,6 +640,54 @@ public class ModerationController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<SuspiciousStatusDto> { Data = result.Value });
+    }
+
+    /// <summary>The channel's escalation ladder policy (moderation.md §3.11, J.10) — the default disabled ladder when unset.</summary>
+    [RequireAction("moderation:escalation:read")]
+    [HttpGet("escalation")]
+    [ProducesResponseType<StatusResponseDto<ModerationEscalationPolicyDto>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetEscalationPolicy(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcaster))
+            return ResultResponse(Result.Failure("Invalid channel id.", "VALIDATION_FAILED"));
+        return ResultResponse(await _escalation.GetPolicyAsync(broadcaster, ct));
+    }
+
+    /// <summary>Saves the escalation ladder (whole ladder replaced; steps strictly ascending). SuperMod tier.</summary>
+    [RequireAction("moderation:escalation:write")]
+    [HttpPut("escalation")]
+    [ProducesResponseType<StatusResponseDto<ModerationEscalationPolicyDto>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> UpsertEscalationPolicy(
+        string channelId,
+        [FromBody] UpsertEscalationPolicyRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcaster))
+            return ResultResponse(Result.Failure("Invalid channel id.", "VALIDATION_FAILED"));
+        return ResultResponse(await _escalation.UpsertPolicyAsync(broadcaster, request, ct));
+    }
+
+    /// <summary>Forgiveness — clears the viewer's ladder tally so their next offense starts at rung one.</summary>
+    [RequireAction("moderation:escalation:write")]
+    [HttpPost("escalation/users/{userId:guid}/reset")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ResetEscalation(
+        string channelId,
+        Guid userId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcaster))
+            return ResultResponse(Result.Failure("Invalid channel id.", "VALIDATION_FAILED"));
+        Result result = await _escalation.ResetUserAsync(broadcaster, userId, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return NoContent();
     }
 
     /// <summary>
