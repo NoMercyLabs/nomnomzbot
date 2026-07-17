@@ -105,6 +105,18 @@ public static class DependencyInjection
         if (mode is DeploymentMode.SelfHostLite or DeploymentMode.SelfHostFull)
             services.AddHostedService<MdnsAdvertiserHostedService>();
 
+        // IPC dev-mode local socket listener (stream-admin.md §7) — NEVER on SaaS. Same pattern as the mDNS
+        // advertiser: excluded from the hosted-worker auto-scan so this profile gate is the single place that
+        // decides whether it runs. Binds a Unix domain socket (POSIX) / named pipe (Windows), never TCP.
+        if (mode is not DeploymentMode.Saas)
+        {
+            services.AddSingleton<
+                Services.Ipc.IIpcListenerFactory,
+                Services.Ipc.LocalIpcListenerFactory
+            >();
+            services.AddHostedService<Services.Ipc.IpcDevModeListenerService>();
+        }
+
         // DbContext provider — SQLite (lite, a file beside the binary) or Npgsql (full/SaaS). The interceptors +
         // the query-filter warning suppression are identical on both; only the provider + its migration set differ.
         string? connectionString =
@@ -578,7 +590,9 @@ public static class DependencyInjection
             typeof(TwitchEventSubHostedService),
             typeof(ChannelRegistry),
             // Profile-gated above (self-host only) — must not be picked up unconditionally by the worker scan.
-            typeof(MdnsAdvertiserHostedService)
+            typeof(MdnsAdvertiserHostedService),
+            // Profile-gated above (never SaaS) — the IPC local socket must not ride the unconditional scan.
+            typeof(Services.Ipc.IpcDevModeListenerService)
         );
 
         // Security — envelope encryption (gdpr-crypto spec). Field cipher = AES-256-GCM + AAD over a

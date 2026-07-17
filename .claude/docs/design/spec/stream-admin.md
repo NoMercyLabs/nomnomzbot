@@ -595,3 +595,19 @@ All surfaces are pinned by the locked schema, the existing code conventions, and
   a future `ExpiresAt`.
 - The local socket listener (`IpcDevModeListenerService`) is NOT built yet — only the registry the
   spec's §5.3 controller covers; the listener is its own follow-up.
+
+### As-built addendum — IPC socket listener (2026-07-17)
+
+- `IpcDevModeListenerService` shipped: Windows = named pipe `nomnomzbot-ipc`; POSIX = Unix domain
+  socket at `SelfHostDataPaths.BaseDirectory/ipc.sock` (NOMNOMZ_DATA_DIR-aware, stale file deleted
+  on bind, cleaned up on stop); NEVER TCP. Registered only in the non-SaaS DI branch (excluded from
+  the hosted-worker scan) AND refuses in StartAsync — a double guard.
+- **Wire (defined as-built — §7 specified gating/transport only):** newline-delimited JSON. First
+  frame `{"key":"nnzb_ipc_…"}` → `{"ok":true}` or one `FORBIDDEN` refusal + close (auth via the
+  scoped `AuthenticateConnectionAsync`, re-checked per connection so runtime revocation holds).
+  Post-auth: `{"type":"ping"}` and `{"type":"status"}` only — no invented capabilities; unknown or
+  malformed frames get an error frame without dropping the connection.
+- Bounds: max 4 concurrent connections (`BUSY`), 64 KB frame cap (`FRAME_TOO_LARGE` + close),
+  5-minute idle close (TimeProvider-driven). Bind failure logs and never fails the host.
+- Transport is seam-based (`IIpcListenerFactory`/`IIpcConnection`, mirroring the OBS socket seam)
+  with the shared NDJSON framing (`StreamIpcConnection`) tested against real streams.
