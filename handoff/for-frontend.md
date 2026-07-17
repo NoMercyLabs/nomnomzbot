@@ -16,6 +16,36 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-17 — Pick lists: make the feature discoverable + reconsider the name (UX rework)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **Context/diagnosis:** "pick lists makes no sense" is a *discoverability + naming* problem, not a broken feature.
+  What a pick list actually IS: a channel-scoped, named bag of **random flavour-text lines** (each line itself
+  templatable) that the bot substitutes for `{list.pick.<name>}` in any command/timer/response — e.g. random
+  `!fight` moves. It's fully wired via the template resolver; the problem is nobody can tell that from the UI.
+- **Why it reads as nonsense (fix these in the UI):**
+  1. **The name misleads.** "Pick List" sounds like a dropdown of options a *user* selects, or a giveaway
+     winner-picker. It's the opposite — the *bot* picks at random. **Recommend renaming the user-facing label**
+     (backend keeps `picklist`): something like **"Random Lines"**, **"Random Responses"**, or **"Random Text"**.
+     This is an owner/designer naming call — flag it; don't guess silently. (Only the i18n display strings +
+     nav label change; routes/DTOs/permission keys stay `picklist`.)
+  2. **Purpose is invisible.** Add one line of purpose copy + a concrete example on the page ("Random responses
+     the bot picks from — e.g. a `!fight` command that says a different attack each time"), and add
+     `{list.pick.<name>}` to the template-variable catalog/help so it's discoverable there too.
+  3. **Management is divorced from use.** Add an **insert helper**: in the command/response/timer editors, a
+     button to insert `{list.pick.<name>}` (pick the list from a dropdown). Optionally a "used by" backlink on
+     the pick-list card (which commands reference it).
+- **Backend now provides (this commit):** a **`pick_from_list` pipeline action** — add it to the pipeline
+  builder's block palette. Config: `list` (a pick-list name — offer a dropdown of the channel's lists) and
+  optional `variable` (the pipeline variable to store the pick in, default `pick`, referenced later as
+  `{{pick}}`). This is the discoverable block the docs always promised; it also lets ONE pick be reused across
+  steps (a bare `{list.pick.name}` re-rolls each time it appears).
+- **Backend follow-up (not yet built):** a preview/test endpoint (`GET /picklists/{id}/pick`) so the page can
+  show a "Test" button that returns a sample pick — flagged for a later slice.
+- **Where:** no contract change this commit (the action is internal); the pick-lists screen + template editors +
+  pipeline palette. Backend: `PickFromListAction`.
+- **Done when:** the pick-lists page states what the feature is for with an example, the pipeline builder has a
+  `pick_from_list` block, and there's a way to insert `{list.pick.<name>}` without hand-typing it.
+
 ### 2026-07-17 — Webhooks: inbound endpoints now RUN their target pipeline / event-response
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** an inbound webhook endpoint's `targetPipelineId` / `targetEventType` are now actually executed when a
