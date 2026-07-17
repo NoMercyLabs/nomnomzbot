@@ -38,6 +38,7 @@ public class ModerationController : BaseController
     private readonly IModerationService _moderationService;
     private readonly IOperatorNetworkBanService _networkBan;
     private readonly IViewerReportService _reports;
+    private readonly ISharedBanService _sharedBans;
     private readonly ICurrentUserService _currentUser;
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
@@ -47,6 +48,7 @@ public class ModerationController : BaseController
         IModerationService moderationService,
         IOperatorNetworkBanService networkBan,
         IViewerReportService reports,
+        ISharedBanService sharedBans,
         ICurrentUserService currentUser,
         IApplicationDbContext db,
         TimeProvider timeProvider,
@@ -56,6 +58,7 @@ public class ModerationController : BaseController
         _moderationService = moderationService;
         _networkBan = networkBan;
         _reports = reports;
+        _sharedBans = sharedBans;
         _currentUser = currentUser;
         _db = db;
         _timeProvider = timeProvider;
@@ -631,6 +634,91 @@ public class ModerationController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<SuspiciousStatusDto> { Data = result.Value });
+    }
+
+    /// <summary>The channel's shared-chat ban policy + trust list (moderation.md §3.5, J.9/J.9a).</summary>
+    [RequireAction("moderation:sharedban:read")]
+    [HttpGet("shared-bans")]
+    [ProducesResponseType<StatusResponseDto<SharedBanSettingsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSharedBanSettings(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcaster))
+            return ResultResponse(Result.Failure("Invalid channel id.", "VALIDATION_FAILED"));
+        return ResultResponse(await _sharedBans.GetSettingsAsync(broadcaster, ct));
+    }
+
+    /// <summary>Saves the shared-ban policy (both opt-in switches explicit). SuperMod tier.</summary>
+    [RequireAction("moderation:sharedban:write")]
+    [HttpPut("shared-bans")]
+    [ProducesResponseType<StatusResponseDto<SharedBanSettingsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SaveSharedBanSettings(
+        string channelId,
+        [FromBody] SaveSharedBanSettingsRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcaster))
+            return ResultResponse(Result.Failure("Invalid channel id.", "VALIDATION_FAILED"));
+        if (!Guid.TryParse(_currentUser.UserId, out Guid actorUserId))
+            return UnauthenticatedResponse();
+        return ResultResponse(
+            await _sharedBans.SaveSettingsAsync(broadcaster, actorUserId, request, ct)
+        );
+    }
+
+    /// <summary>Adds a partner channel to the inbound-ban trust list (idempotent). SuperMod tier.</summary>
+    [RequireAction("moderation:sharedban:write")]
+    [HttpPost("shared-bans/trusted")]
+    [ProducesResponseType<StatusResponseDto<SharedBanTrustedChannelDto>>(
+        StatusCodes.Status201Created
+    )]
+    public async Task<IActionResult> AddSharedBanTrustedChannel(
+        string channelId,
+        [FromBody] AddTrustedChannelRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcaster))
+            return ResultResponse(Result.Failure("Invalid channel id.", "VALIDATION_FAILED"));
+        if (!Guid.TryParse(_currentUser.UserId, out Guid actorUserId))
+            return UnauthenticatedResponse();
+        Result<SharedBanTrustedChannelDto> result = await _sharedBans.AddTrustedChannelAsync(
+            broadcaster,
+            actorUserId,
+            request.TrustedChannelId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return StatusCode(
+            StatusCodes.Status201Created,
+            new StatusResponseDto<SharedBanTrustedChannelDto> { Data = result.Value }
+        );
+    }
+
+    /// <summary>Removes a partner channel from the trust list. SuperMod tier.</summary>
+    [RequireAction("moderation:sharedban:write")]
+    [HttpDelete("shared-bans/trusted/{trustedChannelId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RemoveSharedBanTrustedChannel(
+        string channelId,
+        Guid trustedChannelId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcaster))
+            return ResultResponse(Result.Failure("Invalid channel id.", "VALIDATION_FAILED"));
+        if (!Guid.TryParse(_currentUser.UserId, out Guid actorUserId))
+            return UnauthenticatedResponse();
+        Result result = await _sharedBans.RemoveTrustedChannelAsync(
+            broadcaster,
+            actorUserId,
+            trustedChannelId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return NoContent();
     }
 
     /// <summary>

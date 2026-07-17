@@ -26,8 +26,11 @@ half remaining (per the handoff entry named in its annotation).
 - [~] **15. Advanced moderation** (`moderation.md`) — the truthful-reads foundation + the full per-user
   panel (context/notes/warn/suspicious/ban), unban-request queue, network un-nuke, and **viewer reports**
   (first entity leg) all SHIPPED. *Remaining entity legs:* SuperMod platform `moderation:nuke` (tenant-
-  wide, distinct from the operator fan-out), shared-ban trust list + propagation (J.9/J.9a), escalation
-  ladder (J.10/J.11), the J.4/J.5 history+trust projections.
+  wide, distinct from the operator fan-out), escalation ladder (J.10/J.11), the J.4/J.5 history+trust
+  projections, and the shared-ban INBOUND apply (`ApplyInboundSharedBanAsync` — needs the
+  `SharedChatBanIssuedEvent` + its publisher from the ban translator's shared-chat fields).
+  *Shipped 2026-07-17:* shared-ban trust list CRUD (J.9/J.9a — settings opt-in switches + directional
+  trusted-channel list, SuperMod in-service floor re-check, `/shared-bans` + `/shared-bans/trusted` routes).
 - [~] **16. TTS advanced** (`tts.md`) — TTS-plays (self_host `play_tts`), per-viewer voice write,
   profanity censor, and the mod approval queue all SHIPPED. *Remaining follow-ons:* `client_edge` mode
   (frontend widget handler), the `TtsConfig` TABLE migration + config re-target (adds `WasCensored`/

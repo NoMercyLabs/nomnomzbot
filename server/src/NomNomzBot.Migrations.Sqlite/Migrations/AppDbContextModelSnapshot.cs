@@ -5466,6 +5466,66 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("ChannelModerationStandings");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.SharedBanSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("AcceptSharedChatBans")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("ShareOutgoingBans")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId")
+                        .IsUnique();
+
+                    b.ToTable("SharedBanSettings");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("AddedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("TrustedChannelId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrustedChannelId");
+
+                    b.HasIndex("BroadcasterId", "TrustedChannelId")
+                        .IsUnique();
+
+                    b.ToTable("SharedBanTrustedChannels");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ViewerReport", b =>
                 {
                     b.Property<Guid>("Id")
@@ -8175,6 +8235,36 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Navigation("Channel");
 
                     b.Navigation("Requester");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.SharedBanSettings", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "TrustedChannel")
+                        .WithMany()
+                        .HasForeignKey("TrustedChannelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("TrustedChannel");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ViewerReport", b =>

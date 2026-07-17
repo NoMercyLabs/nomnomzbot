@@ -96,6 +96,19 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
             e.Ignore(r => r.ReportedUser);
         });
 
+        b.Entity<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Ignore(s => s.Channel);
+        });
+
+        b.Entity<NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Ignore(t => t.Channel);
+            e.Ignore(t => t.TrustedChannel);
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -110,6 +123,9 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         typeof(NomNomzBot.Domain.Moderation.Entities.ViewerReport),
         // The bot-side standing rows (J.12) — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding),
+        // The shared-ban trust web (J.9/J.9a) — navs ignored above.
+        typeof(NomNomzBot.Domain.Moderation.Entities.SharedBanSettings),
+        typeof(NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -133,6 +149,10 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
     public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
         Set<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>
+        Set<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel> SharedBanTrustedChannels =>
+        Set<NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
