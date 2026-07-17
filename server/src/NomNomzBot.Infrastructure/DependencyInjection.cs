@@ -791,6 +791,7 @@ public static class DependencyInjection
         services.AddScoped<IBuiltinCommand, Identity.Builtins.PermitBuiltin>();
         services.AddScoped<IBuiltinCommand, Identity.Builtins.UnpermitBuiltin>();
         // Viewer stats (!stats + legacy-parity alias !profile) — composes existing read-models.
+        services.AddScoped<IBuiltinCommand, Tts.Builtins.VoiceBuiltin>();
         services.AddScoped<IBuiltinCommand, ViewerData.Builtins.StatsBuiltin>();
         services.AddScoped<IBuiltinCommand, ViewerData.Builtins.ProfileBuiltin>();
         // Media share (!media <url>) — submits a clip/video for the caller.

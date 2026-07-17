@@ -80,4 +80,31 @@ public interface ITtsConfigService
         string userId,
         CancellationToken cancellationToken = default
     );
+
+    // ── Viewer self-service (the !voice command) ────────────────────────────────────────────────────────
+    // The caller acts on their OWN voice, keyed by their platform user id (what the dispatch resolver reads).
+    // Gated on the channel's TTS being enabled AND ViewerVoiceSelfServiceEnabled — FEATURE_DISABLED otherwise.
+    // A moderator can still override any viewer via SetUserVoiceAsync regardless of this toggle.
+
+    /// <summary>The caller picks their own voice (validated against the catalogue). Toggle-gated.</summary>
+    Task<Result<UserTtsVoiceDto>> SetOwnVoiceAsync(
+        Guid broadcasterId,
+        string viewerUserId,
+        SetUserVoiceDto request,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The caller's own assigned voice, or null when they use the channel default.</summary>
+    Task<Result<UserTtsVoiceDto?>> GetOwnVoiceAsync(
+        Guid broadcasterId,
+        string viewerUserId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The caller resets their own voice back to the channel default. Toggle-gated.</summary>
+    Task<Result> ClearOwnVoiceAsync(
+        Guid broadcasterId,
+        string viewerUserId,
+        CancellationToken cancellationToken = default
+    );
 }

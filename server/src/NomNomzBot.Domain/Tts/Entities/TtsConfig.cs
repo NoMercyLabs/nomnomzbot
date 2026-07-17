@@ -67,6 +67,13 @@ public class TtsConfig : SoftDeletableEntity, ITenantScoped
 
     public bool ReadUsernames { get; set; } = true;
 
+    /// <summary>
+    /// When true, a viewer may pick their OWN voice via <c>!voice</c> (and the self-service route) — the
+    /// Firebot model where each viewer owns their voice and the channel default reads for everyone else.
+    /// Defaults ON; the streamer may lock it. A moderator can still override any viewer regardless.
+    /// </summary>
+    public bool ViewerVoiceSelfServiceEnabled { get; set; } = true;
+
     /// <summary>BYOK Azure key — base64 CipherPayload.CipherText (gdpr-crypto §4.1), AEAD under <see cref="SubjectKeyId"/>.</summary>
     public string? AzureApiKeyCipher { get; set; }
 

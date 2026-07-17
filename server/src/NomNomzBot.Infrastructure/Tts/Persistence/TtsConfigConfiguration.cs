@@ -26,6 +26,10 @@ public class TtsConfigConfiguration : IEntityTypeConfiguration<TtsConfig>
         builder.Property(e => e.DefaultProvider).IsRequired().HasMaxLength(20);
         builder.Property(e => e.MinPermission).IsRequired().HasMaxLength(20);
 
+        // Viewer self-service is on by default (spec decision 6) — a DB default of true backfills every
+        // pre-existing channel row so the behavior matches a freshly-created config.
+        builder.Property(e => e.ViewerVoiceSelfServiceEnabled).HasDefaultValue(true);
+
         builder
             .HasOne(e => e.SubjectKey)
             .WithMany()

@@ -32,9 +32,12 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   nullable/list fields — additive, safe) and change the voices API call to consume `PaginatedResponse`.
 - **Done when:** the settings TTS voice picker searches + filters + pages against the new endpoint, shows the
   metadata, and previews a voice; `ApiContractTest` stays green.
-- **Coming next (heads-up, not yet built):** a viewer self-service plane — `GET/PUT/DELETE /tts/me/voice` +
-  a `!voice` chat command + a `viewerVoiceSelfServiceEnabled` config toggle — so viewers pick their own voice
-  (a "My TTS voice" control for the logged-in viewer). Separate handoff will follow when it lands.
+- **Viewer self-service — now built (backend):** viewers pick their own voice in chat with **`!voice <search>`**
+  (fuzzy match by name/accent/language/gender), `!voice` (show current), `!voice clear` (reset). It's gated by a
+  new **`viewerVoiceSelfServiceEnabled`** field on `TtsConfigDto`/`UpdateTtsConfigDto` (default true) — **add a
+  toggle to the TTS settings card**: "Let viewers pick their own voice (`!voice`)". No other UI needed for the
+  command itself. (The `GET/PUT/DELETE /tts/me/voice` REST route for a logged-in-viewer "My voice" web control is
+  a deliberate backend follow-up — it needs viewer→platform-identity resolution — so don't build that page yet.)
 
 ### 2026-07-17 — Chat: overlay chat_box now has font/size/background/timestamp controls; chat DTO carries Provider
 - **From:** Stoney_Eagle (via Claude, backend track)

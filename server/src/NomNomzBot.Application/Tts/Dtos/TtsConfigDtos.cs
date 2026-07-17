@@ -28,6 +28,7 @@ public sealed record TtsConfigDto(
     bool ProfanityCensorEnabled,
     bool ModApprovalRequired,
     int? MinBitsToTts,
+    bool ViewerVoiceSelfServiceEnabled = true,
     bool HasAzureByokKey = false,
     bool HasElevenLabsByokKey = false,
     string? AzureRegion = null
@@ -79,6 +80,9 @@ public sealed record UpdateTtsConfigDto
     /// <summary>Minimum bits attached to a message for TTS; 0 clears the gate.</summary>
     [Range(0, 1_000_000)]
     public int? MinBitsToTts { get; init; }
+
+    /// <summary>When true, viewers may pick their own voice via <c>!voice</c>; false locks it to mods only.</summary>
+    public bool? ViewerVoiceSelfServiceEnabled { get; init; }
 }
 
 /// <summary>A viewer's assigned TTS voice within a channel (overrides the channel default when they speak).</summary>

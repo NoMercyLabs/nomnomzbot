@@ -103,6 +103,8 @@ public class TtsConfigService : ITtsConfigService
             config.ModApprovalRequired = request.ModApprovalRequired.Value;
         if (request.MinBitsToTts.HasValue)
             config.MinBitsToTts = request.MinBitsToTts.Value == 0 ? null : request.MinBitsToTts;
+        if (request.ViewerVoiceSelfServiceEnabled.HasValue)
+            config.ViewerVoiceSelfServiceEnabled = request.ViewerVoiceSelfServiceEnabled.Value;
 
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcasterId, cancellationToken);
@@ -285,9 +287,13 @@ public class TtsConfigService : ITtsConfigService
         if (!string.IsNullOrWhiteSpace(query.Q))
         {
             string q = query.Q.Trim().ToLower();
+            // A viewer types "!voice british" or "!voice male" — free-text spans accent and gender too, not just
+            // the name/description/tags, so the natural words land the voice they mean.
             voices = voices.Where(v =>
                 v.Name.ToLower().Contains(q)
                 || v.DisplayName.ToLower().Contains(q)
+                || v.Gender.ToLower().Contains(q)
+                || (v.Accent != null && v.Accent.ToLower().Contains(q))
                 || (v.Description != null && v.Description.ToLower().Contains(q))
                 || (v.TagsJson != null && v.TagsJson.ToLower().Contains(q))
             );
@@ -357,6 +363,8 @@ public class TtsConfigService : ITtsConfigService
             voices = voices.Where(v =>
                 v.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
                 || v.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || v.Gender.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || (v.Accent?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
                 || (v.Description?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
                 || v.Tags.Any(t => t.Contains(q, StringComparison.OrdinalIgnoreCase))
             );
@@ -526,6 +534,72 @@ public class TtsConfigService : ITtsConfigService
         return Result.Success();
     }
 
+    public async Task<Result<UserTtsVoiceDto>> SetOwnVoiceAsync(
+        Guid broadcasterId,
+        string viewerUserId,
+        SetUserVoiceDto request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Result gate = await CheckSelfServiceEnabledAsync(broadcasterId, cancellationToken);
+        if (gate.IsFailure)
+            return Result.Failure<UserTtsVoiceDto>(gate.ErrorMessage!, gate.ErrorCode!);
+        // The self-service gate passed; the upsert + catalogue validation is the same as the moderator path.
+        return await SetUserVoiceAsync(broadcasterId, viewerUserId, request, cancellationToken);
+    }
+
+    public async Task<Result<UserTtsVoiceDto?>> GetOwnVoiceAsync(
+        Guid broadcasterId,
+        string viewerUserId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // A read is never gated — showing "you use the channel default" is harmless even when self-service is off.
+        UserTtsVoice? assignment = await _db.UserTtsVoices.FirstOrDefaultAsync(
+            v => v.BroadcasterId == broadcasterId && v.UserId == viewerUserId,
+            cancellationToken
+        );
+        return Result.Success<UserTtsVoiceDto?>(
+            assignment is null ? null : new UserTtsVoiceDto(assignment.UserId, assignment.VoiceId)
+        );
+    }
+
+    public async Task<Result> ClearOwnVoiceAsync(
+        Guid broadcasterId,
+        string viewerUserId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Result gate = await CheckSelfServiceEnabledAsync(broadcasterId, cancellationToken);
+        if (gate.IsFailure)
+            return gate;
+        Result cleared = await ClearUserVoiceAsync(broadcasterId, viewerUserId, cancellationToken);
+        // Resetting a voice you never set is a no-op success, not an error, for a viewer-facing command.
+        return cleared.IsSuccess || cleared.ErrorCode == "NOT_FOUND" ? Result.Success() : cleared;
+    }
+
+    // The self-service gate: TTS must be enabled AND viewer self-service allowed. A missing config row reads
+    // as the binding new-channel defaults (both on), so a brand-new channel already lets viewers self-serve.
+    private async Task<Result> CheckSelfServiceEnabledAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        TtsConfig? config = await _db.TtsConfigs.FirstOrDefaultAsync(
+            c => c.BroadcasterId == broadcasterId,
+            cancellationToken
+        );
+        TtsConfig effective = config ?? new TtsConfig();
+        if (!effective.IsEnabled)
+            return Result.Failure("TTS is turned off on this channel.", "FEATURE_DISABLED");
+        if (!effective.ViewerVoiceSelfServiceEnabled)
+            return Result.Failure(
+                "Picking your own voice is turned off on this channel.",
+                "FEATURE_DISABLED"
+            );
+        return Result.Success();
+    }
+
     private static TtsConfigDto ToDto(TtsConfig c) =>
         new(
             c.IsEnabled,
@@ -539,6 +613,7 @@ public class TtsConfigService : ITtsConfigService
             c.ProfanityCensorEnabled,
             c.ModApprovalRequired,
             c.MinBitsToTts,
+            c.ViewerVoiceSelfServiceEnabled,
             HasAzureByokKey: c.AzureApiKeyCipher is not null,
             HasElevenLabsByokKey: c.ElevenLabsApiKeyCipher is not null,
             AzureRegion: c.AzureRegion

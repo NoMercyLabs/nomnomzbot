@@ -80962,6 +80962,10 @@
             ],
             "format": "int32"
           },
+          "viewerVoiceSelfServiceEnabled": {
+            "type": "boolean",
+            "default": true
+          },
           "hasAzureByokKey": {
             "type": "boolean",
             "default": false
@@ -83135,6 +83139,13 @@
             ],
             "description": "Minimum bits attached to a message for TTS; 0 clears the gate.",
             "format": "int32"
+          },
+          "viewerVoiceSelfServiceEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "When true, viewers may pick their own voice via `!voice`; false locks it to mods only."
           }
         },
         "description": "Request to update TTS configuration; every field optional — only what is sent changes."
