@@ -36,6 +36,9 @@ public sealed record SubjectKeyRecord
     public required SubjectKeyStatus Status { get; init; }
     public DateTime? DestroyedAt { get; init; }
     public Guid? ErasureRequestId { get; init; }
+
+    /// <summary>Predecessor DEK id when this key was minted by a rotation; null for an original key.</summary>
+    public Guid? RotatedFromKeyId { get; init; }
 }
 
 /// <summary>Lifecycle of a DEK registry entry. <c>Destroyed</c> is the crypto-shred terminal state.</summary>

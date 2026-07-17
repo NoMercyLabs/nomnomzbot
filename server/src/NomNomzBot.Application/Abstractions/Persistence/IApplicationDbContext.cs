@@ -90,6 +90,10 @@ public interface IApplicationDbContext
     // Per-subject/tenant DEK registry (schema Q.1) — the crypto-shred linchpin. Persisting it is what lets a
     // token sealed in one process decrypt in the next; FK'd by IntegrationToken.EncryptionKeyId, Users.SubjectKeyId, …
     DbSet<CryptoKey> CryptoKeys { get; }
+
+    // DEK usage inventory (schema Q.2) — which table/column is sealed under each DEK; asserted on every
+    // ProtectAsync, feeds shred-impact reporting and the rotation planner.
+    DbSet<KeyUsageBinding> KeyUsageBindings { get; }
     DbSet<DiscordGuildConnection> DiscordGuildConnections { get; }
     DbSet<DiscordNotificationConfig> DiscordNotificationConfigs { get; }
     DbSet<DiscordNotificationRole> DiscordNotificationRoles { get; }
@@ -136,6 +140,10 @@ public interface IApplicationDbContext
     DbSet<EventJournal> EventJournals { get; }
     DbSet<TenantSequence> TenantSequences { get; }
     DbSet<ProjectionCheckpoint> ProjectionCheckpoints { get; }
+
+    // Multi-subject journal events → each subject's DEK (schema O.1a) — lets an erasure shred only the
+    // requesting subject's payload slice of a gift/raid event.
+    DbSet<EventSubjectKey> EventSubjectKeys { get; }
 
     // Roles & permissions (Plane A/B) — the authorization data the gates read.
     DbSet<ChannelMembership> ChannelMemberships { get; }

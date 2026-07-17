@@ -3312,6 +3312,44 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("EventJournals");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.EventStore.Entities.EventSubjectKey", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Role")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SubjectIdHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("SubjectKeyId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("SubjectIdHash");
+
+                    b.HasIndex("SubjectKeyId");
+
+                    b.HasIndex("EventId", "SubjectKeyId")
+                        .IsUnique();
+
+                    b.ToTable("EventSubjectKeys");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint", b =>
                 {
                     b.Property<long>("Id")
@@ -5072,6 +5110,40 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("IpcDevModeKeys");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.KeyUsageBinding", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid?>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CryptoKeyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ResourceColumn")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ResourceTable")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("CryptoKeyId", "ResourceTable", "ResourceColumn")
+                        .IsUnique();
+
+                    b.ToTable("KeyUsageBindings");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.Permission", b =>

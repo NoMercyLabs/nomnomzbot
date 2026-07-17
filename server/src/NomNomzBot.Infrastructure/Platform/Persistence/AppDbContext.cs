@@ -144,6 +144,9 @@ public class AppDbContext : DbContext, IApplicationDbContext
     // DEK registry (schema Q.1) — wrapped per-subject/tenant DEKs; the crypto-shred + restart-survival linchpin.
     public DbSet<CryptoKey> CryptoKeys => Set<CryptoKey>();
 
+    // DEK usage inventory (schema Q.2) — which table/column is sealed under each DEK.
+    public DbSet<KeyUsageBinding> KeyUsageBindings => Set<KeyUsageBinding>();
+
     // Automation API (external tokens — automation-api.md P.17)
     public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
         Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
@@ -215,6 +218,9 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<EventJournal> EventJournals => Set<EventJournal>();
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => Set<ProjectionCheckpoint>();
+
+    // Multi-subject journal events → per-subject DEKs (schema O.1a)
+    public DbSet<EventSubjectKey> EventSubjectKeys => Set<EventSubjectKey>();
 
     // Roles & permissions (Plane A/B)
     public DbSet<ChannelMembership> ChannelMemberships => Set<ChannelMembership>();

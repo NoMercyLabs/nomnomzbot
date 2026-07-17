@@ -137,6 +137,10 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Integrations.Entities.IntegrationToken>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
         Set<NomNomzBot.Domain.Identity.Entities.CryptoKey>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.KeyUsageBinding> KeyUsageBindings =>
+        Set<NomNomzBot.Domain.Identity.Entities.KeyUsageBinding>();
+    public DbSet<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey> EventSubjectKeys =>
+        Set<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey>();
     public DbSet<DiscordGuildConnection> DiscordGuildConnections => Set<DiscordGuildConnection>();
     public DbSet<DiscordNotificationConfig> DiscordNotificationConfigs =>
         Set<DiscordNotificationConfig>();

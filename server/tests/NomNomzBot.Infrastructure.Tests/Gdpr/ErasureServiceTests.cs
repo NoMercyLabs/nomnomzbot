@@ -20,6 +20,7 @@ using NomNomzBot.Application.Contracts.Gdpr;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
+using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
@@ -367,6 +368,70 @@ public sealed class ErasureServiceTests
     }
 
     [Fact]
+    public async Task Erasure_ShredsEveryResolvedKey_RotatedGenerationsAndEventMappedIncluded()
+    {
+        // The §3.4 planner refit: the shred must provably cover the FK'd key, every rotated generation
+        // under the subject's hash, AND the DEK sealing the subject's slice of a multi-subject event.
+        Harness h = Build();
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+        string subjectHash = HashOf(SubjectUser);
+
+        // Generation 1 → rotated successor (the old generation retires to `rotating`, material retained).
+        Guid firstKey = (
+            await h.SubjectKeys.GetOrCreateSubjectKeyAsync(SubjectUser, subjectHash)
+        ).Value;
+        Guid successorKey = (await h.SubjectKeys.RotateKeyAsync(firstKey)).Value;
+        User user = await h.Db.Users.SingleAsync(u => u.Id == SubjectUser);
+        user.SubjectKeyId = successorKey;
+
+        // The subject's slice of a gift event, sealed under its own DEK and mapped via EventSubjectKeys.
+        CryptoKey eventKey = new()
+        {
+            KeyScope = "subject",
+            SubjectIdHash = "gift-slice-registry-hash",
+            WrappedKeyMaterial = "wrapped",
+            Provider = "local_aes",
+            Algorithm = "AES-256-GCM",
+            Status = "active",
+        };
+        h.Db.CryptoKeys.Add(eventKey);
+        h.Db.EventSubjectKeys.Add(
+            new EventSubjectKey
+            {
+                EventId = Guid.CreateVersion7(),
+                SubjectIdHash = subjectHash,
+                SubjectKeyId = eventKey.Id,
+                Role = "recipient",
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<ErasureRequestDto> result = await h.Sut.RequestErasureAsync(
+            SelfErasure(SubjectUser)
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.CryptoShredApplied.Should().BeTrue();
+
+        // ALL three resolved keys are destroyed in place — no generation and no event slice survives.
+        List<Guid> expected = [firstKey, successorKey, eventKey.Id];
+        List<CryptoKey> shredded = await h
+            .Db.CryptoKeys.AsNoTracking()
+            .Where(k => expected.Contains(k.Id))
+            .ToListAsync();
+        shredded
+            .Should()
+            .HaveCount(3)
+            .And.OnlyContain(k => k.Status == "destroyed" && k.WrappedKeyMaterial == null);
+
+        ComplianceAuditLog audit = await h.Db.ComplianceAuditLogs.SingleAsync(a =>
+            a.ErasureRequestId == result.Value.Id
+        );
+        audit.KeysShredded.Should().Be(3);
+    }
+
+    [Fact]
     public async Task Erasure_MidPipelineFailure_RollsBack_ButTheRequestRowSurvivesAsFailed()
     {
         // A DEK store that refuses to shred forces the failure AFTER the destructive steps ran in-tx.
@@ -633,10 +698,22 @@ public sealed class ErasureServiceTests
             CancellationToken cancellationToken = default
         ) => Task.FromResult(Result.Success(Guid.NewGuid()));
 
+        public Task<Result<Guid>> GetOrCreateTenantKeyAsync(
+            Guid broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Success(Guid.NewGuid()));
+
+        public Task<Result<Guid>> GetOrCreatePlatformKeyAsync(
+            string purpose,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Success(Guid.NewGuid()));
+
         public Task<Result<CipherPayload>> ProtectAsync(
             Guid cryptoKeyId,
             string plaintext,
             CipherAad aad,
+            string resourceTable,
+            string resourceColumn,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(Result.Failure<CipherPayload>("unsupported", "KEY_NOT_FOUND"));
 
@@ -646,6 +723,23 @@ public sealed class ErasureServiceTests
             CipherAad aad,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(Result.Failure<string>("unsupported", "KEY_NOT_FOUND"));
+
+        public Task<Result<Guid>> RotateKeyAsync(
+            Guid cryptoKeyId,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Failure<Guid>("unsupported", "KEY_NOT_FOUND"));
+
+        // Resolves ONE key so the pipeline reaches the shred step, whose refusal forces the rollback.
+        public Task<Result<IReadOnlyList<Guid>>> ResolveSubjectKeysAsync(
+            Guid subjectUserId,
+            string subjectIdHash,
+            CancellationToken cancellationToken = default
+        ) =>
+            Task.FromResult(
+                Result.Success<IReadOnlyList<Guid>>([
+                    Guid.Parse("0192a000-0000-7000-8000-00000000d001"),
+                ])
+            );
 
         public Task<Result> DestroyKeyAsync(
             Guid cryptoKeyId,

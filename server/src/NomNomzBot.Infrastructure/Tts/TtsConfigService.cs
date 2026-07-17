@@ -151,6 +151,8 @@ public class TtsConfigService : ITtsConfigService
                 TokenType: "api_key",
                 KeyVersion: ByokKeyVersion.ToString()
             ),
+            resourceTable: "TtsConfigs",
+            resourceColumn: provider == "azure" ? "AzureApiKeyCipher" : "ElevenLabsApiKeyCipher",
             cancellationToken
         );
         if (sealedKey.IsFailure)

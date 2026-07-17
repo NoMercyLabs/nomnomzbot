@@ -45,6 +45,8 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         typeof(IntegrationConnection),
         typeof(IntegrationToken),
         typeof(CryptoKey),
+        typeof(KeyUsageBinding),
+        typeof(NomNomzBot.Domain.EventStore.Entities.EventSubjectKey),
         typeof(ConsentRecord),
         typeof(ErasureRequest),
         typeof(ComplianceAuditLog),
@@ -67,6 +69,10 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
     public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
     public DbSet<CryptoKey> CryptoKeys => Set<CryptoKey>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.KeyUsageBinding> KeyUsageBindings =>
+        Set<NomNomzBot.Domain.Identity.Entities.KeyUsageBinding>();
+    public DbSet<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey> EventSubjectKeys =>
+        Set<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<ErasureRequest> ErasureRequests => Set<ErasureRequest>();
     public DbSet<ComplianceAuditLog> ComplianceAuditLogs => Set<ComplianceAuditLog>();
@@ -100,6 +106,8 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         b.Entity<IntegrationToken>().Ignore(e => e.Connection);
 
         b.Entity<CryptoKey>().HasKey(e => e.Id);
+        b.Entity<KeyUsageBinding>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey>().HasKey(e => e.Id);
         b.Entity<ConsentRecord>().HasKey(e => e.Id);
         b.Entity<ErasureRequest>().HasKey(e => e.Id);
         b.Entity<ComplianceAuditLog>().HasKey(e => e.Id);

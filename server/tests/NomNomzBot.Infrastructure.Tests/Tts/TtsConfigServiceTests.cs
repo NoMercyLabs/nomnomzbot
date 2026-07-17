@@ -56,6 +56,8 @@ public sealed class TtsConfigServiceTests
                 Arg.Any<Guid>(),
                 Arg.Any<string>(),
                 Arg.Any<CipherAad>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(ci =>

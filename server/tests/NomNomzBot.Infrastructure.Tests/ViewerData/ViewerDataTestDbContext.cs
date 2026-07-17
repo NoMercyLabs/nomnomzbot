@@ -227,6 +227,10 @@ internal sealed class ViewerDataTestDbContext : DbContext, IApplicationDbContext
     public DbSet<IntegrationToken> IntegrationTokens => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.KeyUsageBinding> KeyUsageBindings =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey> EventSubjectKeys =>
+        throw new NotSupportedException();
     public DbSet<DiscordGuildConnection> DiscordGuildConnections =>
         throw new NotSupportedException();
     public DbSet<DiscordNotificationConfig> DiscordNotificationConfigs =>

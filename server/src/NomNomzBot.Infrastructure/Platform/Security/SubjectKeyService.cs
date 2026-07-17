@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Globalization;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
@@ -29,7 +30,10 @@ public sealed class SubjectKeyService : ISubjectKeyService
     private const int DekSizeBytes = 32; // AES-256
     private const string Algorithm = "AES-256-GCM";
     private const string SubjectScope = "subject";
+    private const string TenantScope = "tenant";
+    private const string PlatformScope = "platform";
     private const string InitialKeyVersion = "1";
+    private const int MaxPlatformPurposeLength = 64; // occupies the SubjectIdHash slot (string(64))
 
     private readonly IKeyVault _keyVault;
     private readonly IFieldCipher _fieldCipher;
@@ -52,23 +56,56 @@ public sealed class SubjectKeyService : ISubjectKeyService
         _logger = logger;
     }
 
-    public async Task<Result<Guid>> GetOrCreateSubjectKeyAsync(
+    public Task<Result<Guid>> GetOrCreateSubjectKeyAsync(
         Guid subjectUserId,
         string subjectIdHash,
         CancellationToken cancellationToken = default
+    ) => GetOrCreateKeyAsync(SubjectScope, broadcasterId: null, subjectIdHash, cancellationToken);
+
+    public Task<Result<Guid>> GetOrCreateTenantKeyAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken = default
+    ) => GetOrCreateKeyAsync(TenantScope, broadcasterId, subjectIdHash: null, cancellationToken);
+
+    public Task<Result<Guid>> GetOrCreatePlatformKeyAsync(
+        string purpose,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // The purpose IS the registry identity (it occupies the SubjectIdHash slot), so it must be a
+        // stable, bounded label — idempotence per (platform, purpose) depends on it.
+        if (string.IsNullOrWhiteSpace(purpose) || purpose.Length > MaxPlatformPurposeLength)
+            return Task.FromResult(
+                Result.Failure<Guid>(
+                    $"A platform key purpose must be 1-{MaxPlatformPurposeLength} characters.",
+                    "VALIDATION_FAILED"
+                )
+            );
+        return GetOrCreateKeyAsync(PlatformScope, broadcasterId: null, purpose, cancellationToken);
+    }
+
+    /// <summary>
+    /// The one mint path behind every get-or-create: idempotent per <c>(KeyScope, BroadcasterId,
+    /// SubjectIdHash)</c> — a present active key is returned as-is; a prior destroyed key is intentionally
+    /// never resurrected, so a crypto-shredded identity re-enters with a brand-new DEK and the shredded
+    /// history stays dead.
+    /// </summary>
+    private async Task<Result<Guid>> GetOrCreateKeyAsync(
+        string keyScope,
+        Guid? broadcasterId,
+        string? subjectIdHash,
+        CancellationToken cancellationToken
     )
     {
         SubjectKeyRecord? existing = await _store.GetActiveByIdentityAsync(
-            SubjectScope,
-            broadcasterId: null,
+            keyScope,
+            broadcasterId,
             subjectIdHash,
             cancellationToken
         );
         if (existing is not null)
             return Result.Success(existing.Id);
 
-        // Mint a fresh DEK. A prior destroyed key is intentionally not returned above, so a crypto-shredded
-        // subject re-enters with a brand-new key — the shredded history stays dead.
         byte[] dek = RandomNumberGenerator.GetBytes(DekSizeBytes);
         try
         {
@@ -79,8 +116,8 @@ public sealed class SubjectKeyService : ISubjectKeyService
             SubjectKeyRecord record = new()
             {
                 Id = Guid.CreateVersion7(),
-                KeyScope = SubjectScope,
-                BroadcasterId = null,
+                KeyScope = keyScope,
+                BroadcasterId = broadcasterId,
                 SubjectIdHash = subjectIdHash,
                 WrappedKeyMaterial = wrapped.Value.WrappedKeyMaterial,
                 KekReference = wrapped.Value.KekReference,
@@ -92,7 +129,8 @@ public sealed class SubjectKeyService : ISubjectKeyService
 
             await _store.AddAsync(record, cancellationToken);
             _logger.LogInformation(
-                "Minted subject DEK {KeyId} (provider {Provider}).",
+                "Minted {KeyScope} DEK {KeyId} (provider {Provider}).",
+                keyScope,
                 record.Id,
                 record.Provider
             );
@@ -108,11 +146,14 @@ public sealed class SubjectKeyService : ISubjectKeyService
         Guid cryptoKeyId,
         string plaintext,
         CipherAad aad,
+        string resourceTable,
+        string resourceColumn,
         CancellationToken cancellationToken = default
     )
     {
-        Result<(SubjectKeyRecord Record, byte[] Dek)> unwrap = await LoadActiveAndUnwrapAsync(
+        Result<(SubjectKeyRecord Record, byte[] Dek)> unwrap = await LoadAndUnwrapAsync(
             cryptoKeyId,
+            allowRotating: false, // a rotating predecessor never seals NEW data — writes go to the successor
             cancellationToken
         );
 
@@ -131,7 +172,16 @@ public sealed class SubjectKeyService : ISubjectKeyService
             byte[] freshDek = rekeyed.Value;
             try
             {
-                return _fieldCipher.Encrypt(freshDek, plaintext, aad);
+                Result<CipherPayload> resealed = _fieldCipher.Encrypt(freshDek, plaintext, aad);
+                if (resealed.IsSuccess)
+                    await RecordUsageBindingAsync(
+                        cryptoKeyId,
+                        record: null,
+                        resourceTable,
+                        resourceColumn,
+                        cancellationToken
+                    );
+                return resealed;
             }
             finally
             {
@@ -145,12 +195,44 @@ public sealed class SubjectKeyService : ISubjectKeyService
         byte[] dek = unwrap.Value.Dek;
         try
         {
-            return _fieldCipher.Encrypt(dek, plaintext, aad);
+            Result<CipherPayload> sealed_ = _fieldCipher.Encrypt(dek, plaintext, aad);
+            if (sealed_.IsSuccess)
+                await RecordUsageBindingAsync(
+                    cryptoKeyId,
+                    unwrap.Value.Record,
+                    resourceTable,
+                    resourceColumn,
+                    cancellationToken
+                );
+            return sealed_;
         }
         finally
         {
             CryptographicOperations.ZeroMemory(dek);
         }
+    }
+
+    /// <summary>
+    /// Asserts the Q.2 inventory row for a successful seal. The binding's tenant column mirrors the key's
+    /// own <c>BroadcasterId</c> (null for subject/platform DEKs); the record is re-read only when the
+    /// caller doesn't already hold it (the rekey self-heal path).
+    /// </summary>
+    private async Task RecordUsageBindingAsync(
+        Guid cryptoKeyId,
+        SubjectKeyRecord? record,
+        string resourceTable,
+        string resourceColumn,
+        CancellationToken cancellationToken
+    )
+    {
+        record ??= await _store.GetAsync(cryptoKeyId, cancellationToken);
+        await _store.EnsureUsageBindingAsync(
+            cryptoKeyId,
+            record?.BroadcasterId,
+            resourceTable,
+            resourceColumn,
+            cancellationToken
+        );
     }
 
     /// <summary>
@@ -207,8 +289,11 @@ public sealed class SubjectKeyService : ISubjectKeyService
         CancellationToken cancellationToken = default
     )
     {
-        Result<(SubjectKeyRecord Record, byte[] Dek)> unwrap = await LoadActiveAndUnwrapAsync(
+        // allowRotating: rotation is lazy (RotateKeyAsync retains the predecessor's material), so a reader
+        // holding a ciphertext + old key id keeps decrypting until the resource owner re-seals.
+        Result<(SubjectKeyRecord Record, byte[] Dek)> unwrap = await LoadAndUnwrapAsync(
             cryptoKeyId,
+            allowRotating: true,
             cancellationToken
         );
         if (unwrap.IsFailure)
@@ -224,6 +309,89 @@ public sealed class SubjectKeyService : ISubjectKeyService
             CryptographicOperations.ZeroMemory(dek);
         }
     }
+
+    public async Task<Result<Guid>> RotateKeyAsync(
+        Guid cryptoKeyId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        SubjectKeyRecord? predecessor = await _store.GetAsync(cryptoKeyId, cancellationToken);
+        if (predecessor is null)
+            return Result.Failure<Guid>("No such key.", "KEY_NOT_FOUND");
+        if (predecessor.Status == SubjectKeyStatus.Destroyed)
+            return Result.Failure<Guid>(
+                "The key was crypto-shredded; a destroyed key is never rotated.",
+                "KEY_DESTROYED"
+            );
+        if (predecessor.Status != SubjectKeyStatus.Active)
+            return Result.Failure<Guid>("Only an active key can be rotated.", "KEY_NOT_ACTIVE");
+
+        // Mint the successor generation: a FRESH DEK (never the old material re-wrapped — a leak of the old
+        // DEK must not compromise data sealed after the rotation).
+        byte[] dek = RandomNumberGenerator.GetBytes(DekSizeBytes);
+        try
+        {
+            Result<WrappedKey> wrapped = await _keyVault.WrapAsync(dek, cancellationToken);
+            if (wrapped.IsFailure)
+                return wrapped.WithValue(Guid.Empty);
+
+            SubjectKeyRecord successor = new()
+            {
+                Id = Guid.CreateVersion7(),
+                KeyScope = predecessor.KeyScope,
+                BroadcasterId = predecessor.BroadcasterId,
+                SubjectIdHash = predecessor.SubjectIdHash,
+                WrappedKeyMaterial = wrapped.Value.WrappedKeyMaterial,
+                KekReference = wrapped.Value.KekReference,
+                Provider = wrapped.Value.Provider,
+                Algorithm = Algorithm,
+                KeyVersion = NextKeyVersion(predecessor.KeyVersion),
+                Status = SubjectKeyStatus.Active,
+                RotatedFromKeyId = predecessor.Id,
+            };
+
+            // The predecessor retires to `rotating` with its wrapped material RETAINED: old ciphertext keeps
+            // decrypting (rotation ≠ shred) while the identity's sole active key is now the successor, so
+            // every new get-or-create/protect lands on the new generation. Atomic in the store (one save).
+            SubjectKeyRecord retired = predecessor with
+            {
+                Status = SubjectKeyStatus.Rotating,
+            };
+            await _store.AddRotationAsync(successor, retired, cancellationToken);
+
+            _logger.LogInformation(
+                "Rotated {KeyScope} DEK {OldKeyId} -> {NewKeyId} (version {KeyVersion}).",
+                predecessor.KeyScope,
+                predecessor.Id,
+                successor.Id,
+                successor.KeyVersion
+            );
+            return Result.Success(successor.Id);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(dek);
+        }
+    }
+
+    public async Task<Result<IReadOnlyList<Guid>>> ResolveSubjectKeysAsync(
+        Guid subjectUserId,
+        string subjectIdHash,
+        CancellationToken cancellationToken = default
+    )
+    {
+        IReadOnlyList<Guid> keyIds = await _store.ResolveSubjectKeyIdsAsync(
+            subjectUserId,
+            subjectIdHash,
+            cancellationToken
+        );
+        return Result.Success(keyIds);
+    }
+
+    private static string NextKeyVersion(string keyVersion) =>
+        int.TryParse(keyVersion, NumberStyles.Integer, CultureInfo.InvariantCulture, out int v)
+            ? (v + 1).ToString(CultureInfo.InvariantCulture)
+            : "2";
 
     public async Task<Result> DestroyKeyAsync(
         Guid cryptoKeyId,
@@ -257,11 +425,14 @@ public sealed class SubjectKeyService : ISubjectKeyService
     }
 
     /// <summary>
-    /// Loads the registry record, enforces active status (failing closed with <c>KEY_DESTROYED</c> /
-    /// <c>KEY_NOT_ACTIVE</c>), and unwraps the DEK. Caller owns zeroing the returned DEK buffer.
+    /// Loads the registry record, enforces status (failing closed with <c>KEY_DESTROYED</c> /
+    /// <c>KEY_NOT_ACTIVE</c> — a <c>rotating</c> predecessor passes only when
+    /// <paramref name="allowRotating"/>, i.e. for reads), and unwraps the DEK. Caller owns zeroing the
+    /// returned DEK buffer.
     /// </summary>
-    private async Task<Result<(SubjectKeyRecord Record, byte[] Dek)>> LoadActiveAndUnwrapAsync(
+    private async Task<Result<(SubjectKeyRecord Record, byte[] Dek)>> LoadAndUnwrapAsync(
         Guid cryptoKeyId,
+        bool allowRotating,
         CancellationToken cancellationToken
     )
     {
@@ -275,7 +446,10 @@ public sealed class SubjectKeyService : ISubjectKeyService
                 "KEY_DESTROYED"
             );
 
-        if (record.Status != SubjectKeyStatus.Active)
+        bool statusPermitted =
+            record.Status == SubjectKeyStatus.Active
+            || (allowRotating && record.Status == SubjectKeyStatus.Rotating);
+        if (!statusPermitted)
             return Result.Failure<(SubjectKeyRecord, byte[])>(
                 "The key is not active.",
                 "KEY_NOT_ACTIVE"

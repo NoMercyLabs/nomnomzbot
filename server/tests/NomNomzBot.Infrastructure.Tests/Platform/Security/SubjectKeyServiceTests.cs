@@ -9,12 +9,15 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Models.Crypto;
 using NomNomzBot.Application.Services;
+using NomNomzBot.Domain.EventStore.Entities;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -62,12 +65,25 @@ public class SubjectKeyServiceTests
 
     private static (ISubjectKeyService Service, ISubjectKeyStore Store) Build()
     {
+        (ISubjectKeyService service, ISubjectKeyStore store, _) = BuildWithDb();
+        return (service, store);
+    }
+
+    /// <summary>Same wiring as <see cref="Build"/>, also exposing the backing context so tests can assert
+    /// the persisted registry side effects (usage bindings, event-subject mappings) directly.</summary>
+    private static (
+        ISubjectKeyService Service,
+        ISubjectKeyStore Store,
+        AuthDbContext Db
+    ) BuildWithDb()
+    {
         IFieldCipher cipher = new AesGcmFieldCipher();
         IKeyVault vault = new OsSecureStoreKeyVault(
             Options.Create(new EncryptionOptions { Key = ConfigKey }),
             NullLogger<OsSecureStoreKeyVault>.Instance
         );
-        ISubjectKeyStore store = new CryptoKeySubjectKeyStore(AuthTestBuilder.NewContext());
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ISubjectKeyStore store = new CryptoKeySubjectKeyStore(db);
         ISubjectKeyService service = new SubjectKeyService(
             vault,
             cipher,
@@ -75,11 +91,15 @@ public class SubjectKeyServiceTests
             TimeProvider.System,
             NullLogger<SubjectKeyService>.Instance
         );
-        return (service, store);
+        return (service, store, db);
     }
 
     private static CipherAad Aad(string tenant = "tenant-A") =>
         new(tenant, "twitch", "access", "1");
+
+    // The Q.2 resource coordinate every seal in these tests declares (asserted in the binding tests).
+    private const string Table = "IntegrationTokens";
+    private const string Column = "CipherText";
 
     private static async Task<Guid> NewSubjectKeyAsync(ISubjectKeyService service)
     {
@@ -101,7 +121,13 @@ public class SubjectKeyServiceTests
         Guid keyId = await NewSubjectKeyAsync(service);
         const string secret = "twitch-refresh-token-7f3a";
 
-        Result<CipherPayload> sealed_ = await service.ProtectAsync(keyId, secret, Aad());
+        Result<CipherPayload> sealed_ = await service.ProtectAsync(
+            keyId,
+            secret,
+            Aad(),
+            Table,
+            Column
+        );
         sealed_.IsSuccess.Should().BeTrue();
 
         Result<string> opened = await service.UnprotectAsync(keyId, sealed_.Value, Aad());
@@ -139,7 +165,9 @@ public class SubjectKeyServiceTests
         Result<CipherPayload> sealed_ = await service.ProtectAsync(
             keyId,
             "secret",
-            Aad("tenant-A")
+            Aad("tenant-A"),
+            Table,
+            Column
         );
 
         // Same DEK, different subject/field context ⇒ tag check fails, no plaintext.
@@ -159,7 +187,9 @@ public class SubjectKeyServiceTests
         Result<CipherPayload> sealedForA = await service.ProtectAsync(
             keyA,
             "subject-A-secret",
-            Aad()
+            Aad(),
+            Table,
+            Column
         );
 
         // A blob sealed under subject A's DEK cannot be opened under subject B's DEK (different DEK).
@@ -175,7 +205,13 @@ public class SubjectKeyServiceTests
     {
         (ISubjectKeyService service, _) = Build();
         Guid keyId = await NewSubjectKeyAsync(service);
-        Result<CipherPayload> sealed_ = await service.ProtectAsync(keyId, "value", Aad());
+        Result<CipherPayload> sealed_ = await service.ProtectAsync(
+            keyId,
+            "value",
+            Aad(),
+            Table,
+            Column
+        );
 
         byte[] blob = Convert.FromBase64String(sealed_.Value.CipherText);
         blob[0] ^= 0x01;
@@ -194,7 +230,13 @@ public class SubjectKeyServiceTests
     {
         (ISubjectKeyService service, ISubjectKeyStore store) = Build();
         Guid keyId = await NewSubjectKeyAsync(service);
-        Result<CipherPayload> sealed_ = await service.ProtectAsync(keyId, "to-be-shredded", Aad());
+        Result<CipherPayload> sealed_ = await service.ProtectAsync(
+            keyId,
+            "to-be-shredded",
+            Aad(),
+            Table,
+            Column
+        );
 
         // Sanity: readable before the shred.
         (await service.UnprotectAsync(keyId, sealed_.Value, Aad()))
@@ -288,7 +330,13 @@ public class SubjectKeyServiceTests
                     subjectIdHash: "subject-hash-persisted"
                 )
             ).Value;
-            Result<CipherPayload> protect = await first.ProtectAsync(keyId, secret, Aad());
+            Result<CipherPayload> protect = await first.ProtectAsync(
+                keyId,
+                secret,
+                Aad(),
+                Table,
+                Column
+            );
             protect.IsSuccess.Should().BeTrue();
             sealed_ = protect.Value;
         }
@@ -347,7 +395,9 @@ public class SubjectKeyServiceTests
             Result<CipherPayload> sealedOld = await underKekA.ProtectAsync(
                 keyId,
                 "old-secret",
-                Aad()
+                Aad(),
+                Table,
+                Column
             );
             sealedOld.IsSuccess.Should().BeTrue();
             oldSealed = sealedOld.Value;
@@ -362,7 +412,13 @@ public class SubjectKeyServiceTests
             .BeTrue("the secret sealed under the lost KEK cannot be read");
 
         // A WRITE self-heals: re-keys the same subject in place and seals the new value under the current KEK.
-        Result<CipherPayload> reSealed = await underKekB.ProtectAsync(keyId, "new-secret", Aad());
+        Result<CipherPayload> reSealed = await underKekB.ProtectAsync(
+            keyId,
+            "new-secret",
+            Aad(),
+            Table,
+            Column
+        );
         reSealed
             .IsSuccess.Should()
             .BeTrue("a write must succeed by re-keying the stale DEK under the current KEK");
@@ -397,7 +453,9 @@ public class SubjectKeyServiceTests
         Result<CipherPayload> write = await underKekB.ProtectAsync(
             keyId,
             "should-not-write",
-            Aad()
+            Aad(),
+            Table,
+            Column
         );
 
         write.IsFailure.Should().BeTrue();
@@ -417,7 +475,9 @@ public class SubjectKeyServiceTests
         Result<CipherPayload> sealed_ = await service.ProtectAsync(
             Guid.CreateVersion7(),
             "value",
-            Aad()
+            Aad(),
+            Table,
+            Column
         );
         sealed_.IsFailure.Should().BeTrue();
         sealed_.ErrorCode.Should().Be("KEY_NOT_FOUND");
@@ -439,5 +499,268 @@ public class SubjectKeyServiceTests
 
         opened.IsFailure.Should().BeTrue();
         opened.ErrorCode.Should().Be("KEY_NOT_FOUND");
+    }
+
+    // ─── 8. Tenant / platform key scopes (§3.4 widening) ────────────────────────────
+
+    [Fact]
+    public async Task TenantKey_IsIdempotentPerBroadcaster_AndDistinctAcrossBroadcasters()
+    {
+        (ISubjectKeyService service, ISubjectKeyStore store) = Build();
+        Guid broadcasterA = Guid.CreateVersion7();
+        Guid broadcasterB = Guid.CreateVersion7();
+
+        Guid first = (await service.GetOrCreateTenantKeyAsync(broadcasterA)).Value;
+        Guid again = (await service.GetOrCreateTenantKeyAsync(broadcasterA)).Value;
+        Guid other = (await service.GetOrCreateTenantKeyAsync(broadcasterB)).Value;
+
+        again.Should().Be(first, "one tenant DEK per broadcaster");
+        other.Should().NotBe(first, "each broadcaster gets its own tenant DEK");
+
+        SubjectKeyRecord? record = await store.GetAsync(first);
+        record!.KeyScope.Should().Be("tenant");
+        record.BroadcasterId.Should().Be(broadcasterA);
+        record.SubjectIdHash.Should().BeNull();
+        record.Status.Should().Be(SubjectKeyStatus.Active);
+    }
+
+    [Fact]
+    public async Task PlatformKey_IsIdempotentPerPurpose()
+    {
+        (ISubjectKeyService service, ISubjectKeyStore store) = Build();
+
+        Guid first = (await service.GetOrCreatePlatformKeyAsync("app_settings")).Value;
+        Guid again = (await service.GetOrCreatePlatformKeyAsync("app_settings")).Value;
+        Guid other = (await service.GetOrCreatePlatformKeyAsync("federation_seal")).Value;
+
+        again.Should().Be(first, "one platform DEK per purpose");
+        other.Should().NotBe(first, "each purpose gets its own platform DEK");
+
+        SubjectKeyRecord? record = await store.GetAsync(first);
+        record!.KeyScope.Should().Be("platform");
+        record.BroadcasterId.Should().BeNull();
+        record.SubjectIdHash.Should().Be("app_settings"); // the purpose IS the registry identity
+    }
+
+    [Fact]
+    public async Task PlatformKey_RejectsAnUnboundedPurpose()
+    {
+        (ISubjectKeyService service, _) = Build();
+
+        (await service.GetOrCreatePlatformKeyAsync("")).ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await service.GetOrCreatePlatformKeyAsync(new string('x', 65)))
+            .ErrorCode.Should()
+            .Be("VALIDATION_FAILED", "the purpose occupies the string(64) SubjectIdHash slot");
+    }
+
+    // ─── 9. Usage bindings (Q.2) — every seal inventories its resource ──────────────
+
+    [Fact]
+    public async Task Protect_RecordsAKeyUsageBinding_OncePerResource()
+    {
+        (ISubjectKeyService service, _, AuthDbContext db) = BuildWithDb();
+        Guid keyId = await NewSubjectKeyAsync(service);
+
+        (await service.ProtectAsync(keyId, "v1", Aad(), Table, Column)).IsSuccess.Should().BeTrue();
+        // Re-sealing the SAME resource asserts, not duplicates, the binding.
+        (await service.ProtectAsync(keyId, "v2", Aad(), Table, Column))
+            .IsSuccess.Should()
+            .BeTrue();
+        // A different column under the same DEK is a second inventory row.
+        (await service.ProtectAsync(keyId, "v3", Aad(), Table, "Nonce"))
+            .IsSuccess.Should()
+            .BeTrue();
+
+        List<KeyUsageBinding> bindings = await db
+            .KeyUsageBindings.AsNoTracking()
+            .Where(b => b.CryptoKeyId == keyId)
+            .ToListAsync();
+        bindings.Should().HaveCount(2);
+        bindings
+            .Should()
+            .ContainSingle(b => b.ResourceTable == Table && b.ResourceColumn == Column);
+        bindings
+            .Should()
+            .ContainSingle(b => b.ResourceTable == Table && b.ResourceColumn == "Nonce");
+    }
+
+    // ─── 10. Rotation (§3.4) — generations link, old data reads, new writes move on ──
+
+    [Fact]
+    public async Task Rotate_LinksGenerations_RetiresTheOld_AndOldCiphertextStillDecrypts()
+    {
+        (ISubjectKeyService service, ISubjectKeyStore store) = Build();
+        Guid subjectUserId = Guid.CreateVersion7();
+        const string subjectIdHash = "rotation-subject";
+        Guid oldKeyId = (
+            await service.GetOrCreateSubjectKeyAsync(subjectUserId, subjectIdHash)
+        ).Value;
+        const string secret = "sealed-before-rotation";
+        CipherPayload sealedOld = (
+            await service.ProtectAsync(oldKeyId, secret, Aad(), Table, Column)
+        ).Value;
+
+        Result<Guid> rotated = await service.RotateKeyAsync(oldKeyId);
+
+        rotated.IsSuccess.Should().BeTrue(rotated.ErrorMessage);
+        Guid newKeyId = rotated.Value;
+        newKeyId.Should().NotBe(oldKeyId);
+
+        // The predecessor retired to `rotating`, its wrapped material RETAINED (rotation ≠ shred).
+        SubjectKeyRecord? old = await store.GetAsync(oldKeyId);
+        old!.Status.Should().Be(SubjectKeyStatus.Rotating);
+        old.WrappedKeyMaterial.Should().NotBeNull();
+
+        // The successor is the identity's sole active key, version bumped, lineage linked.
+        SubjectKeyRecord? successor = await store.GetAsync(newKeyId);
+        successor!.Status.Should().Be(SubjectKeyStatus.Active);
+        successor.RotatedFromKeyId.Should().Be(oldKeyId);
+        successor.KeyVersion.Should().Be("2");
+        successor.KeyScope.Should().Be("subject");
+        successor.SubjectIdHash.Should().Be(subjectIdHash);
+
+        // Data written under the old generation still decrypts (lazy re-encryption — readers keep the
+        // old key id in their envelope until the resource owner re-seals).
+        Result<string> openedOld = await service.UnprotectAsync(oldKeyId, sealedOld, Aad());
+        openedOld.IsSuccess.Should().BeTrue(openedOld.ErrorMessage);
+        openedOld.Value.Should().Be(secret);
+
+        // But the retired generation never seals NEW data...
+        Result<CipherPayload> writeOld = await service.ProtectAsync(
+            oldKeyId,
+            "new-secret",
+            Aad(),
+            Table,
+            Column
+        );
+        writeOld.ErrorCode.Should().Be("KEY_NOT_ACTIVE");
+
+        // ...and the identity now resolves to the successor for every new write.
+        (await service.GetOrCreateSubjectKeyAsync(subjectUserId, subjectIdHash))
+            .Value.Should()
+            .Be(newKeyId);
+    }
+
+    [Fact]
+    public async Task Rotate_CarriesUsageBindingsToTheSuccessor()
+    {
+        (ISubjectKeyService service, _, AuthDbContext db) = BuildWithDb();
+        Guid oldKeyId = await NewSubjectKeyAsync(service);
+        (await service.ProtectAsync(oldKeyId, "value", Aad(), Table, Column))
+            .IsSuccess.Should()
+            .BeTrue();
+
+        Guid newKeyId = (await service.RotateKeyAsync(oldKeyId)).Value;
+
+        // The successor inherits the inventory: the planner knows which resources it covers going forward.
+        List<KeyUsageBinding> successorBindings = await db
+            .KeyUsageBindings.AsNoTracking()
+            .Where(b => b.CryptoKeyId == newKeyId)
+            .ToListAsync();
+        successorBindings
+            .Should()
+            .ContainSingle(b => b.ResourceTable == Table && b.ResourceColumn == Column);
+    }
+
+    [Fact]
+    public async Task Rotate_RefusesADestroyedKey()
+    {
+        (ISubjectKeyService service, _) = Build();
+        Guid keyId = await NewSubjectKeyAsync(service);
+        (await service.DestroyKeyAsync(keyId, Guid.CreateVersion7())).IsSuccess.Should().BeTrue();
+
+        Result<Guid> rotated = await service.RotateKeyAsync(keyId);
+
+        rotated.IsFailure.Should().BeTrue();
+        rotated
+            .ErrorCode.Should()
+            .Be("KEY_DESTROYED", "a shredded key is never brought back to life");
+    }
+
+    // ─── 11. Resolve (§3.4) — the erasure planner's complete shred set ──────────────
+
+    [Fact]
+    public async Task ResolveSubjectKeys_ReturnsEveryGeneration_TheUsersFk_AndEventMappedKeys()
+    {
+        (ISubjectKeyService service, _, AuthDbContext db) = BuildWithDb();
+        Guid subjectUserId = Guid.CreateVersion7();
+        const string subjectIdHash = "resolve-subject";
+
+        // Generation 1 + its rotated successor, both registered under the subject's hash.
+        Guid firstKey = (
+            await service.GetOrCreateSubjectKeyAsync(subjectUserId, subjectIdHash)
+        ).Value;
+        Guid successorKey = (await service.RotateKeyAsync(firstKey)).Value;
+
+        // A key FK'd from the user row under a DIFFERENT registry hash (the TokenProtector derivation).
+        CryptoKey fkKey = new()
+        {
+            KeyScope = "subject",
+            SubjectIdHash = "token-protector-derived-hash",
+            WrappedKeyMaterial = "wrapped",
+            Provider = "local_aes",
+            Algorithm = "AES-256-GCM",
+            Status = "active",
+        };
+        db.CryptoKeys.Add(fkKey);
+        db.Users.Add(
+            new User
+            {
+                Id = subjectUserId,
+                TwitchUserId = "tw-resolve",
+                Username = "resolve",
+                UsernameNormalized = "resolve",
+                DisplayName = "Resolve",
+                SubjectKeyId = fkKey.Id,
+            }
+        );
+
+        // A DEK sealing the subject's slice of a multi-subject journal event (O.1a mapping).
+        CryptoKey eventKey = new()
+        {
+            KeyScope = "subject",
+            SubjectIdHash = "gift-slice-hash",
+            WrappedKeyMaterial = "wrapped",
+            Provider = "local_aes",
+            Algorithm = "AES-256-GCM",
+            Status = "active",
+        };
+        db.CryptoKeys.Add(eventKey);
+        db.EventSubjectKeys.Add(
+            new EventSubjectKey
+            {
+                EventId = Guid.CreateVersion7(),
+                SubjectIdHash = subjectIdHash,
+                SubjectKeyId = eventKey.Id,
+                Role = "recipient",
+            }
+        );
+
+        // An already-destroyed generation under the hash needs no shred and stays out of the plan.
+        CryptoKey deadKey = new()
+        {
+            KeyScope = "subject",
+            SubjectIdHash = subjectIdHash,
+            WrappedKeyMaterial = null,
+            Provider = "local_aes",
+            Algorithm = "AES-256-GCM",
+            Status = "destroyed",
+        };
+        db.CryptoKeys.Add(deadKey);
+        await db.SaveChangesAsync();
+
+        Result<IReadOnlyList<Guid>> resolved = await service.ResolveSubjectKeysAsync(
+            subjectUserId,
+            subjectIdHash
+        );
+
+        resolved.IsSuccess.Should().BeTrue(resolved.ErrorMessage);
+        resolved
+            .Value.Should()
+            .BeEquivalentTo(
+                [firstKey, successorKey, fkKey.Id, eventKey.Id],
+                "the shred set covers every generation, the FK'd key, and the event-mapped slice — "
+                    + "and never an already-destroyed key"
+            );
     }
 }

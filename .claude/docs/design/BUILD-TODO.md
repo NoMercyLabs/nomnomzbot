@@ -58,12 +58,12 @@ what REMAINS.
   client (browse/install-as-update/publish with local pre-inspect, vaulted publisher token, rate
   buckets); the hosted service itself is a separate NoMercy deliverable — the bot degrades to
   `MARKETPLACE_UNAVAILABLE` until it exists.
-- [ ] **23. GDPR/crypto + IPC follow-ups** (`gdpr-crypto.md`, `stream-admin.md`) — remaining
-  beyond the shipped controllers: the §3.4 crypto widening (`ResolveSubjectKeysAsync`,
-  tenant/platform keys, rotation, `KeyUsageBinding`, `EventSubjectKeys`). Plus **(frontend —
-  handoff 2026-07-17)** the "My data" privacy screen. The GDPR/Compliance controllers, erasure
-  pipeline with crypto-shred, consent ledger, the §9 chat built-ins, the IPC key registry, AND the
-  IPC local socket listener are live.
+- [ ] **23. GDPR/crypto** (`gdpr-crypto.md`) — remaining: journal payload encryption (the
+  `EventSubjectKeys` WRITE seam — `EventJournalService` still writes `PayloadIsEncrypted=false`;
+  the read side + shred coverage are already wired), and **(frontend — handoff 2026-07-17)** the
+  "My data" privacy screen. Everything else is live: GDPR/Compliance controllers, the erasure
+  pipeline with generation-complete crypto-shred, consent ledger, §9 chat built-ins, §3.4 widening
+  (tenant/platform keys, lazy rotation, `KeyUsageBinding`), and the whole IPC dev-mode surface.
 
 ### 🔒 Security & small fixes
 - [ ] **24d. OWNER-GATED:** confirm authz key names (Plane-C + Gate-2 buckets) — cannot close

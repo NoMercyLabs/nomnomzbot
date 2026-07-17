@@ -59,10 +59,15 @@ public sealed class TokenProtector : ITokenProtector
         const string keyVersion = "1";
         CipherAad aad = BuildAad(context, keyVersion);
 
+        // The envelope column is logical, not physical — the same self-describing string lands in whatever
+        // token column the caller owns — so the Q.2 usage binding records the envelope's own coordinate
+        // system: the provider store as the "table", the field role as the "column".
         Result<CipherPayload> sealedPayload = await _subjectKeys.ProtectAsync(
             keyId.Value,
             plaintext,
             aad,
+            resourceTable: $"envelope:{context.Provider}",
+            resourceColumn: context.Field,
             cancellationToken
         );
         if (sealedPayload.IsFailure)

@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models.Crypto;
+using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 
 namespace NomNomzBot.Infrastructure.Platform.Security;
@@ -95,7 +96,112 @@ public sealed class CryptoKeySubjectKeyStore : ISubjectKeyStore
         await _db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task EnsureUsageBindingAsync(
+        Guid cryptoKeyId,
+        Guid? broadcasterId,
+        string resourceTable,
+        string resourceColumn,
+        CancellationToken cancellationToken = default
+    )
+    {
+        bool exists = await _db.KeyUsageBindings.AnyAsync(
+            b =>
+                b.CryptoKeyId == cryptoKeyId
+                && b.ResourceTable == resourceTable
+                && b.ResourceColumn == resourceColumn,
+            cancellationToken
+        );
+        if (exists)
+            return;
+
+        _db.KeyUsageBindings.Add(
+            new KeyUsageBinding
+            {
+                CryptoKeyId = cryptoKeyId,
+                BroadcasterId = broadcasterId,
+                ResourceTable = resourceTable,
+                ResourceColumn = resourceColumn,
+            }
+        );
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task AddRotationAsync(
+        SubjectKeyRecord successor,
+        SubjectKeyRecord retiredPredecessor,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // One SaveChanges = one implicit transaction: the successor, the retirement, and the carried-over
+        // bindings land together or not at all — the identity never persists with two active generations.
+        _db.CryptoKeys.Add(ToEntity(successor));
+
+        CryptoKey? predecessor = await _db.CryptoKeys.FirstOrDefaultAsync(
+            k => k.Id == retiredPredecessor.Id,
+            cancellationToken
+        );
+        if (predecessor is null)
+            _db.CryptoKeys.Add(ToEntity(retiredPredecessor));
+        else
+            ApplyTo(predecessor, retiredPredecessor);
+
+        List<KeyUsageBinding> bindings = await _db
+            .KeyUsageBindings.AsNoTracking()
+            .Where(b => b.CryptoKeyId == retiredPredecessor.Id)
+            .ToListAsync(cancellationToken);
+        foreach (KeyUsageBinding binding in bindings)
+        {
+            _db.KeyUsageBindings.Add(
+                new KeyUsageBinding
+                {
+                    CryptoKeyId = successor.Id,
+                    BroadcasterId = binding.BroadcasterId,
+                    ResourceTable = binding.ResourceTable,
+                    ResourceColumn = binding.ResourceColumn,
+                }
+            );
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Guid>> ResolveSubjectKeyIdsAsync(
+        Guid subjectUserId,
+        string subjectIdHash,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // Candidate ids beyond the hash sweep: the Users FK and every event-mapped DEK (O.1a slices).
+        List<Guid> candidates = await _db
+            .Users.Where(u => u.Id == subjectUserId && u.SubjectKeyId != null)
+            .Select(u => u.SubjectKeyId!.Value)
+            .ToListAsync(cancellationToken);
+        candidates.AddRange(
+            await _db
+                .EventSubjectKeys.Where(e => e.SubjectIdHash == subjectIdHash)
+                .Select(e => e.SubjectKeyId)
+                .ToListAsync(cancellationToken)
+        );
+
+        // One registry query filters everything to non-destroyed keys: the hash sweep picks up every
+        // subject-scope generation (rotated predecessors share the identity), the candidate list folds in
+        // the FK'd + event-mapped keys. An already-destroyed key needs no shred and is excluded.
+        List<Guid> resolved = await _db
+            .CryptoKeys.Where(k =>
+                k.Status != DestroyedStatus
+                && (
+                    (k.KeyScope == SubjectScope && k.SubjectIdHash == subjectIdHash)
+                    || candidates.Contains(k.Id)
+                )
+            )
+            .Select(k => k.Id)
+            .ToListAsync(cancellationToken);
+        return resolved.Distinct().ToList();
+    }
+
     private const string ActiveStatus = "active";
+    private const string DestroyedStatus = "destroyed";
+    private const string SubjectScope = "subject";
 
     private static SubjectKeyRecord ToRecord(CryptoKey e) =>
         new()
@@ -112,6 +218,7 @@ public sealed class CryptoKeySubjectKeyStore : ISubjectKeyStore
             Status = ParseStatus(e.Status),
             DestroyedAt = e.DestroyedAt,
             ErasureRequestId = e.ErasureRequestId,
+            RotatedFromKeyId = e.RotatedFromKeyId,
         };
 
     private static CryptoKey ToEntity(SubjectKeyRecord r)
@@ -138,6 +245,7 @@ public sealed class CryptoKeySubjectKeyStore : ISubjectKeyStore
         entity.Status = ToStatusString(r.Status);
         entity.DestroyedAt = r.DestroyedAt;
         entity.ErasureRequestId = r.ErasureRequestId;
+        entity.RotatedFromKeyId = r.RotatedFromKeyId;
     }
 
     private static string ToStatusString(SubjectKeyStatus status) =>

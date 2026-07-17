@@ -335,25 +335,19 @@ public sealed class ErasureService : IErasureService
         }
         CountStep(tablesAffected, ref rowsAffected, "ConsentRecords", activeConsents.Count);
 
-        // 9. CRYPTO-SHRED (O(1)): destroy the subject's DEK(s) — the FK'd Users.SubjectKeyId plus any
-        //    subject-scope key registered under the subject's hash. Every ciphertext sealed under them
-        //    (backups included) becomes permanently unreadable.
-        List<Guid> keyIds = await _db
-            .CryptoKeys.Where(k =>
-                k.KeyScope == "subject" && k.SubjectIdHash == subjectIdHash && k.Status == "active"
-            )
-            .Select(k => k.Id)
-            .ToListAsync(cancellationToken);
-        if (user.SubjectKeyId is Guid subjectKeyId && !keyIds.Contains(subjectKeyId))
-        {
-            bool stillActive = await _db.CryptoKeys.AnyAsync(
-                k => k.Id == subjectKeyId && k.Status == "active",
-                cancellationToken
-            );
-            if (stillActive)
-                keyIds.Add(subjectKeyId);
-        }
-        foreach (Guid keyId in keyIds)
+        // 9. CRYPTO-SHRED (O(1)): destroy every DEK the §3.4 planner resolves for the subject — the FK'd
+        //    Users.SubjectKeyId, every subject-scope generation under the hash (rotated predecessors
+        //    included), and every DEK mapped via EventSubjectKeys (the subject's slice of multi-subject
+        //    journal events). Every ciphertext sealed under them (backups included) becomes permanently
+        //    unreadable.
+        Result<IReadOnlyList<Guid>> resolvedKeys = await _subjectKeys.ResolveSubjectKeysAsync(
+            user.Id,
+            subjectIdHash,
+            cancellationToken
+        );
+        if (resolvedKeys.IsFailure)
+            return resolvedKeys.ToTyped<ErasurePipelineOutcome>();
+        foreach (Guid keyId in resolvedKeys.Value)
         {
             Result destroyed = await _subjectKeys.DestroyKeyAsync(
                 keyId,
@@ -363,7 +357,7 @@ public sealed class ErasureService : IErasureService
             if (destroyed.IsFailure)
                 return destroyed.ToTyped<ErasurePipelineOutcome>();
         }
-        int keysShredded = keyIds.Count;
+        int keysShredded = resolvedKeys.Value.Count;
         CountStep(tablesAffected, ref rowsAffected, "CryptoKeys", keysShredded);
 
         // 10. Complete the request + append the audit row — inside the same transaction, so a completed

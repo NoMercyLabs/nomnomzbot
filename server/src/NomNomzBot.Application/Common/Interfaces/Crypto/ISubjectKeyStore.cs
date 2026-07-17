@@ -46,4 +46,39 @@ public interface ISubjectKeyStore
 
     /// <summary>Replaces an existing record (matched by <see cref="SubjectKeyRecord.Id"/>).</summary>
     Task UpdateAsync(SubjectKeyRecord record, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Asserts a <c>KeyUsageBinding</c> (schema Q.2) for the triple — records which table/column stores
+    /// ciphertext under the DEK. Idempotent: an existing binding for the same triple is left as-is.
+    /// </summary>
+    Task EnsureUsageBindingAsync(
+        Guid cryptoKeyId,
+        Guid? broadcasterId,
+        string resourceTable,
+        string resourceColumn,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Persists a rotation atomically (one save): inserts the <paramref name="successor"/>, replaces the
+    /// <paramref name="retiredPredecessor"/> (its <c>rotating</c> status retiring it from writes while its
+    /// wrapped material stays readable), and copies the predecessor's usage bindings to the successor so the
+    /// inventory names which resources the new generation covers going forward.
+    /// </summary>
+    Task AddRotationAsync(
+        SubjectKeyRecord successor,
+        SubjectKeyRecord retiredPredecessor,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Read-only shred planning (gdpr-crypto §3.4): every non-destroyed DEK id belonging to the subject —
+    /// the <c>Users.SubjectKeyId</c> FK, every <c>subject</c>-scope generation registered under the hash
+    /// (rotated predecessors included), and every DEK mapped to the hash via <c>EventSubjectKeys</c> (O.1a).
+    /// </summary>
+    Task<IReadOnlyList<Guid>> ResolveSubjectKeyIdsAsync(
+        Guid subjectUserId,
+        string subjectIdHash,
+        CancellationToken cancellationToken = default
+    );
 }

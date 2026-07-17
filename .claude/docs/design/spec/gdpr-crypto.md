@@ -486,3 +486,27 @@ Default copy (part 1, customizable) with the always-appended mandatory clause (p
 - The completion reply = customizable first part (override → tone → default copy, zero-emoji) + the
   MANDATORY informed-re-entry clause always appended OUTSIDE any template. A `forgetme/done`
   personality slot exists; tone-catalog variations are not yet authored.
+
+### As-built addendum — §3.4 crypto widening (2026-07-17)
+
+- `GetOrCreateTenantKeyAsync`/`GetOrCreatePlatformKeyAsync` share one mint path, idempotent per
+  `(KeyScope, BroadcasterId, SubjectIdHash)`; destroyed keys never resurrect. Platform `purpose`
+  occupies the `SubjectIdHash` slot (it IS the idempotence identity).
+- `ProtectAsync` now carries `resourceTable/resourceColumn` (the old 4-param signature is GONE —
+  only 2 production call sites existed) and records a `KeyUsageBinding` on every successful seal.
+  `TokenProtector` binds as `envelope:{provider}`/field — its envelope is column-agnostic.
+- **Rotation is lazy, not the spec's eager in-tx re-encrypt:** `RotateKeyAsync` mints a FRESH DEK
+  successor (`KeyVersion+1`, `RotatedFromKeyId`, active), retires the predecessor to `rotating`
+  with material RETAINED, and copies usage bindings atomically. `UnprotectAsync` accepts
+  `rotating` keys so old data reads; new writes take the active generation; the shred set keeps
+  every generation. Rationale: the service cannot generically rewrite consumers' envelope formats
+  (per-row AADs, composite text columns). No DEK-lifecycle events (no consumers exist).
+- `ResolveSubjectKeysAsync` = `Users.SubjectKeyId` + all non-destroyed subject-scope generations by
+  hash + `EventSubjectKeys`-mapped DEKs; shared tenant/platform keys are DELIBERATELY excluded —
+  shredding them for one subject would destroy other subjects' data. The erasure shred (step 9) now
+  destroys exactly this resolved set.
+- **`EventSubjectKeys` write seam deferred:** journal payload encryption is not built
+  (`PayloadIsEncrypted=false` everywhere), so nothing exists to map at write time; the read side +
+  shred coverage are wired and the write seam belongs to the future journal-encryption slice.
+- Tables Q.2 `KeyUsageBindings` (unique triple) + O.1a `EventSubjectKeys` (unique `(EventId,
+  SubjectKeyId)`) shipped with paired migrations `AddKeyUsageAndEventSubjectKeys`.

@@ -280,6 +280,10 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
     public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationToken> IntegrationTokens =>
         throw new NotSupportedException();
     public DbSet<CryptoKey> CryptoKeys => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.KeyUsageBinding> KeyUsageBindings =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey> EventSubjectKeys =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection> DiscordGuildConnections =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig> DiscordNotificationConfigs =>

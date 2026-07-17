@@ -181,6 +181,10 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
         Set<NomNomzBot.Domain.Identity.Entities.CryptoKey>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.KeyUsageBinding> KeyUsageBindings =>
+        Set<NomNomzBot.Domain.Identity.Entities.KeyUsageBinding>();
+    public DbSet<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey> EventSubjectKeys =>
+        Set<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
