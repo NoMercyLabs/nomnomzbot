@@ -160,6 +160,7 @@ public interface IApplicationDbContext
     DbSet<CatalogPurchase> CatalogPurchases { get; }
     DbSet<GameConfig> GameConfigs { get; }
     DbSet<GamePlay> GamePlays { get; }
+    DbSet<GameSession> GameSessions { get; }
     DbSet<ViewerAgeConsent> ViewerAgeConsents { get; }
     DbSet<SavingsJar> SavingsJars { get; }
     DbSet<SavingsJarMembership> SavingsJarMemberships { get; }

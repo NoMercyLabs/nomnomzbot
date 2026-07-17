@@ -2627,6 +2627,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<Guid>("GameConfigId")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("GameSessionId")
+                        .HasColumnType("TEXT");
+
                     b.Property<long>("NetResult")
                         .HasColumnType("INTEGER");
 
@@ -2654,9 +2657,76 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.HasIndex("BroadcasterId", "GameConfigId");
 
+                    b.HasIndex("BroadcasterId", "GameSessionId");
+
                     b.HasIndex("BroadcasterId", "PlayerUserId");
 
                     b.ToTable("GamePlays");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Economy.Entities.GameSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("GameConfigId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GameType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("JoinClosesAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OutcomeJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ParticipantCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("StartedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StateJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameConfigId");
+
+                    b.HasIndex("BroadcasterId", "Status", "CreatedAt");
+
+                    b.ToTable("GameSessions");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Economy.Entities.JarContribution", b =>

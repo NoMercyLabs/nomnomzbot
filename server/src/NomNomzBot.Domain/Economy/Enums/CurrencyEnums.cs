@@ -64,6 +64,10 @@ public enum CurrencyEntryType
 
     // Supporter events (supporter-events.md D5): the opt-in reward credit for a monetization event.
     EarnSupporter,
+
+    // Live games (live-games.md D4/D9): the reversing credit for an unsettled live-game entry fee
+    // (cancel / min-players-unmet / startup crash sweep), linked to the original debit via RelatedEntryId.
+    RefundGame,
 }
 
 /// <summary>
@@ -81,4 +85,8 @@ public enum CurrencyLedgerSourceType
     Transfer,
     Giveaway,
     MediaShare,
+
+    // Live games (live-games.md D4): SourceId carries the GameSession id — the durable link that makes
+    // crash refunds and settlement idempotence reconstructible from the ledger alone.
+    LiveGame,
 }

@@ -332,6 +332,12 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("economy:earning-rules:delete", Editor);
         M("economy:accounts:read", Mod);
         M("economy:games:write", Broadcaster);
+
+        // Live games (live-games.md §5): starting/cancelling an overlay round is Moderator live-ops;
+        // the per-game config (odds/bets/enable) stays the Broadcaster's economy:games:write above.
+        M("games:session:read", Mod);
+        M("games:session:start", Mod);
+        M("games:session:cancel", Mod);
         M("economy:catalog:create", Editor);
         M("economy:catalog:update", Editor);
         M("economy:catalog:delete", Editor);

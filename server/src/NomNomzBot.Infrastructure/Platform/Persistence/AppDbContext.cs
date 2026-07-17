@@ -246,6 +246,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<Domain.Economy.Entities.GameConfig>();
     public DbSet<Domain.Economy.Entities.GamePlay> GamePlays =>
         Set<Domain.Economy.Entities.GamePlay>();
+    public DbSet<Domain.Economy.Entities.GameSession> GameSessions =>
+        Set<Domain.Economy.Entities.GameSession>();
     public DbSet<Domain.Economy.Entities.ViewerAgeConsent> ViewerAgeConsents =>
         Set<Domain.Economy.Entities.ViewerAgeConsent>();
     public DbSet<Domain.Economy.Entities.SavingsJar> SavingsJars =>

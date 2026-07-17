@@ -51,4 +51,41 @@ public interface IGameService
         PaginationParams pagination,
         CancellationToken ct = default
     );
+
+    // ── Live games delta (live-games.md §3.3) — the engine never touches the ledger itself ──
+
+    /// <summary>
+    /// Debits one joiner's entry fee (<c>spend_game</c>, <c>SourceType=live_game</c>,
+    /// <c>SourceId=sessionId</c>). Applies the 18+ gate when the config demands it; <c>INSUFFICIENT_FUNDS</c>
+    /// and frozen-account failures bubble so the engine can skip the joiner.
+    /// </summary>
+    Task<Result<LiveGameStakeResult>> StakeLiveGameEntryAsync(
+        Guid broadcasterId,
+        LiveGameStakeCommand command,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Settles a resolved session: per award, credits any payout (<c>earn_game</c>, tagged to the session)
+    /// and appends a <c>GamePlay</c> row with <c>GameSessionId</c> set, publishing <c>GamePlayedEvent</c> per
+    /// row. Idempotent per participant — awards whose user already has a <c>GamePlay</c> row for the session
+    /// are skipped, so a crashed settlement re-runs exactly-once per award. (Each ledger post is atomic on
+    /// its own — the economy core's documented pattern, same as <see cref="PlayAsync"/>.)
+    /// </summary>
+    Task<Result<LiveGameSettlementResult>> SettleLiveGameAsync(
+        Guid broadcasterId,
+        LiveGameSettlement settlement,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Reverses every un-settled entry-fee debit of the session (<c>refund_game</c>,
+    /// <c>RelatedEntryId</c> → the original debit's position). Idempotent: already-refunded debits and
+    /// participants who settled (have a <c>GamePlay</c> row) are skipped — the cancel/startup-sweep primitive.
+    /// </summary>
+    Task<Result> RefundLiveGameAsync(
+        Guid broadcasterId,
+        Guid sessionId,
+        CancellationToken ct = default
+    );
 }

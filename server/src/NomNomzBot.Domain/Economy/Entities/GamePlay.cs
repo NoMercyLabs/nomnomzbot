@@ -23,6 +23,9 @@ public class GamePlay : ITenantScoped
     public long Id { get; set; }
     public Guid BroadcasterId { get; set; }
     public Guid GameConfigId { get; set; }
+
+    // Live games (live-games.md D10): set for every live-game award row; null for instant PlayAsync games.
+    public Guid? GameSessionId { get; set; }
     public Guid PlayerAccountId { get; set; }
     public Guid PlayerUserId { get; set; }
     public long BetAmount { get; set; }

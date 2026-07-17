@@ -125,17 +125,25 @@ Live Games does no currency I/O itself; these wrap it atomically (economy owns t
 
 ```csharp
 // On join with an entry fee: debits the stake (PostLedgerEntryAsync EntryType=spend_game,
-// SourceType=live_game, SourceId=sessionId). Guards INSUFFICIENT_FUNDS / frozen account.
-// Returns the account + the bet ledger-entry id (stashed in session state for settlement/refund).
+// SourceType=live_game, SourceId=sessionId), applying the 18+ gate when the config demands it.
+// Guards INSUFFICIENT_FUNDS / frozen account. Returns the account + the bet ledger-entry id AND
+// tenant position (stashed in session state for settlement/refund linking).
 Task<Result<LiveGameStakeResult>> StakeLiveGameEntryAsync(Guid broadcasterId, LiveGameStakeCommand command, CancellationToken ct = default);
 
-// On resolve: in ONE IUnitOfWork tx, for each award credits Payout (>0) (EntryType=earn_game,
-// SourceType=live_game, SourceId=sessionId) and appends a GamePlay (GameSessionId set, BetAmount=Stake,
-// Outcome, PayoutAmount, NetResult, Bet/PayoutLedgerEntryId linked); publishes GamePlayedEvent per row.
+// On resolve: for each award credits Payout (>0) (EntryType=earn_game, SourceType=live_game,
+// SourceId=sessionId, RelatedEntryId=the bet's tenant position) and appends a GamePlay
+// (GameSessionId set, BetAmount=Stake, Outcome, PayoutAmount, NetResult, Bet/PayoutLedgerEntryId
+// linked); publishes GamePlayedEvent per row. IDEMPOTENT PER PARTICIPANT — an award whose user
+// already has a GamePlay row for the session is skipped, so a crashed settlement re-runs
+// exactly-once per award. (AS-BUILT: each ledger post is atomic on its own — the economy core's
+// documented per-post pattern, same as PlayAsync — rather than one wrapping IUnitOfWork tx;
+// idempotence, not a transaction, is the crash guarantee. Awards are typed GameOutcome.)
 Task<Result<LiveGameSettlementResult>> SettleLiveGameAsync(Guid broadcasterId, LiveGameSettlement settlement, CancellationToken ct = default);
 
-// On cancel/startup-sweep: posts reversing credits (EntryType=refund_game, RelatedEntryId=original)
-// for every spend_game/SourceId=sessionId debit not already settled. Idempotent per session.
+// On cancel/startup-sweep: posts reversing credits (EntryType=refund_game, RelatedEntryId=the
+// original debit's tenant position) for every spend_game/SourceId=sessionId debit not already
+// refunded and whose user has no GamePlay row for the session (settled participants are never
+// refunded). Idempotent per session.
 Task<Result> RefundLiveGameAsync(Guid broadcasterId, Guid sessionId, CancellationToken ct = default);
 ```
 
@@ -276,7 +284,7 @@ In-round joins (`!drop`, etc.) are **not** pipeline actions — they are routed 
 Per the project standard: assert state changes, emitted events, and ledger side-effects — never "didn't throw".
 
 - **Engine lifecycle** — drive a fake `ILiveGame` through start→join×N→resolve and assert: `GameSession.Status` transitions `lobby→running→resolving→settled`; `ParticipantCount`; one `GamePlay` row **per awarded participant** with `GameSessionId` set and `Outcome`/`PayoutAmount`/`NetResult` matching the resolution; `LiveGameStartedEvent` + `LiveGameResolvedEvent` (with the right `WinnerCount`/`TotalPaidOut`) on the bus.
-- **Entry-fee + settlement atomicity** — with `RequiresEntryFee`, assert each joiner's wallet is debited `spend_game`/`SourceType=live_game`/`SourceId=sessionId` on join and credited `earn_game` on win; a forced fault mid-settlement rolls back **all** credits + `GamePlay` appends (one tx).
+- **Entry-fee + settlement idempotence** — with `RequiresEntryFee`, assert each joiner's wallet is debited `spend_game`/`SourceType=live_game`/`SourceId=sessionId` on join and credited `earn_game` on win; re-running the same settlement settles **nothing** twice (no second payout, no duplicate `GamePlay` rows), and a participant left un-settled by a mid-settlement fault stays refundable.
 - **Min-players + crash refund** — a session that resolves under `MinPlayers` cancels and **fully refunds** every stake (reversing entries); a non-terminal session present at startup is swept, cancelled, and refunded exactly once (idempotent under `IRunOnceGuard`).
 - **D7 single-session** — `StartAsync` while a non-terminal session exists fails `SESSION_ALREADY_ACTIVE`.
 - **Drop-in proof** — a second fake `ILiveGame` with a distinct `GameKey` is discovered and runnable **without** any engine/registration edit; a duplicate `GameKey` fails the catalog build at startup.

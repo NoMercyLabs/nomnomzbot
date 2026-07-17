@@ -527,6 +527,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Economy.Entities.GameConfig>();
     public DbSet<NomNomzBot.Domain.Economy.Entities.GamePlay> GamePlays =>
         Set<NomNomzBot.Domain.Economy.Entities.GamePlay>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.GameSession> GameSessions =>
+        Set<NomNomzBot.Domain.Economy.Entities.GameSession>();
     public DbSet<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent> ViewerAgeConsents =>
         Set<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent>();
     public DbSet<NomNomzBot.Domain.Economy.Entities.SavingsJar> SavingsJars =>

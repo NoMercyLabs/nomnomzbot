@@ -406,6 +406,246 @@ public sealed class GameService(
         );
     }
 
+    // ── Live games delta (live-games.md §3.3) — stake / settle / refund, all reconstructible from the
+    // ledger via SourceType=LiveGame + SourceId=sessionId ──
+
+    public async Task<Result<LiveGameStakeResult>> StakeLiveGameEntryAsync(
+        Guid broadcasterId,
+        LiveGameStakeCommand command,
+        CancellationToken ct = default
+    )
+    {
+        if (command.Stake <= 0)
+            return Result.Failure<LiveGameStakeResult>(
+                "Stake must be positive.",
+                "VALIDATION_FAILED"
+            );
+
+        GameConfig? game = await db.GameConfigs.FirstOrDefaultAsync(
+            g =>
+                g.BroadcasterId == broadcasterId
+                && g.Id == command.GameConfigId
+                && g.DeletedAt == null,
+            ct
+        );
+        if (game is null)
+            return Result.Failure<LiveGameStakeResult>("Game not found.", "NOT_FOUND");
+        if (!game.IsEnabled)
+            return Result.Failure<LiveGameStakeResult>("Game is disabled.", "GAMBLING_DISABLED");
+
+        // The same optional 18+ gate as PlayAsync (D8) — a gambling live game inherits it unchanged.
+        if (game.Requires18Plus)
+        {
+            Result<bool> granted = await ageConsent.HasGrantedAsync(
+                broadcasterId,
+                command.ViewerUserId,
+                ct
+            );
+            if (granted.IsFailure)
+                return Result.Failure<LiveGameStakeResult>(granted.ErrorMessage, granted.ErrorCode);
+            if (!granted.Value)
+                return Result.Failure<LiveGameStakeResult>(
+                    "This game requires confirming you are 18 or older.",
+                    "AGE_CONSENT_REQUIRED"
+                );
+        }
+
+        Result<CurrencyLedgerEntryDto> debit = await accounts.PostLedgerEntryAsync(
+            broadcasterId,
+            new PostLedgerEntryCommand(
+                command.ViewerUserId,
+                -command.Stake,
+                nameof(CurrencyEntryType.SpendGame),
+                nameof(CurrencyLedgerSourceType.LiveGame),
+                command.SessionId,
+                EventId: null,
+                Reason: $"Live game entry: {game.GameType}",
+                ActorUserId: null,
+                IdempotencyKey: null
+            ),
+            ct
+        );
+        if (debit.IsFailure)
+            return Result.Failure<LiveGameStakeResult>(debit.ErrorMessage, debit.ErrorCode);
+
+        return Result.Success(
+            new LiveGameStakeResult(
+                debit.Value.AccountId,
+                debit.Value.Id,
+                debit.Value.TenantPosition,
+                debit.Value.BalanceAfter
+            )
+        );
+    }
+
+    public async Task<Result<LiveGameSettlementResult>> SettleLiveGameAsync(
+        Guid broadcasterId,
+        LiveGameSettlement settlement,
+        CancellationToken ct = default
+    )
+    {
+        if (settlement.Awards.Count == 0)
+            return Result.Success(new LiveGameSettlementResult(0, 0, 0));
+
+        // Idempotence: a participant with a GamePlay row for this session is already settled — a crashed
+        // settlement re-runs exactly-once per award instead of double-paying.
+        List<Guid> settledUsers = await db
+            .GamePlays.Where(p =>
+                p.BroadcasterId == broadcasterId && p.GameSessionId == settlement.SessionId
+            )
+            .Select(p => p.PlayerUserId)
+            .ToListAsync(ct);
+        HashSet<Guid> alreadySettled = [.. settledUsers];
+
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        int settled = 0;
+        int winners = 0;
+        long totalPaidOut = 0;
+        List<GamePlay> pendingPlays = [];
+
+        foreach (LiveGameSettlementAward award in settlement.Awards)
+        {
+            if (!alreadySettled.Add(award.ViewerUserId))
+                continue;
+
+            long? payoutEntryId = null;
+            if (award.Payout > 0)
+            {
+                Result<CurrencyLedgerEntryDto> credit = await accounts.PostLedgerEntryAsync(
+                    broadcasterId,
+                    new PostLedgerEntryCommand(
+                        award.ViewerUserId,
+                        award.Payout,
+                        nameof(CurrencyEntryType.EarnGame),
+                        nameof(CurrencyLedgerSourceType.LiveGame),
+                        settlement.SessionId,
+                        EventId: null,
+                        Reason: $"Live game payout: {settlement.GameType}",
+                        ActorUserId: null,
+                        IdempotencyKey: null,
+                        RelatedEntryId: award.BetTenantPosition
+                    ),
+                    ct
+                );
+                if (credit.IsFailure)
+                {
+                    // A frozen/failed winner stays UN-settled (no GamePlay row) — their stake remains
+                    // refundable and a settlement retry can pay them once the account thaws.
+                    alreadySettled.Remove(award.ViewerUserId);
+                    continue;
+                }
+                payoutEntryId = credit.Value.Id;
+            }
+
+            pendingPlays.Add(
+                new GamePlay
+                {
+                    BroadcasterId = broadcasterId,
+                    GameConfigId = settlement.GameConfigId,
+                    GameSessionId = settlement.SessionId,
+                    PlayerAccountId = award.AccountId,
+                    PlayerUserId = award.ViewerUserId,
+                    BetAmount = award.Stake,
+                    Outcome = award.Outcome,
+                    PayoutAmount = award.Payout,
+                    NetResult = award.Payout - award.Stake,
+                    BetLedgerEntryId = award.BetLedgerEntryId,
+                    PayoutLedgerEntryId = payoutEntryId,
+                    CreatedAt = now,
+                }
+            );
+            settled++;
+            if (award.Payout > 0)
+            {
+                winners++;
+                totalPaidOut += award.Payout;
+            }
+        }
+
+        db.GamePlays.AddRange(pendingPlays);
+        await db.SaveChangesAsync(ct);
+
+        foreach (GamePlay play in pendingPlays)
+            await eventBus.PublishAsync(
+                new GamePlayedEvent
+                {
+                    BroadcasterId = broadcasterId,
+                    GamePlayId = play.Id,
+                    GameConfigId = settlement.GameConfigId,
+                    GameType = settlement.GameType,
+                    PlayerUserId = play.PlayerUserId,
+                    BetAmount = play.BetAmount,
+                    Outcome = play.Outcome.ToString(),
+                    PayoutAmount = play.PayoutAmount,
+                    NetResult = play.NetResult,
+                },
+                ct
+            );
+
+        return Result.Success(new LiveGameSettlementResult(settled, winners, totalPaidOut));
+    }
+
+    public async Task<Result> RefundLiveGameAsync(
+        Guid broadcasterId,
+        Guid sessionId,
+        CancellationToken ct = default
+    )
+    {
+        List<CurrencyLedgerEntry> sessionEntries = await db
+            .CurrencyLedgerEntries.Where(e =>
+                e.BroadcasterId == broadcasterId
+                && e.SourceType == CurrencyLedgerSourceType.LiveGame
+                && e.SourceId == sessionId
+            )
+            .ToListAsync(ct);
+
+        HashSet<long> refundedPositions =
+        [
+            .. sessionEntries
+                .Where(e => e.EntryType == CurrencyEntryType.RefundGame)
+                .Select(e => e.RelatedEntryId ?? 0),
+        ];
+        HashSet<Guid> settledUsers =
+        [
+            .. await db
+                .GamePlays.Where(p =>
+                    p.BroadcasterId == broadcasterId && p.GameSessionId == sessionId
+                )
+                .Select(p => p.PlayerUserId)
+                .ToListAsync(ct),
+        ];
+
+        foreach (
+            CurrencyLedgerEntry stake in sessionEntries.Where(e =>
+                e.EntryType == CurrencyEntryType.SpendGame
+                && !refundedPositions.Contains(e.TenantPosition)
+                && !settledUsers.Contains(e.ViewerUserId)
+            )
+        )
+        {
+            // A failed refund (frozen account) is skipped, not fatal — the stake stays un-reversed in the
+            // ledger and a later idempotent re-run picks it up.
+            await accounts.PostLedgerEntryAsync(
+                broadcasterId,
+                new PostLedgerEntryCommand(
+                    stake.ViewerUserId,
+                    -stake.Amount,
+                    nameof(CurrencyEntryType.RefundGame),
+                    nameof(CurrencyLedgerSourceType.LiveGame),
+                    sessionId,
+                    EventId: null,
+                    Reason: "Live game refund",
+                    ActorUserId: null,
+                    IdempotencyKey: null,
+                    RelatedEntryId: stake.TenantPosition
+                ),
+                ct
+            );
+        }
+
+        return Result.Success();
+    }
+
     private static bool OutOfPercentRange(decimal? value) => value is < 0 or > 100;
 
     private static GameConfigDto ToDto(GameConfig g) =>

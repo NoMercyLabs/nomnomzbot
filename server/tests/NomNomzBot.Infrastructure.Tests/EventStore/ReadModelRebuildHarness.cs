@@ -371,6 +371,8 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.GamePlay> GamePlays =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.GameSession> GameSessions =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent> ViewerAgeConsents =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.SavingsJar> SavingsJars =>

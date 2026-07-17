@@ -28,3 +28,17 @@ public enum GameOutcome
     Push,
     Jackpot,
 }
+
+/// <summary>
+/// The lifecycle of a live overlay game session (live-games.md K.9a). <see cref="Lobby"/>, <see cref="Running"/>,
+/// and <see cref="Resolving"/> are non-terminal (at most one per channel, service-enforced — D7);
+/// <see cref="Settled"/> and <see cref="Cancelled"/> are terminal and accumulate as history.
+/// </summary>
+public enum GameSessionStatus
+{
+    Lobby,
+    Running,
+    Resolving,
+    Settled,
+    Cancelled,
+}

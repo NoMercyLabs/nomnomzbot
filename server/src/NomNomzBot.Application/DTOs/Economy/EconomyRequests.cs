@@ -46,7 +46,10 @@ public sealed record PostLedgerEntryCommand(
     Guid? EventId,
     string? Reason,
     Guid? ActorUserId,
-    string? IdempotencyKey
+    string? IdempotencyKey,
+    // The TenantPosition of the entry this one reverses/pairs with (refund_game → its spend_game debit),
+    // matching the transfer convention. Null for standalone entries.
+    long? RelatedEntryId = null
 );
 
 /// <summary>A point-to-point transfer between two viewers in the same channel (economy.md §4). <see cref="Amount"/> &gt; 0.</summary>

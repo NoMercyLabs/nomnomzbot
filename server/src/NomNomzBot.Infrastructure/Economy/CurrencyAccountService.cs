@@ -143,7 +143,7 @@ public sealed class CurrencyAccountService(
                 sourceType,
                 command.SourceId,
                 config,
-                relatedEntryId: null,
+                command.RelatedEntryId,
                 command.EventId,
                 command.Reason,
                 command.ActorUserId,

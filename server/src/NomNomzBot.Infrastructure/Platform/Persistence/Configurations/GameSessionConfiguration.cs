@@ -14,17 +14,23 @@ using NomNomzBot.Domain.Economy.Entities;
 
 namespace NomNomzBot.Infrastructure.Platform.Persistence.Configurations;
 
-public class GamePlayConfiguration : IEntityTypeConfiguration<GamePlay>
+public class GameSessionConfiguration : IEntityTypeConfiguration<GameSession>
 {
-    public void Configure(EntityTypeBuilder<GamePlay> builder)
+    public void Configure(EntityTypeBuilder<GameSession> builder)
     {
-        builder.HasKey(e => e.Id); // long identity
+        builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.Outcome).HasConversion<string>().HasMaxLength(20);
+        builder.Property(e => e.GameType).IsRequired().HasMaxLength(30);
+        builder.Property(e => e.Status).HasConversion<string>().HasMaxLength(20);
+        builder.Property(e => e.CancelReason).HasMaxLength(60);
 
-        builder.HasIndex(e => new { e.BroadcasterId, e.GameConfigId });
-        builder.HasIndex(e => new { e.BroadcasterId, e.PlayerUserId });
-        // Live-game session history + settlement-idempotence reads (live-games.md D10).
-        builder.HasIndex(e => new { e.BroadcasterId, e.GameSessionId });
+        // The active-session lookup (D7) and the settled/cancelled history listing.
+        builder.HasIndex(e => new
+        {
+            e.BroadcasterId,
+            e.Status,
+            e.CreatedAt,
+        });
+        builder.HasIndex(e => e.GameConfigId);
     }
 }

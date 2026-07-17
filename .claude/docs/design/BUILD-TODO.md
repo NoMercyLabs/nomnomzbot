@@ -42,7 +42,11 @@ what REMAINS.
 - [ ] **16. TTS advanced** (`tts.md`) — remaining follow-on: `client_edge` mode (the frontend
   widget handler + dispatch plane; flip the new-channel `Mode` default from `self_host` to the
   binding `client_edge` when it lands).
-- [ ] **19. Live overlay games** (`live-games.md`) — session lifecycle + game catalog/manifest.
+- [ ] **19. Live overlay games** (`live-games.md`) — remaining: the generic layer (`ILiveGame` contract +
+  `ILiveGameCatalog` auto-discovery, `ILiveGameEngine` + `LiveGameRunner` hosted service with the single
+  chat-input subscription, `GameSessionsController` §5 routes, `start_live_game`/`cancel_live_game`
+  actions, overlay frames via `IWidgetEventNotifier`, startup crash sweep), then the reference `DropGame`
+  + its first-party overlay widget + default config seed (§4.1; widget overlaps item 20).
 - [ ] **20. Widget gallery + overlay manifest** (`widgets-overlays.md`) — gallery, `OverlayController`
   manifest, widget versions/build (the compiled-bundle/gallery/import pipeline).
 - [ ] **22. Marketplace / bundles** (`marketplace.md`) — export/inspect/import/uninstall;
