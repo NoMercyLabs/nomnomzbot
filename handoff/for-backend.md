@@ -16,55 +16,55 @@ The frontend track (`aaoa-dev`) leaves backend work orders here. The backend tra
 
 ## Open
 
-### 2026-07-13 — Community per-viewer stats can't reach the analytics endpoint (id-type mismatch)
-- **From:** aaoa-dev (via Claude, frontend track)
-- **What:** the 2026-07-04 handoff ("Send channel context on user lookups") asked the frontend to stop calling
-  the self-only `GET /users/{id}/stats` for foreign viewers and use `GET /channels/{channelId}/analytics/
-  viewers/{viewerUserId}` instead. Blocker: the analytics route is typed `{viewerUserId:guid}` (an internal
-  `User.Id`), but the community list DTO (`CommunityUserDto`) exposes only the **Twitch user id** — its first
-  field is `f.UserId`, and `CommunityController` builds it from Twitch-id space (line ~180 keys `users` by
-  `TwitchUserId`; line ~302 note: "Candidate ids live in Twitch-user-id space"). So the client holds a Twitch
-  id and cannot call a guid-typed endpoint. `X-Channel-Id` auto-injection (part 1 of that entry) is already
-  done client-side; only this per-viewer stats swap is blocked.
-- **Why:** the community per-user detail panel's stats section currently 403s for every viewer except the
-  operator themself (the self-only endpoint). It degrades to null (no crash), but shows no stats.
-- **Where:** pick one — (a) add the internal `userId` (GUID) to `CommunityUserDto` (+ the leaderboard rows that
-  feed the detail panel), so the client can call the analytics viewer endpoint; OR (b) add a Twitch-id-accepting
-  analytics viewer endpoint (mirroring how the viewer-data endpoint resolves `TwitchUserId`). Refresh
-  `server/openapi/v1.json`.
-- **Done when:** the frontend can fetch a foreign viewer's engagement stats (messages / watch time / follower /
-  sub) for the community detail panel via a manager-allowed endpoint keyed off an id the community list provides.
+_(none)_
 
-### 2026-07-13 — Dev: Discord guild endpoints 500 with "Discord request failed (401)"
-- **From:** aaoa-dev (via Claude, frontend track)
-- **What:** on dev (`dev.nomnomz.bot`, owner channel `019f146e-8303-71ef-b698-18d1098d7d7e`, guild
-  connection `01KWR909XXF17A0HRVYK2Z4Y3X` "NoMercy Entertainment"), all three guild-picker GETs return
-  HTTP 500 `{"status":"error","message":"Discord request failed (401)."}`:
-  `.../discord/connections/{connectionId}/guild`, `/guild/roles`, `/guild/channels`. The upstream Discord
-  API rejects the bot token with 401 — the stored/configured Discord bot token for that guild is invalid or
-  expired on dev (same shape as the Twitch stale-token footgun; possibly an `ENCRYPTION_KEY`-rotation or a
-  re-invite/token-refresh need).
-- **Why:** the frontend guild role/channel pickers (shipped this session) call these endpoints. They degrade
-  gracefully — a failure falls back to manual snowflake entry, so nothing is broken in the UI — but the
-  dropdowns can't populate on dev until the Discord bot token is valid. Not reproducible client-side; it's a
-  backend/ops credential issue.
-- **Where:** the Discord bot-token resolution behind `DiscordController`'s guild reads (whatever calls Discord
-  with the bot token). Also worth surfacing a cleaner 4xx (e.g. `needs_reauth`) instead of a raw 500 when
-  Discord answers 401, so the client can show a reconnect prompt rather than a generic failure.
-- **Done when:** the three guild GETs return 200 with real role/channel data on dev for that connection (or a
-  structured re-auth signal), and the frontend pickers populate.
+## Done
 
-### 2026-07-13 — Let a channel-point reward run a pipeline (for reward-triggered sounds)
+### 2026-07-18 — Community per-viewer stats can't reach the analytics endpoint (id-type mismatch)
+- **Commit:** `0a1f977e`
 - **From:** aaoa-dev (via Claude, frontend track)
-- **What:** channel-point rewards currently have no `pipelineId` — a reward is pure Twitch CRUD
-  (`CreateRewardBody`/`UpdateRewardBody` carry no pipeline, and there is no reward→pipeline dispatch). Add
-  an optional `pipelineId` to the reward create/update DTOs + run that pipeline when the reward is redeemed
-  (the redemption event already flows through EventSub). Mirror how timers now dispatch their `pipelineId`.
-- **Why:** qtkitte item — "attach a sound to a specific channel-point reward". The frontend shipped the rest
-  (timers pipeline binding + rotation list, `play_sound` in the pipeline builder, overlay URLs), and a
-  sub/command can already play a sound via an event-response/command pipeline with a `play_sound` step. Only
-  the reward path is unreachable because a reward cannot reference a pipeline.
-- **Where:** `RewardsController` DTOs + the reward-redemption handler (dispatch the bound pipeline). Refresh
-  `server/openapi/v1.json`; the frontend then adds a pipeline picker to the reward form (like the timer one).
-- **Done when:** a reward can be bound to a pipeline and redeeming it runs the pipeline (so a `play_sound`
-  step fires on redemption).
+- **Resolution:** option (a). `CommunityUserDto` and `UserDetailDto` (CommunityController) and the chat-activity
+  leaderboard row `LeaderboardEntryDto` (RewardsController.GetLeaderboard) now each carry `InternalUserId`
+  (`Guid?`, the internal `User.Id`, or `null` when the viewer has no local `User` row yet). `Id` stays the
+  Twitch user id. The client can now call `GET /channels/{channelId}/analytics/viewers/{viewerUserId:guid}`
+  (keyed on `User.Id`) with the id the community list / leaderboard provides — foreign-viewer stats no longer 403.
+- **OpenAPI:** `server/openapi/v1.json` NOT regenerated (owner's snapshot pass). Changed response DTOs:
+  `CommunityUserDto`, `UserDetailDto`, `LeaderboardEntryDto` each gain `internalUserId` (nullable string/uuid).
+  No route changes.
+- **Test:** `CommunityControllerTests.ListMembers_exposes_the_internal_user_id_for_the_analytics_viewer_endpoint`
+  asserts `InternalUserId` equals the seeded `User.Id` (and is `null` for a follower with no local row).
+
+### 2026-07-18 — Let a channel-point reward run a pipeline (for reward-triggered sounds)
+- **Commit:** `88879de9`
+- **From:** aaoa-dev (via Claude, frontend track)
+- **Resolution:** the `Reward` entity gains an optional `PipelineId` (`Guid?`). `CreateRewardRequest` /
+  `UpdateRewardRequest` / `RewardDetail` carry it (on update, `Guid.Empty` clears it, absent leaves it
+  unchanged). `RewardRedeemedHandler` now, on redemption, loads the bound saved pipeline's `GraphJsonCache`
+  and dispatches it through `IPipelineEngine` — taking precedence over the inline `PipelineJson` / `Response`
+  fallbacks (a missing graph degrades to those). Mirrors the timer pipeline-dispatch pattern. A `play_sound`
+  step now fires on redemption.
+- **Migrations:** `20260718041802_AddRewardPipelineBinding` (Postgres, `NomNomzBot.Infrastructure`) +
+  `20260718041852_AddRewardPipelineBinding` (SQLite, `NomNomzBot.Migrations.Sqlite`) — add the nullable
+  `Rewards.PipelineId` column (both model snapshots updated).
+- **OpenAPI:** `server/openapi/v1.json` NOT regenerated (owner's snapshot pass). Changed request/response DTOs:
+  `CreateRewardRequest`, `UpdateRewardRequest`, `RewardDetail` each gain `pipelineId` (nullable uuid). Routes
+  unchanged (`POST/PUT/PATCH .../channels/{channelId}/rewards`). The frontend can now add a pipeline picker to
+  the reward form (like the timer one).
+- **Test:** `RewardRedeemedHandlerTests` — a reward bound to a pipeline dispatches that graph on redemption
+  (engine spy), and a reward with no binding falls through to the generic redemption event response unchanged.
+
+### 2026-07-18 — Discord guild endpoints 500 with "Discord request failed (401)"
+- **Commit:** `bfa35e39`
+- **From:** aaoa-dev (via Claude, frontend track)
+- **Resolution (code):** the `DISCORD_*` error codes fell through `BaseController.ResultResponse` to
+  `InternalServerErrorResponse` (500). They now map to their true class: `DISCORD_UNAUTHORIZED` /
+  `DISCORD_NOT_CONNECTED` → **409** (a reconnect-the-bot state), `DISCORD_NOT_FOUND` → 404,
+  `DISCORD_RATE_LIMITED` → 429, `DISCORD_ERROR` / `DISCORD_TRANSPORT` → 503. `DiscordRestBotGateway` also
+  surfaces a clear reconnect message on a 401/403 ("Discord authorization is invalid or expired. Reconnect the
+  Discord bot to continue.") so the client can show a reconnect prompt instead of a generic failure.
+- **Ops note (out of code scope):** the dev Discord bot token being rejected (401) is a credential/ops matter —
+  the stored token for that guild connection is invalid/expired on dev (re-invite / token refresh / possible
+  `ENCRYPTION_KEY` rotation). The code fix here is the clean 4xx; making the dev token valid is a separate ops step.
+- **OpenAPI:** no contract change (status-code mapping only).
+- **Test:** `DiscordGuildErrorMappingTests` — a `DISCORD_UNAUTHORIZED` result → 409 with the reconnect message
+  (not 500); a `DISCORD_ERROR` result → 503.
