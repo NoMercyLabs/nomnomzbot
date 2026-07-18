@@ -26455,6 +26455,16 @@
                 }
               }
             }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfGameSessionDto"
+                }
+              }
+            }
           }
         }
       }
@@ -26901,6 +26911,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfLiveGameCatalogEntryDto"
                 }
               }
             }
@@ -32252,6 +32272,107 @@
             "name": "channelId",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/live-ops/schedule/icalendar/subscribe": {
+      "get": {
+        "tags": [
+          "LiveOps"
+        ],
+        "summary": "PUBLIC webcal subscription feed for the channel's schedule (RFC 5545, text/calendar). Where\r\nTask&lt;IActionResult&gt; LiveOpsController.GetScheduleICalendar(string channelId, CancellationToken ct) serves a one-time Bearer-authed snapshot, this authorizes with the\r\nper-channel `OverlayToken` as a query param — the stable, read-only credential a calendar app embeds\r\nin a `webcal://…/live-ops/schedule/icalendar/subscribe?token=…` URL so it can keep polling the feed\r\nwithout a user session. The token must belong to the channel named in the route.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -71811,6 +71932,74 @@
         },
         "description": "The outcome of a legacy import, plus the journal head before/after so the caller can see the growth.\r\nIReadOnlyDictionary&lt;string, long&gt; LegacyImportResult.SkippedByLegacyType itemizes the unmapped skips by their legacy `Type` so the operator can\r\nverify every legacy row is accounted for (imported + duplicate + itemized skips = total read), with no silent drop."
       },
+      "LiveGameCatalogEntryDto": {
+        "required": [
+          "gameKey",
+          "displayName",
+          "inputKeywords",
+          "overlayWidgetKey",
+          "minPlayers",
+          "maxPlayers",
+          "lobbyWindowSeconds",
+          "tickIntervalSeconds",
+          "requiresEntryFee"
+        ],
+        "type": "object",
+        "properties": {
+          "gameKey": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "inputKeywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "overlayWidgetKey": {
+            "type": "string"
+          },
+          "minPlayers": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maxPlayers": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lobbyWindowSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tickIntervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "requiresEntryFee": {
+            "type": "boolean"
+          }
+        },
+        "description": "One catalog entry — a discovered game's manifest with wire-friendly second-based timing."
+      },
       "LoginProviderDto": {
         "required": [
           "key",
@@ -79245,6 +79434,36 @@
           }
         }
       },
+      "StatusResponseDtoOfGameSessionDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GameSessionDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfGiveawayDto": {
         "type": "object",
         "properties": {
@@ -80170,6 +80389,35 @@
             ],
             "items": {
               "$ref": "#/components/schemas/IntegrationStatusDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfLiveGameCatalogEntryDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/LiveGameCatalogEntryDto"
             }
           },
           "message": {
