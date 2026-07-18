@@ -13,9 +13,15 @@ package bot.nomnomz.dashboard.feature.eventresponses.state
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.EventResponse
+import bot.nomnomz.dashboard.core.network.EventResponsePreset
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.core.network.EventResponsesApi
+import bot.nomnomz.dashboard.core.network.PipelineDetail
+import bot.nomnomz.dashboard.core.network.PipelineGraph
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.UpdateEventResponseBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +35,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class EventResponsesController(
     private val channelsApi: ChannelsApi,
     private val eventResponsesApi: EventResponsesApi,
+    private val pipelinesApi: PipelinesApi,
 ) {
     private val _state: MutableStateFlow<EventResponsesState> =
         MutableStateFlow(EventResponsesState.Loading)
@@ -38,7 +45,7 @@ class EventResponsesController(
 
     private var channelId: String? = null
 
-    /** Resolve the active channel and load its event responses. */
+    /** Resolve the active channel and load its event responses, preset catalog, and pipelines. */
     suspend fun load() {
         // Only show the full-page loading state on first load; a refetch after a mutation keeps
         // the current content on screen (no flash) and swaps it when the new data arrives.
@@ -54,13 +61,62 @@ class EventResponsesController(
             }
         channelId = channel.id
 
+        // The preset catalog (per-event default templates + variables) and the channel's pipelines back the
+        // edit dialog's pre-fill and pipeline-binding. Both are best-effort — a failure just disables that aid.
+        val presets: Map<String, EventResponsePreset> =
+            when (val result: ApiResult<List<EventResponsePreset>> = eventResponsesApi.catalog(channel.id)) {
+                is ApiResult.Ok -> result.value.associateBy { it.eventType }
+                is ApiResult.Failure -> emptyMap()
+            }
+        val pipelines: List<PipelineSummary> =
+            when (val result: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.id)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> emptyList()
+            }
+
         when (val result: ApiResult<List<EventResponseSummary>> = eventResponsesApi.list(channel.id)) {
             is ApiResult.Failure -> _state.value = EventResponsesState.Error(result.error.message)
             is ApiResult.Ok ->
                 _state.value =
                     if (result.value.isEmpty()) EventResponsesState.Empty
-                    else EventResponsesState.Ready(result.value)
+                    else EventResponsesState.Ready(result.value, presets = presets, pipelines = pipelines)
         }
+    }
+
+    /** The stored full config for [eventType], so the edit dialog pre-fills the current message / bound pipeline. */
+    suspend fun detail(eventType: String): EventResponse? {
+        val channel: String = channelId ?: return null
+        return when (val result: ApiResult<EventResponse> = eventResponsesApi.get(channel, eventType)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> null
+        }
+    }
+
+    /**
+     * Create a new (empty) pipeline named [pipelineName] and bind it to [eventType] as a pipeline response in one
+     * step — the "create-and-bind" flow that replaces pasting a pipeline id. Reloads on success so the row shows
+     * the binding; the streamer then builds the chain on the Pipelines page.
+     */
+    suspend fun createPipelineAndBind(eventType: String, pipelineName: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        val created: PipelineDetail =
+            when (
+                val result: ApiResult<PipelineDetail> =
+                    pipelinesApi.createReturning(
+                        channel,
+                        CreatePipelineBody(name = pipelineName, graph = PipelineGraph().toJson()),
+                    )
+            ) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> return failWrite(result.error.message)
+            }
+        afterWrite(
+            eventResponsesApi.upsert(
+                channel,
+                eventType,
+                UpdateEventResponseBody(responseType = "pipeline", pipelineId = created.id),
+            )
+        )
     }
 
     /** Toggle [isEnabled] on an event response (partial PUT — only the flag changes). */
@@ -131,6 +187,8 @@ sealed interface EventResponsesState {
      */
     data class Ready(
         val responses: List<EventResponseSummary>,
+        val presets: Map<String, EventResponsePreset> = emptyMap(),
+        val pipelines: List<PipelineSummary> = emptyList(),
         val actionError: String? = null,
     ) : EventResponsesState
 

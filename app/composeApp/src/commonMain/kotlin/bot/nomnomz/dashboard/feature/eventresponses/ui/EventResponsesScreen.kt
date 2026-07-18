@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.eventresponses.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Text
@@ -53,7 +55,10 @@ import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.EventResponse
+import bot.nomnomz.dashboard.core.network.EventResponsePreset
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
+import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -65,7 +70,11 @@ import nomnomzbot.composeapp.generated.resources.event_responses_action_error
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_cancel
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_delete
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_message_label
-import nomnomzbot.composeapp.generated.resources.event_responses_dialog_pipeline_label
+import nomnomzbot.composeapp.generated.resources.event_responses_dialog_pipeline_choose
+import nomnomzbot.composeapp.generated.resources.event_responses_dialog_pipeline_create_new
+import nomnomzbot.composeapp.generated.resources.event_responses_dialog_pipeline_help
+import nomnomzbot.composeapp.generated.resources.event_responses_dialog_pipeline_new_name
+import nomnomzbot.composeapp.generated.resources.event_responses_dialog_pipeline_pick
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_response_type_label
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_save
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_title
@@ -79,6 +88,7 @@ import nomnomzbot.composeapp.generated.resources.event_responses_type_chat_messa
 import nomnomzbot.composeapp.generated.resources.event_responses_type_none
 import nomnomzbot.composeapp.generated.resources.event_responses_type_overlay
 import nomnomzbot.composeapp.generated.resources.event_responses_type_pipeline
+import nomnomzbot.composeapp.generated.resources.event_responses_variables_label
 import nomnomzbot.composeapp.generated.resources.event_type_channel_cheer
 import nomnomzbot.composeapp.generated.resources.event_type_channel_follow
 import nomnomzbot.composeapp.generated.resources.event_type_channel_points_redemption
@@ -88,6 +98,8 @@ import nomnomzbot.composeapp.generated.resources.event_type_channel_raid
 import nomnomzbot.composeapp.generated.resources.event_type_channel_subscribe
 import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_gift
 import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_message
+import nomnomzbot.composeapp.generated.resources.event_type_engagement_first_time_chatter
+import nomnomzbot.composeapp.generated.resources.event_type_engagement_session_first_message
 import nomnomzbot.composeapp.generated.resources.event_type_stream_offline
 import nomnomzbot.composeapp.generated.resources.event_type_stream_online
 import nomnomzbot.composeapp.generated.resources.event_type_unknown
@@ -133,12 +145,20 @@ fun EventResponsesScreen(
     }
 
     editing?.let { response ->
+        val ready: EventResponsesState.Ready? = state as? EventResponsesState.Ready
         EditDialog(
             response = response,
+            preset = ready?.presets?.get(response.eventType),
+            pipelines = ready?.pipelines ?: emptyList(),
+            loadDetail = { controller.detail(response.eventType) },
             onDismiss = { editing = null },
             onSave = { responseType, message, pipelineId ->
                 editing = null
                 scope.launch { controller.save(response.eventType, responseType, message, pipelineId) }
+            },
+            onCreateAndBind = { pipelineName ->
+                editing = null
+                scope.launch { controller.createPipelineAndBind(response.eventType, pipelineName) }
             },
             onDelete = {
                 editing = null
@@ -261,13 +281,21 @@ private fun EventResponseRow(
 
 private val ResponseTypes: List<String> = listOf("none", "chat_message", "overlay", "pipeline")
 
-// Edit dialog — response type picker, optional message template, optional pipeline ID.
-// Uses AppTextField throughout for design-system consistency.
+// The special "create a new pipeline and bind it" sentinel in the pipeline picker (vs an existing pipeline id).
+private const val CreateNewPipeline: String = "__create_new__"
+
+// Edit dialog — response type picker, a pre-filled message template with insert chips (chat/overlay), and a
+// first-class pipeline BINDING for pipeline responses: pick an existing pipeline OR create-and-bind a new one
+// (no pasting ids). The stored config + preset catalog are loaded so the fields open pre-filled, never blank.
 @Composable
 private fun EditDialog(
     response: EventResponseSummary,
+    preset: EventResponsePreset?,
+    pipelines: List<PipelineSummary>,
+    loadDetail: suspend () -> EventResponse?,
     onDismiss: () -> Unit,
     onSave: (responseType: String, message: String?, pipelineId: String?) -> Unit,
+    onCreateAndBind: (pipelineName: String) -> Unit,
     onDelete: () -> Unit,
     manage: ManageDecision,
 ) {
@@ -277,8 +305,24 @@ private fun EditDialog(
 
     var selectedType: String by remember { mutableStateOf(response.responseType) }
     var message: String by remember { mutableStateOf("") }
-    var pipelineId: String by remember { mutableStateOf("") }
+    var pipelineChoice: String by remember { mutableStateOf("") }
+    var newPipelineName: String by remember { mutableStateOf("") }
     var typeMenuOpen: Boolean by remember { mutableStateOf(false) }
+
+    // Load the stored config (so the fields open pre-filled) and fall back to the preset's default template when
+    // there is no stored message yet — the "pre-filled templates in every input" the owner asked for.
+    LaunchedEffect(response.eventType) {
+        val detail: EventResponse? = loadDetail()
+        selectedType = detail?.responseType?.takeIf { it.isNotBlank() } ?: response.responseType
+        val storedMessage: String = detail?.message.orEmpty()
+        message = storedMessage.ifBlank { preset?.defaultTemplate.orEmpty() }
+        pipelineChoice = detail?.pipelineId.orEmpty()
+    }
+
+    val createMode: Boolean = pipelineChoice == CreateNewPipeline
+    val canSubmit: Boolean =
+        manage.isAllowed &&
+            (selectedType != "pipeline" || (if (createMode) newPipelineName.isNotBlank() else pipelineChoice.isNotBlank()))
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -329,7 +373,8 @@ private fun EditDialog(
                     }
                 }
 
-                // Message template — chat_message and overlay responses need a body.
+                // Message template — chat_message and overlay responses need a body; pre-filled from the preset,
+                // with the event's seeded variables offered as insert chips.
                 if (selectedType == "chat_message" || selectedType == "overlay") {
                     AppTextField(
                         value = message,
@@ -337,15 +382,31 @@ private fun EditDialog(
                         label = stringResource(Res.string.event_responses_dialog_message_label),
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    VariableChips(
+                        variables = preset?.variables.orEmpty(),
+                        onInsert = { token -> message = appendToken(message, token) },
+                    )
                 }
 
-                // Pipeline ID — pipeline responses point to a pipeline by ID.
+                // Pipeline binding — pick an existing pipeline OR create-and-bind a new one (no pasted ids).
                 if (selectedType == "pipeline") {
-                    AppTextField(
-                        value = pipelineId,
-                        onValueChange = { pipelineId = it },
-                        label = stringResource(Res.string.event_responses_dialog_pipeline_label),
-                        modifier = Modifier.fillMaxWidth(),
+                    PipelineBindPicker(
+                        pipelines = pipelines,
+                        selected = pipelineChoice,
+                        onSelect = { pipelineChoice = it },
+                    )
+                    if (createMode) {
+                        AppTextField(
+                            value = newPipelineName,
+                            onValueChange = { newPipelineName = it },
+                            label = stringResource(Res.string.event_responses_dialog_pipeline_new_name),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    Text(
+                        text = stringResource(Res.string.event_responses_dialog_pipeline_help),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
                     )
                 }
             }
@@ -353,17 +414,21 @@ private fun EditDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    onSave(
-                        selectedType,
-                        message.takeIf { it.isNotBlank() },
-                        pipelineId.takeIf { it.isNotBlank() },
-                    )
+                    if (selectedType == "pipeline" && createMode) {
+                        onCreateAndBind(newPipelineName.trim())
+                    } else {
+                        onSave(
+                            selectedType,
+                            message.takeIf { it.isNotBlank() },
+                            pipelineChoice.takeIf { it.isNotBlank() && it != CreateNewPipeline },
+                        )
+                    }
                 },
-                enabled = manage.isAllowed,
+                enabled = canSubmit,
             ) {
                 Text(
                     text = stringResource(Res.string.event_responses_dialog_save),
-                    color = if (manage.isAllowed) tokens.primary else tokens.mutedForeground,
+                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
                 )
             }
         },
@@ -385,6 +450,88 @@ private fun EditDialog(
         },
     )
 }
+
+// Insert chips for the event's seeded template variables — clicking one appends `{var}` to the message so a
+// streamer discovers what they can reference without hand-typing.
+@Composable
+private fun VariableChips(variables: List<String>, onInsert: (String) -> Unit) {
+    if (variables.isEmpty()) return
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        Text(text = stringResource(Res.string.event_responses_variables_label), style = typography.xs, color = tokens.mutedForeground)
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s1),
+        ) {
+            variables.forEach { variable ->
+                val token = "{$variable}"
+                TextButton(onClick = { onInsert(token) }) {
+                    Text(text = token, style = typography.xs, color = tokens.primary, maxLines = 1)
+                }
+            }
+        }
+    }
+}
+
+// The pipeline-binding picker: the channel's pipelines plus a "Create a new pipeline" entry. The selected value
+// is a pipeline id, the [CreateNewPipeline] sentinel, or blank (nothing chosen yet).
+@Composable
+private fun PipelineBindPicker(pipelines: List<PipelineSummary>, selected: String, onSelect: (String) -> Unit) {
+    var expanded: Boolean by remember { mutableStateOf(false) }
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val currentLabel: String =
+        when {
+            selected == CreateNewPipeline -> stringResource(Res.string.event_responses_dialog_pipeline_create_new)
+            else -> pipelines.firstOrNull { it.id == selected }?.name
+                ?: stringResource(Res.string.event_responses_dialog_pipeline_choose)
+        }
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
+        Text(text = stringResource(Res.string.event_responses_dialog_pipeline_pick), style = typography.sm, color = tokens.foreground)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            TextButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = currentLabel,
+                    color = if (selected.isBlank()) tokens.mutedForeground else tokens.foreground,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                pipelines.forEach { pipeline ->
+                    DropdownMenuItem(
+                        text = { Text(text = pipeline.name, color = tokens.popoverForeground) },
+                        onClick = { onSelect(pipeline.id); expanded = false },
+                    )
+                }
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = stringResource(Res.string.event_responses_dialog_pipeline_create_new),
+                            color = tokens.primary,
+                        )
+                    },
+                    onClick = { onSelect(CreateNewPipeline); expanded = false },
+                )
+            }
+        }
+    }
+}
+
+// Append a template token to the message, inserting a separating space only when needed.
+private fun appendToken(current: String, token: String): String =
+    when {
+        current.isEmpty() -> token
+        current.endsWith(" ") -> current + token
+        else -> "$current $token"
+    }
 
 @Composable
 private fun ErrorContent(detail: String, onRetry: () -> Unit) {
@@ -438,6 +585,10 @@ private fun String.toEventLabel(): String =
         "channel.prediction.begin" -> stringResource(Res.string.event_type_channel_prediction_begin)
         "channel.channel_points_custom_reward_redemption.add" ->
             stringResource(Res.string.event_type_channel_points_redemption)
+        "engagement.session_first_message" ->
+            stringResource(Res.string.event_type_engagement_session_first_message)
+        "engagement.first_time_chatter" ->
+            stringResource(Res.string.event_type_engagement_first_time_chatter)
         else -> stringResource(Res.string.event_type_unknown, this)
     }
 

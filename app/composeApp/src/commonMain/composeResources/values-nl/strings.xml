@@ -2031,9 +2031,18 @@
     <string name="event_responses_dialog_response_type_label">Reactietype</string>
     <string name="event_responses_dialog_message_label">Berichtsjabloon</string>
     <string name="event_responses_dialog_pipeline_label">Pipeline-ID</string>
+    <!-- Eersteklas pipeline-binding + variabele-chips + vooraf ingevulde sjablonen. -->
+    <string name="event_responses_dialog_pipeline_pick">Gekoppelde pipeline</string>
+    <string name="event_responses_dialog_pipeline_choose">Kies een pipeline</string>
+    <string name="event_responses_dialog_pipeline_create_new">+ Nieuwe pipeline maken</string>
+    <string name="event_responses_dialog_pipeline_new_name">Naam nieuwe pipeline</string>
+    <string name="event_responses_dialog_pipeline_help">Koppel een pipeline om geluid, overlay en chat op dit event te ketenen.</string>
+    <string name="event_responses_variables_label">Variabele invoegen</string>
     <string name="event_responses_dialog_save">Opslaan</string>
     <string name="event_responses_dialog_cancel">Annuleren</string>
     <string name="event_responses_dialog_delete">Verwijderen</string>
+    <string name="event_type_engagement_session_first_message">Eerste bericht deze stream</string>
+    <string name="event_type_engagement_first_time_chatter">Eerste keer chatter</string>
     <string name="event_type_channel_follow">Nieuwe volger</string>
     <string name="event_type_channel_subscribe">Nieuw abonnement</string>
     <string name="event_type_channel_subscription_gift">Cadeauabonnement</string>

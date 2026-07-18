@@ -509,6 +509,15 @@ private class RecordingPipelinesApi(
         return writeResult
     }
 
+    override suspend fun createReturning(channelId: String, body: CreatePipelineBody): ApiResult<PipelineDetail> {
+        created += body
+        if (writeResult !is ApiResult.Ok) return ApiResult.Failure(ApiError(403, "FORBIDDEN", "denied"))
+        val id: String = "test-pipeline-${nextSeq++}"
+        store += PipelineSummary(id = id, name = body.name, description = body.description, isEnabled = body.isEnabled)
+        graphs[id] = body.graph
+        return ApiResult.Ok(PipelineDetail(id = id, name = body.name, description = body.description, isEnabled = body.isEnabled))
+    }
+
     override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> {
         updated += Triple(id, body, Unit)
         if (writeResult is ApiResult.Ok) {

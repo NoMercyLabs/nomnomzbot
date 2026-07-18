@@ -14,11 +14,18 @@ import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.EventResponse
+import bot.nomnomz.dashboard.core.network.EventResponsePreset
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.core.network.EventResponsesApi
+import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
+import bot.nomnomz.dashboard.core.network.PipelineDetail
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.UpdateEventResponseBody
+import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -43,6 +50,7 @@ class EventResponsesControllerTest {
             )
         val controller =
             EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(listOf(summary))),
             )
@@ -60,6 +68,7 @@ class EventResponsesControllerTest {
     fun load_yields_empty_state_when_no_responses_configured() = runTest {
         val controller =
             EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList())),
             )
@@ -73,6 +82,7 @@ class EventResponsesControllerTest {
     fun load_yields_error_when_channel_resolution_fails() = runTest {
         val controller =
             EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
                 channelsApi = FakeChannelsApi(ApiResult.Failure(ApiError(status = 503, code = null, message = "no channel"))),
                 eventResponsesApi = RecordingEventResponsesApi(),
             )
@@ -88,6 +98,7 @@ class EventResponsesControllerTest {
     fun load_yields_error_when_list_call_fails() = runTest {
         val controller =
             EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi =
                     RecordingEventResponsesApi(
@@ -105,6 +116,7 @@ class EventResponsesControllerTest {
         val api = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList()))
         val controller =
             EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -133,6 +145,7 @@ class EventResponsesControllerTest {
             )
         val controller =
             EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -150,6 +163,7 @@ class EventResponsesControllerTest {
         val api = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList()))
         val controller =
             EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -168,6 +182,7 @@ class EventResponsesControllerTest {
         val api = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList()))
         val controller =
             EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -177,9 +192,51 @@ class EventResponsesControllerTest {
 
         assertEquals("channel.raid", api.lastDeletedEventType)
     }
+
+    @Test
+    fun create_and_bind_creates_a_pipeline_then_binds_it_as_the_pipeline_response() = runTest {
+        val api = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList()))
+        StubPipelinesApi.lastCreatedName = null
+        val controller =
+            EventResponsesController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                eventResponsesApi = api,
+                pipelinesApi = StubPipelinesApi,
+            )
+        controller.load()
+
+        controller.createPipelineAndBind("channel.raid", "Raid reaction")
+
+        // The whole create-and-bind loop: a pipeline was created with that name, then the event response was
+        // upserted to a pipeline response bound to the NEW pipeline's server-assigned id — not a pasted id.
+        assertEquals("Raid reaction", StubPipelinesApi.lastCreatedName)
+        assertEquals("channel.raid", api.lastUpsertedEventType)
+        assertEquals("pipeline", api.lastUpsertedBody?.responseType)
+        assertEquals("new-pipe", api.lastUpsertedBody?.pipelineId)
+    }
 }
 
 // ── Test doubles ─────────────────────────────────────────────────────────────
+
+// A pipelines fake for the event-responses tests: createReturning yields a fixed new id so the bind test can
+// assert the response was bound to it; list()/catalogue() return empty so load() succeeds.
+private object StubPipelinesApi : PipelinesApi {
+    var lastCreatedName: String? = null
+
+    override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> = ApiResult.Ok(emptyList())
+    override suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote> =
+        ApiResult.Ok(PipelineCatalogueRemote())
+    override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> =
+        ApiResult.Ok(PipelineDetail(id = id))
+    override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun createReturning(channelId: String, body: CreatePipelineBody): ApiResult<PipelineDetail> {
+        lastCreatedName = body.name
+        return ApiResult.Ok(PipelineDetail(id = "new-pipe", name = body.name))
+    }
+    override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
 
 private class FakeChannelsApi(
     private val result: ApiResult<ChannelSummary>,
@@ -222,7 +279,18 @@ private class RecordingEventResponsesApi(
     var lastUpsertedBody: UpdateEventResponseBody? = null
     var lastDeletedEventType: String? = null
 
+    private val catalog: List<EventResponsePreset> =
+        listOf(
+            EventResponsePreset(
+                eventType = "channel.follow",
+                defaultTemplate = "Thanks for the follow, {user}!",
+                variables = listOf("user", "user.name"),
+            )
+        )
+
     override suspend fun list(channelId: String): ApiResult<List<EventResponseSummary>> = listResult
+
+    override suspend fun catalog(channelId: String): ApiResult<List<EventResponsePreset>> = ApiResult.Ok(catalog)
 
     override suspend fun get(channelId: String, eventType: String): ApiResult<EventResponse> =
         upsertResult

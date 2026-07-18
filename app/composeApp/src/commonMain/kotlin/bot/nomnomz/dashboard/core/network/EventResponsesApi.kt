@@ -28,6 +28,13 @@ interface EventResponsesApi {
     /** All configured event responses for the channel, first page. */
     suspend fun list(channelId: String): ApiResult<List<EventResponseSummary>>
 
+    /**
+     * The preset catalog — one entry per configurable event type with a ready-to-use [EventResponsePreset.defaultTemplate]
+     * (the dashboard pre-fills the message input with it when empty) and the exact template [EventResponsePreset.variables]
+     * that event seeds (offered as insert chips).
+     */
+    suspend fun catalog(channelId: String): ApiResult<List<EventResponsePreset>>
+
     /** The full event response config for a single event type. */
     suspend fun get(channelId: String, eventType: String): ApiResult<EventResponse>
 
@@ -54,6 +61,9 @@ class RestEventResponsesApi(private val client: ApiClient) : EventResponsesApi {
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
 
+    override suspend fun catalog(channelId: String): ApiResult<List<EventResponsePreset>> =
+        client.getEnvelope("api/v1/channels/$channelId/event-responses/catalog")
+
     override suspend fun get(channelId: String, eventType: String): ApiResult<EventResponse> =
         client.getEnvelope("api/v1/channels/$channelId/event-responses/$eventType")
 
@@ -67,6 +77,17 @@ class RestEventResponsesApi(private val client: ApiClient) : EventResponsesApi {
     override suspend fun delete(channelId: String, eventType: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/event-responses/$eventType")
 }
+
+/**
+ * One catalog preset (backend `EventResponsePresetDto`) for an [eventType]: the [defaultTemplate] the dashboard
+ * pre-fills the message input with, and the exact template [variables] the trigger seeds — offered as insert chips.
+ */
+@Serializable
+data class EventResponsePreset(
+    val eventType: String = "",
+    val defaultTemplate: String = "",
+    val variables: List<String> = emptyList(),
+)
 
 /** Lightweight event-response summary from the list endpoint (backend `EventResponseListItem`). */
 @Serializable

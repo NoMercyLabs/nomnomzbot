@@ -2044,10 +2044,19 @@
     <string name="event_responses_dialog_response_type_label">Response type</string>
     <string name="event_responses_dialog_message_label">Message template</string>
     <string name="event_responses_dialog_pipeline_label">Pipeline ID</string>
+    <!-- First-class pipeline binding + variable insert chips + pre-filled templates. -->
+    <string name="event_responses_dialog_pipeline_pick">Bound pipeline</string>
+    <string name="event_responses_dialog_pipeline_choose">Choose a pipeline</string>
+    <string name="event_responses_dialog_pipeline_create_new">+ Create a new pipeline</string>
+    <string name="event_responses_dialog_pipeline_new_name">New pipeline name</string>
+    <string name="event_responses_dialog_pipeline_help">Bind a pipeline to chain sound, overlay and chat on this event.</string>
+    <string name="event_responses_variables_label">Insert a variable</string>
     <string name="event_responses_dialog_save">Save</string>
     <string name="event_responses_dialog_cancel">Cancel</string>
     <string name="event_responses_dialog_delete">Delete</string>
     <!-- Friendly labels for event type keys -->
+    <string name="event_type_engagement_session_first_message">First message this stream</string>
+    <string name="event_type_engagement_first_time_chatter">First-time chatter</string>
     <string name="event_type_channel_follow">New Follow</string>
     <string name="event_type_channel_subscribe">New Subscription</string>
     <string name="event_type_channel_subscription_gift">Gift Subscription</string>

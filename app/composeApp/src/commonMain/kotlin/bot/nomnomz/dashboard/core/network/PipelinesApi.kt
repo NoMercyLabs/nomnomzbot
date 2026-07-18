@@ -51,6 +51,12 @@ interface PipelinesApi {
     /** Create a new pipeline (name + optional description + the initial graph). Succeeds on the backend's 201. */
     suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit>
 
+    /**
+     * Create a pipeline and return the created [PipelineDetail] (with its server-assigned id) — used by the
+     * event-responses "create-and-bind" flow, which needs the new id to bind immediately.
+     */
+    suspend fun createReturning(channelId: String, body: CreatePipelineBody): ApiResult<PipelineDetail>
+
     /** Update a pipeline — any null field is left untouched (partial patch). Used for rename, toggle, and graph edits. */
     suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit>
 
@@ -82,6 +88,9 @@ class RestPipelinesApi(private val client: ApiClient) : PipelinesApi {
     // than splicing the returned row, so only the 2xx matters — postUnit / putUnit / deleteUnit ignore the body.
     override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/pipelines", body)
+
+    override suspend fun createReturning(channelId: String, body: CreatePipelineBody): ApiResult<PipelineDetail> =
+        client.postEnvelope("api/v1/channels/$channelId/pipelines", body)
 
     override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> =
         client.putUnit("api/v1/channels/$channelId/pipelines/$id", body)

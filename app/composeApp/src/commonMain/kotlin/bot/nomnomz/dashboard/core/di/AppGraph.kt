@@ -420,7 +420,11 @@ class AppGraph {
         GamesController(channelsApi = channelsApi, gamesApi = gamesApi)
 
     val eventResponsesController: EventResponsesController =
-        EventResponsesController(channelsApi = channelsApi, eventResponsesApi = eventResponsesApi)
+        EventResponsesController(
+            channelsApi = channelsApi,
+            eventResponsesApi = eventResponsesApi,
+            pipelinesApi = pipelinesApi,
+        )
 
     val settingsController: SettingsController =
         SettingsController(channelsApi = channelsApi, streamApi = streamApi)

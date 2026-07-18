@@ -315,6 +315,9 @@ private class FakePipelinesApi : PipelinesApi {
     override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> =
         ApiResult.Ok(Unit)
 
+    override suspend fun createReturning(channelId: String, body: CreatePipelineBody): ApiResult<PipelineDetail> =
+        ApiResult.Ok(PipelineDetail(id = "p1", name = body.name))
+
     override suspend fun update(
         channelId: String,
         id: String,

@@ -248,6 +248,9 @@ private class FakePipelinesApi(private val pipelines: List<PipelineSummary> = em
 
     override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> = error("stub")
 
+    override suspend fun createReturning(channelId: String, body: CreatePipelineBody): ApiResult<PipelineDetail> =
+        error("stub")
+
     override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> =
         error("stub")
 
