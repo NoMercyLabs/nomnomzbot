@@ -43,7 +43,16 @@ public class RewardsController : BaseController
         _db = db;
     }
 
-    public record LeaderboardEntryDto(int Rank, string UserId, string DisplayName, int Points);
+    // UserId is the Twitch user id; InternalUserId is the User.Id (Guid), or null when no local User row exists —
+    // the id the analytics viewer endpoint (.../analytics/viewers/{viewerUserId:guid}) is keyed on, so the
+    // community detail panel opened from a leaderboard row can fetch that viewer's engagement stats.
+    public record LeaderboardEntryDto(
+        int Rank,
+        string UserId,
+        Guid? InternalUserId,
+        string DisplayName,
+        int Points
+    );
 
     private sealed record ChatterTally(string UserId, int Count);
 
@@ -334,21 +343,29 @@ public class RewardsController : BaseController
             .Take(50)
             .ToList();
 
-        // ChatMessage.UserId holds the Twitch user string id — join on User.TwitchUserId.
+        // ChatMessage.UserId holds the Twitch user string id — join on User.TwitchUserId to resolve both the
+        // display name and the internal User.Id (the analytics viewer endpoint's key).
         List<string> userIds = topChatters.Select(t => t.UserId).ToList();
-        Dictionary<string, string> displayNames = await _db
+        var users = await _db
             .Users.Where(u => userIds.Contains(u.TwitchUserId!))
-            .ToDictionaryAsync(u => u.TwitchUserId!, u => u.DisplayName, ct);
+            .Select(u => new
+            {
+                u.TwitchUserId,
+                u.Id,
+                u.DisplayName,
+            })
+            .ToDictionaryAsync(u => u.TwitchUserId!, ct);
 
         List<LeaderboardEntryDto> entries = topChatters
             .Select(
                 (tally, index) =>
                 {
-                    displayNames.TryGetValue(tally.UserId, out string? displayName);
+                    users.TryGetValue(tally.UserId, out var user);
                     return new LeaderboardEntryDto(
                         index + 1,
                         tally.UserId,
-                        displayName ?? "",
+                        user?.Id,
+                        user?.DisplayName ?? "",
                         tally.Count
                     );
                 }

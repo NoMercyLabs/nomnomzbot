@@ -145,6 +145,79 @@ public sealed class CommunityControllerTests
         withoutProfile.CommandsUsed.Should().Be(0);
     }
 
+    [Fact]
+    public async Task ListMembers_exposes_the_internal_user_id_for_the_analytics_viewer_endpoint()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+
+        // A follower WITH a local User row — its User.Id is the guid the analytics viewer endpoint keys on.
+        Guid knownUserId = Guid.CreateVersion7();
+        db.Users.Add(
+            new User
+            {
+                Id = knownUserId,
+                TwitchUserId = "twitch-777",
+                Username = "regular_raider",
+                UsernameNormalized = "regular_raider",
+                DisplayName = "Regular_Raider",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        ITwitchChannelsApi channels = Substitute.For<ITwitchChannelsApi>();
+        channels
+            .GetChannelFollowersAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchChannelFollower>(
+                        [
+                            new TwitchChannelFollower(
+                                "twitch-777",
+                                "regular_raider",
+                                "Regular_Raider",
+                                new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero)
+                            ),
+                            // A follower with NO local User row — no internal identity to key on yet.
+                            new TwitchChannelFollower(
+                                "twitch-999",
+                                "ghost_follow",
+                                "Ghost_Follow",
+                                new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero)
+                            ),
+                        ],
+                        NextCursor: null,
+                        Total: 2
+                    )
+                )
+            );
+
+        CommunityController controller = Build(db, channels);
+
+        IActionResult result = await controller.ListMembers(
+            Broadcaster.ToString(),
+            new PageRequestDto { Take = 25 },
+            role: "follower",
+            cursor: null,
+            CancellationToken.None
+        );
+
+        List<CommunityController.CommunityUserDto> members = Data(result);
+
+        // The consequence of the fix: the row now carries the internal User.Id (Id itself stays the Twitch id),
+        // so the client can call .../analytics/viewers/{viewerUserId:guid} for a foreign viewer's stats.
+        CommunityController.CommunityUserDto withRow = members.Single(m => m.Id == "twitch-777");
+        withRow.InternalUserId.Should().Be(knownUserId);
+        withRow.Id.Should().Be("twitch-777");
+
+        // No local User row → null, truthfully (no internal identity folded yet), not a fabricated guid.
+        CommunityController.CommunityUserDto noRow = members.Single(m => m.Id == "twitch-999");
+        noRow.InternalUserId.Should().BeNull();
+    }
+
     private static List<CommunityController.CommunityUserDto> Data(IActionResult result)
     {
         result.Should().BeOfType<OkObjectResult>();

@@ -94,7 +94,12 @@ public class CommunityController : BaseController
     // ── DTOs ──────────────────────────────────────────────────────────────────
 
     public record CommunityUserDto(
+        // The Twitch user id (the moderation / trust / VIP / TTS-voice inputs all consume this).
         string Id,
+        // The internal User.Id (Guid), or null when the viewer has no local User row yet. This is the id the
+        // analytics viewer endpoint (GET .../analytics/viewers/{viewerUserId:guid}) is keyed on, so the client
+        // can fetch a foreign viewer's engagement stats for the community detail panel.
+        Guid? InternalUserId,
         string Username,
         string DisplayName,
         string? ProfileImageUrl,
@@ -108,7 +113,10 @@ public class CommunityController : BaseController
     );
 
     public record UserDetailDto(
+        // The Twitch user id (as the list DTOs expose it).
         string Id,
+        // The internal User.Id (Guid) — the analytics viewer endpoint's key (see CommunityUserDto.InternalUserId).
+        Guid? InternalUserId,
         string Username,
         string DisplayName,
         string? ProfileImageUrl,
@@ -292,6 +300,7 @@ public class CommunityController : BaseController
 
                     return new CommunityUserDto(
                         f.UserId,
+                        user?.Id,
                         user?.Username ?? f.UserLogin,
                         user?.DisplayName ?? f.UserName,
                         user?.ProfileImageUrl,
@@ -370,6 +379,7 @@ public class CommunityController : BaseController
                     vipProfiles.TryGetValue(v.UserId, out ViewerProfile? profile);
                     return new CommunityUserDto(
                         v.UserId,
+                        user?.Id,
                         user?.Username ?? v.UserLogin,
                         user?.DisplayName ?? v.UserName,
                         user?.ProfileImageUrl,
@@ -494,6 +504,7 @@ public class CommunityController : BaseController
 
                 return new CommunityUserDto(
                     userId,
+                    user?.Id,
                     user?.Username ?? "",
                     user?.DisplayName ?? "",
                     user?.ProfileImageUrl,
@@ -739,6 +750,7 @@ public class CommunityController : BaseController
 
         UserDetailDto detail = new UserDetailDto(
             user.TwitchUserId!,
+            user.Id,
             user.Username,
             user.DisplayName,
             user.ProfileImageUrl,
