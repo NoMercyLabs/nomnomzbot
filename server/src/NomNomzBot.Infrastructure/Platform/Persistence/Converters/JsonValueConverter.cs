@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Globalization;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Newtonsoft.Json;
@@ -23,9 +24,17 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Converters;
 /// </summary>
 public static class JsonValueConverter
 {
+    // PlainObjectConverter materializes untyped `object` slots (e.g. the values of a Dictionary<string, object>
+    // widget-settings column) as plain CLR — nested Dictionary<string, object?> / List<object?> / primitives —
+    // instead of Newtonsoft JObject/JArray/JValue. Without it, a JSON array value round-trips to a JArray of
+    // JValue; when that graph is later serialized by System.Text.Json (the API response, the overlay
+    // window.WIDGET_SETTINGS injection), a JValue enumerates as empty and every array collapses to `[]` (so a
+    // ["follow", …] events list reads back as [[], …] and the widget's filter silently drops every event). Plain
+    // CLR round-trips cleanly through both serializers.
     private static readonly JsonSerializerSettings Settings = new()
     {
         NullValueHandling = NullValueHandling.Ignore,
+        Converters = { new PlainObjectConverter() },
     };
 
     /// <summary>The converter for <typeparamref name="T"/> ⇄ a JSON <c>string</c> column.</summary>
@@ -56,4 +65,69 @@ public static class JsonValueConverter
                     Settings
                 ) ?? new T()
         );
+
+    /// <summary>
+    /// Reads untyped <c>object</c> slots as plain CLR (<see cref="Dictionary{TKey,TValue}"/> of string→object?,
+    /// <see cref="List{T}"/> of object?, and boxed primitives) rather than Newtonsoft JTokens, so a value that
+    /// later flows through System.Text.Json (API responses, the overlay settings injection) serializes as itself.
+    /// Read-only: writing a plain CLR graph uses Newtonsoft's default serialization, so <see cref="CanWrite"/> is
+    /// false. Only engages for <c>typeof(object)</c>, so typed columns (<c>List&lt;string&gt;</c>,
+    /// <c>Dictionary&lt;string,string&gt;</c>) are untouched.
+    /// </summary>
+    private sealed class PlainObjectConverter : JsonConverter
+    {
+        public override bool CanConvert(Type objectType) => objectType == typeof(object);
+
+        public override bool CanWrite => false;
+
+        public override object? ReadJson(
+            JsonReader reader,
+            Type objectType,
+            object? existingValue,
+            JsonSerializer serializer
+        ) => ReadValue(reader);
+
+        public override void WriteJson(
+            JsonWriter writer,
+            object? value,
+            JsonSerializer serializer
+        ) => throw new NotSupportedException("PlainObjectConverter is read-only.");
+
+        private static object? ReadValue(JsonReader reader)
+        {
+            switch (reader.TokenType)
+            {
+                case JsonToken.StartObject:
+                    Dictionary<string, object?> map = new(StringComparer.Ordinal);
+                    while (reader.Read() && reader.TokenType != JsonToken.EndObject)
+                    {
+                        string name = (string)reader.Value!;
+                        reader.Read();
+                        map[name] = ReadValue(reader);
+                    }
+                    return map;
+                case JsonToken.StartArray:
+                    List<object?> list = [];
+                    while (reader.Read() && reader.TokenType != JsonToken.EndArray)
+                        list.Add(ReadValue(reader));
+                    return list;
+                case JsonToken.Integer:
+                    // Newtonsoft boxes as long (or BigInteger when it overflows) — normalize to a plain long.
+                    return reader.Value is long l
+                        ? l
+                        : Convert.ToInt64(reader.Value, CultureInfo.InvariantCulture);
+                case JsonToken.Float:
+                    return reader.Value is double d
+                        ? d
+                        : Convert.ToDouble(reader.Value, CultureInfo.InvariantCulture);
+                case JsonToken.Boolean:
+                case JsonToken.String:
+                case JsonToken.Date:
+                case JsonToken.Bytes:
+                    return reader.Value;
+                default:
+                    return null;
+            }
+        }
+    }
 }
