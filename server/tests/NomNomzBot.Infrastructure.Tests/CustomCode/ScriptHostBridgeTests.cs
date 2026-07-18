@@ -10,8 +10,11 @@
 
 using System.Net;
 using FluentAssertions;
+using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Infrastructure.CustomCode;
@@ -34,6 +37,7 @@ public sealed class ScriptHostBridgeTests
         IChatProvider? chat = null,
         ICurrencyAccountService? currency = null,
         IMusicService? music = null,
+        IUserService? users = null,
         IHttpClientFactory? http = null
     ) =>
         new(
@@ -42,6 +46,7 @@ public sealed class ScriptHostBridgeTests
             chat ?? Substitute.For<IChatProvider>(),
             currency ?? Substitute.For<ICurrencyAccountService>(),
             music ?? Substitute.For<IMusicService>(),
+            users ?? Substitute.For<IUserService>(),
             http ?? Substitute.For<IHttpClientFactory>()
         );
 
@@ -132,6 +137,99 @@ public sealed class ScriptHostBridgeTests
     {
         Build()
             .Resolve("http.fetch")("http.fetch", ["http://example.com"], CancellationToken.None)
+            .Should()
+            .BeNull();
+    }
+
+    [Fact]
+    public void Music_now_playing_returns_the_current_track_snapshot()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetNowPlayingAsync(Channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new NowPlaying(
+                    TrackName: "Money for Nothing",
+                    Artist: "Dire Straits",
+                    Album: "Brothers in Arms",
+                    ImageUrl: null,
+                    DurationMs: 502000,
+                    ProgressMs: 61000,
+                    IsPlaying: true,
+                    Volume: 70,
+                    RequestedBy: "viewer42",
+                    Provider: "spotify"
+                )
+            );
+        ScriptHostBridge bridge = Build(music: music);
+
+        string? json = bridge.Resolve("music.nowPlaying")(
+            "music.nowPlaying",
+            [],
+            CancellationToken.None
+        );
+
+        JObject track = JObject.Parse(json!);
+        track["track"]!.Value<string>().Should().Be("Money for Nothing");
+        track["artist"]!.Value<string>().Should().Be("Dire Straits");
+        track["isPlaying"]!.Value<bool>().Should().BeTrue();
+        track["provider"]!.Value<string>().Should().Be("spotify");
+    }
+
+    [Fact]
+    public void Music_now_playing_returns_null_when_nothing_is_playing()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetNowPlayingAsync(Channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns((NowPlaying?)null);
+
+        Build(music: music)
+            .Resolve("music.nowPlaying")("music.nowPlaying", [], CancellationToken.None)
+            .Should()
+            .BeNull();
+    }
+
+    [Fact]
+    public void User_get_returns_the_trigger_users_public_profile_without_pii()
+    {
+        IUserService users = Substitute.For<IUserService>();
+        users
+            .GetAsync(Viewer.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new UserDto(
+                        Id: Viewer.ToString(),
+                        Username: "cooluser",
+                        DisplayName: "CoolUser",
+                        ProfileImageUrl: "https://cdn.twitch.tv/cooluser.png",
+                        Email: "secret@example.com",
+                        CreatedAt: DateTime.UtcNow,
+                        LastLoginAt: DateTime.UtcNow
+                    )
+                )
+            );
+        ScriptHostBridge bridge = Build(users: users);
+
+        string? json = bridge.Resolve("user.get")("user.get", [], CancellationToken.None);
+
+        JObject profile = JObject.Parse(json!);
+        profile["displayName"]!.Value<string>().Should().Be("CoolUser");
+        profile["username"]!.Value<string>().Should().Be("cooluser");
+        profile["avatarUrl"]!.Value<string>().Should().Be("https://cdn.twitch.tv/cooluser.png");
+        profile.Should().NotContainKey("email"); // PII is withheld from scripts
+    }
+
+    [Fact]
+    public void User_get_returns_null_when_the_user_is_not_found()
+    {
+        IUserService users = Substitute.For<IUserService>();
+        users
+            .GetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<UserDto>("Not found.", "NOT_FOUND"));
+
+        Build(users: users)
+            .Resolve("user.get")("user.get", [], CancellationToken.None)
             .Should()
             .BeNull();
     }

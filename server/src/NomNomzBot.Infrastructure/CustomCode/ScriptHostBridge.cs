@@ -9,9 +9,12 @@
 // -----------------------------------------------------------------------------
 
 using System.Text;
+using Newtonsoft.Json;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Infrastructure.Sandbox;
@@ -24,8 +27,9 @@ namespace NomNomzBot.Infrastructure.CustomCode;
 /// resolved delegate is primitive-in / primitive-out and tenant-scoped to that channel. <c>chat.send</c>/
 /// <c>chat.reply</c> dispatch to the channel's Helix chat provider (bot token host-side, never in the guest; the
 /// provider resolves the tenant Guid → Twitch id internally); <c>economy.read</c> reads this channel's ledger;
-/// <c>music.queue</c> enqueues a request; <c>http.fetch</c> does a capped GET through the SSRF-hardened egress
-/// client. Every dispatch fails closed (returns a safe primitive).
+/// <c>music.queue</c> enqueues a request and <c>music.nowPlaying</c> reads the current track; <c>user.get</c>
+/// returns a viewer's public profile (never their email/PII); <c>http.fetch</c> does a capped GET through the
+/// SSRF-hardened egress client. Every dispatch fails closed (returns a safe primitive).
 /// </summary>
 public sealed class ScriptHostBridge(
     Guid broadcasterId,
@@ -33,6 +37,7 @@ public sealed class ScriptHostBridge(
     IChatProvider chatProvider,
     ICurrencyAccountService currencyService,
     IMusicService musicService,
+    IUserService userService,
     IHttpClientFactory httpClientFactory
 ) : IScriptHostBridge
 {
@@ -44,9 +49,65 @@ public sealed class ScriptHostBridge(
             "chat.send" or "chat.reply" => SendChat,
             "economy.read" => ReadBalance,
             "music.queue" => QueueMusic,
+            "music.nowPlaying" => ReadNowPlaying,
+            "user.get" => GetUser,
             "http.fetch" => Fetch,
             _ => static (_, _, _) => null, // granted-but-unwired caps no-op; the grant already gated access
         };
+
+    private string? ReadNowPlaying(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        // Read-only current-track snapshot for THIS channel; null when nothing is playing (guest gets a JSON
+        // string it can JSON.parse). Provider token stays host-side — the guest only ever sees the values.
+        NowPlaying? nowPlaying = musicService
+            .GetNowPlayingAsync(broadcasterId.ToString(), ct)
+            .GetAwaiter()
+            .GetResult();
+        if (nowPlaying is null)
+            return null;
+
+        return JsonConvert.SerializeObject(
+            new
+            {
+                track = nowPlaying.TrackName,
+                artist = nowPlaying.Artist,
+                album = nowPlaying.Album,
+                durationMs = nowPlaying.DurationMs,
+                progressMs = nowPlaying.ProgressMs,
+                isPlaying = nowPlaying.IsPlaying,
+                requestedBy = nowPlaying.RequestedBy,
+                provider = nowPlaying.Provider,
+            }
+        );
+    }
+
+    private string? GetUser(string capabilityKey, IReadOnlyList<string> args, CancellationToken ct)
+    {
+        // The optional id arg names a user; default to the trigger user (host-supplied, never guest-forged).
+        // Public profile only — id/username/displayName/avatar. Email and other PII are deliberately withheld.
+        string subject =
+            args.Count > 0 && !string.IsNullOrWhiteSpace(args[0]) ? args[0] : triggeringUserId;
+        if (string.IsNullOrWhiteSpace(subject))
+            return null;
+
+        Result<UserDto> user = userService.GetAsync(subject, ct).GetAwaiter().GetResult();
+        if (user.IsFailure)
+            return null;
+
+        return JsonConvert.SerializeObject(
+            new
+            {
+                id = user.Value.Id,
+                username = user.Value.Username,
+                displayName = user.Value.DisplayName,
+                avatarUrl = user.Value.ProfileImageUrl,
+            }
+        );
+    }
 
     private string? Fetch(string capabilityKey, IReadOnlyList<string> args, CancellationToken ct)
     {

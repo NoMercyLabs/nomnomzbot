@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.CustomCode.Entities;
@@ -24,9 +25,9 @@ namespace NomNomzBot.Infrastructure.CustomCode;
 /// <summary>
 /// Orchestrates one sandboxed script run (custom-code.md §3.5): loads the active valid version, executes it through
 /// the hardened <see cref="IScriptExecutor"/>, and records <c>LastRanAt</c>/<c>LastRuntimeError</c>. Fail-closed:
-/// a disabled / version-less / non-valid script never reaches the executor. (Deferred — documented: the capability
-/// broker grant assembly (currently an empty grant — side-effecting bot.* is denied until the broker lands), the
-/// per-tenant exec-ms meter gate, and the execution-audit events.)
+/// a disabled / version-less / non-valid script never reaches the executor. The capability broker assembles the
+/// deny-by-default grant from the version's declared capabilities (a disallowed one denies the whole run) and the
+/// per-tenant exec-ms meter gates + records sandbox usage.
 /// </summary>
 public sealed class ScriptRunner(
     IApplicationDbContext db,
@@ -36,6 +37,7 @@ public sealed class ScriptRunner(
     IChatProvider chatProvider,
     ICurrencyAccountService currencyService,
     IMusicService musicService,
+    IUserService userService,
     IHttpClientFactory httpClientFactory,
     TimeProvider clock
 ) : IScriptRunner
@@ -129,6 +131,7 @@ public sealed class ScriptRunner(
             chatProvider,
             currencyService,
             musicService,
+            userService,
             httpClientFactory
         );
         Result<ScriptExecutionOutcomeResult> executed = await executor.ExecuteAsync(
