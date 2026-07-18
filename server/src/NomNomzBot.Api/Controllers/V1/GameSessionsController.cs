@@ -39,6 +39,7 @@ public class GameSessionsController(
     /// <summary>The channel's current non-terminal session (404-style result when none).</summary>
     [HttpGet("active")]
     [RequireAction("games:session:read")]
+    [ProducesResponseType<StatusResponseDto<GameSessionDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetActive(string channelId, CancellationToken ct)
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
@@ -105,6 +106,9 @@ public class GameSessionsController(
     /// <summary>Every discovered live game's manifest — what the dashboard can start.</summary>
     [HttpGet("catalog")]
     [RequireAction("games:session:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<LiveGameCatalogEntryDto>>>(
+        StatusCodes.Status200OK
+    )]
     public IActionResult GetCatalog(string channelId)
     {
         if (!Guid.TryParse(channelId, out _))
