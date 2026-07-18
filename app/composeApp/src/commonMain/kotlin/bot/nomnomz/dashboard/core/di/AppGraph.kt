@@ -514,7 +514,13 @@ class AppGraph {
         MusicController(channelsApi = channelsApi, musicApi = musicApi)
 
     val pipelinesController: PipelinesController =
-        PipelinesController(channelsApi = channelsApi, pipelinesApi = pipelinesApi, feedback = feedbackController)
+        PipelinesController(
+            channelsApi = channelsApi,
+            pipelinesApi = pipelinesApi,
+            webhooksApi = webhooksApi,
+            pickListsApi = pickListsApi,
+            feedback = feedbackController,
+        )
 
     val featuresController: FeaturesController =
         FeaturesController(channelsApi = channelsApi, featuresApi = featuresApi)

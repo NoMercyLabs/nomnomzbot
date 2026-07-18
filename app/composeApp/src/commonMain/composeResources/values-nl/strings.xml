@@ -1765,6 +1765,27 @@
     <string name="pipelines_field_wait_seconds">Wachten (seconden)</string>
     <string name="pipelines_field_min_role">Minimale rol</string>
     <string name="pipelines_field_percent">Percentage</string>
+    <!-- Backend-catalogusblokken uit GET pipelines/actions (webhooks, keuzelijsten, live games, vergelijken). -->
+    <string name="pipelines_block_send_webhook">Webhook versturen</string>
+    <string name="pipelines_block_pick_from_list">Kies uit lijst</string>
+    <string name="pipelines_block_stop_sound">Geluid stoppen</string>
+    <string name="pipelines_block_start_live_game">Live game starten</string>
+    <string name="pipelines_block_cancel_live_game">Live game annuleren</string>
+    <string name="pipelines_block_var_compare">Variabele vergelijken</string>
+    <string name="pipelines_field_endpoint">Uitgaand eindpunt</string>
+    <string name="pipelines_field_event_type">Gebeurtenistype (optioneel)</string>
+    <string name="pipelines_field_list">Keuzelijst</string>
+    <string name="pipelines_field_pick_variable">Keuze opslaan in variabele (optioneel)</string>
+    <string name="pipelines_field_compare_left">Linkerwaarde (bijv. {{count}})</string>
+    <string name="pipelines_field_compare_operator">Operator (eq, ne, gt, lt, gte, lte)</string>
+    <string name="pipelines_field_compare_right">Rechterwaarde</string>
+    <!-- Algemene sleutel/waarde-editor voor een backend-blok zonder getypte veldhints. -->
+    <string name="pipelines_generic_params_label">Parameters</string>
+    <string name="pipelines_generic_param_key">Naam</string>
+    <string name="pipelines_generic_param_value">Waarde</string>
+    <string name="pipelines_generic_add">Parameter toevoegen</string>
+    <string name="pipelines_generic_remove">Parameter verwijderen</string>
+    <string name="pipelines_picker_choose">Kiezen…</string>
 
     <!-- Schrijfvergrendeling (frontend-ia.md §7): de reden dat een knop is uitgeschakeld voor een gebruiker
          onder de beheerdrempel. %1$s is de minimale rol, uit de shell_role_*-labels hierboven. -->

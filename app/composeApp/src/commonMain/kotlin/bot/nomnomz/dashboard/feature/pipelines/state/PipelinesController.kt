@@ -16,13 +16,20 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreatePipelineBody
+import bot.nomnomz.dashboard.core.network.OutboundWebhook
+import bot.nomnomz.dashboard.core.network.PickList
+import bot.nomnomz.dashboard.core.network.PickListsApi
+import bot.nomnomz.dashboard.core.network.PipelineCatalogue
+import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
 import bot.nomnomz.dashboard.core.network.PipelineDetail
 import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineNode
 import bot.nomnomz.dashboard.core.network.PipelineStep
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.RuntimePalette
 import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
+import bot.nomnomz.dashboard.core.network.WebhooksApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,6 +48,8 @@ import nomnomzbot.composeapp.generated.resources.feedback_pipeline_saved
 class PipelinesController(
     private val channelsApi: ChannelsApi,
     private val pipelinesApi: PipelinesApi,
+    private val webhooksApi: WebhooksApi,
+    private val pickListsApi: PickListsApi,
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<PipelinesState> = MutableStateFlow(PipelinesState.Loading)
@@ -51,7 +60,11 @@ class PipelinesController(
     // The channel every read/write targets — resolved by [load] and reused so a mutation never re-resolves it.
     private var channelId: String? = null
 
-    /** Resolve the active channel, then list its pipelines. Returns to the list view. */
+    // The builder palette, fetched from the backend registry once per load and reused by every editor open so
+    // the block list can never drift. Falls back to the locally-known blocks if the fetch fails.
+    private var palette: RuntimePalette = PipelineCatalogue.fallbackPalette()
+
+    /** Resolve the active channel, fetch the block palette, then list its pipelines. Returns to the list view. */
     suspend fun load() {
         // Only show the full-page loading state on first load; a refetch after a mutation keeps
         // the current content on screen (no flash) and swaps it when the new data arrives.
@@ -66,6 +79,13 @@ class PipelinesController(
                 is ApiResult.Ok -> result.value
             }
         channelId = channel.id
+
+        // Refresh the palette from the backend registry. A failure is non-fatal — keep the fallback so the
+        // editor still opens with the core blocks; the pipeline LIST is what the page needs to render.
+        when (val result: ApiResult<PipelineCatalogueRemote> = pipelinesApi.catalogue(channel.id)) {
+            is ApiResult.Ok -> palette = PipelineCatalogue.buildPalette(result.value)
+            is ApiResult.Failure -> palette = PipelineCatalogue.fallbackPalette()
+        }
 
         loadList(channel.id)
     }
@@ -120,10 +140,11 @@ class PipelinesController(
 
     // ── Open / close the chain editor ────────────────────────────────────────
 
-    /** Open the action-chain editor for [pipeline]: fetch its detail and decode its chain. */
+    /** Open the action-chain editor for [pipeline]: fetch its detail, decode its chain, load picker options. */
     suspend fun openEditor(pipeline: PipelineSummary) {
         val channel: String = channelId ?: return failList(NoChannelError)
         _state.value = PipelinesState.Loading
+        val options: EditorOptions = loadEditorOptions(channel)
         when (val result: ApiResult<PipelineDetail> = pipelinesApi.get(channel, pipeline.id)) {
             is ApiResult.Failure -> _state.value = PipelinesState.Error(result.error.message)
             is ApiResult.Ok ->
@@ -132,8 +153,27 @@ class PipelinesController(
                         pipelineId = result.value.id,
                         name = result.value.name,
                         steps = result.value.chain.steps,
+                        palette = palette,
+                        options = options,
                     )
         }
+    }
+
+    // The editor's cross-feature dropdown options: the channel's outbound webhook endpoints (for the
+    // `send_webhook` block's endpoint picker) and pick-list names (for `pick_from_list`). Both are best-effort —
+    // a failure yields an empty list and the field degrades to free text, never blocking the editor.
+    private suspend fun loadEditorOptions(channel: String): EditorOptions {
+        val endpoints: List<PickerOption> =
+            when (val result: ApiResult<List<OutboundWebhook>> = webhooksApi.listOutbound(channel)) {
+                is ApiResult.Ok -> result.value.map { PickerOption(value = it.id, label = it.name) }
+                is ApiResult.Failure -> emptyList()
+            }
+        val pickLists: List<PickerOption> =
+            when (val result: ApiResult<List<PickList>> = pickListsApi.list()) {
+                is ApiResult.Ok -> result.value.map { PickerOption(value = it.name, label = it.name) }
+                is ApiResult.Failure -> emptyList()
+            }
+        return EditorOptions(outboundEndpoints = endpoints, pickLists = pickLists)
     }
 
     /** Leave the editor and return to the list (discarding any unsaved chain changes). */
@@ -197,6 +237,9 @@ class PipelinesController(
     // ── internals ────────────────────────────────────────────────────────────
 
     private suspend fun refetchEditing(channel: String, id: String) {
+        // Reuse the palette + picker options already resolved for the open editor; only the chain is re-fetched.
+        val current: PipelinesState.Editing? = _state.value as? PipelinesState.Editing
+        val options: EditorOptions = current?.options ?: EditorOptions()
         when (val result: ApiResult<PipelineDetail> = pipelinesApi.get(channel, id)) {
             is ApiResult.Failure -> failEdit(result.error.message)
             is ApiResult.Ok ->
@@ -205,6 +248,8 @@ class PipelinesController(
                         pipelineId = result.value.id,
                         name = result.value.name,
                         steps = result.value.chain.steps,
+                        palette = palette,
+                        options = options,
                     )
         }
     }
@@ -264,15 +309,31 @@ sealed interface PipelinesState {
 
     /**
      * Editing one pipeline's action chain: the [pipelineId] the save targets, the pipeline's [name] (shown in
-     * the editor header), the ordered [steps] being edited in memory, and an [actionError] when the last save
-     * failed (kept over the edited chain so unsaved work is not lost).
+     * the editor header), the ordered [steps] being edited in memory, the backend-sourced block [palette] the
+     * step dialog offers, the cross-feature picker [options] (outbound endpoints / pick-lists), and an
+     * [actionError] when the last save failed (kept over the edited chain so unsaved work is not lost).
      */
     data class Editing(
         val pipelineId: String,
         val name: String,
         val steps: List<PipelineStep>,
+        val palette: RuntimePalette,
+        val options: EditorOptions = EditorOptions(),
         val actionError: String? = null,
     ) : PipelinesState
 
     data class Error(val detail: String) : PipelinesState
 }
+
+/** One entry in a builder dropdown: the [value] written into the param, and the [label] shown to the user. */
+data class PickerOption(val value: String, val label: String)
+
+/**
+ * The cross-feature dropdown sources the chain editor offers for specific fields: the channel's outbound
+ * webhook [outboundEndpoints] (the `send_webhook` block's endpoint picker) and [pickLists] (the
+ * `pick_from_list` block's list picker). Empty lists mean the field falls back to free-text entry.
+ */
+data class EditorOptions(
+    val outboundEndpoints: List<PickerOption> = emptyList(),
+    val pickLists: List<PickerOption> = emptyList(),
+)

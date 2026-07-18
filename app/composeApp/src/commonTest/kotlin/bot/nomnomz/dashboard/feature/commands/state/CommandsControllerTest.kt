@@ -24,6 +24,7 @@ import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CreateCommandBody
 import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.PipelineDetail
+import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
@@ -304,6 +305,9 @@ private class FakeBuiltinsApi : BuiltinsApi {
 private class FakePipelinesApi : PipelinesApi {
     override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> =
         ApiResult.Ok(emptyList())
+
+    override suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote> =
+        ApiResult.Ok(PipelineCatalogueRemote())
 
     override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> =
         ApiResult.Failure(ApiError(404, "NOT_FOUND", "not found"))

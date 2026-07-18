@@ -10,23 +10,40 @@
 
 package bot.nomnomz.dashboard.feature.pipelines.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CreateInboundBody
+import bot.nomnomz.dashboard.core.network.CreateOutboundBody
+import bot.nomnomz.dashboard.core.network.CreatePickListBody
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.CreatePipelineBody
+import bot.nomnomz.dashboard.core.network.InboundWebhook
+import bot.nomnomz.dashboard.core.network.OutboundWebhook
+import bot.nomnomz.dashboard.core.network.OutboundWebhookCreated
+import bot.nomnomz.dashboard.core.network.PickList
+import bot.nomnomz.dashboard.core.network.PickListsApi
+import bot.nomnomz.dashboard.core.network.PipelineActionDescriptor
+import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
+import bot.nomnomz.dashboard.core.network.PipelineConditionDescriptor
 import bot.nomnomz.dashboard.core.network.PipelineDetail
 import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineNode
 import bot.nomnomz.dashboard.core.network.PipelineStep
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.UpdatePickListBody
 import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
+import bot.nomnomz.dashboard.core.network.WebhookTestResult
+import bot.nomnomz.dashboard.core.network.WebhooksApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -46,7 +63,7 @@ class PipelinesControllerTest {
     @Test
     fun load_surfaces_the_channel_pipelines_on_success() = runTest {
         val controller =
-            PipelinesController(
+            pipelinesController(
                 okChannel(),
                 RecordingPipelinesApi(
                     listOf(
@@ -68,7 +85,7 @@ class PipelinesControllerTest {
 
     @Test
     fun load_is_empty_when_the_channel_has_no_pipelines() = runTest {
-        val controller = PipelinesController(okChannel(), RecordingPipelinesApi(emptyList()))
+        val controller = pipelinesController(okChannel(), RecordingPipelinesApi(emptyList()))
 
         controller.load()
 
@@ -78,7 +95,7 @@ class PipelinesControllerTest {
     @Test
     fun load_errors_when_no_channel_resolves() = runTest {
         val controller =
-            PipelinesController(
+            pipelinesController(
                 FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
                 RecordingPipelinesApi(emptyList()),
             )
@@ -91,7 +108,7 @@ class PipelinesControllerTest {
     @Test
     fun load_errors_when_the_list_call_fails() = runTest {
         val api = RecordingPipelinesApi(emptyList(), listFailure = ApiError(500, "ERR", "boom"))
-        val controller = PipelinesController(okChannel(), api)
+        val controller = pipelinesController(okChannel(), api)
 
         controller.load()
 
@@ -101,7 +118,7 @@ class PipelinesControllerTest {
     @Test
     fun create_posts_an_empty_starter_graph_then_reloads_with_the_new_pipeline() = runTest {
         val api = RecordingPipelinesApi(emptyList())
-        val controller = PipelinesController(okChannel(), api)
+        val controller = pipelinesController(okChannel(), api)
         controller.load()
         assertTrue(controller.state.value is PipelinesState.Empty)
 
@@ -124,7 +141,7 @@ class PipelinesControllerTest {
     @Test
     fun toggle_patches_only_the_enabled_flag_then_reloads_with_the_flip() = runTest {
         val api = RecordingPipelinesApi(listOf(PipelineSummary(id = "00000001-0000-0000-0000-000000000001", name = "p", isEnabled = true)))
-        val controller = PipelinesController(okChannel(), api)
+        val controller = pipelinesController(okChannel(), api)
         controller.load()
 
         controller.togglePipeline(id = "00000001-0000-0000-0000-000000000001", enabled = false)
@@ -146,7 +163,7 @@ class PipelinesControllerTest {
     fun delete_removes_the_pipeline_then_reloads_to_empty_and_says_deleted() = runTest {
         val feedback = RecordingFeedback()
         val api = RecordingPipelinesApi(listOf(PipelineSummary(id = "00000001-0000-0000-0000-000000000001", name = "p", isEnabled = true)))
-        val controller = PipelinesController(okChannel(), api, feedback)
+        val controller = pipelinesController(okChannel(), api, feedback)
         controller.load()
         assertTrue(controller.state.value is PipelinesState.Ready)
 
@@ -166,7 +183,7 @@ class PipelinesControllerTest {
                 listOf(PipelineSummary(id = "00000001-0000-0000-0000-000000000001", name = "p", isEnabled = true)),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
-        val controller = PipelinesController(okChannel(), api, feedback)
+        val controller = pipelinesController(okChannel(), api, feedback)
         controller.load()
 
         controller.deletePipeline(id = "00000001-0000-0000-0000-000000000001")
@@ -194,7 +211,7 @@ class PipelinesControllerTest {
                 listOf(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter", isEnabled = true)),
                 graphs = mutableMapOf("00000005-0000-0000-0000-000000000005" to seeded.toJson()),
             )
-        val controller = PipelinesController(okChannel(), api)
+        val controller = pipelinesController(okChannel(), api)
         controller.load()
 
         controller.openEditor(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter"))
@@ -216,7 +233,7 @@ class PipelinesControllerTest {
                 listOf(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter", isEnabled = true)),
                 graphs = mutableMapOf("00000005-0000-0000-0000-000000000005" to PipelineGraph().toJson()),
             )
-        val controller = PipelinesController(okChannel(), api)
+        val controller = pipelinesController(okChannel(), api)
         controller.load()
         controller.openEditor(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter"))
 
@@ -252,7 +269,7 @@ class PipelinesControllerTest {
                 listOf(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter", isEnabled = true)),
                 graphs = mutableMapOf("00000005-0000-0000-0000-000000000005" to seeded.toJson()),
             )
-        val controller = PipelinesController(okChannel(), api)
+        val controller = pipelinesController(okChannel(), api)
         controller.load()
         controller.openEditor(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter"))
 
@@ -281,7 +298,7 @@ class PipelinesControllerTest {
                 listOf(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter", isEnabled = true)),
                 graphs = mutableMapOf("00000005-0000-0000-0000-000000000005" to seeded.toJson()),
             )
-        val controller = PipelinesController(okChannel(), api)
+        val controller = pipelinesController(okChannel(), api)
         controller.load()
         controller.openEditor(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter"))
 
@@ -300,7 +317,7 @@ class PipelinesControllerTest {
                 graphs = mutableMapOf("00000005-0000-0000-0000-000000000005" to PipelineGraph().toJson()),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "denied")),
             )
-        val controller = PipelinesController(okChannel(), api, feedback)
+        val controller = pipelinesController(okChannel(), api, feedback)
         controller.load()
         controller.openEditor(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter"))
         controller.addStep(PipelineStep(action = PipelineNode("stop")))
@@ -324,7 +341,7 @@ class PipelinesControllerTest {
                 listOf(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter", isEnabled = true)),
                 graphs = mutableMapOf("00000005-0000-0000-0000-000000000005" to PipelineGraph().toJson()),
             )
-        val controller = PipelinesController(okChannel(), api, feedback)
+        val controller = pipelinesController(okChannel(), api, feedback)
         controller.load()
         controller.openEditor(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter"))
         controller.addStep(PipelineStep(action = PipelineNode("stop")))
@@ -335,7 +352,88 @@ class PipelinesControllerTest {
         assertEquals(Res.string.feedback_pipeline_saved, feedback.only.label)
     }
 
+    @Test
+    fun open_editor_surfaces_the_backend_action_palette_including_unmodelled_blocks() = runTest {
+        // The palette membership comes from the backend catalogue — a block the client has NO typed hints for
+        // (obs_switch_scene) still appears, grouped under its backend category, and falls back to the generic
+        // editor (hasHints == false). This is the keystone: the builder can never hide a registered action.
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "00000009-0000-0000-0000-000000000009", name = "Scenes", isEnabled = true)),
+                graphs = mutableMapOf("00000009-0000-0000-0000-000000000009" to PipelineGraph().toJson()),
+                catalogue =
+                    PipelineCatalogueRemote(
+                        actions =
+                            listOf(
+                                PipelineActionDescriptor("send_message", "Chat", "Send a chat message"),
+                                PipelineActionDescriptor("obs_switch_scene", "OBS", "Switch the current scene"),
+                            ),
+                        conditions = listOf(PipelineConditionDescriptor("user_role")),
+                    ),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+
+        controller.openEditor(PipelineSummary(id = "00000009-0000-0000-0000-000000000009", name = "Scenes"))
+
+        val state: PipelinesState = controller.state.value
+        assertTrue(state is PipelinesState.Editing)
+        val palette = (state as PipelinesState.Editing).palette
+        assertEquals(listOf("send_message", "obs_switch_scene"), palette.actions.map { it.type })
+        assertTrue(palette.action("send_message")!!.hasHints)
+        assertFalse(palette.action("obs_switch_scene")!!.hasHints)
+        assertEquals("OBS", palette.action("obs_switch_scene")!!.category)
+        assertEquals(listOf("Chat", "OBS"), palette.actionsByCategory.map { it.first })
+    }
+
     private fun okChannel(): ChannelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1")))
+}
+
+// Builds the controller with the two editor-picker fakes wired in, so the pipeline-behaviour tests need not
+// restate them. Feedback defaults to no-op; a test that asserts feedback passes its RecordingFeedback.
+private fun pipelinesController(
+    channels: ChannelsApi,
+    api: PipelinesApi,
+    feedback: Feedback = NoOpFeedback,
+): PipelinesController =
+    PipelinesController(
+        channelsApi = channels,
+        pipelinesApi = api,
+        webhooksApi = StubWebhooksApi,
+        pickListsApi = StubPickListsApi,
+        feedback = feedback,
+    )
+
+// The editor picker sources are best-effort in the controller; these stubs return empty so the fields fall
+// back to free text — the pipeline-behaviour tests don't exercise the pickers.
+private object StubWebhooksApi : WebhooksApi {
+    override suspend fun listInbound(channelId: String): ApiResult<List<InboundWebhook>> = ApiResult.Ok(emptyList())
+    override suspend fun createInbound(channelId: String, body: CreateInboundBody): ApiResult<InboundWebhook> =
+        ApiResult.Ok(InboundWebhook())
+    override suspend fun toggleInbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+    override suspend fun rotateInboundToken(channelId: String, endpointId: String): ApiResult<String> =
+        ApiResult.Ok("")
+    override suspend fun deleteInbound(channelId: String, endpointId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun listOutbound(channelId: String): ApiResult<List<OutboundWebhook>> = ApiResult.Ok(emptyList())
+    override suspend fun createOutbound(channelId: String, body: CreateOutboundBody): ApiResult<OutboundWebhookCreated> =
+        ApiResult.Ok(OutboundWebhookCreated())
+    override suspend fun toggleOutbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+    override suspend fun reenableOutbound(channelId: String, endpointId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun rotateOutboundSecret(channelId: String, endpointId: String): ApiResult<String> =
+        ApiResult.Ok("")
+    override suspend fun testOutbound(channelId: String, endpointId: String): ApiResult<WebhookTestResult> =
+        ApiResult.Ok(WebhookTestResult())
+    override suspend fun deleteOutbound(channelId: String, endpointId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+private object StubPickListsApi : PickListsApi {
+    override suspend fun list(): ApiResult<List<PickList>> = ApiResult.Ok(emptyList())
+    override suspend fun get(id: String): ApiResult<PickList> = ApiResult.Ok(PickList())
+    override suspend fun create(body: CreatePickListBody): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun update(id: String, body: UpdatePickListBody): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun delete(id: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -366,6 +464,11 @@ private class RecordingPipelinesApi(
     private val listFailure: ApiError? = null,
     private val graphs: MutableMap<String, kotlinx.serialization.json.JsonObject> = mutableMapOf(),
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val catalogue: PipelineCatalogueRemote =
+        PipelineCatalogueRemote(
+            actions = listOf(PipelineActionDescriptor("send_message", "Chat", "Send a chat message")),
+            conditions = listOf(PipelineConditionDescriptor("user_role")),
+        ),
 ) : PipelinesApi {
     private val store: MutableList<PipelineSummary> = initial.toMutableList()
     private var nextSeq: Int = 1
@@ -376,6 +479,9 @@ private class RecordingPipelinesApi(
 
     override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> =
         listFailure?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(store.toList())
+
+    override suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote> =
+        ApiResult.Ok(catalogue)
 
     override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> {
         val summary: PipelineSummary =

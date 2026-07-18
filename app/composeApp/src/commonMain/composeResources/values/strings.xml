@@ -1768,6 +1768,27 @@
     <string name="pipelines_field_wait_seconds">Wait (seconds)</string>
     <string name="pipelines_field_min_role">Minimum role</string>
     <string name="pipelines_field_percent">Percent</string>
+    <!-- Backend-catalogue blocks surfaced from GET pipelines/actions (webhooks, pick-lists, live games, compare). -->
+    <string name="pipelines_block_send_webhook">Send webhook</string>
+    <string name="pipelines_block_pick_from_list">Pick from list</string>
+    <string name="pipelines_block_stop_sound">Stop sound</string>
+    <string name="pipelines_block_start_live_game">Start live game</string>
+    <string name="pipelines_block_cancel_live_game">Cancel live game</string>
+    <string name="pipelines_block_var_compare">Compare variable</string>
+    <string name="pipelines_field_endpoint">Outbound endpoint</string>
+    <string name="pipelines_field_event_type">Event type (optional)</string>
+    <string name="pipelines_field_list">Pick-list</string>
+    <string name="pipelines_field_pick_variable">Store pick in variable (optional)</string>
+    <string name="pipelines_field_compare_left">Left value (e.g. {{count}})</string>
+    <string name="pipelines_field_compare_operator">Operator (eq, ne, gt, lt, gte, lte)</string>
+    <string name="pipelines_field_compare_right">Right value</string>
+    <!-- Generic key/value editor for a backend block the client has no typed field hints for. -->
+    <string name="pipelines_generic_params_label">Parameters</string>
+    <string name="pipelines_generic_param_key">Name</string>
+    <string name="pipelines_generic_param_value">Value</string>
+    <string name="pipelines_generic_add">Add parameter</string>
+    <string name="pipelines_generic_remove">Remove parameter</string>
+    <string name="pipelines_picker_choose">Choose…</string>
 
     <!-- Write-gate (frontend-ia.md §7): the reason a control is disabled for a caller below its manage floor.
          %1$s is the minimum role, filled from the shell_role_* labels above. -->

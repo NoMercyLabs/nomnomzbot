@@ -34,10 +34,14 @@ import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,13 +67,14 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.BlockField
-import bot.nomnomz.dashboard.core.network.BlockType
-import bot.nomnomz.dashboard.core.network.FieldKind
-import bot.nomnomz.dashboard.core.network.PipelineCatalogue
+import bot.nomnomz.dashboard.core.network.PaletteBlock
 import bot.nomnomz.dashboard.core.network.PipelineNode
 import bot.nomnomz.dashboard.core.network.PipelineStep
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.RuntimePalette
 import bot.nomnomz.dashboard.core.network.UserRoleOptions
+import bot.nomnomz.dashboard.feature.pipelines.state.EditorOptions
+import bot.nomnomz.dashboard.feature.pipelines.state.PickerOption
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelinesController
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelinesState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -104,10 +109,22 @@ import nomnomzbot.composeapp.generated.resources.pipelines_block_song_request
 import nomnomzbot.composeapp.generated.resources.pipelines_block_song_skip
 import nomnomzbot.composeapp.generated.resources.pipelines_block_song_volume
 import nomnomzbot.composeapp.generated.resources.pipelines_block_stop
+import nomnomzbot.composeapp.generated.resources.pipelines_block_stop_sound
+import nomnomzbot.composeapp.generated.resources.pipelines_block_start_live_game
+import nomnomzbot.composeapp.generated.resources.pipelines_block_cancel_live_game
+import nomnomzbot.composeapp.generated.resources.pipelines_block_pick_from_list
+import nomnomzbot.composeapp.generated.resources.pipelines_block_send_webhook
+import nomnomzbot.composeapp.generated.resources.pipelines_block_var_compare
 import nomnomzbot.composeapp.generated.resources.pipelines_block_timeout
 import nomnomzbot.composeapp.generated.resources.pipelines_block_user_role
 import nomnomzbot.composeapp.generated.resources.pipelines_block_wait
 import nomnomzbot.composeapp.generated.resources.pipelines_chain_empty
+import nomnomzbot.composeapp.generated.resources.pipelines_generic_add
+import nomnomzbot.composeapp.generated.resources.pipelines_generic_param_key
+import nomnomzbot.composeapp.generated.resources.pipelines_generic_param_value
+import nomnomzbot.composeapp.generated.resources.pipelines_generic_params_label
+import nomnomzbot.composeapp.generated.resources.pipelines_generic_remove
+import nomnomzbot.composeapp.generated.resources.pipelines_picker_choose
 import nomnomzbot.composeapp.generated.resources.pipelines_condition_label
 import nomnomzbot.composeapp.generated.resources.pipelines_condition_label_short
 import nomnomzbot.composeapp.generated.resources.pipelines_condition_none
@@ -136,8 +153,15 @@ import nomnomzbot.composeapp.generated.resources.pipelines_field_code_script_id
 import nomnomzbot.composeapp.generated.resources.pipelines_field_cooldown_minutes
 import nomnomzbot.composeapp.generated.resources.pipelines_field_dedupe_key
 import nomnomzbot.composeapp.generated.resources.pipelines_field_denied_message
+import nomnomzbot.composeapp.generated.resources.pipelines_field_compare_left
+import nomnomzbot.composeapp.generated.resources.pipelines_field_compare_operator
+import nomnomzbot.composeapp.generated.resources.pipelines_field_compare_right
 import nomnomzbot.composeapp.generated.resources.pipelines_field_duration_seconds
+import nomnomzbot.composeapp.generated.resources.pipelines_field_endpoint
+import nomnomzbot.composeapp.generated.resources.pipelines_field_event_type
 import nomnomzbot.composeapp.generated.resources.pipelines_field_game_type
+import nomnomzbot.composeapp.generated.resources.pipelines_field_list
+import nomnomzbot.composeapp.generated.resources.pipelines_field_pick_variable
 import nomnomzbot.composeapp.generated.resources.pipelines_field_handle
 import nomnomzbot.composeapp.generated.resources.pipelines_field_jar_id
 import nomnomzbot.composeapp.generated.resources.pipelines_field_message
@@ -497,6 +521,7 @@ private fun ChainEditor(
                             index = index,
                             total = editing.steps.size,
                             step = step,
+                            palette = editing.palette,
                             manage = manage,
                             onEdit = { stepDialog = StepDialogTarget(index = index, step = step) },
                             onRemove = { controller.removeStep(index) },
@@ -512,6 +537,8 @@ private fun ChainEditor(
     stepDialog?.let { target ->
         StepFormDialog(
             initial = target.step,
+            palette = editing.palette,
+            options = editing.options,
             onDismiss = { stepDialog = null },
             onSubmit = { step ->
                 val editIndex: Int? = target.index
@@ -527,6 +554,7 @@ private fun StepCard(
     index: Int,
     total: Int,
     step: PipelineStep,
+    palette: RuntimePalette,
     manage: ManageDecision,
     onEdit: () -> Unit,
     onRemove: () -> Unit,
@@ -537,12 +565,12 @@ private fun StepCard(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val actionName: String = blockDisplayName(PipelineCatalogue.action(step.action.type), step.action.type)
+    val actionName: String = blockDisplayName(palette.action(step.action.type), step.action.type)
     val conditionText: String =
         step.condition?.let {
             stringResource(
                 Res.string.pipelines_condition_label,
-                blockDisplayName(PipelineCatalogue.condition(it.type), it.type),
+                blockDisplayName(palette.condition(it.type), it.type),
             )
         } ?: stringResource(Res.string.pipelines_condition_none)
 
@@ -565,7 +593,7 @@ private fun StepCard(
             }
         }
         // Param summary: each configured param as "label: value", so a card shows what the block will do.
-        ParamSummary(step.action)
+        ParamSummary(step.action, palette)
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
             // Reorder is a write AND bounded by position: the gate's `enabled` and the bound both must hold.
@@ -607,16 +635,28 @@ private fun StepCard(
 }
 
 @Composable
-private fun ParamSummary(node: PipelineNode) {
+private fun ParamSummary(node: PipelineNode, palette: RuntimePalette) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
-    val block: BlockType = PipelineCatalogue.action(node.type) ?: return
+    val block: PaletteBlock? = palette.action(node.type)
 
-    for (field in block.fields) {
-        val value: String = node.params[field.key].orEmpty()
-        if (value.isBlank()) continue
+    // Typed blocks render their known fields in field order with friendly labels; a block without local hints
+    // (a backend-discovered action we don't model) renders its raw params by key, so its config is still visible.
+    val rows: List<Pair<String, String>> =
+        if (block != null && block.hasHints) {
+            block.fields.mapNotNull { field ->
+                val value: String = node.params[field.key].orEmpty()
+                if (value.isBlank()) null else fieldDisplayName(field) to value
+            }
+        } else {
+            node.params.entries.mapNotNull { (key, value) ->
+                if (value.isBlank()) null else humanize(key) to value
+            }
+        }
+
+    for ((label, value) in rows) {
         Text(
-            text = "${stringResource(fieldLabel(field.labelKey))}: $value",
+            text = "$label: $value",
             style = typography.xs,
             color = tokens.mutedForeground,
             maxLines = 1,
@@ -627,34 +667,43 @@ private fun ParamSummary(node: PipelineNode) {
 
 // ── The add/edit step dialog ──────────────────────────────────────────────────
 
-// One dialog for both add and edit (DRY): a null [initial] opens a blank add, a seeded one opens an edit. It
-// picks the action type, fills the action's params, optionally picks a condition and fills its params, and
-// flips the stop-on-match flag. The Save button is disabled until every REQUIRED field of the chosen action
-// (and condition, if any) is non-blank, so an invalid block can never be added.
+// One dialog for both add and edit (DRY): a null [initial] opens a blank add, a seeded one opens an edit. The
+// action + condition options come from the backend-sourced [palette] (grouped by category), so every block the
+// engine runs is offered. A block with local field hints renders typed fields (with pickers where relevant);
+// a hint-less backend block renders a generic key/value editor so it stays configurable. The Save button is
+// disabled until every REQUIRED typed field of the chosen action (and condition, if any) is non-blank.
 @Composable
 private fun StepFormDialog(
     initial: PipelineStep?,
+    palette: RuntimePalette,
+    options: EditorOptions,
     onDismiss: () -> Unit,
     onSubmit: (PipelineStep) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
-    var actionType: String by remember { mutableStateOf(initial?.action?.type ?: PipelineCatalogue.actions.first().type) }
-    val actionParams: MutableMap<String, String> = remember { mutableStateMapFrom(initial?.action?.params) }
+    val firstActionType: String = palette.actions.firstOrNull()?.type ?: ""
+    var actionType: String by remember { mutableStateOf(initial?.action?.type ?: firstActionType) }
+    val actionBlock: PaletteBlock? = palette.action(actionType)
+
+    // Typed params back the hinted fields; generic entries back a hint-less block's key/value editor. Only the
+    // one that matches the current block is read on submit, so switching type between them is clean.
+    val actionParams: SnapshotStateMap<String, String> = remember { mutableStateMapFrom(initial?.action?.params) }
+    val actionGeneric: SnapshotStateList<GenericEntry> =
+        remember { genericEntriesFrom(initial?.action?.params.takeIf { actionBlock?.hasHints == false }) }
 
     var conditionType: String? by remember { mutableStateOf(initial?.condition?.type) }
-    val conditionParams: MutableMap<String, String> = remember { mutableStateMapFrom(initial?.condition?.params) }
+    val conditionBlock: PaletteBlock? = conditionType?.let { palette.condition(it) }
+    val conditionParams: SnapshotStateMap<String, String> = remember { mutableStateMapFrom(initial?.condition?.params) }
+    val conditionGeneric: SnapshotStateList<GenericEntry> =
+        remember { genericEntriesFrom(initial?.condition?.params.takeIf { conditionBlock?.hasHints == false }) }
 
     var stopOnMatch: Boolean by remember { mutableStateOf(initial?.stopOnMatch ?: false) }
 
-    val actionBlock: BlockType = PipelineCatalogue.action(actionType) ?: PipelineCatalogue.actions.first()
-    val conditionBlock: BlockType? = conditionType?.let { PipelineCatalogue.condition(it) }
-
     val canSubmit: Boolean =
-        actionBlock.fields.filter { it.required }.all { actionParams[it.key]?.isNotBlank() == true } &&
-            (conditionBlock == null ||
-                conditionBlock.fields.filter { it.required }.all { conditionParams[it.key]?.isNotBlank() == true })
+        blockComplete(actionBlock, actionParams) &&
+            (conditionType == null || blockComplete(conditionBlock, conditionParams))
 
     val title: String =
         stringResource(
@@ -666,28 +715,46 @@ private fun StepFormDialog(
         title = { Text(text = title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                // Action type picker.
+                // Action type picker (backend palette, grouped by category).
                 LabeledText(stringResource(Res.string.pipelines_step_action_label))
                 BlockTypePicker(
-                    options = PipelineCatalogue.actions,
-                    selected = actionType,
+                    grouped = palette.actionsByCategory,
+                    selected = actionBlock,
+                    selectedType = actionType,
                     onSelect = { type ->
                         actionType = type
                         actionParams.clear()
+                        actionGeneric.clear()
                     },
                 )
-                ParamFields(block = actionBlock, params = actionParams)
+                actionBlock?.let { block ->
+                    BlockParamEditor(
+                        block = block,
+                        typed = actionParams,
+                        generic = actionGeneric,
+                        options = options,
+                    )
+                }
 
                 // Optional condition.
                 LabeledText(stringResource(Res.string.pipelines_condition_label_short))
                 ConditionPicker(
-                    selected = conditionType,
+                    conditions = palette.conditions,
+                    selected = conditionBlock,
                     onSelect = { type ->
                         conditionType = type
                         conditionParams.clear()
+                        conditionGeneric.clear()
                     },
                 )
-                conditionBlock?.let { ParamFields(block = it, params = conditionParams) }
+                conditionBlock?.let { block ->
+                    BlockParamEditor(
+                        block = block,
+                        typed = conditionParams,
+                        generic = conditionGeneric,
+                        options = options,
+                    )
+                }
 
                 // Stop-on-match.
                 Row(
@@ -708,9 +775,12 @@ private fun StepFormDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val action = PipelineNode(type = actionType, params = actionParams.filterValues { it.isNotBlank() })
+                    val action =
+                        PipelineNode(type = actionType, params = paramsFor(actionBlock, actionParams, actionGeneric))
                     val condition: PipelineNode? =
-                        conditionType?.let { PipelineNode(type = it, params = conditionParams.filterValues { v -> v.isNotBlank() }) }
+                        conditionType?.let {
+                            PipelineNode(type = it, params = paramsFor(conditionBlock, conditionParams, conditionGeneric))
+                        }
                     onSubmit(PipelineStep(action = action, condition = condition, stopOnMatch = stopOnMatch))
                 },
                 enabled = canSubmit,
@@ -726,59 +796,220 @@ private fun StepFormDialog(
     )
 }
 
+// Renders a block's parameters: typed fields when the block has local hints (with the role / endpoint / list
+// pickers where a field maps to a closed set), else a generic key/value editor for a backend-discovered block.
 @Composable
-private fun ParamFields(block: BlockType, params: MutableMap<String, String>) {
+private fun BlockParamEditor(
+    block: PaletteBlock,
+    typed: MutableMap<String, String>,
+    generic: SnapshotStateList<GenericEntry>,
+    options: EditorOptions,
+) {
+    if (block.description.isNotBlank()) {
+        val tokens = LocalTokens.current
+        val typography = LocalTypography.current
+        Text(text = block.description, style = typography.xs, color = tokens.mutedForeground)
+    }
+    if (block.hasHints) {
+        TypedParamFields(block = block, params = typed, options = options)
+    } else {
+        GenericParamFields(entries = generic)
+    }
+}
+
+@Composable
+private fun TypedParamFields(block: PaletteBlock, params: MutableMap<String, String>, options: EditorOptions) {
     val spacing = LocalSpacing.current
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
         for (field in block.fields) {
-            if (field.key == "min_role") {
+            when (field.key) {
                 // The role floor is a closed set — a picker, not free text.
-                RolePicker(
-                    selected = params[field.key].orEmpty(),
-                    onSelect = { params[field.key] = it },
-                )
-            } else {
-                AppTextField(
-                    value = params[field.key].orEmpty(),
-                    onValueChange = { params[field.key] = it },
-                    label = fieldLabelWithRequired(field),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                "min_role" ->
+                    RolePicker(
+                        selected = params[field.key].orEmpty(),
+                        onSelect = { params[field.key] = it },
+                    )
+                // send_webhook → pick one of the channel's outbound endpoints (falls back to free text if none).
+                "endpoint" ->
+                    OptionPicker(
+                        label = fieldLabelWithRequired(field),
+                        options = options.outboundEndpoints,
+                        selected = params[field.key].orEmpty(),
+                        onSelect = { params[field.key] = it },
+                    )
+                // pick_from_list → pick one of the channel's pick-lists by name (falls back to free text).
+                "list" ->
+                    OptionPicker(
+                        label = fieldLabelWithRequired(field),
+                        options = options.pickLists,
+                        selected = params[field.key].orEmpty(),
+                        onSelect = { params[field.key] = it },
+                    )
+                else ->
+                    AppTextField(
+                        value = params[field.key].orEmpty(),
+                        onValueChange = { params[field.key] = it },
+                        label = fieldLabelWithRequired(field),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
             }
         }
     }
 }
 
+// The generic key/value editor for a backend block we don't model — every param is a free-form key + value row,
+// so any discovered action stays configurable. Keys map to the action's backend param names.
 @Composable
-private fun BlockTypePicker(options: List<BlockType>, selected: String, onSelect: (String) -> Unit) {
+private fun GenericParamFields(entries: SnapshotStateList<GenericEntry>) {
+    val spacing = LocalSpacing.current
+    val addLabel: String = stringResource(Res.string.pipelines_generic_add)
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        LabeledText(stringResource(Res.string.pipelines_generic_params_label))
+        entries.forEachIndexed { index, entry ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppTextField(
+                    value = entry.key,
+                    onValueChange = { entry.key = it },
+                    label = stringResource(Res.string.pipelines_generic_param_key),
+                    modifier = Modifier.weight(1f),
+                )
+                AppTextField(
+                    value = entry.value,
+                    onValueChange = { entry.value = it },
+                    label = stringResource(Res.string.pipelines_generic_param_value),
+                    modifier = Modifier.weight(1f),
+                )
+                GlyphButton(
+                    imageVector = TrashGlyph,
+                    label = stringResource(Res.string.pipelines_generic_remove),
+                    onClick = { entries.removeAt(index) },
+                    tint = LocalTokens.current.destructive,
+                )
+            }
+        }
+        GlyphButton(
+            imageVector = AddGlyph,
+            label = addLabel,
+            onClick = { entries.add(GenericEntry("", "")) },
+            tint = LocalTokens.current.primary,
+        )
+    }
+}
+
+// A closed-set value picker (endpoint / pick-list): a labelled dropdown when options exist, else a free-text
+// field so a channel with no endpoints/lists yet can still type an id/name by hand.
+@Composable
+private fun OptionPicker(
+    label: String,
+    options: List<PickerOption>,
+    selected: String,
+    onSelect: (String) -> Unit,
+) {
+    if (options.isEmpty()) {
+        AppTextField(
+            value = selected,
+            onValueChange = onSelect,
+            label = label,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        return
+    }
+
     var expanded: Boolean by remember { mutableStateOf(false) }
     val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val current: PickerOption? = options.firstOrNull { it.value == selected }
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
+        Text(text = label, style = typography.xs, color = tokens.mutedForeground)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .clip(RoundedCornerShape(tokens.radius.md))
+                        .background(tokens.input)
+                        .semantics { contentDescription = label },
+            ) {
+                TextButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = current?.label ?: selected.ifBlank { stringResource(Res.string.pipelines_picker_choose) },
+                        color = if (current == null && selected.isBlank()) tokens.mutedForeground else tokens.foreground,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                for (option in options) {
+                    DropdownMenuItem(
+                        text = { Text(text = option.label, color = tokens.popoverForeground) },
+                        onClick = {
+                            onSelect(option.value)
+                            expanded = false
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+// The action-block picker — a category-grouped dropdown so all ~66 backend blocks are browsable by group.
+@Composable
+private fun BlockTypePicker(
+    grouped: List<Pair<String, List<PaletteBlock>>>,
+    selected: PaletteBlock?,
+    selectedType: String,
+    onSelect: (String) -> Unit,
+) {
+    var expanded: Boolean by remember { mutableStateOf(false) }
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
 
     Box(modifier = Modifier.fillMaxWidth()) {
         TextButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = blockDisplayName(PipelineCatalogue.action(selected) ?: PipelineCatalogue.condition(selected), selected),
+                text = blockDisplayName(selected, selectedType),
                 color = tokens.foreground,
                 modifier = Modifier.weight(1f),
             )
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            for (option in options) {
-                DropdownMenuItem(
-                    text = { Text(blockDisplayName(option, option.type)) },
-                    onClick = {
-                        onSelect(option.type)
-                        expanded = false
-                    },
+            for ((category, blocks) in grouped) {
+                Text(
+                    text = humanize(category),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    modifier = Modifier.padding(horizontal = LocalSpacing.current.s3, vertical = LocalSpacing.current.s1),
                 )
+                for (option in blocks) {
+                    DropdownMenuItem(
+                        text = { Text(blockDisplayName(option, option.type)) },
+                        onClick = {
+                            onSelect(option.type)
+                            expanded = false
+                        },
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ConditionPicker(selected: String?, onSelect: (String?) -> Unit) {
+private fun ConditionPicker(
+    conditions: List<PaletteBlock>,
+    selected: PaletteBlock?,
+    onSelect: (String?) -> Unit,
+) {
     var expanded: Boolean by remember { mutableStateOf(false) }
     val tokens = LocalTokens.current
     val noneLabel: String = stringResource(Res.string.pipelines_condition_none)
@@ -786,7 +1017,7 @@ private fun ConditionPicker(selected: String?, onSelect: (String?) -> Unit) {
     Box(modifier = Modifier.fillMaxWidth()) {
         TextButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = selected?.let { blockDisplayName(PipelineCatalogue.condition(it), it) } ?: noneLabel,
+                text = selected?.let { blockDisplayName(it, it.type) } ?: noneLabel,
                 color = tokens.foreground,
                 modifier = Modifier.weight(1f),
             )
@@ -799,7 +1030,7 @@ private fun ConditionPicker(selected: String?, onSelect: (String?) -> Unit) {
                     expanded = false
                 },
             )
-            for (option in PipelineCatalogue.conditions) {
+            for (option in conditions) {
                 DropdownMenuItem(
                     text = { Text(blockDisplayName(option, option.type)) },
                     onClick = {
@@ -949,19 +1180,32 @@ private fun CenteredMessage(text: String) {
     }
 }
 
-// Resolve a block type's display name from its i18n key, falling back to the raw backend type when uncatalogued.
+// Resolve a block's display name: its i18n label when the type is locally known (labelKey set), else a
+// humanized form of the backend type discriminator so a hint-less backend block still reads well.
 @Composable
-private fun blockDisplayName(block: BlockType?, rawType: String): String =
-    block?.let { stringResource(blockLabel(it.labelKey)) } ?: rawType
+private fun blockDisplayName(block: PaletteBlock?, rawType: String): String {
+    val labelKey: String? = block?.labelKey
+    return if (labelKey != null) stringResource(blockLabel(labelKey)) else humanize(block?.type ?: rawType)
+}
+
+@Composable
+private fun fieldDisplayName(field: BlockField): String = stringResource(fieldLabel(field.labelKey))
 
 @Composable
 private fun fieldLabelWithRequired(field: BlockField): String {
-    val base: String = stringResource(fieldLabel(field.labelKey))
+    val base: String = fieldDisplayName(field)
     return if (field.required) "$base *" else base
 }
 
-// Map the catalogue's labelKey suffix to its declared StringResource (the catalogue is closed, so this is a
-// fixed, exhaustive lookup — no dynamic resource resolution).
+// Humanize a raw backend discriminator (type/category/param key) for display: separators to spaces, first
+// letter capitalized. Applied only to backend-provided data we don't have a translated label for.
+private fun humanize(raw: String): String {
+    val spaced: String = raw.replace('_', ' ').replace('.', ' ').replace('-', ' ').trim()
+    return spaced.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+}
+
+// Map the catalogue's labelKey suffix to its declared StringResource (the locally-hinted blocks are a fixed
+// set, so this is an exhaustive lookup — a hint-less backend block never reaches here, it is humanized instead).
 private fun blockLabel(labelKey: String): StringResource =
     when (labelKey) {
         "send_message" -> Res.string.pipelines_block_send_message
@@ -989,8 +1233,14 @@ private fun blockLabel(labelKey: String): StringResource =
         "set_variable" -> Res.string.pipelines_block_set_variable
         "wait" -> Res.string.pipelines_block_wait
         "stop" -> Res.string.pipelines_block_stop
+        "send_webhook" -> Res.string.pipelines_block_send_webhook
+        "pick_from_list" -> Res.string.pipelines_block_pick_from_list
+        "stop_sound" -> Res.string.pipelines_block_stop_sound
+        "start_live_game" -> Res.string.pipelines_block_start_live_game
+        "cancel_live_game" -> Res.string.pipelines_block_cancel_live_game
         "user_role" -> Res.string.pipelines_block_user_role
         "random" -> Res.string.pipelines_block_random
+        "var_compare" -> Res.string.pipelines_block_var_compare
         else -> Res.string.pipelines_block_send_message
     }
 
@@ -1027,15 +1277,59 @@ private fun fieldLabel(labelKey: String): StringResource =
         "wait_seconds" -> Res.string.pipelines_field_wait_seconds
         "min_role" -> Res.string.pipelines_field_min_role
         "percent" -> Res.string.pipelines_field_percent
+        "endpoint" -> Res.string.pipelines_field_endpoint
+        "event_type" -> Res.string.pipelines_field_event_type
+        "list" -> Res.string.pipelines_field_list
+        "pick_variable" -> Res.string.pipelines_field_pick_variable
+        "compare_left" -> Res.string.pipelines_field_compare_left
+        "compare_operator" -> Res.string.pipelines_field_compare_operator
+        "compare_right" -> Res.string.pipelines_field_compare_right
         else -> Res.string.pipelines_field_message
     }
 
 // A fresh observable string map seeded from existing params (or empty) — backs the dialog's editable fields.
-private fun mutableStateMapFrom(source: Map<String, String>?): androidx.compose.runtime.snapshots.SnapshotStateMap<String, String> {
-    val map = androidx.compose.runtime.mutableStateMapOf<String, String>()
+private fun mutableStateMapFrom(source: Map<String, String>?): SnapshotStateMap<String, String> {
+    val map = mutableStateMapOf<String, String>()
     source?.let { map.putAll(it) }
     return map
 }
+
+// ── Generic (hint-less backend block) param editing ───────────────────────────
+
+/** One editable row in the generic key/value editor — observable so edits recompose the dialog. */
+private class GenericEntry(key: String, value: String) {
+    var key: String by mutableStateOf(key)
+    var value: String by mutableStateOf(value)
+}
+
+/** A fresh observable entry list seeded from existing params (or empty). */
+private fun genericEntriesFrom(source: Map<String, String>?): SnapshotStateList<GenericEntry> {
+    val list: SnapshotStateList<GenericEntry> = mutableStateListOf()
+    source?.forEach { (key, value) -> list.add(GenericEntry(key, value)) }
+    return list
+}
+
+// True when the chosen [block] is fully specified: a hinted block needs every required field non-blank; a
+// hint-less (generic) block is always accepted; a null block (none chosen) is never complete.
+private fun blockComplete(block: PaletteBlock?, typed: Map<String, String>): Boolean =
+    when {
+        block == null -> false
+        !block.hasHints -> true
+        else -> block.fields.filter { it.required }.all { typed[it.key]?.isNotBlank() == true }
+    }
+
+// Build the wire params for a node: a hinted block reads its typed field map; a generic block folds its
+// non-blank key/value rows (last write wins on a duplicate key).
+private fun paramsFor(
+    block: PaletteBlock?,
+    typed: Map<String, String>,
+    generic: List<GenericEntry>,
+): Map<String, String> =
+    if (block != null && !block.hasHints) {
+        generic.filter { it.key.isNotBlank() && it.value.isNotBlank() }.associate { it.key.trim() to it.value }
+    } else {
+        typed.filterValues { it.isNotBlank() }
+    }
 
 // The create/rename dialog seed: a null [id] is a create (blank), an id is a rename of that pipeline.
 private data class PipelineEditor(val id: String?, val name: String, val description: String) {

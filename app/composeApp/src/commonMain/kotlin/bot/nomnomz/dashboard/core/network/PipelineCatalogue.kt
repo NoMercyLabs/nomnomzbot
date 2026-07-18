@@ -10,14 +10,17 @@
 
 package bot.nomnomz.dashboard.core.network
 
-// The closed catalogue of pipeline action + condition block types the editor offers, with the editable
-// parameters each accepts. This is a deterministic reflection of the backend's ICommandAction /
-// ICommandCondition implementations (NomNomzBot.Infrastructure/**/PipelineActions + Platform/Pipeline) — the
-// `type` discriminators and the parameter keys/kinds come straight from those classes' `GetString`/`GetInt`
-// reads, so the editor can only build chains the PipelineEngine actually runs. Adding a backend action means
-// adding its descriptor here; the editor then surfaces it with no further wiring.
+// The pipeline builder's block palette is sourced from the BACKEND — `GET pipelines/actions` returns every
+// registered `ICommandAction` (with its category + description) and `ICommandCondition`, so the list of blocks
+// the editor offers can never drift out of sync with what the engine actually runs (see [PipelinesController]
+// and [PipelineCatalogueRemote]). What lives HERE is the local FIELD-HINT layer: the editable-parameter shapes
+// (key + kind + label) the backend contract does not carry. When a backend block has a matching hint below the
+// editor renders typed fields for it; when it does not, the editor falls back to a generic key/value param
+// editor so EVERY discovered block stays configurable. Adding rich fields for a new backend action means adding
+// its hint here — but the block already appears in the palette from the backend regardless.
 //
-// All backend actions and conditions are catalogued here so the editor surfaces the complete capability.
+// The `type` discriminators and the parameter keys/kinds mirror the backend classes' `GetString`/`GetInt`
+// reads, so a typed field the editor writes is one the action reads.
 
 /** Whether a parameter field is free text or a number — drives the input control and the JSON encoding. */
 enum class FieldKind {
@@ -280,6 +283,50 @@ object PipelineCatalogue {
                 labelKey = "run_code",
                 fields = listOf(BlockField("code_script_id", "code_script_id", required = true)),
             ),
+            // ── Integrations / overlay / live ─────────────────────────────────
+            // send_webhook: POSTs the pipeline's current variables to one of the channel's outbound webhook
+            // endpoints (the `endpoint` field is rendered as an outbound-endpoint picker — see the screen).
+            BlockType(
+                type = "send_webhook",
+                role = BlockRole.Action,
+                labelKey = "send_webhook",
+                fields =
+                    listOf(
+                        BlockField("endpoint", "endpoint", required = true),
+                        BlockField("event_type", "event_type", required = false),
+                    ),
+            ),
+            // pick_from_list: draws one random line from a channel pick-list into a pipeline variable (the
+            // `list` field is rendered as a pick-list picker — see the screen).
+            BlockType(
+                type = "pick_from_list",
+                role = BlockRole.Action,
+                labelKey = "pick_from_list",
+                fields =
+                    listOf(
+                        BlockField("list", "list", required = true),
+                        BlockField("variable", "pick_variable", required = false),
+                    ),
+            ),
+            // stop_sound: stops a playing sound clip; an empty handle stops all.
+            BlockType(
+                type = "stop_sound",
+                role = BlockRole.Action,
+                labelKey = "stop_sound",
+                fields = listOf(BlockField("handle", "handle", required = false)),
+            ),
+            // start_live_game / cancel_live_game: the live overlay-game rounds (drop/raffle/…).
+            BlockType(
+                type = "start_live_game",
+                role = BlockRole.Action,
+                labelKey = "start_live_game",
+                fields = listOf(BlockField("game_type", "game_type", required = true)),
+            ),
+            BlockType(
+                type = "cancel_live_game",
+                role = BlockRole.Action,
+                labelKey = "cancel_live_game",
+            ),
             // ── Flow ─────────────────────────────────────────────────────────
             BlockType(
                 type = "set_variable",
@@ -319,6 +366,18 @@ object PipelineCatalogue {
                 labelKey = "random",
                 fields = listOf(BlockField("percent", "percent", required = true, kind = FieldKind.Number)),
             ),
+            // var_compare: gate the step on a pipeline variable versus an expected value (e.g. {{count}} >= 5).
+            BlockType(
+                type = "var_compare",
+                role = BlockRole.Condition,
+                labelKey = "var_compare",
+                fields =
+                    listOf(
+                        BlockField("left", "compare_left", required = true),
+                        BlockField("operator", "compare_operator", required = true),
+                        BlockField("right", "compare_right", required = false),
+                    ),
+            ),
         )
 
     /** Look up an action descriptor by its backend type, or null when unknown (e.g. a server-only block). */
@@ -332,6 +391,100 @@ object PipelineCatalogue {
         val block: BlockType? = action(nodeType) ?: condition(nodeType)
         return block?.fields?.firstOrNull { it.key == key }
     }
+
+    /**
+     * Merge the backend-sourced [remote] palette (the authoritative block LIST + category + description) with the
+     * local field HINTS above, producing the palette the editor renders. Every backend block appears — one with a
+     * matching hint gets typed fields, one without gets the generic key/value editor ([PaletteBlock.hasHints] =
+     * false). This is the keystone: the palette can never drift because its membership comes from the backend.
+     */
+    fun buildPalette(remote: PipelineCatalogueRemote): RuntimePalette =
+        RuntimePalette(
+            actions = remote.actions.map { descriptor ->
+                paletteBlock(
+                    type = descriptor.type,
+                    role = BlockRole.Action,
+                    category = descriptor.category.ifBlank { GeneralCategory },
+                    description = descriptor.description,
+                    hint = action(descriptor.type),
+                )
+            },
+            conditions = remote.conditions.map { descriptor ->
+                paletteBlock(
+                    type = descriptor.type,
+                    role = BlockRole.Condition,
+                    category = ConditionCategory,
+                    description = "",
+                    hint = condition(descriptor.type),
+                )
+            },
+        )
+
+    /**
+     * The offline fallback palette — the locally-known hint blocks only. Used when the backend catalogue fetch
+     * fails so the editor still opens with the core blocks rather than an empty palette.
+     */
+    fun fallbackPalette(): RuntimePalette =
+        RuntimePalette(
+            actions = actions.map { paletteBlock(it.type, BlockRole.Action, GeneralCategory, "", it) },
+            conditions = conditions.map { paletteBlock(it.type, BlockRole.Condition, ConditionCategory, "", it) },
+        )
+
+    private fun paletteBlock(
+        type: String,
+        role: BlockRole,
+        category: String,
+        description: String,
+        hint: BlockType?,
+    ): PaletteBlock =
+        PaletteBlock(
+            type = type,
+            role = role,
+            category = category,
+            description = description,
+            labelKey = hint?.labelKey,
+            fields = hint?.fields.orEmpty(),
+            hasHints = hint != null,
+        )
+
+    const val GeneralCategory: String = "general"
+    const val ConditionCategory: String = "condition"
+}
+
+/**
+ * One palette entry as the builder renders it: the backend-sourced identity ([type] / [category] /
+ * [description]) merged with local hints. [labelKey] is the i18n label suffix when the type is known locally
+ * (null → the screen humanizes the raw [type]); [fields] are the typed parameter hints (empty when [hasHints]
+ * is false, in which case the editor shows a generic key/value param editor).
+ */
+data class PaletteBlock(
+    val type: String,
+    val role: BlockRole,
+    val category: String,
+    val description: String,
+    val labelKey: String?,
+    val fields: List<BlockField>,
+    val hasHints: Boolean,
+)
+
+/**
+ * The builder's live palette: every action block (grouped by [actionsByCategory] in the backend's category
+ * order) and every condition block. Built by [PipelineCatalogue.buildPalette] from the backend catalogue.
+ */
+data class RuntimePalette(
+    val actions: List<PaletteBlock>,
+    val conditions: List<PaletteBlock>,
+) {
+    fun action(type: String): PaletteBlock? = actions.firstOrNull { it.type == type }
+
+    fun condition(type: String): PaletteBlock? = conditions.firstOrNull { it.type == type }
+
+    /** Action blocks grouped by category — categories and members each in first-seen (backend) order. */
+    val actionsByCategory: List<Pair<String, List<PaletteBlock>>>
+        get() = actions.groupBy { it.category }.toList()
+
+    val isEmpty: Boolean
+        get() = actions.isEmpty()
 }
 
 /** The canonical role-floor options for the `user_role` condition's `min_role` field (the backend ladder). */

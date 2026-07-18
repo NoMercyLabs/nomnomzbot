@@ -38,6 +38,13 @@ interface PipelinesApi {
     /** The channel's pipelines — the lightweight list-view items (first page). */
     suspend fun list(channelId: String): ApiResult<List<PipelineSummary>>
 
+    /**
+     * The action + condition palette the builder renders from — every registered `ICommandAction` (grouped by
+     * category) and `ICommandCondition`, sourced from the backend registry (`GET pipelines/actions`) so the
+     * builder can never drift out of sync with the blocks the engine actually runs.
+     */
+    suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote>
+
     /** A single pipeline's full detail, including the decoded action-chain [PipelineGraph]. */
     suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail>
 
@@ -65,6 +72,9 @@ class RestPipelinesApi(private val client: ApiClient) : PipelinesApi {
         }
     }
 
+    override suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote> =
+        client.getEnvelope("api/v1/channels/$channelId/pipelines/actions")
+
     override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> =
         client.getEnvelope("api/v1/channels/$channelId/pipelines/$id")
 
@@ -79,6 +89,38 @@ class RestPipelinesApi(private val client: ApiClient) : PipelinesApi {
     override suspend fun delete(channelId: String, id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/pipelines/$id")
 }
+
+// ── Action-catalogue DTOs (the backend-sourced palette — mirror the backend) ──
+
+/**
+ * One available pipeline action block (backend `PipelineActionDescriptorDto`): its snake_case [type]
+ * discriminator, the [category] it groups under in the palette, and a human [description]. The backend
+ * discovers these from the registered `ICommandAction` implementations, so the palette can never drift.
+ */
+@Serializable
+data class PipelineActionDescriptor(
+    val type: String = "",
+    val category: String = "general",
+    val description: String = "",
+)
+
+/** One available pipeline condition type (backend `PipelineConditionDescriptorDto`). */
+@Serializable
+data class PipelineConditionDescriptor(
+    val type: String = "",
+)
+
+/**
+ * The full builder palette (backend `PipelineCatalogueDto`): every registered [actions] block (grouped by
+ * category by the client) and every available [conditions] gate. The client merges these backend-sourced
+ * identities with its local field HINTS (parameter shapes the backend contract does not carry) — see
+ * [PipelineCatalogue.buildPalette].
+ */
+@Serializable
+data class PipelineCatalogueRemote(
+    val actions: List<PipelineActionDescriptor> = emptyList(),
+    val conditions: List<PipelineConditionDescriptor> = emptyList(),
+)
 
 // ── List + detail DTOs (mirror the backend) ──────────────────────────────────
 
