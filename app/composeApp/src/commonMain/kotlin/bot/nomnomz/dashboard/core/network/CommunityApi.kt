@@ -137,6 +137,12 @@ data class ShoutoutBody(val targetTwitchUserId: String)
 @Serializable
 data class CommunityMember(
     val id: String,
+    /**
+     * The viewer's internal platform-identity ULID (backend `internalUserId`), nullable when the backend has no
+     * resolved user row yet. This — not the Twitch [id] — is what addresses the channel-scoped analytics profile
+     * (`analytics/viewers/{internalUserId}`), so a moderator can read ANY viewer's stats, not only their own.
+     */
+    val internalUserId: String? = null,
     val username: String = "",
     val displayName: String = "",
     val profileImageUrl: String? = null,

@@ -38,8 +38,9 @@ interface SupportersApi {
 
     /**
      * Create/update a connection (backend PUT upsert, keyed by [UpsertSupporterConnectionBody.sourceKey]). For a
-     * webhook provider the verification secret lives on the inbound-webhook endpoint, so [authSecret] MUST stay
-     * null — the backend rejects a value.
+     * webhook provider, pass the provider's verification secret as [UpsertSupporterConnectionBody.authSecret]:
+     * the backend auto-provisions the inbound ingest endpoint from it and returns its URL as
+     * [SupporterConnection.endpointUrl]. Re-sending a secret rotates that endpoint in place.
      */
     suspend fun upsertConnection(body: UpsertSupporterConnectionBody): ApiResult<Unit>
 
@@ -89,9 +90,10 @@ class RestSupportersApi(private val client: ApiClient) : SupportersApi {
 /**
  * The create/update request body (backend `UpsertSupporterConnectionRequest`). camelCase JSON. [sourceKey] and
  * [connectionMode] identify the provider + how it ingests; [isEnabled] is the enforced enable-toggle. [authSecret]
- * and [integrationConnectionId] are the two optional wire fields — for a webhook provider BOTH stay null
- * ([authSecret] because the secret lives on the inbound-webhook endpoint; the backend rejects a value), and
- * `explicitNulls = false` on the shared Json omits them from the body.
+ * is the provider's verification secret — for a webhook provider the backend auto-provisions the inbound ingest
+ * endpoint from it (one-step connect) and returns its URL on the connection; null leaves any existing secret
+ * untouched. [integrationConnectionId] links a socket/OAuth provider. `explicitNulls = false` on the shared Json
+ * omits the null optionals from the body.
  */
 @Serializable
 data class UpsertSupporterConnectionBody(
@@ -116,6 +118,12 @@ data class SupporterConnection(
     val isEnabled: Boolean = false,
     val status: String = "",
     val lastEventAt: String? = null,
+    /**
+     * For a webhook provider whose inbound endpoint was one-step provisioned from the connect flow, the ingest
+     * URL to paste into the provider's webhook settings. Null for socket/ws/poll providers and for webhook
+     * connections without a provisioned endpoint.
+     */
+    val endpointUrl: String? = null,
 )
 
 /**

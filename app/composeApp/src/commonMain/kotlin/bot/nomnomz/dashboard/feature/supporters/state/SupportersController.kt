@@ -68,14 +68,21 @@ class SupportersController(
 
     /**
      * Create/update the [sourceKey] connection with the given enabled state (backend PUT upsert). Used both to
-     * CONNECT a provider (enabled = true) and to flip its enforced enable-toggle. For a webhook provider the
-     * verification secret is set on the Webhooks page, so no secret is sent here (the facade keeps it null).
+     * CONNECT a provider (enabled = true, passing the provider's verification [authSecret] — the backend then
+     * auto-provisions the inbound ingest endpoint from it in one step and returns its URL on the connection) and
+     * to flip its enforced enable-toggle (no secret — [authSecret] null leaves the stored one untouched).
      * Reloads on success; surfaces the error over the kept tiles on failure.
      */
-    suspend fun upsertConnection(sourceKey: String, connectionMode: String, isEnabled: Boolean) {
+    suspend fun upsertConnection(
+        sourceKey: String,
+        connectionMode: String,
+        isEnabled: Boolean,
+        authSecret: String? = null,
+    ) {
         val body = UpsertSupporterConnectionBody(
             sourceKey = sourceKey,
             connectionMode = connectionMode,
+            authSecret = authSecret?.takeIf { it.isNotBlank() },
             isEnabled = isEnabled,
         )
         afterConnectionWrite(supportersApi.upsertConnection(body))

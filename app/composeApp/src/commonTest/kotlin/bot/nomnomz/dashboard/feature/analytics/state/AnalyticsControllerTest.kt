@@ -18,6 +18,8 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.DailyMetricRow
+import bot.nomnomz.dashboard.core.network.StreamAnalytics
+import bot.nomnomz.dashboard.core.network.StreamListItem
 import bot.nomnomz.dashboard.core.network.TopViewerEntry
 import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
 import bot.nomnomz.dashboard.core.network.WatchStreak
@@ -170,6 +172,69 @@ class AnalyticsControllerTest {
         assertTrue(ready.topViewers.isEmpty())
     }
 
+    @Test
+    fun load_includes_the_stream_history_for_the_picker() = runTest {
+        val streams: List<StreamListItem> =
+            listOf(
+                StreamListItem(streamId = "s2", title = "Latest", startedAt = "2026-07-16T20:00:00Z"),
+                StreamListItem(streamId = "s1", title = "Older", startedAt = "2026-07-10T20:00:00Z"),
+            )
+        val controller =
+            AnalyticsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeAnalyticsApi(
+                    summaryResult = ApiResult.Ok(AnalyticsSummary()),
+                    streamsResult = ApiResult.Ok(streams),
+                ),
+            )
+
+        controller.load()
+
+        val ready: AnalyticsState.Ready = controller.state.value as AnalyticsState.Ready
+        assertEquals(listOf("s2", "s1"), ready.streams.map { it.streamId })
+        // No stream selected yet — the page starts on the all-time view.
+        assertEquals(null, ready.selectedStreamId)
+        assertEquals(null, ready.streamDetail)
+    }
+
+    @Test
+    fun select_stream_folds_that_streams_numbers_then_all_time_clears_them() = runTest {
+        val detail =
+            StreamAnalytics(
+                streamId = "s1",
+                title = "Big raid night",
+                totalMessages = 4200,
+                uniqueChatters = 310,
+                newFollowers = 55,
+                cheersCount = 900,
+            )
+        val analyticsApi =
+            FakeAnalyticsApi(
+                summaryResult = ApiResult.Ok(AnalyticsSummary(totalMessages = 10)),
+                streamsResult = ApiResult.Ok(listOf(StreamListItem(streamId = "s1", title = "Big raid night"))),
+                streamDetailResult = ApiResult.Ok(detail),
+            )
+        val controller =
+            AnalyticsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), analyticsApi)
+
+        controller.load()
+        controller.selectStream("s1")
+
+        // The detail was fetched for the chosen stream and folded into the Ready state.
+        assertEquals("s1", analyticsApi.requestedStreamId)
+        val selected: AnalyticsState.Ready = controller.state.value as AnalyticsState.Ready
+        assertEquals("s1", selected.selectedStreamId)
+        assertEquals(4200L, selected.streamDetail?.totalMessages)
+        assertEquals(310, selected.streamDetail?.uniqueChatters)
+        assertEquals(900L, selected.streamDetail?.cheersCount)
+
+        // Switching back to all-time drops the per-stream detail.
+        controller.selectStream(null)
+        val allTime: AnalyticsState.Ready = controller.state.value as AnalyticsState.Ready
+        assertEquals(null, allTime.selectedStreamId)
+        assertEquals(null, allTime.streamDetail)
+    }
+
     private companion object {
         val ISO_DATE = Regex("""\d{4}-\d{2}-\d{2}""")
     }
@@ -198,10 +263,13 @@ private class FakeAnalyticsApi(
     private val summaryResult: ApiResult<AnalyticsSummary>,
     private val dailyResult: ApiResult<List<DailyMetricRow>> = ApiResult.Ok(emptyList()),
     private val topViewersResult: ApiResult<List<TopViewerEntry>> = ApiResult.Ok(emptyList()),
+    private val streamsResult: ApiResult<List<StreamListItem>> = ApiResult.Ok(emptyList()),
+    private val streamDetailResult: ApiResult<StreamAnalytics> = ApiResult.Ok(StreamAnalytics()),
 ) : AnalyticsApi {
     var requestedChannelId: String? = null
     var requestedFrom: String? = null
     var requestedTo: String? = null
+    var requestedStreamId: String? = null
 
     constructor(result: ApiResult<AnalyticsSummary>) : this(summaryResult = result)
 
@@ -221,6 +289,16 @@ private class FakeAnalyticsApi(
         from: String,
         to: String,
     ): ApiResult<List<DailyMetricRow>> = dailyResult
+
+    override suspend fun streams(channelId: String): ApiResult<List<StreamListItem>> = streamsResult
+
+    override suspend fun streamDetail(
+        channelId: String,
+        streamId: String,
+    ): ApiResult<StreamAnalytics> {
+        requestedStreamId = streamId
+        return streamDetailResult
+    }
 
     override suspend fun topViewers(
         channelId: String,

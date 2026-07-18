@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
@@ -41,6 +42,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -69,6 +71,10 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_supporters
 import nomnomzbot.composeapp.generated.resources.supporters_action_error
 import nomnomzbot.composeapp.generated.resources.supporters_cancel
 import nomnomzbot.composeapp.generated.resources.supporters_connect_action
+import nomnomzbot.composeapp.generated.resources.supporters_copied
+import nomnomzbot.composeapp.generated.resources.supporters_copy
+import nomnomzbot.composeapp.generated.resources.supporters_ingest_url_label
+import nomnomzbot.composeapp.generated.resources.supporters_secret_label
 import nomnomzbot.composeapp.generated.resources.supporters_connections_error
 import nomnomzbot.composeapp.generated.resources.supporters_connections_helper
 import nomnomzbot.composeapp.generated.resources.supporters_connections_loading
@@ -170,9 +176,14 @@ fun SupportersScreen(controller: SupportersController, heldActionKeys: Set<Strin
                                 controller.upsertConnection(provider.sourceKey, provider.connectionMode, enabled)
                             }
                         },
-                        onConnect = { provider ->
+                        onConnect = { provider, secret ->
                             scope.launch {
-                                controller.upsertConnection(provider.sourceKey, provider.connectionMode, true)
+                                controller.upsertConnection(
+                                    provider.sourceKey,
+                                    provider.connectionMode,
+                                    isEnabled = true,
+                                    authSecret = secret,
+                                )
                             }
                         },
                         onDisconnect = { provider -> pendingDisconnect = provider },
@@ -219,7 +230,7 @@ private fun ConnectionsSection(
     configManage: ManageDecision,
     onRetry: () -> Unit,
     onSetEnabled: (SupporterProvider, Boolean) -> Unit,
-    onConnect: (SupporterProvider) -> Unit,
+    onConnect: (SupporterProvider, String) -> Unit,
     onDisconnect: (SupporterProvider) -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -263,7 +274,7 @@ private fun ConnectionsSection(
                                 connection = connection,
                                 configManage = configManage,
                                 onSetEnabled = { enabled -> onSetEnabled(provider, enabled) },
-                                onConnect = { onConnect(provider) },
+                                onConnect = { secret -> onConnect(provider, secret) },
                                 onDisconnect = { onDisconnect(provider) },
                             )
                             if (index < SupportedProviders.lastIndex) Separator()
@@ -283,7 +294,7 @@ private fun ProviderTile(
     connection: SupporterConnection?,
     configManage: ManageDecision,
     onSetEnabled: (Boolean) -> Unit,
-    onConnect: () -> Unit,
+    onConnect: (String) -> Unit,
     onDisconnect: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -291,6 +302,8 @@ private fun ProviderTile(
     val typography = LocalTypography.current
 
     val name: String = providerName(provider.sourceKey)
+    // The verification secret typed into the not-connected form (write-only; never echoed back once stored).
+    var secret: String by remember(provider.sourceKey) { mutableStateOf("") }
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
@@ -346,6 +359,20 @@ private fun ProviderTile(
                 style = typography.xs,
                 color = tokens.mutedForeground,
             )
+            // The one-step-provisioned ingest URL: paste it into the provider's webhook settings. Only shown when
+            // the backend returned one (a webhook connection with a provisioned endpoint).
+            connection.endpointUrl?.takeIf { it.isNotBlank() }?.let { url ->
+                Text(
+                    text = stringResource(Res.string.supporters_ingest_url_label),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+                CopyValue(
+                    value = url,
+                    copyLabel = stringResource(Res.string.supporters_copy),
+                    copiedLabel = stringResource(Res.string.supporters_copied),
+                )
+            }
             ManageGate(decision = configManage) { enabled ->
                 GlyphButton(
                     imageVector = TrashGlyph,
@@ -356,19 +383,29 @@ private fun ProviderTile(
                 )
             }
         } else {
-            // Not connected: point at the Webhooks page (where the Ko-fi verification token is set) and offer the
-            // one-click Connect (an upsert with the provider enabled; no secret is sent for a webhook provider).
+            // Not connected: collect the provider's verification token and connect in ONE step — the backend
+            // auto-provisions the inbound ingest endpoint from the secret and returns its URL (shown above once
+            // connected). No separate trip to the Webhooks page.
             Text(
                 text = stringResource(Res.string.supporters_kofi_webhook_hint),
                 style = typography.xs,
                 color = tokens.mutedForeground,
             )
             ManageGate(decision = configManage) { enabled ->
+                AppTextField(
+                    value = secret,
+                    onValueChange = { secret = it },
+                    label = stringResource(Res.string.supporters_secret_label),
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            ManageGate(decision = configManage) { enabled ->
                 Button(
-                    onClick = onConnect,
+                    onClick = { onConnect(secret) },
                     variant = ButtonVariant.Default,
                     size = ButtonSize.Sm,
-                    enabled = enabled,
+                    enabled = enabled && secret.isNotBlank(),
                 ) {
                     Text(text = stringResource(Res.string.supporters_connect_action))
                 }

@@ -755,6 +755,15 @@ private class FakeAnalyticsApi : AnalyticsApi {
     override suspend fun daily(channelId: String, from: String, to: String): ApiResult<List<DailyMetricRow>> =
         ApiResult.Ok(emptyList())
 
+    override suspend fun streams(channelId: String): ApiResult<List<bot.nomnomz.dashboard.core.network.StreamListItem>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun streamDetail(
+        channelId: String,
+        streamId: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.StreamAnalytics> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.StreamAnalytics())
+
     override suspend fun topViewers(
         channelId: String,
         metric: String,

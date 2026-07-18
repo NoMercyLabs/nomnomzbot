@@ -57,6 +57,21 @@ data class DashboardStats(
     val gameName: String? = null,
     val viewerCount: Int = 0,
     val followerCount: Int = 0,
+    /** Real Twitch subscriber total (Get Broadcaster Subscriptions); 0 when the Helix read fails. */
+    val subscriberCount: Int = 0,
+    /** Distinct chatters seen today (UTC) — the privacy-hashed count, never fabricated. */
+    val chattersToday: Int = 0,
+    /** Supporter events (tips/memberships/merch/charity) received today (UTC). */
+    val supporterEventsToday: Int = 0,
+    /**
+     * Today's supporter total in MINOR units (divide by 100 for display), or null on a mixed-currency /
+     * amount-less day — render the [supporterEventsToday] count alone then, never a fabricated 0.00.
+     */
+    val supporterAmountMinorToday: Long? = null,
+    /** The single currency behind [supporterAmountMinorToday], else null. */
+    val supporterCurrency: String? = null,
+    /** Platforms the owner is live on right now (`twitch`/`youtube`/`kick`), alphabetical; empty = offline. */
+    val platformsLive: List<String> = emptyList(),
     val commandsUsed: Long = 0,
     val messagesCount: Long = 0,
     /** Seconds the current stream has been live, or null when offline. */

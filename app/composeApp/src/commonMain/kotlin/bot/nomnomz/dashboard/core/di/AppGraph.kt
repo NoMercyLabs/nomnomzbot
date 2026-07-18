@@ -394,6 +394,7 @@ class AppGraph {
             communityApi = communityApi,
             usersApi = usersApi,
             viewerDataApi = viewerDataApi,
+            analyticsApi = analyticsApi,
         )
 
     val commandsController: CommandsController =

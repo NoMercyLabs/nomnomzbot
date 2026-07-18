@@ -29,6 +29,12 @@ interface AnalyticsApi {
     /** Per-day time-series over the inclusive `[from, to]` range (used for trend charts). */
     suspend fun daily(channelId: String, from: String, to: String): ApiResult<List<DailyMetricRow>>
 
+    /** The channel's stream history, newest first — the per-stream analytics entry point. */
+    suspend fun streams(channelId: String): ApiResult<List<StreamListItem>>
+
+    /** One stream's window-folded analytics (start→end, or "now" while live). */
+    suspend fun streamDetail(channelId: String, streamId: String): ApiResult<StreamAnalytics>
+
     /** Top-N viewers ranked by [metric] (`Messages`, `WatchSeconds`, `Commands`, etc.) over the range. */
     suspend fun topViewers(
         channelId: String,
@@ -66,6 +72,23 @@ class RestAnalyticsApi(private val client: ApiClient) : AnalyticsApi {
         to: String,
     ): ApiResult<List<DailyMetricRow>> =
         client.getEnvelope("api/v1/channels/$channelId/analytics/channel/daily?from=$from&to=$to")
+
+    // The stream history is a `PaginatedResponse<StreamListItemDto>` (a flat `{ data, hasMore }`), read with
+    // getDirect and unwrapped to its list — one generous page covers a session's stream picker.
+    override suspend fun streams(channelId: String): ApiResult<List<StreamListItem>> =
+        when (
+            val page: ApiResult<PaginatedEnvelope<StreamListItem>> =
+                client.getDirect("api/v1/channels/$channelId/analytics/streams?page=1&take=100")
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
+
+    override suspend fun streamDetail(
+        channelId: String,
+        streamId: String,
+    ): ApiResult<StreamAnalytics> =
+        client.getEnvelope("api/v1/channels/$channelId/analytics/streams/$streamId")
 
     override suspend fun topViewers(
         channelId: String,
@@ -127,9 +150,55 @@ data class DailyMetricRow(
     val activityDate: String = "",
     val uniqueChatters: Int = 0,
     val totalMessages: Long = 0,
+    val totalWatchSeconds: Long = 0,
     val newFollowers: Int = 0,
     val newSubscribers: Int = 0,
+    val bitsCheered: Long = 0,
+    val commandsRun: Long = 0,
+    val redemptionsCount: Long = 0,
+    val songRequests: Int = 0,
+    val currencyEarnedTotal: Long = 0,
+    val currencySpentTotal: Long = 0,
+    val gamesPlayed: Int = 0,
     val peakViewers: Int? = null,
+)
+
+/**
+ * One stream in the channel's history (backend `StreamListItemDto`) — the per-stream picker row. [durationSeconds]
+ * is null while the stream is still live; [peakViewers] is that stream's high-water mark.
+ */
+@Serializable
+data class StreamListItem(
+    val streamId: String = "",
+    val title: String? = null,
+    val gameName: String? = null,
+    val startedAt: String = "",
+    val endedAt: String? = null,
+    val durationSeconds: Long? = null,
+    val peakViewers: Int? = null,
+)
+
+/**
+ * One stream's window-folded analytics (backend `StreamAnalyticsDto`) — the list fields plus the counters folded
+ * between the stream's start and end (or "now" while live). This is the per-stream counterpart to
+ * [AnalyticsSummary], letting the page read every stat stream-by-stream instead of only all-time.
+ */
+@Serializable
+data class StreamAnalytics(
+    val streamId: String = "",
+    val title: String? = null,
+    val gameName: String? = null,
+    val startedAt: String = "",
+    val endedAt: String? = null,
+    val durationSeconds: Long? = null,
+    val peakViewers: Int? = null,
+    val totalMessages: Long = 0,
+    val uniqueChatters: Int = 0,
+    val newFollowers: Int = 0,
+    val newSubscribers: Int = 0,
+    val cheersCount: Long = 0,
+    val commandsRun: Long = 0,
+    val redemptionsCount: Long = 0,
 )
 
 /** A channel's top viewer over a range by the chosen metric (backend `TopViewerDto`). */

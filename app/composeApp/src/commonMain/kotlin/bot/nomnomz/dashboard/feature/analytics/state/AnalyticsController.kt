@@ -16,6 +16,8 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.DailyMetricRow
+import bot.nomnomz.dashboard.core.network.StreamAnalytics
+import bot.nomnomz.dashboard.core.network.StreamListItem
 import bot.nomnomz.dashboard.core.network.TopViewerEntry
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -37,7 +39,10 @@ class AnalyticsController(
     /** The page render state: loading / ready (with the summary) / error. */
     val state: StateFlow<AnalyticsState> = _state.asStateFlow()
 
-    /** Resolve the active channel, then load summary + daily trends + top viewers concurrently. */
+    // Resolved on first load, reused by [selectStream] so a stream switch never re-resolves the channel.
+    private var channelId: String? = null
+
+    /** Resolve the active channel, then load summary + daily trends + top viewers + stream history concurrently. */
     suspend fun load() {
         // Only show the full-page loading state on first load; a refetch after a mutation keeps
         // the current content on screen (no flash) and swaps it when the new data arrives.
@@ -51,6 +56,8 @@ class AnalyticsController(
                 }
                 is ApiResult.Ok -> result.value
             }
+
+        channelId = channel.id
 
         val to: String = today()
         val from: String = daysBefore(to, WINDOW_DAYS - 1)
@@ -70,10 +77,13 @@ class AnalyticsController(
                         top = 10,
                     )
                 }
+            val streamsDeferred =
+                async { analyticsApi.streams(channel.id) }
 
             val summaryResult: ApiResult<AnalyticsSummary> = summaryDeferred.await()
             val dailyResult: ApiResult<List<DailyMetricRow>> = dailyDeferred.await()
             val topResult: ApiResult<List<TopViewerEntry>> = topDeferred.await()
+            val streamsResult: ApiResult<List<StreamListItem>> = streamsDeferred.await()
 
             if (summaryResult is ApiResult.Failure) {
                 _state.value = AnalyticsState.Error(summaryResult.error.message)
@@ -85,7 +95,39 @@ class AnalyticsController(
                     summary = (summaryResult as ApiResult.Ok).value,
                     daily = (dailyResult as? ApiResult.Ok)?.value ?: emptyList(),
                     topViewers = (topResult as? ApiResult.Ok)?.value ?: emptyList(),
+                    streams = (streamsResult as? ApiResult.Ok)?.value ?: emptyList(),
                 )
+        }
+    }
+
+    /**
+     * Switch the stat view between all-time ([streamId] == null) and one specific stream. All-time clears the
+     * per-stream detail; a stream id folds that stream's own numbers via the backend and shows them in place of
+     * the all-time summary. The daily charts + top viewers stay on the trailing window (they are a range view).
+     * A detail fetch failure surfaces on the Ready state without dropping the current content.
+     */
+    suspend fun selectStream(streamId: String?) {
+        val current: AnalyticsState = _state.value
+        if (current !is AnalyticsState.Ready) return
+
+        if (streamId == null) {
+            _state.value = current.copy(selectedStreamId = null, streamDetail = null, streamError = null)
+            return
+        }
+
+        val channel: String = channelId ?: return
+        _state.value = current.copy(selectedStreamId = streamId, streamError = null)
+        when (val result: ApiResult<StreamAnalytics> = analyticsApi.streamDetail(channel, streamId)) {
+            is ApiResult.Ok ->
+                _state.value =
+                    (_state.value as? AnalyticsState.Ready)?.copy(
+                        selectedStreamId = streamId,
+                        streamDetail = result.value,
+                        streamError = null,
+                    ) ?: return
+            is ApiResult.Failure ->
+                _state.value =
+                    (_state.value as? AnalyticsState.Ready)?.copy(streamError = result.error.message) ?: return
         }
     }
 
@@ -148,6 +190,14 @@ sealed interface AnalyticsState {
         val summary: AnalyticsSummary,
         val daily: List<DailyMetricRow> = emptyList(),
         val topViewers: List<TopViewerEntry> = emptyList(),
+        /** The channel's stream history for the per-stream picker (newest first); empty = no recorded streams. */
+        val streams: List<StreamListItem> = emptyList(),
+        /** The selected stream id, or null for the all-time view. */
+        val selectedStreamId: String? = null,
+        /** The selected stream's folded analytics — non-null only while a stream is selected and loaded. */
+        val streamDetail: StreamAnalytics? = null,
+        /** Non-null when the last [AnalyticsController.selectStream] detail fetch failed. */
+        val streamError: String? = null,
     ) : AnalyticsState
 
     data class Error(val detail: String) : AnalyticsState

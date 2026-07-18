@@ -27,7 +27,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Spacer
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.Badge
+import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.Slider
@@ -131,10 +134,15 @@ import nomnomzbot.composeapp.generated.resources.home_live_ops_title
 import nomnomzbot.composeapp.generated.resources.home_loading
 import nomnomzbot.composeapp.generated.resources.home_no_title
 import nomnomzbot.composeapp.generated.resources.home_retry
+import nomnomzbot.composeapp.generated.resources.home_stat_chatters
 import nomnomzbot.composeapp.generated.resources.home_stat_commands
+import nomnomzbot.composeapp.generated.resources.home_stat_donations
 import nomnomzbot.composeapp.generated.resources.home_stat_followers
+import nomnomzbot.composeapp.generated.resources.home_stat_subscribers
 import nomnomzbot.composeapp.generated.resources.home_stat_uptime
 import nomnomzbot.composeapp.generated.resources.home_stat_viewers
+import nomnomzbot.composeapp.generated.resources.home_platforms_label
+import nomnomzbot.composeapp.generated.resources.home_platforms_offline
 import nomnomzbot.composeapp.generated.resources.home_status_live
 import nomnomzbot.composeapp.generated.resources.home_status_offline
 import nomnomzbot.composeapp.generated.resources.home_stream_error
@@ -239,6 +247,7 @@ private fun ReadyContent(
 
         LiveBanner(stats = stats)
         StatTilesRow(stats = stats)
+        PlatformsRow(platforms = stats.platformsLive)
 
         // Two-column lower section: activity feed (wider) + right sidebar (actions + top commands).
         Row(
@@ -448,32 +457,84 @@ private fun LiveBanner(stats: DashboardStats) {
 
 // ─── Stat tiles ───────────────────────────────────────────────────────────────
 
+// A balanced stat-card grid (owner's home-screen ask): current viewers, followers, subscribers, chatters today,
+// donations today, commands, and uptime — all real data from the backend. Tiles wrap into equal-width columns
+// (padded on the last row) so the row balances itself rather than leaving a ragged trailing gap.
 @Composable
 private fun StatTilesRow(stats: DashboardStats) {
+    val spacing = LocalSpacing.current
+    val tiles: List<Pair<String, String>> =
+        listOf(
+            stringResource(Res.string.home_stat_viewers) to stats.viewerCount.toString(),
+            stringResource(Res.string.home_stat_followers) to stats.followerCount.toString(),
+            stringResource(Res.string.home_stat_subscribers) to stats.subscriberCount.toString(),
+            stringResource(Res.string.home_stat_chatters) to stats.chattersToday.toString(),
+            stringResource(Res.string.home_stat_donations) to donationsLabel(stats),
+            stringResource(Res.string.home_stat_commands) to stats.commandsUsed.toString(),
+            stringResource(Res.string.home_stat_uptime) to uptimeLabel(stats.uptime),
+        )
+    val columns = 4
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+        tiles.chunked(columns).forEach { rowTiles ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+            ) {
+                rowTiles.forEach { (label, value) ->
+                    StatTile(modifier = Modifier.weight(1f), label = label, value = value)
+                }
+                repeat(columns - rowTiles.size) { Spacer(modifier = Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+// "Streaming to" — the platforms the owner is live on right now, as platform badges (empty = Offline). Real
+// presence tracked by the bot; never a fabricated badge.
+@Composable
+private fun PlatformsRow(platforms: List<String>) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(LocalSpacing.current.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        StatTile(
-            modifier = Modifier.weight(1f),
-            label = stringResource(Res.string.home_stat_viewers),
-            value = stats.viewerCount.toString(),
+        Text(
+            text = stringResource(Res.string.home_platforms_label),
+            style = typography.sm,
+            color = tokens.mutedForeground,
         )
-        StatTile(
-            modifier = Modifier.weight(1f),
-            label = stringResource(Res.string.home_stat_followers),
-            value = stats.followerCount.toString(),
-        )
-        StatTile(
-            modifier = Modifier.weight(1f),
-            label = stringResource(Res.string.home_stat_commands),
-            value = stats.commandsUsed.toString(),
-        )
-        StatTile(
-            modifier = Modifier.weight(1f),
-            label = stringResource(Res.string.home_stat_uptime),
-            value = uptimeLabel(stats.uptime),
-        )
+        if (platforms.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.home_platforms_offline),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+        } else {
+            platforms.forEach { platform ->
+                Badge(variant = BadgeVariant.Secondary) {
+                    Text(text = platform.replaceFirstChar { it.uppercase() })
+                }
+            }
+        }
+    }
+}
+
+// The donations tile value: today's supporter total in MAJOR units when every amount-bearing event shares one
+// currency (amount / 100 + code), else the bare event count — never a fabricated 0.00 on a mixed-currency day.
+private fun donationsLabel(stats: DashboardStats): String {
+    val minor: Long? = stats.supporterAmountMinorToday
+    val currency: String? = stats.supporterCurrency
+    return if (minor != null && currency != null) {
+        val whole: Long = minor / 100
+        val cents: Long = kotlin.math.abs(minor % 100)
+        "$whole.${cents.toString().padStart(2, '0')} $currency"
+    } else {
+        stats.supporterEventsToday.toString()
     }
 }
 

@@ -34,10 +34,11 @@ import nomnomzbot.composeapp.generated.resources.feedback_supporter_save_failed
 
 // Proves the Supporters page state machine the screen renders (supporter-events.md §5). It surfaces the channel's
 // REAL connections + event feed, and follows through on every action by observing its CONSEQUENCE: connect upserts
-// the provider ENABLED (and never sends a webhook secret), the toggle flips the stored enable-flag, disconnect
-// removes the row, a failed write is surfaced over the kept tiles, and the event feed pages + filters against the
-// backend. It also pins the minor→major amount formatting the row renders. The screen is a pure projection of
-// this holder, so testing the holder proves the behaviour without rendering Compose.
+// the provider ENABLED, sending its verification secret so the backend one-step provisions the ingest endpoint
+// (returned as endpointUrl to copy); a plain toggle sends no secret and keeps the endpoint; disconnect removes the
+// row; a failed write is surfaced over the kept tiles; and the event feed pages + filters against the backend. It
+// also pins the minor→major amount formatting the row renders. The screen is a pure projection of this holder, so
+// testing the holder proves the behaviour without rendering Compose.
 class SupportersControllerTest {
 
     // ── Connections ────────────────────────────────────────────────────────────────
@@ -98,25 +99,60 @@ class SupportersControllerTest {
     }
 
     @Test
-    fun connect_upserts_the_provider_enabled_without_a_webhook_secret() = runTest {
+    fun connect_sends_the_verification_secret_and_provisions_the_ingest_endpoint() = runTest {
         val api = RecordingSupportersApi(ApiResult.Ok(emptyList()))
         val controller = SupportersController(api)
         controller.loadConnections()
 
-        controller.upsertConnection(SupporterSourceKey.Kofi, SupporterConnectionMode.Webhook, isEnabled = true)
+        controller.upsertConnection(
+            SupporterSourceKey.Kofi,
+            SupporterConnectionMode.Webhook,
+            isEnabled = true,
+            authSecret = "verify-123",
+        )
 
-        // The wire body carried exactly the identity + enabled flag — and CRUCIALLY no authSecret (a webhook
-        // provider's secret lives on the Webhooks page; the backend rejects one here).
+        // The one-step connect carries the provider's verification secret on the wire body (the backend used to
+        // reject one; that behaviour is GONE — it now provisions the inbound endpoint from it).
         val body: UpsertSupporterConnectionBody = api.upserts.single()
         assertEquals(SupporterSourceKey.Kofi, body.sourceKey)
         assertEquals(SupporterConnectionMode.Webhook, body.connectionMode)
         assertTrue(body.isEnabled)
-        assertNull(body.authSecret)
-        assertNull(body.integrationConnectionId)
-        // The post-write reload surfaced the freshly-connected, enabled provider.
+        assertEquals("verify-123", body.authSecret)
+        // The post-write reload surfaced the enabled provider WITH its auto-provisioned ingest URL to copy.
         val connection: SupporterConnection = readyConnections(controller).single()
         assertEquals(SupporterSourceKey.Kofi, connection.sourceKey)
         assertTrue(connection.isEnabled)
+        assertTrue(connection.hasSecret)
+        assertEquals("https://ingest.example/supporters/kofi", connection.endpointUrl)
+    }
+
+    @Test
+    fun toggling_enabled_sends_no_secret_and_keeps_the_endpoint() = runTest {
+        // A plain enable-toggle (no secret typed) leaves the stored secret + provisioned endpoint untouched.
+        val api =
+            RecordingSupportersApi(
+                ApiResult.Ok(
+                    listOf(
+                        SupporterConnection(
+                            sourceKey = SupporterSourceKey.Kofi,
+                            connectionMode = SupporterConnectionMode.Webhook,
+                            hasSecret = true,
+                            isEnabled = true,
+                            status = SupporterConnectionStatus.Active,
+                            endpointUrl = "https://ingest.example/supporters/kofi",
+                        )
+                    )
+                )
+            )
+        val controller = SupportersController(api)
+        controller.loadConnections()
+
+        controller.upsertConnection(SupporterSourceKey.Kofi, SupporterConnectionMode.Webhook, isEnabled = false)
+
+        assertNull(api.upserts.single().authSecret)
+        val connection: SupporterConnection = readyConnections(controller).single()
+        assertEquals(false, connection.isEnabled)
+        assertEquals("https://ingest.example/supporters/kofi", connection.endpointUrl)
     }
 
     @Test
@@ -394,14 +430,23 @@ private class RecordingSupportersApi(
         upserts += body
         if (writeResult is ApiResult.Ok) {
             val index: Int = store.indexOfFirst { it.sourceKey == body.sourceKey }
+            val existing: SupporterConnection? = if (index >= 0) store[index] else null
+            // Mirror the backend one-step provisioning: a webhook connection given a secret gets an ingest
+            // endpoint provisioned from it; a secret-less write leaves the stored secret + endpoint untouched.
+            val hasSecret: Boolean = !body.authSecret.isNullOrBlank() || existing?.hasSecret == true
+            val endpointUrl: String? =
+                if (body.connectionMode == SupporterConnectionMode.Webhook && !body.authSecret.isNullOrBlank())
+                    "https://ingest.example/supporters/${body.sourceKey}"
+                else existing?.endpointUrl
             val updated =
                 SupporterConnection(
                     sourceKey = body.sourceKey,
                     connectionMode = body.connectionMode,
-                    hasSecret = false,
+                    hasSecret = hasSecret,
                     isEnabled = body.isEnabled,
-                    status = if (index >= 0) store[index].status else SupporterConnectionStatus.Idle,
-                    lastEventAt = if (index >= 0) store[index].lastEventAt else null,
+                    status = existing?.status ?: SupporterConnectionStatus.Idle,
+                    lastEventAt = existing?.lastEventAt,
+                    endpointUrl = endpointUrl,
                 )
             if (index >= 0) store[index] = updated else store += updated
         }

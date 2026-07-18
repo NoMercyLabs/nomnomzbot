@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.community.state
 
+import bot.nomnomz.dashboard.core.network.AnalyticsApi
+import bot.nomnomz.dashboard.core.network.AnalyticsSummary
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -19,6 +21,12 @@ import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.CommunityTrustLevel
+import bot.nomnomz.dashboard.core.network.DailyMetricRow
+import bot.nomnomz.dashboard.core.network.StreamAnalytics
+import bot.nomnomz.dashboard.core.network.StreamListItem
+import bot.nomnomz.dashboard.core.network.TopViewerEntry
+import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
+import bot.nomnomz.dashboard.core.network.WatchStreak
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -301,6 +309,60 @@ class CommunityControllerTest {
     }
 
     @Test
+    fun get_viewer_analytics_reads_the_channel_profile_by_internal_user_id() = runTest {
+        val member = CommunityMember(id = "u1", internalUserId = "iu1", displayName = "Viewer One")
+        val analytics =
+            FakeAnalyticsApi(
+                profile = ViewerAnalyticsProfile(
+                    viewerUserId = "iu1",
+                    totalMessages = 42,
+                    totalRedemptions = 3,
+                    isSubscriber = true,
+                    subTier = "1000",
+                )
+            )
+        val controller =
+            CommunityController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeCommunityApi(ApiResult.Ok(listOf(member))),
+                FakeUsersApi(),
+                FakeViewerDataApi(),
+                analytics,
+            )
+
+        controller.load()
+        val profile: ViewerAnalyticsProfile? = controller.getViewerAnalytics(member)
+
+        // The channel-scoped profile is addressed by the resolved channel + the member's INTERNAL id (not the
+        // Twitch id) — the moderator-readable path that works for a foreign viewer.
+        assertEquals("ch1", analytics.requestedChannelId)
+        assertEquals("iu1", analytics.requestedViewerId)
+        assertEquals(42, profile?.totalMessages)
+        assertEquals(3, profile?.totalRedemptions)
+        assertTrue(profile?.isSubscriber == true)
+    }
+
+    @Test
+    fun get_viewer_analytics_is_null_when_the_member_has_no_internal_id() = runTest {
+        val member = CommunityMember(id = "u1", displayName = "Viewer One") // no internalUserId
+        val analytics = FakeAnalyticsApi()
+        val controller =
+            CommunityController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeCommunityApi(ApiResult.Ok(listOf(member))),
+                FakeUsersApi(),
+                FakeViewerDataApi(),
+                analytics,
+            )
+
+        controller.load()
+
+        // No internal id → no analytics call at all (the profile route can't be addressed).
+        assertNull(controller.getViewerAnalytics(member))
+        assertNull(analytics.requestedViewerId)
+    }
+
+    @Test
     fun get_viewer_data_returns_the_stored_map() = runTest {
         val controller =
             CommunityController(
@@ -401,4 +463,48 @@ private class FakeViewerDataApi(
     override suspend fun setDatum(viewerId: String, key: String, value: String): ApiResult<Unit> = setResult
 
     override suspend fun deleteDatum(viewerId: String, key: String): ApiResult<Unit> = deleteResult
+}
+
+private class FakeAnalyticsApi(
+    private val profile: ViewerAnalyticsProfile = ViewerAnalyticsProfile(),
+) : AnalyticsApi {
+    var requestedChannelId: String? = null
+    var requestedViewerId: String? = null
+
+    override suspend fun summary(channelId: String, from: String, to: String): ApiResult<AnalyticsSummary> =
+        ApiResult.Ok(AnalyticsSummary())
+
+    override suspend fun daily(channelId: String, from: String, to: String): ApiResult<List<DailyMetricRow>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun streams(channelId: String): ApiResult<List<StreamListItem>> = ApiResult.Ok(emptyList())
+
+    override suspend fun streamDetail(channelId: String, streamId: String): ApiResult<StreamAnalytics> =
+        ApiResult.Ok(StreamAnalytics())
+
+    override suspend fun topViewers(
+        channelId: String,
+        metric: String,
+        from: String,
+        to: String,
+        top: Int,
+    ): ApiResult<List<TopViewerEntry>> = ApiResult.Ok(emptyList())
+
+    override suspend fun viewerProfile(
+        channelId: String,
+        viewerUserId: String,
+    ): ApiResult<ViewerAnalyticsProfile> {
+        requestedChannelId = channelId
+        requestedViewerId = viewerUserId
+        return ApiResult.Ok(profile)
+    }
+
+    override suspend fun viewerStreak(channelId: String, viewerUserId: String): ApiResult<WatchStreak> =
+        ApiResult.Ok(WatchStreak())
+
+    override suspend fun setAnalyticsOptOut(
+        channelId: String,
+        viewerUserId: String,
+        optedOut: Boolean,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
 }

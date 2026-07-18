@@ -67,6 +67,7 @@ import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.CommunityTrustLevel
 import bot.nomnomz.dashboard.core.network.UserStats
+import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
 import bot.nomnomz.dashboard.feature.community.state.CommunityState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -126,6 +127,11 @@ import nomnomzbot.composeapp.generated.resources.community_stats_title
 import nomnomzbot.composeapp.generated.resources.community_stats_messages
 import nomnomzbot.composeapp.generated.resources.community_stats_watch_hours
 import nomnomzbot.composeapp.generated.resources.community_stats_commands_used
+import nomnomzbot.composeapp.generated.resources.community_stats_redemptions
+import nomnomzbot.composeapp.generated.resources.community_stats_follower
+import nomnomzbot.composeapp.generated.resources.community_stats_subscriber
+import nomnomzbot.composeapp.generated.resources.community_stats_yes
+import nomnomzbot.composeapp.generated.resources.community_stats_no
 import nomnomzbot.composeapp.generated.resources.community_stats_first_seen
 import nomnomzbot.composeapp.generated.resources.community_stats_last_active
 import nomnomzbot.composeapp.generated.resources.community_stats_never
@@ -167,6 +173,9 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
     // Per-user stats dialog state — null means closed.
     var statsTarget: CommunityMember? by remember { mutableStateOf(null) }
     var statsData: UserStats? by remember { mutableStateOf(null) }
+    // The foreign-viewer-capable channel analytics profile (fetched via internalUserId) — the moderator-readable
+    // per-viewer engagement, distinct from the self-only usersApi stats.
+    var viewerAnalytics: ViewerAnalyticsProfile? by remember { mutableStateOf(null) }
     var statsLoading: Boolean by remember { mutableStateOf(false) }
     var statsError: Boolean by remember { mutableStateOf(false) }
     // The selected viewer's custom key/value data (null until loaded; empty map = loaded, none). Independent of
@@ -176,16 +185,21 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
 
     LaunchedEffect(Unit) { controller.load() }
 
-    // When a stats target is selected, load their stats and their custom data.
+    // When a stats target is selected, load their engagement (channel analytics profile + self stats) and their
+    // custom data. The analytics profile works for ANY viewer (moderator read via internalUserId); the self-only
+    // usersApi stats supplements it with first-seen / last-active when available.
     LaunchedEffect(statsTarget) {
         val target: CommunityMember = statsTarget ?: return@LaunchedEffect
         statsData = null
+        viewerAnalytics = null
         statsError = false
         statsLoading = true
         viewerData = null
         viewerDataError = null
+        viewerAnalytics = controller.getViewerAnalytics(target)
         statsData = controller.getUserStats(target.id)
-        statsError = statsData == null
+        // Only a true error when NEITHER source produced anything (e.g. a foreign viewer with no internal id).
+        statsError = viewerAnalytics == null && statsData == null
         statsLoading = false
         viewerData = controller.getViewerData(target.id)
     }
@@ -222,6 +236,7 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
         ViewerStatsDialog(
             name = name,
             stats = statsData,
+            analytics = viewerAnalytics,
             loading = statsLoading,
             error = statsError,
             isBroadcaster = isBroadcaster,
@@ -711,6 +726,7 @@ private fun CenteredMessage(text: String) {
 private fun ViewerStatsDialog(
     name: String,
     stats: UserStats?,
+    analytics: ViewerAnalyticsProfile?,
     loading: Boolean,
     error: Boolean,
     isBroadcaster: Boolean,
@@ -748,7 +764,7 @@ private fun ViewerStatsDialog(
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
-                    error || stats == null -> {
+                    error -> {
                         Text(
                             text = stringResource(Res.string.community_stats_error),
                             style = typography.sm,
@@ -756,17 +772,35 @@ private fun ViewerStatsDialog(
                         )
                     }
                     else -> {
-                        StatRow(label = stringResource(Res.string.community_stats_messages), value = stats.messageCount.toString())
-                        StatRow(label = stringResource(Res.string.community_stats_watch_hours), value = stats.watchHours.toFixed1())
-                        StatRow(label = stringResource(Res.string.community_stats_commands_used), value = stats.commandsUsed.toString())
-                        StatRow(
-                            label = stringResource(Res.string.community_stats_first_seen),
-                            value = stats.firstSeen ?: stringResource(Res.string.community_stats_never),
-                        )
-                        StatRow(
-                            label = stringResource(Res.string.community_stats_last_active),
-                            value = stats.lastActive ?: stringResource(Res.string.community_stats_never),
-                        )
+                        val yes: String = stringResource(Res.string.community_stats_yes)
+                        val no: String = stringResource(Res.string.community_stats_no)
+                        // The channel analytics profile (foreign-viewer-capable) is the authoritative engagement
+                        // source; the self-only usersApi stats is the fallback when no internal id resolved.
+                        if (analytics != null) {
+                            StatRow(label = stringResource(Res.string.community_stats_messages), value = analytics.totalMessages.toString())
+                            StatRow(label = stringResource(Res.string.community_stats_watch_hours), value = (analytics.totalWatchSeconds / 3600.0).toFixed1())
+                            StatRow(label = stringResource(Res.string.community_stats_commands_used), value = analytics.totalCommandsUsed.toString())
+                            StatRow(label = stringResource(Res.string.community_stats_redemptions), value = analytics.totalRedemptions.toString())
+                            StatRow(label = stringResource(Res.string.community_stats_follower), value = if (analytics.isFollower) yes else no)
+                            StatRow(
+                                label = stringResource(Res.string.community_stats_subscriber),
+                                value = if (analytics.isSubscriber) analytics.subTier?.takeIf { it.isNotBlank() } ?: yes else no,
+                            )
+                        } else if (stats != null) {
+                            StatRow(label = stringResource(Res.string.community_stats_messages), value = stats.messageCount.toString())
+                            StatRow(label = stringResource(Res.string.community_stats_watch_hours), value = stats.watchHours.toFixed1())
+                            StatRow(label = stringResource(Res.string.community_stats_commands_used), value = stats.commandsUsed.toString())
+                        }
+                        stats?.let {
+                            StatRow(
+                                label = stringResource(Res.string.community_stats_first_seen),
+                                value = it.firstSeen ?: stringResource(Res.string.community_stats_never),
+                            )
+                            StatRow(
+                                label = stringResource(Res.string.community_stats_last_active),
+                                value = it.lastActive ?: stringResource(Res.string.community_stats_never),
+                            )
+                        }
 
                         if (isBroadcaster) {
                             Spacer(modifier = Modifier.height(spacing.s2))

@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.community.state
 
+import bot.nomnomz.dashboard.core.network.AnalyticsApi
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -18,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.UserStats
 import bot.nomnomz.dashboard.core.network.UsersApi
+import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
 import bot.nomnomz.dashboard.core.network.ViewerDataApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +35,10 @@ class CommunityController(
     private val communityApi: CommunityApi,
     private val usersApi: UsersApi,
     private val viewerDataApi: ViewerDataApi,
+    // Optional: the channel-scoped analytics facade the per-viewer detail panel reads a FOREIGN viewer's stats
+    // through (`analytics/viewers/{internalUserId}`), which a moderator may call for anyone — unlike the self-only
+    // usersApi.stats. Nullable so existing state-holder tests construct the controller without it.
+    private val analyticsApi: AnalyticsApi? = null,
 ) {
     private val _state: MutableStateFlow<CommunityState> = MutableStateFlow(CommunityState.Loading)
 
@@ -128,6 +134,21 @@ class CommunityController(
             is ApiResult.Ok -> result.value
             is ApiResult.Failure -> null
         }
+
+    /**
+     * Load [member]'s channel-scoped analytics profile via their [CommunityMember.internalUserId] — the moderator-
+     * accessible read that works for ANY viewer (unlike self-only [getUserStats]). Returns null when the member
+     * has no resolved internal id, the analytics facade is absent, the channel hasn't resolved, or the call fails.
+     */
+    suspend fun getViewerAnalytics(member: CommunityMember): ViewerAnalyticsProfile? {
+        val internalId: String = member.internalUserId ?: return null
+        val api: AnalyticsApi = analyticsApi ?: return null
+        val channel: String = channelId ?: return null
+        return when (val result: ApiResult<ViewerAnalyticsProfile> = api.viewerProfile(channel, internalId)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> null
+        }
+    }
 
     /**
      * Load a viewer's custom key/value data (the per-viewer store pipelines write). Returns the map on success
