@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.liveops.state
 
+import bot.nomnomz.dashboard.core.io.JournalFileIO
+import bot.nomnomz.dashboard.core.io.PickedFile
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -42,7 +44,7 @@ class ScheduleControllerTest {
                         )
                     )
             )
-        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleFileIO())
 
         controller.load()
 
@@ -62,7 +64,7 @@ class ScheduleControllerTest {
                         LiveOpsSchedule(segments = listOf(LiveOpsScheduleSegment(id = "s9", title = "Friday")))
                     ),
             )
-        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleFileIO())
         controller.load()
 
         controller.addSegment(
@@ -96,7 +98,7 @@ class ScheduleControllerTest {
                     ),
                 scheduleAfterWrite = ApiResult.Ok(LiveOpsSchedule()),
             )
-        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleFileIO())
         controller.load()
 
         controller.deleteSegment("s1")
@@ -105,6 +107,62 @@ class ScheduleControllerTest {
         // Reloaded to the now-empty schedule → the page reports Empty.
         assertTrue(controller.state.value is ScheduleState.Empty)
     }
+
+    @Test
+    fun download_icalendar_saves_the_feed_bytes_as_an_ics_file() = runTest {
+        val api =
+            FakeScheduleLiveOpsApi(
+                schedule =
+                    ApiResult.Ok(
+                        LiveOpsSchedule(segments = listOf(LiveOpsScheduleSegment(id = "s1", title = "x")))
+                    ),
+                icalendar = ApiResult.Ok("BEGIN:VCALENDAR\nX-WR-CALNAME:Stream\nEND:VCALENDAR"),
+            )
+        val files = FakeScheduleFileIO()
+        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, files)
+        controller.load()
+
+        val saved: Boolean = controller.downloadIcalendar()
+
+        assertTrue(saved)
+        assertEquals("schedule.ics", files.savedName)
+        assertEquals("BEGIN:VCALENDAR\nX-WR-CALNAME:Stream\nEND:VCALENDAR", files.savedBytes?.decodeToString())
+    }
+
+    @Test
+    fun download_icalendar_surfaces_the_error_and_does_not_save_on_failure() = runTest {
+        val api =
+            FakeScheduleLiveOpsApi(
+                schedule =
+                    ApiResult.Ok(
+                        LiveOpsSchedule(segments = listOf(LiveOpsScheduleSegment(id = "s1", title = "x")))
+                    ),
+                icalendar = ApiResult.Failure(ApiError(500, "SERVER_ERROR", "calendar unavailable")),
+            )
+        val files = FakeScheduleFileIO()
+        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, files)
+        controller.load()
+
+        val saved: Boolean = controller.downloadIcalendar()
+
+        assertTrue(!saved)
+        assertEquals(null, files.savedName)
+        assertEquals("calendar unavailable", (controller.state.value as ScheduleState.Ready).actionError)
+    }
+}
+
+// Records the last save so a test can assert the exact filename + bytes handed to the platform file bridge.
+private class FakeScheduleFileIO : JournalFileIO {
+    var savedName: String? = null
+    var savedBytes: ByteArray? = null
+
+    override suspend fun saveFile(suggestedName: String, bytes: ByteArray): Boolean {
+        savedName = suggestedName
+        savedBytes = bytes
+        return true
+    }
+
+    override suspend fun pickFile(): PickedFile? = null
 }
 
 private class FakeScheduleChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -132,6 +190,7 @@ private class FakeScheduleChannelsApi(private val result: ApiResult<ChannelSumma
 private class FakeScheduleLiveOpsApi(
     private val schedule: ApiResult<LiveOpsSchedule>,
     private val scheduleAfterWrite: ApiResult<LiveOpsSchedule>? = null,
+    private val icalendar: ApiResult<String> = ApiResult.Ok("BEGIN:VCALENDAR\nEND:VCALENDAR"),
 ) : LiveOpsApi {
     val created: MutableList<CreateScheduleSegmentBody> = mutableListOf()
     val deleted: MutableList<String> = mutableListOf()
@@ -143,6 +202,8 @@ private class FakeScheduleLiveOpsApi(
         reads++
         return result
     }
+
+    override suspend fun getScheduleIcalendar(channelId: String): ApiResult<String> = icalendar
 
     override suspend fun createScheduleSegment(
         channelId: String,

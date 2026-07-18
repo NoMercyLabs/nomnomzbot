@@ -16,6 +16,7 @@ import bot.nomnomz.dashboard.core.connection.OAuthConnectLauncher
 import bot.nomnomz.dashboard.core.connection.OAuthLauncher
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.connection.lanDiscovery
+import bot.nomnomz.dashboard.core.connection.servedOriginProfile
 import bot.nomnomz.dashboard.core.feedback.FeedbackController
 import bot.nomnomz.dashboard.core.i18n.LanguagePreferenceStore
 import bot.nomnomz.dashboard.core.i18n.LanguageStore
@@ -382,6 +383,9 @@ class AppGraph {
             authApi = authApi,
             systemApi = systemApi,
             feedback = feedbackController,
+            // Web = served by an origin; desktop = null. Desktop must route the scope re-grant through the
+            // device flow (its system browser carries no dashboard cookie, so a redirect can't widen scopes).
+            isWeb = servedOriginProfile() != null,
         )
 
     val channelProvisioningApi: ChannelProvisioningApi = RestChannelProvisioningApi(apiClient)
@@ -620,7 +624,11 @@ class AppGraph {
         ChatPollsController(channelsApi = channelsApi, chatPollsApi = chatPollsApi)
 
     val scheduleController: ScheduleController =
-        ScheduleController(channelsApi = channelsApi, liveOpsApi = liveOpsApi)
+        ScheduleController(
+            channelsApi = channelsApi,
+            liveOpsApi = liveOpsApi,
+            fileBridge = journalFileBridge,
+        )
 
     // The PARTICIPANT rung's controller is built PER resolved access (channel + caller's own user GUID + community
     // standing + permit capabilities), which the shell resolves at entry via /effective/me — unlike the management

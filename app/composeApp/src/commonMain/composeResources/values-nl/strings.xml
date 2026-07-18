@@ -149,6 +149,7 @@
     <string name="schedule_error">Kon het schema niet laden: %1$s</string>
     <string name="schedule_empty">Nog geen streams gepland.</string>
     <string name="schedule_add">Stream toevoegen</string>
+    <string name="schedule_download_ics">.ics downloaden</string>
     <string name="schedule_edit">Bewerken</string>
     <string name="schedule_delete">Verwijderen</string>
     <string name="schedule_segments_title">Geplande streams</string>
@@ -760,6 +761,8 @@
     <string name="integrations_youtube_subtitle">YouTube-muziekprovider en streamstatistieken.</string>
     <string name="integrations_discord_title">Discord</string>
     <string name="integrations_discord_subtitle">Plaats meldingen en notificaties op je server.</string>
+    <string name="integrations_kick_title">Kick</string>
+    <string name="integrations_kick_subtitle">Lees, verstuur en modereer je Kick-chat naast Twitch.</string>
     <string name="integrations_status_connected">Verbonden</string>
     <string name="integrations_status_not_connected">Niet verbonden</string>
     <string name="integrations_provider_connected_as">Verbonden als %1$s</string>
@@ -1568,6 +1571,15 @@
     <string name="discord_roles_role_picker">Discord-rol</string>
     <string name="discord_roles_role_name">Rolnaam (optioneel)</string>
     <string name="discord_roles_self_assign">Zelftoewijs ingeschakeld</string>
+    <string name="discord_roles_dm_label">Leden ook een DM sturen</string>
+    <string name="discord_roles_dm_hint">Aangemelde leden krijgen de live-melding ook als Discord-DM. Leden melden zich aan via de knop en kunnen DM's serverzijdig blokkeren.</string>
+    <string name="discord_roles_dm_badge">DM's aan</string>
+    <string name="discord_roles_edit_action">Rol %1$s bewerken</string>
+    <string name="discord_roles_edit_short">Bewerken</string>
+    <string name="discord_roles_edit_title">Meldingsrol bewerken</string>
+    <string name="discord_roles_save">Opslaan</string>
+    <string name="discord_streamer_enabled_label">Aankondigingen ingeschakeld</string>
+    <string name="discord_streamer_enabled_hint">Hoofdschakelaar — er wordt niets naar Discord geplaatst tot dit aanstaat.</string>
     <string name="discord_roles_role_id_required">Discord rol-ID is verplicht</string>
     <string name="discord_roles_create">Aanmaken</string>
     <string name="discord_roles_cancel">Annuleren</string>

@@ -67,12 +67,23 @@ interface DiscordApi {
         body: CreateDiscordRoleBody,
     ): ApiResult<DiscordNotificationRole>
 
-    /** Update the role's display name and self-assign flag. */
+    /** Update the role's display name, self-assign flag and DM-on-live flag. */
     suspend fun updateRole(
         channelId: String,
         roleId: String,
         body: UpdateDiscordRoleBody,
     ): ApiResult<DiscordNotificationRole>
+
+    /**
+     * Toggle the STREAMER side of a guild connection on or off — the streamer half of the both-opt-in
+     * handshake. Nothing dispatches to Discord until this is on, so the page surfaces it as the guild's
+     * master switch. Returns Unit; the caller re-reads the connection to reflect [DiscordGuildConnection.isLinkActive].
+     */
+    suspend fun setStreamerEnabled(
+        channelId: String,
+        connectionId: String,
+        enabled: Boolean,
+    ): ApiResult<Unit>
 
     /** Delete a notification role. */
     suspend fun deleteRole(channelId: String, roleId: String): ApiResult<Unit>
@@ -180,6 +191,16 @@ class RestDiscordApi(private val client: ApiClient) : DiscordApi {
         body: UpdateDiscordRoleBody,
     ): ApiResult<DiscordNotificationRole> =
         client.putEnvelope("api/v1/channels/$channelId/discord/roles/$roleId", body)
+
+    override suspend fun setStreamerEnabled(
+        channelId: String,
+        connectionId: String,
+        enabled: Boolean,
+    ): ApiResult<Unit> =
+        client.putUnit(
+            "api/v1/channels/$channelId/discord/connections/$connectionId/streamer-enabled",
+            StreamerEnabledBody(enabled),
+        )
 
     override suspend fun deleteRole(channelId: String, roleId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/discord/roles/$roleId")
@@ -394,6 +415,9 @@ data class DiscordNotificationRole(
     val discordRoleId: String = "",
     val roleName: String? = null,
     val selfAssignEnabled: Boolean = false,
+    // When on, every opted-in member of this role also gets the go-live notification as a Discord DM
+    // (best-effort — members with closed DMs are skipped, visible as `failed` dispatch-log rows).
+    val dmEnabled: Boolean = false,
     val buttonMessageId: String? = null,
     val buttonChannelId: String? = null,
     val optInCount: Int = 0,
@@ -407,11 +431,20 @@ data class CreateDiscordRoleBody(
     val discordRoleId: String,
     val roleName: String? = null,
     val selfAssignEnabled: Boolean = false,
+    val dmEnabled: Boolean = false,
 )
 
-/** Update a notification role's display name and self-assign flag (backend `UpdateDiscordNotificationRoleRequest`). */
+/** Update a notification role's display name, self-assign flag and DM-on-live flag (backend `UpdateDiscordNotificationRoleRequest`). */
 @Serializable
-data class UpdateDiscordRoleBody(val roleName: String? = null, val selfAssignEnabled: Boolean)
+data class UpdateDiscordRoleBody(
+    val roleName: String? = null,
+    val selfAssignEnabled: Boolean,
+    val dmEnabled: Boolean = false,
+)
+
+/** Toggle the streamer side of a guild connection (backend `StreamerEnabledRequest`). */
+@Serializable
+data class StreamerEnabledBody(val enabled: Boolean)
 
 /** Post the opt-in button to a Discord channel (backend `PostOptInButtonRequest`). */
 @Serializable

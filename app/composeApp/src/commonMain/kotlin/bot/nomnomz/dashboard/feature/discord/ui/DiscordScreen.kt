@@ -137,6 +137,13 @@ import nomnomzbot.composeapp.generated.resources.discord_roles_delete_confirm
 import nomnomzbot.composeapp.generated.resources.discord_roles_delete_message
 import nomnomzbot.composeapp.generated.resources.discord_roles_delete_title
 import nomnomzbot.composeapp.generated.resources.discord_roles_discord_role_id
+import nomnomzbot.composeapp.generated.resources.discord_roles_dm_badge
+import nomnomzbot.composeapp.generated.resources.discord_roles_dm_hint
+import nomnomzbot.composeapp.generated.resources.discord_roles_dm_label
+import nomnomzbot.composeapp.generated.resources.discord_roles_edit_action
+import nomnomzbot.composeapp.generated.resources.discord_roles_edit_short
+import nomnomzbot.composeapp.generated.resources.discord_roles_edit_title
+import nomnomzbot.composeapp.generated.resources.discord_roles_save
 import nomnomzbot.composeapp.generated.resources.discord_roles_role_picker
 import nomnomzbot.composeapp.generated.resources.discord_roles_empty
 import nomnomzbot.composeapp.generated.resources.discord_roles_opt_in_count
@@ -146,6 +153,8 @@ import nomnomzbot.composeapp.generated.resources.discord_roles_role_id_required
 import nomnomzbot.composeapp.generated.resources.discord_roles_role_name
 import nomnomzbot.composeapp.generated.resources.discord_roles_self_assign
 import nomnomzbot.composeapp.generated.resources.discord_roles_title
+import nomnomzbot.composeapp.generated.resources.discord_streamer_enabled_hint
+import nomnomzbot.composeapp.generated.resources.discord_streamer_enabled_label
 import nomnomzbot.composeapp.generated.resources.discord_rule_channel
 import nomnomzbot.composeapp.generated.resources.discord_rule_no_message
 import nomnomzbot.composeapp.generated.resources.discord_toggle_action
@@ -176,6 +185,7 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
     var pendingConsentApprove: String? by remember { mutableStateOf(null) }  // connectionId
     var pendingConsentRevoke: String? by remember { mutableStateOf(null) }   // connectionId
     var pendingRoleCreate: String? by remember { mutableStateOf(null) }      // connectionId
+    var pendingRoleEdit: DiscordNotificationRole? by remember { mutableStateOf(null) }
     var pendingRoleDelete: PendingRoleDelete? by remember { mutableStateOf(null) }
     var pendingPostButton: PendingPostButton? by remember { mutableStateOf(null) }  // roleId + its guild connection
     var preview: DiscordConfigPreview? by remember { mutableStateOf(null) }
@@ -214,7 +224,11 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
                     },
                     onApproveConsent = { connectionId -> pendingConsentApprove = connectionId },
                     onRevokeConsent = { connectionId -> pendingConsentRevoke = connectionId },
+                    onSetStreamerEnabled = { connectionId, enabled ->
+                        scope.launch { controller.setStreamerEnabled(connectionId, enabled) }
+                    },
                     onAddRole = { connectionId -> pendingRoleCreate = connectionId },
+                    onEditRole = { role -> pendingRoleEdit = role },
                     onDeleteRole = { role ->
                         pendingRoleDelete = PendingRoleDelete(role.id, role.roleName ?: role.discordRoleId)
                     },
@@ -287,9 +301,22 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
             connectionId = connectionId,
             loadRoles = { cid -> controller.guildRoles(cid) },
             onDismiss = { pendingRoleCreate = null },
-            onCreate = { discordRoleId, roleName, selfAssign ->
+            onCreate = { discordRoleId, roleName, selfAssign, dmEnabled ->
                 pendingRoleCreate = null
-                scope.launch { controller.createRole(connectionId, discordRoleId, roleName, selfAssign) }
+                scope.launch {
+                    controller.createRole(connectionId, discordRoleId, roleName, selfAssign, dmEnabled)
+                }
+            },
+        )
+    }
+
+    pendingRoleEdit?.let { role ->
+        EditRoleDialog(
+            role = role,
+            onDismiss = { pendingRoleEdit = null },
+            onSave = { roleName, selfAssign, dmEnabled ->
+                pendingRoleEdit = null
+                scope.launch { controller.updateRole(role.id, roleName, selfAssign, dmEnabled) }
             },
         )
     }
@@ -341,7 +368,9 @@ private fun ReadyContent(
     onPreviewRule: (DiscordNotificationConfig) -> Unit,
     onApproveConsent: (connectionId: String) -> Unit,
     onRevokeConsent: (connectionId: String) -> Unit,
+    onSetStreamerEnabled: (connectionId: String, enabled: Boolean) -> Unit,
     onAddRole: (connectionId: String) -> Unit,
+    onEditRole: (DiscordNotificationRole) -> Unit,
     onDeleteRole: (DiscordNotificationRole) -> Unit,
     onPostRoleButton: (DiscordNotificationRole) -> Unit,
 ) {
@@ -371,7 +400,9 @@ private fun ReadyContent(
                     onPreviewRule = onPreviewRule,
                     onApproveConsent = { onApproveConsent(guild.connection.id) },
                     onRevokeConsent = { onRevokeConsent(guild.connection.id) },
+                    onSetStreamerEnabled = { enabled -> onSetStreamerEnabled(guild.connection.id, enabled) },
                     onAddRole = { onAddRole(guild.connection.id) },
+                    onEditRole = onEditRole,
                     onDeleteRole = onDeleteRole,
                     onPostRoleButton = onPostRoleButton,
                 )
@@ -392,7 +423,9 @@ private fun GuildCard(
     onPreviewRule: (DiscordNotificationConfig) -> Unit,
     onApproveConsent: () -> Unit,
     onRevokeConsent: () -> Unit,
+    onSetStreamerEnabled: (enabled: Boolean) -> Unit,
     onAddRole: () -> Unit,
+    onEditRole: (DiscordNotificationRole) -> Unit,
     onDeleteRole: (DiscordNotificationRole) -> Unit,
     onPostRoleButton: (DiscordNotificationRole) -> Unit,
 ) {
@@ -427,6 +460,7 @@ private fun GuildCard(
                 onNewRule = onNewRule,
                 onApproveConsent = onApproveConsent,
                 onRevokeConsent = onRevokeConsent,
+                onSetStreamerEnabled = onSetStreamerEnabled,
             )
 
             guild.loadError?.let {
@@ -466,6 +500,7 @@ private fun GuildCard(
                 loading = rolesLoading,
                 manage = manage,
                 onAdd = onAddRole,
+                onEdit = onEditRole,
                 onDelete = onDeleteRole,
                 onPostButton = onPostRoleButton,
             )
@@ -497,6 +532,7 @@ private fun GuildHeader(
     onNewRule: () -> Unit,
     onApproveConsent: () -> Unit,
     onRevokeConsent: () -> Unit,
+    onSetStreamerEnabled: (enabled: Boolean) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -555,6 +591,33 @@ private fun GuildHeader(
                 ) {
                     Text(text = newLabel)
                 }
+            }
+        }
+        // The streamer-side master switch — the both-opt-in handshake's streamer half. Nothing posts to
+        // Discord until this is on, so it reads as the guild's primary control with an explanatory hint.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                Text(
+                    text = stringResource(Res.string.discord_streamer_enabled_label),
+                    style = typography.sm,
+                    color = tokens.cardForeground,
+                )
+                Text(
+                    text = stringResource(Res.string.discord_streamer_enabled_hint),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+            }
+            ManageGate(decision = manage) { enabled ->
+                Switch(
+                    checked = connection.streamerEnabled,
+                    onCheckedChange = { onSetStreamerEnabled(it) },
+                    enabled = enabled,
+                )
             }
         }
         // Server consent status + approve/revoke action.
@@ -771,6 +834,7 @@ private fun RolesSection(
     loading: Boolean,
     manage: ManageDecision,
     onAdd: () -> Unit,
+    onEdit: (DiscordNotificationRole) -> Unit,
     onDelete: (DiscordNotificationRole) -> Unit,
     onPostButton: (DiscordNotificationRole) -> Unit,
 ) {
@@ -810,7 +874,13 @@ private fun RolesSection(
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         roles.forEachIndexed { index, role ->
-                            RoleRow(role = role, manage = manage, onDelete = onDelete, onPostButton = onPostButton)
+                            RoleRow(
+                                role = role,
+                                manage = manage,
+                                onEdit = onEdit,
+                                onDelete = onDelete,
+                                onPostButton = onPostButton,
+                            )
                             if (index < roles.lastIndex) {
                                 Separator()
                             }
@@ -825,6 +895,7 @@ private fun RolesSection(
 private fun RoleRow(
     role: DiscordNotificationRole,
     manage: ManageDecision,
+    onEdit: (DiscordNotificationRole) -> Unit,
     onDelete: (DiscordNotificationRole) -> Unit,
     onPostButton: (DiscordNotificationRole) -> Unit,
 ) {
@@ -833,6 +904,7 @@ private fun RoleRow(
     val typography = LocalTypography.current
     val displayName: String = role.roleName?.takeIf { it.isNotBlank() } ?: role.discordRoleId
     val deleteLabel: String = stringResource(Res.string.discord_roles_delete_action, displayName)
+    val editLabel: String = stringResource(Res.string.discord_roles_edit_action, displayName)
 
     Row(
         modifier = Modifier
@@ -846,11 +918,35 @@ private fun RoleRow(
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
             Text(text = displayName, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                text = stringResource(Res.string.discord_roles_opt_in_count, role.optInCount),
-                style = typography.xs,
-                color = tokens.mutedForeground,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(Res.string.discord_roles_opt_in_count, role.optInCount),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+                if (role.dmEnabled) {
+                    Text(
+                        text = stringResource(Res.string.discord_roles_dm_badge),
+                        style = typography.xs,
+                        color = tokens.primary,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = { onEdit(role) },
+                enabled = enabled,
+                modifier = Modifier.clearAndSetSemantics { contentDescription = editLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.discord_roles_edit_short),
+                    style = typography.xs,
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
         }
         if (role.selfAssignEnabled) {
             ManageGate(decision = manage) { enabled ->
@@ -1006,7 +1102,7 @@ private fun CreateRoleDialog(
     connectionId: String,
     loadRoles: suspend (connectionId: String) -> ApiResult<List<DiscordGuildRole>>,
     onDismiss: () -> Unit,
-    onCreate: (discordRoleId: String, roleName: String?, selfAssign: Boolean) -> Unit,
+    onCreate: (discordRoleId: String, roleName: String?, selfAssign: Boolean, dmEnabled: Boolean) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1014,6 +1110,7 @@ private fun CreateRoleDialog(
     var discordRoleId: String by remember { mutableStateOf("") }
     var roleName: String by remember { mutableStateOf("") }
     var selfAssign: Boolean by remember { mutableStateOf(false) }
+    var dmEnabled: Boolean by remember { mutableStateOf(false) }
     val roleIdError: Boolean = discordRoleId.isBlank()
 
     // The guild's assignable roles, so the operator picks instead of pasting a snowflake. Managed (bot/integration)
@@ -1064,25 +1161,106 @@ private fun CreateRoleDialog(
                     errorText = null,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(stringResource(Res.string.discord_roles_self_assign), color = tokens.cardForeground)
-                    Switch(
-                        checked = selfAssign,
-                        onCheckedChange = { selfAssign = it },
-                    )
-                }
+                RoleToggleRow(
+                    label = stringResource(Res.string.discord_roles_self_assign),
+                    checked = selfAssign,
+                    onCheckedChange = { selfAssign = it },
+                )
+                RoleToggleRow(
+                    label = stringResource(Res.string.discord_roles_dm_label),
+                    hint = stringResource(Res.string.discord_roles_dm_hint),
+                    checked = dmEnabled,
+                    onCheckedChange = { dmEnabled = it },
+                )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onCreate(discordRoleId, roleName.ifBlank { null }, selfAssign) }, enabled = discordRoleId.isNotBlank()) {
+            TextButton(
+                onClick = { onCreate(discordRoleId, roleName.ifBlank { null }, selfAssign, dmEnabled) },
+                enabled = discordRoleId.isNotBlank(),
+            ) {
                 Text(
                     text = stringResource(Res.string.discord_roles_create),
                     color = if (discordRoleId.isNotBlank()) tokens.primary else tokens.mutedForeground,
                 )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(Res.string.discord_roles_cancel), color = tokens.mutedForeground)
+            }
+        },
+    )
+}
+
+// A labelled switch row used inside the role dialogs, with an optional hint line under the label.
+@Composable
+private fun RoleToggleRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    hint: String? = null,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            Text(label, color = tokens.cardForeground)
+            hint?.let { Text(it, style = typography.xs, color = tokens.mutedForeground) }
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+// Edit an existing notification role — the guild role id is immutable, so only the display name, self-assign
+// and DM-on-live flags are editable (mirrors the whole-row backend PUT). Seeded from the current row.
+@Composable
+private fun EditRoleDialog(
+    role: DiscordNotificationRole,
+    onDismiss: () -> Unit,
+    onSave: (roleName: String?, selfAssign: Boolean, dmEnabled: Boolean) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+
+    var roleName: String by remember(role.id) { mutableStateOf(role.roleName.orEmpty()) }
+    var selfAssign: Boolean by remember(role.id) { mutableStateOf(role.selfAssignEnabled) }
+    var dmEnabled: Boolean by remember(role.id) { mutableStateOf(role.dmEnabled) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.discord_roles_edit_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    value = roleName,
+                    onValueChange = { roleName = it },
+                    label = stringResource(Res.string.discord_roles_role_name),
+                    isError = false,
+                    errorText = null,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                RoleToggleRow(
+                    label = stringResource(Res.string.discord_roles_self_assign),
+                    checked = selfAssign,
+                    onCheckedChange = { selfAssign = it },
+                )
+                RoleToggleRow(
+                    label = stringResource(Res.string.discord_roles_dm_label),
+                    hint = stringResource(Res.string.discord_roles_dm_hint),
+                    checked = dmEnabled,
+                    onCheckedChange = { dmEnabled = it },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(roleName.ifBlank { null }, selfAssign, dmEnabled) }) {
+                Text(text = stringResource(Res.string.discord_roles_save), color = tokens.primary)
             }
         },
         dismissButton = {

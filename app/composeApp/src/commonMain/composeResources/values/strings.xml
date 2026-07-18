@@ -152,6 +152,7 @@
     <string name="schedule_error">Couldn\'t load the schedule: %1$s</string>
     <string name="schedule_empty">No streams scheduled yet.</string>
     <string name="schedule_add">Add a stream</string>
+    <string name="schedule_download_ics">Download .ics</string>
     <string name="schedule_edit">Edit</string>
     <string name="schedule_delete">Delete</string>
     <string name="schedule_segments_title">Scheduled streams</string>
@@ -763,6 +764,8 @@
     <string name="integrations_youtube_subtitle">YouTube music provider and stream stats.</string>
     <string name="integrations_discord_title">Discord</string>
     <string name="integrations_discord_subtitle">Cross-post alerts and notifications to your server.</string>
+    <string name="integrations_kick_title">Kick</string>
+    <string name="integrations_kick_subtitle">Read, send and moderate your Kick chat alongside Twitch.</string>
     <string name="integrations_status_connected">Connected</string>
     <string name="integrations_status_not_connected">Not connected</string>
     <string name="integrations_provider_connected_as">Connected as %1$s</string>
@@ -1571,6 +1574,15 @@
     <string name="discord_roles_role_picker">Discord role</string>
     <string name="discord_roles_role_name">Role name (optional)</string>
     <string name="discord_roles_self_assign">Self-assign enabled</string>
+    <string name="discord_roles_dm_label">Also DM members</string>
+    <string name="discord_roles_dm_hint">Opted-in members also get the go-live notification as a Discord DM. Members opt in via the button and can block DMs server-side.</string>
+    <string name="discord_roles_dm_badge">DMs on</string>
+    <string name="discord_roles_edit_action">Edit role %1$s</string>
+    <string name="discord_roles_edit_short">Edit</string>
+    <string name="discord_roles_edit_title">Edit Notification Role</string>
+    <string name="discord_roles_save">Save</string>
+    <string name="discord_streamer_enabled_label">Announcements enabled</string>
+    <string name="discord_streamer_enabled_hint">Master switch — nothing posts to Discord until this is on.</string>
     <string name="discord_roles_role_id_required">Discord role ID is required</string>
     <string name="discord_roles_create">Create</string>
     <string name="discord_roles_cancel">Cancel</string>

@@ -180,15 +180,54 @@ class DiscordController(
     }
 
     /** Create a new notification role for [connectionId]. Reloads on success; surfaces the error on failure. */
-    suspend fun createRole(connectionId: String, discordRoleId: String, roleName: String?, selfAssign: Boolean) {
+    suspend fun createRole(
+        connectionId: String,
+        discordRoleId: String,
+        roleName: String?,
+        selfAssign: Boolean,
+        dmEnabled: Boolean,
+    ) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(
             discordApi.createRole(
                 channel,
                 connectionId,
-                CreateDiscordRoleBody(discordRoleId = discordRoleId, roleName = roleName?.ifBlank { null }, selfAssignEnabled = selfAssign),
+                CreateDiscordRoleBody(
+                    discordRoleId = discordRoleId,
+                    roleName = roleName?.ifBlank { null },
+                    selfAssignEnabled = selfAssign,
+                    dmEnabled = dmEnabled,
+                ),
             )
         )
+    }
+
+    /**
+     * Edit an existing notification role [roleId]'s display name, self-assign flag and DM-on-live flag.
+     * Reloads on success; surfaces the error on failure.
+     */
+    suspend fun updateRole(roleId: String, roleName: String?, selfAssign: Boolean, dmEnabled: Boolean) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(
+            discordApi.updateRole(
+                channel,
+                roleId,
+                UpdateDiscordRoleBody(
+                    roleName = roleName?.ifBlank { null },
+                    selfAssignEnabled = selfAssign,
+                    dmEnabled = dmEnabled,
+                ),
+            )
+        )
+    }
+
+    /**
+     * Flip the STREAMER side of guild connection [connectionId] on or off — the guild's master switch.
+     * Nothing dispatches to Discord until this is on. Reloads on success; surfaces the error on failure.
+     */
+    suspend fun setStreamerEnabled(connectionId: String, enabled: Boolean) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(discordApi.setStreamerEnabled(channel, connectionId, enabled))
     }
 
     /**

@@ -61,6 +61,7 @@ import nomnomzbot.composeapp.generated.resources.schedule_delete_message
 import nomnomzbot.composeapp.generated.resources.schedule_delete_title
 import nomnomzbot.composeapp.generated.resources.schedule_dialog_cancel
 import nomnomzbot.composeapp.generated.resources.schedule_dialog_save
+import nomnomzbot.composeapp.generated.resources.schedule_download_ics
 import nomnomzbot.composeapp.generated.resources.schedule_duration_label
 import nomnomzbot.composeapp.generated.resources.schedule_edit
 import nomnomzbot.composeapp.generated.resources.schedule_edit_title
@@ -137,6 +138,7 @@ fun ScheduleScreen(
                     onSetVacation = { enabled, start, end, tz ->
                         scope.launch { controller.setVacation(enabled, start, end, tz) }
                     },
+                    onDownloadIcs = { scope.launch { controller.downloadIcalendar() } },
                 )
         }
     }
@@ -189,6 +191,7 @@ private fun ScheduleContent(
     onEdit: (LiveOpsScheduleSegment) -> Unit,
     onDelete: (LiveOpsScheduleSegment) -> Unit,
     onSetVacation: (enabled: Boolean, start: String?, end: String?, timezone: String?) -> Unit,
+    onDownloadIcs: (() -> Unit)? = null,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -211,9 +214,18 @@ private fun ScheduleContent(
             }
         }
         item(key = "add") {
-            ManageGate(decision = manage) { enabled ->
-                Button(onClick = onAdd, enabled = enabled) {
-                    Text(stringResource(Res.string.schedule_add))
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+                ManageGate(decision = manage) { enabled ->
+                    Button(onClick = onAdd, enabled = enabled) {
+                        Text(stringResource(Res.string.schedule_add))
+                    }
+                }
+                // A one-time authenticated .ics snapshot download (the endpoint is Bearer-authed, so this is not
+                // a live webcal subscription). Shown only when there is a schedule to export.
+                onDownloadIcs?.let { download ->
+                    TextButton(onClick = download) {
+                        Text(stringResource(Res.string.schedule_download_ics), color = tokens.primary)
+                    }
                 }
             }
         }

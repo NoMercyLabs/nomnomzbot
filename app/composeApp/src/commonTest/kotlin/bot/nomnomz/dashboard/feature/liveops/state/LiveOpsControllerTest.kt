@@ -144,6 +144,9 @@ private class FakeLiveOpsApi(
     override suspend fun getSchedule(channelId: String): ApiResult<LiveOpsSchedule> =
         ApiResult.Failure(ApiError(0, null, "unused"))
 
+    override suspend fun getScheduleIcalendar(channelId: String): ApiResult<String> =
+        ApiResult.Failure(ApiError(0, null, "unused"))
+
     override suspend fun createScheduleSegment(
         channelId: String,
         body: CreateScheduleSegmentBody,

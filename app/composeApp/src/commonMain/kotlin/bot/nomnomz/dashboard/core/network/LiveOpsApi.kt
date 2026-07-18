@@ -48,6 +48,13 @@ interface LiveOpsApi {
     /** The broadcaster's stream schedule — the weekly segments + any vacation window. */
     suspend fun getSchedule(channelId: String): ApiResult<LiveOpsSchedule>
 
+    /**
+     * The schedule as an iCalendar (RFC 5545) document, for saving as a `.ics` file. The endpoint is
+     * Bearer-authenticated (not a public webcal URL), so this is a one-time authenticated snapshot download,
+     * not a live subscription feed.
+     */
+    suspend fun getScheduleIcalendar(channelId: String): ApiResult<String>
+
     /** Add a schedule segment. [duration] is in minutes as a string (Twitch's wire form, e.g. "240"). */
     suspend fun createScheduleSegment(
         channelId: String,
@@ -116,6 +123,9 @@ class RestLiveOpsApi(private val client: ApiClient) : LiveOpsApi {
 
     override suspend fun getSchedule(channelId: String): ApiResult<LiveOpsSchedule> =
         client.getEnvelope("api/v1/channels/$channelId/live-ops/schedule")
+
+    override suspend fun getScheduleIcalendar(channelId: String): ApiResult<String> =
+        client.getText("api/v1/channels/$channelId/live-ops/schedule/icalendar")
 
     override suspend fun createScheduleSegment(
         channelId: String,

@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.liveops.state
 
+import bot.nomnomz.dashboard.core.io.JournalFileIO
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class ScheduleController(
     private val channelsApi: ChannelsApi,
     private val liveOpsApi: LiveOpsApi,
+    private val fileBridge: JournalFileIO,
 ) {
     private val _state: MutableStateFlow<ScheduleState> = MutableStateFlow(ScheduleState.Loading)
 
@@ -151,6 +153,27 @@ class ScheduleController(
                 ),
             )
         )
+    }
+
+    /**
+     * Download the schedule as an `.ics` (iCalendar) file. Fetches the authenticated iCalendar snapshot and
+     * hands it to the platform file bridge (a native Save dialog on desktop, a browser download on web).
+     * Returns true when the file was written, false when the user cancelled or the fetch failed (the error is
+     * surfaced on the Ready state). This is a one-time snapshot, NOT a live webcal subscription — the endpoint
+     * is Bearer-authenticated, so a calendar app cannot poll it directly.
+     */
+    suspend fun downloadIcalendar(): Boolean {
+        val channel: String = channelId ?: return false
+        return when (val result: ApiResult<String> = liveOpsApi.getScheduleIcalendar(channel)) {
+            is ApiResult.Failure -> {
+                val current: ScheduleState = _state.value
+                if (current is ScheduleState.Ready) {
+                    _state.value = current.copy(actionError = result.error.message)
+                }
+                false
+            }
+            is ApiResult.Ok -> fileBridge.saveFile("schedule.ics", result.value.encodeToByteArray())
+        }
     }
 
     // Reload on success; on failure surface the message on the current Ready state without losing the schedule.

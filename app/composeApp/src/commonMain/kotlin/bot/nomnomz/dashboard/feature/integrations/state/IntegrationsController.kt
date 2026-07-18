@@ -71,6 +71,13 @@ class IntegrationsController(
     // secret-free device-code re-grant is used. A Twitch client secret is optional throughout.
     private val systemApi: SystemApi,
     private val feedback: Feedback = NoOpFeedback,
+    // Whether this build runs in the browser (web) vs the native desktop app. Only the WEB re-grant can use
+    // the seamless redirect: it rides the dashboard session cookie so the backend widens the scope set to
+    // base ∪ granted ∪ missing. The desktop re-grant opens the SYSTEM browser, which carries no dashboard
+    // cookie, so a redirect there would request only the static base set and never clear a runtime-detected
+    // gap — desktop must always take the device path (whose scope set the backend computes server-side).
+    // Defaults to web; AppGraph passes the real per-platform value (`servedOriginProfile() != null`).
+    private val isWeb: Boolean = true,
 ) {
     private val _state: MutableStateFlow<IntegrationsState> =
         MutableStateFlow(IntegrationsState.Loading)
@@ -365,10 +372,12 @@ class IntegrationsController(
         val ready: IntegrationsState.Ready = _state.value as? IntegrationsState.Ready ?: return
         if (ready.regrant != null) return // single-flight: a device re-grant is already in progress.
 
-        // The streamer IS the logged-in account, so prefer the seamless REDIRECT re-grant when a client secret
-        // is configured (twitchApp.ok): one tap → Twitch → back, re-vaulting the full scope set with no code to
-        // type. Only the secret-less public client (which can't exchange a code) falls back to device code.
-        if (ready.checks?.twitchApp?.ok == true) regrantScopesViaRedirect()
+        // On WEB, the streamer IS the logged-in account, so prefer the seamless REDIRECT re-grant when a client
+        // secret is configured (twitchApp.ok): one tap → Twitch → back, re-vaulting the full scope set with no
+        // code to type. The secret-less public client (which can't exchange a code) — and ALWAYS the desktop
+        // app (its system browser carries no dashboard cookie, so the redirect can't widen scopes there) — fall
+        // back to the device-code path, whose additive scope set the backend computes server-side.
+        if (isWeb && ready.checks?.twitchApp?.ok == true) regrantScopesViaRedirect()
         else regrantScopesViaDevice(ready)
     }
 

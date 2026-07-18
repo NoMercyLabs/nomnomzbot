@@ -340,6 +340,56 @@ class DiscordControllerTest {
         assertEquals("no permission", state.actionError)
     }
 
+    @Test
+    fun set_streamer_enabled_sends_the_flipped_flag_then_reloads() = runTest {
+        val api = RecordingDiscordApi(connections = listOf(guild("g1", "My Server")))
+        val controller = DiscordController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.setStreamerEnabled(connectionId = "g1", enabled = false)
+
+        assertEquals(listOf("g1" to false), api.streamerEnabledCalls)
+        assertTrue(controller.state.value is DiscordState.Ready)
+    }
+
+    @Test
+    fun create_role_carries_the_dm_enabled_flag() = runTest {
+        val api = RecordingDiscordApi(connections = listOf(guild("g1", "My Server")))
+        val controller = DiscordController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.createRole(
+            connectionId = "g1",
+            discordRoleId = "999",
+            roleName = "Live pings",
+            selfAssign = true,
+            dmEnabled = true,
+        )
+
+        assertEquals(1, api.rolesCreated.size)
+        val body: CreateDiscordRoleBody = api.rolesCreated.first().second
+        assertEquals("999", body.discordRoleId)
+        assertEquals("Live pings", body.roleName)
+        assertTrue(body.selfAssignEnabled)
+        assertTrue(body.dmEnabled)
+    }
+
+    @Test
+    fun update_role_carries_name_self_assign_and_dm_flag() = runTest {
+        val api = RecordingDiscordApi(connections = listOf(guild("g1", "My Server")))
+        val controller = DiscordController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.updateRole(roleId = "r1", roleName = "Renamed", selfAssign = false, dmEnabled = true)
+
+        assertEquals(1, api.rolesUpdated.size)
+        val entry: Pair<String, UpdateDiscordRoleBody> = api.rolesUpdated.first()
+        assertEquals("r1", entry.first)
+        assertEquals("Renamed", entry.second.roleName)
+        assertTrue(entry.second.dmEnabled)
+        assertEquals(false, entry.second.selfAssignEnabled)
+    }
+
     // ── fakes ──────────────────────────────────────────────────────────────────
 
     private fun guild(id: String, name: String): DiscordGuildConnection =
@@ -412,6 +462,9 @@ private class RecordingDiscordApi(
     val created: MutableList<Pair<String, CreateDiscordConfigBody>> = mutableListOf()
     val updated: MutableList<Pair<String, UpdateDiscordConfigBody>> = mutableListOf()
     val deleted: MutableList<String> = mutableListOf()
+    val rolesCreated: MutableList<Pair<String, CreateDiscordRoleBody>> = mutableListOf()
+    val rolesUpdated: MutableList<Pair<String, UpdateDiscordRoleBody>> = mutableListOf()
+    val streamerEnabledCalls: MutableList<Pair<String, Boolean>> = mutableListOf()
 
     override suspend fun connections(channelId: String): ApiResult<List<DiscordGuildConnection>> =
         connectionsResult ?: ApiResult.Ok(connectionStore)
@@ -490,13 +543,30 @@ private class RecordingDiscordApi(
         channelId: String,
         connectionId: String,
         body: CreateDiscordRoleBody,
-    ): ApiResult<DiscordNotificationRole> = ApiResult.Ok(DiscordNotificationRole())
+    ): ApiResult<DiscordNotificationRole> {
+        rolesCreated += connectionId to body
+        if (writeResult is ApiResult.Failure) return ApiResult.Failure(writeResult.error)
+        return ApiResult.Ok(DiscordNotificationRole())
+    }
 
     override suspend fun updateRole(
         channelId: String,
         roleId: String,
         body: UpdateDiscordRoleBody,
-    ): ApiResult<DiscordNotificationRole> = ApiResult.Ok(DiscordNotificationRole())
+    ): ApiResult<DiscordNotificationRole> {
+        rolesUpdated += roleId to body
+        if (writeResult is ApiResult.Failure) return ApiResult.Failure(writeResult.error)
+        return ApiResult.Ok(DiscordNotificationRole())
+    }
+
+    override suspend fun setStreamerEnabled(
+        channelId: String,
+        connectionId: String,
+        enabled: Boolean,
+    ): ApiResult<Unit> {
+        streamerEnabledCalls += connectionId to enabled
+        return writeResult
+    }
 
     override suspend fun deleteRole(channelId: String, roleId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 

@@ -89,6 +89,8 @@ import nomnomzbot.composeapp.generated.resources.integrations_bot_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_bot_title
 import nomnomzbot.composeapp.generated.resources.integrations_discord_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_discord_title
+import nomnomzbot.composeapp.generated.resources.integrations_kick_subtitle
+import nomnomzbot.composeapp.generated.resources.integrations_kick_title
 import nomnomzbot.composeapp.generated.resources.integrations_provider_connected_as
 import nomnomzbot.composeapp.generated.resources.integrations_spotify_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_spotify_title
@@ -119,8 +121,12 @@ import nomnomzbot.composeapp.generated.resources.permissions_regrant_waiting
 private const val SPOTIFY: String = "spotify"
 private const val YOUTUBE: String = "youtube"
 private const val DISCORD: String = "discord"
+private const val KICK: String = "kick"
 private const val SPOTIFY_SCOPE_SET: String = "spotify.playback"
 private const val YOUTUBE_SCOPE_SET: String = "youtube.manage"
+// Kick connects through the same generic vaulted OAuth flow as Spotify/YouTube against the platform-shared
+// client, requesting the chat scope-set so the bot can read + send + moderate Kick chat (no BYOC step).
+private const val KICK_SCOPE_SET: String = "kick.chat"
 
 // Which provider's branded connect modal is currently open over the integrations list (null = none). Only
 // the three brand-described providers route through the modal; the bot account connects inline.
@@ -284,6 +290,17 @@ fun IntegrationsScreen(
                         manage = manage,
                         onConnect = { openModal = ConnectModalProvider.Discord; stage = ConnectStage.Intro },
                         onDisconnect = { scope.launch { controller.disconnect(DISCORD) } },
+                    )
+                    ProviderRow(
+                        title = Res.string.integrations_kick_title,
+                        subtitle = Res.string.integrations_kick_subtitle,
+                        connection = current.providers.forProvider(KICK),
+                        busy = current.busy.isProvider(KICK),
+                        manage = manage,
+                        // Kick uses the platform-shared client, so it connects directly through the generic
+                        // vaulted flow (no BYOC credential modal) — one tap opens Kick's authorize page.
+                        onConnect = { scope.launch { controller.connectProvider(KICK, KICK_SCOPE_SET) } },
+                        onDisconnect = { scope.launch { controller.disconnect(KICK) } },
                     )
                     EventSubSubscriptionsSection(
                         subscriptions = current.eventSubSubscriptions,

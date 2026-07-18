@@ -68,6 +68,9 @@ class IntegrationsControllerTest {
         // connect's redirect-vs-device choice. Defaults to secret configured so the redirect-path tests
         // (the prior behavior) keep passing without each restating it.
         system: SystemApi = FakeSystemApi(twitchSecretConfigured = true),
+        // Whether the build is web (redirect re-grant allowed) or desktop (device-only). Defaults to web so the
+        // existing redirect-path tests keep passing; the desktop test overrides it to false.
+        isWeb: Boolean = true,
     ): IntegrationsController {
         val session = SessionStore(FakeVault())
         // Pin an active backend so baseUrl()-dependent flows (the redirect re-grant) resolve a URL — exactly as
@@ -89,6 +92,7 @@ class IntegrationsControllerTest {
             diagnostics,
             auth,
             system,
+            isWeb = isWeb,
         )
     }
 
@@ -576,6 +580,47 @@ class IntegrationsControllerTest {
         val ready: IntegrationsState.Ready = controller.state.value as IntegrationsState.Ready
         assertNull(ready.regrant)
         assertTrue(ready.missingScopes.isEmpty())
+    }
+
+    @Test
+    fun regrant_on_desktop_uses_the_device_flow_even_with_a_secret_configured() = runTest {
+        // On the desktop app the system browser carries no dashboard cookie, so a redirect can't widen scopes —
+        // the re-grant MUST take the device path even when a client secret is configured. Proven by the device
+        // poll being driven with the issued device code and the redirect never running.
+        val diagnostics =
+            FakeTwitchDiagnosticsApi(
+                missing = MissingScopes(scopes = listOf(MissingScope("channel:bot", listOf("bot_badge")))),
+                regrant =
+                    ScopeRegrantStart(
+                        deviceCode = "DEV-DESK",
+                        userCode = "USR-CODE",
+                        verificationUri = "https://twitch.tv/activate",
+                        interval = 0,
+                        expiresIn = 60,
+                        requestedScopes = listOf("channel:bot"),
+                    ),
+            )
+        // The streamer approves on the first poll → authorized (so the device path completes, not the redirect).
+        val auth = FakeAuthApi(pollStatuses = listOf("authorized"))
+        val launcher = FakeConnectLauncher()
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = true)),
+                integrations = FakeIntegrationsApi(emptyList()),
+                launcher = launcher,
+                diagnostics = diagnostics,
+                auth = auth,
+                system = FakeSystemApi(twitchSecretConfigured = true), // secret present…
+                isWeb = false, // …but desktop ⇒ device path regardless
+            )
+        controller.load()
+
+        controller.regrantScopes()
+
+        // The DEVICE poll ran with the issued code, and the streamer redirect was NEVER used.
+        assertEquals("DEV-DESK", auth.polledDeviceCode)
+        assertTrue(!launcher.authorizeStreamerCalled)
     }
 }
 
