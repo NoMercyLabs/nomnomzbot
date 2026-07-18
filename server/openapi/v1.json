@@ -52002,6 +52002,203 @@
         }
       }
     },
+    "/api/v{version}/sdk/types.d.ts": {
+      "get": {
+        "tags": [
+          "Developer SDK"
+        ],
+        "summary": "The generated `nnz.d.ts` for the requested context, as `text/plain` — the `NnzEventMap`,\r\nevery payload interface, and the typed `nnz.on&lt;K&gt;` declaration. `400` on an unknown context.",
+        "parameters": [
+          {
+            "name": "context",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": { },
+              "text/plain": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/sdk/event-catalog": {
+      "get": {
+        "tags": [
+          "Developer SDK"
+        ],
+        "summary": "The event catalog for the requested context — one item per visible event: stable wire name, visibility\r\ntier, and the payload JSON Schema. `400` on an unknown context.",
+        "parameters": [
+          {
+            "name": "context",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfEventCatalogItemDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/sound-clips": {
       "get": {
         "tags": [
@@ -68762,6 +68959,29 @@
         },
         "description": "One rung of the ladder (moderation.md §3.11). `Action`: warn | timeout | ban."
       },
+      "EventCatalogItemDto": {
+        "required": [
+          "wireName",
+          "tier",
+          "payloadSchema"
+        ],
+        "type": "object",
+        "properties": {
+          "wireName": {
+            "type": "string",
+            "description": "The stable dotted wire name, e.g. `chat.message`."
+          },
+          "tier": {
+            "type": "string",
+            "description": "The visibility tier name (`Public` / `Moderator` / `Broadcaster`)."
+          },
+          "payloadSchema": {
+            "description": "The JSON Schema describing the event payload shape.",
+            "$ref": "#/components/schemas/JsonNode"
+          }
+        },
+        "description": "One row of the developer-facing event catalog (dev-platform.md §8, `GET /api/v1/sdk/event-catalog`):\r\na visible event's stable wire name, its visibility tier, and the reflected JSON Schema of its payload."
+      },
       "EventJournalImportSummary": {
         "required": [
           "totalLines",
@@ -71029,6 +71249,7 @@
         "description": "Withdraw from a jar back to a viewer's account (economy.md §4). long JarWithdrawRequest.Amount &gt; 0."
       },
       "JsonElement": { },
+      "JsonNode": { },
       "LeaderboardEntryDto": {
         "required": [
           "rank",
@@ -79261,6 +79482,35 @@
             ],
             "items": {
               "$ref": "#/components/schemas/EarningRuleDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfEventCatalogItemDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/EventCatalogItemDto"
             }
           },
           "message": {
@@ -87905,6 +88155,9 @@
     },
     {
       "name": "Economy — Savings Jars"
+    },
+    {
+      "name": "Developer SDK"
     },
     {
       "name": "Sound"
