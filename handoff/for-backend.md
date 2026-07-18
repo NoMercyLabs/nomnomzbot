@@ -20,6 +20,59 @@ _None._
 
 ## Done
 
+### 2026-07-18 — Live-game catalog + active-session reads need typed 200 schemas (contract-guard)
+- **Commit:** `0e92041e`
+- **From:** aaoa-dev (via Claude, frontend track)
+- **Resolution:** `GameSessionsController.GetActive` and `GetCatalog`
+  (`server/src/NomNomzBot.Api/Controllers/V1/GameSessionsController.cs`) returned an untyped
+  `IActionResult`, so their DTOs never reached `openapi/v1.json`. Each now carries the typed
+  `[ProducesResponseType<StatusResponseDto<T>>(200)]` (matching the codebase convention) —
+  `GetActive` → `StatusResponseDto<GameSessionDto>`, `GetCatalog` →
+  `StatusResponseDto<IReadOnlyList<LiveGameCatalogEntryDto>>`. Behaviour unchanged.
+- **OpenAPI:** `server/openapi/v1.json` NOT regenerated (owner's snapshot pass). ADDS two response schemas:
+  `GameSessionDto` (on `GET .../games/sessions/active`) and `LiveGameCatalogEntryDto` (on
+  `GET .../games/sessions/catalog`). No route changes.
+- **Test:** `GameSessionsControllerContractTests` — both actions declare the typed 200 schema (reflection)
+  and still return the typed envelope with the right catalog-entry / session shape.
+
+### 2026-07-18 — Schedule iCalendar needs a token-query auth path for a live webcal subscription
+- **Commit:** `b15fc8a5`
+- **From:** aaoa-dev (via Claude, frontend track)
+- **Resolution:** the Bearer-only `.../live-ops/schedule/icalendar` served a one-time snapshot only. Added a
+  sibling PUBLIC action `SubscribeScheduleICalendar`
+  (`GET .../live-ops/schedule/icalendar/subscribe`, `[AllowAnonymous]`, `Produces("text/calendar")`) in
+  `server/src/NomNomzBot.Api/Controllers/V1/LiveOpsController.cs`, authorized by the per-channel
+  `OverlayToken` as a `?token=` query param — the stable, read-only credential for a
+  `webcal://.../live-ops/schedule/icalendar/subscribe?token=<OverlayToken>` subscription URL. The token must
+  belong to the channel in the route (`TenantResolutionMiddleware` sets the tenant from the anonymous
+  `{channelId}` selector, so the feed reads only that channel's public schedule). The Bearer snapshot action
+  and its `[RequireAction("live-ops:schedule:read")]` gate are untouched. Reuses the existing `OverlayToken`
+  (via `IChannelService.GetByOverlayTokenAsync`) — no new column, no EF migration.
+- **OpenAPI:** `server/openapi/v1.json` NOT regenerated (owner's snapshot pass). ADDS one route:
+  `GET /api/v1/channels/{channelId}/live-ops/schedule/icalendar/subscribe?token=<OverlayToken>` (public,
+  `text/calendar`; no JSON body schema). No DTO changes.
+- **Frontend note:** build the subscribe URL from the channel's `OverlayToken` (already surfaced on the
+  channel summary) — `webcal://<host>/api/v1/channels/{channelId}/live-ops/schedule/icalendar/subscribe?token=<OverlayToken>`.
+- **Test:** `LiveOpsScheduleICalendarTests` — the token path serves the ics for the channel's own token and
+  rejects an absent / unknown / foreign-channel token (401, schedule API never called); the Bearer path still
+  serves the ics; both gates asserted by reflection.
+
+### 2026-07-18 — Expose `gallery:review` held-key in the render manifest (SKIPPED — cross-plane)
+- **From:** aaoa-dev (via Claude, frontend track)
+- **Resolution:** SKIPPED (task marked optional / low-value). The existing self-introspection surface
+  `ResolvedAccessDto.HeldActionKeys` (in the render manifest) lists ONLY channel-scoped **Gate-2** action keys.
+  `gallery:review` is a platform-global **Plane-C** IAM permission key (`IamPermissionKeys.GalleryReview`,
+  enforced via `[Authorize(Policy = IamPermissionKeys.GalleryReview)]`, resolved by `IPlatformIamService`) — a
+  deliberately separate authorization plane (per the canonical authz vocabulary: Gate-2 vs Plane-C). No existing
+  DTO lists held *platform* keys, so the task's precondition ("an existing ResolvedAccess/render-manifest that
+  lists held platform keys") does not hold. Adding it would mean injecting `IPlatformIamService` into the
+  channel-scoped session/manifest assembly (`CurrentUserDto` is a pure EF projection today), resolving the
+  caller's IAM principal, and branching self-host (no principals → implicitly full) vs SaaS
+  (effective-permission union) — a non-trivial cross-plane change to a contract DTO. The coarse
+  `user.isAdmin` (`User.IsPlatformPrincipal`) gate the frontend uses today remains a correct superset. If precise
+  platform-key gating is wanted later, the right home is a dedicated platform self-introspection endpoint
+  (e.g. `GET /platform-iam/me` returning the caller's held IAM keys), NOT the channel render manifest.
+
 ### 2026-07-18 — The `/obs-bridge` browser-source page (OBS + VTS legs) is a server-served static asset
 - **Commit:** `cc424fe7`
 - **From:** aaoa-dev (via Claude, frontend track)
