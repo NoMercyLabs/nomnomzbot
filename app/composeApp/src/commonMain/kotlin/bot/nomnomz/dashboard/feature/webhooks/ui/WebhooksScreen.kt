@@ -40,6 +40,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -57,6 +59,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.InboundWebhook
 import bot.nomnomz.dashboard.core.network.OutboundWebhook
 import bot.nomnomz.dashboard.core.network.OutboundWebhookCreated
+import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
@@ -91,6 +94,18 @@ import nomnomzbot.composeapp.generated.resources.webhooks_delete_title
 import nomnomzbot.composeapp.generated.resources.webhooks_error
 import nomnomzbot.composeapp.generated.resources.webhooks_failures_label
 import nomnomzbot.composeapp.generated.resources.webhooks_inbound_add
+import nomnomzbot.composeapp.generated.resources.webhooks_inbound_routing_choose_pipeline
+import nomnomzbot.composeapp.generated.resources.webhooks_inbound_routing_event
+import nomnomzbot.composeapp.generated.resources.webhooks_inbound_routing_event_hint
+import nomnomzbot.composeapp.generated.resources.webhooks_inbound_routing_event_label
+import nomnomzbot.composeapp.generated.resources.webhooks_inbound_routing_help
+import nomnomzbot.composeapp.generated.resources.webhooks_inbound_routing_label
+import nomnomzbot.composeapp.generated.resources.webhooks_inbound_routing_none
+import nomnomzbot.composeapp.generated.resources.webhooks_inbound_routing_pipeline
+import nomnomzbot.composeapp.generated.resources.webhooks_inbound_routing_pipeline_label
+import nomnomzbot.composeapp.generated.resources.webhooks_inbound_target_event
+import nomnomzbot.composeapp.generated.resources.webhooks_inbound_target_none
+import nomnomzbot.composeapp.generated.resources.webhooks_inbound_target_pipeline
 import nomnomzbot.composeapp.generated.resources.webhooks_inbound_title
 import nomnomzbot.composeapp.generated.resources.webhooks_loading
 import nomnomzbot.composeapp.generated.resources.webhooks_outbound_add
@@ -186,6 +201,7 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?) {
                                     current.inbound.forEachIndexed { index, ep ->
                                         InboundRow(
                                             ep = ep,
+                                            pipelines = current.pipelines,
                                             manage = manage,
                                             onToggle = { scope.launch { controller.toggleInbound(ep.id, !ep.isEnabled) } },
                                             onRotate = { scope.launch { shownSecret = controller.rotateInboundToken(ep.id) } },
@@ -320,10 +336,12 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?) {
     }
 
     if (showCreateInbound) {
+        val pipelines: List<PipelineSummary> = (state as? WebhooksState.Ready)?.pipelines ?: emptyList()
         CreateInboundDialog(
-            onConfirm = { name, adapter, secret ->
+            pipelines = pipelines,
+            onConfirm = { name, adapter, secret, targetPipelineId, targetEventType ->
                 showCreateInbound = false
-                scope.launch { controller.createInbound(name, adapter, secret) }
+                scope.launch { controller.createInbound(name, adapter, secret, targetPipelineId, targetEventType) }
             },
             onDismiss = { showCreateInbound = false },
         )
@@ -346,6 +364,7 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?) {
 @Composable
 private fun InboundRow(
     ep: InboundWebhook,
+    pipelines: List<PipelineSummary>,
     manage: ManageDecision,
     onToggle: () -> Unit,
     onRotate: () -> Unit,
@@ -354,6 +373,20 @@ private fun InboundRow(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+
+    // The endpoint's routing target, resolved to a friendly line: a bound pipeline's name, an event type, or a
+    // clear "no automation" so a streamer sees whether a verified receive actually does anything.
+    val routingText: String =
+        when {
+            ep.targetPipelineId != null -> {
+                val name: String =
+                    pipelines.firstOrNull { it.id == ep.targetPipelineId }?.name ?: ep.targetPipelineId
+                stringResource(Res.string.webhooks_inbound_target_pipeline, name)
+            }
+            !ep.targetEventType.isNullOrBlank() ->
+                stringResource(Res.string.webhooks_inbound_target_event, ep.targetEventType)
+            else -> stringResource(Res.string.webhooks_inbound_target_none)
+        }
 
     Column(
         modifier = Modifier
@@ -383,6 +416,13 @@ private fun InboundRow(
                 )
             }
         }
+        Text(
+            text = routingText,
+            style = typography.xs,
+            color = if (ep.targetPipelineId == null && ep.targetEventType.isNullOrBlank()) tokens.mutedForeground else tokens.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
         Text(text = "${stringResource(Res.string.webhooks_url_label)}: ${ep.ingestUrl}", style = typography.xs, color = tokens.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             ManageGate(manage) { enabled ->
@@ -528,9 +568,13 @@ private fun SecretOnceDialog(secret: String, onDismiss: () -> Unit) {
     )
 }
 
+// The three routing choices an inbound endpoint offers on receive: nothing, run a pipeline, or trigger an event.
+private enum class InboundRouting { None, Pipeline, Event }
+
 @Composable
 private fun CreateInboundDialog(
-    onConfirm: (name: String, adapter: String, secret: String) -> Unit,
+    pipelines: List<PipelineSummary>,
+    onConfirm: (name: String, adapter: String, secret: String, targetPipelineId: String?, targetEventType: String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -541,6 +585,10 @@ private fun CreateInboundDialog(
     var adapter: String by remember { mutableStateOf("generic") }
     var secret: String by remember { mutableStateOf("") }
     var nameError: Boolean by remember { mutableStateOf(false) }
+
+    var routing: InboundRouting by remember { mutableStateOf(InboundRouting.None) }
+    var pipelineId: String by remember { mutableStateOf("") }
+    var eventType: String by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -563,16 +611,127 @@ private fun CreateInboundDialog(
                     label = stringResource(Res.string.webhooks_create_inbound_secret),
                     isError = false, errorText = null,
                 )
+
+                // Routing choice: on a verified receive, run a pipeline OR trigger an event (or nothing yet).
+                RoutingPicker(selected = routing, onSelect = { routing = it })
+                when (routing) {
+                    InboundRouting.Pipeline ->
+                        PipelinePicker(
+                            pipelines = pipelines,
+                            selectedId = pipelineId,
+                            onSelect = { pipelineId = it },
+                            onManualEntry = { pipelineId = it },
+                        )
+                    InboundRouting.Event ->
+                        AppTextField(
+                            value = eventType, onValueChange = { eventType = it },
+                            label = stringResource(Res.string.webhooks_inbound_routing_event_label),
+                            placeholder = stringResource(Res.string.webhooks_inbound_routing_event_hint),
+                        )
+                    InboundRouting.None -> Unit
+                }
+                if (routing != InboundRouting.None) {
+                    Text(
+                        text = stringResource(Res.string.webhooks_inbound_routing_help),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
+                }
             }
         },
         confirmButton = {
             Button(onClick = {
                 if (name.isBlank()) { nameError = true; return@Button }
-                onConfirm(name.trim(), adapter.trim().ifBlank { "generic" }, secret.trim())
+                val targetPipeline: String? = pipelineId.trim().takeIf { routing == InboundRouting.Pipeline && it.isNotBlank() }
+                val targetEvent: String? = eventType.trim().takeIf { routing == InboundRouting.Event && it.isNotBlank() }
+                onConfirm(name.trim(), adapter.trim().ifBlank { "generic" }, secret.trim(), targetPipeline, targetEvent)
             }) { Text(stringResource(Res.string.webhooks_create_inbound_confirm)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.webhooks_create_inbound_dismiss)) } },
     )
+}
+
+// Labelled dropdown for the inbound routing mode.
+@Composable
+private fun RoutingPicker(selected: InboundRouting, onSelect: (InboundRouting) -> Unit) {
+    var expanded: Boolean by remember { mutableStateOf(false) }
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val label: String = stringResource(Res.string.webhooks_inbound_routing_label)
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
+        Text(text = label, style = typography.sm, color = tokens.foreground)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            TextButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(text = routingLabel(selected), color = tokens.foreground, modifier = Modifier.weight(1f), maxLines = 1)
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                InboundRouting.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(text = routingLabel(option), color = tokens.popoverForeground) },
+                        onClick = { onSelect(option); expanded = false },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun routingLabel(routing: InboundRouting): String =
+    when (routing) {
+        InboundRouting.None -> stringResource(Res.string.webhooks_inbound_routing_none)
+        InboundRouting.Pipeline -> stringResource(Res.string.webhooks_inbound_routing_pipeline)
+        InboundRouting.Event -> stringResource(Res.string.webhooks_inbound_routing_event)
+    }
+
+// Picks a pipeline from the channel's list; when there are none it degrades to a free-text pipeline-id field so
+// the routing can still be set (the id can be pasted from the Pipelines page).
+@Composable
+private fun PipelinePicker(
+    pipelines: List<PipelineSummary>,
+    selectedId: String,
+    onSelect: (String) -> Unit,
+    onManualEntry: (String) -> Unit,
+) {
+    if (pipelines.isEmpty()) {
+        AppTextField(
+            value = selectedId,
+            onValueChange = onManualEntry,
+            label = stringResource(Res.string.webhooks_inbound_routing_pipeline_label),
+        )
+        return
+    }
+
+    var expanded: Boolean by remember { mutableStateOf(false) }
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val current: PipelineSummary? = pipelines.firstOrNull { it.id == selectedId }
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
+        Text(text = stringResource(Res.string.webhooks_inbound_routing_pipeline_label), style = typography.sm, color = tokens.foreground)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            TextButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = current?.name ?: stringResource(Res.string.webhooks_inbound_routing_choose_pipeline),
+                    color = if (current == null) tokens.mutedForeground else tokens.foreground,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                pipelines.forEach { pipeline ->
+                    DropdownMenuItem(
+                        text = { Text(text = pipeline.name, color = tokens.popoverForeground) },
+                        onClick = { onSelect(pipeline.id); expanded = false },
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable

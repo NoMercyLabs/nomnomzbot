@@ -1912,6 +1912,19 @@
     <string name="webhooks_retry">Retry</string>
     <string name="webhooks_action_error">Action failed: %1$s</string>
     <string name="webhooks_inbound_title">Inbound endpoints</string>
+    <!-- Inbound endpoint routing: on a verified receive, run a pipeline or trigger an event. -->
+    <string name="webhooks_inbound_routing_label">On receive</string>
+    <string name="webhooks_inbound_routing_none">No automation</string>
+    <string name="webhooks_inbound_routing_pipeline">Run a pipeline</string>
+    <string name="webhooks_inbound_routing_event">Trigger an event</string>
+    <string name="webhooks_inbound_routing_pipeline_label">Pipeline</string>
+    <string name="webhooks_inbound_routing_choose_pipeline">Choose a pipeline</string>
+    <string name="webhooks_inbound_routing_event_label">Event type</string>
+    <string name="webhooks_inbound_routing_event_hint">e.g. custom.github.star</string>
+    <string name="webhooks_inbound_routing_help">The webhook payload reaches the pipeline or event as payload.* variables, plus webhook.provider and webhook.event_type.</string>
+    <string name="webhooks_inbound_target_pipeline">→ Runs pipeline: %1$s</string>
+    <string name="webhooks_inbound_target_event">→ Triggers event: %1$s</string>
+    <string name="webhooks_inbound_target_none">No automation set — bind a pipeline or event</string>
     <string name="webhooks_inbound_add">Add endpoint</string>
     <string name="webhooks_outbound_title">Outbound endpoints</string>
     <string name="webhooks_outbound_add">Add endpoint</string>

@@ -148,12 +148,19 @@ data class WebhookTestResult(
     val error: String? = null,
 )
 
-/** Create-inbound body. [adapter] is the kind key (e.g. `"generic"`, `"streamlabs"`). */
+/**
+ * Create-inbound body (backend `CreateInboundWebhookRequest`). [adapter] is the kind key (e.g. `"generic"`,
+ * `"streamlabs"`). The routing is exactly one of: [targetPipelineId] (a verified receive runs that pipeline)
+ * OR [targetEventType] (it triggers that event-response); both null leaves the endpoint inert. The payload
+ * reaches the pipeline/event as `payload.*` template variables plus `webhook.provider` / `webhook.event_type`.
+ */
 @Serializable
 data class CreateInboundBody(
     val name: String,
     val adapter: String,
     val verificationSecret: String,
+    val targetPipelineId: String? = null,
+    val targetEventType: String? = null,
     val isEnabled: Boolean = true,
 )
 

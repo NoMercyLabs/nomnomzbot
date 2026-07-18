@@ -1899,6 +1899,19 @@
     <string name="webhooks_retry">Opnieuw proberen</string>
     <string name="webhooks_action_error">Actie mislukt: %1$s</string>
     <string name="webhooks_inbound_title">Inkomende endpoints</string>
+    <!-- Routing van inkomend endpoint: bij een geverifieerde ontvangst een pipeline draaien of event triggeren. -->
+    <string name="webhooks_inbound_routing_label">Bij ontvangst</string>
+    <string name="webhooks_inbound_routing_none">Geen automatisering</string>
+    <string name="webhooks_inbound_routing_pipeline">Pipeline draaien</string>
+    <string name="webhooks_inbound_routing_event">Event triggeren</string>
+    <string name="webhooks_inbound_routing_pipeline_label">Pipeline</string>
+    <string name="webhooks_inbound_routing_choose_pipeline">Kies een pipeline</string>
+    <string name="webhooks_inbound_routing_event_label">Gebeurtenistype</string>
+    <string name="webhooks_inbound_routing_event_hint">bijv. custom.github.star</string>
+    <string name="webhooks_inbound_routing_help">De webhook-payload komt in de pipeline of het event als payload.*-variabelen, plus webhook.provider en webhook.event_type.</string>
+    <string name="webhooks_inbound_target_pipeline">→ Draait pipeline: %1$s</string>
+    <string name="webhooks_inbound_target_event">→ Triggert event: %1$s</string>
+    <string name="webhooks_inbound_target_none">Geen automatisering ingesteld — koppel een pipeline of event</string>
     <string name="webhooks_inbound_add">Endpoint toevoegen</string>
     <string name="webhooks_outbound_title">Uitgaande endpoints</string>
     <string name="webhooks_outbound_add">Endpoint toevoegen</string>

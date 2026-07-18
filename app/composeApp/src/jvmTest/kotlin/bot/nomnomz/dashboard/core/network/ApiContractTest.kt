@@ -68,6 +68,7 @@ class ApiContractTest {
             PipelineActionDescriptor.serializer() to "PipelineActionDescriptorDto",
             PipelineConditionDescriptor.serializer() to "PipelineConditionDescriptorDto",
             PipelineCatalogueRemote.serializer() to "PipelineCatalogueDto",
+            CreateInboundBody.serializer() to "CreateInboundWebhookRequest",
             WidgetSummary.serializer() to "WidgetDetail",
             CreateWidgetBody.serializer() to "CreateWidgetRequest",
             UpdateWidgetBody.serializer() to "UpdateWidgetRequest",

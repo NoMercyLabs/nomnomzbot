@@ -526,7 +526,7 @@ class AppGraph {
         FeaturesController(channelsApi = channelsApi, featuresApi = featuresApi)
 
     val webhooksController: WebhooksController =
-        WebhooksController(channelsApi = channelsApi, webhooksApi = webhooksApi)
+        WebhooksController(channelsApi = channelsApi, webhooksApi = webhooksApi, pipelinesApi = pipelinesApi)
 
     val customEventsController: CustomEventsController =
         CustomEventsController(api = customEventsApi)

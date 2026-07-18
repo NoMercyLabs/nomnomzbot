@@ -18,6 +18,8 @@ import bot.nomnomz.dashboard.core.network.CreateOutboundBody
 import bot.nomnomz.dashboard.core.network.InboundWebhook
 import bot.nomnomz.dashboard.core.network.OutboundWebhook
 import bot.nomnomz.dashboard.core.network.OutboundWebhookCreated
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.WebhookTestResult
 import bot.nomnomz.dashboard.core.network.WebhooksApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class WebhooksController(
     private val channelsApi: ChannelsApi,
     private val webhooksApi: WebhooksApi,
+    private val pipelinesApi: PipelinesApi,
 ) {
     private val _state: MutableStateFlow<WebhooksState> = MutableStateFlow(WebhooksState.Loading)
 
@@ -72,14 +75,40 @@ class WebhooksController(
                 is ApiResult.Ok -> result.value
             }
 
-        _state.value = WebhooksState.Ready(inbound = inbound, outbound = outbound)
+        // The channel's pipelines back the inbound "run a pipeline" routing picker. Best-effort: a failure just
+        // leaves the picker empty (the form falls back to a pipeline-id field), never blocking the page.
+        val pipelines: List<PipelineSummary> =
+            when (val result: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.id)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> emptyList()
+            }
+
+        _state.value = WebhooksState.Ready(inbound = inbound, outbound = outbound, pipelines = pipelines)
     }
 
     // ── Inbound ──────────────────────────────────────────────────────────────
 
-    suspend fun createInbound(name: String, adapter: String, secret: String) {
+    /**
+     * Create an inbound endpoint with its routing: exactly one of [targetPipelineId] (run a pipeline on receive)
+     * or [targetEventType] (trigger an event-response); both null leaves it inert until edited.
+     */
+    suspend fun createInbound(
+        name: String,
+        adapter: String,
+        secret: String,
+        targetPipelineId: String?,
+        targetEventType: String?,
+    ) {
         val channel: String = channelId ?: return failWrite("No active channel.")
-        when (val result: ApiResult<InboundWebhook> = webhooksApi.createInbound(channel, CreateInboundBody(name, adapter, secret))) {
+        val body =
+            CreateInboundBody(
+                name = name,
+                adapter = adapter,
+                verificationSecret = secret,
+                targetPipelineId = targetPipelineId?.takeIf { it.isNotBlank() },
+                targetEventType = targetEventType?.takeIf { it.isNotBlank() },
+            )
+        when (val result: ApiResult<InboundWebhook> = webhooksApi.createInbound(channel, body)) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)
         }
@@ -182,6 +211,7 @@ sealed interface WebhooksState {
     data class Ready(
         val inbound: List<InboundWebhook>,
         val outbound: List<OutboundWebhook>,
+        val pipelines: List<PipelineSummary> = emptyList(),
         val actionError: String? = null,
     ) : WebhooksState
 
