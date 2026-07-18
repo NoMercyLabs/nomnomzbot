@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Security.Cryptography;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -1022,12 +1023,43 @@ public class WidgetService : IWidgetService
         );
 
     // The DTO carries nullable values (Dictionary<string, object?>); the store column is non-null
-    // (Dictionary<string, object>). Coalesce a null override to "" so a key is never dropped on the round-trip.
+    // (Dictionary<string, object>). Coalesce a null override to "" so a key is never dropped, AND normalize any
+    // System.Text.Json.JsonElement (what a value deserialized from the request body actually is) to a plain CLR
+    // primitive — otherwise the store/serialize round-trip mangles it into {"ValueKind":...} and the widget's
+    // injected window.WIDGET_SETTINGS is unusable (it can't read its own accentColor / durations / toggles).
     private static Dictionary<string, object> ToSettingsStore(
         Dictionary<string, object?>? settings
     ) =>
-        settings?.ToDictionary(k => k.Key, v => v.Value ?? (object)"")
+        settings?.ToDictionary(k => k.Key, v => NormalizeSetting(v.Value))
         ?? new Dictionary<string, object>();
+
+    /// <summary>Coerce a settings value to a plain CLR object graph so it round-trips through any serializer — a
+    /// value parsed from JSON arrives as a <see cref="JsonElement"/>, which serializes as its reflected properties
+    /// (ValueKind) rather than its value.</summary>
+    private static object NormalizeSetting(object? value)
+    {
+        if (value is not JsonElement element)
+            return value ?? "";
+
+        return element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString() ?? "",
+            JsonValueKind.Number => element.TryGetInt64(out long l) ? l : element.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Array => element
+                .EnumerateArray()
+                .Select(item => NormalizeSetting(item))
+                .ToList(),
+            JsonValueKind.Object => element
+                .EnumerateObject()
+                .ToDictionary(
+                    property => property.Name,
+                    property => NormalizeSetting(property.Value)
+                ),
+            _ => "",
+        };
+    }
 
     private static WidgetDetail ToDetail(Widget w, string overlayToken, string overlayBaseUrl) =>
         new(
