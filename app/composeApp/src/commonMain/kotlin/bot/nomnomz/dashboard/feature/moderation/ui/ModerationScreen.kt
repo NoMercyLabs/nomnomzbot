@@ -29,10 +29,12 @@ import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -45,6 +47,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
+import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
@@ -53,20 +56,31 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
+import bot.nomnomz.dashboard.core.network.EscalationLadderStep
+import bot.nomnomz.dashboard.core.network.EscalationPolicy
 import bot.nomnomz.dashboard.core.network.ModLogEntry
+import bot.nomnomz.dashboard.core.network.NetworkNukeBatch
 import bot.nomnomz.dashboard.core.network.UnbanRequest
+import bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody
 import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationRule
+import bot.nomnomz.dashboard.core.network.ModerationStanding
 import bot.nomnomz.dashboard.core.network.ModerationStats
+import bot.nomnomz.dashboard.core.network.SharedBanSettings
+import bot.nomnomz.dashboard.core.network.SharedBanTrustedChannel
 import bot.nomnomz.dashboard.core.network.UserModerationContext
+import bot.nomnomz.dashboard.core.network.UserModerationHistorySummary
+import bot.nomnomz.dashboard.core.network.UserTrustSummary
 import bot.nomnomz.dashboard.core.network.UserNote
+import kotlin.math.roundToInt
 import bot.nomnomz.dashboard.feature.moderation.state.AutomodFilter
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationState
@@ -221,6 +235,70 @@ import nomnomzbot.composeapp.generated.resources.moderation_unban_requests_title
 import nomnomzbot.composeapp.generated.resources.moderation_unban_message
 import nomnomzbot.composeapp.generated.resources.moderation_unban_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_moderation
+import nomnomzbot.composeapp.generated.resources.moderation_history_title
+import nomnomzbot.composeapp.generated.resources.moderation_history_timeouts
+import nomnomzbot.composeapp.generated.resources.moderation_history_bans
+import nomnomzbot.composeapp.generated.resources.moderation_history_warnings
+import nomnomzbot.composeapp.generated.resources.moderation_history_deleted
+import nomnomzbot.composeapp.generated.resources.moderation_history_first_seen
+import nomnomzbot.composeapp.generated.resources.moderation_trust_badge
+import nomnomzbot.composeapp.generated.resources.moderation_heat_badge
+import nomnomzbot.composeapp.generated.resources.moderation_standing_title
+import nomnomzbot.composeapp.generated.resources.moderation_standing_normal
+import nomnomzbot.composeapp.generated.resources.moderation_standing_muted
+import nomnomzbot.composeapp.generated.resources.moderation_standing_shadowbanned
+import nomnomzbot.composeapp.generated.resources.moderation_standing_blacklisted
+import nomnomzbot.composeapp.generated.resources.moderation_standing_restore
+import nomnomzbot.composeapp.generated.resources.moderation_standing_reason
+import nomnomzbot.composeapp.generated.resources.moderation_standing_badge
+import nomnomzbot.composeapp.generated.resources.moderation_standing_hint
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_title
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_desc
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_enabled
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_disabled
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_edit
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_summary
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_enable_label
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_window
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_count_automod
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_rung
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_action_warn
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_action_timeout
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_action_ban
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_duration
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_add_rung
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_remove_rung
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_save
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_cancel
+import nomnomzbot.composeapp.generated.resources.moderation_escalation_forgive
+import nomnomzbot.composeapp.generated.resources.moderation_heat_threshold_label
+import nomnomzbot.composeapp.generated.resources.moderation_heat_threshold_hint
+import nomnomzbot.composeapp.generated.resources.moderation_heat_threshold_save
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_action
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_confirm_title
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_confirm_message
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_confirm
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_dismiss
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_batches_title
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_target
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_channels
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_status_active
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_status_partial
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_status_reverted
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_revert
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_revert_title
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_revert_message
+import nomnomzbot.composeapp.generated.resources.moderation_shared_title
+import nomnomzbot.composeapp.generated.resources.moderation_shared_desc
+import nomnomzbot.composeapp.generated.resources.moderation_shared_accept
+import nomnomzbot.composeapp.generated.resources.moderation_shared_accept_hint
+import nomnomzbot.composeapp.generated.resources.moderation_shared_share
+import nomnomzbot.composeapp.generated.resources.moderation_shared_share_hint
+import nomnomzbot.composeapp.generated.resources.moderation_shared_trusted_title
+import nomnomzbot.composeapp.generated.resources.moderation_shared_trusted_empty
+import nomnomzbot.composeapp.generated.resources.moderation_shared_trusted_add_label
+import nomnomzbot.composeapp.generated.resources.moderation_shared_trusted_add
+import nomnomzbot.composeapp.generated.resources.moderation_shared_trusted_remove
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.SharedFlow
 import org.jetbrains.compose.resources.stringResource
@@ -279,8 +357,19 @@ fun ModerationScreen(
                     bansAvailable = current.bansAvailable,
                     blockedTermsAvailable = current.blockedTermsAvailable,
                     shieldAvailable = current.shieldAvailable,
+                    escalationPolicy = current.escalationPolicy,
+                    sharedBanSettings = current.sharedBanSettings,
+                    nukeBatches = current.nukeBatches,
                     manage = manage,
                     suspiciousManage = suspiciousManage,
+                    onSaveEscalation = { policy -> scope.launch { controller.saveEscalationPolicy(policy) } },
+                    onSaveHeatThreshold = { v -> scope.launch { controller.setHeatTimeoutThreshold(v) } },
+                    onSaveSharedBans = { accept, share ->
+                        scope.launch { controller.saveSharedBanSettings(accept, share) }
+                    },
+                    onAddTrusted = { id -> scope.launch { controller.addTrustedChannel(id) } },
+                    onRemoveTrusted = { id -> scope.launch { controller.removeTrustedChannel(id) } },
+                    onRevertNuke = { batchId -> scope.launch { controller.revertNuke(batchId) } },
                     onResolveUnban = { requestId, approve, note ->
                         scope.launch { controller.resolveUnbanRequest(requestId, approve, note) }
                     },
@@ -312,13 +401,26 @@ fun ModerationScreen(
     }
 
     userContext?.let { ctx ->
+        // The heat auto-timeout threshold lives on the channel's AutoMod config — read it off the Ready state so
+        // the panel can color a viewer's heat red once it crosses the line. Defaults to the backend default (80).
+        val heatThreshold: Int =
+            (state as? ModerationState.Ready)?.automod?.heatTimeoutThreshold ?: DEFAULT_HEAT_THRESHOLD
         UserModerationContextDialog(
             state = ctx,
+            heatThreshold = heatThreshold,
             manage = manage,
             suspiciousManage = suspiciousManage,
             onWarn = { userId, reason -> scope.launch { controller.warn(userId, reason) } },
             onSuspicious = { userId, status -> scope.launch { controller.setSuspicious(userId, status) } },
             onClearSuspicious = { userId -> scope.launch { controller.clearSuspicious(userId) } },
+            onForgive = { userId -> scope.launch { controller.forgiveUser(userId) } },
+            onNetworkNuke = { userId -> scope.launch { controller.networkNuke(userId, null, null) } },
+            onSetStanding = { userId, provider, standing, reason ->
+                scope.launch { controller.setStanding(userId, provider, standing, reason) }
+            },
+            onClearStanding = { userId, provider ->
+                scope.launch { controller.clearStanding(userId, provider) }
+            },
             onAddNote = { userId, content, pinned ->
                 scope.launch { controller.addNote(userId, content, pinned) }
             },
@@ -330,6 +432,14 @@ fun ModerationScreen(
         )
     }
 }
+
+// The bot's default heat auto-timeout threshold (backend AutomodConfigDto default) — used when the config
+// hasn't loaded yet so the per-user panel can still color heat consistently.
+private const val DEFAULT_HEAT_THRESHOLD: Int = 80
+
+// The bot-side standing tiers (J.12), in ascending severity. The write always targets the Twitch identity —
+// the panel opens from a Twitch ban and the context id is the viewer's Twitch id.
+private const val STANDING_PROVIDER: String = "twitch"
 
 @Composable
 private fun BansList(
@@ -346,8 +456,17 @@ private fun BansList(
     bansAvailable: Boolean,
     blockedTermsAvailable: Boolean,
     shieldAvailable: Boolean,
+    escalationPolicy: EscalationPolicy?,
+    sharedBanSettings: SharedBanSettings?,
+    nukeBatches: List<NetworkNukeBatch>,
     manage: ManageDecision,
     suspiciousManage: ManageDecision,
+    onSaveEscalation: (UpsertEscalationPolicyBody) -> Unit,
+    onSaveHeatThreshold: (Int) -> Unit,
+    onSaveSharedBans: (accept: Boolean, share: Boolean) -> Unit,
+    onAddTrusted: (trustedChannelId: String) -> Unit,
+    onRemoveTrusted: (trustedChannelId: String) -> Unit,
+    onRevertNuke: (batchId: String) -> Unit,
     onResolveUnban: (requestId: String, approve: Boolean, note: String?) -> Unit,
     onResolveReport: (reportId: String, action: String) -> Unit,
     onUnban: (userId: String) -> Unit,
@@ -366,6 +485,13 @@ private fun BansList(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+
+    // Escalation is edited in a dialog (the whole ladder is replaced on save); this owns its open/closed state.
+    var showEscalationDialog: Boolean by remember { mutableStateOf(false) }
+    // The nuke batch awaiting a revert confirmation, if any.
+    var pendingRevert: NetworkNukeBatch? by remember { mutableStateOf(null) }
+    // Writes on the escalation ladder + shared-ban trust web are Lead-Moderator (SuperMod) actions.
+    val superManage: ManageDecision = suspiciousManage
 
     // The ban awaiting confirmation, if any — the screen owns the dialog's open/closed state.
     var pendingUnban: BannedUser? by remember { mutableStateOf(null) }
@@ -627,6 +753,81 @@ private fun BansList(
                         manage = manage,
                         onToggle = { onToggleFilter(AutomodFilter.Emotes) },
                     )
+                    Separator()
+                    HeatThresholdRow(
+                        threshold = automod.heatTimeoutThreshold,
+                        manage = manage,
+                        onSave = onSaveHeatThreshold,
+                    )
+                }
+            }
+        }
+        // Escalation ladder (J.10). Rendered only when the policy read succeeded (Moderator+ read floor).
+        escalationPolicy?.let { policy ->
+            item(key = "escalation-header") {
+                Text(
+                    text = stringResource(Res.string.moderation_escalation_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+            }
+            item(key = "escalation-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    EscalationLadderCard(
+                        policy = policy,
+                        manage = superManage,
+                        onEdit = { showEscalationDialog = true },
+                    )
+                }
+            }
+        }
+        // Shared-chat bans trust web (J.9). Rendered only when the SuperMod-gated read succeeded.
+        sharedBanSettings?.let { settings ->
+            item(key = "shared-bans-header") {
+                Text(
+                    text = stringResource(Res.string.moderation_shared_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+            }
+            item(key = "shared-bans-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    SharedBansCard(
+                        settings = settings,
+                        manage = superManage,
+                        onSave = onSaveSharedBans,
+                        onAddTrusted = onAddTrusted,
+                        onRemoveTrusted = onRemoveTrusted,
+                    )
+                }
+            }
+        }
+        // Network-nuke batch history (J.2a). Shown only when there is a batch to revert or review.
+        if (nukeBatches.isNotEmpty()) {
+            item(key = "nuke-header") {
+                Text(
+                    text = stringResource(Res.string.moderation_nuke_batches_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+            }
+            item(key = "nuke-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        nukeBatches.forEachIndexed { index, batch ->
+                            NukeBatchRow(
+                                batch = batch,
+                                manage = superManage,
+                                onRevert = { pendingRevert = batch },
+                            )
+                            if (index < nukeBatches.lastIndex) {
+                                Separator()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -764,6 +965,33 @@ private fun BansList(
                 showAnnounceDialog = false
             },
             onDismiss = { showAnnounceDialog = false },
+        )
+    }
+
+    if (showEscalationDialog && escalationPolicy != null) {
+        EscalationLadderDialog(
+            policy = escalationPolicy,
+            onConfirm = { body ->
+                onSaveEscalation(body)
+                showEscalationDialog = false
+            },
+            onDismiss = { showEscalationDialog = false },
+        )
+    }
+
+    pendingRevert?.let { batch ->
+        val target: String = batch.targetTwitchUserId ?: batch.targetUserId ?: ""
+        ConfirmDialog(
+            title = stringResource(Res.string.moderation_nuke_revert_title),
+            message = stringResource(Res.string.moderation_nuke_revert_message, target, batch.channelCount),
+            confirmLabel = stringResource(Res.string.moderation_nuke_revert),
+            dismissLabel = stringResource(Res.string.moderation_nuke_dismiss),
+            destructive = true,
+            onConfirm = {
+                onRevertNuke(batch.id)
+                pendingRevert = null
+            },
+            onDismiss = { pendingRevert = null },
         )
     }
 }
@@ -1087,11 +1315,16 @@ private fun ViewerReportRow(
 @Composable
 private fun UserModerationContextDialog(
     state: UserContextState,
+    heatThreshold: Int,
     manage: ManageDecision,
     suspiciousManage: ManageDecision,
     onWarn: (userId: String, reason: String) -> Unit,
     onSuspicious: (userId: String, status: String) -> Unit,
     onClearSuspicious: (userId: String) -> Unit,
+    onForgive: (userId: String) -> Unit,
+    onNetworkNuke: (userId: String) -> Unit,
+    onSetStanding: (userId: String, provider: String, standing: String, reason: String?) -> Unit,
+    onClearStanding: (userId: String, provider: String) -> Unit,
     onAddNote: (userId: String, content: String, pinned: Boolean) -> Unit,
     onEditNote: (userId: String, noteId: String, content: String?, pinned: Boolean?) -> Unit,
     onDeleteNote: (userId: String, noteId: String) -> Unit,
@@ -1131,14 +1364,19 @@ private fun UserModerationContextDialog(
                             color = tokens.destructive,
                         )
                     is UserContextState.Ready -> {
-                        UserModerationContextBody(state.context)
+                        UserModerationContextBody(state.context, heatThreshold)
                         UserModerationActions(
                             userId = state.context.userId,
+                            standings = state.context.standings,
                             manage = manage,
                             suspiciousManage = suspiciousManage,
                             onWarn = onWarn,
                             onSuspicious = onSuspicious,
                             onClearSuspicious = onClearSuspicious,
+                            onForgive = onForgive,
+                            onNetworkNuke = onNetworkNuke,
+                            onSetStanding = onSetStanding,
+                            onClearStanding = onClearStanding,
                         )
                         UserModerationNotes(
                             userId = state.context.userId,
@@ -1167,11 +1405,16 @@ private fun UserModerationContextDialog(
 @Composable
 private fun UserModerationActions(
     userId: String,
+    standings: List<ModerationStanding>,
     manage: ManageDecision,
     suspiciousManage: ManageDecision,
     onWarn: (userId: String, reason: String) -> Unit,
     onSuspicious: (userId: String, status: String) -> Unit,
     onClearSuspicious: (userId: String) -> Unit,
+    onForgive: (userId: String) -> Unit,
+    onNetworkNuke: (userId: String) -> Unit,
+    onSetStanding: (userId: String, provider: String, standing: String, reason: String?) -> Unit,
+    onClearStanding: (userId: String, provider: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1179,6 +1422,7 @@ private fun UserModerationActions(
 
     var reason: String by remember(userId) { mutableStateOf("") }
     var confirmRestrict: Boolean by remember(userId) { mutableStateOf(false) }
+    var confirmNuke: Boolean by remember(userId) { mutableStateOf(false) }
 
     Separator()
     Text(
@@ -1238,6 +1482,35 @@ private fun UserModerationActions(
         }
     }
 
+    // Bot-side standing tiers (J.12) — distinct from Twitch ban/timeout; targets the viewer's Twitch identity.
+    StandingSelector(
+        userId = userId,
+        standings = standings,
+        manage = suspiciousManage,
+        onSetStanding = onSetStanding,
+        onClearStanding = onClearStanding,
+    )
+
+    // Escalation forgiveness (J.11) + the network nuke (J.2a) — both Lead-Moderator (SuperMod) actions.
+    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        ManageGate(decision = suspiciousManage) { enabled ->
+            TextButton(onClick = { onForgive(userId) }, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.moderation_escalation_forgive),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                )
+            }
+        }
+        ManageGate(decision = suspiciousManage) { enabled ->
+            TextButton(onClick = { confirmNuke = true }, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.moderation_nuke_action),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                )
+            }
+        }
+    }
+
     if (confirmRestrict) {
         ConfirmDialog(
             title = stringResource(Res.string.moderation_suspicious_restrict),
@@ -1250,6 +1523,21 @@ private fun UserModerationActions(
                 onSuspicious(userId, "restricted")
             },
             onDismiss = { confirmRestrict = false },
+        )
+    }
+
+    if (confirmNuke) {
+        ConfirmDialog(
+            title = stringResource(Res.string.moderation_nuke_confirm_title),
+            message = stringResource(Res.string.moderation_nuke_confirm_message, userId),
+            confirmLabel = stringResource(Res.string.moderation_nuke_confirm),
+            dismissLabel = stringResource(Res.string.moderation_nuke_dismiss),
+            destructive = true,
+            onConfirm = {
+                confirmNuke = false
+                onNetworkNuke(userId)
+            },
+            onDismiss = { confirmNuke = false },
         )
     }
 }
@@ -1430,9 +1718,10 @@ private fun UserModerationNotes(
     }
 }
 
-// The loaded rap sheet: the viewer's counters + last action + the recent recorded actions.
+// The loaded rap sheet: the viewer's counters + last action + the recent recorded actions, plus the J.4 all-actions
+// history rollup and the J.5 trust/heat pair when the projections have computed them.
 @Composable
-private fun UserModerationContextBody(context: UserModerationContext) {
+private fun UserModerationContextBody(context: UserModerationContext, heatThreshold: Int) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -1447,12 +1736,14 @@ private fun UserModerationContextBody(context: UserModerationContext) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        context.trust?.let { trust -> TrustHeatBadges(trust = trust, heatThreshold = heatThreshold) }
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             StatChip(label = stringResource(Res.string.moderation_context_bans), value = context.banCount)
             StatChip(label = stringResource(Res.string.moderation_context_timeouts), value = context.timeoutCount)
             StatChip(label = stringResource(Res.string.moderation_context_warns), value = context.warnCount)
             StatChip(label = stringResource(Res.string.moderation_context_unbans), value = context.unbanCount)
         }
+        context.history?.let { history -> UserModerationHistoryRow(history = history) }
         context.lastActionType?.takeIf { it.isNotBlank() }?.let { last ->
             val on: String = context.lastActionAt?.takeIf { it.isNotBlank() }?.let { datePart(it) } ?: ""
             Text(
@@ -2128,3 +2419,617 @@ private fun AnnounceDialog(
         },
     )
 }
+
+// The J.5 trust + heat pair. Heat at or above the channel's auto-timeout threshold reads as a warning (destructive).
+@Composable
+private fun TrustHeatBadges(trust: UserTrustSummary, heatThreshold: Int) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val heatHot: Boolean = trust.heatScore.roundToInt() >= heatThreshold
+    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        Badge(variant = BadgeVariant.Secondary) {
+            Text(
+                text = stringResource(Res.string.moderation_trust_badge, trust.trustScore.roundToInt().toString()),
+                style = typography.xs,
+            )
+        }
+        Badge(variant = if (heatHot) BadgeVariant.Destructive else BadgeVariant.Secondary) {
+            Text(
+                text = stringResource(Res.string.moderation_heat_badge, trust.heatScore.roundToInt().toString()),
+                style = typography.xs,
+            )
+        }
+    }
+}
+
+// The J.4 all-actions rollup — counts EVERY Twitch-side action against the viewer, not only the bot's own record.
+@Composable
+private fun UserModerationHistoryRow(history: UserModerationHistorySummary) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        Text(
+            text = stringResource(Res.string.moderation_history_title),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            StatChip(label = stringResource(Res.string.moderation_history_timeouts), value = history.timeoutCount)
+            StatChip(label = stringResource(Res.string.moderation_history_bans), value = history.banCount)
+            StatChip(label = stringResource(Res.string.moderation_history_warnings), value = history.warningCount)
+            StatChip(
+                label = stringResource(Res.string.moderation_history_deleted),
+                value = history.messagesDeletedCount,
+            )
+        }
+        history.firstSeenAt?.takeIf { it.isNotBlank() }?.let { first ->
+            Text(
+                text = stringResource(Res.string.moderation_history_first_seen, datePart(first)),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
+    }
+}
+
+// The bot-side standing tiers (J.12): current per-provider standing badges, the three apply buttons + Restore, and
+// an optional reason. Writes target the viewer's Twitch identity ([STANDING_PROVIDER]); every change is reversible.
+@Composable
+private fun StandingSelector(
+    userId: String,
+    standings: List<ModerationStanding>,
+    manage: ManageDecision,
+    onSetStanding: (userId: String, provider: String, standing: String, reason: String?) -> Unit,
+    onClearStanding: (userId: String, provider: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var reason: String by remember(userId) { mutableStateOf("") }
+
+    Separator()
+    Text(
+        text = stringResource(Res.string.moderation_standing_title),
+        style = typography.sm,
+        color = tokens.mutedForeground,
+    )
+    if (standings.isEmpty()) {
+        Text(
+            text = stringResource(Res.string.moderation_standing_normal),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            standings.forEach { standing ->
+                Badge(variant = standingBadgeVariant(standing.standing)) {
+                    Text(
+                        text =
+                            stringResource(
+                                Res.string.moderation_standing_badge,
+                                standing.provider,
+                                standingLabel(standing.standing),
+                            ),
+                        style = typography.xs,
+                    )
+                }
+            }
+        }
+    }
+    AppTextField(
+        value = reason,
+        onValueChange = { reason = it },
+        label = stringResource(Res.string.moderation_standing_reason),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    val trimmedReason: String? = reason.trim().takeIf { it.isNotBlank() }
+    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = { onSetStanding(userId, STANDING_PROVIDER, "muted", trimmedReason) },
+                enabled = enabled,
+            ) {
+                Text(
+                    text = stringResource(Res.string.moderation_standing_muted),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                )
+            }
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = { onSetStanding(userId, STANDING_PROVIDER, "shadowbanned", trimmedReason) },
+                enabled = enabled,
+            ) {
+                Text(
+                    text = stringResource(Res.string.moderation_standing_shadowbanned),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                )
+            }
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = { onSetStanding(userId, STANDING_PROVIDER, "blacklisted", trimmedReason) },
+                enabled = enabled,
+            ) {
+                Text(
+                    text = stringResource(Res.string.moderation_standing_blacklisted),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                )
+            }
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(onClick = { onClearStanding(userId, STANDING_PROVIDER) }, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.moderation_standing_restore),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                )
+            }
+        }
+    }
+    Text(
+        text = stringResource(Res.string.moderation_standing_hint),
+        style = typography.xs,
+        color = tokens.mutedForeground,
+    )
+}
+
+// The localized label for a bot-side standing tier value.
+@Composable
+private fun standingLabel(standing: String): String =
+    when (standing) {
+        "muted" -> stringResource(Res.string.moderation_standing_muted)
+        "shadowbanned" -> stringResource(Res.string.moderation_standing_shadowbanned)
+        "blacklisted" -> stringResource(Res.string.moderation_standing_blacklisted)
+        else -> standing
+    }
+
+// Muted is the mildest tier (secondary); shadowban / blacklist read as warnings (destructive).
+private fun standingBadgeVariant(standing: String): BadgeVariant =
+    when (standing) {
+        "muted" -> BadgeVariant.Secondary
+        else -> BadgeVariant.Destructive
+    }
+
+// The heat auto-timeout threshold (J.5) — a compact number input on the AutoMod card; saving re-sends the config.
+@Composable
+private fun HeatThresholdRow(threshold: Int, manage: ManageDecision, onSave: (Int) -> Unit) {
+    val spacing = LocalSpacing.current
+
+    var input: String by remember(threshold) { mutableStateOf(threshold.toString()) }
+    val parsed: Int? = input.trim().toIntOrNull()
+    val dirty: Boolean = parsed != null && parsed != threshold
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        AppTextField(
+            value = input,
+            onValueChange = { input = it },
+            label = stringResource(Res.string.moderation_heat_threshold_label),
+            supportingText = stringResource(Res.string.moderation_heat_threshold_hint),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        ManageGate(decision = manage) { enabled ->
+            Button(onClick = { parsed?.let(onSave) }, enabled = enabled && dirty) {
+                Text(stringResource(Res.string.moderation_heat_threshold_save))
+            }
+        }
+    }
+}
+
+// The escalation ladder summary card (J.10): enabled/disabled state + rung count/window, with an Edit affordance.
+@Composable
+private fun EscalationLadderCard(policy: EscalationPolicy, manage: ManageDecision, onEdit: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = stringResource(Res.string.moderation_escalation_desc),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            Badge(variant = if (policy.isEnabled) BadgeVariant.Default else BadgeVariant.Secondary) {
+                Text(
+                    text =
+                        stringResource(
+                            if (policy.isEnabled) Res.string.moderation_escalation_enabled
+                            else Res.string.moderation_escalation_disabled
+                        ),
+                    style = typography.xs,
+                )
+            }
+            Text(
+                text =
+                    stringResource(
+                        Res.string.moderation_escalation_summary,
+                        policy.ladder.size,
+                        policy.offenseWindowHours,
+                    ),
+                style = typography.sm,
+                color = tokens.cardForeground,
+                modifier = Modifier.weight(1f),
+            )
+            ManageGate(decision = manage) { enabled ->
+                TextButton(onClick = onEdit, enabled = enabled) {
+                    Text(
+                        text = stringResource(Res.string.moderation_escalation_edit),
+                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// One editable rung's working state in the escalation dialog (Compose-observable so badge/duration edits recompose).
+private class EditableRung(action: String, timeoutSeconds: String) {
+    var action: String by mutableStateOf(action)
+    var timeoutSeconds: String by mutableStateOf(timeoutSeconds)
+}
+
+// Edit the whole escalation policy (J.10) — enable flag, window, AutoMod counting, and an ordered rung list (the
+// offense number is the position, so rungs are always strictly ascending). Saving replaces the ladder whole.
+@Composable
+private fun EscalationLadderDialog(
+    policy: EscalationPolicy,
+    onConfirm: (UpsertEscalationPolicyBody) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var enabled: Boolean by remember { mutableStateOf(policy.isEnabled) }
+    var countAutomod: Boolean by remember { mutableStateOf(policy.countAutoModViolations) }
+    var windowInput: String by remember { mutableStateOf(policy.offenseWindowHours.toString()) }
+    val rungs: SnapshotStateList<EditableRung> =
+        remember {
+            mutableStateListOf<EditableRung>().apply {
+                policy.ladder.forEach {
+                    add(EditableRung(it.action.ifBlank { "warn" }, it.timeoutSeconds?.toString() ?: "600"))
+                }
+            }
+        }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.moderation_escalation_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                ) {
+                    Switch(checked = enabled, onCheckedChange = { enabled = it })
+                    Text(
+                        text = stringResource(Res.string.moderation_escalation_enable_label),
+                        style = typography.sm,
+                        color = tokens.cardForeground,
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                ) {
+                    Switch(checked = countAutomod, onCheckedChange = { countAutomod = it })
+                    Text(
+                        text = stringResource(Res.string.moderation_escalation_count_automod),
+                        style = typography.sm,
+                        color = tokens.cardForeground,
+                    )
+                }
+                AppTextField(
+                    value = windowInput,
+                    onValueChange = { windowInput = it },
+                    label = stringResource(Res.string.moderation_escalation_window),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                rungs.forEachIndexed { index, rung ->
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                        Text(
+                            text = stringResource(Res.string.moderation_escalation_rung, index + 1),
+                            style = typography.xs,
+                            color = tokens.mutedForeground,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                            Badge(selected = rung.action == "warn", onClick = { rung.action = "warn" }) {
+                                Text(stringResource(Res.string.moderation_escalation_action_warn), style = typography.xs)
+                            }
+                            Badge(selected = rung.action == "timeout", onClick = { rung.action = "timeout" }) {
+                                Text(stringResource(Res.string.moderation_escalation_action_timeout), style = typography.xs)
+                            }
+                            Badge(selected = rung.action == "ban", onClick = { rung.action = "ban" }) {
+                                Text(stringResource(Res.string.moderation_escalation_action_ban), style = typography.xs)
+                            }
+                            TextButton(onClick = { rungs.removeAt(index) }) {
+                                Text(
+                                    text = stringResource(Res.string.moderation_escalation_remove_rung),
+                                    color = tokens.destructive,
+                                )
+                            }
+                        }
+                        if (rung.action == "timeout") {
+                            AppTextField(
+                                value = rung.timeoutSeconds,
+                                onValueChange = { rung.timeoutSeconds = it },
+                                label = stringResource(Res.string.moderation_escalation_duration),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                }
+                TextButton(onClick = { rungs.add(EditableRung("warn", "600")) }) {
+                    Text(
+                        text = stringResource(Res.string.moderation_escalation_add_rung),
+                        color = tokens.primary,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val ladder: List<EscalationLadderStep> =
+                        rungs.mapIndexed { index, rung ->
+                            EscalationLadderStep(
+                                atOffense = index + 1,
+                                action = rung.action,
+                                timeoutSeconds =
+                                    if (rung.action == "timeout") rung.timeoutSeconds.trim().toIntOrNull()
+                                    else null,
+                            )
+                        }
+                    onConfirm(
+                        UpsertEscalationPolicyBody(
+                            isEnabled = enabled,
+                            ladder = ladder,
+                            offenseWindowHours = windowInput.trim().toIntOrNull() ?: 0,
+                            countAutoModViolations = countAutomod,
+                        )
+                    )
+                },
+            ) {
+                Text(stringResource(Res.string.moderation_escalation_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.moderation_escalation_cancel))
+            }
+        },
+    )
+}
+
+// The shared-ban trust web (J.9): two opt-in switches (accept inbound / share outbound) that persist on toggle,
+// plus the trusted-partner list with add-by-channel-id and per-row delete. Writes are Lead-Moderator (SuperMod).
+@Composable
+private fun SharedBansCard(
+    settings: SharedBanSettings,
+    manage: ManageDecision,
+    onSave: (accept: Boolean, share: Boolean) -> Unit,
+    onAddTrusted: (String) -> Unit,
+    onRemoveTrusted: (String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var newChannel: String by remember(settings) { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = stringResource(Res.string.moderation_shared_desc),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        SharedBanSwitchRow(
+            label = stringResource(Res.string.moderation_shared_accept),
+            hint = stringResource(Res.string.moderation_shared_accept_hint),
+            checked = settings.acceptSharedChatBans,
+            manage = manage,
+            onToggle = { onSave(it, settings.shareOutgoingBans) },
+        )
+        SharedBanSwitchRow(
+            label = stringResource(Res.string.moderation_shared_share),
+            hint = stringResource(Res.string.moderation_shared_share_hint),
+            checked = settings.shareOutgoingBans,
+            manage = manage,
+            onToggle = { onSave(settings.acceptSharedChatBans, it) },
+        )
+        Separator()
+        Text(
+            text = stringResource(Res.string.moderation_shared_trusted_title),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        if (settings.trustedChannels.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.moderation_shared_trusted_empty),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        } else {
+            settings.trustedChannels.forEach { channel -> TrustedChannelRow(channel, manage, onRemoveTrusted) }
+        }
+        AppTextField(
+            value = newChannel,
+            onValueChange = { newChannel = it },
+            label = stringResource(Res.string.moderation_shared_trusted_add_label),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        ManageGate(decision = manage) { enabled ->
+            Button(
+                onClick = {
+                    onAddTrusted(newChannel.trim())
+                    newChannel = ""
+                },
+                enabled = enabled && newChannel.isNotBlank(),
+            ) {
+                Text(stringResource(Res.string.moderation_shared_trusted_add))
+            }
+        }
+    }
+}
+
+// One shared-ban switch row: label + hint on the left, the toggle (manage-gated) on the right.
+@Composable
+private fun SharedBanSwitchRow(
+    label: String,
+    hint: String,
+    checked: Boolean,
+    manage: ManageDecision,
+    onToggle: (Boolean) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacing.s1),
+        ) {
+            Text(text = label, style = typography.sm, color = tokens.cardForeground)
+            Text(text = hint, style = typography.xs, color = tokens.mutedForeground)
+        }
+        ManageGate(decision = manage) { enabled ->
+            Switch(checked = checked, onCheckedChange = { onToggle(it) }, enabled = enabled)
+        }
+    }
+}
+
+// One trusted-partner row: its display name (or id) + a manage-gated Remove.
+@Composable
+private fun TrustedChannelRow(
+    channel: SharedBanTrustedChannel,
+    manage: ManageDecision,
+    onRemove: (String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = channel.trustedChannelName.takeIf { it.isNotBlank() } ?: channel.trustedChannelId,
+            style = typography.sm,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(onClick = { onRemove(channel.trustedChannelId) }, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.moderation_shared_trusted_remove),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                )
+            }
+        }
+    }
+}
+
+// One network-nuke batch row (J.2a): target + reach + status, with a Revert affordance while active/partial.
+@Composable
+private fun NukeBatchRow(batch: NetworkNukeBatch, manage: ManageDecision, onRevert: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val target: String = batch.targetTwitchUserId ?: batch.targetUserId ?: ""
+    val revertable: Boolean = batch.status == "active" || batch.status == "partial"
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacing.s1),
+        ) {
+            Text(
+                text = stringResource(Res.string.moderation_nuke_target, target),
+                style = typography.sm,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = stringResource(Res.string.moderation_nuke_channels, batch.channelCount),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
+        Badge(variant = nukeStatusVariant(batch.status)) {
+            Text(text = nukeStatusLabel(batch.status), style = typography.xs)
+        }
+        if (revertable) {
+            ManageGate(decision = manage) { enabled ->
+                TextButton(onClick = onRevert, enabled = enabled) {
+                    Text(
+                        text = stringResource(Res.string.moderation_nuke_revert),
+                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// The localized label for a nuke batch status value.
+@Composable
+private fun nukeStatusLabel(status: String): String =
+    when (status) {
+        "active" -> stringResource(Res.string.moderation_nuke_status_active)
+        "partial" -> stringResource(Res.string.moderation_nuke_status_partial)
+        "reverted" -> stringResource(Res.string.moderation_nuke_status_reverted)
+        else -> status
+    }
+
+// Partial legs read as a warning (destructive); reverted is muted (secondary); active is the default accent.
+private fun nukeStatusVariant(status: String): BadgeVariant =
+    when (status) {
+        "partial" -> BadgeVariant.Destructive
+        "reverted" -> BadgeVariant.Secondary
+        else -> BadgeVariant.Default
+    }

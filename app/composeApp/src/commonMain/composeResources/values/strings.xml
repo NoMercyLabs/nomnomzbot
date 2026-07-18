@@ -2275,4 +2275,78 @@
     <string name="engagement_cooldown_hint">Minimum gap before greeting the same viewer again.</string>
     <string name="engagement_cooldown_invalid">Enter a whole number of seconds (0 or more).</string>
     <string name="shell_channel_moderate_hint">Moderate — click to open</string>
+
+    <!-- Moderation — user history + trust/heat (J.4 / J.5) -->
+    <string name="moderation_history_title">History (all actions)</string>
+    <string name="moderation_history_timeouts">Timeouts</string>
+    <string name="moderation_history_bans">Bans</string>
+    <string name="moderation_history_warnings">Warnings</string>
+    <string name="moderation_history_deleted">Deleted</string>
+    <string name="moderation_history_first_seen">First seen %1$s</string>
+    <string name="moderation_trust_badge">Trust %1$s</string>
+    <string name="moderation_heat_badge">Heat %1$s</string>
+
+    <!-- Moderation — bot-side standing tiers (J.12) -->
+    <string name="moderation_standing_title">Standing</string>
+    <string name="moderation_standing_normal">Normal standing</string>
+    <string name="moderation_standing_muted">Muted</string>
+    <string name="moderation_standing_shadowbanned">Shadowbanned</string>
+    <string name="moderation_standing_blacklisted">Blacklisted</string>
+    <string name="moderation_standing_restore">Restore</string>
+    <string name="moderation_standing_reason">Reason (optional)</string>
+    <string name="moderation_standing_badge">%1$s · %2$s</string>
+    <string name="moderation_standing_hint">Muted: the bot ignores them (no commands, triggers, votes, giveaways, earning). Shadowbanned: also hidden from overlays. Blacklisted: their chat is dropped entirely.</string>
+
+    <!-- Moderation — escalation ladder (J.10 / J.11) + heat threshold -->
+    <string name="moderation_escalation_title">Escalation ladder</string>
+    <string name="moderation_escalation_desc">Repeat-offender policy — each offense within the window climbs the ladder.</string>
+    <string name="moderation_escalation_enabled">Enabled</string>
+    <string name="moderation_escalation_disabled">Disabled</string>
+    <string name="moderation_escalation_edit">Edit ladder</string>
+    <string name="moderation_escalation_summary">%1$d rungs · window %2$dh</string>
+    <string name="moderation_escalation_enable_label">Enable escalation</string>
+    <string name="moderation_escalation_window">Offense window (hours)</string>
+    <string name="moderation_escalation_count_automod">Count AutoMod violations</string>
+    <string name="moderation_escalation_rung">Offense %1$d</string>
+    <string name="moderation_escalation_action_warn">Warn</string>
+    <string name="moderation_escalation_action_timeout">Timeout</string>
+    <string name="moderation_escalation_action_ban">Ban</string>
+    <string name="moderation_escalation_duration">Duration (seconds)</string>
+    <string name="moderation_escalation_add_rung">Add rung</string>
+    <string name="moderation_escalation_remove_rung">Remove</string>
+    <string name="moderation_escalation_save">Save</string>
+    <string name="moderation_escalation_cancel">Cancel</string>
+    <string name="moderation_escalation_forgive">Forgive (reset ladder)</string>
+    <string name="moderation_heat_threshold_label">Heat auto-timeout threshold</string>
+    <string name="moderation_heat_threshold_hint">Heat score (0–100) that triggers an automatic timeout.</string>
+    <string name="moderation_heat_threshold_save">Save</string>
+
+    <!-- Moderation — network nuke (J.2a) -->
+    <string name="moderation_nuke_action">Network nuke</string>
+    <string name="moderation_nuke_confirm_title">Network nuke</string>
+    <string name="moderation_nuke_confirm_message">Ban %1$s across every channel where you are Lead Moderator or above. Reversible only by reverting the nuke batch.</string>
+    <string name="moderation_nuke_confirm">Nuke everywhere</string>
+    <string name="moderation_nuke_dismiss">Cancel</string>
+    <string name="moderation_nuke_batches_title">Network nuke history</string>
+    <string name="moderation_nuke_target">Target %1$s</string>
+    <string name="moderation_nuke_channels">%1$d channels</string>
+    <string name="moderation_nuke_status_active">Active</string>
+    <string name="moderation_nuke_status_partial">Partial</string>
+    <string name="moderation_nuke_status_reverted">Reverted</string>
+    <string name="moderation_nuke_revert">Revert</string>
+    <string name="moderation_nuke_revert_title">Revert nuke</string>
+    <string name="moderation_nuke_revert_message">Lift the ban on %1$s across %2$d channels?</string>
+
+    <!-- Moderation — shared-ban trust web (J.9 / J.9a) -->
+    <string name="moderation_shared_title">Shared-chat bans</string>
+    <string name="moderation_shared_desc">Trust web for shared-chat sessions.</string>
+    <string name="moderation_shared_accept">Apply trusted partners\' bans here</string>
+    <string name="moderation_shared_accept_hint">Bans from a trusted partner during a shared-chat session also apply in your channel.</string>
+    <string name="moderation_shared_share">Share our bans with partners</string>
+    <string name="moderation_shared_share_hint">Offer your bans to trusted partners during a shared-chat session.</string>
+    <string name="moderation_shared_trusted_title">Trusted channels</string>
+    <string name="moderation_shared_trusted_empty">No trusted channels yet.</string>
+    <string name="moderation_shared_trusted_add_label">Trusted channel ID</string>
+    <string name="moderation_shared_trusted_add">Add</string>
+    <string name="moderation_shared_trusted_remove">Remove</string>
 </resources>

@@ -18,9 +18,19 @@ import bot.nomnomz.dashboard.core.network.AutomodCapsFilter
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.CreateModerationRuleBody
+import bot.nomnomz.dashboard.core.network.EscalationLadderStep
+import bot.nomnomz.dashboard.core.network.EscalationPolicy
 import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.ModerationRule
+import bot.nomnomz.dashboard.core.network.ModerationStanding
 import bot.nomnomz.dashboard.core.network.ModerationStats
+import bot.nomnomz.dashboard.core.network.NetworkNukeBatch
+import bot.nomnomz.dashboard.core.network.NetworkNukeBody
+import bot.nomnomz.dashboard.core.network.SaveSharedBanSettingsBody
+import bot.nomnomz.dashboard.core.network.SetModerationStandingBody
+import bot.nomnomz.dashboard.core.network.SharedBanSettings
+import bot.nomnomz.dashboard.core.network.SharedBanTrustedChannel
+import bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody
 import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -643,6 +653,149 @@ class ModerationControllerTest {
         assertEquals(listOf("n1"), api.deletedNotes)
         assertEquals(2, api.userContextCalls.size)
     }
+
+    @Test
+    fun load_surfaces_the_escalation_policy_and_shared_ban_settings_on_ready() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(listOf(BannedUser(id = "u1", username = "troll"))))
+        api.escalationResult =
+            ApiResult.Ok(EscalationPolicy(isEnabled = true, offenseWindowHours = 168))
+        api.sharedBanResult = ApiResult.Ok(SharedBanSettings(acceptSharedChatBans = true, shareOutgoingBans = false))
+        api.nukeBatchesResult = ApiResult.Ok(listOf(NetworkNukeBatch(id = "b1", channelCount = 3, status = "active")))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+
+        controller.load()
+
+        val ready = controller.state.value as ModerationState.Ready
+        assertEquals(true, ready.escalationPolicy?.isEnabled)
+        assertEquals(168, ready.escalationPolicy?.offenseWindowHours)
+        assertEquals(true, ready.sharedBanSettings?.acceptSharedChatBans)
+        assertEquals(1, ready.nukeBatches.size)
+        assertEquals("active", ready.nukeBatches.first().status)
+    }
+
+    @Test
+    fun save_escalation_policy_sends_the_whole_ladder_and_reloads() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.saveEscalationPolicy(
+            UpsertEscalationPolicyBody(
+                isEnabled = true,
+                ladder =
+                    listOf(
+                        EscalationLadderStep(atOffense = 1, action = "warn"),
+                        EscalationLadderStep(atOffense = 2, action = "timeout", timeoutSeconds = 600),
+                    ),
+                offenseWindowHours = 24,
+                countAutoModViolations = true,
+            )
+        )
+
+        // The whole ladder + settings reached the API, and the page reloaded (initial load + post-save reload).
+        assertEquals(2, api.savedEscalation?.ladder?.size)
+        assertEquals("timeout", api.savedEscalation?.ladder?.get(1)?.action)
+        assertEquals(24, api.savedEscalation?.offenseWindowHours)
+        assertEquals(2, api.bansCalls)
+    }
+
+    @Test
+    fun forgive_user_resets_the_ladder_and_reloads_the_panel() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+        controller.openUserContext("u1")
+
+        controller.forgiveUser("u1")
+
+        assertEquals(listOf("u1"), api.resetEscalations)
+        assertEquals(2, api.userContextCalls.size)
+    }
+
+    @Test
+    fun set_heat_threshold_resends_the_full_automod_config() = runTest {
+        val api =
+            FakeModerationApi(
+                // A banned viewer makes load() resolve to Ready (setHeatTimeoutThreshold reads the current config).
+                bansResults = listOf(ApiResult.Ok(listOf(BannedUser(id = "u1")))),
+                automodResult = ApiResult.Ok(AutomodConfig(heatTimeoutThreshold = 80)),
+            )
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.setHeatTimeoutThreshold(50)
+
+        // The whole config was re-sent with only the threshold changed.
+        assertEquals(50, api.lastSavedAutomod?.heatTimeoutThreshold)
+    }
+
+    @Test
+    fun network_nuke_forces_confirmation_and_records_the_target() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.networkNuke("victim42", reason = "raid", matchTerm = null)
+
+        assertEquals(1, api.nuked.size)
+        assertEquals("victim42", api.nuked.first().targetTwitchUserId)
+        // The single-confirmation guardrail is always asserted true on the wire.
+        assertTrue(api.nuked.first().requireConfirmation)
+        assertEquals(2, api.bansCalls)
+    }
+
+    @Test
+    fun save_shared_ban_settings_sends_both_switches_explicitly() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.saveSharedBanSettings(accept = true, share = false)
+
+        assertEquals(true to false, api.savedSharedBans)
+        assertEquals(2, api.bansCalls)
+    }
+
+    @Test
+    fun add_trusted_channel_records_the_id_and_reloads() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        controller.addTrustedChannel("partner-ulid")
+
+        assertEquals(listOf("partner-ulid"), api.addedTrusted)
+        assertEquals(2, api.bansCalls)
+    }
+
+    @Test
+    fun set_standing_sends_provider_and_tier_then_reloads_the_panel() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+        controller.openUserContext("u1")
+
+        controller.setStanding("u1", provider = "twitch", standing = "muted", reason = "spam")
+
+        assertEquals(listOf(Triple("u1", "twitch", "muted")), api.standingsSet)
+        assertEquals(2, api.userContextCalls.size)
+    }
+
+    @Test
+    fun clear_standing_restores_normal_and_reloads_the_panel() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+        controller.openUserContext("u1")
+
+        controller.clearStanding("u1", provider = "twitch")
+
+        assertEquals(listOf("u1" to "twitch"), api.standingsCleared)
+        assertEquals(2, api.userContextCalls.size)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -876,6 +1029,104 @@ private class FakeModerationApi(
         action: String,
     ): ApiResult<Unit> {
         resolvedReports.add(reportId to action)
+        return ApiResult.Ok(Unit)
+    }
+
+    var escalationResult: ApiResult<EscalationPolicy> = ApiResult.Ok(EscalationPolicy())
+    var savedEscalation: UpsertEscalationPolicyBody? = null
+    val resetEscalations: MutableList<String> = mutableListOf()
+
+    override suspend fun escalationPolicy(channelId: String): ApiResult<EscalationPolicy> = escalationResult
+
+    override suspend fun saveEscalationPolicy(
+        channelId: String,
+        body: UpsertEscalationPolicyBody,
+    ): ApiResult<EscalationPolicy> {
+        savedEscalation = body
+        return ApiResult.Ok(
+            EscalationPolicy(
+                isEnabled = body.isEnabled,
+                ladder = body.ladder,
+                offenseWindowHours = body.offenseWindowHours,
+                countAutoModViolations = body.countAutoModViolations,
+            )
+        )
+    }
+
+    override suspend fun resetEscalation(channelId: String, userId: String): ApiResult<Unit> {
+        resetEscalations.add(userId)
+        return ApiResult.Ok(Unit)
+    }
+
+    var nukeBatchesResult: ApiResult<List<NetworkNukeBatch>> = ApiResult.Ok(emptyList())
+    val nuked: MutableList<NetworkNukeBody> = mutableListOf()
+    val revertedNukes: MutableList<String> = mutableListOf()
+
+    override suspend fun nukeBatches(channelId: String): ApiResult<List<NetworkNukeBatch>> = nukeBatchesResult
+
+    override suspend fun networkNuke(channelId: String, body: NetworkNukeBody): ApiResult<NetworkNukeBatch> {
+        nuked.add(body)
+        return ApiResult.Ok(
+            NetworkNukeBatch(id = "batch", targetTwitchUserId = body.targetTwitchUserId, status = "active")
+        )
+    }
+
+    override suspend fun revertNuke(channelId: String, batchId: String): ApiResult<NetworkNukeBatch> {
+        revertedNukes.add(batchId)
+        return ApiResult.Ok(NetworkNukeBatch(id = batchId, status = "reverted"))
+    }
+
+    var sharedBanResult: ApiResult<SharedBanSettings> = ApiResult.Ok(SharedBanSettings())
+    var savedSharedBans: Pair<Boolean, Boolean>? = null
+    val addedTrusted: MutableList<String> = mutableListOf()
+    val removedTrusted: MutableList<String> = mutableListOf()
+
+    override suspend fun sharedBanSettings(channelId: String): ApiResult<SharedBanSettings> = sharedBanResult
+
+    override suspend fun saveSharedBanSettings(
+        channelId: String,
+        body: SaveSharedBanSettingsBody,
+    ): ApiResult<SharedBanSettings> {
+        savedSharedBans = body.acceptSharedChatBans to body.shareOutgoingBans
+        return ApiResult.Ok(SharedBanSettings(body.acceptSharedChatBans, body.shareOutgoingBans))
+    }
+
+    override suspend fun addTrustedChannel(
+        channelId: String,
+        trustedChannelId: String,
+    ): ApiResult<SharedBanTrustedChannel> {
+        addedTrusted.add(trustedChannelId)
+        return ApiResult.Ok(SharedBanTrustedChannel(trustedChannelId = trustedChannelId))
+    }
+
+    override suspend fun removeTrustedChannel(
+        channelId: String,
+        trustedChannelId: String,
+    ): ApiResult<Unit> {
+        removedTrusted.add(trustedChannelId)
+        return ApiResult.Ok(Unit)
+    }
+
+    val standingsSet: MutableList<Triple<String, String, String>> = mutableListOf()
+    val standingsCleared: MutableList<Pair<String, String>> = mutableListOf()
+
+    override suspend fun setStanding(
+        channelId: String,
+        userId: String,
+        body: SetModerationStandingBody,
+    ): ApiResult<ModerationStanding> {
+        standingsSet.add(Triple(userId, body.provider, body.standing))
+        return ApiResult.Ok(
+            ModerationStanding(userId = userId, provider = body.provider, standing = body.standing)
+        )
+    }
+
+    override suspend fun clearStanding(
+        channelId: String,
+        userId: String,
+        provider: String,
+    ): ApiResult<Unit> {
+        standingsCleared.add(userId to provider)
         return ApiResult.Ok(Unit)
     }
 }

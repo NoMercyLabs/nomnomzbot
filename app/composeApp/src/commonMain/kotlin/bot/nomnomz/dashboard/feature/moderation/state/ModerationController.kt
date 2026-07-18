@@ -21,10 +21,19 @@ import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.CreateModerationRuleBody
 import bot.nomnomz.dashboard.core.network.ModerationActionResult
 import bot.nomnomz.dashboard.core.network.ModerationApi
+import bot.nomnomz.dashboard.core.network.EscalationPolicy
 import bot.nomnomz.dashboard.core.network.ModerationRule
+import bot.nomnomz.dashboard.core.network.ModerationStanding
 import bot.nomnomz.dashboard.core.network.ModerationStats
 import bot.nomnomz.dashboard.core.network.NetworkBanResult
+import bot.nomnomz.dashboard.core.network.NetworkNukeBatch
+import bot.nomnomz.dashboard.core.network.NetworkNukeBody
+import bot.nomnomz.dashboard.core.network.SaveSharedBanSettingsBody
+import bot.nomnomz.dashboard.core.network.SetModerationStandingBody
+import bot.nomnomz.dashboard.core.network.SharedBanSettings
+import bot.nomnomz.dashboard.core.network.SharedBanTrustedChannel
 import bot.nomnomz.dashboard.core.network.UnbanRequest
+import bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody
 import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.UserModerationContext
 import bot.nomnomz.dashboard.core.network.UserNote
@@ -167,6 +176,28 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // The repeat-offender escalation ladder (J.10). Resilient — a failure (below the read floor) leaves the
+        // card hidden rather than failing the page; when unset the backend still returns the disabled default.
+        val escalationPolicy: EscalationPolicy? =
+            when (val result: ApiResult<EscalationPolicy> = moderationApi.escalationPolicy(channel.id)) {
+                is ApiResult.Failure -> null
+                is ApiResult.Ok -> result.value
+            }
+
+        // The shared-ban trust web (J.9). Resilient — a failure (SuperMod-gated read) leaves the card hidden.
+        val sharedBanSettings: SharedBanSettings? =
+            when (val result: ApiResult<SharedBanSettings> = moderationApi.sharedBanSettings(channel.id)) {
+                is ApiResult.Failure -> null
+                is ApiResult.Ok -> result.value
+            }
+
+        // The network-nuke batch history (J.2a). Resilient — a failure degrades to an empty table.
+        val nukeBatches: List<NetworkNukeBatch> =
+            when (val result: ApiResult<List<NetworkNukeBatch>> = moderationApi.nukeBatches(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         // Empty only when there is genuinely nothing to show AND every always-on control (shield, automod) is off
         // AND every live-Twitch section is available (an unavailable section must render Ready so its needs-permission
         // notice shows — never Empty, which would read as "nothing here" rather than "you can't see this here").
@@ -199,6 +230,9 @@ class ModerationController(
                     bansAvailable = bansAvailable,
                     blockedTermsAvailable = blockedTermsAvailable,
                     shieldAvailable = shieldAvailable,
+                    escalationPolicy = escalationPolicy,
+                    sharedBanSettings = sharedBanSettings,
+                    nukeBatches = nukeBatches,
                 )
             }
     }
@@ -356,6 +390,130 @@ class ModerationController(
         val channel: String = channelId ?: return
         when (val result: ApiResult<NetworkBanResult> = moderationApi.networkUnban(channel, userId, scope)) {
             is ApiResult.Ok -> load()
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /**
+     * Replace the whole escalation policy ([policy]) — enable flag, ladder, window, AutoMod-counting — then reload
+     * so the card reflects it. Surfaces the error on failure. No-ops when no channel is loaded.
+     */
+    suspend fun saveEscalationPolicy(policy: UpsertEscalationPolicyBody) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<EscalationPolicy> = moderationApi.saveEscalationPolicy(channel, policy)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /**
+     * Forgive [userId] — reset their offense tally against the escalation ladder — then reload their rap sheet.
+     * Surfaces the error on failure. No-ops when no channel is loaded.
+     */
+    suspend fun forgiveUser(userId: String) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<Unit> = moderationApi.resetEscalation(channel, userId)) {
+            is ApiResult.Ok -> openUserContext(userId)
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /**
+     * Set the heat score [threshold] (0–100) at which the ladder auto-times-out a viewer, re-sending the whole
+     * AutoMod config (the backend POST takes the full config). Reloads on success; no-ops off a Ready state.
+     */
+    suspend fun setHeatTimeoutThreshold(threshold: Int) {
+        val channel: String = channelId ?: return
+        val current: ModerationState = _state.value
+        if (current !is ModerationState.Ready) return
+        val updated: AutomodConfig = current.automod.copy(heatTimeoutThreshold = threshold)
+        afterWrite(moderationApi.saveAutomod(channel, updated))
+    }
+
+    /**
+     * Fan-out ban [targetTwitchUserId] across every channel the operator holds SuperMod+ on (the network nuke,
+     * J.2a) — [requireConfirmation] is forced true, so the screen MUST confirm the blast radius first. Reloads on
+     * success so the new batch appears in the history. Surfaces the error on failure; no-ops with no channel.
+     */
+    suspend fun networkNuke(targetTwitchUserId: String, reason: String?, matchTerm: String?) {
+        val channel: String = channelId ?: return
+        val body: NetworkNukeBody =
+            NetworkNukeBody(
+                targetTwitchUserId = targetTwitchUserId,
+                reason = reason,
+                matchTerm = matchTerm,
+                requireConfirmation = true,
+            )
+        when (val result: ApiResult<NetworkNukeBatch> = moderationApi.networkNuke(channel, body)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /** Revert nuke batch [batchId] — lift every leg — then reload so its status flips to reverted. */
+    suspend fun revertNuke(batchId: String) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<NetworkNukeBatch> = moderationApi.revertNuke(channel, batchId)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /**
+     * Save the shared-ban policy — [accept] applies trusted partners' bans here, [share] offers ours to them
+     * (both explicit on every save). Reloads on success; surfaces the error on failure. No-ops with no channel.
+     */
+    suspend fun saveSharedBanSettings(accept: Boolean, share: Boolean) {
+        val channel: String = channelId ?: return
+        val body: SaveSharedBanSettingsBody =
+            SaveSharedBanSettingsBody(acceptSharedChatBans = accept, shareOutgoingBans = share)
+        when (val result: ApiResult<SharedBanSettings> = moderationApi.saveSharedBanSettings(channel, body)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /** Add [trustedChannelId] to the shared-ban trust list, then reload so it appears. Surfaces the error. */
+    suspend fun addTrustedChannel(trustedChannelId: String) {
+        val channel: String = channelId ?: return
+        when (
+            val result: ApiResult<SharedBanTrustedChannel> =
+                moderationApi.addTrustedChannel(channel, trustedChannelId)
+        ) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /** Remove [trustedChannelId] from the trust list, then reload so it drops off. Surfaces the error. */
+    suspend fun removeTrustedChannel(trustedChannelId: String) {
+        val channel: String = channelId ?: return
+        afterWrite(moderationApi.removeTrustedChannel(channel, trustedChannelId))
+    }
+
+    /**
+     * Set [userId]'s bot-side [standing] (`muted` | `shadowbanned` | `blacklisted`) on [provider] with optional
+     * [reason], then reload their rap sheet so the badge + standings list reflect it. Surfaces the error on
+     * failure (e.g. 409 assigning the broadcaster one). No-ops when no channel is loaded.
+     */
+    suspend fun setStanding(userId: String, provider: String, standing: String, reason: String?) {
+        val channel: String = channelId ?: return
+        val body: SetModerationStandingBody =
+            SetModerationStandingBody(provider = provider, standing = standing, reason = reason)
+        when (
+            val result: ApiResult<ModerationStanding> =
+                moderationApi.setStanding(channel, userId, body)
+        ) {
+            is ApiResult.Ok -> openUserContext(userId)
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /** Restore [userId] to normal standing on [provider], then reload their rap sheet. Surfaces the error. */
+    suspend fun clearStanding(userId: String, provider: String) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<Unit> = moderationApi.clearStanding(channel, userId, provider)) {
+            is ApiResult.Ok -> openUserContext(userId)
             is ApiResult.Failure -> setActionError(result.error.message)
         }
     }
@@ -569,6 +727,11 @@ sealed interface ModerationState {
         val bansAvailable: Boolean = true,
         val blockedTermsAvailable: Boolean = true,
         val shieldAvailable: Boolean = true,
+        // The escalation ladder (J.10) + shared-ban trust web (J.9), null when the read failed (below the floor);
+        // the network-nuke batch history (J.2a). See load().
+        val escalationPolicy: EscalationPolicy? = null,
+        val sharedBanSettings: SharedBanSettings? = null,
+        val nukeBatches: List<NetworkNukeBatch> = emptyList(),
     ) : ModerationState
 
     data object Empty : ModerationState

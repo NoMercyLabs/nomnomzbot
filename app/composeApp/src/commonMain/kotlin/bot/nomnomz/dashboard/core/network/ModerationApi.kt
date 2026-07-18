@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.core.network
 
 import io.ktor.http.encodeURLPathPart
+import io.ktor.http.encodeURLQueryComponent
 import kotlinx.serialization.Serializable
 
 // The typed moderation facade. It renders the channel's currently-banned viewers and lets a moderator lift a
@@ -169,6 +170,66 @@ interface ModerationApi {
      * the mod then acts via the ban/timeout tools; it only moves the report out of the open queue.
      */
     suspend fun resolveReport(channelId: String, reportId: String, action: String): ApiResult<Unit>
+
+    // ── Escalation ladder (repeat-offender policy, J.10 / J.11) ──────────────────────────────────────
+
+    /** The channel's escalation policy — when unset the backend returns the DISABLED default ladder. */
+    suspend fun escalationPolicy(channelId: String): ApiResult<EscalationPolicy>
+
+    /** Replace the whole escalation policy (ladder is replaced whole, never patched). Returns the saved policy. */
+    suspend fun saveEscalationPolicy(
+        channelId: String,
+        body: UpsertEscalationPolicyBody,
+    ): ApiResult<EscalationPolicy>
+
+    /** Forgive [userId] — reset their offense tally against the ladder (204). */
+    suspend fun resetEscalation(channelId: String, userId: String): ApiResult<Unit>
+
+    // ── Network nuke (cross-channel mass ban + one-shot revert, J.2a) ────────────────────────────────
+
+    /** The channel's network-nuke batch history — newest first. */
+    suspend fun nukeBatches(channelId: String): ApiResult<List<NetworkNukeBatch>>
+
+    /**
+     * Fan-out ban [NetworkNukeBody.targetTwitchUserId] across every channel the ACTOR holds SuperMod+ on.
+     * [NetworkNukeBody.requireConfirmation] MUST be true — the UI must show a blast-radius confirm first.
+     */
+    suspend fun networkNuke(channelId: String, body: NetworkNukeBody): ApiResult<NetworkNukeBatch>
+
+    /** Revert nuke batch [batchId] — lift every leg. Returns the updated batch. */
+    suspend fun revertNuke(channelId: String, batchId: String): ApiResult<NetworkNukeBatch>
+
+    // ── Shared-ban trust web (J.9 / J.9a) ────────────────────────────────────────────────────────────
+
+    /** The channel's shared-ban policy (both switches) + its trusted-partner list. */
+    suspend fun sharedBanSettings(channelId: String): ApiResult<SharedBanSettings>
+
+    /** Save the shared-ban policy — both switches are explicit on every save. Returns the saved settings. */
+    suspend fun saveSharedBanSettings(
+        channelId: String,
+        body: SaveSharedBanSettingsBody,
+    ): ApiResult<SharedBanSettings>
+
+    /** Add [trustedChannelId] to the inbound-ban trust list (idempotent, 201). Returns the trusted row. */
+    suspend fun addTrustedChannel(
+        channelId: String,
+        trustedChannelId: String,
+    ): ApiResult<SharedBanTrustedChannel>
+
+    /** Remove [trustedChannelId] from the trust list (204). */
+    suspend fun removeTrustedChannel(channelId: String, trustedChannelId: String): ApiResult<Unit>
+
+    // ── Bot-side standing tiers (mute / shadowban / blacklist, J.12) ──────────────────────────────────
+
+    /** Set [userId]'s bot-side standing for one platform identity. Returns the saved standing. */
+    suspend fun setStanding(
+        channelId: String,
+        userId: String,
+        body: SetModerationStandingBody,
+    ): ApiResult<ModerationStanding>
+
+    /** Restore [userId] to normal standing on [provider] (204). */
+    suspend fun clearStanding(channelId: String, userId: String, provider: String): ApiResult<Unit>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -375,6 +436,86 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
             "api/v1/channels/$channelId/moderation/reports/$reportId",
             ResolveReportBody(action = action),
         )
+
+    // Single-value StatusResponseDto envelope ({ data: { … } }) — getEnvelope reads the policy.
+    override suspend fun escalationPolicy(channelId: String): ApiResult<EscalationPolicy> =
+        client.getEnvelope("api/v1/channels/$channelId/moderation/escalation")
+
+    // PUT returns the saved policy in a StatusResponseDto — putEnvelope reads `.data`.
+    override suspend fun saveEscalationPolicy(
+        channelId: String,
+        body: UpsertEscalationPolicyBody,
+    ): ApiResult<EscalationPolicy> =
+        client.putEnvelope("api/v1/channels/$channelId/moderation/escalation", body)
+
+    override suspend fun resetEscalation(channelId: String, userId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/moderation/escalation/users/$userId/reset")
+
+    // The nuke history is a flat PaginatedResponse ({ data: [...] }); getDirect + PaginatedEnvelope reads it.
+    override suspend fun nukeBatches(channelId: String): ApiResult<List<NetworkNukeBatch>> =
+        when (
+            val page: ApiResult<PaginatedEnvelope<NetworkNukeBatch>> =
+                client.getDirect("api/v1/channels/$channelId/moderation/nuke?Page=1&Take=25")
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
+
+    // POST returns the created batch in a StatusResponseDto — postEnvelope reads `.data`.
+    override suspend fun networkNuke(
+        channelId: String,
+        body: NetworkNukeBody,
+    ): ApiResult<NetworkNukeBatch> =
+        client.postEnvelope("api/v1/channels/$channelId/moderation/nuke", body)
+
+    override suspend fun revertNuke(channelId: String, batchId: String): ApiResult<NetworkNukeBatch> =
+        client.postEnvelope("api/v1/channels/$channelId/moderation/nuke/$batchId/revert")
+
+    override suspend fun sharedBanSettings(channelId: String): ApiResult<SharedBanSettings> =
+        client.getEnvelope("api/v1/channels/$channelId/moderation/shared-bans")
+
+    override suspend fun saveSharedBanSettings(
+        channelId: String,
+        body: SaveSharedBanSettingsBody,
+    ): ApiResult<SharedBanSettings> =
+        client.putEnvelope("api/v1/channels/$channelId/moderation/shared-bans", body)
+
+    // POST returns the created trusted row in a StatusResponseDto (201) — postEnvelope reads `.data`.
+    override suspend fun addTrustedChannel(
+        channelId: String,
+        trustedChannelId: String,
+    ): ApiResult<SharedBanTrustedChannel> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/moderation/shared-bans/trusted",
+            AddTrustedChannelBody(trustedChannelId = trustedChannelId),
+        )
+
+    override suspend fun removeTrustedChannel(
+        channelId: String,
+        trustedChannelId: String,
+    ): ApiResult<Unit> =
+        client.deleteUnit(
+            "api/v1/channels/$channelId/moderation/shared-bans/trusted/$trustedChannelId"
+        )
+
+    // POST returns the saved standing in a StatusResponseDto — postEnvelope reads `.data`.
+    override suspend fun setStanding(
+        channelId: String,
+        userId: String,
+        body: SetModerationStandingBody,
+    ): ApiResult<ModerationStanding> =
+        client.postEnvelope("api/v1/channels/$channelId/moderation/users/$userId/standing", body)
+
+    // The provider rides the query string (the backend keys standing per platform identity).
+    override suspend fun clearStanding(
+        channelId: String,
+        userId: String,
+        provider: String,
+    ): ApiResult<Unit> =
+        client.deleteUnit(
+            "api/v1/channels/$channelId/moderation/users/$userId/standing" +
+                "?provider=${provider.encodeURLQueryComponent()}"
+        )
 }
 
 /** Today's moderation counters (backend `GET /moderation/stats` anonymous object). */
@@ -434,6 +575,12 @@ data class UserModerationContext(
     val lastActionType: String? = null,
     val lastActionAt: String? = null,
     val recentActions: List<ModerationActionLog> = emptyList(),
+    // The viewer's bot-side standing per platform identity (J.12) — one row per provider.
+    val standings: List<ModerationStanding> = emptyList(),
+    // The J.4 all-actions rollup (counts EVERY Twitch-side action, not only bot-issued) — null until projected.
+    val history: UserModerationHistorySummary? = null,
+    // The J.5 long-term trust (0–100) + recent heat (0–100, 24h half-life) pair — null until projected.
+    val trust: UserTrustSummary? = null,
 )
 
 /**
@@ -476,6 +623,8 @@ data class AutomodConfig(
     val capsFilter: AutomodCapsFilter = AutomodCapsFilter(),
     val bannedPhrases: AutomodBannedPhrases = AutomodBannedPhrases(),
     val emoteSpam: AutomodEmoteSpam = AutomodEmoteSpam(),
+    // Heat score (0–100, J.5) at which the escalation ladder auto-times-out a viewer; 80 is the backend default.
+    val heatTimeoutThreshold: Int = 80,
 )
 
 /** AutoMod link filter (backend `AutomodLinkFilterDto`) — blocks links except the [whitelist]. */
@@ -620,3 +769,152 @@ data class CreateNoteBody(val content: String, val pinned: Boolean)
 /** Request body to edit a note (backend `UpdateUserNoteRequest`). A null field leaves that value unchanged. */
 @Serializable
 data class UpdateNoteBody(val content: String? = null, val pinned: Boolean? = null)
+
+/**
+ * The J.4 all-actions rollup on a viewer (backend `UserModerationHistorySummaryDto`) — counts EVERY Twitch-side
+ * action against them (timeouts / bans / warnings / deleted messages), not only bot-issued ones, plus when they
+ * were first seen and last actioned. camelCase mirror (the contract test guards this).
+ */
+@Serializable
+data class UserModerationHistorySummary(
+    val timeoutCount: Int = 0,
+    val banCount: Int = 0,
+    val warningCount: Int = 0,
+    val messagesDeletedCount: Int = 0,
+    val firstSeenAt: String? = null,
+    val lastActionAt: String? = null,
+    val lastActionType: String? = null,
+)
+
+/**
+ * The J.5 trust + heat pair on a viewer (backend `UserTrustSummaryDto`). [trustScore] is long-term (0–100);
+ * [heatScore] is recent pressure (0–100) that decays with a 24h half-life; both are doubles on the wire.
+ */
+@Serializable
+data class UserTrustSummary(
+    val trustScore: Double = 0.0,
+    val heatScore: Double = 0.0,
+    val computedAt: String = "",
+)
+
+/**
+ * One platform identity's bot-side standing (backend `ModerationStandingDto`, J.12). [standing] is one of
+ * `muted` | `shadowbanned` | `blacklisted`; [provider] is the platform the tier applies to (a Twitch mute
+ * doesn't mute their Kick identity).
+ */
+@Serializable
+data class ModerationStanding(
+    val userId: String = "",
+    val provider: String = "",
+    val standing: String = "",
+    val reason: String? = null,
+    val updatedAt: String = "",
+)
+
+/** Request body to set a viewer's bot-side standing (backend `SetModerationStandingRequest`). */
+@Serializable
+data class SetModerationStandingBody(
+    val provider: String,
+    val standing: String,
+    val reason: String? = null,
+)
+
+/**
+ * One rung of the escalation ladder (backend `EscalationLadderStep`, J.10). [atOffense] is the 1-based offense
+ * number this rung fires on; [action] is `warn` | `timeout` | `ban`; [timeoutSeconds] is only meaningful for
+ * `timeout`. Rungs are strictly ascending by [atOffense].
+ */
+@Serializable
+data class EscalationLadderStep(
+    val atOffense: Int = 0,
+    val action: String = "",
+    val timeoutSeconds: Int? = null,
+)
+
+/**
+ * The channel's escalation policy (backend `ModerationEscalationPolicyDto`, J.10). When unset the backend returns
+ * the DISABLED default ladder (warn → 60s → 600s → 3600s → 86400s → ban, 168h window).
+ */
+@Serializable
+data class EscalationPolicy(
+    val isEnabled: Boolean = false,
+    val ladder: List<EscalationLadderStep> = emptyList(),
+    val offenseWindowHours: Int = 0,
+    val countAutoModViolations: Boolean = false,
+)
+
+/** Full-policy upsert (backend `UpsertEscalationPolicyRequest`) — the ladder is replaced whole, never patched. */
+@Serializable
+data class UpsertEscalationPolicyBody(
+    val isEnabled: Boolean,
+    val ladder: List<EscalationLadderStep>,
+    val offenseWindowHours: Int,
+    val countAutoModViolations: Boolean,
+)
+
+/**
+ * One network-nuke batch (backend `NetworkNukeBatchDto`, J.2a). [status] is `active` | `partial` (some legs
+ * failed) | `reverted`. [channelCount] is how many channels the fan-out reached; [revertedByUserId] /
+ * [revertedAt] are set once un-nuked.
+ */
+@Serializable
+data class NetworkNukeBatch(
+    val id: String = "",
+    val originBroadcasterId: String = "",
+    val initiatedByUserId: String? = null,
+    val matchTerm: String? = null,
+    val targetUserId: String? = null,
+    val targetTwitchUserId: String? = null,
+    val channelCount: Int = 0,
+    val status: String = "",
+    val revertedByUserId: String? = null,
+    val revertedAt: String? = null,
+    val createdAt: String = "",
+)
+
+/**
+ * The nuke request (backend `NetworkNukeRequest`). [requireConfirmation] MUST be true — the single-confirmation
+ * guardrail; the UI shows a blast-radius confirm dialog before sending.
+ */
+@Serializable
+data class NetworkNukeBody(
+    val targetTwitchUserId: String,
+    val reason: String? = null,
+    val matchTerm: String? = null,
+    val requireConfirmation: Boolean,
+)
+
+/**
+ * One trusted partner row (backend `SharedBanTrustedChannelDto`, J.9a) with its display name for the trust-list
+ * UI. Bans from a TRUSTED partner during a shared-chat session apply here when accept is on.
+ */
+@Serializable
+data class SharedBanTrustedChannel(
+    val trustedChannelId: String = "",
+    val trustedChannelName: String = "",
+    val addedByUserId: String? = null,
+    val createdAt: String = "",
+)
+
+/**
+ * The channel's shared-ban policy + its trust list (backend `SharedBanSettingsDto`, J.9). Both switches default
+ * OFF (opt-in, default-deny): [acceptSharedChatBans] applies trusted partners' bans here; [shareOutgoingBans]
+ * offers our bans to partners.
+ */
+@Serializable
+data class SharedBanSettings(
+    val acceptSharedChatBans: Boolean = false,
+    val shareOutgoingBans: Boolean = false,
+    val trustedChannels: List<SharedBanTrustedChannel> = emptyList(),
+)
+
+/** Save the shared-ban policy (backend `SaveSharedBanSettingsRequest`) — both switches explicit, no partial writes. */
+@Serializable
+data class SaveSharedBanSettingsBody(
+    val acceptSharedChatBans: Boolean,
+    val shareOutgoingBans: Boolean,
+)
+
+/** Add one partner to the inbound-ban trust list (backend `AddTrustedChannelRequest`). */
+@Serializable
+data class AddTrustedChannelBody(val trustedChannelId: String)

@@ -2261,4 +2261,78 @@
     <string name="engagement_cooldown_hint">Minimale tussentijd voordat dezelfde kijker opnieuw wordt begroet.</string>
     <string name="engagement_cooldown_invalid">Voer een heel aantal seconden in (0 of meer).</string>
     <string name="shell_channel_moderate_hint">Modereren — klik om te openen</string>
+
+    <!-- Moderatie — kijkersgeschiedenis + vertrouwen/hitte (J.4 / J.5) -->
+    <string name="moderation_history_title">Geschiedenis (alle acties)</string>
+    <string name="moderation_history_timeouts">Time-outs</string>
+    <string name="moderation_history_bans">Bans</string>
+    <string name="moderation_history_warnings">Waarschuwingen</string>
+    <string name="moderation_history_deleted">Verwijderd</string>
+    <string name="moderation_history_first_seen">Eerst gezien %1$s</string>
+    <string name="moderation_trust_badge">Vertrouwen %1$s</string>
+    <string name="moderation_heat_badge">Hitte %1$s</string>
+
+    <!-- Moderatie — bot-status niveaus (J.12) -->
+    <string name="moderation_standing_title">Status</string>
+    <string name="moderation_standing_normal">Normale status</string>
+    <string name="moderation_standing_muted">Gedempt</string>
+    <string name="moderation_standing_shadowbanned">Schaduwverbannen</string>
+    <string name="moderation_standing_blacklisted">Op zwarte lijst</string>
+    <string name="moderation_standing_restore">Herstellen</string>
+    <string name="moderation_standing_reason">Reden (optioneel)</string>
+    <string name="moderation_standing_badge">%1$s · %2$s</string>
+    <string name="moderation_standing_hint">Gedempt: de bot negeert ze (geen commando\'s, triggers, stemmen, giveaways, verdienen). Schaduwverbannen: ook verborgen in overlays. Op zwarte lijst: hun chat wordt volledig genegeerd.</string>
+
+    <!-- Moderatie — escalatieladder (J.10 / J.11) + hittedrempel -->
+    <string name="moderation_escalation_title">Escalatieladder</string>
+    <string name="moderation_escalation_desc">Beleid voor herhaalde overtreders — elke overtreding binnen het venster klimt de ladder op.</string>
+    <string name="moderation_escalation_enabled">Ingeschakeld</string>
+    <string name="moderation_escalation_disabled">Uitgeschakeld</string>
+    <string name="moderation_escalation_edit">Ladder bewerken</string>
+    <string name="moderation_escalation_summary">%1$d treden · venster %2$du</string>
+    <string name="moderation_escalation_enable_label">Escalatie inschakelen</string>
+    <string name="moderation_escalation_window">Overtredingsvenster (uren)</string>
+    <string name="moderation_escalation_count_automod">AutoMod-overtredingen meetellen</string>
+    <string name="moderation_escalation_rung">Overtreding %1$d</string>
+    <string name="moderation_escalation_action_warn">Waarschuwen</string>
+    <string name="moderation_escalation_action_timeout">Time-out</string>
+    <string name="moderation_escalation_action_ban">Ban</string>
+    <string name="moderation_escalation_duration">Duur (seconden)</string>
+    <string name="moderation_escalation_add_rung">Trede toevoegen</string>
+    <string name="moderation_escalation_remove_rung">Verwijderen</string>
+    <string name="moderation_escalation_save">Opslaan</string>
+    <string name="moderation_escalation_cancel">Annuleren</string>
+    <string name="moderation_escalation_forgive">Vergeven (ladder resetten)</string>
+    <string name="moderation_heat_threshold_label">Hitte auto-time-out drempel</string>
+    <string name="moderation_heat_threshold_hint">Hittescore (0–100) die een automatische time-out veroorzaakt.</string>
+    <string name="moderation_heat_threshold_save">Opslaan</string>
+
+    <!-- Moderatie — netwerk-nuke (J.2a) -->
+    <string name="moderation_nuke_action">Netwerk-nuke</string>
+    <string name="moderation_nuke_confirm_title">Netwerk-nuke</string>
+    <string name="moderation_nuke_confirm_message">Verban %1$s in elk kanaal waar je hoofdmoderator of hoger bent. Alleen terug te draaien via de nuke-batch.</string>
+    <string name="moderation_nuke_confirm">Overal nuken</string>
+    <string name="moderation_nuke_dismiss">Annuleren</string>
+    <string name="moderation_nuke_batches_title">Netwerk-nuke geschiedenis</string>
+    <string name="moderation_nuke_target">Doel %1$s</string>
+    <string name="moderation_nuke_channels">%1$d kanalen</string>
+    <string name="moderation_nuke_status_active">Actief</string>
+    <string name="moderation_nuke_status_partial">Gedeeltelijk</string>
+    <string name="moderation_nuke_status_reverted">Teruggedraaid</string>
+    <string name="moderation_nuke_revert">Terugdraaien</string>
+    <string name="moderation_nuke_revert_title">Nuke terugdraaien</string>
+    <string name="moderation_nuke_revert_message">De ban op %1$s in %2$d kanalen opheffen?</string>
+
+    <!-- Moderatie — gedeelde-ban vertrouwensweb (J.9 / J.9a) -->
+    <string name="moderation_shared_title">Gedeelde-chat bans</string>
+    <string name="moderation_shared_desc">Vertrouwensweb voor gedeelde-chat sessies.</string>
+    <string name="moderation_shared_accept">Bans van vertrouwde partners hier toepassen</string>
+    <string name="moderation_shared_accept_hint">Bans van een vertrouwde partner tijdens een gedeelde-chat sessie gelden ook in jouw kanaal.</string>
+    <string name="moderation_shared_share">Onze bans delen met partners</string>
+    <string name="moderation_shared_share_hint">Bied je bans aan vertrouwde partners aan tijdens een gedeelde-chat sessie.</string>
+    <string name="moderation_shared_trusted_title">Vertrouwde kanalen</string>
+    <string name="moderation_shared_trusted_empty">Nog geen vertrouwde kanalen.</string>
+    <string name="moderation_shared_trusted_add_label">Vertrouwd kanaal-ID</string>
+    <string name="moderation_shared_trusted_add">Toevoegen</string>
+    <string name="moderation_shared_trusted_remove">Verwijderen</string>
 </resources>
