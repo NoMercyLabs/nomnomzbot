@@ -8,18 +8,12 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Domain.Platform;
-
-namespace NomNomzBot.Domain.Stream.Events;
+namespace NomNomzBot.Domain.Platform;
 
 /// <summary>
-/// Published when a channel's stream goes online (EventSub stream.online).
+/// Marks an event-payload property that must NEVER leave the server (dev-platform.md §1.2) — an internal
+/// correlation id, a raw token, a routing handle. The reflection emitter stops at it: the property appears in
+/// NO SDK context, in NO generated TS type, and in NO JSON schema, regardless of the event's tier.
 /// </summary>
-[Event("stream.online", EventVisibility.Public)]
-public sealed class ChannelOnlineEvent : DomainEventBase
-{
-    public required string BroadcasterDisplayName { get; init; }
-    public required string StreamTitle { get; init; }
-    public required string GameName { get; init; }
-    public required DateTimeOffset StartedAt { get; init; }
-}
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
+public sealed class NotExposedAttribute : Attribute;

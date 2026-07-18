@@ -20,6 +20,7 @@ namespace NomNomzBot.Domain.Chat.Events;
 /// This is the HOT PATH event — handlers must be fast, and Twitch-only consumers (command replies,
 /// auto-mod enforcement, pronouns, decoration) gate on <see cref="Provider"/>.
 /// </summary>
+[Event("chat.message", EventVisibility.Public)]
 public sealed class ChatMessageReceivedEvent : DomainEventBase
 {
     public required string MessageId { get; init; }

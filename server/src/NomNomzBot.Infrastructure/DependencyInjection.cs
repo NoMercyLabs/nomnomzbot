@@ -939,6 +939,19 @@ public static class DependencyInjection
             AutomationApi.Events.AutomationEventRegistry
         >();
 
+        // Developer-platform Event Catalog + SDK type emitter (dev-platform.md §1) — REFLECTED from the domain
+        // event records: the catalog assembly-scans every IDomainEvent at startup (fail-fast on duplicate wire
+        // names), and the emitter turns it into the per-context nnz.d.ts + JSON-schema catalog. Additive to the
+        // automation registry above (which is untouched). Both stateless singletons.
+        services.AddSingleton<
+            Application.DevPlatform.Services.IEventCatalog,
+            DevPlatform.EventCatalog
+        >();
+        services.AddSingleton<
+            Application.DevPlatform.Services.ISdkTypeEmitter,
+            DevPlatform.SdkTypeEmitter
+        >();
+
         // The automation stream (automation-api.md §4.2): per-node session book + the protocol engine.
         services.AddSingleton<
             Application.AutomationApi.Services.IAutomationSessionRegistry,

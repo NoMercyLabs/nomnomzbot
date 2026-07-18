@@ -175,6 +175,7 @@ public sealed class ActionDefinitionSeederTests
     [InlineData("widget:read")]
     [InlineData("chat:read")]
     [InlineData("dashboard:read")]
+    [InlineData("sdk:read")]
     public async Task Seeds_a_broadcaster_lowerable_action_at_default_moderator_and_floor_vip(
         string key
     )

@@ -147,6 +147,12 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("bundles:import", Editor);
         M("bundles:publish", Broadcaster);
 
+        // Developer SDK (dev-platform.md §8) — the reflection-generated TS types + event catalog. A
+        // non-destructive read of type metadata: DEFAULTS to the Moderator base but the broadcaster MAY lower
+        // it to Vip so a trusted VIP building widgets/scripts can pull types. Any authenticated caller on their
+        // own channel clears it out of the box.
+        MFloor("sdk:read", Mod, Vip);
+
         // Roles & permits & code
         M("roles:read", Mod);
         M("roles:manage", Broadcaster, DangerTier.Critical, grant: false);
