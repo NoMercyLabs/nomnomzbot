@@ -22,11 +22,16 @@ public interface IProcessRunner
     );
 }
 
-/// <summary>What to run: the executable, its arguments, and the text to feed on stdin (null = no stdin).</summary>
+/// <summary>
+/// What to run: the executable, its arguments, the text to feed on stdin (null = no stdin), and an optional
+/// <paramref name="WorkingDirectory"/> (null = the host's current directory). The multi-file widget build sets the
+/// working directory to a materialized temp project so esbuild resolves relative imports from the entry file.
+/// </summary>
 public sealed record ProcessRunRequest(
     string FileName,
     IReadOnlyList<string> Arguments,
-    string? StandardInput
+    string? StandardInput,
+    string? WorkingDirectory = null
 );
 
 /// <summary>

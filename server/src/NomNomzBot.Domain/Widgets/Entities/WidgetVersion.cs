@@ -27,6 +27,20 @@ public class WidgetVersion : ITenantScoped
     public int VersionNumber { get; set; }
 
     public string? SourceCode { get; set; }
+
+    /// <summary>
+    /// The multi-file project source (dev-platform.md §4): raw JSON of a <c>path → content</c> map, e.g.
+    /// <c>{"index.tsx":"…","lib/util.ts":"…"}</c>. A single-file authoring save is just a one-entry map. Null only on
+    /// legacy rows the backfill has not touched; the build reads the project from here + <see cref="ManifestJson"/>.
+    /// </summary>
+    public string? FilesJson { get; set; }
+
+    /// <summary>
+    /// Raw JSON of the project manifest — <c>{ entry, kind, framework, dependencies[] }</c> (dev-platform.md §4.2).
+    /// The <c>entry</c> path names the module esbuild bundles from; <c>dependencies</c> is allowlist-checked.
+    /// </summary>
+    public string? ManifestJson { get; set; }
+
     public string? CompiledBundle { get; set; }
 
     /// <summary><c>pending</c> | <c>success</c> | <c>error</c>.</summary>

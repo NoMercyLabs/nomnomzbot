@@ -33,6 +33,8 @@ public sealed class ProcessRunner : IProcessRunner
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        if (request.WorkingDirectory is not null)
+            startInfo.WorkingDirectory = request.WorkingDirectory;
         foreach (string argument in request.Arguments)
             startInfo.ArgumentList.Add(argument);
 

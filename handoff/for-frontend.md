@@ -16,6 +16,44 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-18 — Multi-file project editor + client-side esbuild-wasm preview (dev-platform Pillar 3)
+- **From:** Stoney_Eagle (via Claude, backend track)
+- **What:** build the multi-file project editor UI for widgets/scripts (games later), replacing the single
+  textarea. Two pieces, both frontend/aaoa's track (dev-platform.md §5):
+  1. **Project explorer + tabbed files** over the new file-set/manifest model — a small `src/` file tree
+     (add/rename/delete files) + tabs, backed by a `FilesJson` (`path → content` map) and a manifest
+     (`{ entry, kind, framework, dependencies[] }`). Single-file authoring must still work (a one-file
+     project). Stay on **CodeMirror 6** (Monaco's Wasm worker CORS is why it was reverted — see
+     [[widget-editor-is-codemirror-not-monaco]]); add TS completion/diagnostics via `@typescript/vfs`
+     with the language-service worker served **same-origin by the bot** (not a CDN). Fetch the generated
+     types from `GET /api/v1/sdk/types.d.ts?context=widget|script` so autocomplete matches the server.
+  2. **In-browser build + live preview** — bundle the project with **esbuild-wasm** + compile Vue SFCs /
+     React TSX **client-side**, rendering a hot-reloading preview pane, so authoring needs no server
+     round-trip. Pin the **same esbuild version as the server** (server uses the standalone `esbuild`
+     binary; today validated against 0.28.1) so client preview and the server rebuild match.
+- **Why (backend now done — Phase 3 backend half):** the version model is now a **file-set + manifest**,
+  not one string. `WidgetVersion`/`CodeScriptVersion` gained `FilesJson` (path→content JSON) + `ManifestJson`
+  (camelCase `{ entry, kind, framework, dependencies }`). The server build (`EsbuildWidgetBuildService`)
+  materializes the file set to a temp dir and bundles from the manifest entry, **resolving cross-file
+  imports** into one bundle — this is the **trust boundary**: a client-submitted bundle is NEVER trusted;
+  the server re-builds on publish. Dependencies are an **allowlist only** (today just `vue`, kept external);
+  there is **no npm** — the editor must not offer arbitrary package install, and a non-allowlisted dep is
+  rejected server-side (`WIDGET_DEPENDENCY_NOT_ALLOWED`).
+- **Where:**
+  - Editor/preview: `app/composeApp/.../feature/` widget + script editors; design system + i18n as normal.
+  - Backend contract (already built): the compile/publish flow (`WidgetService.CompileAsync`, code-script
+    compile) persists the project. The compiled-bundle **serving contract is UNCHANGED** — the overlay
+    still loads one bundle from the same route (`/api/v1/overlay/bundle/{widgetId}`), so preview is purely
+    a dev-loop convenience; publish still goes through the server rebuild.
+  - **No new REST routes were added in this backend slice** (single-source endpoints migrated in place;
+    `SourceCode` still accepted as single-file authoring and wrapped into a one-file project). A dedicated
+    files/manifest CRUD surface (`channels/{id}/widgets/{wid}/files`, `.../scripts/{sid}/files`, §8) is a
+    **future backend slice** — coordinate before building UI that assumes it; for now the editor round-trips
+    the whole project through the existing compile request. `server/openapi/v1.json` is unchanged.
+- **Done when:** a widget/script can be authored as multiple files (an entry importing a `lib/` module) in
+  the editor, type-checked + previewed client-side, and **published** — the server rebuild produces the
+  same working bundle the overlay serves; single-file authoring still works unchanged.
+
 ### 2026-07-18 — Dashboard chat live-push is a FRONTEND subscription gap (root-caused)
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **Symptom (owner):** new Twitch chat only appears after a reload/re-nav; a prior fix (`1a4554c`,

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.IO;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -19,9 +20,11 @@ using NSubstitute;
 namespace NomNomzBot.Infrastructure.Tests.Widgets;
 
 /// <summary>
-/// Proves the widget build service's Vue path: it compiles the SFC (stage A, real Jint) and hands the resulting
-/// module to esbuild (stage B) with the right args and stdin, short-circuits before esbuild when the SFC is broken,
-/// and — when the esbuild binary is present — yields a self-contained IIFE that references the host Vue global.
+/// Proves the widget build service's Vue path under the multi-file model: it compiles the SFC (stage A, real Jint)
+/// and writes the resulting module to the temp project (kept at its <c>.vue</c> path), materializes a synthetic mount
+/// entry, and invokes esbuild from it with the right args and no stdin; it short-circuits before esbuild when the SFC
+/// is broken; and — when the esbuild binary is present — yields a self-contained IIFE that references the host Vue
+/// global.
 /// </summary>
 public sealed class EsbuildWidgetBuildServiceVueTests : IClassFixture<VueSfcCompilerFixture>
 {
@@ -58,38 +61,50 @@ public sealed class EsbuildWidgetBuildServiceVueTests : IClassFixture<VueSfcComp
         new(
             runner,
             _fixture.Compiler,
+            new WidgetDependencyAllowlist(),
             configuration ?? new ConfigurationBuilder().Build(),
             NullLogger<EsbuildWidgetBuildService>.Instance
         );
 
     [Fact]
-    public async Task Vue_compiles_the_sfc_and_bundles_it_with_the_ts_loader_and_external_vue()
+    public async Task Vue_compiles_the_sfc_to_a_module_on_disk_and_bundles_the_mount_entry()
     {
         const string bundle = "(function(){/* iife */})();";
         ProcessRunRequest? captured = null;
+        string? materializedEntry = null;
+        string? mountModule = null;
         IProcessRunner runner = Substitute.For<IProcessRunner>();
         runner
-            .RunAsync(Arg.Do<ProcessRunRequest>(r => captured = r), Arg.Any<CancellationToken>())
-            .Returns(new ProcessRunResult(true, 0, bundle, string.Empty));
+            .RunAsync(Arg.Any<ProcessRunRequest>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                ProcessRunRequest r = ci.Arg<ProcessRunRequest>();
+                captured = r;
+                // The files still exist on disk at invocation time — they are deleted only after the build returns.
+                string dir = r.WorkingDirectory!;
+                materializedEntry = File.ReadAllText(Path.Combine(dir, "index.vue"));
+                mountModule = File.ReadAllText(Path.Combine(dir, "__nnz_mount__.ts"));
+                return new ProcessRunResult(true, 0, bundle, string.Empty);
+            });
         EsbuildWidgetBuildService service = Build(runner);
 
         Result<WidgetBuildOutput> result = await service.BuildAsync(
-            new WidgetBuildInput("vue", RepresentativeSfc)
+            WidgetBuildInput.SingleFile("vue", RepresentativeSfc)
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.CompiledBundle.Should().Be(bundle);
         result.Value.ContentHash.Should().MatchRegex("^[0-9a-f]{64}$");
 
-        // Stage B was invoked with the Vue-specific esbuild contract.
+        // Stage B was invoked with the multi-file Vue esbuild contract — from the mount entry, no stdin.
         captured.Should().NotBeNull();
         captured!.FileName.Should().Be("esbuild");
+        captured.StandardInput.Should().BeNull();
+        captured.WorkingDirectory.Should().NotBeNullOrEmpty();
         captured.Arguments.Should().Contain("--bundle");
         captured.Arguments.Should().Contain("--format=iife");
         captured.Arguments.Should().Contain("--minify");
-        // ts loader (compileScript keeps TS syntax) + vue kept external + the require-shim closure mapping to
-        // window.Vue.
-        captured.Arguments.Should().Contain("--loader=ts");
+        captured.Arguments.Should().Contain("--loader:.vue=ts");
         captured.Arguments.Should().Contain("--external:vue");
         captured
             .Arguments.Should()
@@ -97,14 +112,16 @@ public sealed class EsbuildWidgetBuildServiceVueTests : IClassFixture<VueSfcComp
             .Which.Should()
             .Contain("window.Vue");
         captured.Arguments.Should().Contain("--footer:js=})();");
+        captured.Arguments.Should().Contain("__nnz_mount__.ts"); // esbuild bundles from the mount entry
 
-        // The REAL compiled module + the host mount are what got piped to esbuild — not the raw SFC source.
-        captured.StandardInput.Should().NotBeNullOrEmpty();
-        captured.StandardInput.Should().Contain("__sfc_main__");
-        captured.StandardInput.Should().Contain("createApp");
-        captured.StandardInput.Should().Contain("data-v-");
-        captured.StandardInput.Should().Contain(".counter");
-        captured.StandardInput.Should().NotContain("<template>"); // the SFC was compiled, not passed through
+        // The REAL compiled module was written to disk (not the raw SFC), and the mount imports the entry component.
+        materializedEntry.Should().NotBeNullOrEmpty();
+        materializedEntry.Should().Contain("__sfc_main__");
+        materializedEntry.Should().Contain("data-v-");
+        materializedEntry.Should().Contain(".counter"); // the scoped CSS is injected by the module
+        materializedEntry.Should().NotContain("<template>"); // the SFC was compiled, not passed through
+        mountModule.Should().Contain("createApp");
+        mountModule.Should().Contain("./index.vue");
     }
 
     [Fact]
@@ -114,7 +131,7 @@ public sealed class EsbuildWidgetBuildServiceVueTests : IClassFixture<VueSfcComp
         EsbuildWidgetBuildService service = Build(runner);
 
         Result<WidgetBuildOutput> result = await service.BuildAsync(
-            new WidgetBuildInput("vue", BrokenSfc)
+            WidgetBuildInput.SingleFile("vue", BrokenSfc)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -136,7 +153,7 @@ public sealed class EsbuildWidgetBuildServiceVueTests : IClassFixture<VueSfcComp
         EsbuildWidgetBuildService service = Build(new ProcessRunner(), configuration);
 
         Result<WidgetBuildOutput> result = await service.BuildAsync(
-            new WidgetBuildInput("vue", RepresentativeSfc)
+            WidgetBuildInput.SingleFile("vue", RepresentativeSfc)
         );
 
         if (result.IsFailure)

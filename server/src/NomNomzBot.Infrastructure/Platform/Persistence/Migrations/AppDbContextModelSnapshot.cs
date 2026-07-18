@@ -1813,6 +1813,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("FilesJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ManifestJson")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("PublishedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -8739,6 +8745,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FilesJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ManifestJson")
+                        .HasColumnType("text");
 
                     b.Property<string>("SourceCode")
                         .HasColumnType("text");

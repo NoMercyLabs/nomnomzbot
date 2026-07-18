@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.DevPlatform.Projects;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
@@ -477,6 +478,15 @@ public class WidgetService : IWidgetService
             ) ?? 0;
         nextNumber += 1;
 
+        // Wrap the authored source into a one-file project (dev-platform.md §4.2) — single-file authoring stays a
+        // FilesJson with one entry — and persist the file set + manifest alongside the legacy SourceCode. The build
+        // now consumes the project (multi-file capable), so a later editor can save extra files without a shape change.
+        (Dictionary<string, string> files, ProjectManifest manifest) = ProjectScaffold.SingleFile(
+            "widget",
+            widget.Framework,
+            request.SourceCode
+        );
+
         DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
         WidgetVersion version = new()
         {
@@ -484,13 +494,15 @@ public class WidgetService : IWidgetService
             BroadcasterId = broadcasterGuid,
             VersionNumber = nextNumber,
             SourceCode = request.SourceCode,
+            FilesJson = ProjectJson.SerializeFiles(files),
+            ManifestJson = ProjectJson.SerializeManifest(manifest),
             BuildStatus = "pending",
             CreatedAt = now,
         };
         _db.WidgetVersions.Add(version);
 
         Result<WidgetBuildOutput> build = await _buildService.BuildAsync(
-            new WidgetBuildInput(widget.Framework, request.SourceCode),
+            new WidgetBuildInput(manifest, files),
             cancellationToken
         );
 

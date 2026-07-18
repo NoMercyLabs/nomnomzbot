@@ -21,8 +21,8 @@ using NSubstitute;
 namespace NomNomzBot.Infrastructure.Tests.Widgets;
 
 /// <summary>
-/// Proves the widget compile boundary's behaviour: vanilla passes through with a correct cache-bust hash and
-/// never shells out; a framework build invokes esbuild with the right args and returns its bundle hashed;
+/// Proves the widget compile boundary's behaviour: vanilla passes through with a correct cache-bust hash and never
+/// shells out; a framework build materializes the project to a temp dir and invokes esbuild from the manifest entry;
 /// esbuild's failures and absence surface as honest, coded <see cref="Result"/> failures.
 /// </summary>
 public sealed class EsbuildWidgetBuildServiceTests
@@ -34,6 +34,7 @@ public sealed class EsbuildWidgetBuildServiceTests
         new(
             runner,
             vue,
+            new WidgetDependencyAllowlist(),
             new ConfigurationBuilder().Build(),
             NullLogger<EsbuildWidgetBuildService>.Instance
         );
@@ -50,7 +51,7 @@ public sealed class EsbuildWidgetBuildServiceTests
             "<div class=\"alert\">{{name}} followed!</div><script>NomNomz.on('follow')</script>";
 
         Result<WidgetBuildOutput> result = await service.BuildAsync(
-            new WidgetBuildInput("vanilla", source)
+            WidgetBuildInput.SingleFile("vanilla", source)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -68,13 +69,13 @@ public sealed class EsbuildWidgetBuildServiceTests
     {
         EsbuildWidgetBuildService service = Build(Substitute.For<IProcessRunner>());
 
-        string hashA1 = (await service.BuildAsync(new WidgetBuildInput("vanilla", "A")))
+        string hashA1 = (await service.BuildAsync(WidgetBuildInput.SingleFile("vanilla", "A")))
             .Value
             .ContentHash;
-        string hashA2 = (await service.BuildAsync(new WidgetBuildInput("VANILLA", "A")))
+        string hashA2 = (await service.BuildAsync(WidgetBuildInput.SingleFile("VANILLA", "A")))
             .Value
             .ContentHash;
-        string hashB = (await service.BuildAsync(new WidgetBuildInput("vanilla", "B")))
+        string hashB = (await service.BuildAsync(WidgetBuildInput.SingleFile("vanilla", "B")))
             .Value
             .ContentHash;
 
@@ -83,18 +84,19 @@ public sealed class EsbuildWidgetBuildServiceTests
     }
 
     [Fact]
-    public async Task React_invokes_esbuild_with_bundle_args_and_hashes_the_returned_bundle()
+    public async Task React_materializes_the_entry_and_invokes_esbuild_bundling_the_returned_bundle()
     {
         const string bundle = "(()=>{var e=1;})();";
         const string warnings = "▲ [WARNING] Unused import";
+        ProcessRunRequest? captured = null;
         IProcessRunner runner = Substitute.For<IProcessRunner>();
         runner
-            .RunAsync(Arg.Any<ProcessRunRequest>(), Arg.Any<CancellationToken>())
+            .RunAsync(Arg.Do<ProcessRunRequest>(r => captured = r), Arg.Any<CancellationToken>())
             .Returns(new ProcessRunResult(true, 0, bundle, warnings));
         EsbuildWidgetBuildService service = Build(runner);
 
         Result<WidgetBuildOutput> result = await service.BuildAsync(
-            new WidgetBuildInput("react", "export default () => <div/>;")
+            WidgetBuildInput.SingleFile("react", "export default () => <div/>;")
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -102,18 +104,15 @@ public sealed class EsbuildWidgetBuildServiceTests
         result.Value.ContentHash.Should().Be(Sha256Hex(bundle));
         result.Value.BuildLog.Should().Be(warnings); // esbuild stderr carries warnings even on success
 
-        await runner
-            .Received(1)
-            .RunAsync(
-                Arg.Is<ProcessRunRequest>(r =>
-                    r.FileName == "esbuild"
-                    && r.StandardInput == "export default () => <div/>;"
-                    && r.Arguments.Contains("--bundle")
-                    && r.Arguments.Contains("--format=iife")
-                    && r.Arguments.Contains("--loader=tsx")
-                ),
-                Arg.Any<CancellationToken>()
-            );
+        // The project was materialized to a temp working dir; esbuild is invoked from the manifest entry file (no
+        // stdin — the source is on disk now so cross-file imports resolve).
+        captured.Should().NotBeNull();
+        captured!.FileName.Should().Be("esbuild");
+        captured.StandardInput.Should().BeNull();
+        captured.WorkingDirectory.Should().NotBeNullOrEmpty();
+        captured.Arguments.Should().Contain("--bundle");
+        captured.Arguments.Should().Contain("--format=iife");
+        captured.Arguments.Should().Contain("index.tsx"); // the single-file react entry
     }
 
     [Fact]
@@ -133,7 +132,7 @@ public sealed class EsbuildWidgetBuildServiceTests
         EsbuildWidgetBuildService service = Build(runner);
 
         Result<WidgetBuildOutput> result = await service.BuildAsync(
-            new WidgetBuildInput("react", "broken(")
+            WidgetBuildInput.SingleFile("react", "broken(")
         );
 
         result.IsFailure.Should().BeTrue();
@@ -151,7 +150,7 @@ public sealed class EsbuildWidgetBuildServiceTests
         EsbuildWidgetBuildService service = Build(runner);
 
         Result<WidgetBuildOutput> result = await service.BuildAsync(
-            new WidgetBuildInput("react", "x")
+            WidgetBuildInput.SingleFile("react", "x")
         );
 
         result.IsFailure.Should().BeTrue();
@@ -163,12 +162,12 @@ public sealed class EsbuildWidgetBuildServiceTests
     [InlineData("svelte")]
     public async Task Plugin_frameworks_fail_honestly_rather_than_mis_compiling(string framework)
     {
-        // Svelte still needs the plugin-based build (Vue is now supported via IVueSfcCompiler + esbuild).
+        // Svelte still needs the plugin-based build (Vue is supported via IVueSfcCompiler + esbuild).
         IProcessRunner runner = Substitute.For<IProcessRunner>();
         EsbuildWidgetBuildService service = Build(runner);
 
         Result<WidgetBuildOutput> result = await service.BuildAsync(
-            new WidgetBuildInput(framework, "source")
+            WidgetBuildInput.SingleFile(framework, "source")
         );
 
         result.IsFailure.Should().BeTrue();

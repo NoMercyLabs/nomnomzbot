@@ -323,6 +323,12 @@ public static class DependencyInjection
         // The out-of-process CLI runner behind the widget build service (esbuild). Not an I<X>Service, so it is
         // registered explicitly; IWidgetBuildService -> EsbuildWidgetBuildService is convention-bound.
         services.AddScoped<Widgets.Bundling.IProcessRunner, Widgets.Bundling.ProcessRunner>();
+        // The curated multi-file dependency allowlist (dev-platform.md §4.2) — deny-by-default, no npm. A singleton:
+        // it is a stateless, immutable policy. Not an I<X>Service, so register explicitly.
+        services.AddSingleton<
+            Application.Widgets.Services.IWidgetDependencyAllowlist,
+            Widgets.Bundling.WidgetDependencyAllowlist
+        >();
         // The Vue SFC compiler (Jint + the vendored @vue/compiler-sfc bundle). A SINGLETON: parsing the ~778 kb
         // bundle is expensive, so it keeps a pool of pre-warmed engines. Not an I<X>Service, so register explicitly.
         services.AddSingleton<

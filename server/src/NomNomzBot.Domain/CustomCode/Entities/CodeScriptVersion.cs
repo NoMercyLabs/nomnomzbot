@@ -25,6 +25,20 @@ public class CodeScriptVersion : ITenantScoped
     public Guid BroadcasterId { get; set; }
     public int Version { get; set; }
     public string SourceCode { get; set; } = null!;
+
+    /// <summary>
+    /// The multi-file project source (dev-platform.md §4): raw JSON of a <c>path → content</c> map, e.g.
+    /// <c>{"index.ts":"…","lib/util.ts":"…"}</c>. A single-file authoring save is just a one-entry map. Null only on
+    /// legacy rows the backfill has not touched; <see cref="SourceCode"/> stays the compiled entry's content.
+    /// </summary>
+    public string? FilesJson { get; set; }
+
+    /// <summary>
+    /// Raw JSON of the project manifest — <c>{ entry, kind, framework, dependencies[] }</c> (dev-platform.md §4.2).
+    /// <c>kind</c> is <c>script</c>; <c>entry</c> names the compiled module.
+    /// </summary>
+    public string? ManifestJson { get; set; }
+
     public string? CompiledJs { get; set; }
     public string? CompiledHash { get; set; }
 

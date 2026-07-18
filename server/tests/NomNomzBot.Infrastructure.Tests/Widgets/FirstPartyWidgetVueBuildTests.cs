@@ -78,12 +78,13 @@ public sealed class FirstPartyWidgetVueBuildTests : IClassFixture<VueSfcCompiler
         EsbuildWidgetBuildService service = new(
             new ProcessRunner(),
             _fixture.Compiler,
+            new WidgetDependencyAllowlist(),
             configuration,
             NullLogger<EsbuildWidgetBuildService>.Instance
         );
 
         Result<WidgetBuildOutput> result = await service.BuildAsync(
-            new WidgetBuildInput("vue", sfc)
+            WidgetBuildInput.SingleFile("vue", sfc)
         );
 
         if (result.IsFailure)

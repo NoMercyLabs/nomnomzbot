@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.DevPlatform.Projects;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Events;
 using NomNomzBot.Domain.CustomCode.ValueObjects;
@@ -318,12 +319,24 @@ public sealed class CodeScriptService(
     )
     {
         Result<ScriptCompilation> compiled = await executor.CompileAsync(sourceCode, ct);
+
+        // Persist the authored source as a one-file project (dev-platform.md §4.2) alongside the legacy SourceCode —
+        // single-file authoring is a FilesJson with one `index.ts` entry. The entry's content stays what the executor
+        // compiled, so the compiled output + serving contract are unchanged.
+        (Dictionary<string, string> files, ProjectManifest manifest) = ProjectScaffold.SingleFile(
+            "script",
+            "typescript",
+            sourceCode
+        );
+
         CodeScriptVersion version = new()
         {
             CodeScriptId = script.Id,
             BroadcasterId = script.BroadcasterId,
             Version = versionNumber,
             SourceCode = sourceCode,
+            FilesJson = ProjectJson.SerializeFiles(files),
+            ManifestJson = ProjectJson.SerializeManifest(manifest),
             CreatedAt = now,
         };
         if (compiled.IsSuccess)
