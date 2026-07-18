@@ -13,9 +13,12 @@ using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Application.Rewards.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Enums;
@@ -39,6 +42,11 @@ public sealed class ScriptRunner(
     IMusicService musicService,
     IUserService userService,
     IHttpClientFactory httpClientFactory,
+    IScriptStorageService storageService,
+    ITtsDispatchService ttsDispatch,
+    IWidgetService widgetService,
+    IWidgetEventNotifier widgetNotifier,
+    IRewardService rewardService,
     TimeProvider clock
 ) : IScriptRunner
 {
@@ -132,7 +140,12 @@ public sealed class ScriptRunner(
             currencyService,
             musicService,
             userService,
-            httpClientFactory
+            httpClientFactory,
+            storageService,
+            ttsDispatch,
+            widgetService,
+            widgetNotifier,
+            rewardService
         );
         Result<ScriptExecutionOutcomeResult> executed = await executor.ExecuteAsync(
             request,

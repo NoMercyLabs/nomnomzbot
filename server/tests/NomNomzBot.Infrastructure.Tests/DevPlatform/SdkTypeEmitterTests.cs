@@ -211,6 +211,25 @@ public sealed class SdkTypeEmitterTests
         ts.Should().Contain("get(id?: string): NnzApiUser | null");
         ts.Should().Contain("interface NnzApiUser {");
         ts.Should().Contain("interface NnzApiTrack {");
+
+        // The storage / tts / widget / reward groups with their typed signatures + payload interfaces.
+        ts.Should()
+            .Contain(
+                "storage: { get(key: string): string | null; set(key: string, value: string): boolean; delete(key: string): boolean; list(prefix?: string): string[] };"
+            );
+        ts.Should()
+            .Contain("tts: { speak(text: string, voiceId?: string): NnzApiTtsResult | null };");
+        ts.Should()
+            .Contain(
+                "widget: { emit(widgetIdOrName: string, eventType: string, data?: unknown): boolean };"
+            );
+        ts.Should()
+            .Contain(
+                "reward: { get(rewardIdOrTitle: string): NnzApiReward | null; update(rewardIdOrTitle: string, patch: NnzApiRewardPatch): boolean };"
+            );
+        ts.Should().Contain("interface NnzApiTtsResult {");
+        ts.Should().Contain("interface NnzApiReward {");
+        ts.Should().Contain("interface NnzApiRewardPatch {");
     }
 
     [Fact]
@@ -228,6 +247,10 @@ public sealed class SdkTypeEmitterTests
         ts.Should().NotContain("chat: {");
         ts.Should().NotContain("http: {");
         ts.Should().NotContain("queue(uri: string): boolean");
+        ts.Should().NotContain("storage: {");
+        ts.Should().NotContain("tts: {");
+        ts.Should().NotContain("widget: {");
+        ts.Should().NotContain("reward: {");
     }
 
     [Fact]

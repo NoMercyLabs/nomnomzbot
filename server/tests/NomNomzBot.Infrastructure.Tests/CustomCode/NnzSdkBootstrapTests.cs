@@ -220,4 +220,99 @@ public sealed class NnzSdkBootstrapTests
             .DeclaredCapabilities.Should()
             .BeEquivalentTo("chat.send", "economy.read", "music.nowPlaying");
     }
+
+    [Fact]
+    public async Task Api_storage_wrappers_round_trip_through_the_bridge_with_the_right_keys()
+    {
+        // The handler is a tiny KV store, so set → get proves the wrapper passes both args and returns
+        // the host's value (and that set maps the host's "ok" to a boolean).
+        Dictionary<string, string> kv = new();
+        RecordingBridge bridge = new(
+            (key, args) =>
+            {
+                if (key == "storage.set")
+                {
+                    kv[args[0]] = args[1];
+                    return "ok";
+                }
+                return key == "storage.get" ? kv.GetValueOrDefault(args[0]) : null;
+            }
+        );
+
+        ScriptExecutionOutcomeResult r = await Run(
+            """
+            bot.setVar('setOk', String(nnz.api.storage.set('feather', 'nomz')));
+            bot.setVar('got', String(nnz.api.storage.get('feather')));
+            """,
+            Grant("storage.set", "storage.get"),
+            bridge
+        );
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.VariablesOut["setOk"].Should().Be("true");
+        r.VariablesOut["got"].Should().Be("nomz");
+        bridge.Calls.Select(c => c.Key).Should().Equal("storage.set", "storage.get");
+    }
+
+    [Fact]
+    public async Task Api_widget_emit_serializes_the_data_object_and_maps_ok_to_true()
+    {
+        RecordingBridge bridge = new((key, _) => key == "widget.emit" ? "ok" : null);
+
+        ScriptExecutionOutcomeResult r = await Run(
+            "bot.setVar('ok', String(nnz.api.widget.emit('Alert Box', 'confetti', { count: 5 })));",
+            Grant("widget.emit"),
+            bridge
+        );
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.VariablesOut["ok"].Should().Be("true");
+        bridge.Calls[0].Key.Should().Be("widget.emit");
+        bridge.Calls[0].Args.Should().Equal("Alert Box", "confetti", "{\"count\":5}");
+    }
+
+    [Fact]
+    public async Task Api_tts_speak_parses_the_hosts_outcome_json()
+    {
+        RecordingBridge bridge = new(
+            (key, _) =>
+                key == "tts.speak" ? "{\"voiceId\":\"en-US-Aria\",\"characterCount\":5}" : null
+        );
+
+        ScriptExecutionOutcomeResult r = await Run(
+            "var t = nnz.api.tts.speak('hello'); bot.setVar('voice', t.voiceId); bot.setVar('chars', String(t.characterCount));",
+            Grant("tts.speak"),
+            bridge
+        );
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.VariablesOut["voice"].Should().Be("en-US-Aria");
+        r.VariablesOut["chars"].Should().Be("5");
+    }
+
+    [Fact]
+    public async Task Compile_declares_capabilities_from_the_new_nnz_api_groups()
+    {
+        ScriptCompilation compilation = (
+            await new JintScriptExecutor().CompileAsync(
+                """
+                nnz.api.storage.set('k', 'v');
+                nnz.api.storage.list();
+                nnz.api.tts.speak('hi');
+                nnz.api.widget.emit('w', 'e');
+                nnz.api.reward.update('r', { cost: 1 });
+                """
+            )
+        ).Value;
+
+        compilation
+            .DeclaredCapabilities.Should()
+            .BeEquivalentTo(
+                "storage.set",
+                "storage.list",
+                "tts.speak",
+                "widget.emit",
+                "reward.update"
+            );
+    }
 }

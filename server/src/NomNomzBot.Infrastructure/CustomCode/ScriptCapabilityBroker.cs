@@ -38,6 +38,18 @@ public sealed class ScriptCapabilityBroker(IFeatureFlagService featureFlags)
         new("music.nowPlaying", "low", FeatureGate, SideEffecting: false),
         new("economy.read", "low", FeatureGate, SideEffecting: false),
         new("http.fetch", "tos", FeatureGate, SideEffecting: true),
+        // Per-channel bounded script KV store (64 KB values, 200 keys/channel) — no external surface.
+        new("storage.get", "low", FeatureGate, SideEffecting: false),
+        new("storage.set", "low", FeatureGate, SideEffecting: true),
+        new("storage.delete", "low", FeatureGate, SideEffecting: true),
+        new("storage.list", "low", FeatureGate, SideEffecting: false),
+        // Routed through the gated TTS dispatcher (channel enable + caps + censor run host-side).
+        new("tts.speak", "low", FeatureGate, SideEffecting: true),
+        // Pushes an event to one of THIS channel's enabled widgets (overlay-only; no Twitch surface).
+        new("widget.emit", "low", FeatureGate, SideEffecting: true),
+        // Channel-point reward read + patch; update mutates the reward on Twitch via Helix → tos tier.
+        new("reward.get", "low", FeatureGate, SideEffecting: false),
+        new("reward.update", "tos", FeatureGate, SideEffecting: true),
     ];
 
     public IReadOnlyList<ScriptCapabilityDescriptor> Catalog => CatalogEntries;

@@ -133,6 +133,22 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 },
                 http: {
                     fetch: function (url) { return bot.call('http.fetch', String(url)); }
+                },
+                storage: {
+                    get: function (key) { return bot.call('storage.get', String(key)); },
+                    set: function (key, value) { return bot.call('storage.set', String(key), String(value)) === 'ok'; },
+                    delete: function (key) { return bot.call('storage.delete', String(key)) === 'ok'; },
+                    list: function (prefix) { var r = prefix === undefined ? bot.call('storage.list') : bot.call('storage.list', String(prefix)); return r ? JSON.parse(r) : []; }
+                },
+                tts: {
+                    speak: function (text, voiceId) { var r = voiceId === undefined ? bot.call('tts.speak', String(text)) : bot.call('tts.speak', String(text), String(voiceId)); return r ? JSON.parse(r) : null; }
+                },
+                widget: {
+                    emit: function (widget, eventType, data) { var r = data === undefined ? bot.call('widget.emit', String(widget), String(eventType)) : bot.call('widget.emit', String(widget), String(eventType), JSON.stringify(data)); return r === 'ok'; }
+                },
+                reward: {
+                    get: function (idOrTitle) { var r = bot.call('reward.get', String(idOrTitle)); return r ? JSON.parse(r) : null; },
+                    update: function (idOrTitle, patch) { return bot.call('reward.update', String(idOrTitle), JSON.stringify(patch)) === 'ok'; }
                 }
             }
         };
@@ -189,6 +205,14 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         ["music.queue"] = "music.queue",
         ["music.nowPlaying"] = "music.nowPlaying",
         ["http.fetch"] = "http.fetch",
+        ["storage.get"] = "storage.get",
+        ["storage.set"] = "storage.set",
+        ["storage.delete"] = "storage.delete",
+        ["storage.list"] = "storage.list",
+        ["tts.speak"] = "tts.speak",
+        ["widget.emit"] = "widget.emit",
+        ["reward.get"] = "reward.get",
+        ["reward.update"] = "reward.update",
     };
 
     private static IReadOnlyList<string> DeclaredCapabilities(string sourceCode)

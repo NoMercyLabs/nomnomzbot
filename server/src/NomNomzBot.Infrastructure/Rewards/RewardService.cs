@@ -96,8 +96,52 @@ public class RewardService : IRewardService
         if (reward is null)
             return Errors.NotFound<RewardDetail>("Reward", rewardId);
 
+        // The Twitch-facing subset of the patch. Bot-local bindings (TimerDurationSeconds, PipelineId) are
+        // always ours to change; the reward's own identity/economy fields belong to whoever owns it on Twitch.
+        bool patchesTwitchFacing =
+            request.Title is not null
+            || request.Cost.HasValue
+            || request.Prompt is not null
+            || request.IsEnabled.HasValue
+            || request.IsPaused.HasValue;
+
+        // A reward that lives on Twitch but was created by another client_id is read-only to us (Twitch
+        // refuses the PATCH) — fail closed instead of drifting the local copy away from the real reward.
+        if (patchesTwitchFacing && reward.TwitchRewardId is not null && !reward.IsManageable)
+            return Result.Failure<RewardDetail>(
+                "This reward was created outside the bot and is read-only; convert it to bot-controlled first.",
+                "FORBIDDEN"
+            );
+
+        // Helix first, then the local copy — so a Twitch refusal never leaves the dashboard showing state
+        // that is not live on Twitch. IsPaused exists only on Twitch (not persisted locally).
+        if (patchesTwitchFacing && reward.IsManageable && reward.TwitchRewardId is not null)
+        {
+            Result<TwitchCustomReward> pushed = await _channelPoints.UpdateCustomRewardAsync(
+                broadcaster,
+                reward.TwitchRewardId,
+                new UpdateCustomRewardRequest(
+                    Title: request.Title,
+                    Prompt: request.Prompt,
+                    Cost: request.Cost,
+                    IsEnabled: request.IsEnabled,
+                    IsPaused: request.IsPaused
+                ),
+                cancellationToken
+            );
+            if (pushed.IsFailure)
+                return Result.Failure<RewardDetail>(
+                    pushed.ErrorMessage ?? "Twitch rejected the reward update.",
+                    pushed.ErrorCode ?? "TWITCH_ERROR"
+                );
+        }
+
         if (request.Title is not null)
             reward.Title = request.Title;
+        if (request.Cost.HasValue)
+            reward.Cost = request.Cost.Value;
+        if (request.Prompt is not null)
+            reward.Description = request.Prompt;
         if (request.IsEnabled.HasValue)
             reward.IsEnabled = request.IsEnabled.Value;
         if (request.TimerDurationSeconds.HasValue)

@@ -21,8 +21,9 @@ namespace NomNomzBot.Infrastructure.DevPlatform;
 /// <c>JintScriptExecutor</c>'s bootstrap, so declaring its TypeScript from one authored descriptor here — rather
 /// than reflecting it — is the correct, drift-free choice (there is nothing to reflect; the JS is the contract).
 /// The event codegen is untouched by this class. Per-context: batteries + the read-mostly api appear everywhere;
-/// the write/privileged api (<c>chat</c>, <c>http</c>, <c>music.queue</c>) is <see cref="SdkContext.Script"/>-only,
-/// mirroring which capabilities each context can be granted.
+/// the write/privileged api (<c>chat</c>, <c>http</c>, <c>music.queue</c>, <c>storage</c>, <c>tts</c>,
+/// <c>widget</c>, <c>reward</c>) is <see cref="SdkContext.Script"/>-only, mirroring which capabilities each
+/// context can be granted.
 /// </summary>
 internal static class SdkRuntimeSurface
 {
@@ -50,6 +51,33 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  isPlaying: boolean;");
         sb.AppendLine("  requestedBy: string | null;");
         sb.AppendLine("  provider: string;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/** What nnz.api.tts.speak returns on a dispatched utterance. */");
+        sb.AppendLine("interface NnzApiTtsResult {");
+        sb.AppendLine("  voiceId: string;");
+        sb.AppendLine("  characterCount: number;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/** A channel-point reward as nnz.api.reward.get returns it. */");
+        sb.AppendLine("interface NnzApiReward {");
+        sb.AppendLine("  id: string;");
+        sb.AppendLine("  title: string;");
+        sb.AppendLine("  cost: number;");
+        sb.AppendLine("  prompt: string | null;");
+        sb.AppendLine("  isEnabled: boolean;");
+        sb.AppendLine("  isPaused: boolean;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine(
+            "/** The patch nnz.api.reward.update applies — only the fields you set change. */"
+        );
+        sb.AppendLine("interface NnzApiRewardPatch {");
+        sb.AppendLine("  title?: string;");
+        sb.AppendLine("  cost?: number;");
+        sb.AppendLine("  prompt?: string;");
+        sb.AppendLine("  isEnabled?: boolean;");
+        sb.AppendLine("  isPaused?: boolean;");
         sb.Append('}');
         return sb.ToString();
     }
@@ -127,6 +155,30 @@ internal static class SdkRuntimeSurface
                 "    music: { nowPlaying(): NnzApiTrack | null; queue(uri: string): boolean };"
             );
             sb.AppendLine("    http: { fetch(url: string): string | null };");
+            sb.AppendLine(
+                "    /** Per-channel key/value state that persists between runs (64 KB per value, 200 keys). */"
+            );
+            sb.AppendLine(
+                "    storage: { get(key: string): string | null; set(key: string, value: string): boolean; delete(key: string): boolean; list(prefix?: string): string[] };"
+            );
+            sb.AppendLine(
+                "    /** Speak text on the channel's TTS overlay; null when the channel's TTS gate refuses. */"
+            );
+            sb.AppendLine(
+                "    tts: { speak(text: string, voiceId?: string): NnzApiTtsResult | null };"
+            );
+            sb.AppendLine(
+                "    /** Push an event to one of this channel's enabled widgets (by id or name). */"
+            );
+            sb.AppendLine(
+                "    widget: { emit(widgetIdOrName: string, eventType: string, data?: unknown): boolean };"
+            );
+            sb.AppendLine(
+                "    /** Read / patch a channel-point reward (by id or title); update needs a bot-manageable reward. */"
+            );
+            sb.AppendLine(
+                "    reward: { get(rewardIdOrTitle: string): NnzApiReward | null; update(rewardIdOrTitle: string, patch: NnzApiRewardPatch): boolean };"
+            );
         }
         else
         {

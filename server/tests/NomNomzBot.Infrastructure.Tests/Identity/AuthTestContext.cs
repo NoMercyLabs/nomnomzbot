@@ -303,7 +303,10 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
             .Ignore(e => e.Stream)
             .Ignore(e => e.Fragments)
             .Ignore(e => e.Badges);
-        b.Ignore<NomNomzBot.Domain.Platform.Entities.Storage>();
+        // Script KV storage (scalar Key/Value; nav ignored) — mapped so the ScriptStorageService / host-bridge
+        // storage tests can prove persistence, caps, and tenant isolation through this harness.
+        b.Entity<NomNomzBot.Domain.Platform.Entities.Storage>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Platform.Entities.Storage>().Ignore(e => e.Channel);
         b.Ignore<NomNomzBot.Domain.Platform.Entities.Record>();
         b.Ignore<NomNomzBot.Domain.Identity.Entities.Permission>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.ChannelFeature>();
@@ -416,7 +419,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
         Set<NomNomzBot.Domain.Platform.Entities.Configuration>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Storage> Storages =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Platform.Entities.Storage>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.Permission> Permissions =>

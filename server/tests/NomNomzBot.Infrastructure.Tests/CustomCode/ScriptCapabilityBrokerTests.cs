@@ -88,4 +88,60 @@ public sealed class ScriptCapabilityBrokerTests
         sut.Catalog.Should().NotBeEmpty();
         sut.Catalog.Should().OnlyContain(c => c.FloorTier != "critical");
     }
+
+    [Fact]
+    public void The_catalogue_lists_the_storage_tts_widget_and_reward_capabilities()
+    {
+        ScriptCapabilityBroker sut = Build();
+
+        sut.Catalog.Select(c => c.Key)
+            .Should()
+            .Contain([
+                "storage.get",
+                "storage.set",
+                "storage.delete",
+                "storage.list",
+                "tts.speak",
+                "widget.emit",
+                "reward.get",
+                "reward.update",
+            ]);
+        // The mutating ones are marked side-effecting; the reads are not.
+        sut.Catalog.Single(c => c.Key == "storage.set").SideEffecting.Should().BeTrue();
+        sut.Catalog.Single(c => c.Key == "storage.get").SideEffecting.Should().BeFalse();
+        sut.Catalog.Single(c => c.Key == "reward.update").SideEffecting.Should().BeTrue();
+        // reward.update mutates the reward on Twitch itself → tos tier, like the other Twitch-facing writes.
+        sut.Catalog.Single(c => c.Key == "reward.update").FloorTier.Should().Be("tos");
+    }
+
+    [Fact]
+    public async Task The_new_capabilities_are_grantable_when_the_feature_is_enabled()
+    {
+        ScriptCapabilityBroker sut = Build(featureEnabled: true);
+
+        Result<ScriptCapabilityGrant> result = await sut.BuildGrantAsync(
+            Channel,
+            ["storage.set", "tts.speak", "widget.emit", "reward.update"]
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result
+            .Value.Granted.Select(g => g.Key)
+            .Should()
+            .BeEquivalentTo("storage.set", "tts.speak", "widget.emit", "reward.update");
+    }
+
+    [Fact]
+    public async Task An_undeclared_lookalike_key_is_still_denied_at_grant_time()
+    {
+        ScriptCapabilityBroker sut = Build(featureEnabled: true);
+
+        // Not in the catalogue (only widget.emit is) — the whole grant fails closed.
+        Result<ScriptCapabilityGrant> result = await sut.BuildGrantAsync(
+            Channel,
+            ["widget.emit", "widget.delete"]
+        );
+
+        result.ErrorCode.Should().Be("FORBIDDEN");
+    }
 }
