@@ -246,6 +246,31 @@ public sealed class WidgetServiceOverlayTests
     }
 
     [Fact]
+    public async Task Bundle_resolves_a_ulid_encoded_widget_id()
+    {
+        // The JSON API serializes owned ids as their 26-char ULID form, so a client building the bundle URL from an
+        // API response passes a ULID — not the raw Guid. The route must decode it to the same widget, not 404.
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        Guid widget = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        await SeedWidgetAsync(database, channel, widget);
+        await ActivateAsync(database, channel, widget, bundle: "<div>hi</div>", hash: "abc");
+
+        string ulidId = new Ulid(widget).ToString();
+        ulidId.Should().HaveLength(26).And.NotBe(widget.ToString()); // genuinely the ULID form, not the Guid
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, BuildReturning("x", "y"));
+        Result<OverlayBundle> result = await service.GetOverlayBundleAsync("tok", ulidId);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Content.Should().Be("<div>hi</div>");
+        result.Value.Framework.Should().Be("vanilla");
+        result.Value.ContentHash.Should().Be("abc");
+    }
+
+    [Fact]
     public async Task Bundle_fails_for_a_wrong_token_or_unknown_widget()
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();

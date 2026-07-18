@@ -753,7 +753,7 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        if (!Guid.TryParse(widgetId, out Guid widgetGuid))
+        if (!TryDecodeWidgetId(widgetId, out Guid widgetGuid))
             return Errors.NotFound<OverlayBundle>("Widget", widgetId);
 
         Channel? channel = await _db.Channels.FirstOrDefaultAsync(
@@ -796,6 +796,22 @@ public class WidgetService : IWidgetService
                 version.ContentHash ?? string.Empty
             )
         );
+    }
+
+    // Decodes the bundle route's widget id, accepting BOTH wire forms a client may hold: the 26-char ULID the JSON
+    // API serializes owned ids as (UlidGuidJsonConverter), and the raw UUIDv7 Guid the server-built overlay URL
+    // carries. This public, anonymous route reaches the service as a raw string (no model binder), so it mirrors the
+    // API-boundary GuidUlidCodec here — ULID first (its fixed 26-char length never collides with any Guid format),
+    // then a raw Guid — rather than 404ing a perfectly valid ULID-serialized id like every other widget route accepts.
+    private static bool TryDecodeWidgetId(string value, out Guid id)
+    {
+        if (Ulid.TryParse(value, out Ulid ulid))
+        {
+            id = ulid.ToGuid();
+            return true;
+        }
+
+        return Guid.TryParse(value, out id);
     }
 
     public IReadOnlyList<WidgetTemplate> GetTemplates() => WidgetTemplateCatalogue.All;

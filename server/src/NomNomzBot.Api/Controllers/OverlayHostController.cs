@@ -159,6 +159,14 @@ public sealed class OverlayHostController : ControllerBase
           var widgetId = params.get("widgetId");
           if (!token) { console.error("[overlay] missing ?token="); return; }
 
+          // Tri-state: does the joined widget have an authored bundle? null = still fetching, true = mounted,
+          // false = no bundle (404 / fetch error) or no widget joined. The shell's built-in surfaces (chat, alerts,
+          // now-playing, hype) render ONLY when this is false — a bundleless fallback. While pending (null) or when a
+          // bundle is present (true) the widget's own compiled bundle is the SOLE renderer (dev-platform.md), so the
+          // built-ins stay dark: a first-party bundle already receives its subscribed events (incl. "ChatMessage")
+          // over the targeted WidgetEvent feed, and re-rendering them here would double every line on the overlay.
+          var bundlePresent = null;
+
           // ── Widget appearance settings (applied on join + WidgetSettingsChanged) ──
           var settings = { durationMs: 6000 };
           function applySettings(s) {
@@ -541,10 +549,17 @@ public sealed class OverlayHostController : ControllerBase
               case "StopSound": stopSound(args[0] || {}); break;
               case "WidgetReload": location.reload(); break;
               case "WidgetEvent":
-                renderWidgetEvent(args[0]);
+                // Always hand the targeted (subscription-matched) event to the widget bundle; render the built-in
+                // alert / now-playing / hype surface only when this overlay has no bundle (the fallback case).
+                if (bundlePresent === false) renderWidgetEvent(args[0]);
                 postToCustom({ kind: "event", eventType: (args[0] || {}).eventType, data: (args[0] || {}).data });
                 break;
               case "Event": {
+                // The channel-wide feed drives the built-in chat surface, which renders ONLY as a bundleless
+                // fallback. A widget with a bundle already receives its subscribed events (including "ChatMessage")
+                // over the targeted WidgetEvent feed above, so re-forwarding this channel-wide copy into the iframe
+                // would render every message twice — hence it is NOT posted to the widget.
+                if (bundlePresent !== false) break;
                 var oe = args[0];
                 if (oe && oe.type === "ChatMessage") {
                   try { renderChat(JSON.parse(oe.payload)); }
@@ -599,11 +614,13 @@ public sealed class OverlayHostController : ControllerBase
           });
 
           function mountCustomWidget() {
-            if (!widgetId) return;
+            // A bare overlay (no ?widgetId=) has no bundle — fall the shell back to its built-in surfaces.
+            if (!widgetId) { bundlePresent = false; return; }
             var url = "/api/v1/overlay/bundle/" + encodeURIComponent(widgetId)
               + "?token=" + encodeURIComponent(token);
             fetch(url, { cache: "no-store" }).then(function (r) {
-              if (!r.ok) return null;
+              // 404 / non-OK = a bundleless (built-in-type) widget; light up the built-in surfaces instead.
+              if (!r.ok) { bundlePresent = false; return null; }
               var isHtml = (r.headers.get("content-type") || "").indexOf("text/html") === 0;
               var framework = (r.headers.get("X-Widget-Framework") || "").toLowerCase();
               return r.text().then(function (body) { return { body: body, isHtml: isHtml, framework: framework }; });
@@ -627,7 +644,13 @@ public sealed class OverlayHostController : ControllerBase
                   + '<body style="margin:0;background:transparent"><script>' + res.body + '<\/script></body>');
               customFrame = frame;
               document.body.appendChild(frame);
-            }).catch(function (e) { console.error("[overlay] custom widget mount failed", e); });
+              // The authored bundle is now the sole renderer — the built-in surfaces stay dark from here on.
+              bundlePresent = true;
+            }).catch(function (e) {
+              // Fetch/parse failed — fall back to the shell's built-in surfaces rather than a blank overlay.
+              bundlePresent = false;
+              console.error("[overlay] custom widget mount failed", e);
+            });
           }
 
           // Keep-alive: the server evicts silent clients (~30s) and server frames do not reset that
