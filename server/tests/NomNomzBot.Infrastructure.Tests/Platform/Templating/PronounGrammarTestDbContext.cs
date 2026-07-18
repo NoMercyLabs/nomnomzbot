@@ -54,10 +54,12 @@ internal sealed class PronounGrammarTestDbContext : DbContext, IApplicationDbCon
                 .Options
         );
 
-    // ── The three entities these tests exercise, with their real configurations ──
+    // ── The entities these tests exercise; User/Channel/Pronoun carry their real configurations,
+    // ChatMessage is mapped minimally (navs ignored) for the {*.lastmessage} template variables ──
     public DbSet<User> Users => Set<User>();
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<Pronoun> Pronouns => Set<Pronoun>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -65,13 +67,30 @@ internal sealed class PronounGrammarTestDbContext : DbContext, IApplicationDbCon
         modelBuilder.ApplyConfiguration(new ChannelConfiguration());
         modelBuilder.ApplyConfiguration(new PronounConfiguration());
 
+        // ChatMessage minimally: the real configuration references the unmapped Stream entity and
+        // Postgres jsonb columns — the {*.lastmessage} tests only query scalar columns.
+        modelBuilder.Entity<ChatMessage>(chat =>
+        {
+            chat.HasKey(m => m.Id);
+            chat.Ignore(m => m.Channel);
+            chat.Ignore(m => m.Stream);
+            chat.Ignore(m => m.Fragments);
+            chat.Ignore(m => m.Badges);
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
         // getter bodies below; ignore every entity these tests do not exercise.
         foreach (Type entity in UnmappedEntities)
             modelBuilder.Ignore(entity);
     }
 
-    private static readonly HashSet<Type> Mapped = [typeof(User), typeof(Channel), typeof(Pronoun)];
+    private static readonly HashSet<Type> Mapped =
+    [
+        typeof(User),
+        typeof(Channel),
+        typeof(Pronoun),
+        typeof(ChatMessage),
+    ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
         .GetProperties()
@@ -141,7 +160,6 @@ internal sealed class PronounGrammarTestDbContext : DbContext, IApplicationDbCon
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
-    public DbSet<ChatMessage> ChatMessages => throw new NotSupportedException();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>

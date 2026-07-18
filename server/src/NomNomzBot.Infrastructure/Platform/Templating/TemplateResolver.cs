@@ -145,12 +145,54 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 {
                     string key = match.Groups[1].Value.Trim();
                     if (!vars.TryGetValue(key, out string? val))
-                        return match.Value;
+                        return ResolveVerbAgreement(key, vars) ?? match.Value;
                     return IsPronounGrammarKey(key) && key.Length > 0 && char.IsUpper(key[0])
                         ? CapitalizeFirst(val)
                         : val;
                 }
             );
+    }
+
+    /// <summary>
+    /// Resolves the value-carrying verb-agreement form <c>{verb:sings|sing}</c> (also
+    /// <c>{user.verb:…}</c>/<c>{target.verb:…}</c>): picks the singular form when the relevant side's
+    /// grammatical number is singular (presentTense "is"), else the plural form — so
+    /// "{Subject} {verb:plays|play} games" agrees for he/she AND they. Returns null for non-verb keys.
+    /// </summary>
+    private static string? ResolveVerbAgreement(string key, Dictionary<string, string> vars)
+    {
+        string side;
+        string payload;
+        if (key.StartsWith("verb:", StringComparison.OrdinalIgnoreCase))
+        {
+            side = string.Empty;
+            payload = key["verb:".Length..];
+        }
+        else if (key.StartsWith("user.verb:", StringComparison.OrdinalIgnoreCase))
+        {
+            side = "user.";
+            payload = key["user.verb:".Length..];
+        }
+        else if (key.StartsWith("target.verb:", StringComparison.OrdinalIgnoreCase))
+        {
+            side = "target.";
+            payload = key["target.verb:".Length..];
+        }
+        else
+        {
+            return null;
+        }
+
+        string[] forms = payload.Split('|', 2);
+        if (forms.Length != 2)
+            return null; // malformed — leave the raw token so the author sees the mistake
+
+        bool singular = string.Equals(
+            vars.GetValueOrDefault($"{side}presenttense"),
+            "is",
+            StringComparison.OrdinalIgnoreCase
+        );
+        return singular ? forms[0] : forms[1];
     }
 
     /// <summary>
@@ -286,6 +328,10 @@ public sealed partial class TemplateResolver : ITemplateResolver
             ? _registry.Get(broadcasterId.Value)
             : null;
         DateTimeOffset now = _timeProvider.GetUtcNow();
+
+        // {tense}/{user.tense}/{target.tense} and {verb:sing|plur} derive from the underlying grammar
+        // vars (present/past tense, grammatical number) — widen `needed` up front so those resolve.
+        ExpandDerivedGrammarNeeds(needed);
 
         // ── Time variables (no DB needed) ──────────────────────────────────
         if (NeedsAny(needed, "time", "time.utc", "date"))
@@ -445,6 +491,49 @@ public sealed partial class TemplateResolver : ITemplateResolver
         // they/them/their/person/are fallback so a pronoun placeholder never renders raw.
         ApplyPronounGrammarBareAndFallback(vars, needed, hasTargetContext);
 
+        // ── Live-state grammar: {status} = live/offline; {tense} = presentTense while live, pastTense
+        // once offline ("StoneyEagle is live" / "StoneyEagle was live"). Sides mirror the grammar vars.
+        bool isLive = channelCtx?.IsLive == true;
+        if (needed.Contains("status"))
+            vars.TryAdd("status", isLive ? "live" : "offline");
+        foreach (string side in GrammarSides)
+        {
+            if (!needed.Contains($"{side}tense"))
+                continue;
+            string source = isLive ? $"{side}presenttense" : $"{side}pasttense";
+            string fallback = isLive ? "are" : "were";
+            vars.TryAdd($"{side}tense", vars.GetValueOrDefault(source, fallback));
+        }
+
+        // ── Profile links: {link}/{user.link}/{target.link} → twitch.tv/<login>. The bare form mirrors
+        // the @mention target when one is present (consistent with the bare grammar vars).
+        if (needed.Contains("user.link") || (needed.Contains("link") && !hasTargetContext))
+        {
+            string? login = vars.GetValueOrDefault("user.name") ?? vars.GetValueOrDefault("user");
+            if (!string.IsNullOrEmpty(login))
+                vars.TryAdd("user.link", $"twitch.tv/{login.ToLowerInvariant()}");
+        }
+        if (needed.Contains("target.link") || (needed.Contains("link") && hasTargetContext))
+        {
+            string? login =
+                vars.GetValueOrDefault("target.name") ?? vars.GetValueOrDefault("target");
+            if (!string.IsNullOrEmpty(login))
+                vars.TryAdd("target.link", $"twitch.tv/{login.ToLowerInvariant()}");
+        }
+        if (needed.Contains("link"))
+        {
+            string mirrorKey = hasTargetContext ? "target.link" : "user.link";
+            if (vars.TryGetValue(mirrorKey, out string? mirroredLink))
+                vars.TryAdd("link", mirroredLink);
+        }
+
+        // ── Last chat message: {user.lastmessage}/{target.lastmessage} (the viewer's most recent
+        // non-command chat line in this channel; unset renders empty) ──────
+        if (broadcasterId is not null && NeedsAny(needed, "user.lastmessage", "target.lastmessage"))
+        {
+            await ResolveLastMessagesAsync(vars, needed, broadcasterId.Value, ct);
+        }
+
         // ── Named counters {count.<key>} ───────────────────────────────────
         List<string> countKeys = needed
             .Where(n =>
@@ -568,6 +657,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
         vars.TryAdd($"{prefix}object", pronoun.Object);
         vars.TryAdd($"{prefix}possessive", pronoun.Possessive);
         vars.TryAdd($"{prefix}presenttense", pronoun.Singular ? "is" : "are");
+        vars.TryAdd($"{prefix}pasttense", pronoun.Singular ? "was" : "were");
         vars.TryAdd($"{prefix}genderedterm", pronoun.GenderedTerm);
     }
 
@@ -897,10 +987,14 @@ public sealed partial class TemplateResolver : ITemplateResolver
         "object",
         "possessive",
         "presenttense",
+        "pasttense",
         "genderedterm",
     ];
 
-    /// <summary>The universal fallback for a viewer with no pronoun on record: they/them/their/person/are.</summary>
+    /// <summary>The three grammar sides: bare (mirrors target-if-present else user), explicit user., explicit target.</summary>
+    private static readonly string[] GrammarSides = ["", "user.", "target."];
+
+    /// <summary>The universal fallback for a viewer with no pronoun on record: they/them/their/person/are/were.</summary>
     private static readonly IReadOnlyDictionary<string, string> PronounGrammarFallback =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -908,6 +1002,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
             ["object"] = "them",
             ["possessive"] = "their",
             ["presenttense"] = "are",
+            ["pasttense"] = "were",
             ["genderedterm"] = "person",
         };
 
@@ -945,12 +1040,110 @@ public sealed partial class TemplateResolver : ITemplateResolver
         }
     }
 
-    /// <summary>Whether a placeholder key (any casing) names a pronoun-grammar variable — bare or user./target.</summary>
+    /// <summary>Whether a placeholder key (any casing) names a pronoun-grammar variable — bare or user./target.
+    /// {tense} counts too: it renders a grammar word (is/are/was/were) and honors the same capitalization rule.</summary>
     private static bool IsPronounGrammarKey(string key)
     {
         string lower = key.ToLowerInvariant();
         return Array.IndexOf(PronounGrammarSuffixes, lower) >= 0
+            || lower is "tense" or "user.tense" or "target.tense"
             || PronounGrammarSuffixes.Any(s => lower == $"user.{s}" || lower == $"target.{s}");
+    }
+
+    /// <summary>
+    /// Widens the needed-set for derived grammar placeholders: {tense} needs presentTense+pastTense of its
+    /// side; {verb:…} needs presentTense of its side (grammatical-number source). Bare forms widen the bare
+    /// vars, which mirror target-if-present else user like every other bare grammar placeholder.
+    /// </summary>
+    private static void ExpandDerivedGrammarNeeds(HashSet<string> needed)
+    {
+        foreach (string side in GrammarSides)
+        {
+            bool wantsTense = needed.Contains($"{side}tense");
+            bool wantsVerb = needed.Any(n =>
+                n.StartsWith($"{side}verb:", StringComparison.OrdinalIgnoreCase)
+            );
+
+            if (wantsTense || wantsVerb)
+                needed.Add($"{side}presenttense");
+            if (wantsTense)
+                needed.Add($"{side}pasttense");
+        }
+    }
+
+    /// <summary>
+    /// Resolves {user.lastmessage}/{target.lastmessage} — the viewer's most recent surviving non-command
+    /// chat line in this channel (user side keyed by the platform user id, target side by login). A viewer
+    /// with no chat history renders empty, never the raw token.
+    /// </summary>
+    private async Task ResolveLastMessagesAsync(
+        Dictionary<string, string> vars,
+        HashSet<string> needed,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+            if (needed.Contains("user.lastmessage") && !vars.ContainsKey("user.lastmessage"))
+            {
+                string? userId = vars.GetValueOrDefault("user.id");
+                string message = string.Empty;
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    message =
+                        await db
+                            .ChatMessages.AsNoTracking()
+                            .Where(m =>
+                                m.BroadcasterId == broadcasterId
+                                && m.UserId == userId
+                                && !m.IsCommand
+                            )
+                            .OrderByDescending(m => m.CreatedAt)
+                            .Select(m => m.Message)
+                            .FirstOrDefaultAsync(ct)
+                        ?? string.Empty;
+                }
+                vars["user.lastmessage"] = message;
+            }
+
+            if (needed.Contains("target.lastmessage") && !vars.ContainsKey("target.lastmessage"))
+            {
+                string? targetLogin = vars.GetValueOrDefault("target");
+                string message = string.Empty;
+                if (!string.IsNullOrEmpty(targetLogin))
+                {
+                    string login = targetLogin.ToLowerInvariant();
+                    message =
+                        await db
+                            .ChatMessages.AsNoTracking()
+                            .Where(m =>
+                                m.BroadcasterId == broadcasterId
+                                && m.Username == login
+                                && !m.IsCommand
+                            )
+                            .OrderByDescending(m => m.CreatedAt)
+                            .Select(m => m.Message)
+                            .FirstOrDefaultAsync(ct)
+                        ?? string.Empty;
+                }
+                vars["target.lastmessage"] = message;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Failed to resolve last messages for tenant {BroadcasterId}",
+                broadcasterId
+            );
+            vars.TryAdd("user.lastmessage", string.Empty);
+            vars.TryAdd("target.lastmessage", string.Empty);
+        }
     }
 
     private static string CapitalizeFirst(string value) =>
