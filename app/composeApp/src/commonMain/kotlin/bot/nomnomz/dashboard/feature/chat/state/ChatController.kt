@@ -344,6 +344,7 @@ private fun HubChatMessage.toLocalMessage(): ChatMessage =
         },
         avatarUrl = avatarUrl,
         pronouns = pronouns,
+        provider = provider,
     )
 
 /** The Chat page render state. */

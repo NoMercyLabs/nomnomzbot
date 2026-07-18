@@ -466,6 +466,7 @@ private fun ShellContent(
             ShellRoute.Dashboard -> HomeScreen(
                 controller = graph.homeController,
                 liveOpsController = graph.liveOpsController,
+                chatPollsController = graph.chatPollsController,
                 hubEvents = graph.dashboardHubClient.events,
             )
             ShellRoute.Chat -> ChatScreen(

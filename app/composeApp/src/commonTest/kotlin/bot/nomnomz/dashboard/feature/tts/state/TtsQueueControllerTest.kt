@@ -22,6 +22,7 @@ import bot.nomnomz.dashboard.core.network.TtsQueueEntry
 import bot.nomnomz.dashboard.core.network.TtsTestRequest
 import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsVoice
+import bot.nomnomz.dashboard.core.network.TtsVoicePage
 import bot.nomnomz.dashboard.core.network.UserTtsVoice
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -174,6 +175,27 @@ private class FakeQueueTtsApi(
         error("stub")
 
     override suspend fun voices(channelId: String): ApiResult<List<TtsVoice>> = error("stub")
+
+    override suspend fun voicesPage(
+        channelId: String,
+        query: String,
+        locale: String,
+        gender: String,
+        provider: String,
+        accent: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<TtsVoicePage> = error("stub")
+
+    override suspend fun setByokKey(
+        channelId: String,
+        provider: String,
+        apiKey: String,
+        region: String?,
+    ): ApiResult<TtsConfig> = error("stub")
+
+    override suspend fun removeByokKey(channelId: String, provider: String): ApiResult<TtsConfig> =
+        error("stub")
 
     override suspend fun testSpeak(channelId: String, request: TtsTestRequest): ApiResult<TtsTestResult> =
         error("stub")

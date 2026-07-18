@@ -182,6 +182,8 @@ import bot.nomnomz.dashboard.feature.tts.state.TtsController
 import bot.nomnomz.dashboard.feature.tts.state.TtsQueueController
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsController
 import bot.nomnomz.dashboard.core.network.LiveOpsApi
+import bot.nomnomz.dashboard.core.network.ChatPollsApi
+import bot.nomnomz.dashboard.core.network.RestChatPollsApi
 import bot.nomnomz.dashboard.core.network.RestLiveOpsApi
 import bot.nomnomz.dashboard.core.realtime.AdminHubClient
 import bot.nomnomz.dashboard.core.realtime.DashboardHubClient
@@ -189,6 +191,7 @@ import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import bot.nomnomz.dashboard.feature.chatpolls.state.ChatPollsController
 import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsController
 import bot.nomnomz.dashboard.feature.liveops.state.ScheduleController
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
@@ -316,6 +319,7 @@ class AppGraph {
     // One shared multi-file project editor actual, injected into every screen that edits a dev-platform project.
     val projectEditor: ProjectEditorIO = ProjectEditor()
     val liveOpsApi: LiveOpsApi = RestLiveOpsApi(apiClient)
+    val chatPollsApi: ChatPollsApi = RestChatPollsApi(apiClient)
     val billingApi: BillingApi = RestBillingApi(apiClient)
     val adminApi: AdminApi = AdminApiImpl(apiClient)
     val platformIamApi: PlatformIamApi = PlatformIamApiImpl(apiClient)
@@ -539,7 +543,11 @@ class AppGraph {
         ShellAccessController(channelsApi = channelsApi, rolesApi = rolesApi)
 
     val musicController: MusicController =
-        MusicController(channelsApi = channelsApi, musicApi = musicApi)
+        MusicController(
+            channelsApi = channelsApi,
+            musicApi = musicApi,
+            baseUrlProvider = sessionStore::baseUrl,
+        )
 
     val pipelinesController: PipelinesController =
         PipelinesController(
@@ -567,6 +575,9 @@ class AppGraph {
 
     val liveOpsController: LiveOpsController =
         LiveOpsController(channelsApi = channelsApi, liveOpsApi = liveOpsApi)
+
+    val chatPollsController: ChatPollsController =
+        ChatPollsController(channelsApi = channelsApi, chatPollsApi = chatPollsApi)
 
     val scheduleController: ScheduleController =
         ScheduleController(channelsApi = channelsApi, liveOpsApi = liveOpsApi)

@@ -161,6 +161,10 @@ class ApiClient(
             }
         }
 
+    /** DELETEs a path against a `StatusResponseDto<T>` endpoint (a delete that echoes the new state), unwrapping `data`. */
+    internal suspend inline fun <reified T> deleteEnvelope(path: String): ApiResult<T> =
+        envelope(path) { url -> httpClient.delete(url) }
+
     /** POSTs an optional JSON [body] and treats any 2xx as success, ignoring the response body. */
     internal suspend fun postUnit(path: String, body: Any? = null): ApiResult<Unit> =
         unit(path) { url ->

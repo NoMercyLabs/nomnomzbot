@@ -37,6 +37,9 @@ import kotlinx.coroutines.flow.asStateFlow
 class MusicController(
     private val channelsApi: ChannelsApi,
     private val musicApi: MusicApi,
+    // The active backend origin, read live so the pretty share link (`{origin}/sr/@name`) matches whatever host
+    // served the dashboard. Null (the default, e.g. in tests) simply omits the absolute link.
+    private val baseUrlProvider: () -> String? = { null },
 ) {
     private val _state: MutableStateFlow<MusicState> = MutableStateFlow(MusicState.Loading)
 
@@ -99,6 +102,13 @@ class MusicController(
                 is ApiResult.Ok -> result.value
             }
 
+        // The pretty, human-shareable SR link — `{origin}/sr/@{login}` — resolvable by the public by-channel
+        // route (@ + case tolerant). Only built when both the origin and the channel login are known.
+        val shareLink: String? =
+            baseUrlProvider()?.trimEnd('/')?.takeIf { it.isNotBlank() }?.let { origin ->
+                channel.login.takeIf { it.isNotBlank() }?.let { login -> "$origin/sr/@$login" }
+            }
+
         _state.value =
             if (snapshot.nowPlaying == null && snapshot.queue.isEmpty() && config == null) MusicState.Empty
             else MusicState.Ready(
@@ -106,6 +116,7 @@ class MusicController(
                 queue = snapshot.queue,
                 config = config,
                 srPageToken = srToken,
+                shareLink = shareLink,
                 devices = devices,
                 playlists = playlists,
             )
@@ -254,6 +265,8 @@ sealed interface MusicState {
         val queue: List<MusicTrack>,
         val config: MusicConfig? = null,
         val srPageToken: String? = null,
+        // The absolute, human-friendly public SR link (`{origin}/sr/@name`); null when the origin/login is unknown.
+        val shareLink: String? = null,
         val devices: List<MusicDevice> = emptyList(),
         val playlists: List<MusicPlaylist> = emptyList(),
         val actionError: String? = null,

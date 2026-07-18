@@ -260,6 +260,9 @@ data class ChatMessage(
     // avatar and resolved pronouns, null when unavailable.
     val avatarUrl: String? = null,
     val pronouns: String? = null,
+    // Source platform of the message — twitch | kick | youtube (backend DashboardChatMessageDto.provider). The
+    // live hub feed is accurate; persisted REST history reports twitch until the store gains a provider column.
+    val provider: String = "twitch",
 )
 
 /** One decorated fragment — type "text" | "emote" | "cheermote" | "mention" | "link". */

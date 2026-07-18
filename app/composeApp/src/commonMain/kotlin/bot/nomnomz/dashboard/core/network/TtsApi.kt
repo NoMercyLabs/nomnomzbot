@@ -27,7 +27,38 @@ interface TtsApi {
     /** Persist [update]; the backend echoes the saved configuration back. */
     suspend fun updateConfig(channelId: String, update: TtsConfigUpdate): ApiResult<TtsConfig>
 
-    /** The TTS voices available to the channel (across the configured providers). */
+    /**
+     * Store a bring-your-own-key provider credential ([provider] = `azure` | `elevenlabs`). The key is
+     * vault-encrypted server-side and never echoed back; [region] is Azure-only. The backend returns the
+     * refreshed config (with the provider's `has*Key` flag now true).
+     */
+    suspend fun setByokKey(
+        channelId: String,
+        provider: String,
+        apiKey: String,
+        region: String?,
+    ): ApiResult<TtsConfig>
+
+    /** Remove the stored BYOK key for [provider]; the backend returns the refreshed config (flag cleared). */
+    suspend fun removeByokKey(channelId: String, provider: String): ApiResult<TtsConfig>
+
+    /**
+     * One page of the channel's TTS voice catalogue, filtered/searched server-side. Backed by the paginated
+     * `GET /tts/voices` endpoint: free-text [query] matches name/display-name/description/tags; [locale] /
+     * [gender] / [provider] / [accent] are equality filters (blank = no filter). Paging is 1-based.
+     */
+    suspend fun voicesPage(
+        channelId: String,
+        query: String = "",
+        locale: String = "",
+        gender: String = "",
+        provider: String = "",
+        accent: String = "",
+        page: Int = 1,
+        pageSize: Int = 50,
+    ): ApiResult<TtsVoicePage>
+
+    /** The first page of the channel's voices (unfiltered) — a convenience for seeding the default-voice label. */
     suspend fun voices(channelId: String): ApiResult<List<TtsVoice>>
 
     /**
@@ -68,9 +99,47 @@ class RestTtsApi(private val client: ApiClient) : TtsApi {
     ): ApiResult<TtsConfig> =
         client.putEnvelope("api/v1/channels/$channelId/tts/config", update)
 
-    // StatusResponseDto envelope wrapping the voice list — getEnvelope reads the `data` list directly.
+    override suspend fun setByokKey(
+        channelId: String,
+        provider: String,
+        apiKey: String,
+        region: String?,
+    ): ApiResult<TtsConfig> =
+        client.putEnvelope(
+            "api/v1/channels/$channelId/tts/config/byok/$provider",
+            SetTtsByokKeyBody(apiKey = apiKey, region = region),
+        )
+
+    override suspend fun removeByokKey(channelId: String, provider: String): ApiResult<TtsConfig> =
+        client.deleteEnvelope("api/v1/channels/$channelId/tts/config/byok/$provider")
+
+    // The voices endpoint is a PaginatedResponse (flat `{ data, total, hasMore, ... }`) — getDirect reads the
+    // whole body. Only non-blank filters are appended so the query stays clean; values are percent-encoded.
+    override suspend fun voicesPage(
+        channelId: String,
+        query: String,
+        locale: String,
+        gender: String,
+        provider: String,
+        accent: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<TtsVoicePage> {
+        val params: MutableList<String> = mutableListOf("page=$page", "pageSize=$pageSize")
+        if (query.isNotBlank()) params.add("q=${query.encodeQuery()}")
+        if (locale.isNotBlank()) params.add("locale=${locale.encodeQuery()}")
+        if (gender.isNotBlank()) params.add("gender=${gender.encodeQuery()}")
+        if (provider.isNotBlank()) params.add("provider=${provider.encodeQuery()}")
+        if (accent.isNotBlank()) params.add("accent=${accent.encodeQuery()}")
+        return client.getDirect("api/v1/channels/$channelId/tts/voices?${params.joinToString("&")}")
+    }
+
+    // Convenience: read the first (default-size) page and surface just its list for label resolution.
     override suspend fun voices(channelId: String): ApiResult<List<TtsVoice>> =
-        client.getEnvelope("api/v1/channels/$channelId/tts/voices")
+        when (val page: ApiResult<TtsVoicePage> = voicesPage(channelId)) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
 
     // The test response is a StatusResponseDto<TtsTestResultDto> envelope — getEnvelope unwraps `data`.
     override suspend fun testSpeak(channelId: String, request: TtsTestRequest): ApiResult<TtsTestResult> =
@@ -143,6 +212,13 @@ data class TtsConfig(
     val modApprovalRequired: Boolean = false,
     // Minimum bits attached to a message for it to be read out; null = no bits gate.
     val minBitsToTts: Int? = null,
+    // Opt-IN: viewers pick their own voice in chat with `!voice <search>`. Default ON server-side.
+    val viewerVoiceSelfServiceEnabled: Boolean = true,
+    // BYOK status flags — the key itself is never echoed; these say only whether one is stored.
+    val hasAzureByokKey: Boolean = false,
+    val hasElevenLabsByokKey: Boolean = false,
+    // The Azure region stored alongside the Azure BYOK key (null when no Azure key is set).
+    val azureRegion: String? = null,
 )
 
 // The TTS config update request (backend `UpdateTtsConfigDto`). Every field is nullable: the backend
@@ -164,7 +240,12 @@ data class TtsConfigUpdate(
     val profanityCensorEnabled: Boolean? = null,
     val modApprovalRequired: Boolean? = null,
     val minBitsToTts: Int? = null,
+    val viewerVoiceSelfServiceEnabled: Boolean? = null,
 )
+
+/** Request body for storing a BYOK provider key (backend `SetTtsByokKeyDto`). [region] is Azure-only. */
+@Serializable
+data class SetTtsByokKeyBody(val apiKey: String, val region: String? = null)
 
 /**
  * A pending TTS utterance awaiting moderator approval (backend `TtsQueueEntryDto`). The mod reviews the text
@@ -216,6 +297,26 @@ data class TtsVoice(
     val gender: String = "",
     val provider: String = "",
     val isDefault: Boolean = false,
+    // Rich catalogue metadata (backend added for the searchable browser). All nullable/empty-tolerant.
+    val accent: String? = null,
+    val age: String? = null,
+    val styles: List<String> = emptyList(),
+    val tags: List<String> = emptyList(),
+    val description: String? = null,
+    // A ready-made preview clip URL when the provider ships one; else the page falls back to POST /tts/test.
+    val previewUrl: String? = null,
+)
+
+/**
+ * One page of the voice catalogue (backend `PaginatedResponse<TtsVoiceDto>`): the [data] rows plus the paging
+ * signals the browser needs — [total] result count and [hasMore] (another page exists after this one).
+ */
+@Serializable
+data class TtsVoicePage(
+    val data: List<TtsVoice> = emptyList(),
+    val total: Int = 0,
+    val hasMore: Boolean = false,
+    val nextPage: Int? = null,
 )
 
 /** A viewer's per-viewer voice override (backend `UserTtsVoiceDto`): [userId] reads in [voiceId]. */

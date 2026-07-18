@@ -101,6 +101,8 @@ data class HubChatMessage(
     /** Chatter avatar + resolved pronouns (hub enrichment via IHubUserEnricher); null when unavailable. */
     val avatarUrl: String? = null,
     val pronouns: String? = null,
+    /** Source platform of the message — twitch | kick | youtube. The live feed is accurate; history reports twitch. */
+    val provider: String = "twitch",
 )
 
 /** One fragment of a hub chat message — type is "text" | "emote" | "cheermote" | "mention" | "link". */

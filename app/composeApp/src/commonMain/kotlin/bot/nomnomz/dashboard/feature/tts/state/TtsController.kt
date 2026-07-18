@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
 import bot.nomnomz.dashboard.core.network.TtsTestRequest
 import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsVoice
+import bot.nomnomz.dashboard.core.network.TtsVoicePage
 import bot.nomnomz.dashboard.core.network.UserTtsVoice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -147,6 +148,82 @@ class TtsController(
         }
     }
 
+    /**
+     * Run a voice-catalogue search with the given [query] and equality filters against the paginated backend
+     * endpoint, replacing the browser results on the Ready state. [page] is 1-based; the screen calls this on a
+     * query/filter change (page 1) and on paging. A failure surfaces on the browser without dropping the config.
+     */
+    suspend fun searchVoices(
+        query: String = "",
+        locale: String = "",
+        gender: String = "",
+        provider: String = "",
+        accent: String = "",
+        page: Int = 1,
+    ) {
+        val channel: String = channelId ?: return
+        val current: TtsState = _state.value
+        if (current !is TtsState.Ready) return
+
+        val querying: VoiceBrowserState =
+            VoiceBrowserState(
+                query = query,
+                locale = locale,
+                gender = gender,
+                provider = provider,
+                accent = accent,
+                page = page,
+                loading = true,
+            )
+        _state.value = current.copy(voiceBrowser = querying)
+
+        val next: VoiceBrowserState =
+            when (
+                val result: ApiResult<TtsVoicePage> =
+                    ttsApi.voicesPage(channel, query, locale, gender, provider, accent, page)
+            ) {
+                is ApiResult.Ok ->
+                    querying.copy(
+                        loading = false,
+                        results = result.value.data,
+                        total = result.value.total,
+                        hasMore = result.value.hasMore,
+                        error = null,
+                    )
+                is ApiResult.Failure -> querying.copy(loading = false, error = result.error.message)
+            }
+        (_state.value as? TtsState.Ready)?.let { _state.value = it.copy(voiceBrowser = next) }
+    }
+
+    /**
+     * Store a bring-your-own-key credential for [provider] (`azure` | `elevenlabs`); [region] is Azure-only.
+     * The backend echoes the refreshed config (the provider's stored-flag now true), which replaces the loaded
+     * baseline. A failure surfaces on the Ready state without discarding the form.
+     */
+    suspend fun setByokKey(provider: String, apiKey: String, region: String?) {
+        val target: String = channelId ?: return
+        applyConfigResult { ttsApi.setByokKey(target, provider, apiKey, region) }
+    }
+
+    /** Remove the stored BYOK key for [provider]; the backend echoes the refreshed config (flag cleared). */
+    suspend fun removeByokKey(provider: String) {
+        val target: String = channelId ?: return
+        applyConfigResult { ttsApi.removeByokKey(target, provider) }
+    }
+
+    // Run a config-returning write; on success replace the loaded config, on failure surface the error.
+    private suspend fun applyConfigResult(write: suspend () -> ApiResult<TtsConfig>) {
+        val current: TtsState = _state.value
+        if (current !is TtsState.Ready) return
+        _state.value = current.copy(saving = true, justSaved = false, saveError = null)
+        _state.value =
+            when (val result: ApiResult<TtsConfig> = write()) {
+                is ApiResult.Failure -> current.copy(saving = false, saveError = result.error.message)
+                is ApiResult.Ok ->
+                    current.copy(config = result.value, saving = false, justSaved = true, saveError = null)
+            }
+    }
+
     // Put a viewer-voice write error back on the panel without losing the queried viewer.
     private fun surfaceViewerVoiceError(userId: String, message: String) {
         val current: TtsState = _state.value
@@ -174,6 +251,8 @@ class TtsController(
         val update: TtsConfigUpdate =
             TtsConfigUpdate(
                 isEnabled = config.isEnabled,
+                mode = config.mode,
+                defaultProvider = config.defaultProvider,
                 defaultVoiceId = config.defaultVoiceId,
                 maxCharacters = config.maxCharacters,
                 minPermission = config.minPermission,
@@ -181,6 +260,8 @@ class TtsController(
                 readUsernames = config.readUsernames,
                 profanityCensorEnabled = config.profanityCensorEnabled,
                 modApprovalRequired = config.modApprovalRequired,
+                minBitsToTts = config.minBitsToTts,
+                viewerVoiceSelfServiceEnabled = config.viewerVoiceSelfServiceEnabled,
             )
 
         _state.value =
@@ -218,10 +299,30 @@ sealed interface TtsState {
         val testError: String? = null,
         // The per-viewer voice panel's state, or null until the operator looks up a viewer.
         val viewerVoice: ViewerVoiceState? = null,
+        // The searchable voice-browser state, or null until the operator opens/searches it.
+        val voiceBrowser: VoiceBrowserState? = null,
     ) : TtsState
 
     data class Error(val detail: String) : TtsState
 }
+
+/**
+ * The searchable voice-browser panel's state: the current [query] + equality filters, the 1-based [page], the
+ * fetched [results] page with its [total] count and whether [hasMore] pages follow, plus [loading] / [error].
+ */
+data class VoiceBrowserState(
+    val query: String = "",
+    val locale: String = "",
+    val gender: String = "",
+    val provider: String = "",
+    val accent: String = "",
+    val page: Int = 1,
+    val results: List<TtsVoice> = emptyList(),
+    val total: Int = 0,
+    val hasMore: Boolean = false,
+    val loading: Boolean = false,
+    val error: String? = null,
+)
 
 /**
  * The per-viewer voice panel's state: the looked-up [userId], their [currentVoiceId] (null = uses the channel

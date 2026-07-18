@@ -22,6 +22,7 @@ import bot.nomnomz.dashboard.core.network.TtsTestRequest
 import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsQueueEntry
 import bot.nomnomz.dashboard.core.network.TtsVoice
+import bot.nomnomz.dashboard.core.network.TtsVoicePage
 import bot.nomnomz.dashboard.core.network.UserTtsVoice
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -155,6 +156,8 @@ class TtsControllerTest {
         assertEquals(
             TtsConfigUpdate(
                 isEnabled = true,
+                mode = "self_host",
+                defaultProvider = "edge",
                 defaultVoiceId = "en-US-Brian",
                 maxCharacters = 200,
                 minPermission = "subscribers",
@@ -162,6 +165,8 @@ class TtsControllerTest {
                 readUsernames = false,
                 profanityCensorEnabled = true,
                 modApprovalRequired = false,
+                minBitsToTts = null,
+                viewerVoiceSelfServiceEnabled = true,
             ),
             ttsApi.lastUpdate,
         )
@@ -293,6 +298,40 @@ private class FakeTtsApi(
     }
 
     override suspend fun voices(channelId: String): ApiResult<List<TtsVoice>> = voicesResult
+
+    // Records BYOK writes so tests can assert them; each echoes an updated config with the flag toggled.
+    val byokSets: MutableList<Triple<String, String, String?>> = mutableListOf()
+    val byokRemovals: MutableList<String> = mutableListOf()
+
+    override suspend fun setByokKey(
+        channelId: String,
+        provider: String,
+        apiKey: String,
+        region: String?,
+    ): ApiResult<TtsConfig> {
+        byokSets.add(Triple(provider, apiKey, region))
+        return updateResult
+    }
+
+    override suspend fun removeByokKey(channelId: String, provider: String): ApiResult<TtsConfig> {
+        byokRemovals.add(provider)
+        return updateResult
+    }
+
+    override suspend fun voicesPage(
+        channelId: String,
+        query: String,
+        locale: String,
+        gender: String,
+        provider: String,
+        accent: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<TtsVoicePage> =
+        when (val r: ApiResult<List<TtsVoice>> = voicesResult) {
+            is ApiResult.Ok -> ApiResult.Ok(TtsVoicePage(data = r.value, total = r.value.size, hasMore = false))
+            is ApiResult.Failure -> ApiResult.Failure(r.error)
+        }
 
     override suspend fun testSpeak(channelId: String, request: TtsTestRequest): ApiResult<TtsTestResult> =
         ApiResult.Ok(TtsTestResult())

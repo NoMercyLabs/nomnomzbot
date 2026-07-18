@@ -428,6 +428,10 @@ private fun MessageInlineBody(
                 )
             }
         }
+        // Platform tag — only for non-Twitch sources, so a merged multi-platform feed shows where a line came
+        // from without cluttering a Twitch-only channel (stored history always reports twitch).
+        message.provider.takeIf { it.isNotBlank() && !it.equals("twitch", ignoreCase = true) }
+            ?.let { provider -> ProviderTag(provider) }
         // Pronoun chip (resolved by the backend enricher) — a small muted badge next to the name.
         message.pronouns?.takeIf { it.isNotBlank() }?.let { pronouns -> PronounChip(pronouns) }
         // Colored, semi-bold name.
@@ -1272,6 +1276,30 @@ private fun formatClockTime(isoUtc: String): String? = runCatching {
 
 // A small muted chip showing the chatter's resolved pronouns beside their name (chat-client.md §0 render
 // contract). The pronoun text is data (already localized by the source), so it carries no i18n key.
+@Composable
+private fun ProviderTag(provider: String) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    // Title-case the wire value (kick → Kick, youtube → YouTube) for display.
+    val label: String =
+        when (provider.lowercase()) {
+            "youtube" -> "YouTube"
+            "kick" -> "Kick"
+            else -> provider.replaceFirstChar { it.uppercase() }
+        }
+    Text(
+        text = label,
+        style = typography.xs,
+        color = tokens.mutedForeground,
+        maxLines = 1,
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(tokens.muted)
+            .padding(horizontal = spacing.s1),
+    )
+}
+
 @Composable
 private fun PronounChip(pronouns: String) {
     val tokens = LocalTokens.current

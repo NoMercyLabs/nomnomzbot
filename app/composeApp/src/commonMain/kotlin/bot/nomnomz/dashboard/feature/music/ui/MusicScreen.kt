@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.CopyLinkButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -74,6 +75,7 @@ import bot.nomnomz.dashboard.feature.music.state.MusicState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.music_action_error
@@ -122,6 +124,9 @@ import nomnomzbot.composeapp.generated.resources.music_config_allow_spotify
 import nomnomzbot.composeapp.generated.resources.music_config_trust
 import nomnomzbot.composeapp.generated.resources.music_config_save
 import nomnomzbot.composeapp.generated.resources.music_token_title
+import nomnomzbot.composeapp.generated.resources.music_share_link_copied
+import nomnomzbot.composeapp.generated.resources.music_share_link_copy
+import nomnomzbot.composeapp.generated.resources.music_share_link_value
 import nomnomzbot.composeapp.generated.resources.music_token_value
 import nomnomzbot.composeapp.generated.resources.music_token_rotate
 import nomnomzbot.composeapp.generated.resources.music_token_rotate_title
@@ -182,6 +187,7 @@ fun MusicScreen(
                     queue = current.queue,
                     config = current.config,
                     srPageToken = current.srPageToken,
+                    shareLink = current.shareLink,
                     devices = current.devices,
                     playlists = current.playlists,
                     actionError = current.actionError,
@@ -209,6 +215,7 @@ private fun ReadyContent(
     queue: List<MusicTrack>,
     config: MusicConfig?,
     srPageToken: String?,
+    shareLink: String?,
     devices: List<MusicDevice>,
     playlists: List<MusicPlaylist>,
     actionError: String?,
@@ -290,10 +297,15 @@ private fun ReadyContent(
             MusicConfigSection(config = config, manage = manage, onSave = onSaveConfig)
         }
 
-        // ── SR-page token ─────────────────────────────────────────────────
+        // ── SR-page token + shareable link ────────────────────────────────
         if (srPageToken != null) {
             Separator()
-            SrTokenSection(token = srPageToken, manage = manage, onRotate = { pendingRotate = true })
+            SrTokenSection(
+                token = srPageToken,
+                shareLink = shareLink,
+                manage = manage,
+                onRotate = { pendingRotate = true },
+            )
         }
 
         // ── Remote controls (shuffle / repeat / devices / playlists) ──────
@@ -367,6 +379,23 @@ private fun NowPlayingCard(
     val cardDescription: String =
         stringResource(Res.string.music_now_playing_description, title, artist.ifBlank { requester })
 
+    // A locally-ticking progress: the backend now-playing is only re-read on a poll/hub push, so the bar would
+    // otherwise sit still between fetches. Seed from the fetched progress (re-seeded whenever a fresh snapshot
+    // for this track lands) and advance it once a second while the track is playing, capped at the duration.
+    var tickedMs: Int by
+        remember(nowPlaying.trackName, nowPlaying.progressMs, nowPlaying.isPlaying) {
+            mutableStateOf(nowPlaying.progressMs)
+        }
+    LaunchedEffect(nowPlaying.trackName, nowPlaying.progressMs, nowPlaying.isPlaying, nowPlaying.durationMs) {
+        if (!nowPlaying.isPlaying) return@LaunchedEffect
+        while (nowPlaying.durationMs <= 0 || tickedMs < nowPlaying.durationMs) {
+            delay(1_000)
+            tickedMs =
+                if (nowPlaying.durationMs > 0) (tickedMs + 1_000).coerceAtMost(nowPlaying.durationMs)
+                else tickedMs + 1_000
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -422,7 +451,7 @@ private fun NowPlayingCard(
             }
         }
 
-        ProgressBar(progressMs = nowPlaying.progressMs, durationMs = nowPlaying.durationMs)
+        ProgressBar(progressMs = tickedMs, durationMs = nowPlaying.durationMs)
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -445,7 +474,7 @@ private fun NowPlayingCard(
 
         PlaybackControls(
             isPlaying = nowPlaying.isPlaying,
-            progressMs = nowPlaying.progressMs,
+            progressMs = tickedMs,
             durationMs = nowPlaying.durationMs,
             manage = manage,
             onPlay = onPlay,
@@ -869,13 +898,33 @@ private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSa
 // ── SR page token ─────────────────────────────────────────────────────────────
 
 @Composable
-private fun SrTokenSection(token: String, manage: ManageDecision, onRotate: () -> Unit) {
+private fun SrTokenSection(
+    token: String,
+    shareLink: String?,
+    manage: ManageDecision,
+    onRotate: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
         Text(text = stringResource(Res.string.music_token_title), style = typography.base, color = tokens.cardForeground)
+        // The pretty, say-it-on-stream link (`/sr/@name`) — offered first with a one-click copy when known.
+        if (!shareLink.isNullOrBlank()) {
+            Text(
+                text = stringResource(Res.string.music_share_link_value, shareLink),
+                style = typography.sm,
+                color = tokens.cardForeground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            CopyLinkButton(
+                url = shareLink,
+                copyLabel = stringResource(Res.string.music_share_link_copy),
+                copiedLabel = stringResource(Res.string.music_share_link_copied),
+            )
+        }
         Text(
             text = stringResource(Res.string.music_token_value, token),
             style = typography.sm,

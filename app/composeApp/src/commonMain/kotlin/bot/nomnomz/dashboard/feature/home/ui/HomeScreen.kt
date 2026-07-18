@@ -80,6 +80,8 @@ import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.home.state.HomeController
 import bot.nomnomz.dashboard.feature.home.state.HomeState
+import bot.nomnomz.dashboard.feature.chatpolls.state.ChatPollsController
+import bot.nomnomz.dashboard.feature.chatpolls.ui.ChatPollsCard
 import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsController
 import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsState
 import kotlinx.coroutines.flow.SharedFlow
@@ -166,6 +168,7 @@ import org.jetbrains.compose.resources.stringResource
 fun HomeScreen(
     controller: HomeController,
     liveOpsController: LiveOpsController,
+    chatPollsController: ChatPollsController,
     hubEvents: SharedFlow<HubEvent>? = null,
 ) {
     val state: HomeState by controller.state.collectAsStateWithLifecycle()
@@ -199,6 +202,7 @@ fun HomeScreen(
                     topCommands = current.topCommands,
                     streamError = current.streamError,
                     liveOpsController = liveOpsController,
+                    chatPollsController = chatPollsController,
                     onUpdateStream = { title, game, tags ->
                         scope.launch { controller.updateStreamInfo(title, game, tags) }
                     },
@@ -217,6 +221,7 @@ private fun ReadyContent(
     topCommands: List<CommandSummary>,
     streamError: String?,
     liveOpsController: LiveOpsController,
+    chatPollsController: ChatPollsController,
     onUpdateStream: (title: String?, game: String?, tags: List<String>?) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -302,6 +307,10 @@ private fun ReadyContent(
                 if (topCommands.isNotEmpty()) {
                     TopCommandsCard(commands = topCommands)
                 }
+
+                // Bot-run chat poll (item: chat polls) — sits beside the Twitch-native live-ops poll above,
+                // labeled "Chat poll" so the two voting mechanisms read as distinct.
+                ChatPollsCard(controller = chatPollsController)
             }
         }
     }
