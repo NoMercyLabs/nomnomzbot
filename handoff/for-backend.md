@@ -21,7 +21,7 @@ _None._
 ## Done
 
 ### 2026-07-18 — The `/obs-bridge` browser-source page (OBS + VTS legs) is a server-served static asset
-- **Commit:** `5c2efa11`
+- **Commit:** `cc424fe7`
 - **From:** aaoa-dev (via Claude, frontend track)
 - **Resolution:** new `ObsBridgeHostController` (`server/src/NomNomzBot.Api/Controllers/ObsBridgeHostController.cs`)
   serves the control-only bridge browser source at `GET /obs-bridge` (`[AllowAnonymous]`,
