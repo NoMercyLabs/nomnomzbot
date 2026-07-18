@@ -7419,6 +7419,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("everyone");
 
+                    b.Property<Guid?>("PipelineId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("PipelineJson")
                         .HasColumnType("jsonb");
 

@@ -61,6 +61,14 @@ public class Reward : SoftDeletableEntity, ITenantScoped
     /// </summary>
     public int? TimerDurationSeconds { get; set; }
 
+    /// <summary>
+    /// Optional binding to a saved <c>Pipeline</c>: when set, redeeming this reward dispatches that pipeline's
+    /// compiled graph through <c>IPipelineEngine</c> (the reward analogue of a timer's <c>PipelineId</c>) — the
+    /// path a reward-triggered <c>play_sound</c> takes. Takes precedence over the inline <see cref="PipelineJson"/>
+    /// / <see cref="Response"/> fallbacks. Null = no bound pipeline.
+    /// </summary>
+    public Guid? PipelineId { get; set; }
+
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;
 }

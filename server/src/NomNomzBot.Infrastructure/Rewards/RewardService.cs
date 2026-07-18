@@ -60,6 +60,7 @@ public class RewardService : IRewardService
             Title = request.Title,
             IsEnabled = true,
             TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds),
+            PipelineId = request.PipelineId,
         };
 
         _db.Rewards.Add(reward);
@@ -101,6 +102,10 @@ public class RewardService : IRewardService
             reward.IsEnabled = request.IsEnabled.Value;
         if (request.TimerDurationSeconds.HasValue)
             reward.TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds);
+        // Absent leaves the binding unchanged; Guid.Empty clears it; a real id binds that pipeline.
+        if (request.PipelineId.HasValue)
+            reward.PipelineId =
+                request.PipelineId.Value == Guid.Empty ? null : request.PipelineId.Value;
 
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -621,6 +626,7 @@ public class RewardService : IRewardService
             null,
             null,
             r.TimerDurationSeconds,
+            r.PipelineId,
             r.CreatedAt,
             r.UpdatedAt
         );

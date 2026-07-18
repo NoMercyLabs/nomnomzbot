@@ -59,6 +59,9 @@ public sealed record RewardDetail(
     // Opt-in countdown for time-limited rewards: redeeming starts a RedemptionTimer for this many
     // seconds; completion fulfills the redemption. Null = a normal reward.
     int? TimerDurationSeconds,
+    // Optional saved-pipeline binding: redeeming this reward dispatches that pipeline (e.g. a play_sound
+    // step). Null = no bound pipeline.
+    Guid? PipelineId,
     DateTime CreatedAt,
     DateTime UpdatedAt
 );
@@ -78,6 +81,9 @@ public sealed record CreateRewardRequest
 
     /// <summary>Opt-in countdown (seconds, capped at 24h) — makes this a time-limited reward.</summary>
     public int? TimerDurationSeconds { get; init; }
+
+    /// <summary>Optional saved-pipeline binding — redeeming this reward runs that pipeline.</summary>
+    public Guid? PipelineId { get; init; }
 }
 
 public sealed record UpdateRewardRequest
@@ -97,4 +103,7 @@ public sealed record UpdateRewardRequest
 
     /// <summary>Countdown seconds for a time-limited reward; 0 clears it, absent leaves it unchanged.</summary>
     public int? TimerDurationSeconds { get; init; }
+
+    /// <summary>Saved-pipeline binding; <see cref="Guid.Empty"/> clears it, absent leaves it unchanged.</summary>
+    public Guid? PipelineId { get; init; }
 }

@@ -104,6 +104,30 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
 
         string? pipelineJson = reward?.PipelineJson;
 
+        // A reward can bind a SAVED pipeline (the reward analogue of a timer's PipelineId): load its compiled
+        // graph and run that — the path a reward-triggered play_sound takes. Takes precedence over the inline
+        // PipelineJson / Response fallbacks. A binding whose graph is missing/deleted degrades to those.
+        if (reward?.PipelineId is Guid boundPipelineId)
+        {
+            string? graphJson = await db
+                .Pipelines.Where(p =>
+                    p.Id == boundPipelineId
+                    && p.BroadcasterId == broadcasterId
+                    && p.DeletedAt == null
+                )
+                .Select(p => p.GraphJsonCache)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (!string.IsNullOrEmpty(graphJson))
+                pipelineJson = graphJson;
+            else
+                _logger.LogWarning(
+                    "Reward {RewardId} in {Channel} binds pipeline {PipelineId} with no executable graph — falling back",
+                    @event.RewardId,
+                    broadcasterId,
+                    boundPipelineId
+                );
+        }
+
         // Fall back to simple Response text as a send_message pipeline
         if (pipelineJson is null && reward?.Response is not null)
         {
