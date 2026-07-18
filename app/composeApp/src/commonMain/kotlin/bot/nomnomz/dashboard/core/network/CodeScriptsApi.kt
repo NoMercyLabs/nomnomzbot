@@ -87,7 +87,7 @@ class RestCodeScriptsApi(private val client: ApiClient) : CodeScriptsApi {
         client.postEnvelope("api/v1/code-scripts/$id/versions/$versionId/publish", Unit)
 
     override suspend fun setEnabled(id: String, enabled: Boolean): ApiResult<CodeScriptSummary> =
-        client.putEnvelope("api/v1/code-scripts/$id/enabled", SetEnabledBody(enabled))
+        client.patchEnvelope("api/v1/code-scripts/$id/enabled", SetEnabledBody(enabled))
 
     override suspend fun delete(id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/code-scripts/$id")
