@@ -91,10 +91,17 @@ public static class ChatHtmlSanitizer
         // media / fun
         "img",
         "marquee",
+        // audio + video playback (the sender's clips). Their url attributes (src/poster/srcset) are still
+        // https-only via AllowedSchemes, and every on* handler is still stripped, so "sanitised" media = a plain
+        // <video>/<audio> the browser plays, never a scripting surface.
+        "audio",
+        "video",
+        "source",
+        "track",
     ];
 
     // Attributes allowed on any tag. Deliberately excludes "style" (no inline CSS / url()), every "on*" handler, and
-    // "id" (DOM-clobbering surface). "href"/"src" carry URLs, guarded to https by AllowedSchemes below.
+    // "id" (DOM-clobbering surface). "href"/"src"/"poster"/"srcset" carry URLs, guarded to https by AllowedSchemes.
     private static readonly string[] AllowedAttributes =
     [
         "alt",
@@ -108,6 +115,28 @@ public static class ChatHtmlSanitizer
         "src",
         "title",
         "width",
+        // <audio>/<video>/<source>/<track> attributes — DISPLAY ONLY. Deliberately excludes "autoplay", "loop",
+        // "preload", and "muted": on an OBS browser-source there is no viewer to click, so autoplay/loop would let a
+        // sender force disruptive media (loud audio, endless clips) onto the stream. The media renders as a player;
+        // nothing plays until the streamer chooses to. "controls"/"poster"/"src" are the safe presentational surface.
+        "controls",
+        "default",
+        "kind",
+        "label",
+        "playsinline",
+        "poster",
+        "srclang",
+        "srcset",
+        "type",
+        // <marquee> presentational attributes, so the sender's scrolling text keeps its motion/colour (the effects
+        // their current-bot messages actually used) — none of these carry script.
+        "behavior",
+        "bgcolor",
+        "direction",
+        "hspace",
+        "scrollamount",
+        "scrolldelay",
+        "vspace",
     ];
 
     private static readonly HtmlSanitizer Sanitizer = Build();
@@ -136,6 +165,11 @@ public static class ChatHtmlSanitizer
         // data:, vbscript:, file:, and every other scheme.
         sanitizer.AllowedSchemes.Clear();
         sanitizer.AllowedSchemes.Add("https");
+
+        // The scheme check only runs on attributes HtmlSanitizer treats as URLs. src/href are defaults, but the media
+        // attributes we allow (poster, srcset) are NOT — register them so an http:/javascript: poster can't slip past.
+        sanitizer.UriAttributes.Add("poster");
+        sanitizer.UriAttributes.Add("srcset");
 
         // A disallowed element takes its whole subtree with it, so <script>alert(1)</script> leaves nothing behind
         // rather than an orphaned "alert(1)" text node.
