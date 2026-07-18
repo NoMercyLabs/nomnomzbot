@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -103,10 +104,15 @@ public sealed class OverlayHostController : ControllerBase
 
     // ── Page rendering ──────────────────────────────────────────────────────
 
-    /// <summary>The injected config block — the widget's live settings, id, name, and declared event subscriptions.</summary>
-    private static string ConfigScript(OverlayWidgetEntry entry, string token) =>
-        $$"""
-            <script>
+    /// <summary>The injected config block — the widget's live settings, id, name, and declared event subscriptions.
+    /// Carries the CSP <paramref name="nonce"/> so this one legitimately-inline script runs under a strict
+    /// <c>script-src</c> while any handler/script a widget later injects into the DOM (e.g. an html chat fragment via
+    /// <c>v-html</c>) does not — the render layer never has to trust that its input was sanitised.</summary>
+    private static string ConfigScript(OverlayWidgetEntry entry, string token, string nonce = "")
+    {
+        string nonceAttr = nonce.Length == 0 ? "" : $" nonce=\"{nonce}\"";
+        return $$"""
+            <script{{nonceAttr}}>
             window.WIDGET_ID={{JsLiteral(entry.WidgetId.ToString())}};
             window.WIDGET_TOKEN={{JsLiteral(token)}};
             window.WIDGET_NAME={{JsLiteral(entry.Name)}};
@@ -114,10 +120,31 @@ public sealed class OverlayHostController : ControllerBase
             window.WIDGET_EVENT_SUBSCRIPTIONS={{JsLiteral(entry.EventSubscriptions)}};
             </script>
             """;
+    }
+
+    /// <summary>
+    /// The overlay's Content-Security-Policy for the framework page. <c>script-src 'self' 'nonce-…'</c> is the crux:
+    /// the runtime, SDK, and bundle load from same-origin, the one inline config block carries the nonce, and
+    /// EVERYTHING else — an inline <c>&lt;script&gt;</c> or an <c>onerror=</c>/<c>onclick=</c> a widget injects via
+    /// <c>v-html</c> — is refused execution by the browser. So a chat html fragment that slips through unsanitised (a
+    /// preview fire, a future emitter) can render markup but can never run script. Styles stay inline (Vue scoped
+    /// styles); img/media/font load over https only; connect covers the SDK's same-origin hub socket. No eval — the
+    /// widget bundles ship pre-compiled render functions.
+    /// </summary>
+    private static string ContentSecurityPolicy(string nonce) =>
+        "default-src 'none'; "
+        + $"script-src 'self' 'nonce-{nonce}'; "
+        + "style-src 'self' 'unsafe-inline'; "
+        + "img-src https: data:; "
+        + "media-src https:; "
+        + "font-src https: data:; "
+        + "connect-src 'self' https: wss: ws:; "
+        + "base-uri 'none'; object-src 'none'; frame-src 'none'; form-action 'none'";
 
     /// <summary>A framework (vue/react/…) widget: config + runtime + SDK, then the self-mounting bundle into #app.</summary>
     private static string RenderFrameworkPage(OverlayWidgetEntry entry, string token)
     {
+        string nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
         string runtimeTag = string.Equals(
             entry.Framework,
             "vue",
@@ -133,9 +160,10 @@ public sealed class OverlayHostController : ControllerBase
             <html lang="en">
             <head>
             <meta charset="utf-8">
+            <meta http-equiv="Content-Security-Policy" content="{{ContentSecurityPolicy(nonce)}}">
             <title>NomNomzBot Overlay</title>
             <style>html,body{margin:0;padding:0;background:transparent;overflow:hidden}#app{position:fixed;inset:0}</style>
-            {{ConfigScript(entry, token)}}
+            {{ConfigScript(entry, token, nonce)}}
             {{runtimeTag}}
             <script src="/overlay/sdk.js"></script>
             </head>

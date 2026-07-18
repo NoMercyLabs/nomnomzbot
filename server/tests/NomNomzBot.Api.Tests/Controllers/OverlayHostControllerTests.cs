@@ -10,6 +10,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -139,6 +140,37 @@ public sealed class OverlayHostControllerTests
         );
 
         html.Should().NotContain("/overlay/sdk.js").And.NotContain($"bundle/{WidgetId}");
+    }
+
+    [Fact]
+    public async Task Serves_a_strict_csp_whose_nonce_gates_the_only_inline_script()
+    {
+        OverlayHostController sut = WithManifest(VueEntry(new Dictionary<string, object?>()));
+
+        string html = await BodyOf(
+            await sut.Get(WidgetId.ToString(), Token, CancellationToken.None)
+        );
+
+        // A CSP is present and strict: default-src none, no eval, and script-src is 'self' + a nonce — never
+        // 'unsafe-inline'. This is what stops an onerror=/inline <script> injected via a v-html chat fragment from
+        // ever executing, regardless of whether the fragment was sanitised upstream.
+        html.Should()
+            .Contain("http-equiv=\"Content-Security-Policy\"")
+            .And.Contain("default-src 'none'")
+            .And.Contain("object-src 'none'")
+            .And.Contain("script-src 'self' 'nonce-")
+            .And.NotContain("unsafe-eval");
+
+        // The ONE legitimate inline script (the injected config) carries that exact nonce, so it runs while any
+        // later-injected inline script does not.
+        Match match = Regex.Match(html, "script-src 'self' 'nonce-([A-Za-z0-9+/=]+)'");
+        match.Success.Should().BeTrue("the script-src must pin a nonce");
+        string nonce = match.Groups[1].Value;
+        html.Should()
+            .Contain(
+                $"<script nonce=\"{nonce}\">",
+                "the config block is the nonce'd inline script"
+            );
     }
 
     [Fact]
