@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.CodeScriptVersion
 import bot.nomnomz.dashboard.core.network.CodeScriptsApi
 import bot.nomnomz.dashboard.core.network.CreateScriptBody
 import bot.nomnomz.dashboard.core.network.ProjectDto
+import bot.nomnomz.dashboard.core.network.SdkTypesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class CodeScriptsController(
     private val api: CodeScriptsApi,
     private val projectEditor: ProjectEditorIO,
+    private val sdkTypesApi: SdkTypesApi,
 ) {
     private val _state: MutableStateFlow<CodeScriptsState> = MutableStateFlow(CodeScriptsState.Loading)
 
@@ -115,6 +117,9 @@ class CodeScriptsController(
             initialFiles = project.files,
             entryPath = project.manifest.entry,
             language = project.manifest.framework.ifBlank { "script" },
+            // The script-context nnz.d.ts drives `nnz.` autocomplete + diagnostics in the web editor; a fetch
+            // failure degrades to a plain editor rather than blocking editing.
+            sdkTypes = fetchSdkTypes("script"),
             compile = { editedFiles -> saveProjectFeedback(id, editedFiles, project, compiledMessage) },
         )
         // Reload so the version number / validation status reflects the newly-published version, and refresh the
@@ -149,6 +154,14 @@ class CodeScriptsController(
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
+
+    // Fetch the generated nnz.d.ts for [context] to hand the editor's TypeScript language service; degrade to an
+    // empty string (no autocomplete) on any failure rather than block the editor from opening.
+    private suspend fun fetchSdkTypes(context: String): String =
+        when (val result: ApiResult<String> = sdkTypesApi.types(context)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> ""
+        }
 
     // Save the edited project (files + the preserved manifest) and map the outcome to inline editor feedback. The
     // server returns a failure Result on a broken validation/compile (nothing persisted), so a failure surfaces

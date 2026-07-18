@@ -530,6 +530,7 @@ class AppGraph {
             widgetsApi = widgetsApi,
             widgetGalleryApi = widgetGalleryApi,
             projectEditor = projectEditor,
+            sdkTypesApi = sdkTypesApi,
         )
 
     val chatController: ChatController =
@@ -644,7 +645,7 @@ class AppGraph {
         FederationController(channelsApi = channelsApi, federationApi = federationApi)
 
     val codeScriptsController: CodeScriptsController =
-        CodeScriptsController(api = codeScriptsApi, projectEditor = projectEditor)
+        CodeScriptsController(api = codeScriptsApi, projectEditor = projectEditor, sdkTypesApi = sdkTypesApi)
 
     val liveOpsController: LiveOpsController =
         LiveOpsController(channelsApi = channelsApi, liveOpsApi = liveOpsApi)

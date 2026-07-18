@@ -43,11 +43,15 @@ import kotlinx.coroutines.withContext
 // on the EDT, then drives a loop that receives each save as an [ProjectEditorSignal.Compile] (carrying the whole map),
 // awaits the caller's compile, and posts the result back on the EDT. Close (button / window-X / Esc) ends the loop.
 actual class ProjectEditor : ProjectEditorIO {
+    // [sdkTypes] (the generated nnz.d.ts) is ignored on desktop: the Swing text area has no TypeScript language
+    // service or in-browser preview to feed it to. The autocomplete + esbuild-wasm live preview it powers are a
+    // web-only enhancement; the desktop editor keeps its plain compile-on-save loop unchanged.
     actual override suspend fun editAndCompile(
         title: String,
         initialFiles: Map<String, String>,
         entryPath: String,
         language: String,
+        sdkTypes: String,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     ) =
         withContext(Dispatchers.IO) {

@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.SdkTypesApi
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateWidgetBody
 import bot.nomnomz.dashboard.core.network.GalleryItemDetail
@@ -443,7 +444,14 @@ private fun widgetsController(
     widgetsApi: WidgetsApi,
     editor: ProjectEditorIO = FakeProjectEditor(),
     galleryApi: WidgetGalleryApi = FakeWidgetGalleryApi(),
-): WidgetsController = WidgetsController(channelsApi, widgetsApi, galleryApi, editor)
+): WidgetsController = WidgetsController(channelsApi, widgetsApi, galleryApi, editor, FakeSdkTypesApi())
+
+// A fake SDK-types facade. The editor tests don't assert on the declarations (the fake project editor never
+// opens a real language service), so it just returns an empty d.ts — the same graceful path a fetch failure
+// takes in production.
+private class FakeSdkTypesApi : SdkTypesApi {
+    override suspend fun types(context: String): ApiResult<String> = ApiResult.Ok("")
+}
 
 // A fake multi-file project editor. Records the project it opened with (title + files + entry), "presses Save &
 // Compile" for each entry-file edit in [toSave] (invoking the caller's compile callback with the full file map
@@ -464,6 +472,7 @@ private class FakeProjectEditor(private val toSave: List<String> = emptyList()) 
         initialFiles: Map<String, String>,
         entryPath: String,
         language: String,
+        sdkTypes: String,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     ) {
         openedTitle = title

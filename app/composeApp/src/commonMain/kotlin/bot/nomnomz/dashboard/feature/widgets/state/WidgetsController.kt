@@ -23,6 +23,7 @@ import bot.nomnomz.dashboard.core.network.GalleryListRequest
 import bot.nomnomz.dashboard.core.network.PinGalleryItemBody
 import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.core.network.ReviewGalleryItemBody
+import bot.nomnomz.dashboard.core.network.SdkTypesApi
 import bot.nomnomz.dashboard.core.network.SubmitGalleryItemBody
 import bot.nomnomz.dashboard.core.network.ProjectManifestDto
 import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
@@ -47,6 +48,7 @@ class WidgetsController(
     private val widgetsApi: WidgetsApi,
     private val widgetGalleryApi: WidgetGalleryApi,
     private val projectEditor: ProjectEditorIO,
+    private val sdkTypesApi: SdkTypesApi,
 ) {
     private val _state: MutableStateFlow<WidgetsState> = MutableStateFlow(WidgetsState.Loading)
 
@@ -263,6 +265,9 @@ class WidgetsController(
             entryPath = project.manifest.entry,
             // Highlighting is best-effort; the framework doubles as the editor's language badge.
             language = framework.ifBlank { "html" },
+            // The widget-context nnz.d.ts powers `nnz.` autocomplete + diagnostics in the web editor; a fetch
+            // failure degrades to a plain editor (no autocomplete), never blocks opening it.
+            sdkTypes = fetchSdkTypes("widget"),
             compile = { editedFiles -> saveProjectFeedback(channel, widgetId, editedFiles, project.manifest, messages) },
         )
         load()
@@ -282,6 +287,14 @@ class WidgetsController(
             widgetsApi.putProject(channel, widgetId, ProjectDto(files = files, manifest = manifest))) {
             is ApiResult.Ok -> CompileFeedback(ok = true, message = messages.compiled)
             is ApiResult.Failure -> CompileFeedback(ok = false, message = result.error.message)
+        }
+
+    // Fetch the generated nnz.d.ts for [context] to hand the editor's TypeScript language service; degrade to an
+    // empty string (no autocomplete) on any failure rather than block the editor from opening.
+    private suspend fun fetchSdkTypes(context: String): String =
+        when (val result: ApiResult<String> = sdkTypesApi.types(context)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> ""
         }
 
     // A one-file seed project for a widget with no saved project yet — mirrors the backend's single-file scaffold

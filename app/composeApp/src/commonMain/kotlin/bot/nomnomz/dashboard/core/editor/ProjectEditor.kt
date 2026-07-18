@@ -36,12 +36,18 @@ interface ProjectEditorIO {
      * "Save & Compile" the editor invokes [compile] with the CURRENT full file map and renders the returned
      * [CompileFeedback] inline (green on success, red on the real build error). The editor stays open across
      * compiles; suspends until the operator closes it, then returns.
+     *
+     * [sdkTypes] is the generated `nnz.d.ts` ambient declarations for the artifact's context (widget vs script),
+     * fetched by the caller from `GET /api/v1/sdk/types.d.ts`. The web editor feeds it to an in-browser TypeScript
+     * language service so `nnz.` autocompletes with the typed SDK surface and inline diagnostics flag misuse. Empty
+     * when the declarations could not be fetched — the editor then simply omits autocomplete (a pure enhancement).
      */
     suspend fun editAndCompile(
         title: String,
         initialFiles: Map<String, String>,
         entryPath: String,
         language: String,
+        sdkTypes: String = "",
         compile: suspend (Map<String, String>) -> CompileFeedback,
     )
 }
@@ -54,6 +60,7 @@ expect class ProjectEditor() : ProjectEditorIO {
         initialFiles: Map<String, String>,
         entryPath: String,
         language: String,
+        sdkTypes: String,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     )
 }
