@@ -94,7 +94,10 @@ import bot.nomnomz.dashboard.core.network.RestSongRequestsApi
 import bot.nomnomz.dashboard.core.network.RestStreamApi
 import bot.nomnomz.dashboard.core.network.RestTimersApi
 import bot.nomnomz.dashboard.core.network.RestTtsApi
-import bot.nomnomz.dashboard.core.editor.CustomCodeEditor
+import bot.nomnomz.dashboard.core.editor.ProjectEditor
+import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
+import bot.nomnomz.dashboard.core.network.RestSdkTypesApi
+import bot.nomnomz.dashboard.core.network.SdkTypesApi
 import bot.nomnomz.dashboard.core.network.RestWidgetGalleryApi
 import bot.nomnomz.dashboard.core.network.RestWidgetsApi
 import bot.nomnomz.dashboard.core.network.RewardsApi
@@ -288,6 +291,11 @@ class AppGraph {
     val customEventsApi: CustomEventsApi = RestCustomEventsApi(apiClient)
     val federationApi: FederationApi = RestFederationApi(apiClient)
     val codeScriptsApi: CodeScriptsApi = RestCodeScriptsApi(apiClient)
+    // The generated dev-platform SDK type declarations (nnz.d.ts) — fetched by the code editor so a later slice
+    // can wire TypeScript autocomplete/inline errors over the SDK surface (fetch is ready now).
+    val sdkTypesApi: SdkTypesApi = RestSdkTypesApi(apiClient)
+    // One shared multi-file project editor actual, injected into every screen that edits a dev-platform project.
+    val projectEditor: ProjectEditorIO = ProjectEditor()
     val liveOpsApi: LiveOpsApi = RestLiveOpsApi(apiClient)
     val billingApi: BillingApi = RestBillingApi(apiClient)
     val adminApi: AdminApi = AdminApiImpl(apiClient)
@@ -445,7 +453,7 @@ class AppGraph {
             channelsApi = channelsApi,
             widgetsApi = widgetsApi,
             widgetGalleryApi = widgetGalleryApi,
-            codeEditor = CustomCodeEditor(),
+            projectEditor = projectEditor,
         )
 
     val chatController: ChatController =
@@ -499,7 +507,8 @@ class AppGraph {
     val federationController: FederationController =
         FederationController(channelsApi = channelsApi, federationApi = federationApi)
 
-    val codeScriptsController: CodeScriptsController = CodeScriptsController(api = codeScriptsApi)
+    val codeScriptsController: CodeScriptsController =
+        CodeScriptsController(api = codeScriptsApi, projectEditor = projectEditor)
 
     val liveOpsController: LiveOpsController =
         LiveOpsController(channelsApi = channelsApi, liveOpsApi = liveOpsApi)

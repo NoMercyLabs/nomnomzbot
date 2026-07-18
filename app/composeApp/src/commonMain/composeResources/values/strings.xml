@@ -1101,8 +1101,8 @@
     <string name="scripts_status_label">%1$s</string>
     <string name="scripts_close_editor">Close editor</string>
     <string name="scripts_editor_source_label">Source</string>
-    <string name="scripts_editor_save">Save draft</string>
-    <string name="scripts_editor_publish">Save &amp; publish</string>
+    <string name="scripts_editor_edit_code">Edit &amp; compile</string>
+    <string name="scripts_editor_compiled">Compiled and published</string>
     <string name="scripts_delete_title">Delete script?</string>
     <string name="scripts_delete_message">Delete "%1$s"? This cannot be undone.</string>
     <string name="scripts_delete_confirm">Delete</string>

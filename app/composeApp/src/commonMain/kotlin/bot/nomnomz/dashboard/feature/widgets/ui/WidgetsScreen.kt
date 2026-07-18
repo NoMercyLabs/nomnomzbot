@@ -77,7 +77,6 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.widgets_action_error
 import nomnomzbot.composeapp.generated.resources.widgets_badge_disabled
 import nomnomzbot.composeapp.generated.resources.widgets_badge_enabled
-import nomnomzbot.composeapp.generated.resources.widgets_compile_failed
 import nomnomzbot.composeapp.generated.resources.widgets_compile_success
 import nomnomzbot.composeapp.generated.resources.widgets_delete_action
 import nomnomzbot.composeapp.generated.resources.widgets_delete_cancel
@@ -170,10 +169,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
     // Localized editor feedback strings, resolved here (a Composable) and threaded into the controller's compile
     // callback — the controller is a plain state holder with no access to Compose resources.
     val editorMessages =
-        WidgetEditorMessages(
-            compiled = stringResource(Res.string.widgets_compile_success),
-            buildFailed = stringResource(Res.string.widgets_compile_failed),
-        )
+        WidgetEditorMessages(compiled = stringResource(Res.string.widgets_compile_success))
 
     var pendingDelete: PendingDelete? by remember { mutableStateOf(null) }
     var pendingRename: WidgetSummary? by remember { mutableStateOf(null) }

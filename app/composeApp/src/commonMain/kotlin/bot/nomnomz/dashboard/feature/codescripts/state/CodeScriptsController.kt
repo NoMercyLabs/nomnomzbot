@@ -10,21 +10,28 @@
 
 package bot.nomnomz.dashboard.feature.codescripts.state
 
+import bot.nomnomz.dashboard.core.editor.CompileFeedback
+import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CodeScriptDetail
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
 import bot.nomnomz.dashboard.core.network.CodeScriptVersion
 import bot.nomnomz.dashboard.core.network.CodeScriptsApi
 import bot.nomnomz.dashboard.core.network.CreateScriptBody
-import bot.nomnomz.dashboard.core.network.CreateVersionBody
+import bot.nomnomz.dashboard.core.network.ProjectDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-// The Code Scripts page's state-holder. Lists all scripts, opens a detail/editor view for one, and drives
-// create / new-version / publish-version / enable-toggle / delete. Reloads the list on every successful
-// write; opens a script re-fetches its detail (with the current version's source code).
-class CodeScriptsController(private val api: CodeScriptsApi) {
+// The Code Scripts page's state-holder. Lists all scripts, opens a project view for one (its `src/` file set +
+// manifest), and drives create / enable-toggle / delete. Editing a script's code opens the shared multi-file
+// project editor: each "Save & Compile" round-trips the whole project to putProject, which validates + compiles
+// the entry and, on success, appends AND publishes a new version — so a save is a publish. Reloads the list on
+// every successful write; opening a script re-fetches its detail + project.
+class CodeScriptsController(
+    private val api: CodeScriptsApi,
+    private val projectEditor: ProjectEditorIO,
+) {
     private val _state: MutableStateFlow<CodeScriptsState> = MutableStateFlow(CodeScriptsState.Loading)
 
     /** The page render state. */
@@ -44,26 +51,41 @@ class CodeScriptsController(private val api: CodeScriptsApi) {
         }
     }
 
-    /** Open a script for editing: fetches its detail (source code) and transitions to [CodeScriptsState.Editing]. */
+    /**
+     * Open a script for editing: fetch its detail AND its multi-file project (its `src/` file set + manifest),
+     * then transition to [CodeScriptsState.Editing] with the entry file pre-selected. A failure surfaces over the
+     * kept list without opening the editor.
+     */
     suspend fun open(id: String) {
         val current: CodeScriptsState = _state.value
         val scripts: List<CodeScriptSummary> =
-            if (current is CodeScriptsState.Ready) current.scripts
-            else emptyList()
+            if (current is CodeScriptsState.Ready) current.scripts else emptyList()
 
-        when (val result: ApiResult<CodeScriptDetail> = api.get(id)) {
-            is ApiResult.Failure -> {
-                if (current is CodeScriptsState.Ready) {
-                    _state.value = current.copy(actionError = result.error.message)
-                }
+        val detail: CodeScriptDetail =
+            when (val result: ApiResult<CodeScriptDetail> = api.get(id)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> return failWrite(result.error.message)
             }
-            is ApiResult.Ok ->
-                _state.value =
-                    CodeScriptsState.Editing(
-                        scripts = scripts,
-                        detail = result.value,
-                        editorSource = result.value.currentVersion?.sourceCode ?: "",
-                    )
+        val project: ProjectDto =
+            when (val result: ApiResult<ProjectDto> = api.getProject(id)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> return failWrite(result.error.message)
+            }
+
+        _state.value =
+            CodeScriptsState.Editing(
+                scripts = scripts,
+                detail = detail,
+                project = project,
+                selectedPath = project.manifest.entry,
+            )
+    }
+
+    /** Select a file in the open project's tree (drives the in-page preview pane). */
+    fun selectFile(path: String) {
+        val current: CodeScriptsState = _state.value
+        if (current is CodeScriptsState.Editing) {
+            _state.value = current.copy(selectedPath = path)
         }
     }
 
@@ -77,28 +99,28 @@ class CodeScriptsController(private val api: CodeScriptsApi) {
         }
     }
 
-    /** Update the local editor buffer (not persisted until [saveVersion] is called). */
-    fun updateEditorSource(source: String) {
+    /**
+     * Open the shared multi-file project editor on the currently-open script, seeded with its project. Each
+     * "Save & Compile" sends the whole project to [CodeScriptsApi.putProject] (validate + compile + publish),
+     * surfacing the outcome inline: [compiledMessage] on success, the backend's real reason on failure. Reloads
+     * the detail + list when the editor closes.
+     */
+    suspend fun editCode(id: String, compiledMessage: String) {
         val current: CodeScriptsState = _state.value
-        if (current is CodeScriptsState.Editing) {
-            _state.value = current.copy(editorSource = source)
-        }
-    }
+        if (current !is CodeScriptsState.Editing || current.detail.id != id) return
+        val project: ProjectDto = current.project
 
-    /** Append a new version; [publish] = save-and-swap immediately. Reloads the detail and list on success. */
-    suspend fun saveVersion(id: String, source: String, publish: Boolean) {
-        when (val result: ApiResult<CodeScriptVersion> = api.createVersion(id, CreateVersionBody(source, publish))) {
-            is ApiResult.Ok -> { open(id); loadListSilent() }
-            is ApiResult.Failure -> setEditingError(result.error.message)
-        }
-    }
-
-    /** Publish a past version as the active one. */
-    suspend fun publishVersion(scriptId: String, versionId: String) {
-        when (val result: ApiResult<CodeScriptSummary> = api.publishVersion(scriptId, versionId)) {
-            is ApiResult.Ok -> { open(scriptId); loadListSilent() }
-            is ApiResult.Failure -> setEditingError(result.error.message)
-        }
+        projectEditor.editAndCompile(
+            title = current.detail.name,
+            initialFiles = project.files,
+            entryPath = project.manifest.entry,
+            language = project.manifest.framework.ifBlank { "script" },
+            compile = { editedFiles -> saveProjectFeedback(id, editedFiles, project, compiledMessage) },
+        )
+        // Reload so the version number / validation status reflects the newly-published version, and refresh the
+        // list underneath the editor.
+        open(id)
+        loadListSilent()
     }
 
     /** Toggle enabled/disabled. */
@@ -109,9 +131,12 @@ class CodeScriptsController(private val api: CodeScriptsApi) {
         }
     }
 
-    /** Create a new script. Reloads the list on success. */
+    /** Create a new script (a single-source project the backend scaffolds). Reloads the list on success. */
     suspend fun create(name: String, description: String?, sourceCode: String) {
-        when (val result: ApiResult<CodeScriptSummary> = api.create(CreateScriptBody(name, description?.takeIf { it.isNotBlank() }, sourceCode))) {
+        when (
+            val result: ApiResult<CodeScriptSummary> =
+                api.create(CreateScriptBody(name, description?.takeIf { it.isNotBlank() }, sourceCode))
+        ) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)
         }
@@ -124,6 +149,23 @@ class CodeScriptsController(private val api: CodeScriptsApi) {
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
+
+    // Save the edited project (files + the preserved manifest) and map the outcome to inline editor feedback. The
+    // server returns a failure Result on a broken validation/compile (nothing persisted), so a failure surfaces
+    // the real reason; a clean save surfaces the success message.
+    private suspend fun saveProjectFeedback(
+        id: String,
+        files: Map<String, String>,
+        project: ProjectDto,
+        compiledMessage: String,
+    ): CompileFeedback =
+        when (
+            val result: ApiResult<CodeScriptVersion> =
+                api.putProject(id, ProjectDto(files = files, manifest = project.manifest))
+        ) {
+            is ApiResult.Ok -> CompileFeedback(ok = true, message = compiledMessage)
+            is ApiResult.Failure -> CompileFeedback(ok = false, message = result.error.message)
+        }
 
     private suspend fun loadListSilent() {
         when (val result: ApiResult<List<CodeScriptSummary>> = api.list()) {
@@ -140,23 +182,20 @@ class CodeScriptsController(private val api: CodeScriptsApi) {
     private fun failWrite(detail: String) {
         val current: CodeScriptsState = _state.value
         _state.value =
-            if (current is CodeScriptsState.Ready) current.copy(actionError = detail)
-            else if (current is CodeScriptsState.Editing) current.copy(actionError = detail)
-            else CodeScriptsState.Error(detail)
-    }
-
-    private fun setEditingError(detail: String) {
-        val current: CodeScriptsState = _state.value
-        if (current is CodeScriptsState.Editing) {
-            _state.value = current.copy(actionError = detail)
-        }
+            when (current) {
+                is CodeScriptsState.Ready -> current.copy(actionError = detail)
+                is CodeScriptsState.Editing -> current.copy(actionError = detail)
+                else -> CodeScriptsState.Error(detail)
+            }
     }
 }
 
 /** The Code Scripts page render state. */
 sealed interface CodeScriptsState {
     data object Loading : CodeScriptsState
+
     data object Empty : CodeScriptsState
+
     data class Error(val detail: String) : CodeScriptsState
 
     data class Ready(
@@ -164,11 +203,16 @@ sealed interface CodeScriptsState {
         val actionError: String? = null,
     ) : CodeScriptsState
 
-    /** The editor is open for [detail]. [editorSource] tracks the live buffer (may differ from [detail.currentVersion.sourceCode]). */
+    /**
+     * The project view is open for [detail]. [project] is the script's `src/` file set + manifest; [selectedPath]
+     * is the file shown in the in-page preview pane (the tree drives it). The actual editing happens in the shared
+     * multi-file project editor launched from this view.
+     */
     data class Editing(
         val scripts: List<CodeScriptSummary>,
         val detail: CodeScriptDetail,
-        val editorSource: String,
+        val project: ProjectDto,
+        val selectedPath: String,
         val actionError: String? = null,
     ) : CodeScriptsState
 }

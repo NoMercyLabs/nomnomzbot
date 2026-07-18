@@ -69,6 +69,20 @@ interface WidgetsApi {
     /** Roll the overlay back to a past [versionId] (it becomes the served version again). Returns the widget. */
     suspend fun rollback(channelId: String, widgetId: String, versionId: String): ApiResult<WidgetSummary>
 
+    /**
+     * Load the widget's multi-file project — its `src/` file set + manifest — for the editor to open
+     * (`GET .../widgets/{widgetId}/project`). The backend always projects a coherent project (a single-file
+     * widget comes back as its one-file scaffold), so this is the editor's authoritative load path.
+     */
+    suspend fun getProject(channelId: String, widgetId: String): ApiResult<ProjectDto>
+
+    /**
+     * Save the widget's multi-file [project]: the server re-builds it (the trust boundary) and, on a clean build,
+     * appends + serves a new active version — returning that [WidgetVersionDetail]. A failed build returns an
+     * [ApiResult.Failure] carrying the reason and persists nothing (append-only history records only real saves).
+     */
+    suspend fun putProject(channelId: String, widgetId: String, project: ProjectDto): ApiResult<WidgetVersionDetail>
+
     /** The starter templates the create flow offers — each a working, SDK-using source to seed the editor. */
     suspend fun listTemplates(channelId: String): ApiResult<List<WidgetTemplate>>
 
@@ -164,6 +178,16 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
         versionId: String,
     ): ApiResult<WidgetSummary> =
         client.postEnvelope("api/v1/channels/$channelId/widgets/$widgetId/rollback/$versionId", Unit)
+
+    override suspend fun getProject(channelId: String, widgetId: String): ApiResult<ProjectDto> =
+        client.getEnvelope("api/v1/channels/$channelId/widgets/$widgetId/project")
+
+    override suspend fun putProject(
+        channelId: String,
+        widgetId: String,
+        project: ProjectDto,
+    ): ApiResult<WidgetVersionDetail> =
+        client.putEnvelope("api/v1/channels/$channelId/widgets/$widgetId/project", project)
 
     override suspend fun listTemplates(channelId: String): ApiResult<List<WidgetTemplate>> =
         client.getEnvelope("api/v1/channels/$channelId/widgets/templates")

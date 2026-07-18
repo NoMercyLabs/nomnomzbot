@@ -190,3 +190,39 @@ val ChevronDownGlyph: ImageVector = icon("ChevronDown") {
 val ReplyGlyph: ImageVector = icon("Reply") {
     strokePath("M9 17L4 12L9 7M20 18V16A4 4 0 0 0 16 12H4")
 }
+
+/** Chevron pointing right — Arrows/chevron-right (file-tree folder disclosure) */
+val ChevronRightGlyph: ImageVector = icon("ChevronRight") {
+    strokePath("M9 6L15 12L9 18")
+}
+
+/** Document with a folded corner — Files/file (a source file in the project tree) */
+val FileGlyph: ImageVector = icon("File") {
+    strokePath("M14 3H8C6.9 3 6 3.9 6 5V19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7L14 3ZM14 3V7H18")
+}
+
+/** Document with a plus — Files/file-add (add a new file to the project) */
+val FileAddGlyph: ImageVector = icon("FileAdd") {
+    strokePath(
+        "M14 3H8C6.9 3 6 3.9 6 5V19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7L14 3Z" +
+            "M14 3V7H18M12 11V17M9 14H15"
+    )
+}
+
+/** Closed folder — Files/folder (a directory node in the project tree) */
+val FolderGlyph: ImageVector = icon("Folder") {
+    strokePath("M4 7C4 5.9 4.9 5 6 5H9L11 7H18C19.1 7 20 7.9 20 9V17C20 18.1 19.1 19 18 19H6C4.9 19 4 18.1 4 17V7Z")
+}
+
+/** Open folder — Files/folder-open (an expanded directory node in the project tree) */
+val FolderOpenGlyph: ImageVector = icon("FolderOpen") {
+    strokePath(
+        "M4 8V17C4 18.1 4.9 19 6 19H18C19.1 19 20 18.1 20 17M4 8V7C4 5.9 4.9 5 6 5H9L11 7H18C19.1 7 20 7.9 20 9" +
+            "M4 8H21.5L19.5 17.5C19.3 18.4 18.5 19 17.6 19"
+    )
+}
+
+/** Angle brackets with a slash — Editor/code (a code / source-tree affordance) */
+val CodeGlyph: ImageVector = icon("Code") {
+    strokePath("M8 9L5 12L8 15M16 9L19 12L16 15M13.5 7L10.5 17")
+}

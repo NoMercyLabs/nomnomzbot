@@ -199,6 +199,39 @@ class ApiClient(
         unit(path) { url -> httpClient.delete(url) }
 
     /**
+     * GETs a `text/plain` endpoint and returns the whole raw body as a string (no envelope unwrap) — for the
+     * generated SDK type declarations (`/sdk/types.d.ts`), which stream a `.d.ts` file rather than a
+     * `StatusResponseDto<T>`. Honours the same 401 → refresh-once retry as the JSON helpers.
+     */
+    internal suspend fun getText(path: String): ApiResult<String> {
+        val base: String = baseUrl() ?: return noConnection()
+        var response: HttpResponse =
+            try {
+                httpClient.get("$base/$path")
+            } catch (cause: Throwable) {
+                return networkFailure(cause)
+            }
+        if (response.status.value == 401 && !path.startsWith("api/v1/auth/refresh")) {
+            val refreshed: Boolean = try { tokenRefresher?.invoke() ?: false } catch (_: Exception) { false }
+            if (refreshed) {
+                response = try { httpClient.get("$base/$path") } catch (cause: Throwable) { return networkFailure(cause) }
+            }
+        }
+        if (!response.status.isSuccess()) return ApiResult.Failure(parseError(response))
+        return try {
+            ApiResult.Ok(response.bodyAsText())
+        } catch (cause: Throwable) {
+            ApiResult.Failure(
+                ApiError(
+                    status = response.status.value,
+                    code = "READ_BODY",
+                    message = cause.message ?: "Could not read the response body.",
+                )
+            )
+        }
+    }
+
+    /**
      * POSTs to a file-download endpoint and returns the whole raw response body as bytes (no envelope unwrap) —
      * for the event-journal export, which streams a JSONL file rather than a `StatusResponseDto<T>`.
      */

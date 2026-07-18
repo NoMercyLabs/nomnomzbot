@@ -38,25 +38,27 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.FileTree
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.ResizableSplit
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.CheckGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.CloseGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.CodeGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditLineGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.PowerGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.CodeScriptDetail
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
+import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.feature.codescripts.state.CodeScriptsController
 import bot.nomnomz.dashboard.feature.codescripts.state.CodeScriptsState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -77,8 +79,8 @@ import nomnomzbot.composeapp.generated.resources.scripts_delete_cancel
 import nomnomzbot.composeapp.generated.resources.scripts_delete_confirm
 import nomnomzbot.composeapp.generated.resources.scripts_delete_message
 import nomnomzbot.composeapp.generated.resources.scripts_delete_title
-import nomnomzbot.composeapp.generated.resources.scripts_editor_publish
-import nomnomzbot.composeapp.generated.resources.scripts_editor_save
+import nomnomzbot.composeapp.generated.resources.scripts_editor_compiled
+import nomnomzbot.composeapp.generated.resources.scripts_editor_edit_code
 import nomnomzbot.composeapp.generated.resources.scripts_editor_source_label
 import nomnomzbot.composeapp.generated.resources.scripts_empty
 import nomnomzbot.composeapp.generated.resources.scripts_error
@@ -104,6 +106,10 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
     val typography = LocalTypography.current
 
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.CodeScripts)
+
+    // The inline success message the project editor shows on a clean save — resolved here (a Composable) and
+    // threaded into the controller's compile callback (the controller has no access to Compose resources).
+    val compiledMessage: String = stringResource(Res.string.scripts_editor_compiled)
 
     var showCreate: Boolean by remember { mutableStateOf(false) }
     var pendingDelete: CodeScriptSummary? by remember { mutableStateOf(null) }
@@ -137,13 +143,13 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                 current.actionError?.let { detail ->
                     ActionErrorBanner(message = stringResource(Res.string.scripts_action_error, detail))
                 }
-                EditorContent(
+                ProjectView(
+                    project = current.project,
+                    selectedPath = current.selectedPath,
                     detail = current.detail,
-                    source = current.editorSource,
                     manage = manage,
-                    onSourceChange = { controller.updateEditorSource(it) },
-                    onSave = { scope.launch { controller.saveVersion(current.detail.id, current.editorSource, false) } },
-                    onPublish = { scope.launch { controller.saveVersion(current.detail.id, current.editorSource, true) } },
+                    onSelectFile = { controller.selectFile(it) },
+                    onEditCode = { scope.launch { controller.editCode(current.detail.id, compiledMessage) } },
                 )
             }
             else -> {
@@ -286,14 +292,18 @@ private fun ScriptRow(
     }
 }
 
+// The in-page project view: the script's `src/` tree on the left (design-system FileTree) and a read-only
+// preview of the selected file on the right, in a draggable ResizableSplit. Actual editing happens in the shared
+// multi-file project editor, launched with "Edit & compile" — which round-trips the whole project to the backend
+// (validate + compile + publish).
 @Composable
-private fun EditorContent(
+private fun ProjectView(
+    project: ProjectDto,
+    selectedPath: String,
     detail: CodeScriptDetail,
-    source: String,
     manage: ManageDecision,
-    onSourceChange: (String) -> Unit,
-    onSave: () -> Unit,
-    onPublish: () -> Unit,
+    onSelectFile: (String) -> Unit,
+    onEditCode: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -303,15 +313,42 @@ private fun EditorContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        // The editor — monospace textarea, no external syntax-highlighting dep.
-        Textarea(
-            value = source,
-            onValueChange = onSourceChange,
-            label = stringResource(Res.string.scripts_editor_source_label),
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            monospace = true,
-            fillHeight = true,
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            ManageGate(manage) { enabled ->
+                GlyphButton(
+                    imageVector = CodeGlyph,
+                    label = stringResource(Res.string.scripts_editor_edit_code),
+                    onClick = onEditCode,
+                    enabled = enabled,
+                )
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            ResizableSplit(
+                modifier = Modifier.fillMaxSize(),
+                left = {
+                    FileTree(
+                        paths = project.files.keys,
+                        selectedPath = selectedPath,
+                        onSelect = onSelectFile,
+                        modifier = Modifier.fillMaxSize().padding(spacing.s2),
+                    )
+                },
+                right = {
+                    // A read-only preview of the selected file — the full editor is where changes are made.
+                    Textarea(
+                        value = project.files[selectedPath] ?: "",
+                        onValueChange = {},
+                        label = selectedPath,
+                        modifier = Modifier.fillMaxSize().padding(spacing.s3),
+                        enabled = false,
+                        monospace = true,
+                        fillHeight = true,
+                    )
+                },
+            )
+        }
 
         // Validation errors from the current version, if any.
         detail.currentVersion?.validationErrors?.takeIf { it.isNotEmpty() }?.let { errors ->
@@ -325,25 +362,6 @@ private fun EditorContent(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-            }
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
-            ManageGate(manage) { enabled ->
-                GlyphButton(
-                    imageVector = CheckGlyph,
-                    label = stringResource(Res.string.scripts_editor_save),
-                    onClick = onSave,
-                    enabled = enabled,
-                )
-            }
-            ManageGate(manage) { enabled ->
-                GlyphButton(
-                    imageVector = PowerGlyph,
-                    label = stringResource(Res.string.scripts_editor_publish),
-                    onClick = onPublish,
-                    enabled = enabled,
-                )
             }
         }
     }

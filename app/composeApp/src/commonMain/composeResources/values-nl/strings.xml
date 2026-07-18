@@ -1098,8 +1098,8 @@
     <string name="scripts_status_label">%1$s</string>
     <string name="scripts_close_editor">Editor sluiten</string>
     <string name="scripts_editor_source_label">Broncode</string>
-    <string name="scripts_editor_save">Concept opslaan</string>
-    <string name="scripts_editor_publish">Opslaan en publiceren</string>
+    <string name="scripts_editor_edit_code">Bewerken en compileren</string>
+    <string name="scripts_editor_compiled">Gecompileerd en gepubliceerd</string>
     <string name="scripts_delete_title">Script verwijderen?</string>
     <string name="scripts_delete_message">"%1$s" verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="scripts_delete_confirm">Verwijderen</string>

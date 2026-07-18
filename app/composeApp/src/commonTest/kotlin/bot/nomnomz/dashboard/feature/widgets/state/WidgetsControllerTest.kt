@@ -11,7 +11,7 @@
 package bot.nomnomz.dashboard.feature.widgets.state
 
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
-import bot.nomnomz.dashboard.core.editor.CustomCodeEditorIO
+import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -21,6 +21,8 @@ import bot.nomnomz.dashboard.core.network.GalleryItemDetail
 import bot.nomnomz.dashboard.core.network.GalleryItemSummary
 import bot.nomnomz.dashboard.core.network.GalleryListRequest
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
+import bot.nomnomz.dashboard.core.network.ProjectDto
+import bot.nomnomz.dashboard.core.network.ProjectManifestDto
 import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetTemplate
@@ -41,7 +43,7 @@ import kotlinx.coroutines.test.runTest
 // the real clone endpoint. The screen is a pure projection of this controller.
 class WidgetsControllerTest {
 
-    private val messages = WidgetEditorMessages(compiled = "compiled-ok", buildFailed = "build-failed")
+    private val messages = WidgetEditorMessages(compiled = "compiled-ok")
 
     @Test
     fun load_surfaces_the_channel_widgets_with_their_overlay_urls() = runTest {
@@ -182,7 +184,7 @@ class WidgetsControllerTest {
     }
 
     @Test
-    fun edit_widget_code_loads_the_active_version_source_compiles_and_reports_success() = runTest {
+    fun edit_widget_code_loads_the_project_saves_it_and_reports_success() = runTest {
         val widgetsApi =
             RecordingWidgetsApi(
                 ApiResult.Ok(
@@ -190,10 +192,17 @@ class WidgetsControllerTest {
                         WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1")
                     )
                 ),
-                versionSource = "<old/>",
-                compileResult = ApiResult.Ok(WidgetVersionDetail(versionNumber = 2, buildStatus = "success")),
+                projectResult =
+                    ApiResult.Ok(
+                        ProjectDto(
+                            files = mapOf("index.html" to "<old/>"),
+                            manifest =
+                                ProjectManifestDto(entry = "index.html", kind = "widget", framework = "vanilla"),
+                        )
+                    ),
+                putProjectResult = ApiResult.Ok(WidgetVersionDetail(versionNumber = 2, buildStatus = "success")),
             )
-        val editor = FakeCodeEditor(toSave = listOf("<new>hi</new>"))
+        val editor = FakeProjectEditor(toSave = listOf("<new>hi</new>"))
         val controller =
             widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
         controller.load()
@@ -203,11 +212,13 @@ class WidgetsControllerTest {
             messages,
         )
 
-        // The editor opened seeded with the ACTIVE VERSION's source (loaded via getVersion) — not a blank buffer.
-        assertEquals("Timer" to "<old/>", editor.openedWith)
-        assertEquals(listOf("v-1"), widgetsApi.loadedVersionIds)
-        // "Save & Compile" compiled exactly the edited source for that widget — a real version build, not a no-op.
-        assertEquals(listOf("w-1" to "<new>hi</new>"), widgetsApi.compiled)
+        // The editor opened on the widget's real project (loaded via getProject), seeded with the entry source.
+        assertEquals("Timer", editor.openedTitle)
+        assertEquals("index.html", editor.openedEntry)
+        assertEquals("<old/>", editor.openedEntryContent)
+        assertEquals(listOf("w-1"), widgetsApi.loadedProjectIds)
+        // "Save & Compile" PUT exactly the edited project for that widget — a real server build, not a no-op.
+        assertEquals(listOf("w-1" to mapOf("index.html" to "<new>hi</new>")), widgetsApi.savedProjects)
         // The build outcome was reported inline as success.
         assertEquals(listOf(CompileFeedback(ok = true, message = "compiled-ok")), editor.feedbacks)
     }
@@ -221,13 +232,17 @@ class WidgetsControllerTest {
                         WidgetSummary(id = "w-1", name = "Timer", framework = "vue", activeVersionId = "v-1")
                     )
                 ),
-                versionSource = "<old/>",
-                compileResult =
+                projectResult =
                     ApiResult.Ok(
-                        WidgetVersionDetail(buildStatus = "error", buildError = "Unexpected token '<' at 3:1")
+                        ProjectDto(
+                            files = mapOf("index.vue" to "<old/>"),
+                            manifest = ProjectManifestDto(entry = "index.vue", kind = "widget", framework = "vue"),
+                        )
                     ),
+                // The server rejects a broken build with a failure Result (nothing persisted) — not a 200.
+                putProjectResult = ApiResult.Failure(ApiError(400, "BUILD", "Unexpected token '<' at 3:1")),
             )
-        val editor = FakeCodeEditor(toSave = listOf("<broken"))
+        val editor = FakeProjectEditor(toSave = listOf("<broken"))
         val controller =
             widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
         controller.load()
@@ -237,9 +252,9 @@ class WidgetsControllerTest {
             messages,
         )
 
-        // The compile ran and the REAL backend build error is surfaced inline (ok = false), proving the save
-        // path is a live compile whose failure is shown — not the old silent PUT no-op.
-        assertEquals(listOf("w-1" to "<broken"), widgetsApi.compiled)
+        // The project was PUT and the REAL backend build error is surfaced inline (ok = false), proving the save
+        // path is a live server build whose failure is shown — not a silent no-op.
+        assertEquals(listOf("w-1" to mapOf("index.vue" to "<broken")), widgetsApi.savedProjects)
         assertEquals(
             listOf(CompileFeedback(ok = false, message = "Unexpected token '<' at 3:1")),
             editor.feedbacks,
@@ -247,7 +262,7 @@ class WidgetsControllerTest {
     }
 
     @Test
-    fun edit_widget_code_closed_without_saving_compiles_nothing() = runTest {
+    fun edit_widget_code_closed_without_saving_saves_nothing() = runTest {
         val widgetsApi =
             RecordingWidgetsApi(
                 ApiResult.Ok(
@@ -255,13 +270,20 @@ class WidgetsControllerTest {
                         WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1")
                     )
                 ),
-                versionSource = "<x/>",
+                projectResult =
+                    ApiResult.Ok(
+                        ProjectDto(
+                            files = mapOf("index.html" to "<x/>"),
+                            manifest =
+                                ProjectManifestDto(entry = "index.html", kind = "widget", framework = "vanilla"),
+                        )
+                    ),
             )
         val controller =
             widgetsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 widgetsApi,
-                FakeCodeEditor(toSave = emptyList()), // the operator closed without saving
+                FakeProjectEditor(toSave = emptyList()), // the operator closed without saving
             )
         controller.load()
 
@@ -270,14 +292,14 @@ class WidgetsControllerTest {
             messages,
         )
 
-        // Closing the editor without a save compiles nothing — no version is built.
-        assertTrue(widgetsApi.compiled.isEmpty())
+        // Closing the editor without a save persists nothing — no project is PUT, no version is built.
+        assertTrue(widgetsApi.savedProjects.isEmpty())
     }
 
     @Test
     fun create_posts_the_chosen_framework_and_seeds_the_editor_with_the_template_source() = runTest {
         val widgetsApi = RecordingWidgetsApi(ApiResult.Ok(emptyList()))
-        val editor = FakeCodeEditor(toSave = emptyList())
+        val editor = FakeProjectEditor(toSave = emptyList())
         val controller =
             widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
         controller.load()
@@ -286,8 +308,10 @@ class WidgetsControllerTest {
 
         // Create posts the framework (renamed from `type`), not a legacy type.
         assertEquals(listOf(CreateWidgetBody(name = "My Timer", framework = "vue")), widgetsApi.created)
-        // …then opens the editor seeded with the chosen template's source so Save compiles the first version.
-        assertEquals("My Timer" to "<template/>", editor.openedWith)
+        // …then opens the editor on a seeded one-file project: the vue entry (index.vue) carries the template source.
+        assertEquals("My Timer", editor.openedTitle)
+        assertEquals("index.vue", editor.openedEntry)
+        assertEquals("<template/>", editor.openedEntryContent)
     }
 
     @Test
@@ -365,8 +389,19 @@ class WidgetsControllerTest {
 
     @Test
     fun clone_from_gallery_clones_with_the_gallery_item_id_then_opens_the_editor_on_the_copy() = runTest {
-        val widgetsApi = RecordingWidgetsApi(ApiResult.Ok(emptyList()), versionSource = "<gallery-src/>")
-        val editor = FakeCodeEditor(toSave = emptyList())
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(emptyList()),
+                projectResult =
+                    ApiResult.Ok(
+                        ProjectDto(
+                            files = mapOf("index.html" to "<gallery-src/>"),
+                            manifest =
+                                ProjectManifestDto(entry = "index.html", kind = "widget", framework = "vanilla"),
+                        )
+                    ),
+            )
+        val editor = FakeProjectEditor(toSave = emptyList())
         val controller =
             widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
         controller.load()
@@ -376,8 +411,8 @@ class WidgetsControllerTest {
         // Clone hit the real clone endpoint with the GALLERY item id (not an installed-widget id).
         assertEquals(listOf("g-1"), widgetsApi.clonedFromGalleryIds)
         assertTrue(widgetsApi.clonedIds.isEmpty())
-        // …then the editor opened on the new copy, seeded with its active-version source (ready to adapt).
-        assertEquals("clone" to "<gallery-src/>", editor.openedWith)
+        // …then the editor opened on the new copy, seeded with its cloned project source (ready to adapt).
+        assertEquals("<gallery-src/>", editor.openedEntryContent)
     }
 
     @Test
@@ -397,32 +432,43 @@ class WidgetsControllerTest {
     }
 }
 
-// Builds a controller with a default (immediately-closing) code editor and an empty gallery so the tests that
-// don't exercise those stay unchanged; the editor / gallery tests pass an explicit [FakeCodeEditor] /
+// Builds a controller with a default (immediately-closing) project editor and an empty gallery so the tests that
+// don't exercise those stay unchanged; the editor / gallery tests pass an explicit [FakeProjectEditor] /
 // [FakeWidgetGalleryApi].
 private fun widgetsController(
     channelsApi: ChannelsApi,
     widgetsApi: WidgetsApi,
-    editor: CustomCodeEditorIO = FakeCodeEditor(),
+    editor: ProjectEditorIO = FakeProjectEditor(),
     galleryApi: WidgetGalleryApi = FakeWidgetGalleryApi(),
 ): WidgetsController = WidgetsController(channelsApi, widgetsApi, galleryApi, editor)
 
-// A fake compile-on-save editor. Records what it opened with, "presses Save & Compile" for each source in
-// [toSave] (invoking the caller's compile callback and capturing the returned feedback), then closes. An empty
-// [toSave] models the operator closing the editor without saving.
-private class FakeCodeEditor(private val toSave: List<String> = emptyList()) : CustomCodeEditorIO {
-    var openedWith: Pair<String, String>? = null
+// A fake multi-file project editor. Records the project it opened with (title + files + entry), "presses Save &
+// Compile" for each entry-file edit in [toSave] (invoking the caller's compile callback with the full file map
+// carrying that edit, and capturing the returned feedback), then closes. An empty [toSave] models the operator
+// closing the editor without saving. [openedEntryContent] is the loaded content of the entry file — what the
+// editor seeded with.
+private class FakeProjectEditor(private val toSave: List<String> = emptyList()) : ProjectEditorIO {
+    var openedTitle: String? = null
+    var openedFiles: Map<String, String>? = null
+    var openedEntry: String? = null
     val feedbacks: MutableList<CompileFeedback> = mutableListOf()
+
+    val openedEntryContent: String?
+        get() = openedFiles?.get(openedEntry)
 
     override suspend fun editAndCompile(
         title: String,
-        initialCode: String,
+        initialFiles: Map<String, String>,
+        entryPath: String,
         language: String,
-        compile: suspend (String) -> CompileFeedback,
+        compile: suspend (Map<String, String>) -> CompileFeedback,
     ) {
-        openedWith = title to initialCode
-        for (source in toSave) {
-            feedbacks += compile(source)
+        openedTitle = title
+        openedFiles = initialFiles
+        openedEntry = entryPath
+        for (edit in toSave) {
+            // Model editing the entry file's content, then Save & Compile with the full updated file map.
+            feedbacks += compile(initialFiles + (entryPath to edit))
         }
     }
 }
@@ -449,14 +495,16 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 // A recording fake that behaves like the backend store: list() returns the live store, and each successful
 // write mutates the store so the controller's post-write reload observes the real consequence (a flipped flag, a
 // removed row) — not merely that a call happened. [writeResult] forces every simple write to fail (the store is
-// left untouched) to exercise the error path. [versionSource] is what getVersion returns as the editable source;
-// [compileResult] is the build outcome each compile reports; [versions]/[templates] back the version + template
-// lists. A list-level failure is modelled by passing a Failure as the initial result.
+// left untouched) to exercise the error path. [projectResult] is the project getProject returns for the editor to
+// load; [putProjectResult] is the build outcome each project save reports; [versions]/[templates] back the version
+// + template lists. A list-level failure is modelled by passing a Failure as the initial result.
 private class RecordingWidgetsApi(
     initial: ApiResult<List<WidgetSummary>>,
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
-    private val versionSource: String = "",
-    private val compileResult: ApiResult<WidgetVersionDetail> =
+    // The project getProject returns as the editable source (the `src/` file set + manifest the editor loads).
+    private val projectResult: ApiResult<ProjectDto> = ApiResult.Ok(ProjectDto()),
+    // The outcome each project save reports: Ok (server built + published a version) or Failure (broken build).
+    private val putProjectResult: ApiResult<WidgetVersionDetail> =
         ApiResult.Ok(WidgetVersionDetail(buildStatus = "success")),
     private val versions: List<WidgetVersionSummary> = emptyList(),
     private val templates: ApiResult<List<WidgetTemplate>> = ApiResult.Ok(emptyList()),
@@ -469,8 +517,9 @@ private class RecordingWidgetsApi(
     var toggledChannelId: String? = null
     val deleted: MutableList<String> = mutableListOf()
     val created: MutableList<CreateWidgetBody> = mutableListOf()
-    val compiled: MutableList<Pair<String, String>> = mutableListOf()
-    val loadedVersionIds: MutableList<String> = mutableListOf()
+    // Each project save: the widget id + the full file map that was PUT (so the round-trip is observable).
+    val savedProjects: MutableList<Pair<String, Map<String, String>>> = mutableListOf()
+    val loadedProjectIds: MutableList<String> = mutableListOf()
     val clonedIds: MutableList<String> = mutableListOf()
     val clonedFromGalleryIds: MutableList<String> = mutableListOf()
     val installed: MutableList<String> = mutableListOf()
@@ -508,15 +557,29 @@ private class RecordingWidgetsApi(
     override suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit> =
         ApiResult.Ok(Unit)
 
-    // Records the compiled source so the controller's compile-on-save round-trip is observable (a real version
-    // build), and returns the configured build outcome so a success or a failure surfaces inline.
+    // The legacy single-source compile endpoint is no longer exercised by the controller (editing goes through
+    // the project PUT), but the interface still declares it; records the source for completeness.
     override suspend fun compile(
         channelId: String,
         widgetId: String,
         sourceCode: String,
+    ): ApiResult<WidgetVersionDetail> = putProjectResult
+
+    // Returns the configured project the editor loads to edit, recording which widget's project was requested.
+    override suspend fun getProject(channelId: String, widgetId: String): ApiResult<ProjectDto> {
+        loadedProjectIds += widgetId
+        return projectResult
+    }
+
+    // Records the full file map that was saved (the observable round-trip) and returns the configured build
+    // outcome so a clean build (Ok) or a broken build (Failure) surfaces inline.
+    override suspend fun putProject(
+        channelId: String,
+        widgetId: String,
+        project: ProjectDto,
     ): ApiResult<WidgetVersionDetail> {
-        compiled += widgetId to sourceCode
-        return compileResult
+        savedProjects += widgetId to project.files
+        return putProjectResult
     }
 
     override suspend fun listVersions(
@@ -528,10 +591,8 @@ private class RecordingWidgetsApi(
         channelId: String,
         widgetId: String,
         versionId: String,
-    ): ApiResult<WidgetVersionDetail> {
-        loadedVersionIds += versionId
-        return ApiResult.Ok(WidgetVersionDetail(id = versionId, widgetId = widgetId, sourceCode = versionSource))
-    }
+    ): ApiResult<WidgetVersionDetail> =
+        ApiResult.Ok(WidgetVersionDetail(id = versionId, widgetId = widgetId))
 
     override suspend fun rollback(
         channelId: String,

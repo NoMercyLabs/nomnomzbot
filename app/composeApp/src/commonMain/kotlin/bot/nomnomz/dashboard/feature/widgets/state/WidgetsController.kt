@@ -11,7 +11,7 @@
 package bot.nomnomz.dashboard.feature.widgets.state
 
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
-import bot.nomnomz.dashboard.core.editor.CustomCodeEditorIO
+import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -19,9 +19,12 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateWidgetBody
 import bot.nomnomz.dashboard.core.network.GalleryItemSummary
 import bot.nomnomz.dashboard.core.network.GalleryListRequest
+import bot.nomnomz.dashboard.core.network.ProjectDto
+import bot.nomnomz.dashboard.core.network.ProjectManifestDto
 import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetTemplate
+import bot.nomnomz.dashboard.core.network.WidgetVersionDetail
 import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
 import bot.nomnomz.dashboard.core.network.WidgetsApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,7 +42,7 @@ class WidgetsController(
     private val channelsApi: ChannelsApi,
     private val widgetsApi: WidgetsApi,
     private val widgetGalleryApi: WidgetGalleryApi,
-    private val codeEditor: CustomCodeEditorIO,
+    private val projectEditor: ProjectEditorIO,
 ) {
     private val _state: MutableStateFlow<WidgetsState> = MutableStateFlow(WidgetsState.Loading)
 
@@ -92,9 +95,9 @@ class WidgetsController(
     }
 
     /**
-     * Create a new widget ({ [name], [framework] }), then open the compile-on-save editor seeded with
-     * [seedSource] (a chosen template's source, or blank) so the operator authors + compiles the first version
-     * right away. Reloads when the editor closes; surfaces the error if the create call fails.
+     * Create a new widget ({ [name], [framework] }), then open the multi-file project editor seeded with a one-file
+     * project ({ entry → [seedSource] }, a chosen template's source or blank) so the operator authors + compiles
+     * the first version right away. Reloads when the editor closes; surfaces the error if the create call fails.
      */
     suspend fun createWidget(
         name: String,
@@ -104,7 +107,10 @@ class WidgetsController(
     ) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         when (val result: ApiResult<WidgetSummary> = widgetsApi.create(channel, CreateWidgetBody(name, framework))) {
-            is ApiResult.Ok -> openEditor(channel, result.value.id, name, framework, seedSource, messages)
+            is ApiResult.Ok -> {
+                val seeded: ProjectDto = seedProject(framework, seedSource)
+                openEditor(channel, result.value.id, name, framework, seeded, messages)
+            }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
@@ -116,18 +122,21 @@ class WidgetsController(
     }
 
     /**
-     * Open the compile-on-save code editor on a widget, seeded with its active version's source, then reload
-     * when it closes. Each "Save & Compile" builds a new version via [WidgetsApi.compile] and reports the build
-     * result inline. If the source cannot be loaded, surfaces the error and does not open the editor.
+     * Open the multi-file project editor on a widget, loaded with its current `src/` project (its file set +
+     * manifest), then reload when it closes. Each "Save & Compile" sends the whole project to
+     * [WidgetsApi.putProject], which re-builds it server-side and reports the outcome inline. A widget with no
+     * saved project yet (freshly created, never compiled) opens on a seeded one-file project.
      */
     suspend fun editWidgetCode(widget: WidgetSummary, messages: WidgetEditorMessages) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
-        val source: String =
-            when (val loaded: ApiResult<String> = loadActiveSource(channel, widget)) {
+        // A brand-new widget has no version yet, so getProject fails — fall back to a seeded one-file project
+        // rather than blocking the operator from authoring their first version.
+        val project: ProjectDto =
+            when (val loaded: ApiResult<ProjectDto> = widgetsApi.getProject(channel, widget.id)) {
                 is ApiResult.Ok -> loaded.value
-                is ApiResult.Failure -> return failWrite(loaded.error.message)
+                is ApiResult.Failure -> seedProject(widget.framework, "")
             }
-        openEditor(channel, widget.id, widget.name, widget.framework, source, messages)
+        openEditor(channel, widget.id, widget.name, widget.framework, project, messages)
     }
 
     /** Roll the overlay back to a past [versionId] (it becomes the served version again). Reloads on success. */
@@ -196,62 +205,73 @@ class WidgetsController(
         }
     }
 
-    // Open the compile-on-save editor, wiring each save to a compile of the widget's next version, then reload
-    // the list when the operator closes it (so the row reflects the new active version / freshly created widget).
+    // Open the multi-file project editor, wiring each save to a project PUT (server re-build → new active
+    // version), then reload the list when the operator closes it (so the row reflects the new active version /
+    // freshly created widget). The manifest loaded with the project is preserved on save so declared dependencies
+    // and the pinned entry survive round-trips.
     private suspend fun openEditor(
         channel: String,
         widgetId: String,
         title: String,
         framework: String,
-        initialSource: String,
+        project: ProjectDto,
         messages: WidgetEditorMessages,
     ) {
-        codeEditor.editAndCompile(
+        projectEditor.editAndCompile(
             title = title,
-            initialCode = initialSource,
+            initialFiles = project.files,
+            entryPath = project.manifest.entry,
             // Highlighting is best-effort; the framework doubles as the editor's language badge.
             language = framework.ifBlank { "html" },
-            compile = { edited -> compileToFeedback(channel, widgetId, edited, messages) },
+            compile = { editedFiles -> saveProjectFeedback(channel, widgetId, editedFiles, project.manifest, messages) },
         )
         load()
     }
 
-    // Compile the authored source into the widget's next version and map the build outcome to inline feedback.
-    // A transport failure is surfaced as a failed build with the backend's error message.
-    private suspend fun compileToFeedback(
+    // Save the edited project (files + the preserved manifest) via putProject and map the build outcome to inline
+    // feedback. The server returns a failure Result on a broken build (nothing persisted), so a transport or build
+    // failure surfaces as ok=false carrying the real backend reason; a clean build surfaces the success message.
+    private suspend fun saveProjectFeedback(
         channel: String,
         widgetId: String,
-        source: String,
+        files: Map<String, String>,
+        manifest: ProjectManifestDto,
         messages: WidgetEditorMessages,
     ): CompileFeedback =
-        when (val result = widgetsApi.compile(channel, widgetId, source)) {
-            is ApiResult.Ok -> {
-                val ok: Boolean = result.value.buildStatus.equals("success", ignoreCase = true)
-                CompileFeedback(
-                    ok = ok,
-                    message =
-                        if (ok) messages.compiled
-                        else result.value.buildError ?: result.value.buildLog ?: messages.buildFailed,
-                )
-            }
+        when (val result: ApiResult<WidgetVersionDetail> =
+            widgetsApi.putProject(channel, widgetId, ProjectDto(files = files, manifest = manifest))) {
+            is ApiResult.Ok -> CompileFeedback(ok = true, message = messages.compiled)
             is ApiResult.Failure -> CompileFeedback(ok = false, message = result.error.message)
         }
 
-    // Load the source the editor seeds with: the active version if the widget has one, else the newest version,
-    // else blank (a freshly created widget with no compiled version yet). A hard load failure propagates.
-    private suspend fun loadActiveSource(channel: String, widget: WidgetSummary): ApiResult<String> {
-        val versionId: String? =
-            widget.activeVersionId
-                ?: when (val versions: ApiResult<List<WidgetVersionSummary>> = widgetsApi.listVersions(channel, widget.id)) {
-                    is ApiResult.Ok -> versions.value.firstOrNull()?.id
-                    is ApiResult.Failure -> return ApiResult.Failure(versions.error)
-                }
-        if (versionId == null) return ApiResult.Ok("")
-        return when (val detail = widgetsApi.getVersion(channel, widget.id, versionId)) {
-            is ApiResult.Ok -> ApiResult.Ok(detail.value.sourceCode ?: "")
-            is ApiResult.Failure -> ApiResult.Failure(detail.error)
-        }
+    // A one-file seed project for a widget with no saved project yet — mirrors the backend's single-file scaffold
+    // (entry filename by framework, kind = "widget"). Vue projects declare the one allowed dependency so the seed
+    // builds; other frameworks declare none.
+    private fun seedProject(framework: String, source: String): ProjectDto {
+        val normalized: String = framework.trim().lowercase()
+        val entry: String = entryFileName(normalized)
+        val dependencies: List<String>? = if (normalized == "vue") listOf("vue") else null
+        return ProjectDto(
+            files = mapOf(entry to source),
+            manifest =
+                ProjectManifestDto(
+                    entry = entry,
+                    kind = "widget",
+                    framework = normalized,
+                    dependencies = dependencies,
+                ),
+        )
     }
+
+    // The conventional single-file entry filename for a widget framework — kept in lock-step with the backend's
+    // ProjectScaffold.EntryFileName so a client seed and a server scaffold agree on the entry path.
+    private fun entryFileName(framework: String): String =
+        when (framework.trim().lowercase()) {
+            "vue" -> "index.vue"
+            "react" -> "index.tsx"
+            "vanilla" -> "index.html"
+            else -> "index.js"
+        }
 
     // A write either reloads the list (success) or surfaces its error over the current Ready list without
     // losing it (failure) — so a failed toggle/delete leaves the page intact with a visible reason.
@@ -276,11 +296,12 @@ class WidgetsController(
 }
 
 /**
- * The localized editor-feedback strings the compile callback surfaces. Resolved by the screen (a Composable) and
- * passed in, because the controller is a plain state holder with no access to Compose string resources.
- * [buildError] / [buildLog] from the backend take precedence over [buildFailed] when a build reports an error.
+ * The localized editor-feedback string the save callback surfaces on a clean build. Resolved by the screen (a
+ * Composable) and passed in, because the controller is a plain state holder with no access to Compose string
+ * resources. A failed build surfaces the backend's real error message directly, so only the success string is
+ * localized here.
  */
-data class WidgetEditorMessages(val compiled: String, val buildFailed: String)
+data class WidgetEditorMessages(val compiled: String)
 
 /** The Overlays page render state. */
 sealed interface WidgetsState {

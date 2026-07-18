@@ -37,6 +37,17 @@ interface CodeScriptsApi {
     suspend fun get(id: String): ApiResult<CodeScriptDetail>
     suspend fun create(body: CreateScriptBody): ApiResult<CodeScriptSummary>
     suspend fun createVersion(id: String, body: CreateVersionBody): ApiResult<CodeScriptVersion>
+
+    /** Load the script's multi-file project (its `src/` file set + manifest) for the editor to open. */
+    suspend fun getProject(id: String): ApiResult<ProjectDto>
+
+    /**
+     * Save the script's multi-file [project]: the server validates + compiles the manifest entry and, on success,
+     * appends + publishes a new version — returning that [CodeScriptVersion]. A validation/compile failure returns
+     * an [ApiResult.Failure] carrying the reason and persists nothing.
+     */
+    suspend fun putProject(id: String, project: ProjectDto): ApiResult<CodeScriptVersion>
+
     suspend fun listVersions(id: String): ApiResult<List<CodeScriptVersion>>
     suspend fun publishVersion(id: String, versionId: String): ApiResult<CodeScriptSummary>
     suspend fun setEnabled(id: String, enabled: Boolean): ApiResult<CodeScriptSummary>
@@ -59,6 +70,12 @@ class RestCodeScriptsApi(private val client: ApiClient) : CodeScriptsApi {
 
     override suspend fun createVersion(id: String, body: CreateVersionBody): ApiResult<CodeScriptVersion> =
         client.postEnvelope("api/v1/code-scripts/$id/versions", body)
+
+    override suspend fun getProject(id: String): ApiResult<ProjectDto> =
+        client.getEnvelope("api/v1/code-scripts/$id/project")
+
+    override suspend fun putProject(id: String, project: ProjectDto): ApiResult<CodeScriptVersion> =
+        client.putEnvelope("api/v1/code-scripts/$id/project", project)
 
     override suspend fun listVersions(id: String): ApiResult<List<CodeScriptVersion>> =
         when (val page: ApiResult<PaginatedEnvelope<CodeScriptVersion>> = client.getDirect("api/v1/code-scripts/$id/versions?page=1&pageSize=50")) {
