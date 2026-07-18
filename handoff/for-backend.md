@@ -16,32 +16,39 @@ The frontend track (`aaoa-dev`) leaves backend work orders here. The backend tra
 
 ## Open
 
-### 2026-07-18 — The `/obs-bridge` browser-source page (OBS + VTS legs) is a server-served static asset
-- **From:** aaoa-dev (via Claude, frontend track)
-- **What:** the OBS-control and VTube-Studio **config/dashboard** pages are now built (see the two Done entries
-  in `handoff/for-frontend.md`, OBS control + VTube Studio, committed this session). What is NOT built — and is
-  a **server track** responsibility per `obs-control.md §7` / `vtube-studio.md` — is the actual `/obs-bridge`
-  **browser-source page** the streamer pastes into OBS/VTS as a browser source. Per obs-control.md §7 it is a
-  compiled/served **public widget surface** (like the overlays), not part of the Compose dashboard, so it does
-  not belong on the frontend (`app/`) track. It must:
-  1. Read `?token=` from the query and open a SignalR connection to `/hubs/obs` with `?token=` (NOT a JWT).
-  2. **OBS leg:** open `ws://127.0.0.1:4455` to local OBS (v5 Identify), execute `ExecuteObsRequest(commandId,
-     payloadJson)` pushes (payload `{kind: "request"|"batch", ...}`) against local OBS, call
-     `AckCommand(commandId, ok, responseDataJson, error)`, and forward subscribed OBS events via
-     `ForwardObsEvent(eventType, eventDataJson)`. Render a 1×1 (invisible) surface.
-  3. **VTS leg (same page):** additionally execute `ExecuteObsRequest` payloads with `kind: "vts_request"`
-     (`{requestType, data}`) against local `ws://localhost:8001` using the VTS API envelope, ack with the
-     response `data` JSON, and forward subscribed VTS events via `ForwardVtsEvent(eventType, payloadJson)`.
-- **Why:** the dashboard `bridge/setup` card already shows-and-copies the `bridgeUrl` for the operator to paste
-  into OBS, but that URL currently has no served page behind it — bridge mode can't function end-to-end until
-  this asset exists. The direct-mode control path (dashboard → backend → OBS socket) works without it.
-- **Where:** server-served widget/public-surface pipeline (per `obs-control.md §7`); the SignalR `OBSRelayHub`
-  (`/hubs/obs`) contract already exists (`ExecuteObsRequest`/`AckCommand`/`ForwardObsEvent`/`ForwardVtsEvent`).
-- **Done when:** with the `bridgeUrl` pasted into OBS as a browser source, the dashboard `bridge/status` dot
-  goes online and a scene switch / streaming toggle from the dashboard executes through the browser source
-  against local OBS; the same page relays VTS control against `ws://localhost:8001`.
+_None._
 
 ## Done
+
+### 2026-07-18 — The `/obs-bridge` browser-source page (OBS + VTS legs) is a server-served static asset
+- **Commit:** `5c2efa11`
+- **From:** aaoa-dev (via Claude, frontend track)
+- **Resolution:** new `ObsBridgeHostController` (`server/src/NomNomzBot.Api/Controllers/ObsBridgeHostController.cs`)
+  serves the control-only bridge browser source at `GET /obs-bridge` (`[AllowAnonymous]`,
+  `[ApiExplorerSettings(IgnoreApi=true)]`, embedded HTML/JS `const string` returned via
+  `Content(html, "text/html")` — mirrors `OverlayHostController` exactly, incl. the hand-rolled SignalR
+  JSON-protocol client: record-separator framing, `{protocol:"json",version:1}` handshake, type-6 keep-alive
+  ping every 15s, reconnect with exponential backoff). It:
+  1. Reads `?token=` and connects to `/hubs/obs` (the `OBSRelayHub`) with `?token=` (the `BridgeToken`, NOT a
+     JWT); renders a 1×1 invisible surface (debug text via `textContent` only — no markup injection).
+  2. **OBS leg:** on `ExecuteObsRequest(commandId, payloadJson)` opens/maintains `ws://127.0.0.1:4455` (v5
+     Hello→Identify; `computeAuth` mirrors `DirectObsTransport`'s `base64(sha256(base64(sha256(pw+salt))+challenge))`
+     via `crypto.subtle`, but defaults passwordless since the page carries no secret and the hub delivers none),
+     runs `{kind:"request"}` (op 6) / `{kind:"batch"}` (op 8) correlated by `requestId=commandId`, calls
+     `AckCommand(commandId, ok, responseDataJson, error)`, and forwards op-5 events via `ForwardObsEvent`.
+  3. **VTS leg (same page, same relay):** `{kind:"vts_request"}` payloads talk to `ws://localhost:8001` using
+     the VTS envelope (`apiName`/`apiVersion`/`requestID`/`messageType`/`data`, mirroring `DirectVtsTransport`),
+     the page authenticating itself as a VTS plugin (`AuthenticationTokenRequest`→`AuthenticationRequest`, token
+     cached in `localStorage` — a local plugin token, never a NoMercy secret), acking with the response `data`,
+     and forwarding `*Event` frames via `ForwardVtsEvent`. Note the relay stringifies `payload.data`, so the
+     bridge `JSON.parse`s it back into the envelope's `data` object.
+- **Where:** confirmed `ObsConnectionService` builds `bridgeUrl` = `{backendUrl}/obs-bridge?token={BridgeToken}`
+  (matches the new route). No EF migration; no DI change (controller auto-discovered like `OverlayHostController`).
+- **OpenAPI:** no snapshot change — the route is `[ApiExplorerSettings(IgnoreApi=true)]` (like `OverlayHostController`).
+- **Test:** `ObsBridgeHostControllerTests` (`server/tests/NomNomzBot.Api.Tests/Controllers/`) — `GET /obs-bridge`
+  returns 200 `text/html` carrying the relay wiring (`/hubs/obs`, token gate, SignalR framing, `ExecuteObsRequest`,
+  `AckCommand`) and both local legs (`ws://127.0.0.1:4455` + `ForwardObsEvent`; `vts_request` +
+  `ws://localhost:8001` + `VTubeStudioPublicAPI` + `ForwardVtsEvent`; `textContent`).
 
 ### 2026-07-18 — Community per-viewer stats can't reach the analytics endpoint (id-type mismatch)
 - **Commit:** `0a1f977e`
