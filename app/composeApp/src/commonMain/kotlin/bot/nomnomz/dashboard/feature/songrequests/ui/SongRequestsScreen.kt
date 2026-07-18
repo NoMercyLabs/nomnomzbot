@@ -40,14 +40,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.io.copyToClipboard
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
@@ -358,7 +357,6 @@ private fun SrTokenSection(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
-    @Suppress("DEPRECATION") val clipboard = LocalClipboardManager.current
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -386,7 +384,7 @@ private fun SrTokenSection(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                TextButton(onClick = { clipboard.setText(AnnotatedString(token)) }) {
+                TextButton(onClick = { copyToClipboard(token) }) {
                     Text(
                         text = stringResource(Res.string.songrequests_token_copy),
                         color = tokens.primary,

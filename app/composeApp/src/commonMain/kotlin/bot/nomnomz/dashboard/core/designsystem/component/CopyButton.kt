@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,21 +29,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.CopyGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.io.copyToClipboard
 import kotlinx.coroutines.delay
 
 // The `CopyValue` design-system component: a read-only value the operator must paste into an external site
 // (an OAuth redirect URI, a console URL) shown in a monospace-style chip with a copy-to-clipboard control.
-// Cross-target (jvm + wasmJs) — the write goes through Compose's own `LocalClipboardManager`, so no
-// expect/actual. The action label flips to its "copied" affordance for a moment after a copy, then settles
-// back. Both the idle and copied labels are passed in already-localized; this component never holds a string.
+// The write goes through [copyToClipboard] (expect/actual), which uses the legacy execCommand path on web so
+// it works over plain http (a non-secure context, where Compose's LocalClipboardManager silently no-ops); the
+// "copied" affordance flashes ONLY on a confirmed copy, never optimistically. The value is wrapped in a
+// SelectionContainer so it can always be selected + copied by hand as a last resort. Both labels arrive
+// already-localized; this component never holds a string.
 
 private const val COPIED_FEEDBACK_MS: Long = 1500L
 
@@ -61,7 +63,6 @@ fun CopyValue(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
-    @Suppress("DEPRECATION") val clipboard = LocalClipboardManager.current
 
     var copied: Boolean by remember(value) { mutableStateOf(false) }
 
@@ -81,17 +82,19 @@ fun CopyValue(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        Text(
-            text = value,
-            style = typography.xs,
-            color = tokens.foreground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
+        SelectionContainer(modifier = Modifier.weight(1f)) {
+            Text(
+                text = value,
+                style = typography.xs,
+                color = tokens.foreground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         TextButton(onClick = {
-            clipboard.setText(AnnotatedString(value))
-            copied = true
+            if (copyToClipboard(value)) {
+                copied = true
+            }
         }) {
             Icon(
                 imageVector = if (copied) CheckCircleGlyph else CopyGlyph,

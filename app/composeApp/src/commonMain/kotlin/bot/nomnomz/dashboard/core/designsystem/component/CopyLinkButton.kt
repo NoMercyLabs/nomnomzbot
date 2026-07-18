@@ -22,21 +22,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.CopyGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
+import bot.nomnomz.dashboard.core.io.copyToClipboard
 import kotlinx.coroutines.delay
 
 // The `CopyLinkButton` design-system component: a ghost action that copies a URL to the system clipboard so
 // the operator can paste it into another device's browser instead of only opening it in place. It pairs
 // beside an "open in browser" button on the device-code panels (streamer login, bot authorize, scope
 // re-grant), where the code must be approved on a specific account/device. After a copy the glyph + label
-// flip to the "copied" affordance for a moment, then settle back. Cross-target (jvm + wasmJs) — the write
-// goes through Compose's own `LocalClipboardManager`, so no expect/actual. Both labels arrive already
-// localized from the caller (the design system holds no copy), mirroring [CopyValue].
+// flip to the "copied" affordance for a moment, then settle back. The write goes through [copyToClipboard]
+// (expect/actual) so it works over plain http on the web build — Compose's LocalClipboardManager silently
+// no-ops in a non-secure context — and the "copied" flash fires ONLY on a confirmed copy. Both labels arrive
+// already localized from the caller (the design system holds no copy), mirroring [CopyValue].
 
 private const val COPY_LINK_FEEDBACK_MS: Long = 1500L
 
@@ -55,7 +55,6 @@ fun CopyLinkButton(
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
-    @Suppress("DEPRECATION") val clipboard = LocalClipboardManager.current
 
     var copied: Boolean by remember(url) { mutableStateOf(false) }
 
@@ -68,8 +67,9 @@ fun CopyLinkButton(
 
     TextButton(
         onClick = {
-            clipboard.setText(AnnotatedString(url))
-            copied = true
+            if (copyToClipboard(url)) {
+                copied = true
+            }
         },
         modifier = modifier,
         enabled = enabled,
