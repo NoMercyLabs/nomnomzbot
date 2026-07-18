@@ -83,6 +83,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # The Compose/Wasm production bundle's binaryen `wasm-opt` optimize pass
+      # (compileProductionExecutableKotlinWasmJsOptimize) is memory-hungry and, now
+      # that the dashboard carries its full page surface, peaks past the runner's
+      # ~16 GB RAM — OOM-killing the runner mid-build. A large swapfile lets the
+      # optimize pass spill to disk instead of dying, keeping the bundle fully
+      # optimized. /mnt is the runner's large scratch SSD, so there's room to spare.
+      - name: Add swap for wasm-opt optimize pass
+        run: |
+          sudo swapoff -a || true
+          sudo rm -f /mnt/swapfile || true
+          sudo fallocate -l 13G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          free -h
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
