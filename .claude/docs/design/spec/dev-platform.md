@@ -178,14 +178,18 @@ nnz.time, nnz.math, nnz.random, nnz.str, nnz.json, nnz.store   // pure-JS batter
   conversion, date math, string/format, number format are the confirmed floor).
 - `nnz.store` = a per-channel, per-artifact persistent KV (survives runs) over a new small table.
 
-### 3.2 Decision — land the capability broker (this is the current hard blocker)
+### 3.2 The capability broker already exists — the SDK maps onto it
 
-`IScriptCapabilityBroker.BuildGrantAsync` is a **stub returning an empty grant** — so today scripts
-can compute + `bot.send` but **cannot reach the wired chat/currency/music/http powers**. The SDK is
-worthless until this lands. The broker becomes real: declared `nnz.api.*` calls (detected at save
-time, as today) → validated against the **capability catalogue** + feature-flag/visibility gates →
-a concrete grant; deny-by-default, per-run host-call budget unchanged. Each `nnz.api.*` method maps
-1:1 to a capability key.
+**Correction (2026-07-18):** the broker is NOT a stub (an earlier scan misreported it). On master,
+`IScriptCapabilityBroker.BuildGrantAsync` already owns a closed **capability catalogue** (`chat.send`,
+`chat.reply`, `user.get`, `economy.read`, `music.queue`, `music.nowPlaying`, `http.fetch`, `vars.*`,
+`args.get`), each with a floor tier (`low`/`tos`/`critical`, `critical` never exposed) + the
+`custom_code` feature-flag gate, and validates declared keys **deny-by-default** (unknown/ungated →
+whole grant `FORBIDDEN`, fail-closed), with the per-run host-call budget enforced in the executor.
+Phase 2a only wired two catalogued-but-dead bindings (`music.nowPlaying`, `user.get` — the latter
+public-profile-only, email withheld). So the `nnz.api.*` work is **not** unblocking a stub — it is
+building the typed, ergonomic layer (§3.1) over an existing, gated broker: each `nnz.api.*` method
+maps 1:1 to a catalogue key, and new keys extend the catalogue (deny-by-default preserved).
 
 ---
 
@@ -369,13 +373,15 @@ Existing single-source endpoints are migrated in place (no back-compat needed �
 6. **Scripted games** — game logic becomes a forkable sandboxed JS project over the existing
    engine/runner/economy; first-party games get forkable JS twins; unified fork flow for
    widget | game | script.
-7. **Land the capability broker** — the current empty-grant stub is the hard blocker; the SDK is
-   inert until it maps declared `nnz.api.*` calls to real, gated grants.
+7. **The capability broker already exists** (catalogue + deny-by-default + tier/flag gating +
+   budgets) — corrected 2026-07-18; it was misreported as an empty stub. The `nnz.api.*` work is the
+   typed ergonomic layer over it, extending the catalogue key-by-key (deny-by-default preserved).
 
 ## 10. Phasing (suggested build order — each a settled sub-slice)
 
 1. **Event Catalog + reflection codegen** (`/sdk/types.d.ts`, `/sdk/event-catalog`) — the keystone.
-2. **Capability broker** (unblocks all `nnz.api.*`) + the `nnz.api.*`/batteries surface over it.
+2. **`nnz.api.*` typed SDK + batteries** over the EXISTING broker (catalogue extended key-by-key;
+   the broker itself is already built + gated — 2a only wired 2 dead capabilities).
 3. **Multi-file model + esbuild temp-dir build** (`FilesJson`+`Manifest`, migrations ×2).
 4. **Typed editor** (frontend: CM6 + `@typescript/vfs`, project explorer) consuming 1–3.
 5. **Scripted games** + unified fork flow + first-party JS twins.
