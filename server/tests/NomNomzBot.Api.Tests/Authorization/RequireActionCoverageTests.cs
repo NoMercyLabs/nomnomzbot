@@ -99,6 +99,9 @@ public sealed class RequireActionCoverageTests
     [InlineData(nameof(MusicController.Transfer), "music:remote:control")]
     [InlineData(nameof(MusicController.PlayContext), "music:remote:control")]
     [InlineData(nameof(MusicController.GetPlaylists), "music:library:write")]
+    [InlineData(nameof(MusicController.ListBlockedTracks), "music:config:read")]
+    [InlineData(nameof(MusicController.BlockTrack), "music:queue:moderate")]
+    [InlineData(nameof(MusicController.UnblockTrack), "music:queue:moderate")]
     public void MusicController_action_carries_the_expected_action_key(
         string methodName,
         string expectedActionKey

@@ -36,6 +36,7 @@ public sealed class MusicService : IMusicService
     private readonly IEnumerable<IMusicProvider> _providers;
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
+    private readonly IBlockedTrackService _blockedTracks;
     private readonly ILogger<MusicService> _logger;
 
     // Per-channel song request queues (channelId → fair queue)
@@ -46,12 +47,14 @@ public sealed class MusicService : IMusicService
         IEnumerable<IMusicProvider> providers,
         IApplicationDbContext db,
         IEventBus eventBus,
+        IBlockedTrackService blockedTracks,
         ILogger<MusicService> logger
     )
     {
         _providers = providers;
         _db = db;
         _eventBus = eventBus;
+        _blockedTracks = blockedTracks;
         _logger = logger;
     }
 
@@ -238,7 +241,7 @@ public sealed class MusicService : IMusicService
         return new(nowPlaying, items);
     }
 
-    public async Task<bool> AddToQueueAsync(
+    public async Task<Result> AddToQueueAsync(
         string broadcasterId,
         string trackUri,
         string? requestedBy = null,
@@ -246,13 +249,14 @@ public sealed class MusicService : IMusicService
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return false;
+            return InvalidChannelId();
 
         IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
         if (provider is null)
-            return false;
+            return NoProvider();
 
-        // Look up track info for the queue display
+        // Resolve the request to a concrete track: exact URI match first, else the provider's best
+        // search hit (callers may pass a raw query), else a display-only synthetic entry.
         IReadOnlyList<TrackInfo> track = await provider.SearchAsync(
             tenantId,
             trackUri,
@@ -261,6 +265,7 @@ public sealed class MusicService : IMusicService
         );
         TrackInfo trackInfo =
             track.FirstOrDefault(t => t.TrackUri == trackUri)
+            ?? track.FirstOrDefault()
             ?? new TrackInfo
             {
                 TrackName = trackUri,
@@ -269,6 +274,14 @@ public sealed class MusicService : IMusicService
                 TrackUri = trackUri,
                 Provider = "unknown",
             };
+        trackUri = trackInfo.TrackUri;
+
+        // Blocklist admission gate (legacy !bansong): refused before the fair queue ever sees it.
+        if (await _blockedTracks.IsBlockedAsync(tenantId, trackUri, cancellationToken))
+            return Result.Failure(
+                $"\"{trackInfo.TrackName}\" is blocked in this channel.",
+                "TRACK_BLOCKED"
+            );
 
         SongRequestEntry entry = new(
             trackUri,
@@ -334,7 +347,7 @@ public sealed class MusicService : IMusicService
 
         await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
 
-        return true;
+        return Result.Success();
     }
 
     public async Task<Result> SetVolumeAsync(
@@ -393,8 +406,21 @@ public sealed class MusicService : IMusicService
             track.IsPlaying,
             100,
             null,
-            track.Provider
+            track.Provider,
+            track.TrackUri
         );
+    }
+
+    public async Task<string?> GetActiveProviderKeyAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return null;
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        return provider?.Provider;
     }
 
     // ─── Trust-level enforcement ──────────────────────────────────────────────

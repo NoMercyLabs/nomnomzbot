@@ -127,6 +127,8 @@ internal sealed class PickListTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
         throw new NotSupportedException();
     public DbSet<Quote> Quotes => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.Widget> Widgets =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetVersion> WidgetVersions =>

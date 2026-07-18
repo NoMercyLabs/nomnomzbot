@@ -81,6 +81,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Community.Entities.ChatPollVote>();
     public DbSet<Domain.Quotes.Entities.Quote> Quotes => Set<Domain.Quotes.Entities.Quote>();
 
+    // Music — blocked song-request tracks (music-sr.md, legacy !bansong).
+    public DbSet<Domain.Music.Entities.BlockedTrack> BlockedTracks =>
+        Set<Domain.Music.Entities.BlockedTrack>();
+
     // Generic named pick-lists (the {list.pick.<name>} primitive).
     public DbSet<Domain.PickLists.Entities.PickList> PickLists =>
         Set<Domain.PickLists.Entities.PickList>();

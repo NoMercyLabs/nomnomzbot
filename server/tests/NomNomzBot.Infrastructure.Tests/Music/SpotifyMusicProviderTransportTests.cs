@@ -200,7 +200,13 @@ public sealed class SpotifyMusicProviderTransportTests
         );
 
         RecordingEventBus bus = new();
-        MusicService sut = new([spotify], db, bus, NullLogger<MusicService>.Instance);
+        MusicService sut = new(
+            [spotify],
+            db,
+            bus,
+            new BlockedTrackService(db),
+            NullLogger<MusicService>.Instance
+        );
         return (sut, bus, handler, store);
     }
 }

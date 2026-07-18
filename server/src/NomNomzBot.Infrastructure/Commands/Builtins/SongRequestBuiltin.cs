@@ -74,16 +74,21 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
         }
 
         MusicTrack track = results[0];
-        bool added = await _music.AddToQueueAsync(
+        Result added = await _music.AddToQueueAsync(
             context.BroadcasterId.ToString(),
             track.Uri,
             context.TriggeringUserDisplayName,
             ct
         );
 
-        if (!added)
-            // Functional failure — stays neutral. Sent as a reply, so no "@user" prefix.
-            return Result.Success($"Could not add \"{track.Name}\" to the queue.");
+        if (added.IsFailure)
+            // Functional failure — stays neutral. Sent as a reply, so no "@user" prefix. A blocked
+            // track carries its typed reason ("… is blocked in this channel.") straight through.
+            return Result.Success(
+                added.ErrorCode == "TRACK_BLOCKED"
+                    ? added.ErrorMessage!
+                    : $"Could not add \"{track.Name}\" to the queue."
+            );
 
         string message = await _composer.ComposeAsync(
             new BuiltinResponseRequest

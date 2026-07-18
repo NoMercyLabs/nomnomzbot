@@ -140,6 +140,7 @@ public abstract class BaseController : ControllerBase
             or "JAR_NOT_OPEN"
             or "JAR_CAP_EXCEEDED"
             or "CAPABILITY_UNSUPPORTED"
+            or "TRACK_BLOCKED"
             or "MARKETPLACE_NO_PUBLISHER_TOKEN"
             or "MARKETPLACE_AUTH_FAILED" => ConflictResponse(result.ErrorMessage),
             // Discord upstream results are never our fault (500). An invalid/expired bot token or a missing
@@ -201,6 +202,7 @@ public abstract class BaseController : ControllerBase
             or "JAR_NOT_OPEN"
             or "JAR_CAP_EXCEEDED"
             or "CAPABILITY_UNSUPPORTED"
+            or "TRACK_BLOCKED"
             or "MARKETPLACE_NO_PUBLISHER_TOKEN"
             or "MARKETPLACE_AUTH_FAILED" => ConflictResponse(result.ErrorMessage),
             // Discord upstream results are never our fault (500). An invalid/expired bot token or a missing

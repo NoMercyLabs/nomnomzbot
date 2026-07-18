@@ -6311,6 +6311,59 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("ViewerReports");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Music.Entities.BlockedTrack", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BlockedByUserId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrackUri")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "TrackUri");
+
+                    b.HasIndex("BroadcasterId", "Provider", "TrackUri")
+                        .IsUnique()
+                        .HasDatabaseName("IX_BlockedTrack_BroadcasterId_Provider_TrackUri")
+                        .HasFilter("\"DeletedAt\" IS NULL");
+
+                    b.ToTable("BlockedTracks");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Obs.Entities.ObsConnection", b =>
                 {
                     b.Property<Guid>("Id")

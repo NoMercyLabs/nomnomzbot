@@ -14,6 +14,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Integrations;
@@ -38,9 +39,9 @@ public sealed class MusicServiceQueueSnapshotTests
     {
         (MusicService sut, RecordingEventBus bus) = Build();
 
-        bool ok = await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q1", "viewer1");
+        Result ok = await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q1", "viewer1");
 
-        ok.Should().BeTrue();
+        ok.IsSuccess.Should().BeTrue();
         SongRequestQueueChangedEvent changed = bus
             .Published.OfType<SongRequestQueueChangedEvent>()
             .Single();
@@ -125,7 +126,13 @@ public sealed class MusicServiceQueueSnapshotTests
         );
 
         RecordingEventBus bus = new();
-        MusicService sut = new([spotify], db, bus, NullLogger<MusicService>.Instance);
+        MusicService sut = new(
+            [spotify],
+            db,
+            bus,
+            new BlockedTrackService(db),
+            NullLogger<MusicService>.Instance
+        );
         return (sut, bus);
     }
 

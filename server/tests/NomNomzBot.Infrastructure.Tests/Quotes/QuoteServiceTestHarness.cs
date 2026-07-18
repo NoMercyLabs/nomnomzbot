@@ -35,6 +35,8 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
         : base(options) { }
 
     public DbSet<Quote> Quotes => Set<Quote>();
+    public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>

@@ -44,8 +44,13 @@ public interface IMusicService
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Add a track to the playback queue.</summary>
-    Task<bool> AddToQueueAsync(
+    /// <summary>
+    /// Admit a track into the song-request queue — THE admission path every SR flow (command, reward
+    /// pipeline, public SR page, script) goes through. Fails <c>VALIDATION_FAILED</c> on a bad channel
+    /// id, <c>SERVICE_UNAVAILABLE</c> when no provider is active, and <c>TRACK_BLOCKED</c> when the
+    /// resolved track is on the channel's blocklist — refused before it ever reaches the fair queue.
+    /// </summary>
+    Task<Result> AddToQueueAsync(
         string broadcasterId,
         string trackUri,
         string? requestedBy = null,
@@ -62,6 +67,15 @@ public interface IMusicService
 
     /// <summary>Get the currently playing track, if any.</summary>
     Task<NowPlaying?> GetNowPlayingAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// The provider key (<c>spotify</c>, <c>youtube</c>, …) of the channel's active music provider,
+    /// resolved exactly as every playback member resolves it; null when none is connected.
+    /// </summary>
+    Task<string?> GetActiveProviderKeyAsync(
         string broadcasterId,
         CancellationToken cancellationToken = default
     );
@@ -155,7 +169,8 @@ public sealed record MusicTrack(
     string Provider
 );
 
-/// <summary>Current playback state for a channel.</summary>
+/// <summary>Current playback state for a channel. <paramref name="TrackUri"/> is the provider URI/id
+/// of the playing track — what <c>song_ban</c> blocks and <c>playlist_add</c> saves.</summary>
 public sealed record NowPlaying(
     string? TrackName,
     string? Artist,
@@ -166,7 +181,8 @@ public sealed record NowPlaying(
     bool IsPlaying,
     int Volume,
     string? RequestedBy,
-    string Provider
+    string Provider,
+    string? TrackUri = null
 );
 
 /// <summary>The full playback queue including the current track.</summary>

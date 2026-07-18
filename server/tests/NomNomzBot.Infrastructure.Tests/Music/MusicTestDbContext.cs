@@ -49,6 +49,10 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
 
     public DbSet<Service> Services => Set<Service>();
 
+    // Mapped for real: the AddToQueueAsync admission gate reads this table through BlockedTrackService.
+    public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>
+        Set<NomNomzBot.Domain.Music.Entities.BlockedTrack>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Service>(b =>
@@ -56,6 +60,9 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
             b.HasKey(s => s.Id);
             b.Ignore(s => s.Channel);
         });
+        modelBuilder.Entity<NomNomzBot.Domain.Music.Entities.BlockedTrack>(b =>
+            b.HasKey(x => x.Id)
+        );
 
         foreach (Type entity in UnmappedEntities)
             modelBuilder.Ignore(entity);
@@ -73,7 +80,9 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
             && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
         )
         .Select(p => p.PropertyType.GetGenericArguments()[0])
-        .Where(t => t != typeof(Service))
+        .Where(t =>
+            t != typeof(Service) && t != typeof(NomNomzBot.Domain.Music.Entities.BlockedTrack)
+        )
         .ToList();
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──

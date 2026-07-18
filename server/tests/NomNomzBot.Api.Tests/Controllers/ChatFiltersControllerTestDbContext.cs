@@ -114,6 +114,8 @@ internal sealed class ChatFiltersControllerTestDbContext : DbContext, IApplicati
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
         throw new NotSupportedException();
     public DbSet<Quote> Quotes => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>
+        throw new NotSupportedException();
     public DbSet<PickList> PickLists => throw new NotSupportedException();
     public DbSet<Widget> Widgets => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetVersion> WidgetVersions =>

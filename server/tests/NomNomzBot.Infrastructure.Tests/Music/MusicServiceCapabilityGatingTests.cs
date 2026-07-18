@@ -250,6 +250,7 @@ public sealed class MusicServiceCapabilityGatingTests
             [spotify, youtube],
             db,
             new RecordingEventBus(),
+            new BlockedTrackService(db),
             NullLogger<MusicService>.Instance
         );
         return (sut, handler);

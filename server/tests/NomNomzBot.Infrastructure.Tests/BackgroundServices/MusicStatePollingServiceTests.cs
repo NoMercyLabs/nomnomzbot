@@ -409,10 +409,15 @@ public sealed class MusicStatePollingServiceTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
-        public Task<bool> AddToQueueAsync(
+        public Task<Result> AddToQueueAsync(
             string broadcasterId,
             string trackUri,
             string? requestedBy = null,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<string?> GetActiveProviderKeyAsync(
+            string broadcasterId,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 

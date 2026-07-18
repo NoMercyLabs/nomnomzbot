@@ -107,7 +107,13 @@ public sealed class MusicServicePlaybackPublishTests
                 .Options
         );
         RecordingEventBus bus = new();
-        MusicService sut = new([], db, bus, NullLogger<MusicService>.Instance);
+        MusicService sut = new(
+            [],
+            db,
+            bus,
+            new BlockedTrackService(db),
+            NullLogger<MusicService>.Instance
+        );
 
         Result ok = await sut.PlayAsync(ChannelId.ToString());
 
@@ -147,7 +153,13 @@ public sealed class MusicServicePlaybackPublishTests
         );
 
         RecordingEventBus bus = new();
-        MusicService sut = new([spotify], db, bus, NullLogger<MusicService>.Instance);
+        MusicService sut = new(
+            [spotify],
+            db,
+            bus,
+            new BlockedTrackService(db),
+            NullLogger<MusicService>.Instance
+        );
         return (sut, bus, handler);
     }
 

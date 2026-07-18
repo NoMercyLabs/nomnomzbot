@@ -57,6 +57,7 @@ public interface IApplicationDbContext
     DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls { get; }
     DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes { get; }
     DbSet<Quote> Quotes { get; }
+    DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks { get; }
     DbSet<PickList> PickLists { get; }
     DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways { get; }
     DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayEntry> GiveawayEntries { get; }

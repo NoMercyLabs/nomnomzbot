@@ -149,7 +149,7 @@ public sealed class ScriptHostBridgeTests
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(true);
+            .Returns(Result.Success());
         ScriptHostBridge bridge = Build(music: music);
 
         bridge

@@ -111,6 +111,8 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>

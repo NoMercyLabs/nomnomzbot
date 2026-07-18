@@ -90,14 +90,15 @@ public sealed class PublicSongRequestController(
         if (!page.Value.IsAcceptingRequests)
             return ConflictResponse("This channel is not accepting song requests right now.");
 
-        bool added = await music.AddToQueueAsync(
+        Result added = await music.AddToQueueAsync(
             page.Value.BroadcasterId.ToString(),
             request.Query,
             string.IsNullOrWhiteSpace(request.RequestedBy) ? "Anonymous" : request.RequestedBy,
             cancellationToken
         );
-        return added
-            ? Ok(new StatusResponseDto<object> { Message = "Song added to the queue." })
-            : ServiceUnavailableResponse("No music provider is connected for this channel.");
+        if (added.IsFailure)
+            // TRACK_BLOCKED → 409 with its typed reason; provider-less → 503; etc.
+            return ResultResponse(added);
+        return Ok(new StatusResponseDto<object> { Message = "Song added to the queue." });
     }
 }

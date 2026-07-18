@@ -94,6 +94,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
         Set<NomNomzBot.Domain.Quotes.Entities.Quote>();
+    public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<Widget> Widgets => Set<Widget>();

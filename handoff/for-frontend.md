@@ -16,6 +16,19 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
+### 2026-07-19 — Music: blocked-tracks management UI (new endpoints)
+- **From:** Stoney_Eagle (via Claude)
+- **What:** a "Blocked songs" list on the Music screen: list + unblock + manual block. New generic
+  pipeline blocks also exist for the palette (already served by `GET pipelines/actions`):
+  `song_pause`, `song_resume`, `song_previous`, `playlist_add`, `song_wrong`, `song_ban`.
+- **Why:** legacy-bot parity (!bansong/!wrongsong/!banger). A blocked track is refused at song-request
+  admission with reason `TRACK_BLOCKED` (409 on the public SR page).
+- **Where:** `GET/POST .../music/blocked-tracks` (`music:config:read` / `music:queue:moderate`),
+  `DELETE .../music/blocked-tracks/{id}`; snapshot `server/openapi/v1.json` (+`BlockedTrackDto`,
+  `BlockTrackRequest`, paginated/status envelopes, `WidgetTestEventRequest`). Kotlin DTOs need
+  registering in `ApiContractTest`.
+- **Done when:** blocked list renders + unblock works live; a blocked track visibly refuses on the SR page.
+
 ### 2026-07-18 — Chat live-push: live dev re-check (no frontend defect found)
 - **From:** Stoney_Eagle (via Claude)
 - **What:** the dashboard chat live-push wiring was traced end-to-end and found CORRECT (JoinChannel → All classes incl. chat; ChatMessage handler registered + forwarded; ChatScreen subscribes; shell connects the browser-native HubSocket session-wide). No frontend gap found. Needs a live dev check (open dashboard chat, confirm a new message renders without reload). If it still lags, the cause is elsewhere — re-open with the concrete symptom.

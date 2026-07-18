@@ -412,6 +412,8 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>
+            throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Widgets.Entities.Widget> Widgets =>

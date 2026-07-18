@@ -39,6 +39,8 @@ internal sealed class ImportTestDbContext : DbContext, IApplicationDbContext
     public DbSet<DomainCommand> Commands => Set<DomainCommand>();
     public DbSet<DomainTimer> Timers => Set<DomainTimer>();
     public DbSet<Quote> Quotes => Set<Quote>();
+    public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>
+        throw new NotSupportedException();
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<Channel> Channels => Set<Channel>();
 

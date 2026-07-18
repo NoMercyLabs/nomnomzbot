@@ -93,7 +93,7 @@ public sealed class PublicSongRequestControllerTests
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(true);
+            .Returns(Result.Success());
 
         IActionResult result = await controller.Submit(
             "tok",

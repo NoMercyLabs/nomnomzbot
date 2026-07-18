@@ -32,16 +32,19 @@ public class MusicController : BaseController
     private readonly IMusicService _musicService;
     private readonly IMusicConfigService _configService;
     private readonly ISongRequestPageTokenService _srPageTokens;
+    private readonly IBlockedTrackService _blockedTracks;
 
     public MusicController(
         IMusicService musicService,
         IMusicConfigService configService,
-        ISongRequestPageTokenService srPageTokens
+        ISongRequestPageTokenService srPageTokens,
+        IBlockedTrackService blockedTracks
     )
     {
         _musicService = musicService;
         _configService = configService;
         _srPageTokens = srPageTokens;
+        _blockedTracks = blockedTracks;
     }
 
     // ─── Configuration ────────────────────────────────────────────────────────
@@ -152,16 +155,14 @@ public class MusicController : BaseController
         CancellationToken ct
     )
     {
-        bool added = await _musicService.AddToQueueAsync(
+        Result added = await _musicService.AddToQueueAsync(
             channelId,
             request.Query,
             request.RequestedBy,
             ct
         );
-        if (!added)
-            return ServiceUnavailableResponse(
-                "Music service is unavailable or no provider is connected."
-            );
+        if (added.IsFailure)
+            return ResultResponse(added);
 
         return Ok(new StatusResponseDto<object> { Message = "Song added to queue." });
     }
@@ -180,6 +181,67 @@ public class MusicController : BaseController
         if (!removed)
             return NotFoundResponse($"No queue item at position {position}.");
 
+        return NoContent();
+    }
+
+    // ─── Blocked tracks (legacy !bansong) ─────────────────────────────────────
+
+    /// <summary>List the channel's blocked song-request tracks, newest first, paginated.</summary>
+    [RequireAction("music:config:read")]
+    [HttpGet("blocked-tracks")]
+    [ProducesResponseType<PaginatedResponse<BlockedTrackDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListBlockedTracks(
+        string channelId,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<BlockedTrackDto>> result = await _blockedTracks.ListAsync(
+            broadcasterId,
+            pagination,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    /// <summary>Block a track from song requests — the admission path refuses it from then on.</summary>
+    [RequireAction("music:queue:moderate")]
+    [HttpPost("blocked-tracks")]
+    [ProducesResponseType<StatusResponseDto<BlockedTrackDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> BlockTrack(
+        string channelId,
+        [FromBody] BlockTrackRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        return ResultResponse(await _blockedTracks.BlockAsync(broadcasterId, request, ct));
+    }
+
+    /// <summary>Unblock a previously blocked track (soft delete), letting it be requested again.</summary>
+    [RequireAction("music:queue:moderate")]
+    [HttpDelete("blocked-tracks/{blockedTrackId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> UnblockTrack(
+        string channelId,
+        Guid blockedTrackId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result result = await _blockedTracks.UnblockAsync(broadcasterId, blockedTrackId, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
         return NoContent();
     }
 

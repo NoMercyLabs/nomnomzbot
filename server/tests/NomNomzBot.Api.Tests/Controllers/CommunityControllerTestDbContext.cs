@@ -149,6 +149,8 @@ internal sealed class CommunityControllerTestDbContext : DbContext, IApplication
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
         throw new NotSupportedException();
     public DbSet<Quote> Quotes => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<Widget> Widgets => throw new NotSupportedException();

@@ -10,6 +10,7 @@
 
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 
@@ -69,15 +70,23 @@ public sealed class SongRequestAction : ICommandAction
         }
 
         MusicTrack track = results[0];
-        bool added = await _music.AddToQueueAsync(
+        Result added = await _music.AddToQueueAsync(
             ctx.BroadcasterId.ToString(),
             track.Uri,
             ctx.TriggeredByDisplayName,
             ctx.CancellationToken
         );
 
-        if (!added)
-            return ActionResult.Failure("failed to add track to queue");
+        if (added.IsFailure)
+        {
+            if (added.ErrorCode == "TRACK_BLOCKED")
+                await _chat.SendMessageAsync(
+                    ctx.BroadcasterId,
+                    $"@{ctx.TriggeredByDisplayName} {added.ErrorMessage}",
+                    ctx.CancellationToken
+                );
+            return ActionResult.Failure(added.ErrorMessage ?? "failed to add track to queue");
+        }
 
         await _chat.SendMessageAsync(
             ctx.BroadcasterId,

@@ -164,6 +164,8 @@ internal sealed class EngagementTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
