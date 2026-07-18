@@ -15,6 +15,8 @@ using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -32,6 +34,7 @@ public class LiveOpsController : BaseController
     private readonly ITwitchClipsApi _clips;
     private readonly ITwitchScheduleApi _schedule;
     private readonly ITwitchStreamsApi _streams;
+    private readonly IChannelService _channels;
 
     public LiveOpsController(
         ITwitchPollsApi polls,
@@ -40,7 +43,8 @@ public class LiveOpsController : BaseController
         ITwitchAdsApi ads,
         ITwitchClipsApi clips,
         ITwitchScheduleApi schedule,
-        ITwitchStreamsApi streams
+        ITwitchStreamsApi streams,
+        IChannelService channels
     )
     {
         _polls = polls;
@@ -50,6 +54,7 @@ public class LiveOpsController : BaseController
         _clips = clips;
         _schedule = schedule;
         _streams = streams;
+        _channels = channels;
     }
 
     // ─── Polls ────────────────────────────────────────────────────────────────
@@ -410,6 +415,41 @@ public class LiveOpsController : BaseController
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
+
+        Result<string> result = await _schedule.GetICalendarAsync(broadcasterId, ct);
+        return result.IsFailure
+            ? TwitchResultResponse(result)
+            : Content(result.Value, "text/calendar");
+    }
+
+    /// <summary>
+    /// PUBLIC webcal subscription feed for the channel's schedule (RFC 5545, text/calendar). Where
+    /// <see cref="GetScheduleICalendar"/> serves a one-time Bearer-authed snapshot, this authorizes with the
+    /// per-channel <c>OverlayToken</c> as a query param — the stable, read-only credential a calendar app embeds
+    /// in a <c>webcal://…/live-ops/schedule/icalendar/subscribe?token=…</c> URL so it can keep polling the feed
+    /// without a user session. The token must belong to the channel named in the route.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("schedule/icalendar/subscribe")]
+    [Produces("text/calendar")]
+    public async Task<IActionResult> SubscribeScheduleICalendar(
+        string channelId,
+        [FromQuery] string? token,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        if (string.IsNullOrWhiteSpace(token))
+            return UnauthenticatedResponse("A calendar token is required.");
+
+        ChannelOverlayInfo? channel = await _channels.GetByOverlayTokenAsync(token, ct);
+        if (
+            channel is null
+            || !Guid.TryParse(channel.BroadcasterId, out Guid tokenChannel)
+            || tokenChannel != broadcasterId
+        )
+            return UnauthenticatedResponse("Invalid calendar token.");
 
         Result<string> result = await _schedule.GetICalendarAsync(broadcasterId, ct);
         return result.IsFailure
