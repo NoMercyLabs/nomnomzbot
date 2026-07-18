@@ -102,6 +102,16 @@ function emoteUrl(fr: any): string {
   return firstUrl(fr && fr.emote && fr.emote.urls, ['2', '1', '3'])
 }
 
+function cheermoteUrl(fr: any): string {
+  return firstUrl(fr && fr.cheermote && fr.cheermote.urls, ['2', '1', '3'])
+}
+
+// Mention/cheermote may carry a #RRGGBB accent; guard it before binding to style so bad data can't inject CSS.
+function fragColor(c: any): Record<string, string> {
+  const hex: string = hexColor(c)
+  return hex ? { color: hex } : {}
+}
+
 function onChat(m: any): void {
   if (!m || typeof m !== 'object') return
   const text: string = m.message || ''
@@ -172,7 +182,21 @@ onUnmounted(() => {
       <span class="body">
         <template v-if="l.fragments.length">
           <template v-for="(fr, i) in l.fragments" :key="i">
-            <img v-if="fr.type === 'emote' && cfg.showEmotes && fr.emote" class="emote" :src="(fr.emote.urls && (fr.emote.urls['2'] || fr.emote.urls['1'] || fr.emote.urls['3'])) || ''" :alt="fr.text">
+            <!-- Backend-sanitized rich HTML (e.g. a subscriber's <marquee>/formatting). Rendered as-is; the server
+                 is the only place that turns text into an html fragment, and it sanitizes before it ever gets here. -->
+            <span v-if="fr.type === 'html'" class="frag-html" v-html="fr.text"></span>
+            <!-- Twitch / third-party emote image -->
+            <img v-else-if="fr.type === 'emote' && cfg.showEmotes && fr.emote" class="emote" :src="emoteUrl(fr)" :alt="fr.text">
+            <!-- Cheermote: the animated bits image plus its tier-coloured amount -->
+            <template v-else-if="fr.type === 'cheermote' && fr.cheermote">
+              <img v-if="cfg.showEmotes && cheermoteUrl(fr)" class="cheermote" :src="cheermoteUrl(fr)" :alt="fr.text">
+              <span class="cheer-bits" :style="fragColor(fr.cheermote.colorHex)">{{ fr.cheermote.bits }}</span>
+            </template>
+            <!-- @mention, tinted with the mentioned user's chat colour when known -->
+            <span v-else-if="fr.type === 'mention' && fr.mention" class="mention" :style="fragColor(fr.mention.color)">{{ '@' + (fr.mention.displayName || fr.mention.username || '') }}</span>
+            <!-- Shared link -->
+            <a v-else-if="fr.type === 'link' && fr.linkUrl" class="link" :href="fr.linkUrl" target="_blank" rel="noopener noreferrer">{{ fr.text || fr.linkUrl }}</a>
+            <!-- Plain text (the default, escaped) -->
             <span v-else>{{ fr.text || '' }}</span>
           </template>
         </template>
@@ -254,5 +278,34 @@ onUnmounted(() => {
   width: auto;
   vertical-align: middle;
   margin: 0 1px;
+}
+/* Minimal functional styling for the remaining body fragment types — the visual design is themed elsewhere. */
+.cheermote {
+  height: 24px;
+  width: auto;
+  vertical-align: middle;
+  margin: 0 1px;
+}
+.cheer-bits {
+  font-weight: 700;
+}
+.mention {
+  font-weight: 700;
+}
+.link {
+  color: var(--accent, #9146ff);
+  text-decoration: underline;
+}
+/* Rich HTML fragment: keep it inline and tame runaway media so a message can't blow out the chat column. */
+.frag-html {
+  display: inline;
+}
+.frag-html :deep(img) {
+  max-height: 1.6em;
+  width: auto;
+  vertical-align: middle;
+}
+.frag-html :deep(*) {
+  max-width: 100%;
 }
 </style>
