@@ -36,7 +36,13 @@ import bot.nomnomz.dashboard.core.network.ChatApi
 import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.DashboardApi
+import bot.nomnomz.dashboard.core.network.AutomationApi
 import bot.nomnomz.dashboard.core.network.DiscordApi
+import bot.nomnomz.dashboard.core.network.ObsApi
+import bot.nomnomz.dashboard.core.network.RestAutomationApi
+import bot.nomnomz.dashboard.core.network.RestObsApi
+import bot.nomnomz.dashboard.core.network.RestVtsApi
+import bot.nomnomz.dashboard.core.network.VtsApi
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.EventStoreApi
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
@@ -134,7 +140,10 @@ import bot.nomnomz.dashboard.feature.chat.state.ChatController
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
 import bot.nomnomz.dashboard.feature.connect.state.ConnectController
+import bot.nomnomz.dashboard.feature.automation.state.AutomationController
 import bot.nomnomz.dashboard.feature.discord.state.DiscordController
+import bot.nomnomz.dashboard.feature.obs.state.ObsController
+import bot.nomnomz.dashboard.feature.vts.state.VtsController
 import bot.nomnomz.dashboard.feature.economy.state.EconomyController
 import bot.nomnomz.dashboard.feature.home.state.HomeController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
@@ -312,6 +321,9 @@ class AppGraph {
     val platformIamApi: PlatformIamApi = PlatformIamApiImpl(apiClient)
     val platformAdminApi: PlatformAdminApi = PlatformAdminApiImpl(apiClient)
     val pronounsApi: PronounsApi = PronounsApiImpl(apiClient)
+    val obsApi: ObsApi = RestObsApi(apiClient)
+    val vtsApi: VtsApi = RestVtsApi(apiClient)
+    val automationApi: AutomationApi = RestAutomationApi(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
     private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
@@ -505,6 +517,17 @@ class AppGraph {
 
     val discordController: DiscordController =
         DiscordController(channelsApi = channelsApi, discordApi = discordApi)
+
+    val obsController: ObsController = ObsController(channelsApi = channelsApi, obsApi = obsApi)
+
+    val vtsController: VtsController = VtsController(channelsApi = channelsApi, vtsApi = vtsApi)
+
+    val automationController: AutomationController =
+        AutomationController(
+            channelsApi = channelsApi,
+            automationApi = automationApi,
+            pipelinesApi = pipelinesApi,
+        )
 
     val rolesController: RolesController =
         RolesController(channelsApi = channelsApi, rolesApi = rolesApi)

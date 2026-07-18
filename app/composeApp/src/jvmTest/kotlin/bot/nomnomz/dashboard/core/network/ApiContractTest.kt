@@ -187,6 +187,32 @@ class ApiContractTest {
             AdminTenantDetail.serializer() to "AdminTenantDetailDto",
             TenantAccessGrant.serializer() to "TenantAccessGrantDto",
             IamAuditEntry.serializer() to "IamAuditEntryDto",
+            // OBS control (obs-control.md §4/§5): connection config + bridge + live state/scene/input DTOs and
+            // the control request bodies.
+            ObsConnection.serializer() to "ObsConnectionDto",
+            UpsertObsConnectionBody.serializer() to "UpsertObsConnectionRequest",
+            ObsBridgeSetup.serializer() to "ObsBridgeSetupDto",
+            ObsBridgeStatus.serializer() to "ObsBridgeStatusDto",
+            ObsState.serializer() to "ObsStateDto",
+            ObsScene.serializer() to "ObsSceneDto",
+            ObsInput.serializer() to "ObsInputDto",
+            ObsSceneBody.serializer() to "ObsSceneRequest",
+            ObsToggleBody.serializer() to "ObsToggleRequest",
+            ObsRecordBody.serializer() to "ObsRecordRequest",
+            // VTube Studio (vtube-studio.md §4): connection config + inventory DTOs and the control request bodies.
+            VtsConnection.serializer() to "VtsConnectionDto",
+            UpsertVtsConnectionBody.serializer() to "UpsertVtsConnectionRequest",
+            VtsModelInventory.serializer() to "VtsModelInventory",
+            VtsModelRef.serializer() to "VtsModelRef",
+            VtsHotkeyRef.serializer() to "VtsHotkeyRef",
+            VtsControlBody.serializer() to "VtsControlRequest",
+            VtsRequestResult.serializer() to "VtsRequestResult",
+            // Automation API tokens + device pairing (automation-api.md §5 + stream-deck.md).
+            AutomationToken.serializer() to "AutomationTokenDto",
+            IssuedAutomationToken.serializer() to "IssuedAutomationTokenDto",
+            CreateAutomationTokenBody.serializer() to "CreateAutomationTokenRequest",
+            PairingCode.serializer() to "PairingCodeDto",
+            MintPairingCodeBody.serializer() to "MintPairingCodeRequest",
         )
 
     @Test

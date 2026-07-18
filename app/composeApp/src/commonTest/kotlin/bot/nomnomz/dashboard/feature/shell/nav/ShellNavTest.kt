@@ -31,31 +31,39 @@ class ShellNavTest {
     }
 
     @Test
-    fun moderator_sees_every_page_except_the_broadcaster_floored_pages() {
+    fun moderator_sees_every_page_except_those_floored_above_moderator() {
         val visible: List<NavPage> = ShellNav.visiblePagesFor(ManagementRole.Moderator)
 
-        // The Broadcaster-floored pages (Integrations, Roles) must be hidden from a Mod.
+        // The Broadcaster-floored pages (Integrations, Roles, OBS) must be hidden from a Mod.
         assertFalse(visible.any { it.route == ShellRoute.Integrations })
         assertFalse(visible.any { it.route == ShellRoute.Roles })
-        // Everything else stays visible — incl. Discord (read floor lowered Broadcaster→Moderator, frontend-ia.md
-        // §3 Connect), Moderation, and the Moderator-floored Settings.
+        assertFalse(visible.any { it.route == ShellRoute.Obs })
+        // The Editor-floored Automation (automation:tokens:read = Editor) is also above a Mod.
+        assertFalse(visible.any { it.route == ShellRoute.Automation })
+        // Everything at the Moderator floor stays visible — incl. Discord (read floor lowered
+        // Broadcaster→Moderator, frontend-ia.md §3 Connect), VTube Studio (vts:config:read = Moderator),
+        // Moderation, and the Moderator-floored Settings.
         assertTrue(visible.any { it.route == ShellRoute.Dashboard })
         assertTrue(visible.any { it.route == ShellRoute.Discord })
+        assertTrue(visible.any { it.route == ShellRoute.Vts })
         assertTrue(visible.any { it.route == ShellRoute.Moderation })
         assertTrue(visible.any { it.route == ShellRoute.Settings })
-        // Exactly the Broadcaster-floored pages are dropped — no more, no fewer.
-        val broadcasterFloored: Int =
-            ShellNav.pages.count { it.readFloor == ManagementRole.Broadcaster }
-        assertEquals(ShellNav.pages.size - broadcasterFloored, visible.size)
+        // Exactly the pages floored ABOVE Moderator are dropped — no more, no fewer.
+        val abvModerator: Int =
+            ShellNav.pages.count { it.readFloor.level > ManagementRole.Moderator.level }
+        assertEquals(ShellNav.pages.size - abvModerator, visible.size)
     }
 
     @Test
-    fun editor_and_moderator_see_the_same_pages_since_only_integrations_sits_above_moderator() {
+    fun editor_sees_the_moderator_pages_plus_the_editor_floored_automation() {
         val editor: Set<ShellRoute> = ShellNav.visiblePagesFor(ManagementRole.Editor).map { it.route }.toSet()
         val moderator: Set<ShellRoute> =
             ShellNav.visiblePagesFor(ManagementRole.Moderator).map { it.route }.toSet()
 
-        assertEquals(moderator, editor)
+        // An Editor sees every page a Moderator sees, plus the single Editor-floored page (Automation API
+        // tokens — automation:tokens:read = Editor). No other page sits between the Moderator and Editor floors.
+        assertTrue(editor.containsAll(moderator))
+        assertEquals(setOf(ShellRoute.Automation), editor - moderator)
     }
 
     @Test

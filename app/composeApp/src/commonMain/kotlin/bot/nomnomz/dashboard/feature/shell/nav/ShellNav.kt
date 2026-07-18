@@ -49,6 +49,9 @@ enum class ShellRoute {
     CodeScripts,
     CustomEvents,
     Supporters,
+    Obs,
+    Vts,
+    Automation,
     Settings,
     Admin,
 }
@@ -133,6 +136,16 @@ object ShellNav {
             // are Broadcaster-only + Critical (supporters:config:write), gated per-control inside the page. It pairs
             // with Webhooks (the Ko-fi inbound endpoint) so it sits in the Connect group.
             NavPage(ShellRoute.Supporters, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.Broadcaster, readActionKey = "supporters:read"),
+            // OBS control: reading the connection config needs obs:config:read (Broadcaster); the page's write floor
+            // is Broadcaster (obs:config:write, Critical). Scene switching (obs:control, Moderator) and streaming/
+            // recording (obs:control:broadcast, Broadcaster) gate per-control inside the page at explicit floors.
+            NavPage(ShellRoute.Obs, NavGroup.Connect, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = "obs:config:read"),
+            // VTube Studio: read floors at Moderator (vts:config:read); connection config / authorize / rotate are
+            // Broadcaster (vts:config:write); model/hotkey/expression control is Moderator (vts:control), gated inside.
+            NavPage(ShellRoute.Vts, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.Broadcaster, readActionKey = "vts:config:read"),
+            // Automation API tokens: read floors at Editor (automation:tokens:read); every write is Broadcaster-only
+            // and Critical (automation:tokens:write).
+            NavPage(ShellRoute.Automation, NavGroup.Connect, ManagementRole.Editor, ManagementRole.Broadcaster, readActionKey = "automation:tokens:read"),
             NavPage(ShellRoute.Integrations, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Roles, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Features, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),

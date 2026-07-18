@@ -385,3 +385,55 @@ val AdminGlyph: ImageVector = navIcon("Admin") {
             fill = SolidColor(Color.Transparent),
         )
 }
+
+// A monitor with a record dot — OBS control (a broadcast/scene surface).
+val ObsGlyph: ImageVector = navIcon("Obs") {
+        addPath(
+            pathData = addPathNodes("M4 4H20A1 1 0 0 1 21 5V15A1 1 0 0 1 20 16H4A1 1 0 0 1 3 15V5A1 1 0 0 1 4 4ZM8 20H16M12 16V20"),
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = SW,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+            fill = SolidColor(Color.Transparent),
+        )
+        addPath(
+            pathData = addPathNodes("M14.5 10A2.5 2.5 0 1 1 9.5 10A2.5 2.5 0 1 1 14.5 10Z"),
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = SW,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+            fill = SolidColor(Color.Transparent),
+        )
+}
+
+// A friendly avatar face — VTube Studio (model control).
+val VtsGlyph: ImageVector = navIcon("Vts") {
+        addPath(
+            pathData = addPathNodes("M22 12A10 10 0 1 1 2 12A10 10 0 1 1 22 12Z"),
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = SW,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+            fill = SolidColor(Color.Transparent),
+        )
+        addPath(
+            pathData = addPathNodes("M8 14C9 15.5 10.5 16 12 16C13.5 16 15 15.5 16 14M9 9H9.01M15 9H15.01"),
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = SW,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+            fill = SolidColor(Color.Transparent),
+        )
+}
+
+// A command-line prompt — the automation API (external tools / tokens).
+val AutomationGlyph: ImageVector = navIcon("Automation") {
+        addPath(
+            pathData = addPathNodes("M4 17L10 11L4 5M12 19H20"),
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = SW,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+            fill = SolidColor(Color.Transparent),
+        )
+}

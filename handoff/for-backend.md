@@ -16,7 +16,30 @@ The frontend track (`aaoa-dev`) leaves backend work orders here. The backend tra
 
 ## Open
 
-_(none)_
+### 2026-07-18 — The `/obs-bridge` browser-source page (OBS + VTS legs) is a server-served static asset
+- **From:** aaoa-dev (via Claude, frontend track)
+- **What:** the OBS-control and VTube-Studio **config/dashboard** pages are now built (see the two Done entries
+  in `handoff/for-frontend.md`, OBS control + VTube Studio, committed this session). What is NOT built — and is
+  a **server track** responsibility per `obs-control.md §7` / `vtube-studio.md` — is the actual `/obs-bridge`
+  **browser-source page** the streamer pastes into OBS/VTS as a browser source. Per obs-control.md §7 it is a
+  compiled/served **public widget surface** (like the overlays), not part of the Compose dashboard, so it does
+  not belong on the frontend (`app/`) track. It must:
+  1. Read `?token=` from the query and open a SignalR connection to `/hubs/obs` with `?token=` (NOT a JWT).
+  2. **OBS leg:** open `ws://127.0.0.1:4455` to local OBS (v5 Identify), execute `ExecuteObsRequest(commandId,
+     payloadJson)` pushes (payload `{kind: "request"|"batch", ...}`) against local OBS, call
+     `AckCommand(commandId, ok, responseDataJson, error)`, and forward subscribed OBS events via
+     `ForwardObsEvent(eventType, eventDataJson)`. Render a 1×1 (invisible) surface.
+  3. **VTS leg (same page):** additionally execute `ExecuteObsRequest` payloads with `kind: "vts_request"`
+     (`{requestType, data}`) against local `ws://localhost:8001` using the VTS API envelope, ack with the
+     response `data` JSON, and forward subscribed VTS events via `ForwardVtsEvent(eventType, payloadJson)`.
+- **Why:** the dashboard `bridge/setup` card already shows-and-copies the `bridgeUrl` for the operator to paste
+  into OBS, but that URL currently has no served page behind it — bridge mode can't function end-to-end until
+  this asset exists. The direct-mode control path (dashboard → backend → OBS socket) works without it.
+- **Where:** server-served widget/public-surface pipeline (per `obs-control.md §7`); the SignalR `OBSRelayHub`
+  (`/hubs/obs`) contract already exists (`ExecuteObsRequest`/`AckCommand`/`ForwardObsEvent`/`ForwardVtsEvent`).
+- **Done when:** with the `bridgeUrl` pasted into OBS as a browser source, the dashboard `bridge/status` dot
+  goes online and a scene switch / streaming toggle from the dashboard executes through the browser source
+  against local OBS; the same page relays VTS control against `ws://localhost:8001`.
 
 ## Done
 
