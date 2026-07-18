@@ -44,6 +44,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.Badge
+import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -52,6 +54,21 @@ import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_admin
+import nomnomzbot.composeapp.generated.resources.admin_tab_iam
+import nomnomzbot.composeapp.generated.resources.admin_tab_tenants
+import nomnomzbot.composeapp.generated.resources.admin_tab_audit
+import nomnomzbot.composeapp.generated.resources.admin_live_indicator
+import nomnomzbot.composeapp.generated.resources.admin_live_offline
+import nomnomzbot.composeapp.generated.resources.admin_registry_title
+import nomnomzbot.composeapp.generated.resources.admin_registry_empty
+import nomnomzbot.composeapp.generated.resources.admin_registry_live
+import nomnomzbot.composeapp.generated.resources.admin_registry_offline
+import nomnomzbot.composeapp.generated.resources.admin_log_title
+import nomnomzbot.composeapp.generated.resources.admin_log_empty
+import nomnomzbot.composeapp.generated.resources.admin_health_overall
+import nomnomzbot.composeapp.generated.resources.admin_health_ok
+import nomnomzbot.composeapp.generated.resources.admin_health_degraded
+import nomnomzbot.composeapp.generated.resources.admin_health_unhealthy
 import nomnomzbot.composeapp.generated.resources.admin_channel_live
 import nomnomzbot.composeapp.generated.resources.admin_channel_offline
 import nomnomzbot.composeapp.generated.resources.admin_channel_plan
@@ -91,12 +108,24 @@ import org.jetbrains.compose.resources.stringResource
 fun AdminScreen(controller: AdminController) {
     val state: AdminState by controller.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { controller.load() }
+    // Fold the live operator-hub pushes (system heartbeat, channel registry, log) into state — no polling.
+    controller.hubEvents?.let { events ->
+        LaunchedEffect(events) { controller.subscribeToHub(events) }
+    }
 
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     var selectedTab: Int by remember { mutableIntStateOf(0) }
+    // Lazy-load the heavier Plane-C management slices only when their tab is first opened.
+    LaunchedEffect(selectedTab) {
+        when (selectedTab) {
+            TAB_IAM -> if (state.principals.isEmpty() && state.roles.isEmpty()) controller.loadIam()
+            TAB_TENANTS -> if (state.tenants.isEmpty()) controller.loadTenants()
+            TAB_AUDIT -> if (state.auditEntries.isEmpty()) controller.loadAudit()
+        }
+    }
     val tabs: List<String> = listOf(
         stringResource(Res.string.admin_tab_overview),
         stringResource(Res.string.admin_tab_channels),
@@ -104,6 +133,9 @@ fun AdminScreen(controller: AdminController) {
         stringResource(Res.string.admin_tab_system),
         stringResource(Res.string.admin_tab_flags),
         stringResource(Res.string.admin_tab_billing),
+        stringResource(Res.string.admin_tab_iam),
+        stringResource(Res.string.admin_tab_tenants),
+        stringResource(Res.string.admin_tab_audit),
     )
 
     Column(modifier = Modifier.fillMaxSize().background(tokens.background)) {
@@ -136,7 +168,31 @@ fun AdminScreen(controller: AdminController) {
             3 -> SystemTab(state = state)
             4 -> FeatureFlagsTab(state = state, controller = controller)
             5 -> BillingTab(state = state, controller = controller)
+            TAB_IAM -> IamTab(state = state, controller = controller)
+            TAB_TENANTS -> TenantsTab(state = state, controller = controller)
+            TAB_AUDIT -> AuditTab(state = state, controller = controller)
         }
+    }
+}
+
+private const val TAB_IAM: Int = 6
+private const val TAB_TENANTS: Int = 7
+private const val TAB_AUDIT: Int = 8
+
+/**
+ * A small pill reflecting the AdminHub connection: filled when the live heartbeat is flowing, muted-outline
+ * "reconnecting" otherwise. It reads the truthful [AdminState.hubLive] flag the hub subscription sets — it is
+ * not decorative.
+ */
+@Composable
+private fun LiveIndicator(hubLive: Boolean) {
+    val typography = LocalTypography.current
+    Badge(variant = if (hubLive) BadgeVariant.Default else BadgeVariant.Outline) {
+        Text(
+            text = if (hubLive) stringResource(Res.string.admin_live_indicator)
+            else stringResource(Res.string.admin_live_offline),
+            style = typography.xs,
+        )
     }
 }
 
@@ -153,6 +209,15 @@ private fun OverviewTab(state: AdminState) {
             .padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = stringResource(Res.string.admin_tab_overview), style = typography.base, color = tokens.foreground)
+            LiveIndicator(hubLive = state.hubLive)
+        }
+
         state.stats?.let { stats ->
             StatCard(label = stringResource(Res.string.admin_stats_total_channels), value = stats.totalChannels.toString())
             StatCard(label = stringResource(Res.string.admin_stats_active_channels), value = stats.activeChannels.toString())
@@ -185,6 +250,67 @@ private fun OverviewTab(state: AdminState) {
                         if (index < state.events.lastIndex) {
                             Separator()
                         }
+                    }
+                }
+            }
+        }
+
+        // Live channel registry (AdminHub go-live/offline + suspension pushes).
+        Spacer(modifier = Modifier.height(spacing.s2))
+        Text(text = stringResource(Res.string.admin_registry_title), style = typography.base, color = tokens.foreground)
+        if (state.registry.isEmpty()) {
+            Text(text = stringResource(Res.string.admin_registry_empty), style = typography.sm, color = tokens.mutedForeground)
+        } else {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    state.registry.forEachIndexed { index, entry ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = entry.channelName ?: entry.broadcasterId,
+                                style = typography.sm,
+                                color = tokens.cardForeground,
+                                modifier = Modifier.weight(1f),
+                            )
+                            val label: String = entry.status
+                                ?: if (entry.isLive == true) stringResource(Res.string.admin_registry_live)
+                                else stringResource(Res.string.admin_registry_offline)
+                            Text(
+                                text = label,
+                                style = typography.xs,
+                                color = if (entry.isLive == true) tokens.primary else tokens.mutedForeground,
+                            )
+                        }
+                        if (index < state.registry.lastIndex) Separator()
+                    }
+                }
+            }
+        }
+
+        // Live operator log (AdminHub log pushes — tenant suspensions etc.).
+        Spacer(modifier = Modifier.height(spacing.s2))
+        Text(text = stringResource(Res.string.admin_log_title), style = typography.base, color = tokens.foreground)
+        if (state.logs.isEmpty()) {
+            Text(text = stringResource(Res.string.admin_log_empty), style = typography.sm, color = tokens.mutedForeground)
+        } else {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    state.logs.forEachIndexed { index, log ->
+                        Text(
+                            text = log.message,
+                            style = typography.sm,
+                            color = when (log.type.lowercase()) {
+                                "warning" -> tokens.accent
+                                "error" -> tokens.destructive
+                                "success" -> tokens.primary
+                                else -> tokens.cardForeground
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+                        )
+                        if (index < state.logs.lastIndex) Separator()
                     }
                 }
             }
@@ -297,6 +423,30 @@ private fun SystemTab(state: AdminState) {
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         state.system?.let { sys ->
+            // Truthful overall verdict — degraded/unhealthy keep their own colour, never restyled green.
+            Row(
+                modifier = Modifier.fillMaxWidth().background(tokens.card).padding(spacing.s3),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(text = stringResource(Res.string.admin_health_overall), style = typography.sm, color = tokens.mutedForeground)
+                Badge(
+                    variant = when (sys.overall.lowercase()) {
+                        "healthy", "ok" -> BadgeVariant.Default
+                        "degraded" -> BadgeVariant.Secondary
+                        else -> BadgeVariant.Destructive
+                    },
+                ) {
+                    Text(
+                        text = when (sys.overall.lowercase()) {
+                            "healthy", "ok" -> stringResource(Res.string.admin_health_ok)
+                            "degraded" -> stringResource(Res.string.admin_health_degraded)
+                            else -> stringResource(Res.string.admin_health_unhealthy)
+                        },
+                        style = typography.xs,
+                    )
+                }
+            }
             StatCard(label = stringResource(Res.string.admin_system_version), value = sys.botVersion)
             StatCard(label = stringResource(Res.string.admin_system_memory), value = sys.memoryUsageMb.toString())
             StatCard(label = stringResource(Res.string.admin_system_cpu), value = "${(sys.cpuPercent * 10).toLong().let { t -> "${t / 10}.${t % 10}" }}%")

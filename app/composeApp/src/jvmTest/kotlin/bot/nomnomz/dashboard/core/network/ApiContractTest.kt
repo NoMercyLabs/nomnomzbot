@@ -157,6 +157,18 @@ class ApiContractTest {
             CreateScheduleSegmentBody.serializer() to "CreateScheduleSegmentRequest",
             UpdateScheduleSegmentBody.serializer() to "UpdateScheduleSegmentRequest",
             UpdateScheduleSettingsBody.serializer() to "UpdateScheduleSettingsDto",
+            // Platform-admin (Plane-C): live status hub + IAM + tenant ops + audit response DTOs.
+            AdminStats.serializer() to "AdminStatsDto",
+            AdminSystem.serializer() to "AdminSystemDto",
+            AdminServiceHealth.serializer() to "ServiceHealthDto",
+            IamRole.serializer() to "IamRoleDto",
+            IamPrincipalSummary.serializer() to "IamPrincipalSummaryDto",
+            IamRoleAssignment.serializer() to "IamRoleAssignmentDto",
+            IamPrincipal.serializer() to "IamPrincipalDto",
+            AdminTenant.serializer() to "AdminTenantDto",
+            AdminTenantDetail.serializer() to "AdminTenantDetailDto",
+            TenantAccessGrant.serializer() to "TenantAccessGrantDto",
+            IamAuditEntry.serializer() to "IamAuditEntryDto",
         )
 
     @Test

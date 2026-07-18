@@ -80,6 +80,10 @@ import bot.nomnomz.dashboard.core.network.RestFeaturesApi
 import bot.nomnomz.dashboard.core.network.RestFederationApi
 import bot.nomnomz.dashboard.core.network.AdminApi
 import bot.nomnomz.dashboard.core.network.AdminApiImpl
+import bot.nomnomz.dashboard.core.network.PlatformAdminApi
+import bot.nomnomz.dashboard.core.network.PlatformAdminApiImpl
+import bot.nomnomz.dashboard.core.network.PlatformIamApi
+import bot.nomnomz.dashboard.core.network.PlatformIamApiImpl
 import bot.nomnomz.dashboard.core.network.PronounsApi
 import bot.nomnomz.dashboard.core.network.PronounsApiImpl
 import bot.nomnomz.dashboard.core.network.BillingApi
@@ -170,6 +174,7 @@ import bot.nomnomz.dashboard.feature.tts.state.TtsQueueController
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsController
 import bot.nomnomz.dashboard.core.network.LiveOpsApi
 import bot.nomnomz.dashboard.core.network.RestLiveOpsApi
+import bot.nomnomz.dashboard.core.realtime.AdminHubClient
 import bot.nomnomz.dashboard.core.realtime.DashboardHubClient
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -202,6 +207,11 @@ class AppGraph {
     // that need live updates (ChatController → subscribeToHub). Connected once when a session is
     // established; the connect call is idempotent (re-entrant no-op when already connected).
     val dashboardHubClient: DashboardHubClient = DashboardHubClient()
+
+    // The SignalR hub client for the platform-operator hub (AdminHub, /hubs/admin). The handshake is gated on
+    // the caller's iam:manage grant, so it only ever establishes for a privileged admin; the AdminController
+    // subscribes to it for the live status panel + channel registry (no polling).
+    val adminHubClient: AdminHubClient = AdminHubClient()
 
     // The streamer's Twitch chat color (#RRGGBB) — null until HomeController resolves the primary channel.
     // App.kt reads this to supply the dynamic accent to NomNomzTheme (design-system §2).
@@ -299,6 +309,8 @@ class AppGraph {
     val liveOpsApi: LiveOpsApi = RestLiveOpsApi(apiClient)
     val billingApi: BillingApi = RestBillingApi(apiClient)
     val adminApi: AdminApi = AdminApiImpl(apiClient)
+    val platformIamApi: PlatformIamApi = PlatformIamApiImpl(apiClient)
+    val platformAdminApi: PlatformAdminApi = PlatformAdminApiImpl(apiClient)
     val pronounsApi: PronounsApi = PronounsApiImpl(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
@@ -423,7 +435,16 @@ class AppGraph {
     val billingController: BillingController =
         BillingController(channelsApi = channelsApi, billingApi = billingApi)
 
-    val adminController: AdminController = AdminController(api = adminApi)
+    val adminController: AdminController =
+        AdminController(
+            api = adminApi,
+            iamApi = platformIamApi,
+            platformAdminApi = platformAdminApi,
+            hubClient = adminHubClient,
+            baseUrl = sessionStore::baseUrl,
+            accessToken = sessionStore::accessToken,
+            refreshToken = tokenRefresher,
+        )
 
     val twitchAppCredentialsController: TwitchAppCredentialsController =
         TwitchAppCredentialsController(
