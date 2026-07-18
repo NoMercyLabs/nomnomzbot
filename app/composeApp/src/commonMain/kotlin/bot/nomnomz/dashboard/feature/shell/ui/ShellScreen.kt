@@ -89,6 +89,7 @@ import bot.nomnomz.dashboard.core.navigation.RouteStore
 import bot.nomnomz.dashboard.feature.alerts.ui.AlertsScreen
 import bot.nomnomz.dashboard.feature.analytics.ui.AnalyticsScreen
 import bot.nomnomz.dashboard.feature.chat.ui.ChatScreen
+import bot.nomnomz.dashboard.feature.chat.ui.MultiChatScreen
 import bot.nomnomz.dashboard.feature.commands.ui.CommandsScreen
 import bot.nomnomz.dashboard.feature.community.ui.CommunityScreen
 import bot.nomnomz.dashboard.feature.eventresponses.ui.EventResponsesScreen
@@ -154,6 +155,7 @@ import nomnomzbot.composeapp.generated.resources.shell_group_stream
 import nomnomzbot.composeapp.generated.resources.shell_nav_alerts
 import nomnomzbot.composeapp.generated.resources.shell_nav_analytics
 import nomnomzbot.composeapp.generated.resources.shell_nav_chat
+import nomnomzbot.composeapp.generated.resources.shell_nav_multichat
 import nomnomzbot.composeapp.generated.resources.shell_nav_commands
 import nomnomzbot.composeapp.generated.resources.shell_nav_community
 import nomnomzbot.composeapp.generated.resources.shell_nav_dashboard
@@ -319,6 +321,22 @@ fun ShellScreen(
     var requestedRoute: ShellRoute by remember { mutableStateOf(routeStore.initialRoute()) }
     val selected: ShellRoute = if (requestedRoute in allowedRoutes) requestedRoute else fallbackRoute
     LaunchedEffect(selected) { routeStore.save(selected) }
+    // The multi-watch page runs on a DEDICATED hub connection (see AppGraph). Open it (joining the active channel
+    // as the socket-opening primary — the controller filters the feed to the channels actually watched) only while
+    // that page is selected, and close it on leave so an idle session holds just the one shell socket.
+    LaunchedEffect(selected, activeChannelId) {
+        val url: String? = graph.sessionStore.baseUrl()
+        if (selected == ShellRoute.MultiChat && activeChannelId != null && url != null) {
+            graph.multiChatHubClient.connect(
+                url,
+                graph.sessionStore::accessToken,
+                activeChannelId!!,
+                graph.tokenRefresher,
+            )
+        } else {
+            graph.multiChatHubClient.disconnect()
+        }
+    }
     LaunchedEffect(routeStore) { routeStore.externalChanges.collect { requestedRoute = it } }
     // Surface hub signals that affect the whole shell frame regardless of the active page.
     val hubEvents = graph.dashboardHubClient.events
@@ -482,6 +500,11 @@ private fun ShellContent(
                 controller = graph.chatController,
                 role = role,
                 hubEvents = graph.dashboardHubClient.events,
+            )
+            ShellRoute.MultiChat -> MultiChatScreen(
+                controller = graph.multiChatController,
+                role = role,
+                hubEvents = graph.multiChatHubClient.events,
             )
             ShellRoute.Community -> CommunityScreen(controller = graph.communityController, role = role)
             ShellRoute.Commands ->
@@ -1240,6 +1263,7 @@ private fun ShellRoute.icon(): ImageVector =
     when (this) {
         ShellRoute.Dashboard -> DashboardGlyph
         ShellRoute.Chat -> ChatGlyph
+        ShellRoute.MultiChat -> CommunityGlyph
         ShellRoute.Commands -> CommandsGlyph
         ShellRoute.EventResponses -> EventResponsesGlyph
         ShellRoute.Pipelines -> PipelinesGlyph
@@ -1285,6 +1309,7 @@ private fun ShellRoute.label(): String =
         when (this) {
             ShellRoute.Dashboard -> Res.string.shell_nav_dashboard
             ShellRoute.Chat -> Res.string.shell_nav_chat
+            ShellRoute.MultiChat -> Res.string.shell_nav_multichat
             ShellRoute.Commands -> Res.string.shell_nav_commands
             ShellRoute.EventResponses -> Res.string.shell_nav_event_responses
             ShellRoute.Quotes -> Res.string.shell_nav_quotes

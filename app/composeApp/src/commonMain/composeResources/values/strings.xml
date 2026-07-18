@@ -1258,6 +1258,13 @@
 
     <!-- Sidebar labels for the new pages and the Automation group. -->
     <string name="shell_nav_chat">Chat</string>
+    <string name="shell_nav_multichat">Multi-chat</string>
+    <string name="multichat_loading">Loading channels…</string>
+    <string name="multichat_error">Could not load channels: %1$s</string>
+    <string name="multichat_picker_hint">Pick channels to watch — their chats merge into one feed below, each line tagged by channel.</string>
+    <string name="multichat_picker_none">No channels you own or moderate.</string>
+    <string name="multichat_pick_a_channel">Pick one or more channels above to start watching.</string>
+    <string name="multichat_empty_feed">No messages yet — waiting for chat on the watched channels.</string>
     <string name="shell_nav_quotes">Quotes</string>
     <string name="shell_nav_pick_lists">Pick Lists</string>
     <string name="shell_nav_discord">Discord</string>

@@ -1249,7 +1249,7 @@ private fun CenteredMessage(text: String) {
 }
 
 /** The chatter's best display name: display name, then login, then the raw id. */
-private fun chatterName(message: ChatMessage): String =
+internal fun chatterName(message: ChatMessage): String =
     message.displayName.takeIf { it.isNotBlank() }
         ?: message.username.takeIf { it.isNotBlank() }
         ?: message.userId
@@ -1258,7 +1258,7 @@ private fun chatterName(message: ChatMessage): String =
  * Parse a hex color string ("#RRGGBB" or "#RGB") to a Compose [Color]. Returns null on malformed input so
  * callers can fall back to a theme token.
  */
-private fun String.toComposeColor(): Color? = runCatching {
+internal fun String.toComposeColor(): Color? = runCatching {
     val hex: String = trimStart('#').let { if (it.length == 3) "${it[0]}${it[0]}${it[1]}${it[1]}${it[2]}${it[2]}" else it }.take(6)
     Color(
         red = hex.substring(0, 2).toInt(16) / 255f,
@@ -1269,7 +1269,7 @@ private fun String.toComposeColor(): Color? = runCatching {
 
 // Format an ISO-8601 UTC timestamp to the viewer's local wall-clock time (HH:mm) — the per-line time the feed
 // shows (chat-client.md §0 render contract). Returns null on a malformed timestamp so the row still renders.
-private fun formatClockTime(isoUtc: String): String? = runCatching {
+internal fun formatClockTime(isoUtc: String): String? = runCatching {
     val local = Instant.parse(isoUtc).toLocalDateTime(TimeZone.currentSystemDefault())
     "${local.hour.toString().padStart(2, '0')}:${local.minute.toString().padStart(2, '0')}"
 }.getOrNull()
@@ -1277,7 +1277,7 @@ private fun formatClockTime(isoUtc: String): String? = runCatching {
 // A small muted chip showing the chatter's resolved pronouns beside their name (chat-client.md §0 render
 // contract). The pronoun text is data (already localized by the source), so it carries no i18n key.
 @Composable
-private fun ProviderTag(provider: String) {
+internal fun ProviderTag(provider: String) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current

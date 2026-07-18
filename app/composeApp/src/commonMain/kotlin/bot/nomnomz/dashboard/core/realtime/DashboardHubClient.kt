@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -68,6 +70,14 @@ class DashboardHubClient {
     private var currentChannelId: String? = null
     private var socket: HubSocket? = null
 
+    // The set of channel groups this ONE connection is subscribed to. A single-channel consumer leaves it at
+    // {primary}; the multi-watch surface adds more via [join] / drops them via [leave]. Guarded by [joinMutex]
+    // because it is read on the connect coroutine (to (re)join every channel after a handshake) and mutated from
+    // [join]/[leave]/[connect]. On any reconnect the FULL set is re-joined, so a dropped socket restores every
+    // watched channel, not just the last one.
+    private val joinMutex: Mutex = Mutex()
+    private val joinedChannels: MutableSet<String> = mutableSetOf()
+
     private val _events: MutableSharedFlow<HubEvent> = MutableSharedFlow(extraBufferCapacity = 64)
 
     /** Hub invocations received from the server after a successful [connect] + `JoinChannel`. */
@@ -104,13 +114,19 @@ class DashboardHubClient {
         currentChannelId = channelId
         connectJob =
             scope.launch {
+                // Reset the joined set to just this primary channel — a fresh connect targets one channel; the
+                // multi-watch surface layers extra channels on top afterwards via [join].
+                joinMutex.withLock {
+                    joinedChannels.clear()
+                    joinedChannels.add(channelId)
+                }
                 var backoffMs: Long = 1_000
                 while (true) {
                     var established = false
                     // Reset the back-off once a session actually establishes, so a long-lived socket that later
                     // drops reconnects promptly instead of inheriting a grown delay from an earlier failure run.
                     runCatching {
-                            openSession(baseUrl, tokenProvider, channelId) {
+                            openSession(baseUrl, tokenProvider) {
                                 established = true
                                 backoffMs = 1_000
                             }
@@ -129,11 +145,40 @@ class DashboardHubClient {
             }
     }
 
+    /**
+     * Add [channelId] to the set of channels this connection watches, joining its group on the live socket now
+     * (and on every future reconnect). Used by the multi-watch chat surface to monitor several channels over ONE
+     * connection — each [HubEvent.ChatMessage] carries its `channelId`, so the caller routes/ tags each line. A
+     * no-op for a channel already joined. Requires an active [connect]; joins arrive once the handshake completes.
+     */
+    fun join(channelId: String) {
+        scope.launch {
+            val added: Boolean = joinMutex.withLock { joinedChannels.add(channelId) }
+            if (added && isConnected) {
+                joinMutex.withLock { socket }?.send(joinInvocation(channelId))
+            }
+        }
+    }
+
+    /**
+     * Drop [channelId] from the watched set, leaving its group on the live socket so its pushes stop — without
+     * disturbing the other watched channels. A no-op for a channel not currently joined.
+     */
+    fun leave(channelId: String) {
+        scope.launch {
+            val removed: Boolean = joinMutex.withLock { joinedChannels.remove(channelId) }
+            if (removed && isConnected) {
+                joinMutex.withLock { socket }?.send(leaveInvocation(channelId))
+            }
+        }
+    }
+
     /** Close the WebSocket and stop the reconnect loop. */
     fun disconnect() {
         connectJob?.cancel()
         connectJob = null
         currentChannelId = null
+        scope.launch { joinMutex.withLock { joinedChannels.clear() } }
         socket?.close()
         socket = null
         isConnected = false
@@ -149,7 +194,6 @@ class DashboardHubClient {
     private suspend fun openSession(
         baseUrl: String,
         tokenProvider: () -> String?,
-        channelId: String,
         onConnected: () -> Unit,
     ) {
         // Read the CURRENT token for this attempt (see [connect]); bail and let the caller's back-off retry
@@ -185,11 +229,14 @@ class DashboardHubClient {
                 runCatching { Json.parseToJsonElement(handshakeMsg).jsonObject }.getOrNull()
             if (handshake?.containsKey("error") == true) return
 
-            // ── JoinChannel invocation ─────────────────────────────────
-            // Tell the hub which channel group we want to subscribe to.
-            hubSocket.send(
-                """{"type":1,"invocationId":"join","target":"JoinChannel","arguments":["$channelId"]}$RECORD_SEPARATOR"""
-            )
+            // ── JoinChannel invocation(s) ──────────────────────────────
+            // Tell the hub which channel group(s) we want to subscribe to. Join EVERY channel in the watched set
+            // (the primary plus any multi-watch additions), so a reconnect restores all of them — not just the
+            // last one. A single-channel consumer joins exactly its one channel.
+            val channelsToJoin: List<String> = joinMutex.withLock { joinedChannels.toList() }
+            for (id: String in channelsToJoin) {
+                hubSocket.send(joinInvocation(id))
+            }
 
             isConnected = true
             onConnected()
@@ -227,6 +274,12 @@ class DashboardHubClient {
             if (socket === hubSocket) socket = null
         }
     }
+
+    private fun joinInvocation(channelId: String): String =
+        """{"type":1,"target":"JoinChannel","arguments":["$channelId"]}$RECORD_SEPARATOR"""
+
+    private fun leaveInvocation(channelId: String): String =
+        """{"type":1,"target":"LeaveChannel","arguments":["$channelId"]}$RECORD_SEPARATOR"""
 
     private fun dispatchSegment(segment: String) {
         val json: JsonElement =

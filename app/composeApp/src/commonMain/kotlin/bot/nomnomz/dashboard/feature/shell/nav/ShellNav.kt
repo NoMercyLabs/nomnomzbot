@@ -20,6 +20,7 @@ package bot.nomnomz.dashboard.feature.shell.nav
 enum class ShellRoute {
     Dashboard,
     Chat,
+    MultiChat,
     Commands,
     EventResponses,
     Quotes,
@@ -108,6 +109,10 @@ object ShellNav {
             // Top-level single-entry groups render as plain items (no header) — see SidebarSection.
             NavPage(ShellRoute.Dashboard, NavGroup.Home, ManagementRole.Moderator, null, readActionKey = "dashboard:read"),
             NavPage(ShellRoute.Chat, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "chat:read"),
+            // Multi-channel watch: a mod monitors several owned/moderated channels' chats at once. Read-only
+            // (null manage floor — nothing to mutate here; a mod acts from a channel's own Chat page); it reuses
+            // the Chat read floor (chat:read) since it reads chat history.
+            NavPage(ShellRoute.MultiChat, NavGroup.Chat, ManagementRole.Moderator, null, readActionKey = "chat:read"),
             NavPage(ShellRoute.Commands, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "commands:read"),
             NavPage(ShellRoute.EventResponses, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "eventresponses:read"),
             NavPage(ShellRoute.Timers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "timers:read"),

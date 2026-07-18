@@ -280,7 +280,7 @@ class ChatController(
 
 // ─── Hub adapter ─────────────────────────────────────────────────────────────
 
-private fun HubChatMessage.toLocalMessage(): ChatMessage =
+internal fun HubChatMessage.toLocalMessage(): ChatMessage =
     ChatMessage(
         id = id,
         channelId = channelId,

@@ -1255,6 +1255,13 @@
 
     <!-- Sidebar labels for the new pages and the Automation group. -->
     <string name="shell_nav_chat">Chat</string>
+    <string name="shell_nav_multichat">Multi-chat</string>
+    <string name="multichat_loading">Kanalen laden…</string>
+    <string name="multichat_error">Kon kanalen niet laden: %1$s</string>
+    <string name="multichat_picker_hint">Kies kanalen om te volgen — hun chats komen samen in één feed hieronder, elke regel met kanaallabel.</string>
+    <string name="multichat_picker_none">Geen kanalen die je bezit of modereert.</string>
+    <string name="multichat_pick_a_channel">Kies hierboven een of meer kanalen om te beginnen met kijken.</string>
+    <string name="multichat_empty_feed">Nog geen berichten — wachten op chat in de gevolgde kanalen.</string>
     <string name="shell_nav_quotes">Quotes</string>
     <string name="shell_nav_pick_lists">Keuzelijsten</string>
     <string name="shell_nav_discord">Discord</string>

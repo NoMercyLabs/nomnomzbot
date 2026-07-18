@@ -149,6 +149,7 @@ import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
 import bot.nomnomz.dashboard.feature.alerts.state.AlertsController
 import bot.nomnomz.dashboard.feature.analytics.state.AnalyticsController
 import bot.nomnomz.dashboard.feature.chat.state.ChatController
+import bot.nomnomz.dashboard.feature.chat.state.MultiChatController
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
 import bot.nomnomz.dashboard.feature.connect.state.ConnectController
@@ -519,6 +520,20 @@ class AppGraph {
 
     val chatController: ChatController =
         ChatController(channelsApi = channelsApi, chatApi = chatApi)
+
+    // A DEDICATED hub connection for the multi-watch page, kept SEPARATE from [dashboardHubClient]: the main
+    // hub's single-channel Chat page appends every ChatMessage it receives, so joining extra channels on it would
+    // leak their chat there. This one joins the channels the operator selects to watch; the shell connects it only
+    // while the multi-watch page is open (and disconnects on leave).
+    val multiChatHubClient: DashboardHubClient = DashboardHubClient()
+
+    val multiChatController: MultiChatController =
+        MultiChatController(
+            channelsApi = channelsApi,
+            chatApi = chatApi,
+            joinChannel = { channelId -> multiChatHubClient.join(channelId) },
+            leaveChannel = { channelId -> multiChatHubClient.leave(channelId) },
+        )
 
     val quotesController: QuotesController =
         QuotesController(quotesApi = quotesApi, feedback = feedbackController)
