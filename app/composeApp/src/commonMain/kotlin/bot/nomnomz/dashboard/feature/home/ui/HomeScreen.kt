@@ -36,6 +36,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.Slider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.media.EmojiText
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -443,11 +444,12 @@ private fun LiveBanner(stats: DashboardStats) {
                 }
             }
 
-            Text(
+            // Rendered through EmojiText so Unicode emoji in a stream title show as their real glyphs (inline
+            // Twemoji images) instead of □ tofu on the web/Wasm build, which has no colour-emoji font.
+            EmojiText(
                 text = stats.streamTitle?.takeIf { it.isNotBlank() }
                     ?: stringResource(Res.string.home_no_title),
-                style = typography.xl,
-                fontWeight = FontWeight.SemiBold,
+                style = typography.xl.copy(fontWeight = FontWeight.SemiBold),
                 color = tokens.cardForeground,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,

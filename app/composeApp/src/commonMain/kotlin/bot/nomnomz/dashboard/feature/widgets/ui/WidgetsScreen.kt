@@ -99,6 +99,8 @@ import nomnomzbot.composeapp.generated.resources.widgets_clone_action
 import nomnomzbot.composeapp.generated.resources.widgets_clone_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_edit_code_action
 import nomnomzbot.composeapp.generated.resources.widgets_edit_code_action_short
+import nomnomzbot.composeapp.generated.resources.widgets_settings_action
+import nomnomzbot.composeapp.generated.resources.widgets_settings_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_clone_dismiss
 import nomnomzbot.composeapp.generated.resources.widgets_clone_message
 import nomnomzbot.composeapp.generated.resources.widgets_create_action
@@ -177,6 +179,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
     var pendingRename: WidgetSummary? by remember { mutableStateOf(null) }
     var pendingClone: WidgetSummary? by remember { mutableStateOf(null) }
     var pendingVersions: WidgetSummary? by remember { mutableStateOf(null) }
+    var pendingSettings: WidgetSummary? by remember { mutableStateOf(null) }
     var pendingRollback: PendingRollback? by remember { mutableStateOf(null) }
     var showCreateDialog: Boolean by remember { mutableStateOf(false) }
     var showGalleryDialog: Boolean by remember { mutableStateOf(false) }
@@ -249,8 +252,22 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
                     onClone = { widget -> pendingClone = widget },
                     onEditCode = { widget -> scope.launch { controller.editWidgetCode(widget, editorMessages) } },
                     onVersions = { widget -> pendingVersions = widget },
+                    onSettings = { widget -> pendingSettings = widget },
                 )
         }
+    }
+
+    // Typed per-widget-type settings dialog — only reachable for widgets that have a registered typed form
+    // (the row shows the Settings affordance only in that case), so the form is always non-null here.
+    pendingSettings?.let { widget ->
+        typedSettingsFormFor(widget)?.Render(
+            widget = widget,
+            onDismiss = { pendingSettings = null },
+            onSave = { settings ->
+                pendingSettings = null
+                scope.launch { controller.saveSettings(widget.id, settings) }
+            },
+        )
     }
 
     pendingDelete?.let { target ->
@@ -380,6 +397,7 @@ private fun ReadyContent(
     onClone: (WidgetSummary) -> Unit,
     onEditCode: (WidgetSummary) -> Unit,
     onVersions: (WidgetSummary) -> Unit,
+    onSettings: (WidgetSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -397,6 +415,7 @@ private fun ReadyContent(
             onClone = onClone,
             onEditCode = onEditCode,
             onVersions = onVersions,
+            onSettings = onSettings,
         )
     }
 }
@@ -411,6 +430,7 @@ private fun WidgetList(
     onClone: (WidgetSummary) -> Unit,
     onEditCode: (WidgetSummary) -> Unit,
     onVersions: (WidgetSummary) -> Unit,
+    onSettings: (WidgetSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -432,6 +452,7 @@ private fun WidgetList(
                     onClone = { onClone(widget) },
                     onEditCode = { onEditCode(widget) },
                     onVersions = { onVersions(widget) },
+                    onSettings = { onSettings(widget) },
                 )
             }
         }
@@ -453,10 +474,14 @@ private fun WidgetRow(
     onClone: () -> Unit,
     onEditCode: () -> Unit,
     onVersions: () -> Unit,
+    onSettings: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+
+    // A typed settings form exists only for known widget types (e.g. chat_box); the affordance is shown only then.
+    val hasTypedSettings: Boolean = remember(widget) { typedSettingsFormFor(widget) != null }
 
     val stateLabel: String =
         stringResource(
@@ -468,6 +493,7 @@ private fun WidgetRow(
     val renameLabel: String = stringResource(Res.string.widgets_rename_action, widget.name)
     val cloneLabel: String = stringResource(Res.string.widgets_clone_action, widget.name)
     val editCodeLabel: String = stringResource(Res.string.widgets_edit_code_action, widget.name)
+    val settingsLabel: String = stringResource(Res.string.widgets_settings_action, widget.name)
     val versionsLabel: String = stringResource(Res.string.widgets_versions_action, widget.name)
     val urlLabel: String = stringResource(Res.string.widgets_url_label)
 
@@ -512,6 +538,23 @@ private fun WidgetRow(
                     enabled = enabled,
                     modifier = Modifier.semantics { contentDescription = toggleLabel },
                 )
+            }
+            // Typed settings (chat_box font/background/timestamps) — a focused form over the widget's config,
+            // shown only for widget types that have a registered typed form. Gated by the Editor manage floor.
+            if (hasTypedSettings) {
+                ManageGate(decision = manage) { enabled ->
+                    TextButton(
+                        onClick = onSettings,
+                        enabled = enabled,
+                        modifier = Modifier.semantics { contentDescription = settingsLabel },
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.widgets_settings_action_short),
+                            color = if (enabled) tokens.primary else tokens.mutedForeground,
+                            maxLines = 1,
+                        )
+                    }
+                }
             }
             ManageGate(decision = manage) { enabled ->
                 TextButton(

@@ -1057,7 +1057,9 @@ private fun SendBox(
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+            // Bottom-align so the identity selector, clear, and send controls track the INPUT's bottom edge as it
+            // soft-wraps to multiple lines — rather than floating centred against a growing field (designer review).
+            verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
             // Identity selector: send as the operator's own account ("You") or the channel bot ("Bot").

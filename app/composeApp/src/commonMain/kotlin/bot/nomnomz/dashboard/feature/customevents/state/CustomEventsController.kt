@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.customevents.state
 
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CustomDataSource
+import bot.nomnomz.dashboard.core.network.CustomDataSourceOption
 import bot.nomnomz.dashboard.core.network.CustomDataSourcePreset
 import bot.nomnomz.dashboard.core.network.CustomEventsApi
 import bot.nomnomz.dashboard.core.network.UpsertCustomDataSourceBody
@@ -106,6 +107,16 @@ class CustomEventsController(private val api: CustomEventsApi) {
             }
         }
     }
+
+    /**
+     * Autocomplete search over the channel's data sources (the id-picker). Returns the matching options, or an
+     * empty list on failure — a picker degrades to "no matches" rather than surfacing a page-level error.
+     */
+    suspend fun search(query: String): List<CustomDataSourceOption> =
+        when (val result: ApiResult<List<CustomDataSourceOption>> = api.search(query)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> emptyList()
+        }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 

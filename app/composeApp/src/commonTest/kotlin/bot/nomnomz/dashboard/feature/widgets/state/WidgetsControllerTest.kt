@@ -150,6 +150,38 @@ class WidgetsControllerTest {
     }
 
     @Test
+    fun save_settings_puts_the_typed_settings_object_then_reloads() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(listOf(WidgetSummary(id = "chat-1", name = "Chat box")))
+            )
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+        controller.load()
+
+        val settings: kotlinx.serialization.json.JsonObject =
+            kotlinx.serialization.json.buildJsonObject {
+                put("fontFamily", kotlinx.serialization.json.JsonPrimitive("Inter"))
+                put("fontSize", kotlinx.serialization.json.JsonPrimitive(20))
+                put("showTimestamps", kotlinx.serialization.json.JsonPrimitive(true))
+            }
+        controller.saveSettings(widgetId = "chat-1", settings = settings)
+
+        // The write records the exact widget id + the full settings object that went on the wire — the shape,
+        // not merely that a call happened.
+        assertEquals(1, widgetsApi.savedSettings.size)
+        val saved: Pair<String, kotlinx.serialization.json.JsonObject> = widgetsApi.savedSettings.first()
+        assertEquals("chat-1", saved.first)
+        assertEquals(
+            20,
+            saved.second["fontSize"]?.let { (it as kotlinx.serialization.json.JsonPrimitive).content.toInt() },
+        )
+        assertEquals("Inter", (saved.second["fontFamily"] as kotlinx.serialization.json.JsonPrimitive).content)
+        // Reloads on success — the page reflects the backend's truth after the save.
+        assertTrue(controller.state.value is WidgetsState.Ready)
+    }
+
+    @Test
     fun delete_removes_the_widget_then_reloads_to_empty() = runTest {
         val widgetsApi =
             RecordingWidgetsApi(
@@ -537,6 +569,8 @@ private class RecordingWidgetsApi(
     val installed: MutableList<String> = mutableListOf()
     var installedChannelId: String? = null
     val rolledBack: MutableList<Pair<String, String>> = mutableListOf()
+    // Each typed-settings save: the widget id + the settings object that was PUT.
+    val savedSettings: MutableList<Pair<String, kotlinx.serialization.json.JsonObject>> = mutableListOf()
 
     override suspend fun list(channelId: String): ApiResult<List<WidgetSummary>> =
         listFailure?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(store.toList())
@@ -568,6 +602,15 @@ private class RecordingWidgetsApi(
 
     override suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit> =
         ApiResult.Ok(Unit)
+
+    override suspend fun updateSettings(
+        channelId: String,
+        widgetId: String,
+        settings: kotlinx.serialization.json.JsonObject,
+    ): ApiResult<Unit> {
+        savedSettings += (widgetId to settings)
+        return ApiResult.Ok(Unit)
+    }
 
     // The legacy single-source compile endpoint is no longer exercised by the controller (editing goes through
     // the project PUT), but the interface still declares it; records the source for completeness.

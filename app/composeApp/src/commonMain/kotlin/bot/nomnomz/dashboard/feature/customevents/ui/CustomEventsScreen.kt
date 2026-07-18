@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -49,6 +50,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -64,6 +67,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.CustomDataSource
+import bot.nomnomz.dashboard.core.network.CustomDataSourceOption
 import bot.nomnomz.dashboard.core.network.CustomDataSourcePreset
 import bot.nomnomz.dashboard.core.network.UpsertCustomDataSourceBody
 import bot.nomnomz.dashboard.feature.customevents.state.CustomEventsController
@@ -95,6 +99,18 @@ import nomnomzbot.composeapp.generated.resources.custom_events_last_received
 import nomnomzbot.composeapp.generated.resources.custom_events_loading
 import nomnomzbot.composeapp.generated.resources.custom_events_new_source
 import nomnomzbot.composeapp.generated.resources.custom_events_presets_title
+import nomnomzbot.composeapp.generated.resources.custom_events_purpose_body
+import nomnomzbot.composeapp.generated.resources.custom_events_purpose_example_body
+import nomnomzbot.composeapp.generated.resources.custom_events_purpose_example_title
+import nomnomzbot.composeapp.generated.resources.custom_events_purpose_title
+import nomnomzbot.composeapp.generated.resources.custom_events_search_label
+import nomnomzbot.composeapp.generated.resources.custom_events_search_placeholder
+import nomnomzbot.composeapp.generated.resources.custom_events_status_disabled
+import nomnomzbot.composeapp.generated.resources.custom_events_status_poll
+import nomnomzbot.composeapp.generated.resources.custom_events_status_poll_interval
+import nomnomzbot.composeapp.generated.resources.custom_events_status_push
+import nomnomzbot.composeapp.generated.resources.custom_events_status_socket
+import nomnomzbot.composeapp.generated.resources.custom_events_status_waiting
 import nomnomzbot.composeapp.generated.resources.custom_events_retry
 import nomnomzbot.composeapp.generated.resources.custom_events_save
 import nomnomzbot.composeapp.generated.resources.custom_events_secret_placeholder
@@ -167,6 +183,23 @@ fun CustomEventsScreen(controller: CustomEventsController, role: ManagementRole?
             is CustomEventsState.Ready -> {
                 current.actionError?.let { detail ->
                     ActionErrorBanner(message = stringResource(Res.string.custom_events_action_error, detail))
+                }
+
+                // What a data source IS + a concrete example — the page was a bare CRUD shell before.
+                PurposeCard()
+
+                // Id-picker: search the channel's sources by name (GET .../search) and jump straight to one's
+                // editor. Handy once a channel has many sources; degrades to a plain field when the endpoint fails.
+                if (current.sources.isNotEmpty()) {
+                    SourceSearchPicker(
+                        onSearch = { query -> controller.search(query) },
+                        onPick = { option ->
+                            current.sources.firstOrNull { it.id == option.id }?.let { source ->
+                                dialogKey++
+                                editTarget = source
+                            }
+                        },
+                    )
                 }
 
                 if (current.presets.isNotEmpty()) {
@@ -260,6 +293,107 @@ fun CustomEventsScreen(controller: CustomEventsController, role: ManagementRole?
     }
 }
 
+// ── Purpose / explainer card ───────────────────────────────────────────────────
+
+// Explains, in-page, what a custom data source IS and how it is used — plus a concrete example — so the CRUD
+// shell is legible to a first-time operator instead of a bare form.
+@Composable
+private fun PurposeCard() {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            Text(
+                text = stringResource(Res.string.custom_events_purpose_title),
+                style = typography.base,
+                color = tokens.cardForeground,
+            )
+            Text(
+                text = stringResource(Res.string.custom_events_purpose_body),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(tokens.radius.md))
+                    .background(tokens.muted)
+                    .padding(spacing.s3),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                    Text(
+                        text = stringResource(Res.string.custom_events_purpose_example_title),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
+                    Text(
+                        text = stringResource(Res.string.custom_events_purpose_example_body),
+                        style = typography.sm,
+                        color = tokens.cardForeground,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ── Source search / id-picker ───────────────────────────────────────────────────
+
+// An autocomplete over the channel's data sources (the GET .../search endpoint): typing surfaces matching
+// {id, name, displayName} options in a dropdown; picking one opens that source's editor.
+@Composable
+private fun SourceSearchPicker(
+    onSearch: suspend (String) -> List<CustomDataSourceOption>,
+    onPick: (CustomDataSourceOption) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
+    val scope = rememberCoroutineScope()
+
+    var query: String by remember { mutableStateOf("") }
+    var options: List<CustomDataSourceOption> by remember { mutableStateOf(emptyList()) }
+    var expanded: Boolean by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        AppTextField(
+            value = query,
+            onValueChange = { text ->
+                query = text
+                if (text.isBlank()) {
+                    options = emptyList()
+                    expanded = false
+                } else {
+                    scope.launch {
+                        options = onSearch(text)
+                        expanded = options.isNotEmpty()
+                    }
+                }
+            },
+            label = stringResource(Res.string.custom_events_search_label),
+            placeholder = stringResource(Res.string.custom_events_search_placeholder),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            for (option in options) {
+                DropdownMenuItem(
+                    text = { Text(text = option.displayName, color = tokens.popoverForeground) },
+                    onClick = {
+                        expanded = false
+                        query = ""
+                        options = emptyList()
+                        onPick(option)
+                    },
+                )
+            }
+        }
+    }
+}
+
 // ── Presets section ───────────────────────────────────────────────────────────
 
 @Composable
@@ -349,14 +483,15 @@ private fun SourceRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                source.lastReceivedAt?.let { at ->
-                    Text(
-                        text = stringResource(Res.string.custom_events_last_received, at.substringBefore('T')),
-                        style = typography.xs,
-                        color = tokens.mutedForeground,
-                        maxLines = 1,
-                    )
-                }
+                // Honest, derived status: the ingest kind + whether a payload has actually arrived yet (no
+                // fabricated "connected" — every part comes from the real source record).
+                Text(
+                    text = sourceStatusLine(source),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
 
             Box(
@@ -385,6 +520,29 @@ private fun SourceRow(
             }
         }
     }
+}
+
+// A one-line status derived entirely from the source record: the ingress kind (poll shows its interval) joined
+// with the connection state (disabled / waiting for the first payload / last-received date). Never invents a
+// "live" state — only what the backend actually reports.
+@Composable
+private fun sourceStatusLine(source: CustomDataSource): String {
+    val kind: String = when (source.sourceKind) {
+        "poll" -> source.pollIntervalSeconds?.let {
+            stringResource(Res.string.custom_events_status_poll_interval, it)
+        } ?: stringResource(Res.string.custom_events_status_poll)
+        "socket" -> stringResource(Res.string.custom_events_status_socket)
+        else -> stringResource(Res.string.custom_events_status_push)
+    }
+    val connection: String = when {
+        !source.isEnabled -> stringResource(Res.string.custom_events_status_disabled)
+        source.lastReceivedAt == null -> stringResource(Res.string.custom_events_status_waiting)
+        else -> stringResource(
+            Res.string.custom_events_last_received,
+            source.lastReceivedAt.substringBefore('T'),
+        )
+    }
+    return "$kind · $connection"
 }
 
 @Composable
@@ -567,6 +725,7 @@ private fun SourceKindSelector(selected: String, onSelect: (String) -> Unit) {
                 val isSelected: Boolean = kind == selected
                 Button(
                     onClick = { onSelect(kind) },
+                    variant = if (isSelected) ButtonVariant.Default else ButtonVariant.Outline,
                 ) {
                     Text(text = kind, style = typography.sm)
                 }

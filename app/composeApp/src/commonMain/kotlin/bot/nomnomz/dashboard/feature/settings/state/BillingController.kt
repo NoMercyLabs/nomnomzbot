@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.settings.state
 
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BillingApi
 import bot.nomnomz.dashboard.core.network.BillingEntitlement
@@ -130,10 +131,23 @@ class BillingController(
         val target: String = channelId ?: return null
         return when (val result: ApiResult<CheckoutSession> = billingApi.startCheckout(target, tierKey)) {
             is ApiResult.Failure -> {
-                applyActionError(result.error.message)
+                applyBillingFailure(result.error)
                 null
             }
             is ApiResult.Ok -> result.value.checkoutUrl
+        }
+    }
+
+    /**
+     * Change the active paid subscription to [tierKey] (upgrade/downgrade). Reloads on success so the current
+     * plan reflects the switch; on failure classifies the error — a Stripe-not-configured / not-purchasable
+     * result flips the section into the honest "billing not yet configured" state rather than a transient error.
+     */
+    suspend fun changeTier(tierKey: String) {
+        val target: String = channelId ?: return
+        when (val result: ApiResult<Unit> = billingApi.changeTier(target, tierKey)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> applyBillingFailure(result.error)
         }
     }
 
@@ -188,6 +202,29 @@ class BillingController(
             if (current is BillingState.Ready) current.copy(actionError = message)
             else current
     }
+
+    // Classify a billing write failure. A Stripe-not-configured (503 SERVICE_UNAVAILABLE) or not-purchasable
+    // (400 — no StripePriceId on the tier) result is NOT a transient error: it means the marketplace isn't set up
+    // yet, so the section flips to the honest "billing not yet configured" state instead of blaming the user.
+    // Everything else surfaces as an ordinary action error.
+    private fun applyBillingFailure(error: ApiError) {
+        val current: BillingState = _state.value
+        if (current !is BillingState.Ready) return
+        _state.value =
+            if (isBillingUnconfigured(error)) {
+                current.copy(billingUnavailable = true, billingUnavailableReason = error.message)
+            } else {
+                current.copy(actionError = error.message)
+            }
+    }
+
+    private fun isBillingUnconfigured(error: ApiError): Boolean {
+        val message: String = error.message.lowercase()
+        return error.status == 503 ||
+            message.contains("not configured") ||
+            message.contains("not purchasable") ||
+            message.contains("marketplace")
+    }
 }
 
 /** The billing section's render state. */
@@ -204,6 +241,13 @@ sealed interface BillingState {
         /** True when the channel is a self-host install (tier "free" / "self_host_*"). */
         val isSelfHost: Boolean,
         val actionError: String? = null,
+        /**
+         * True once a checkout / change-tier attempt revealed that hosted billing isn't set up yet (Stripe not
+         * configured, or the tier carries no price). The UI then shows an honest "not yet configured" state
+         * rather than faking availability — it works unchanged the moment the marketplace is configured.
+         */
+        val billingUnavailable: Boolean = false,
+        val billingUnavailableReason: String? = null,
     ) : BillingState
 
     data class Error(val detail: String) : BillingState

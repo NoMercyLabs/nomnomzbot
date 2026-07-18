@@ -35,6 +35,7 @@ import bot.nomnomz.dashboard.core.network.WidgetsApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.json.JsonObject
 
 // The Overlays page's state-holder (frontend-ia.md §3 — the Stream group; a plain holder, not a ViewModel).
 // Resolves the active channel, then lists its real OBS overlay widgets from the backend (no fabricated rows) —
@@ -125,6 +126,15 @@ class WidgetsController(
     suspend fun renameWidget(widgetId: String, newName: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(widgetsApi.rename(channel, widgetId, newName))
+    }
+
+    /**
+     * Persist a widget's runtime [settings] (the typed per-widget-type settings form's output) via a partial PUT.
+     * Reloads on success so the row reflects the saved config; surfaces the error on failure.
+     */
+    suspend fun saveSettings(widgetId: String, settings: JsonObject) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(widgetsApi.updateSettings(channel, widgetId, settings))
     }
 
     /**

@@ -31,6 +31,12 @@ interface CustomEventsApi {
     /** Available quick-start presets (Pulsoid, HypeRate, …). */
     suspend fun listPresets(): ApiResult<List<CustomDataSourcePreset>>
 
+    /**
+     * Autocomplete search over the channel's data sources by name / display name (`GET .../search?q=&limit=`).
+     * Backs the id-picker where a source is referenced by id — returns lightweight {id, name, displayName} options.
+     */
+    suspend fun search(query: String, limit: Int = 20): ApiResult<List<CustomDataSourceOption>>
+
     /** Create a new custom data source for the authenticated channel. */
     suspend fun create(body: UpsertCustomDataSourceBody): ApiResult<CustomDataSource>
 
@@ -58,6 +64,11 @@ class RestCustomEventsApi(private val client: ApiClient) : CustomEventsApi {
 
     override suspend fun listPresets(): ApiResult<List<CustomDataSourcePreset>> =
         client.getEnvelope("api/v1/custom-data-sources/presets")
+
+    override suspend fun search(query: String, limit: Int): ApiResult<List<CustomDataSourceOption>> =
+        client.getEnvelope(
+            "api/v1/custom-data-sources/search?q=${query.encodeQuery()}&limit=$limit"
+        )
 
     override suspend fun create(body: UpsertCustomDataSourceBody): ApiResult<CustomDataSource> =
         client.postEnvelope("api/v1/custom-data-sources", body)
@@ -93,6 +104,14 @@ data class CustomDataSource(
     val pollIntervalSeconds: Int? = null,
     val isEnabled: Boolean = false,
     val lastReceivedAt: String? = null,
+)
+
+/** A minimal id-picker option over a data source (mirrors `CustomDataSourceOptionDto`). */
+@Serializable
+data class CustomDataSourceOption(
+    val id: String = "",
+    val name: String = "",
+    val displayName: String = "",
 )
 
 /** A quick-start preset descriptor (e.g. Pulsoid, HypeRate). */

@@ -82,6 +82,7 @@ class ApiContractTest {
             ProjectManifestDto.serializer() to "ProjectManifestDto",
             GalleryItemSummary.serializer() to "GalleryItemSummary",
             GalleryItemDetail.serializer() to "GalleryItemDetail",
+            CustomDataSourceOption.serializer() to "CustomDataSourceOptionDto",
             RewardSummary.serializer() to "RewardDetail",
             RedemptionSummary.serializer() to "RedemptionListItem",
             RedemptionTimer.serializer() to "RedemptionTimerDto",

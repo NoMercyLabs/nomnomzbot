@@ -23,6 +23,7 @@ import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
 import coil3.compose.AsyncImage
@@ -40,13 +41,15 @@ fun EmojiText(
     style: TextStyle,
     color: Color,
     modifier: Modifier = Modifier,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip,
 ) {
     val spans: List<EmojiSpan> = remember(text) { tokenizeEmoji(text) }
     val emojiSpans: List<EmojiSpan.Emoji> = remember(spans) { spans.filterIsInstance<EmojiSpan.Emoji>() }
 
     // Fast path: no emoji → a plain single-node `Text`, identical to the old rendering (no inline machinery).
     if (emojiSpans.isEmpty()) {
-        Text(text = text, style = style, color = color, modifier = modifier)
+        Text(text = text, style = style, color = color, modifier = modifier, maxLines = maxLines, overflow = overflow)
         return
     }
 
@@ -89,6 +92,8 @@ fun EmojiText(
         style = style,
         color = color,
         modifier = modifier,
+        maxLines = maxLines,
+        overflow = overflow,
         inlineContent = inlineContent,
     )
 }

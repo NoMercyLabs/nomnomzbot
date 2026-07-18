@@ -54,6 +54,13 @@ interface WidgetsApi {
     suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit>
 
     /**
+     * Persist a widget's runtime [settings] — a partial PUT carrying only the `settings` object (the backend
+     * `UpdateWidgetRequest.Settings`). The overlay reads this config at render time; a typed per-widget-type form
+     * (e.g. the `chat_box` font/background knobs) writes the whole object here. Other fields stay untouched.
+     */
+    suspend fun updateSettings(channelId: String, widgetId: String, settings: JsonObject): ApiResult<Unit>
+
+    /**
      * Compile-on-save: send the authored [sourceCode] to be built into the widget's next append-only version.
      * Always resolves 200 with a [WidgetVersionDetail] whose `buildStatus` is `pending` / `success` / `error`
      * (a failed build keeps the last good version live). The overlay hot-reloads itself on success.
@@ -143,6 +150,17 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
     override suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit> =
         client.putUnit("api/v1/channels/$channelId/widgets/$widgetId", UpdateWidgetBody(name = name))
 
+    // Partial PUT — only the settings object changes; name / isEnabled / eventSubscriptions stay as-is.
+    override suspend fun updateSettings(
+        channelId: String,
+        widgetId: String,
+        settings: JsonObject,
+    ): ApiResult<Unit> =
+        client.putUnit(
+            "api/v1/channels/$channelId/widgets/$widgetId",
+            UpdateWidgetBody(settings = settings),
+        )
+
     override suspend fun compile(
         channelId: String,
         widgetId: String,
@@ -222,6 +240,7 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
 data class UpdateWidgetBody(
     val name: String? = null,
     val isEnabled: Boolean? = null,
+    val settings: JsonObject? = null,
 )
 
 /** The create-widget request body (backend `CreateWidgetRequest`). [framework] ∈ `vanilla | vue | react | svelte`. */

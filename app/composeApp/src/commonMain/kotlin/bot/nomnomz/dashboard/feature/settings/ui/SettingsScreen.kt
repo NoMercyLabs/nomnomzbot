@@ -65,6 +65,7 @@ import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import androidx.compose.ui.platform.LocalUriHandler
 import bot.nomnomz.dashboard.core.network.BillingInvoice
+import bot.nomnomz.dashboard.core.network.BillingTier
 import bot.nomnomz.dashboard.core.network.BillingSubscription
 import bot.nomnomz.dashboard.core.network.ChannelScope
 import bot.nomnomz.dashboard.core.network.EngagementConfig
@@ -179,6 +180,12 @@ import nomnomzbot.composeapp.generated.resources.settings_billing_manage
 import nomnomzbot.composeapp.generated.resources.settings_billing_renews
 import nomnomzbot.composeapp.generated.resources.settings_billing_resume
 import nomnomzbot.composeapp.generated.resources.settings_billing_self_host
+import nomnomzbot.composeapp.generated.resources.settings_billing_not_configured
+import nomnomzbot.composeapp.generated.resources.settings_billing_not_configured_detail
+import nomnomzbot.composeapp.generated.resources.settings_billing_plan_current
+import nomnomzbot.composeapp.generated.resources.settings_billing_plan_price
+import nomnomzbot.composeapp.generated.resources.settings_billing_plan_select
+import nomnomzbot.composeapp.generated.resources.settings_billing_plans_title
 import nomnomzbot.composeapp.generated.resources.settings_billing_self_host_detail
 import nomnomzbot.composeapp.generated.resources.settings_billing_status_active
 import nomnomzbot.composeapp.generated.resources.settings_billing_status_canceled
@@ -1509,6 +1516,13 @@ private fun BillingSection(controller: BillingController, manage: ManageDecision
                     onResume = { scope.launch { controller.resume() } },
                     onCancel = { scope.launch { controller.cancel() } },
                     onRedeemInvite = { code -> scope.launch { controller.redeemInvite(code) } },
+                    onCheckout = { tierKey ->
+                        scope.launch {
+                            val url: String? = controller.startCheckout(tierKey)
+                            if (url != null) uriHandler.openUri(url)
+                        }
+                    },
+                    onChangeTier = { tierKey -> scope.launch { controller.changeTier(tierKey) } },
                 )
                 if (current.actionError != null) {
                     Text(
@@ -1530,6 +1544,8 @@ private fun BillingReadyContent(
     onResume: () -> Unit,
     onCancel: () -> Unit,
     onRedeemInvite: (String) -> Unit,
+    onCheckout: (String) -> Unit,
+    onChangeTier: (String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
@@ -1583,6 +1599,53 @@ private fun BillingReadyContent(
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // ── Plans / tiers ─────────────────────────────────────────────────────────
+    // The purchasable hosted plans. Shown whenever paid tiers are offered by the backend; a self-host install
+    // with no paid tiers seeded simply has none, so the section hides. From a free tier the button starts a
+    // Stripe Checkout; from an active paid sub it re-prices via change-tier — matching the backend's semantics.
+    val paidTiers: List<BillingTier> = state.tiers.filter { it.priceCents > 0 }
+    if (paidTiers.isNotEmpty()) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            Text(
+                text = stringResource(Res.string.settings_billing_plans_title),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+            // Honest "not yet configured" notice: shown once an attempt revealed hosted billing isn't set up.
+            // Never faked — the plans and their buttons remain, and work unchanged the moment Stripe is added.
+            if (state.billingUnavailable) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(tokens.muted, RoundedCornerShape(spacing.s1))
+                        .padding(spacing.s3),
+                    verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.settings_billing_not_configured),
+                        style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
+                        color = tokens.cardForeground,
+                    )
+                    Text(
+                        text = stringResource(Res.string.settings_billing_not_configured_detail),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
+                }
+            }
+            paidTiers.forEach { tier ->
+                TierRow(
+                    tier = tier,
+                    isCurrent = tier.key == state.subscription.tierKey,
+                    manage = manage,
+                    billingUnavailable = state.billingUnavailable,
+                    // A free/self-host channel checks out; an active paid channel changes tier (backend rules).
+                    onSelect = { if (state.isSelfHost) onCheckout(tier.key) else onChangeTier(tier.key) },
+                )
             }
         }
     }
@@ -1699,6 +1762,64 @@ private fun BillingStatusBadge(subscription: BillingSubscription) {
         }
         if (periodLabel != null) {
             Text(text = periodLabel, style = typography.xs, color = tokens.mutedForeground)
+        }
+    }
+}
+
+// One purchasable plan: its name + price on the left, the action (or a "Current plan" marker) on the right.
+// The action is disabled once billing is known to be unconfigured, so the honest state governs the whole row.
+@Composable
+private fun TierRow(
+    tier: BillingTier,
+    isCurrent: Boolean,
+    manage: ManageDecision,
+    billingUnavailable: Boolean,
+    onSelect: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    val spacing = LocalSpacing.current
+
+    val priceFormatted: String = run {
+        val whole: Int = tier.priceCents / 100
+        val cents: Int = tier.priceCents % 100
+        "${tier.currency.uppercase()} $whole.${cents.toString().padStart(2, '0')}"
+    }
+
+    Row(
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(tokens.muted, RoundedCornerShape(spacing.s1))
+            .padding(horizontal = spacing.s3, vertical = spacing.s2),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = tier.displayName,
+                style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = stringResource(Res.string.settings_billing_plan_price, priceFormatted),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
+        if (isCurrent) {
+            Text(
+                text = stringResource(Res.string.settings_billing_plan_current),
+                style = typography.xs,
+                color = tokens.primary,
+            )
+        } else {
+            ManageGate(manage) { gateEnabled ->
+                OutlinedButton(onClick = onSelect, enabled = gateEnabled && !billingUnavailable) {
+                    Text(stringResource(Res.string.settings_billing_plan_select), style = typography.sm)
+                }
+            }
         }
     }
 }
