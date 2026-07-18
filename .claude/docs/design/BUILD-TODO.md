@@ -39,12 +39,10 @@ analytics charts + per-stream + metrics-row balance · home real stats · suppor
 desktop device-flow scope re-grant · schedule .ics · the multi-file `src/` editor.
 
 **Frontend remainders (open):**
-- [ ] **Data-source clarity UI** — explain what a source is + wire the pickers (backend runtime shipped).
-- [ ] **Editor follow-ups** — `nnz.d.ts` autocomplete (same-origin TS worker) + client-side esbuild-wasm
-  live preview (editor slice 1 shipped; see `handoff/for-frontend.md`).
-- [ ] **chat_box typed settings** + small designer-review polish (title-view emojis, chat input wrap,
-  input+button alignment).
-- [ ] **Broad UX polish pass** ("more intuitive" — ongoing, frontend-led).
+- [ ] **Broad UX polish pass** ("more intuitive" — ongoing, subjective, frontend-led). Everything else
+  in this section shipped this session (data-source clarity UI, editor autocomplete + esbuild-wasm
+  preview, chat_box typed settings, emoji title + composer polish, billing UI). Billing UI is built +
+  renders an honest "not configured" state; it goes live the moment the owner seeds Stripe (below).
 
 ## 🔒 Owner calls — gated, cannot close autonomously
 

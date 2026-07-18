@@ -16,11 +16,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 
 ## Open
 
-### 2026-07-18 — chat_box overlay: typed per-widget settings form (was PARTIAL)
-- **From:** Stoney_Eagle (via Claude)
-- **What:** the widget editor edits a free-form `settings` JsonObject with no per-widget-type typed form. Surface the `chat_box` overlay knobs (fontFamily/fontSize/background/backgroundOpacity/showTimestamps — backend-supported) as a typed settings form. A general per-widget-type typed-settings mechanism would cover future widgets too.
-- **Done when:** the chat_box widget settings form exposes the font/size/background/timestamp controls (not raw JSON).
-
 ### 2026-07-18 — Chat live-push: live dev re-check (no frontend defect found)
 - **From:** Stoney_Eagle (via Claude)
 - **What:** the dashboard chat live-push wiring was traced end-to-end and found CORRECT (JoinChannel → All classes incl. chat; ChatMessage handler registered + forwarded; ChatScreen subscribes; shell connects the browser-native HubSocket session-wide). No frontend gap found. Needs a live dev check (open dashboard chat, confirm a new message renders without reload). If it still lags, the cause is elsewhere — re-open with the concrete symptom.
@@ -32,32 +27,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 ## Done
 
 _(completed entries move here, with their commit hashes)_
-
-### 2026-07-18 — Editor follow-ups: nnz.d.ts autocomplete + client-side esbuild-wasm live preview — DONE (branch `feat/frontend-editor-followups`, cherry-picked to master)
-- Both enhancements landed in the web multi-file project editor (`core/editor/ProjectEditor.wasmJs.kt`). The
-  `editAndCompile` contract gained an `sdkTypes: String` argument; `WidgetsController` fetches
-  `GET /api/v1/sdk/types.d.ts?context=widget` and `CodeScriptsController` the `?context=script` variant (via the
-  already-wired `SdkTypesApi`), degrading to `""` (no autocomplete) on any fetch failure.
-- **(1) TypeScript language service** — the fetched `nnz.d.ts` is loaded as an ambient lib (`/nnz.d.ts`) into an
-  in-browser TS language service (`typescript@5.6.3` + `@typescript/vfs@1.6.0`, both via the existing
-  `Function()`-hidden esm.sh dynamic import). It backs `nnz.` autocompletion (`@codemirror/autocomplete`) + inline
-  red-squiggle diagnostics (`@codemirror/lint`) on the JS/TS-family files, wired through a CodeMirror `Compartment`
-  so the service folds into the live view the moment it loads and survives every active-file swap. Runs on the
-  **main thread** (a same-origin worker isn't trivially wireable from CDN ESM; Monaco's Wasm worker stays
-  CORS-blocked) — acceptable for v1 per the brief. Standard lib `.d.ts` files load from jsdelivr (CORS-enabled)
-  rather than the deprecated azure CDN default.
-- **(2) esbuild-wasm live preview** — a preview pane bundles the CURRENT project client-side with
-  `esbuild-wasm@0.28.1` (pinned to the server's esbuild, per `Content/Widgets/Vendor/README.md`) over an in-memory
-  virtual-FS plugin, initialised once per page and rendered into a `sandbox="allow-scripts"` `<iframe>` that
-  hot-reloads on edit (500 ms debounce). Bare imports stay external and resolve in the iframe via an import map
-  (react / react-dom / vue). Fully covers **vanilla + react**; an `.html` entry is rendered directly. **Vue** SFC
-  preview is scoped to the server build (a clear in-pane note) — matching the server's @vue/compiler-sfc +
-  Jint assembly client-side wasn't reproducible reliably; **code-scripts** show a "validate with Save & Compile"
-  note (no DOM to render) while autocomplete stays live. The server rebuild on Save & Compile is unchanged and
-  remains the trust boundary.
-- Graceful degradation throughout: if any esm.sh module can't be reached the editor still edits/saves/compiles —
-  autocomplete and preview are pure enhancements. No API contract change (SDK types endpoint already existed; it
-  returns `text/plain`, no new DTOs). `:composeApp:jvmTest` + `:composeApp:compileKotlinWasmJs` both green.
 
 ### 2026-07-17 — Pipelines: ~40 of 66 actions invisible (drifting hand catalogue) — DONE `806980cc`
 - The builder's block palette now renders from the backend registry (`GET pipelines/actions` →
