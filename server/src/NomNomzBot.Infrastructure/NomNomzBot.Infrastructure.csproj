@@ -68,6 +68,11 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
     <PackageReference Include="Newtonsoft.Json" />
+    <!-- Sanitizes the opt-in subscriber chat-HTML fragment (HtmlFragmentAdapter). AngleSharp is referenced
+         directly (not just transitively) so its CVE-clean 1.5.2 pin from Directory.Packages.props is the
+         resolved version — see the "HTML sanitizer" note there for the GHSA-pgww-w46g-26qg rationale. -->
+    <PackageReference Include="HtmlSanitizer" />
+    <PackageReference Include="AngleSharp" />
     <!-- Ed25519 verify for the Discord interactions webhook (no in-box Ed25519 in .NET 10). -->
     <PackageReference Include="NSec.Cryptography" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" />

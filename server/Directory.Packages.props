@@ -95,6 +95,21 @@
   <ItemGroup Label="OpenAPI (CVE-patched transitive pin)">
     <PackageVersion Include="Microsoft.OpenApi" Version="2.7.5" />
   </ItemGroup>
+  <!-- HtmlSanitizer (Ganss.Xss) sanitizes the opt-in subscriber chat-HTML fragment (chat-decoration; HtmlFragmentAdapter).
+       Version choice is driven by a security constraint: HtmlSanitizer's stable line (<= 9.0.x) hard-pins AngleSharp to
+       EXACTLY [0.17.1], which carries GHSA-pgww-w46g-26qg (mXSS via annotation-xml integration-point bypass, medium),
+       patched only in AngleSharp 1.5.0 — and that exact pin cannot be overridden without an NU1608 constraint break plus a
+       0.17→1.5 runtime API break. The 9.1.x prerelease line is HtmlSanitizer's move onto the patched AngleSharp (it depends
+       on AngleSharp >= 1.5.1, a floor), so it is the ONLY line that accepts a CVE-clean AngleSharp. We therefore take
+       HtmlSanitizer 9.1.949-beta and pin AngleSharp to the latest stable 1.5.2 (>= 1.5.0, CVE-clean; satisfies both the
+       sanitizer's >= 1.5.1 and AngleSharp.Css's [1.0.0, 2.0.0)). AngleSharp.Css 1.0.0-beta.216 is HtmlSanitizer's required
+       transitive (no advisory against it); it is pinned here for a deterministic graph under transitive pinning.
+       Verified clean under NuGetAuditMode=all + TreatWarningsAsErrors. -->
+  <ItemGroup Label="HTML sanitizer (chat HTML) — CVE-driven version pins">
+    <PackageVersion Include="HtmlSanitizer" Version="9.1.949-beta" />
+    <PackageVersion Include="AngleSharp" Version="1.5.2" />
+    <PackageVersion Include="AngleSharp.Css" Version="1.0.0-beta.216" />
+  </ItemGroup>
   <ItemGroup Label="Testing">
     <PackageVersion Include="coverlet.collector" Version="10.0.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.8" />

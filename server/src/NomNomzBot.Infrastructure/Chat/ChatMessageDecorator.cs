@@ -39,6 +39,7 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
         ("use_bttv", true),
         ("use_ffz", true),
         ("use_link_preview", false), // opt-in: link previews make an outbound fetch, so off by default
+        ("use_chat_html", false), // opt-in: rendering a viewer's inline HTML is powerful, so off by default
     ];
 
     // The channel's resolved decoration rules are cached briefly so the chat hot path does not hit the feature store
