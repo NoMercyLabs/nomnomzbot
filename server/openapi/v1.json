@@ -66419,6 +66419,7 @@
       "CommunityUserDto": {
         "required": [
           "id",
+          "internalUserId",
           "username",
           "displayName",
           "profileImageUrl",
@@ -66434,6 +66435,14 @@
         "properties": {
           "id": {
             "type": "string"
+          },
+          "internalUserId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "username": {
             "type": "string"
@@ -67565,6 +67574,14 @@
             ],
             "description": "Opt-in countdown (seconds, capped at 24h) — makes this a time-limited reward.",
             "format": "int32"
+          },
+          "pipelineId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           }
         }
       },
@@ -71682,6 +71699,7 @@
         "required": [
           "rank",
           "userId",
+          "internalUserId",
           "displayName",
           "points"
         ],
@@ -71697,6 +71715,14 @@
           },
           "userId": {
             "type": "string"
+          },
+          "internalUserId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "displayName": {
             "type": "string"
@@ -76699,6 +76725,7 @@
           "actionType",
           "actionSettings",
           "timerDurationSeconds",
+          "pipelineId",
           "createdAt",
           "updatedAt"
         ],
@@ -76795,6 +76822,14 @@
               "string"
             ],
             "format": "int32"
+          },
+          "pipelineId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "createdAt": {
             "type": "string",
@@ -86219,6 +86254,14 @@
             ],
             "description": "Countdown seconds for a time-limited reward; 0 clears it, absent leaves it unchanged.",
             "format": "int32"
+          },
+          "pipelineId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           }
         }
       },
@@ -87353,6 +87396,7 @@
       "UserDetailDto": {
         "required": [
           "id",
+          "internalUserId",
           "username",
           "displayName",
           "profileImageUrl",
@@ -87370,6 +87414,14 @@
         "properties": {
           "id": {
             "type": "string"
+          },
+          "internalUserId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           },
           "username": {
             "type": "string"
