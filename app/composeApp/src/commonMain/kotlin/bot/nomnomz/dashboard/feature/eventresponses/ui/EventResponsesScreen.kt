@@ -61,6 +61,7 @@ import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesState
+import bot.nomnomz.dashboard.feature.picklists.ui.PickListInsertMenu
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
@@ -150,6 +151,7 @@ fun EventResponsesScreen(
             response = response,
             preset = ready?.presets?.get(response.eventType),
             pipelines = ready?.pipelines ?: emptyList(),
+            pickListNames = ready?.pickListNames ?: emptyList(),
             loadDetail = { controller.detail(response.eventType) },
             onDismiss = { editing = null },
             onSave = { responseType, message, pipelineId ->
@@ -292,6 +294,7 @@ private fun EditDialog(
     response: EventResponseSummary,
     preset: EventResponsePreset?,
     pipelines: List<PipelineSummary>,
+    pickListNames: List<String>,
     loadDetail: suspend () -> EventResponse?,
     onDismiss: () -> Unit,
     onSave: (responseType: String, message: String?, pipelineId: String?) -> Unit,
@@ -384,6 +387,11 @@ private fun EditDialog(
                     )
                     VariableChips(
                         variables = preset?.variables.orEmpty(),
+                        onInsert = { token -> message = appendToken(message, token) },
+                    )
+                    // Insert a random-response token (`{list.pick.<name>}`) — renders only when lists exist.
+                    PickListInsertMenu(
+                        names = pickListNames,
                         onInsert = { token -> message = appendToken(message, token) },
                     )
                 }

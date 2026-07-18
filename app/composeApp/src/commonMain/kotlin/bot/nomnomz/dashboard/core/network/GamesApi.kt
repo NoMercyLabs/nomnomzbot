@@ -43,6 +43,24 @@ interface GamesApi {
 
     /** Revoke a viewer's age-consent grant (Broadcaster/Editor). */
     suspend fun revokeConsent(channelId: String, viewerUserId: String): ApiResult<Unit>
+
+    /**
+     * Every discovered LIVE overlay game's manifest (backend `GET games/sessions/catalog`) — drop/raffle/heist/
+     * crash and any drop-in. `StatusResponseDto<IReadOnlyList<LiveGameCatalogEntryDto>>` → getEnvelope.
+     */
+    suspend fun liveCatalog(channelId: String): ApiResult<List<LiveGameCatalogEntry>>
+
+    /**
+     * The channel's current running live-game round, or a failure when none is active (the backend returns a
+     * failure Result the caller reads as "no active session"). `StatusResponseDto<GameSessionDto>` → getEnvelope.
+     */
+    suspend fun activeSession(channelId: String): ApiResult<GameSession>
+
+    /** Start a round of [gameType] (backend `POST games/sessions`) — fails while another session is active. */
+    suspend fun startSession(channelId: String, gameType: String): ApiResult<Unit>
+
+    /** Cancel a running session by [sessionId] (backend `DELETE games/sessions/{id}`) — every entry fee is refunded. */
+    suspend fun cancelSession(channelId: String, sessionId: String): ApiResult<Unit>
 }
 
 class RestGamesApi(private val client: ApiClient) : GamesApi {
@@ -67,7 +85,64 @@ class RestGamesApi(private val client: ApiClient) : GamesApi {
         client.deleteUnit(
             "api/v1/channels/$channelId/economy/games/consent/$viewerUserId"
         )
+
+    override suspend fun liveCatalog(channelId: String): ApiResult<List<LiveGameCatalogEntry>> =
+        client.getEnvelope("api/v1/channels/$channelId/games/sessions/catalog")
+
+    override suspend fun activeSession(channelId: String): ApiResult<GameSession> =
+        client.getEnvelope("api/v1/channels/$channelId/games/sessions/active")
+
+    override suspend fun startSession(channelId: String, gameType: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/games/sessions", StartLiveGameBody(gameType))
+
+    override suspend fun cancelSession(channelId: String, sessionId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/games/sessions/$sessionId")
 }
+
+/**
+ * One live-game catalog entry (backend `LiveGameCatalogEntryDto`): the game's [gameKey] + [displayName], the chat
+ * [inputKeywords] viewers use to join (`!drop` etc. — shown read-only so the streamer knows they're reserved), its
+ * [overlayWidgetKey], the player bounds, the [lobbyWindowSeconds] join window, an optional [tickIntervalSeconds],
+ * and whether it [requiresEntryFee]. Drives the "Interactive overlay games" section (data-driven — more games
+ * arrive as drop-ins).
+ */
+@Serializable
+data class LiveGameCatalogEntry(
+    val gameKey: String = "",
+    val displayName: String = "",
+    val inputKeywords: List<String> = emptyList(),
+    val overlayWidgetKey: String = "",
+    val minPlayers: Int = 0,
+    val maxPlayers: Int = 0,
+    val lobbyWindowSeconds: Int = 0,
+    val tickIntervalSeconds: Int? = null,
+    val requiresEntryFee: Boolean = false,
+)
+
+/**
+ * One live game session (backend `GameSessionDto`): the round's [id] + [gameType], its [status]
+ * (`Lobby` | `Running` | `Resolving`), the live [participantCount], when it [startedAt], the [joinClosesAt] deadline
+ * (null once closed), and [resolvedAt] once settled. [state] / [outcome] are the game's opaque round data
+ * (round-tripped verbatim). Powers the active-session card.
+ */
+@Serializable
+data class GameSession(
+    val id: String = "",
+    val gameType: String = "",
+    val status: String = "",
+    val participantCount: Int = 0,
+    val startedAt: String = "",
+    val joinClosesAt: String? = null,
+    val resolvedAt: String? = null,
+    val state: JsonObject? = null,
+    val outcome: JsonObject? = null,
+)
+
+/** The start-round request body (backend `StartLiveGameRequest`). camelCase JSON. */
+@Serializable
+data class StartLiveGameBody(
+    val gameType: String,
+)
 
 /**
  * One game-play history row (backend `GamePlayDto`): identity of the play + the settled outcome + amounts.

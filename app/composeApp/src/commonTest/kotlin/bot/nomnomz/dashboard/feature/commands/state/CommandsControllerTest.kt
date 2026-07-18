@@ -269,8 +269,31 @@ private fun makeController(
         commandsApi = commandsApi,
         builtinsApi = FakeBuiltinsApi(),
         pipelinesApi = FakePipelinesApi(),
+        pickListsApi = FakePickListsApi(),
         feedback = feedback,
     )
+
+private class FakePickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi {
+    override suspend fun list(): ApiResult<List<bot.nomnomz.dashboard.core.network.PickList>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun get(id: String): ApiResult<bot.nomnomz.dashboard.core.network.PickList> =
+        error("stub")
+
+    override suspend fun create(
+        body: bot.nomnomz.dashboard.core.network.CreatePickListBody
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun update(
+        id: String,
+        body: bot.nomnomz.dashboard.core.network.UpdatePickListBody,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun delete(id: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun pick(id: String): ApiResult<bot.nomnomz.dashboard.core.network.PickListPreview> =
+        error("stub")
+}
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result

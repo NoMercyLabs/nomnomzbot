@@ -66,6 +66,7 @@ import bot.nomnomz.dashboard.core.network.TimerSummary
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import bot.nomnomz.dashboard.feature.picklists.ui.PickListInsertMenu
 import bot.nomnomz.dashboard.feature.timers.state.TimersController
 import bot.nomnomz.dashboard.feature.timers.state.TimersState
 import kotlinx.coroutines.launch
@@ -114,6 +115,7 @@ fun TimersScreen(controller: TimersController, role: ManagementRole?) {
     val state: TimersState by controller.state.collectAsStateWithLifecycle()
     val writeError: String? by controller.writeError.collectAsStateWithLifecycle()
     val pipelines: List<PipelineSummary> by controller.pipelines.collectAsStateWithLifecycle()
+    val pickListNames: List<String> by controller.pickListNames.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
@@ -165,6 +167,7 @@ fun TimersScreen(controller: TimersController, role: ManagementRole?) {
             target = target,
             detail = editDetail,
             pipelines = pipelines,
+            pickListNames = pickListNames,
             onDismiss = { editTarget = null },
             onConfirm = { name, messages, interval, enabled, fireOnce, pipelineId ->
                 editTarget = null
@@ -391,6 +394,7 @@ private fun TimerEditDialog(
     target: TimerEditTarget,
     detail: TimerDetail?,
     pipelines: List<PipelineSummary>,
+    pickListNames: List<String>,
     onDismiss: () -> Unit,
     onConfirm: (
         name: String,
@@ -486,6 +490,19 @@ private fun TimerEditDialog(
                         color = tokens.primary,
                     )
                 }
+                // Insert a random-response token (`{list.pick.<name>}`) into the last message row — renders only
+                // when the channel has random-response lists.
+                PickListInsertMenu(
+                    names = pickListNames,
+                    onInsert = { token ->
+                        messages =
+                            messages.toMutableList().also { list ->
+                                val last: Int = list.lastIndex
+                                val current: String = list[last]
+                                list[last] = if (current.isBlank()) token else "$current $token"
+                            }
+                    },
+                )
 
                 // Optional pipeline to run every interval (e.g. a shoutout using {timer.message}). Reuses the
                 // Commands dialog's picker shape. Only shown when the channel has pipelines to bind.

@@ -306,6 +306,19 @@ private class RecordingGamesApi(
     override suspend fun revokeConsent(channelId: String, viewerUserId: String): ApiResult<Unit> =
         ApiResult.Ok(Unit)
 
+    override suspend fun liveCatalog(
+        channelId: String
+    ): ApiResult<List<bot.nomnomz.dashboard.core.network.LiveGameCatalogEntry>> = ApiResult.Ok(emptyList())
+
+    override suspend fun activeSession(
+        channelId: String
+    ): ApiResult<bot.nomnomz.dashboard.core.network.GameSession> =
+        ApiResult.Failure(bot.nomnomz.dashboard.core.network.ApiError(404, "NO_SESSION", "none"))
+
+    override suspend fun startSession(channelId: String, gameType: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun cancelSession(channelId: String, sessionId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
     override suspend fun upsert(channelId: String, body: UpsertGameConfigBody): ApiResult<Unit> {
         upserted += body
         upsertedChannelId = channelId

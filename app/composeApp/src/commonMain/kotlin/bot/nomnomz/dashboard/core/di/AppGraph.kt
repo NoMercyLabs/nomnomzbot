@@ -77,6 +77,8 @@ import bot.nomnomz.dashboard.core.network.RestAnalyticsApi
 import bot.nomnomz.dashboard.core.io.AudioFilePicker
 import bot.nomnomz.dashboard.core.io.JournalFileBridge
 import bot.nomnomz.dashboard.core.network.RestChatApi
+import bot.nomnomz.dashboard.core.network.ChatTriggersApi
+import bot.nomnomz.dashboard.core.network.RestChatTriggersApi
 import bot.nomnomz.dashboard.core.network.RestCommandsApi
 import bot.nomnomz.dashboard.core.network.RestCommunityApi
 import bot.nomnomz.dashboard.core.network.RestDiscordApi
@@ -150,6 +152,7 @@ import bot.nomnomz.dashboard.feature.alerts.state.AlertsController
 import bot.nomnomz.dashboard.feature.analytics.state.AnalyticsController
 import bot.nomnomz.dashboard.feature.chat.state.ChatController
 import bot.nomnomz.dashboard.feature.chat.state.MultiChatController
+import bot.nomnomz.dashboard.feature.chattriggers.state.ChatTriggersController
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
 import bot.nomnomz.dashboard.feature.connect.state.ConnectController
@@ -293,6 +296,7 @@ class AppGraph {
     val usersApi: UsersApi = RestUsersApi(apiClient)
     val viewerDataApi: ViewerDataApi = RestViewerDataApi(apiClient)
     val commandsApi: CommandsApi = RestCommandsApi(apiClient)
+    val chatTriggersApi: ChatTriggersApi = RestChatTriggersApi(apiClient)
     val builtinsApi: BuiltinsApi = RestBuiltinsApi(apiClient)
     val timersApi: TimersApi = RestTimersApi(apiClient)
     val moderationApi: ModerationApi = RestModerationApi(apiClient)
@@ -427,7 +431,15 @@ class AppGraph {
             commandsApi = commandsApi,
             builtinsApi = builtinsApi,
             pipelinesApi = pipelinesApi,
+            pickListsApi = pickListsApi,
             feedback = feedbackController,
+        )
+
+    val chatTriggersController: ChatTriggersController =
+        ChatTriggersController(
+            channelsApi = channelsApi,
+            chatTriggersApi = chatTriggersApi,
+            pipelinesApi = pipelinesApi,
         )
 
     val timersController: TimersController =
@@ -435,6 +447,7 @@ class AppGraph {
             channelsApi = channelsApi,
             timersApi = timersApi,
             pipelinesApi = pipelinesApi,
+            pickListsApi = pickListsApi,
         )
 
     val moderationController: ModerationController =
@@ -444,7 +457,7 @@ class AppGraph {
         AnalyticsController(channelsApi = channelsApi, analyticsApi = analyticsApi)
 
     val rewardsController: RewardsController =
-        RewardsController(channelsApi = channelsApi, rewardsApi = rewardsApi)
+        RewardsController(channelsApi = channelsApi, rewardsApi = rewardsApi, pipelinesApi = pipelinesApi)
 
     val songRequestsController: SongRequestsController =
         SongRequestsController(channelsApi = channelsApi, songRequestsApi = songRequestsApi)
@@ -461,6 +474,7 @@ class AppGraph {
             channelsApi = channelsApi,
             eventResponsesApi = eventResponsesApi,
             pipelinesApi = pipelinesApi,
+            pickListsApi = pickListsApi,
         )
 
     val settingsController: SettingsController =

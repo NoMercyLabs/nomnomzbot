@@ -62,6 +62,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.BuiltinCommand
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.feature.picklists.ui.PickListInsertMenu
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
 import bot.nomnomz.dashboard.feature.commands.state.CommandsState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -174,9 +175,15 @@ fun CommandsScreen(
             is CommandsState.Empty -> s.pipelines
             else -> emptyList()
         }
+        val pickListNames: List<String> = when (val s: CommandsState = state) {
+            is CommandsState.Ready -> s.pickListNames
+            is CommandsState.Empty -> s.pickListNames
+            else -> emptyList()
+        }
         CommandFormDialog(
             editor = open,
             pipelines = pipelines,
+            pickListNames = pickListNames,
             onDismiss = { editor = null },
             onSubmit = { name, templateResponse, pipelineId, enabled ->
                 editor = null
@@ -464,6 +471,7 @@ private fun BuiltinTableRow(
 private fun CommandFormDialog(
     editor: CommandEditor,
     pipelines: List<PipelineSummary>,
+    pickListNames: List<String>,
     onDismiss: () -> Unit,
     onSubmit: (name: String, templateResponse: String?, pipelineId: String?, enabled: Boolean) -> Unit,
 ) {
@@ -521,6 +529,9 @@ private fun CommandFormDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = responseLabel,
                 )
+                // Insert a random-response token (`{list.pick.<name>}`) into the reply without hand-typing it —
+                // renders only when the channel has random-response lists.
+                PickListInsertMenu(names = pickListNames, onInsert = { response += it })
                 if (pipelines.isNotEmpty()) {
                     Box {
                         AppTextField(

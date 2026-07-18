@@ -324,4 +324,10 @@ private class RecordingPickListsApi(
         }
         return writeResult
     }
+
+    override suspend fun pick(id: String): ApiResult<bot.nomnomz.dashboard.core.network.PickListPreview> {
+        val list: PickList? = store.firstOrNull { it.id == id }
+        val entry: String = list?.items?.firstOrNull().orEmpty()
+        return ApiResult.Ok(bot.nomnomz.dashboard.core.network.PickListPreview(pick = entry))
+    }
 }

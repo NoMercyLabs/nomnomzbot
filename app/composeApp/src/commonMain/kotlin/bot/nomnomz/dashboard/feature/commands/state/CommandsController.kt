@@ -20,6 +20,8 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CreateCommandBody
+import bot.nomnomz.dashboard.core.network.PickList
+import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
@@ -43,6 +45,7 @@ class CommandsController(
     private val commandsApi: CommandsApi,
     private val builtinsApi: BuiltinsApi,
     private val pipelinesApi: PipelinesApi,
+    private val pickListsApi: PickListsApi,
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<CommandsState> = MutableStateFlow(CommandsState.Loading)
@@ -73,6 +76,7 @@ class CommandsController(
         val commandsResult: ApiResult<List<CommandSummary>> = commandsApi.list(channel.id)
         val builtinsResult: ApiResult<List<BuiltinCommand>> = builtinsApi.list(channel.id)
         val pipelinesResult: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.id)
+        val pickListsResult: ApiResult<List<PickList>> = pickListsApi.list()
 
         when (commandsResult) {
             is ApiResult.Failure -> {
@@ -87,10 +91,21 @@ class CommandsController(
             if (builtinsResult is ApiResult.Ok) builtinsResult.value else emptyList()
         val pipelines: List<PipelineSummary> =
             if (pipelinesResult is ApiResult.Ok) pipelinesResult.value else emptyList()
+        // The channel's random-response list names for the `{list.pick.<name>}` insert helper. A failure degrades
+        // to no helper (an empty list renders nothing) — it must never block the commands page.
+        val pickListNames: List<String> =
+            if (pickListsResult is ApiResult.Ok) pickListsResult.value.map { it.name } else emptyList()
 
         _state.value =
-            if (commands.isEmpty() && builtins.isEmpty()) CommandsState.Empty(pipelines = pipelines)
-            else CommandsState.Ready(commands = commands, builtins = builtins, pipelines = pipelines)
+            if (commands.isEmpty() && builtins.isEmpty())
+                CommandsState.Empty(pipelines = pipelines, pickListNames = pickListNames)
+            else
+                CommandsState.Ready(
+                    commands = commands,
+                    builtins = builtins,
+                    pipelines = pipelines,
+                    pickListNames = pickListNames,
+                )
     }
 
     /**
@@ -228,11 +243,18 @@ sealed interface CommandsState {
         val commands: List<CommandSummary>,
         val builtins: List<BuiltinCommand> = emptyList(),
         val pipelines: List<PipelineSummary> = emptyList(),
+        val pickListNames: List<String> = emptyList(),
         val actionError: String? = null,
     ) : CommandsState
 
-    /** No commands yet, but the channel is onboarded. Carries [pipelines] so the create dialog still works. */
-    data class Empty(val pipelines: List<PipelineSummary> = emptyList()) : CommandsState
+    /**
+     * No commands yet, but the channel is onboarded. Carries [pipelines] and [pickListNames] so the create dialog
+     * (with its pipeline selector + random-response insert helper) still works.
+     */
+    data class Empty(
+        val pipelines: List<PipelineSummary> = emptyList(),
+        val pickListNames: List<String> = emptyList(),
+    ) : CommandsState
 
     data class Error(val detail: String) : CommandsState
 }

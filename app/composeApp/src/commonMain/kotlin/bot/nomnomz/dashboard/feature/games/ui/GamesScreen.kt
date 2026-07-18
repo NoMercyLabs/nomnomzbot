@@ -24,6 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -58,12 +61,15 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.network.GamePlayEntry
+import bot.nomnomz.dashboard.core.network.GameSession
 import bot.nomnomz.dashboard.core.network.GameSummary
+import bot.nomnomz.dashboard.core.network.LiveGameCatalogEntry
 import bot.nomnomz.dashboard.feature.games.state.GamesController
 import bot.nomnomz.dashboard.feature.games.state.GamesState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_games
@@ -88,6 +94,18 @@ import nomnomzbot.composeapp.generated.resources.games_loading
 import nomnomzbot.composeapp.generated.resources.games_retry
 import nomnomzbot.composeapp.generated.resources.games_row_description
 import nomnomzbot.composeapp.generated.resources.games_toggle_action
+import nomnomzbot.composeapp.generated.resources.games_section_gambling
+import nomnomzbot.composeapp.generated.resources.games_section_gambling_hint
+import nomnomzbot.composeapp.generated.resources.games_section_live
+import nomnomzbot.composeapp.generated.resources.games_section_live_hint
+import nomnomzbot.composeapp.generated.resources.games_live_start
+import nomnomzbot.composeapp.generated.resources.games_live_keyword
+import nomnomzbot.composeapp.generated.resources.games_live_players
+import nomnomzbot.composeapp.generated.resources.games_live_entry_fee
+import nomnomzbot.composeapp.generated.resources.games_live_active_title
+import nomnomzbot.composeapp.generated.resources.games_live_participants
+import nomnomzbot.composeapp.generated.resources.games_live_cancel
+import nomnomzbot.composeapp.generated.resources.games_live_requires_mod
 import org.jetbrains.compose.resources.stringResource
 
 // The Games page (economy.md §3.5): the channel's configured mini-games — every game is real config from
@@ -107,10 +125,29 @@ fun GamesScreen(controller: GamesController, role: ManagementRole?) {
     // renders disabled with "Requires Editor" (§7); the backend re-checks every write regardless.
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Games)
 
+    // Starting/cancelling a LIVE round floors at Moderator (games:session:start/cancel), a rung below the page's
+    // Editor config floor — so a Moderator who can't tune the odds CAN still run a round. The page is Moderator-read
+    // anyway, so this is Allowed for essentially every viewer of it; below Moderator it renders disabled with reason.
+    val liveManage: ManageDecision =
+        if (role != null && role.level >= ManagementRole.Moderator.level) ManageDecision.Allowed
+        else ManageDecision.Denied(stringResource(Res.string.games_live_requires_mod))
+
     // The config dialog target: null = closed, a game = open and editing that game's config.
     var editing: GameSummary? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) { controller.load() }
+
+    // Keep the active-session card live (participants climbing, status changes) while a round is in its join/run
+    // phase, without a full page reload.
+    val activeStatus: String? = (state as? GamesState.Ready)?.activeSession?.status
+    if (activeStatus == "Lobby" || activeStatus == "Running") {
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(2000)
+                controller.refreshActiveSession()
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: GamesState = state) {
@@ -122,12 +159,17 @@ fun GamesScreen(controller: GamesController, role: ManagementRole?) {
                 ManagedContent(
                     games = current.games,
                     history = current.history,
+                    liveCatalog = current.liveCatalog,
+                    activeSession = current.activeSession,
                     actionError = current.actionError,
                     manage = manage,
+                    liveManage = liveManage,
                     onToggle = { game, enabled ->
                         scope.launch { controller.toggleGame(game, enabled) }
                     },
                     onEdit = { game -> editing = game },
+                    onStartLive = { gameKey -> scope.launch { controller.startLiveGame(gameKey) } },
+                    onCancelLive = { sessionId -> scope.launch { controller.cancelLiveGame(sessionId) } },
                 )
         }
     }
@@ -152,10 +194,15 @@ fun GamesScreen(controller: GamesController, role: ManagementRole?) {
 private fun ManagedContent(
     games: List<GameSummary>,
     history: List<GamePlayEntry>,
+    liveCatalog: List<LiveGameCatalogEntry>,
+    activeSession: GameSession?,
     actionError: String?,
     manage: ManageDecision,
+    liveManage: ManageDecision,
     onToggle: (GameSummary, Boolean) -> Unit,
     onEdit: (GameSummary) -> Unit,
+    onStartLive: (gameKey: String) -> Unit,
+    onCancelLive: (sessionId: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val tokens = LocalTokens.current
@@ -170,18 +217,64 @@ private fun ManagedContent(
         actionError?.let { detail ->
             item(key = "action-error") { ActionErrorBanner(message = stringResource(Res.string.games_action_error, detail)) }
         }
-        item(key = "games-card") {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column {
-                    games.forEachIndexed { index, game ->
-                        GameRow(
-                            game = game,
-                            manage = manage,
-                            onToggle = { enabled -> onToggle(game, enabled) },
-                            onEdit = { onEdit(game) },
-                        )
-                        if (index < games.lastIndex) {
-                            Separator()
+
+        // ── Interactive overlay games (live, join-by-keyword) ────────────────────────────────────────────────
+        // The flashy half: catalog rounds a streamer/mod starts and viewers join with a keyword. Rendered first so
+        // it's front-and-centre; only shown when the backend discovered live games.
+        if (liveCatalog.isNotEmpty()) {
+            item(key = "live-header") {
+                SectionLabel(
+                    title = stringResource(Res.string.games_section_live),
+                    hint = stringResource(Res.string.games_section_live_hint),
+                )
+            }
+            activeSession?.let { session ->
+                item(key = "live-active") {
+                    ActiveSessionCard(session = session, liveManage = liveManage, onCancel = { onCancelLive(session.id) })
+                }
+            }
+            item(key = "live-catalog") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        liveCatalog.forEachIndexed { index, entry ->
+                            LiveGameRow(
+                                entry = entry,
+                                liveManage = liveManage,
+                                // A round is already running → starting another is blocked server-side (D7); disable
+                                // the start button while any session is active so the UI reflects that.
+                                sessionActive = activeSession != null,
+                                onStart = { onStartLive(entry.gameKey) },
+                            )
+                            if (index < liveCatalog.lastIndex) {
+                                Separator()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Gambling minigames (instant, !coinflip-style — these ARE commands you tune here) ─────────────────
+        if (games.isNotEmpty()) {
+            item(key = "gambling-header") {
+                SectionLabel(
+                    title = stringResource(Res.string.games_section_gambling),
+                    hint = stringResource(Res.string.games_section_gambling_hint),
+                )
+            }
+            item(key = "games-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        games.forEachIndexed { index, game ->
+                            GameRow(
+                                game = game,
+                                manage = manage,
+                                onToggle = { enabled -> onToggle(game, enabled) },
+                                onEdit = { onEdit(game) },
+                            )
+                            if (index < games.lastIndex) {
+                                Separator()
+                            }
                         }
                     }
                 }
@@ -252,6 +345,132 @@ private fun HistoryRow(play: GamePlayEntry) {
             color = netColor,
             modifier = Modifier.padding(start = spacing.s3),
         )
+    }
+}
+
+// A titled section divider with a one-line explanation — clarifies gambling minigames (commands) vs live overlay
+// games (started + joined by keyword).
+@Composable
+private fun SectionLabel(title: String, hint: String) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier.padding(horizontal = spacing.s1, vertical = spacing.s2),
+        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+    ) {
+        Text(text = title, style = typography.lg, color = tokens.foreground)
+        Text(text = hint, style = typography.sm, color = tokens.mutedForeground)
+    }
+}
+
+// The running-round card: the game, its status, the live participant count (climbing as chatters join), and a
+// cancel action (refunds every entry fee). Gated at the Moderator live floor.
+@Composable
+private fun ActiveSessionCard(session: GameSession, liveManage: ManageDecision, onCancel: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(spacing.s1),
+            ) {
+                Text(
+                    text = stringResource(Res.string.games_live_active_title, session.gameType),
+                    style = typography.base,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "${session.status} · " +
+                        stringResource(Res.string.games_live_participants, session.participantCount),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+            ManageGate(decision = liveManage) { enabled ->
+                Button(
+                    onClick = onCancel,
+                    enabled = enabled,
+                    variant = ButtonVariant.Outline,
+                    size = ButtonSize.Sm,
+                ) { Text(text = stringResource(Res.string.games_live_cancel), maxLines = 1) }
+            }
+        }
+    }
+}
+
+// One live-game catalog row: the game name, its reserved join keyword(s) (read-only), the player bounds and
+// entry-fee flag, and a Start button (disabled while any round is active — one session at a time, D7).
+@Composable
+private fun LiveGameRow(
+    entry: LiveGameCatalogEntry,
+    liveManage: ManageDecision,
+    sessionActive: Boolean,
+    onStart: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val keywords: String = entry.inputKeywords.joinToString(" ") { "!$it" }
+    val playersLabel: String =
+        stringResource(Res.string.games_live_players, entry.minPlayers, entry.maxPlayers)
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacing.s1),
+        ) {
+            Text(
+                text = entry.displayName,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (keywords.isNotBlank()) {
+                Text(
+                    text = stringResource(Res.string.games_live_keyword, keywords),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                text = playersLabel,
+                style = typography.xs,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
+        if (entry.requiresEntryFee) {
+            Badge(
+                label = stringResource(Res.string.games_live_entry_fee),
+                background = tokens.secondary,
+                foreground = tokens.secondaryForeground,
+            )
+        }
+        ManageGate(decision = liveManage) { enabled ->
+            Button(onClick = onStart, enabled = enabled && !sessionActive, size = ButtonSize.Sm) {
+                Text(text = stringResource(Res.string.games_live_start), maxLines = 1)
+            }
+        }
     }
 }
 

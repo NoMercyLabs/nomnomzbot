@@ -14,6 +14,8 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateTimerRequest
+import bot.nomnomz.dashboard.core.network.PickList
+import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.TimerDetail
@@ -32,6 +34,7 @@ class TimersController(
     private val channelsApi: ChannelsApi,
     private val timersApi: TimersApi,
     private val pipelinesApi: PipelinesApi,
+    private val pickListsApi: PickListsApi,
 ) {
     private val _state: MutableStateFlow<TimersState> = MutableStateFlow(TimersState.Loading)
 
@@ -42,6 +45,11 @@ class TimersController(
 
     /** The channel's pipelines — populates the "run this pipeline" picker in the timer dialog (supplementary). */
     val pipelines: StateFlow<List<PipelineSummary>> = _pipelines.asStateFlow()
+
+    private val _pickListNames: MutableStateFlow<List<String>> = MutableStateFlow(emptyList())
+
+    /** The channel's random-response list names — feeds the `{list.pick.<name>}` insert helper (supplementary). */
+    val pickListNames: StateFlow<List<String>> = _pickListNames.asStateFlow()
 
     private val _writeError: MutableStateFlow<String?> = MutableStateFlow(null)
 
@@ -68,6 +76,13 @@ class TimersController(
         _pipelines.value =
             when (val result: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.id)) {
                 is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> emptyList()
+            }
+
+        // Random-response list names for the insert helper — supplementary, so a failure just empties the picker.
+        _pickListNames.value =
+            when (val result: ApiResult<List<PickList>> = pickListsApi.list()) {
+                is ApiResult.Ok -> result.value.map { it.name }
                 is ApiResult.Failure -> emptyList()
             }
 

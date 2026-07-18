@@ -36,7 +36,7 @@ class RewardsControllerTest {
     @Test
     fun load_surfaces_the_rewards_on_success() = runTest {
         val controller =
-            RewardsController(
+            makeRewardsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 RecordingRewardsApi(
                     ApiResult.Ok(
@@ -69,7 +69,7 @@ class RewardsControllerTest {
     @Test
     fun load_surfaces_the_pending_redemption_queue_alongside_the_rewards() = runTest {
         val controller =
-            RewardsController(
+            makeRewardsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 RecordingRewardsApi(
                     initial = ApiResult.Ok(listOf(RewardSummary(id = "r1", title = "Hydrate!"))),
@@ -112,7 +112,7 @@ class RewardsControllerTest {
                     ),
             )
         val controller =
-            RewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
         controller.fulfillRedemption("x1")
@@ -125,7 +125,7 @@ class RewardsControllerTest {
     fun refunding_a_redemption_calls_the_api() = runTest {
         val api = RecordingRewardsApi(ApiResult.Ok(listOf(RewardSummary(id = "r1", title = "X"))))
         val controller =
-            RewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
         controller.refundRedemption("x9")
@@ -136,7 +136,7 @@ class RewardsControllerTest {
     @Test
     fun load_errors_when_no_channel_resolves() = runTest {
         val controller =
-            RewardsController(
+            makeRewardsController(
                 FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
                 RecordingRewardsApi(ApiResult.Ok(emptyList())),
             )
@@ -151,7 +151,7 @@ class RewardsControllerTest {
     @Test
     fun load_errors_when_the_rewards_call_fails() = runTest {
         val controller =
-            RewardsController(
+            makeRewardsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 RecordingRewardsApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
             )
@@ -166,7 +166,7 @@ class RewardsControllerTest {
     @Test
     fun load_is_empty_when_the_channel_has_no_rewards() = runTest {
         val controller =
-            RewardsController(
+            makeRewardsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 RecordingRewardsApi(ApiResult.Ok(emptyList())),
             )
@@ -182,11 +182,17 @@ class RewardsControllerTest {
         // post-write reload must surface it — proving create actually calls the api AND re-lists.
         val rewardsApi = RecordingRewardsApi(ApiResult.Ok(emptyList()))
         val controller =
-            RewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
+            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
         controller.load()
         assertTrue(controller.state.value is RewardsState.Empty)
 
-        controller.createReward(title = "Hydrate!", cost = 500, prompt = "Drink up")
+        controller.createReward(
+            title = "Hydrate!",
+            cost = 500,
+            prompt = "Drink up",
+            timerDurationSeconds = null,
+            pipelineId = null,
+        )
 
         // The api recorded exactly the body the controller built.
         assertEquals(1, rewardsApi.created.size)
@@ -215,7 +221,7 @@ class RewardsControllerTest {
                 )
             )
         val controller =
-            RewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
+            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
         controller.load()
 
         controller.updateReward(
@@ -224,6 +230,8 @@ class RewardsControllerTest {
             cost = 750,
             prompt = "Sip",
             isEnabled = false,
+            timerDurationSeconds = null,
+            pipelineId = null,
         )
 
         // The edit is a PUT carrying the new fields, addressed by the reward id.
@@ -251,7 +259,7 @@ class RewardsControllerTest {
                 ApiResult.Ok(listOf(RewardSummary(id = "r1", title = "Hydrate!", isEnabled = true)))
             )
         val controller =
-            RewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
+            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
         controller.load()
 
         controller.toggleReward(rewardId = "r1", enabled = false)
@@ -277,7 +285,7 @@ class RewardsControllerTest {
                 ApiResult.Ok(listOf(RewardSummary(id = "r1", title = "Hydrate!", isEnabled = true)))
             )
         val controller =
-            RewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
+            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
         controller.load()
         assertTrue(controller.state.value is RewardsState.Ready)
 
@@ -296,7 +304,7 @@ class RewardsControllerTest {
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
         val controller =
-            RewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
+            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
         controller.load()
 
         controller.deleteReward(rewardId = "r1")
@@ -327,7 +335,7 @@ class RewardsControllerTest {
                     ),
             )
         val controller =
-            RewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
+            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
         controller.load()
 
         controller.import()
@@ -358,7 +366,7 @@ class RewardsControllerTest {
                 )
             )
         val controller =
-            RewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
+            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
         controller.load()
 
         controller.recreate(rewardId = "ext1")
@@ -503,4 +511,48 @@ private class RecordingRewardsApi(
         }
         return writeResult
     }
+
+    override suspend fun redemptionTimers(
+        channelId: String
+    ): ApiResult<List<bot.nomnomz.dashboard.core.network.RedemptionTimer>> = ApiResult.Ok(emptyList())
+
+    override suspend fun pauseTimer(channelId: String, timerId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun resumeTimer(channelId: String, timerId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun completeTimer(channelId: String, timerId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun cancelTimer(channelId: String, timerId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+// Builds a controller with a stub pipelines API so the reward tests (which don't exercise the pipeline picker)
+// stay unchanged after the picker was added to RewardsController.
+private fun makeRewardsController(
+    channelsApi: ChannelsApi,
+    rewardsApi: RewardsApi,
+): RewardsController = RewardsController(channelsApi, rewardsApi, StubRewardPipelinesApi)
+
+private object StubRewardPipelinesApi : bot.nomnomz.dashboard.core.network.PipelinesApi {
+    override suspend fun list(
+        channelId: String
+    ): ApiResult<List<bot.nomnomz.dashboard.core.network.PipelineSummary>> = ApiResult.Ok(emptyList())
+    override suspend fun catalogue(
+        channelId: String
+    ): ApiResult<bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote())
+    override suspend fun get(
+        channelId: String,
+        id: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.PipelineDetail> = error("stub")
+    override suspend fun create(
+        channelId: String,
+        body: bot.nomnomz.dashboard.core.network.CreatePipelineBody,
+    ): ApiResult<Unit> = error("stub")
+    override suspend fun createReturning(
+        channelId: String,
+        body: bot.nomnomz.dashboard.core.network.CreatePipelineBody,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.PipelineDetail> = error("stub")
+    override suspend fun update(
+        channelId: String,
+        id: String,
+        body: bot.nomnomz.dashboard.core.network.UpdatePipelineBody,
+    ): ApiResult<Unit> = error("stub")
+    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = error("stub")
 }

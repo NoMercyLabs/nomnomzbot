@@ -84,6 +84,15 @@ class ApiContractTest {
             GalleryItemDetail.serializer() to "GalleryItemDetail",
             RewardSummary.serializer() to "RewardDetail",
             RedemptionSummary.serializer() to "RedemptionListItem",
+            RedemptionTimer.serializer() to "RedemptionTimerDto",
+            CreateRewardBody.serializer() to "CreateRewardRequest",
+            UpdateRewardBody.serializer() to "UpdateRewardRequest",
+            // NOTE: LiveGameCatalogEntryDto is intentionally NOT guarded here — the catalog endpoint returns an
+            // untyped IActionResult, so the OpenAPI generator never emits that schema (there is nothing to match
+            // against). The Kotlin DTO mirrors the C# record by hand; a backend follow-up should add a
+            // ProducesResponseType<StatusResponseDto<IReadOnlyList<LiveGameCatalogEntryDto>>> so it can be guarded.
+            GameSession.serializer() to "GameSessionDto",
+            StartLiveGameBody.serializer() to "StartLiveGameRequest",
             CurrencyAccountSummary.serializer() to "CurrencyAccountDto",
             EarningRule.serializer() to "EarningRuleDto",
             CatalogItem.serializer() to "CatalogItemDto",
@@ -148,8 +157,12 @@ class ApiContractTest {
             ChannelBanOutcome.serializer() to "ChannelBanOutcomeDto",
             ResolvedAccess.serializer() to "ResolvedAccessDto",
             PickList.serializer() to "PickListDto",
+            PickListPreview.serializer() to "PickListPreviewDto",
             CreatePickListBody.serializer() to "CreatePickListRequest",
             UpdatePickListBody.serializer() to "UpdatePickListRequest",
+            ChatTrigger.serializer() to "ChatTriggerDto",
+            CreateChatTriggerBody.serializer() to "CreateChatTriggerRequest",
+            UpdateChatTriggerBody.serializer() to "UpdateChatTriggerRequest",
             Giveaway.serializer() to "GiveawayDto",
             UpsertGiveawayBody.serializer() to "UpsertGiveawayRequest",
             GiveawayWinner.serializer() to "GiveawayWinnerDto",

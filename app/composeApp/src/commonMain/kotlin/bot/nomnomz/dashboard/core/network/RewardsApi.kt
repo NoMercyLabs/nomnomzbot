@@ -81,6 +81,26 @@ interface RewardsApi {
      * page re-lists after the write, so any 2xx is success here.
      */
     suspend fun recreate(channelId: String, rewardId: String): ApiResult<Unit>
+
+    /**
+     * The channel's redemption countdown timers (backend `GET /rewards/redemption-timers`), active first then
+     * recent history. `remainingSeconds` is LIVE clock-derived at response time, so a client can safely tick from
+     * it between fetches. Returned as a `StatusResponseDto<IReadOnlyList<RedemptionTimerDto>>` → read with the
+     * envelope unwrap.
+     */
+    suspend fun redemptionTimers(channelId: String): ApiResult<List<RedemptionTimer>>
+
+    /** Pause a running redemption timer (it stops counting down; resume continues it). Addressed by [timerId]. */
+    suspend fun pauseTimer(channelId: String, timerId: String): ApiResult<Unit>
+
+    /** Resume a paused redemption timer (it continues counting down). Addressed by [timerId]. */
+    suspend fun resumeTimer(channelId: String, timerId: String): ApiResult<Unit>
+
+    /** Complete a redemption timer now — fulfils the redemption on Twitch (as expiry would). Addressed by [timerId]. */
+    suspend fun completeTimer(channelId: String, timerId: String): ApiResult<Unit>
+
+    /** Cancel a redemption timer — it just stops counting (refund stays the separate refund endpoint). */
+    suspend fun cancelTimer(channelId: String, timerId: String): ApiResult<Unit>
 }
 
 class RestRewardsApi(private val client: ApiClient) : RewardsApi {
@@ -151,6 +171,24 @@ class RestRewardsApi(private val client: ApiClient) : RewardsApi {
     // RewardDetail; the page re-lists, so any 2xx is success.
     override suspend fun recreate(channelId: String, rewardId: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/rewards/$rewardId/recreate")
+
+    // StatusResponseDto<IReadOnlyList<RedemptionTimerDto>> (a single-value envelope where the payload is the list),
+    // so it is read with getEnvelope's `data: T` unwrap — like the games list.
+    override suspend fun redemptionTimers(channelId: String): ApiResult<List<RedemptionTimer>> =
+        client.getEnvelope("api/v1/channels/$channelId/rewards/redemption-timers")
+
+    // Bodyless POSTs — the backend mutates the timer and the page re-fetches the list, so any 2xx is success.
+    override suspend fun pauseTimer(channelId: String, timerId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/rewards/redemption-timers/$timerId/pause")
+
+    override suspend fun resumeTimer(channelId: String, timerId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/rewards/redemption-timers/$timerId/resume")
+
+    override suspend fun completeTimer(channelId: String, timerId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/rewards/redemption-timers/$timerId/complete")
+
+    override suspend fun cancelTimer(channelId: String, timerId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/rewards/redemption-timers/$timerId/cancel")
 }
 
 /**
@@ -164,6 +202,11 @@ data class CreateRewardBody(
     val title: String,
     val cost: Int,
     val prompt: String? = null,
+    // A countdown a redemption of this reward auto-starts (seconds; null/0 = no timer, capped 24h server-side).
+    val timerDurationSeconds: Int? = null,
+    // A pipeline to run when this reward is redeemed (a ULID; null = none). `explicitNulls = false` omits it when
+    // absent so an unset binding never clears the stored one.
+    val pipelineId: String? = null,
 )
 
 /**
@@ -178,6 +221,11 @@ data class UpdateRewardBody(
     val cost: Int? = null,
     val prompt: String? = null,
     val isEnabled: Boolean? = null,
+    // The countdown a redemption auto-starts (seconds; 0 clears, capped 24h). Null omits it from the patch so a
+    // toggle/edit that doesn't touch the timer leaves it unchanged.
+    val timerDurationSeconds: Int? = null,
+    // The pipeline bound to this reward (a ULID). Null omits it from the patch (unchanged).
+    val pipelineId: String? = null,
 )
 
 /**
@@ -200,6 +248,29 @@ data class RewardSummary(
     val isManageable: Boolean = false,
     val backgroundColor: String? = null,
     val imageUrl: String? = null,
+    // The reward's countdown length (seconds; null/0 = none) and bound pipeline (a ULID; null = none). Read so the
+    // edit dialog pre-fills the timer field + pipeline picker.
+    val timerDurationSeconds: Int? = null,
+    val pipelineId: String? = null,
+)
+
+/**
+ * A redemption countdown timer (backend `RedemptionTimerDto`): the timer's identity, the reward it belongs to,
+ * who redeemed it, the configured [durationSeconds], the LIVE [remainingSeconds] (clock-derived at fetch time, so
+ * a client can safely tick from it), the [status] (`running` | `paused` | `completed` | `canceled`), and when it
+ * [startedAt]. Powers the rewards page's live countdown list.
+ */
+@Serializable
+data class RedemptionTimer(
+    val id: String = "",
+    val redemptionId: String = "",
+    val rewardId: String = "",
+    val rewardTitle: String = "",
+    val redeemedBy: String = "",
+    val durationSeconds: Int = 0,
+    val remainingSeconds: Int = 0,
+    val status: String = "",
+    val startedAt: String = "",
 )
 
 /**

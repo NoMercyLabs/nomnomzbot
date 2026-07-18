@@ -434,6 +434,8 @@ private object StubPickListsApi : PickListsApi {
     override suspend fun create(body: CreatePickListBody): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun update(id: String, body: UpdatePickListBody): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun delete(id: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun pick(id: String): ApiResult<bot.nomnomz.dashboard.core.network.PickListPreview> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.PickListPreview())
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {

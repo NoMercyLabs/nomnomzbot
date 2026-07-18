@@ -18,6 +18,8 @@ import bot.nomnomz.dashboard.core.network.EventResponse
 import bot.nomnomz.dashboard.core.network.EventResponsePreset
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.core.network.EventResponsesApi
+import bot.nomnomz.dashboard.core.network.PickList
+import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineDetail
 import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineSummary
@@ -36,6 +38,7 @@ class EventResponsesController(
     private val channelsApi: ChannelsApi,
     private val eventResponsesApi: EventResponsesApi,
     private val pipelinesApi: PipelinesApi,
+    private val pickListsApi: PickListsApi,
 ) {
     private val _state: MutableStateFlow<EventResponsesState> =
         MutableStateFlow(EventResponsesState.Loading)
@@ -73,13 +76,25 @@ class EventResponsesController(
                 is ApiResult.Ok -> result.value
                 is ApiResult.Failure -> emptyList()
             }
+        // The channel's random-response list names for the `{list.pick.<name>}` insert helper — best-effort.
+        val pickListNames: List<String> =
+            when (val result: ApiResult<List<PickList>> = pickListsApi.list()) {
+                is ApiResult.Ok -> result.value.map { it.name }
+                is ApiResult.Failure -> emptyList()
+            }
 
         when (val result: ApiResult<List<EventResponseSummary>> = eventResponsesApi.list(channel.id)) {
             is ApiResult.Failure -> _state.value = EventResponsesState.Error(result.error.message)
             is ApiResult.Ok ->
                 _state.value =
                     if (result.value.isEmpty()) EventResponsesState.Empty
-                    else EventResponsesState.Ready(result.value, presets = presets, pipelines = pipelines)
+                    else
+                        EventResponsesState.Ready(
+                            result.value,
+                            presets = presets,
+                            pipelines = pipelines,
+                            pickListNames = pickListNames,
+                        )
         }
     }
 
@@ -189,6 +204,7 @@ sealed interface EventResponsesState {
         val responses: List<EventResponseSummary>,
         val presets: Map<String, EventResponsePreset> = emptyMap(),
         val pipelines: List<PipelineSummary> = emptyList(),
+        val pickListNames: List<String> = emptyList(),
         val actionError: String? = null,
     ) : EventResponsesState
 

@@ -14,7 +14,10 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateRewardBody
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.RedemptionSummary
+import bot.nomnomz.dashboard.core.network.RedemptionTimer
 import bot.nomnomz.dashboard.core.network.RewardSummary
 import bot.nomnomz.dashboard.core.network.RewardsApi
 import bot.nomnomz.dashboard.core.network.UpdateRewardBody
@@ -31,6 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class RewardsController(
     private val channelsApi: ChannelsApi,
     private val rewardsApi: RewardsApi,
+    private val pipelinesApi: PipelinesApi,
 ) {
     private val _state: MutableStateFlow<RewardsState> = MutableStateFlow(RewardsState.Loading)
 
@@ -76,20 +80,69 @@ class RewardsController(
                 is ApiResult.Ok -> result.value
             }
 
-        _state.value =
-            if (rewards.isEmpty() && redemptions.isEmpty()) RewardsState.Empty
-            else RewardsState.Ready(rewards, redemptions)
-    }
+        // The channel's pipelines (for the reward form's bind-pipeline picker) and its active/recent redemption
+        // countdown timers. Both are supplementary — a failure degrades to empty, never fails the whole page.
+        val pipelines: List<PipelineSummary> =
+            when (val result: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+        val timers: List<RedemptionTimer> =
+            when (val result: ApiResult<List<RedemptionTimer>> = rewardsApi.redemptionTimers(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
 
-    /** Create a reward, then reload so the new row appears. Surfaces the error on failure. */
-    suspend fun createReward(title: String, cost: Int, prompt: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(rewardsApi.create(channel, CreateRewardBody(title, cost, prompt.ifBlank { null })))
+        _state.value =
+            if (rewards.isEmpty() && redemptions.isEmpty() && timers.isEmpty()) RewardsState.Empty
+            else RewardsState.Ready(rewards, redemptions, pipelines, timers)
     }
 
     /**
-     * Edit a reward's title / cost / prompt (and enabled flag), addressed by its [rewardId]. Reloads on
-     * success. Surfaces the error on failure.
+     * Re-fetch just the redemption timers (not the whole page) — for the live countdown card to refresh without a
+     * full reload. Leaves the rest of the Ready state untouched; a failure leaves the current timers in place.
+     */
+    suspend fun refreshTimers() {
+        val channel: String = channelId ?: return
+        val current: RewardsState = _state.value
+        if (current !is RewardsState.Ready) return
+        when (val result: ApiResult<List<RedemptionTimer>> = rewardsApi.redemptionTimers(channel)) {
+            is ApiResult.Ok -> _state.value = current.copy(timers = result.value)
+            is ApiResult.Failure -> Unit
+        }
+    }
+
+    /**
+     * Create a reward, then reload so the new row appears. [timerDurationSeconds] (0/null = no countdown) starts a
+     * countdown on each redemption; [pipelineId] (null = none) binds a pipeline that runs on redemption. Surfaces
+     * the error on failure.
+     */
+    suspend fun createReward(
+        title: String,
+        cost: Int,
+        prompt: String,
+        timerDurationSeconds: Int?,
+        pipelineId: String?,
+    ) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(
+            rewardsApi.create(
+                channel,
+                CreateRewardBody(
+                    title = title,
+                    cost = cost,
+                    prompt = prompt.ifBlank { null },
+                    timerDurationSeconds = timerDurationSeconds,
+                    pipelineId = pipelineId,
+                ),
+            )
+        )
+    }
+
+    /**
+     * Edit a reward's title / cost / prompt / enabled flag, plus its countdown [timerDurationSeconds] (0 clears)
+     * and bound [pipelineId] (empty string clears), addressed by its [rewardId]. Reloads on success. Surfaces the
+     * error on failure.
      */
     suspend fun updateReward(
         rewardId: String,
@@ -97,6 +150,8 @@ class RewardsController(
         cost: Int,
         prompt: String,
         isEnabled: Boolean,
+        timerDurationSeconds: Int?,
+        pipelineId: String?,
     ) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(
@@ -108,9 +163,44 @@ class RewardsController(
                     cost = cost,
                     prompt = prompt.ifBlank { null },
                     isEnabled = isEnabled,
+                    timerDurationSeconds = timerDurationSeconds,
+                    pipelineId = pipelineId,
                 ),
             )
         )
+    }
+
+    /** Pause a running redemption timer, then refresh the timer list. Surfaces the error on failure. */
+    suspend fun pauseTimer(timerId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterTimerAction(rewardsApi.pauseTimer(channel, timerId))
+    }
+
+    /** Resume a paused redemption timer, then refresh the timer list. Surfaces the error on failure. */
+    suspend fun resumeTimer(timerId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterTimerAction(rewardsApi.resumeTimer(channel, timerId))
+    }
+
+    /** Complete a redemption timer now (fulfils on Twitch), then refresh. Surfaces the error on failure. */
+    suspend fun completeTimer(timerId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterTimerAction(rewardsApi.completeTimer(channel, timerId))
+    }
+
+    /** Cancel a redemption timer (stops counting), then refresh. Surfaces the error on failure. */
+    suspend fun cancelTimer(timerId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterTimerAction(rewardsApi.cancelTimer(channel, timerId))
+    }
+
+    // A timer action refreshes just the timer list on success (the rewards/queue are unaffected) or surfaces its
+    // error over the current Ready state.
+    private suspend fun afterTimerAction(result: ApiResult<Unit>) {
+        when (result) {
+            is ApiResult.Ok -> refreshTimers()
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
     }
 
     /** Flip a reward's enabled flag via the update endpoint (a partial PUT carrying only the flag). Reloads. */
@@ -222,6 +312,8 @@ sealed interface RewardsState {
     data class Ready(
         val rewards: List<RewardSummary>,
         val redemptions: List<RedemptionSummary> = emptyList(),
+        val pipelines: List<PipelineSummary> = emptyList(),
+        val timers: List<RedemptionTimer> = emptyList(),
         val actionError: String? = null,
     ) : RewardsState
 

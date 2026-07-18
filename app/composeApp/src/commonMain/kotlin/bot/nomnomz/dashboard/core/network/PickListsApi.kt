@@ -42,6 +42,12 @@ interface PickListsApi {
 
     /** Delete a pick-list, addressed by its [id] (the backend DELETE route is keyed by id). */
     suspend fun delete(id: String): ApiResult<Unit>
+
+    /**
+     * Draw a single random sample from the list, addressed by its [id] — the backend's preview endpoint (the same
+     * random pick `{list.pick.<name>}` performs), so the page can show a "Test" of what a viewer would see.
+     */
+    suspend fun pick(id: String): ApiResult<PickListPreview>
 }
 
 class RestPickListsApi(private val client: ApiClient) : PickListsApi {
@@ -73,6 +79,11 @@ class RestPickListsApi(private val client: ApiClient) : PickListsApi {
 
     override suspend fun delete(id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/picklists/$id")
+
+    // The preview comes back as a `StatusResponseDto<PickListPreviewDto>` (a `data: T` envelope), so it is read
+    // with getEnvelope, which unwraps the payload.
+    override suspend fun pick(id: String): ApiResult<PickListPreview> =
+        client.getEnvelope("api/v1/picklists/$id/pick")
 }
 
 /**
@@ -112,4 +123,14 @@ data class PickList(
     val items: List<String> = emptyList(),
     val createdAt: String = "",
     val updatedAt: String = "",
+)
+
+/**
+ * A single random draw from a pick-list (backend `PickListPreviewDto`): the [pick] the resolver would substitute
+ * for `{list.pick.<name>}` right now. Powers the page's "Test" button. The line is itself templatable, but the
+ * preview returns the raw stored entry (unresolved) — enough to show which entry was drawn.
+ */
+@Serializable
+data class PickListPreview(
+    val pick: String = "",
 )

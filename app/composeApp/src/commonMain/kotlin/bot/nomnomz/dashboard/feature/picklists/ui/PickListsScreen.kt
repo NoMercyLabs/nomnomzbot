@@ -50,6 +50,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.PlayCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -57,6 +58,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.feature.picklists.state.PickListsAccess
 import bot.nomnomz.dashboard.feature.picklists.state.PickListsController
+import bot.nomnomz.dashboard.feature.picklists.state.PickListPreviewResult
 import bot.nomnomz.dashboard.feature.picklists.state.PickListsState
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
@@ -84,6 +86,10 @@ import nomnomzbot.composeapp.generated.resources.picklists_helper
 import nomnomzbot.composeapp.generated.resources.picklists_item_count
 import nomnomzbot.composeapp.generated.resources.picklists_loading
 import nomnomzbot.composeapp.generated.resources.picklists_new_action
+import nomnomzbot.composeapp.generated.resources.picklists_preview_action
+import nomnomzbot.composeapp.generated.resources.picklists_preview_close
+import nomnomzbot.composeapp.generated.resources.picklists_preview_empty
+import nomnomzbot.composeapp.generated.resources.picklists_preview_title
 import nomnomzbot.composeapp.generated.resources.picklists_requires_delete
 import nomnomzbot.composeapp.generated.resources.picklists_requires_write
 import nomnomzbot.composeapp.generated.resources.picklists_retry
@@ -98,6 +104,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>) {
     val state: PickListsState by controller.state.collectAsStateWithLifecycle()
+    val previewResult: PickListPreviewResult? by controller.preview.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
@@ -135,6 +142,7 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
                     onNew = { editor = PickListEditor.create() },
                     onEdit = { list -> editor = PickListEditor.edit(list) },
                     onDelete = { list -> pendingDelete = list },
+                    onTest = { list -> scope.launch { controller.previewPickList(list.id, list.name) } },
                 )
             is PickListsState.Ready ->
                 ManagedContent(
@@ -145,8 +153,24 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
                     onNew = { editor = PickListEditor.create() },
                     onEdit = { list -> editor = PickListEditor.edit(list) },
                     onDelete = { list -> pendingDelete = list },
+                    onTest = { list -> scope.launch { controller.previewPickList(list.id, list.name) } },
                 )
         }
+    }
+
+    previewResult?.let { result ->
+        val pickText: String = result.error ?: result.pick?.takeIf { it.isNotBlank() }
+            ?: stringResource(Res.string.picklists_preview_empty)
+        AlertDialog(
+            onDismissRequest = { controller.dismissPreview() },
+            title = { Text(text = stringResource(Res.string.picklists_preview_title, result.name)) },
+            text = { Text(text = pickText) },
+            confirmButton = {
+                TextButton(onClick = { controller.dismissPreview() }) {
+                    Text(text = stringResource(Res.string.picklists_preview_close))
+                }
+            },
+        )
     }
 
     editor?.let { open ->
@@ -191,6 +215,7 @@ private fun ManagedContent(
     onNew: () -> Unit,
     onEdit: (PickList) -> Unit,
     onDelete: (PickList) -> Unit,
+    onTest: (PickList) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -227,6 +252,7 @@ private fun ManagedContent(
                             deleteManage = deleteManage,
                             onEdit = { onEdit(list) },
                             onDelete = { onDelete(list) },
+                            onTest = { onTest(list) },
                         )
                         if (index < lists.lastIndex) {
                             Separator()
@@ -261,6 +287,7 @@ private fun PickListRow(
     deleteManage: ManageDecision,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onTest: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -270,6 +297,7 @@ private fun PickListRow(
     val description: String? = list.description?.takeIf { it.isNotBlank() }
     val editLabel: String = stringResource(Res.string.picklists_edit_action, list.name)
     val deleteLabel: String = stringResource(Res.string.picklists_delete_action, list.name)
+    val testLabel: String = stringResource(Res.string.picklists_preview_action, list.name)
 
     Row(
         modifier = Modifier
@@ -312,6 +340,15 @@ private fun PickListRow(
             }
         }
 
+        // "Test" is a read (draw a sample) — available to anyone who can see the page, disabled only when the list
+        // is empty (nothing to draw). It shows the same random pick a viewer would get via {list.pick.<name>}.
+        GlyphButton(
+            imageVector = PlayCircleGlyph,
+            label = testLabel,
+            onClick = onTest,
+            enabled = list.items.isNotEmpty(),
+            tint = tokens.primary,
+        )
         ManageGate(decision = writeManage) { enabled ->
             GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }

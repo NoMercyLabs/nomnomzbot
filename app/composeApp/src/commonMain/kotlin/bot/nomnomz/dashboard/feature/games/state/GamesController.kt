@@ -14,8 +14,10 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.GamePlayEntry
+import bot.nomnomz.dashboard.core.network.GameSession
 import bot.nomnomz.dashboard.core.network.GameSummary
 import bot.nomnomz.dashboard.core.network.GamesApi
+import bot.nomnomz.dashboard.core.network.LiveGameCatalogEntry
 import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.UpsertGameConfigBody
 import kotlinx.coroutines.async
@@ -61,6 +63,8 @@ class GamesController(
         coroutineScope {
             val gamesDeferred = async { gamesApi.list(channel.id) }
             val historyDeferred = async { gamesApi.history(channel.id) }
+            val catalogDeferred = async { gamesApi.liveCatalog(channel.id) }
+            val activeDeferred = async { gamesApi.activeSession(channel.id) }
 
             val gamesResult: ApiResult<List<GameSummary>> = gamesDeferred.await()
             val history: List<GamePlayEntry> =
@@ -68,15 +72,60 @@ class GamesController(
                     is ApiResult.Ok -> r.value.data
                     is ApiResult.Failure -> emptyList()
                 }
+            // The live-overlay-game catalog + the active round. Both are supplementary — a catalog failure hides
+            // the live section; the active call FAILS when no round is running (that's the "no session" state,
+            // not an error), so a failure just means null.
+            val liveCatalog: List<LiveGameCatalogEntry> =
+                when (val r: ApiResult<List<LiveGameCatalogEntry>> = catalogDeferred.await()) {
+                    is ApiResult.Ok -> r.value
+                    is ApiResult.Failure -> emptyList()
+                }
+            val activeSession: GameSession? =
+                when (val r: ApiResult<GameSession> = activeDeferred.await()) {
+                    is ApiResult.Ok -> r.value
+                    is ApiResult.Failure -> null
+                }
 
             when (gamesResult) {
                 is ApiResult.Failure -> _state.value = GamesState.Error(gamesResult.error.message)
                 is ApiResult.Ok ->
+                    // The page is Empty only when there are no configured games AND no live games to start.
                     _state.value =
-                        if (gamesResult.value.isEmpty()) GamesState.Empty
-                        else GamesState.Ready(games = gamesResult.value, history = history)
+                        if (gamesResult.value.isEmpty() && liveCatalog.isEmpty()) GamesState.Empty
+                        else
+                            GamesState.Ready(
+                                games = gamesResult.value,
+                                history = history,
+                                liveCatalog = liveCatalog,
+                                activeSession = activeSession,
+                            )
             }
         }
+    }
+
+    /** Refresh just the active-session card (participants climbing, status changes) without a full page reload. */
+    suspend fun refreshActiveSession() {
+        val channel: String = channelId ?: return
+        val current: GamesState = _state.value
+        if (current !is GamesState.Ready) return
+        val active: GameSession? =
+            when (val r: ApiResult<GameSession> = gamesApi.activeSession(channel)) {
+                is ApiResult.Ok -> r.value
+                is ApiResult.Failure -> null
+            }
+        _state.value = current.copy(activeSession = active)
+    }
+
+    /** Start a round of [gameType]. Reloads on success (the active card appears); surfaces the error on failure. */
+    suspend fun startLiveGame(gameType: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(gamesApi.startSession(channel, gameType))
+    }
+
+    /** Cancel the running session [sessionId] (refunds every entry fee). Reloads on success. */
+    suspend fun cancelLiveGame(sessionId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(gamesApi.cancelSession(channel, sessionId))
     }
 
     /** Revoke a viewer's 18+ age-consent grant (Broadcaster/Editor manages consent on behalf of the viewer). */
@@ -179,6 +228,10 @@ sealed interface GamesState {
     data class Ready(
         val games: List<GameSummary>,
         val history: List<GamePlayEntry> = emptyList(),
+        // The live overlay-game catalog (drop/raffle/heist/crash…) and the currently running round (null when none)
+        // — the "Interactive overlay games" section.
+        val liveCatalog: List<LiveGameCatalogEntry> = emptyList(),
+        val activeSession: GameSession? = null,
         val actionError: String? = null,
     ) : GamesState
 

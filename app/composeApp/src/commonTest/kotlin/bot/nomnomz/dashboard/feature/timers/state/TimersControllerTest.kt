@@ -236,7 +236,22 @@ private fun timersController(
     channelsApi: ChannelsApi,
     timersApi: TimersApi,
     pipelinesApi: PipelinesApi = FakePipelinesApi(),
-): TimersController = TimersController(channelsApi, timersApi, pipelinesApi)
+): TimersController = TimersController(channelsApi, timersApi, pipelinesApi, FakePickListsApi())
+
+private class FakePickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi {
+    override suspend fun list(): ApiResult<List<bot.nomnomz.dashboard.core.network.PickList>> =
+        ApiResult.Ok(emptyList())
+    override suspend fun get(id: String): ApiResult<bot.nomnomz.dashboard.core.network.PickList> = error("stub")
+    override suspend fun create(body: bot.nomnomz.dashboard.core.network.CreatePickListBody): ApiResult<Unit> =
+        error("stub")
+    override suspend fun update(
+        id: String,
+        body: bot.nomnomz.dashboard.core.network.UpdatePickListBody,
+    ): ApiResult<Unit> = error("stub")
+    override suspend fun delete(id: String): ApiResult<Unit> = error("stub")
+    override suspend fun pick(id: String): ApiResult<bot.nomnomz.dashboard.core.network.PickListPreview> =
+        error("stub")
+}
 
 private class FakePipelinesApi(private val pipelines: List<PipelineSummary> = emptyList()) : PipelinesApi {
     override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> = ApiResult.Ok(pipelines)

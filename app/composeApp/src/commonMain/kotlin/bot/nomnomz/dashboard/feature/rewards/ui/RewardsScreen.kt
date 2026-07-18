@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.rewards.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +26,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import androidx.compose.material3.Text
@@ -59,7 +62,9 @@ import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.RedemptionSummary
+import bot.nomnomz.dashboard.core.network.RedemptionTimer
 import bot.nomnomz.dashboard.core.network.RewardSummary
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsState
@@ -110,7 +115,21 @@ import nomnomzbot.composeapp.generated.resources.rewards_row_description
 import nomnomzbot.composeapp.generated.resources.rewards_title
 import nomnomzbot.composeapp.generated.resources.rewards_toggle_action
 import bot.nomnomz.dashboard.core.realtime.HubEvent
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharedFlow
+import nomnomzbot.composeapp.generated.resources.rewards_dialog_pipeline_label
+import nomnomzbot.composeapp.generated.resources.rewards_dialog_pipeline_none
+import nomnomzbot.composeapp.generated.resources.rewards_dialog_timer_label
+import nomnomzbot.composeapp.generated.resources.rewards_timer_cancel
+import nomnomzbot.composeapp.generated.resources.rewards_timer_complete
+import nomnomzbot.composeapp.generated.resources.rewards_timer_pause
+import nomnomzbot.composeapp.generated.resources.rewards_timer_remaining
+import nomnomzbot.composeapp.generated.resources.rewards_timer_resume
+import nomnomzbot.composeapp.generated.resources.rewards_timer_status_canceled
+import nomnomzbot.composeapp.generated.resources.rewards_timer_status_completed
+import nomnomzbot.composeapp.generated.resources.rewards_timer_status_paused
+import nomnomzbot.composeapp.generated.resources.rewards_timer_status_running
+import nomnomzbot.composeapp.generated.resources.rewards_timers_title
 import org.jetbrains.compose.resources.stringResource
 
 // The Rewards page (frontend-ia.md §3): the channel's channel-point rewards — every reward is real data from
@@ -145,6 +164,18 @@ fun RewardsScreen(
     if (hubEvents != null) {
         LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
     }
+    // Keep the live countdowns fresh: while any timer is running, re-fetch the (clock-derived) remaining seconds
+    // every few seconds so the displayed values stay accurate without a full page reload.
+    val hasRunningTimer: Boolean =
+        (state as? RewardsState.Ready)?.timers?.any { it.status == "running" } == true
+    if (hasRunningTimer) {
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(3000)
+                controller.refreshTimers()
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: RewardsState = state) {
@@ -155,6 +186,7 @@ fun RewardsScreen(
                 ManagedContent(
                     rewards = emptyList(),
                     redemptions = emptyList(),
+                    timers = emptyList(),
                     actionError = null,
                     edit = edit,
                     lifecycle = lifecycle,
@@ -173,11 +205,13 @@ fun RewardsScreen(
                     onRefund = { redemption ->
                         scope.launch { controller.refundRedemption(redemption.redemptionId) }
                     },
+                    onTimerAction = { _, _ -> },
                 )
             is RewardsState.Ready ->
                 ManagedContent(
                     rewards = current.rewards,
                     redemptions = current.redemptions,
+                    timers = current.timers,
                     actionError = current.actionError,
                     edit = edit,
                     lifecycle = lifecycle,
@@ -196,19 +230,32 @@ fun RewardsScreen(
                     onRefund = { redemption ->
                         scope.launch { controller.refundRedemption(redemption.redemptionId) }
                     },
+                    onTimerAction = { timerId, action ->
+                        scope.launch {
+                            when (action) {
+                                TimerAction.Pause -> controller.pauseTimer(timerId)
+                                TimerAction.Resume -> controller.resumeTimer(timerId)
+                                TimerAction.Complete -> controller.completeTimer(timerId)
+                                TimerAction.Cancel -> controller.cancelTimer(timerId)
+                            }
+                        }
+                    },
                 )
         }
     }
 
     editor?.let { open ->
+        val pipelines: List<PipelineSummary> = (state as? RewardsState.Ready)?.pipelines ?: emptyList()
         RewardFormDialog(
             editor = open,
+            pipelines = pipelines,
             onDismiss = { editor = null },
-            onSubmit = { title, cost, prompt, enabled ->
+            onSubmit = { title, cost, prompt, enabled, timerSeconds, pipelineId ->
                 editor = null
                 scope.launch {
-                    if (open.isEdit) controller.updateReward(open.id, title, cost, prompt, enabled)
-                    else controller.createReward(title, cost, prompt)
+                    if (open.isEdit)
+                        controller.updateReward(open.id, title, cost, prompt, enabled, timerSeconds, pipelineId)
+                    else controller.createReward(title, cost, prompt, timerSeconds, pipelineId)
                 }
             },
         )
@@ -237,6 +284,7 @@ fun RewardsScreen(
 private fun ManagedContent(
     rewards: List<RewardSummary>,
     redemptions: List<RedemptionSummary>,
+    timers: List<RedemptionTimer>,
     actionError: String?,
     edit: ManageDecision,
     lifecycle: ManageDecision,
@@ -249,6 +297,7 @@ private fun ManagedContent(
     onRecreate: (RewardSummary) -> Unit,
     onFulfill: (RedemptionSummary) -> Unit,
     onRefund: (RedemptionSummary) -> Unit,
+    onTimerAction: (timerId: String, action: TimerAction) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -260,12 +309,13 @@ private fun ManagedContent(
         Header(lifecycle = lifecycle, onNew = onNew, onSync = onSync, onImport = onImport)
         actionError?.let { ActionErrorBanner(message = stringResource(Res.string.rewards_action_error, it)) }
 
-        if (rewards.isEmpty() && redemptions.isEmpty()) {
+        if (rewards.isEmpty() && redemptions.isEmpty() && timers.isEmpty()) {
             CenteredMessage(stringResource(Res.string.rewards_empty))
         } else {
             RewardList(
                 rewards = rewards,
                 redemptions = redemptions,
+                timers = timers,
                 edit = edit,
                 lifecycle = lifecycle,
                 onEdit = onEdit,
@@ -274,10 +324,14 @@ private fun ManagedContent(
                 onRecreate = onRecreate,
                 onFulfill = onFulfill,
                 onRefund = onRefund,
+                onTimerAction = onTimerAction,
             )
         }
     }
 }
+
+/** The four lifecycle actions a redemption countdown timer offers on the card. */
+enum class TimerAction { Pause, Resume, Complete, Cancel }
 
 @Composable
 private fun Header(
@@ -340,6 +394,7 @@ private fun Header(
 private fun RewardList(
     rewards: List<RewardSummary>,
     redemptions: List<RedemptionSummary>,
+    timers: List<RedemptionTimer>,
     edit: ManageDecision,
     lifecycle: ManageDecision,
     onEdit: (RewardSummary) -> Unit,
@@ -348,9 +403,8 @@ private fun RewardList(
     onRecreate: (RewardSummary) -> Unit,
     onFulfill: (RedemptionSummary) -> Unit,
     onRefund: (RedemptionSummary) -> Unit,
+    onTimerAction: (timerId: String, action: TimerAction) -> Unit,
 ) {
-    val tokens = LocalTokens.current
-
     Card(modifier = Modifier.fillMaxWidth()) {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             itemsIndexed(items = rewards, key = { _, reward -> reward.id }) { index, reward ->
@@ -368,8 +422,25 @@ private fun RewardList(
                 )
             }
 
-            // The pending redemption queue (read-only for now — fulfil/refund actions land with their backend
-            // endpoints). A labelled section beneath the rewards so the whole page scrolls as one.
+            // The live countdown timers (active first, then recent history) — a labelled section with per-row
+            // pause/resume/complete/cancel gated at the page's Editor manage floor.
+            if (timers.isNotEmpty()) {
+                item(key = "redemption-timers-header") {
+                    SectionHeader(stringResource(Res.string.rewards_timers_title))
+                }
+                itemsIndexed(items = timers, key = { _, t -> t.id }) { index, timer ->
+                    if (index > 0) {
+                        Separator()
+                    }
+                    RedemptionTimerRow(
+                        timer = timer,
+                        edit = edit,
+                        onAction = { action -> onTimerAction(timer.id, action) },
+                    )
+                }
+            }
+
+            // The pending redemption queue. A labelled section beneath the rewards so the whole page scrolls as one.
             if (redemptions.isNotEmpty()) {
                 item(key = "redemption-queue-header") { RedemptionsHeader() }
                 itemsIndexed(items = redemptions, key = { _, r -> r.redemptionId }) { index, redemption ->
@@ -390,16 +461,143 @@ private fun RewardList(
 
 @Composable
 private fun RedemptionsHeader() {
+    SectionHeader(stringResource(Res.string.rewards_queue_title))
+}
+
+@Composable
+private fun SectionHeader(title: String) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     Text(
-        text = stringResource(Res.string.rewards_queue_title),
+        text = title,
         style = typography.lg,
         color = tokens.foreground,
-        modifier = Modifier.padding(top = spacing.s3, bottom = spacing.s1),
+        modifier = Modifier.padding(top = spacing.s3, bottom = spacing.s1, start = spacing.s4),
     )
+}
+
+// One live countdown row: the reward + who redeemed it, a ticking mm:ss remaining, a status chip, and the
+// pause/resume/complete/cancel controls (gated at the page's Editor floor). The remaining seconds tick down
+// locally each second from the server's clock-derived value; the screen's periodic refresh re-syncs it.
+@Composable
+private fun RedemptionTimerRow(
+    timer: RedemptionTimer,
+    edit: ManageDecision,
+    onAction: (TimerAction) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val running: Boolean = timer.status == "running"
+    val terminal: Boolean = timer.status == "completed" || timer.status == "canceled"
+
+    // Tick down locally while running; reset whenever the server value / status changes (the refresh re-seeds it).
+    var displayed: Int by remember(timer.id, timer.remainingSeconds, timer.status) {
+        mutableStateOf(timer.remainingSeconds)
+    }
+    if (running) {
+        LaunchedEffect(timer.id, timer.remainingSeconds, timer.status) {
+            while (displayed > 0) {
+                delay(1000)
+                displayed -= 1
+            }
+        }
+    }
+
+    val statusLabel: String =
+        stringResource(
+            when (timer.status) {
+                "paused" -> Res.string.rewards_timer_status_paused
+                "completed" -> Res.string.rewards_timer_status_completed
+                "canceled" -> Res.string.rewards_timer_status_canceled
+                else -> Res.string.rewards_timer_status_running
+            }
+        )
+    val remainingLabel: String =
+        stringResource(Res.string.rewards_timer_remaining, formatDuration(displayed))
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacing.s1),
+        ) {
+            Text(
+                text = timer.rewardTitle,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "${timer.redeemedBy} · $statusLabel",
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (!terminal) {
+            Text(
+                text = remainingLabel,
+                style = typography.base,
+                color = tokens.primary,
+                maxLines = 1,
+            )
+            if (running) {
+                ManageGate(decision = edit) { enabled ->
+                    Button(
+                        onClick = { onAction(TimerAction.Pause) },
+                        enabled = enabled,
+                        variant = ButtonVariant.Outline,
+                        size = ButtonSize.Sm,
+                    ) { Text(text = stringResource(Res.string.rewards_timer_pause), maxLines = 1) }
+                }
+            } else {
+                ManageGate(decision = edit) { enabled ->
+                    Button(
+                        onClick = { onAction(TimerAction.Resume) },
+                        enabled = enabled,
+                        variant = ButtonVariant.Outline,
+                        size = ButtonSize.Sm,
+                    ) { Text(text = stringResource(Res.string.rewards_timer_resume), maxLines = 1) }
+                }
+            }
+            ManageGate(decision = edit) { enabled ->
+                Button(
+                    onClick = { onAction(TimerAction.Complete) },
+                    enabled = enabled,
+                    size = ButtonSize.Sm,
+                ) { Text(text = stringResource(Res.string.rewards_timer_complete), maxLines = 1) }
+            }
+            ManageGate(decision = edit) { enabled ->
+                GlyphButton(
+                    imageVector = RemoveGlyph,
+                    label = stringResource(Res.string.rewards_timer_cancel),
+                    onClick = { onAction(TimerAction.Cancel) },
+                    enabled = enabled,
+                    tint = tokens.destructive,
+                )
+            }
+        }
+    }
+}
+
+// mm:ss for a non-negative seconds count (a countdown never shows a negative value).
+private fun formatDuration(totalSeconds: Int): String {
+    val safe: Int = totalSeconds.coerceAtLeast(0)
+    val minutes: Int = safe / 60
+    val seconds: Int = safe % 60
+    val paddedSeconds: String = if (seconds < 10) "0$seconds" else "$seconds"
+    return "$minutes:$paddedSeconds"
 }
 
 @Composable
@@ -599,8 +797,16 @@ private fun RewardRow(
 @Composable
 private fun RewardFormDialog(
     editor: RewardEditor,
+    pipelines: List<PipelineSummary>,
     onDismiss: () -> Unit,
-    onSubmit: (title: String, cost: Int, prompt: String, enabled: Boolean) -> Unit,
+    onSubmit: (
+        title: String,
+        cost: Int,
+        prompt: String,
+        enabled: Boolean,
+        timerDurationSeconds: Int?,
+        pipelineId: String?,
+    ) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -609,9 +815,18 @@ private fun RewardFormDialog(
     var cost: String by remember { mutableStateOf(editor.cost) }
     var prompt: String by remember { mutableStateOf(editor.prompt) }
     var enabled: Boolean by remember { mutableStateOf(editor.isEnabled) }
+    var timerSeconds: String by remember { mutableStateOf(editor.timerDurationSeconds) }
+    var selectedPipelineId: String? by remember { mutableStateOf(editor.pipelineId) }
+    var pipelineMenuOpen: Boolean by remember { mutableStateOf(false) }
 
     val parsedCost: Int? = cost.toIntOrNull()
-    val canSubmit: Boolean = title.isNotBlank() && parsedCost != null && parsedCost > 0
+    // A blank timer field means "no timer" (send 0 to clear); a non-blank one must parse to a non-negative int.
+    val parsedTimer: Int? = timerSeconds.ifBlank { "0" }.toIntOrNull()
+    val timerValid: Boolean = parsedTimer != null && parsedTimer >= 0
+    val canSubmit: Boolean = title.isNotBlank() && parsedCost != null && parsedCost > 0 && timerValid
+    val pipelineNoneLabel: String = stringResource(Res.string.rewards_dialog_pipeline_none)
+    val selectedPipelineName: String =
+        selectedPipelineId?.let { id -> pipelines.firstOrNull { it.id == id }?.name } ?: pipelineNoneLabel
     val dialogTitle: String =
         stringResource(
             if (editor.isEdit) Res.string.rewards_dialog_edit_title
@@ -648,6 +863,47 @@ private fun RewardFormDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.rewards_dialog_prompt_label),
                 )
+                // Optional countdown a redemption auto-starts (seconds; blank/0 = none). Digits only.
+                AppTextField(
+                    value = timerSeconds,
+                    onValueChange = { input -> timerSeconds = input.filter { it.isDigit() } },
+                    isError = !timerValid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.rewards_dialog_timer_label),
+                )
+                // Optional pipeline to run on redemption. Only shown when the channel has pipelines to bind.
+                if (pipelines.isNotEmpty()) {
+                    Box {
+                        AppTextField(
+                            value = selectedPipelineName,
+                            onValueChange = {},
+                            modifier = Modifier.fillMaxWidth().clickable { pipelineMenuOpen = true },
+                            label = stringResource(Res.string.rewards_dialog_pipeline_label),
+                        )
+                        DropdownMenu(
+                            expanded = pipelineMenuOpen,
+                            onDismissRequest = { pipelineMenuOpen = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(pipelineNoneLabel, color = tokens.mutedForeground) },
+                                onClick = {
+                                    selectedPipelineId = null
+                                    pipelineMenuOpen = false
+                                },
+                            )
+                            pipelines.forEach { pipeline ->
+                                DropdownMenuItem(
+                                    text = { Text(pipeline.name, color = tokens.cardForeground) },
+                                    onClick = {
+                                        selectedPipelineId = pipeline.id
+                                        pipelineMenuOpen = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -664,7 +920,9 @@ private fun RewardFormDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { parsedCost?.let { onSubmit(title, it, prompt, enabled) } },
+                onClick = {
+                    parsedCost?.let { onSubmit(title, it, prompt, enabled, parsedTimer ?: 0, selectedPipelineId) }
+                },
                 enabled = canSubmit,
             ) {
                 Text(
@@ -727,10 +985,22 @@ private data class RewardEditor(
     val cost: String,
     val prompt: String,
     val isEnabled: Boolean,
+    // The countdown length in seconds as an editable string ("" = no timer) and the bound pipeline id (null = none).
+    val timerDurationSeconds: String,
+    val pipelineId: String?,
 ) {
     companion object {
         fun create(): RewardEditor =
-            RewardEditor(isEdit = false, id = "", title = "", cost = "", prompt = "", isEnabled = true)
+            RewardEditor(
+                isEdit = false,
+                id = "",
+                title = "",
+                cost = "",
+                prompt = "",
+                isEnabled = true,
+                timerDurationSeconds = "",
+                pipelineId = null,
+            )
 
         fun edit(reward: RewardSummary): RewardEditor =
             RewardEditor(
@@ -740,6 +1010,9 @@ private data class RewardEditor(
                 cost = reward.cost.toString(),
                 prompt = reward.prompt.orEmpty(),
                 isEnabled = reward.isEnabled,
+                // A 0/null stored duration shows as blank ("no timer"); a positive one pre-fills the field.
+                timerDurationSeconds = reward.timerDurationSeconds?.takeIf { it > 0 }?.toString().orEmpty(),
+                pipelineId = reward.pipelineId,
             )
     }
 }

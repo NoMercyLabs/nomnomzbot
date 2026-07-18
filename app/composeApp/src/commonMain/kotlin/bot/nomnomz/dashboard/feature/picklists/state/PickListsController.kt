@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CreatePickListBody
 import bot.nomnomz.dashboard.core.network.PickList
+import bot.nomnomz.dashboard.core.network.PickListPreview
 import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.UpdatePickListBody
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +40,13 @@ class PickListsController(
 
     /** The page render state: loading / ready (with the lists) / empty / error. */
     val state: StateFlow<PickListsState> = _state.asStateFlow()
+
+    // The last "Test" draw the operator ran, shown in a small dialog: null = no dialog, a value = show it. The
+    // name is carried so the dialog can title itself; the pick is the drawn entry (or an error message on failure).
+    private val _preview: MutableStateFlow<PickListPreviewResult?> = MutableStateFlow(null)
+
+    /** The pending "Test" result dialog: null when closed, a value when a draw (or its error) should be shown. */
+    val preview: StateFlow<PickListPreviewResult?> = _preview.asStateFlow()
 
     /** List the channel's pick-lists. */
     suspend fun load() {
@@ -82,6 +90,24 @@ class PickListsController(
         afterWrite(pickListsApi.delete(id), success = Res.string.feedback_picklist_deleted)
     }
 
+    /**
+     * Draw a random sample from [id] (named [name] for the dialog title) and open the "Test" result dialog — the
+     * same pick `{list.pick.<name>}` performs, so the operator can see what a viewer would get. On failure the
+     * dialog shows the reason instead of a draw.
+     */
+    suspend fun previewPickList(id: String, name: String) {
+        _preview.value =
+            when (val result: ApiResult<PickListPreview> = pickListsApi.pick(id)) {
+                is ApiResult.Ok -> PickListPreviewResult(name = name, pick = result.value.pick, error = null)
+                is ApiResult.Failure -> PickListPreviewResult(name = name, pick = null, error = result.error.message)
+            }
+    }
+
+    /** Dismiss the "Test" result dialog. */
+    fun dismissPreview() {
+        _preview.value = null
+    }
+
     // A write either reloads the list AND announces success on the frame, or surfaces its error over the
     // current Ready list without losing it (failure) — so a failed edit/delete leaves the page intact with a
     // visible reason AND a frame-level error message. [success] lets a delete say "Deleted" while the rest
@@ -116,6 +142,16 @@ class PickListsController(
     // left in the editor is not a pickable entry, so it never reaches the stored list.
     private fun List<String>.cleaned(): List<String> = mapNotNull { it.trim().takeIf(String::isNotBlank) }
 }
+
+/**
+ * One "Test" draw result for the dialog: the list [name] (dialog title), the drawn [pick] (null on failure), and
+ * the [error] reason (null on success). Exactly one of [pick] / [error] is set.
+ */
+data class PickListPreviewResult(
+    val name: String,
+    val pick: String?,
+    val error: String?,
+)
 
 /** The Pick Lists page render state. */
 sealed interface PickListsState {

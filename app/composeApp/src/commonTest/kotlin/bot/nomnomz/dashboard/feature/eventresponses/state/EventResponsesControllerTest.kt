@@ -51,6 +51,7 @@ class EventResponsesControllerTest {
         val controller =
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(listOf(summary))),
             )
@@ -69,6 +70,7 @@ class EventResponsesControllerTest {
         val controller =
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList())),
             )
@@ -83,6 +85,7 @@ class EventResponsesControllerTest {
         val controller =
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Failure(ApiError(status = 503, code = null, message = "no channel"))),
                 eventResponsesApi = RecordingEventResponsesApi(),
             )
@@ -99,6 +102,7 @@ class EventResponsesControllerTest {
         val controller =
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi =
                     RecordingEventResponsesApi(
@@ -117,6 +121,7 @@ class EventResponsesControllerTest {
         val controller =
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -146,6 +151,7 @@ class EventResponsesControllerTest {
         val controller =
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -164,6 +170,7 @@ class EventResponsesControllerTest {
         val controller =
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -183,6 +190,7 @@ class EventResponsesControllerTest {
         val controller =
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -202,6 +210,7 @@ class EventResponsesControllerTest {
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
                 pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
             )
         controller.load()
 
@@ -236,6 +245,21 @@ private object StubPipelinesApi : PipelinesApi {
     override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+private object StubPickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi {
+    override suspend fun list(): ApiResult<List<bot.nomnomz.dashboard.core.network.PickList>> =
+        ApiResult.Ok(emptyList())
+    override suspend fun get(id: String): ApiResult<bot.nomnomz.dashboard.core.network.PickList> = error("stub")
+    override suspend fun create(body: bot.nomnomz.dashboard.core.network.CreatePickListBody): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+    override suspend fun update(
+        id: String,
+        body: bot.nomnomz.dashboard.core.network.UpdatePickListBody,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun delete(id: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun pick(id: String): ApiResult<bot.nomnomz.dashboard.core.network.PickListPreview> =
+        error("stub")
 }
 
 private class FakeChannelsApi(
