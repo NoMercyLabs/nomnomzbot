@@ -32,8 +32,13 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
 {
     public ScriptRuntimeKind Runtime => ScriptRuntimeKind.Jint;
 
-    // Builds the `bot` facade from the host primitives. Host-driven Execute (not guest eval), so it is allowed
-    // under DisableStringCompilation. JSON.parse is a safe builtin (not code-from-string).
+    // Builds the `bot` facade and the batteries-included `nnz` SDK (dev-platform.md §3.1) from the host
+    // primitives. Host-driven Execute (not guest eval), so it is allowed under DisableStringCompilation:
+    // JSON.parse, Date, and regex literals are safe builtins (not code-from-string). The `nnz` global carries
+    // pure-JS batteries (no host call, no budget cost — nnz.units/time/math/str/json/random) and the typed
+    // `nnz.api.*` wrappers, each a thin call over the SAME `bot.call(key, …)` capability bridge (so an ungranted
+    // key still denies at run time, unchanged). `bot` stays as-is so existing scripts and the executor tests keep
+    // working.
     private const string Bootstrap = """
         var bot = {
             args: JSON.parse(__argsJson),
@@ -42,6 +47,93 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             send: function (m) { __send(String(m)); },
             call: function (k) {
                 return __call(String(k), JSON.stringify(Array.prototype.slice.call(arguments, 1).map(String)));
+            }
+        };
+        var nnz = {
+            units: {
+                convert: function (value, from, to) {
+                    var v = Number(value);
+                    var f = String(from).toLowerCase();
+                    var t = String(to).toLowerCase();
+                    var temp = { c: 1, celsius: 1, f: 1, fahrenheit: 1, k: 1, kelvin: 1 };
+                    if (temp[f] && temp[t]) {
+                        var celsius;
+                        if (f === 'c' || f === 'celsius') { celsius = v; }
+                        else if (f === 'f' || f === 'fahrenheit') { celsius = (v - 32) * 5 / 9; }
+                        else { celsius = v - 273.15; }
+                        if (t === 'c' || t === 'celsius') { return celsius; }
+                        if (t === 'f' || t === 'fahrenheit') { return celsius * 9 / 5 + 32; }
+                        return celsius + 273.15;
+                    }
+                    var dims = [
+                        { mm: 0.001, cm: 0.01, m: 1, km: 1000, "in": 0.0254, inch: 0.0254, ft: 0.3048, foot: 0.3048, yd: 0.9144, yard: 0.9144, mi: 1609.344, mile: 1609.344 },
+                        { mg: 0.001, g: 1, kg: 1000, oz: 28.349523125, lb: 453.59237, ton: 1000000 },
+                        { ms: 0.001, s: 1, sec: 1, min: 60, h: 3600, hr: 3600, hour: 3600, day: 86400, week: 604800 }
+                    ];
+                    for (var i = 0; i < dims.length; i++) {
+                        if (dims[i][f] !== undefined && dims[i][t] !== undefined) {
+                            return v * dims[i][f] / dims[i][t];
+                        }
+                    }
+                    return NaN;
+                }
+            },
+            time: {
+                now: function () { return new Date().toISOString(); },
+                parse: function (iso) { return Date.parse(String(iso)); },
+                format: function (epochMs) { return new Date(Number(epochMs)).toISOString(); },
+                add: function (iso, ms) { return new Date(Date.parse(String(iso)) + Number(ms)).toISOString(); },
+                diff: function (a, b) { return Date.parse(String(a)) - Date.parse(String(b)); }
+            },
+            math: {
+                clamp: function (v, lo, hi) { v = Number(v); lo = Number(lo); hi = Number(hi); return v < lo ? lo : (v > hi ? hi : v); },
+                round: function (v, digits) { var d = Math.pow(10, Number(digits) || 0); return Math.round(Number(v) * d) / d; },
+                lerp: function (a, b, t) { return Number(a) + (Number(b) - Number(a)) * Number(t); },
+                sum: function (xs) { var s = 0; for (var i = 0; i < xs.length; i++) { s += Number(xs[i]); } return s; },
+                avg: function (xs) { return xs.length ? nnz.math.sum(xs) / xs.length : 0; },
+                min: function (xs) { return Math.min.apply(null, xs.map(Number)); },
+                max: function (xs) { return Math.max.apply(null, xs.map(Number)); },
+                randomInt: function (lo, hi) { lo = Math.ceil(Number(lo)); hi = Math.floor(Number(hi)); return Math.floor(Math.random() * (hi - lo + 1)) + lo; }
+            },
+            str: {
+                padStart: function (v, n, p) { return String(v).padStart(Number(n), p === undefined ? ' ' : String(p)); },
+                padEnd: function (v, n, p) { return String(v).padEnd(Number(n), p === undefined ? ' ' : String(p)); },
+                trim: function (v) { return String(v).trim(); },
+                upper: function (v) { return String(v).toUpperCase(); },
+                lower: function (v) { return String(v).toLowerCase(); },
+                title: function (v) { return String(v).replace(/\w\S*/g, function (w) { return w.charAt(0).toUpperCase() + w.substr(1).toLowerCase(); }); },
+                truncate: function (v, n, e) { v = String(v); e = e === undefined ? '…' : String(e); n = Number(n); return v.length <= n ? v : v.slice(0, Math.max(0, n - e.length)) + e; },
+                slugify: function (v) { return String(v).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); },
+                format: function (tpl, vals) { return String(tpl).replace(/\{(\w+)\}/g, function (m, k) { return vals && vals[k] !== undefined ? String(vals[k]) : m; }); }
+            },
+            json: {
+                parse: function (text) { try { return JSON.parse(String(text)); } catch (e) { return null; } },
+                stringify: function (value) { try { return JSON.stringify(value); } catch (e) { return 'null'; } }
+            },
+            random: {
+                int: function (lo, hi) { return nnz.math.randomInt(lo, hi); },
+                pick: function (xs) { return xs[Math.floor(Math.random() * xs.length)]; },
+                shuffle: function (xs) { var a = xs.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var tmp = a[i]; a[i] = a[j]; a[j] = tmp; } return a; },
+                uuid: function () { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; var val = c === 'x' ? r : (r & 0x3 | 0x8); return val.toString(16); }); }
+            },
+            api: {
+                chat: {
+                    send: function (text) { bot.call('chat.send', String(text)); },
+                    reply: function (text) { bot.call('chat.reply', String(text)); }
+                },
+                user: {
+                    get: function (id) { var r = id === undefined ? bot.call('user.get') : bot.call('user.get', String(id)); return r ? JSON.parse(r) : null; }
+                },
+                economy: {
+                    balance: function (userId) { var r = userId === undefined ? bot.call('economy.read') : bot.call('economy.read', String(userId)); return Number(r); }
+                },
+                music: {
+                    queue: function (uri) { return bot.call('music.queue', String(uri)) === 'true'; },
+                    nowPlaying: function () { var r = bot.call('music.nowPlaying'); return r ? JSON.parse(r) : null; }
+                },
+                http: {
+                    fetch: function (url) { return bot.call('http.fetch', String(url)); }
+                }
             }
         };
         """;
@@ -79,13 +171,41 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
     [GeneratedRegex("""bot\.call\(\s*["']([a-zA-Z][a-zA-Z0-9.]*)["']""")]
     private static partial Regex HostCallPattern();
 
-    private static IReadOnlyList<string> DeclaredCapabilities(string sourceCode) =>
-        [
-            .. HostCallPattern()
-                .Matches(sourceCode)
-                .Select(m => m.Groups[1].Value)
-                .Distinct(StringComparer.Ordinal),
-        ];
+    // The ergonomic `nnz.api.<group>.<method>(…)` wrappers (dev-platform.md §3.1) resolve to the SAME broker
+    // catalogue keys as `bot.call`, so a script that only ever reaches for `nnz.api.*` still declares (and thus
+    // is granted / denied on) the right capabilities. Captures `<group>.<method>`; the map below is the 1:1
+    // wrapper→key correspondence baked into the bootstrap.
+    [GeneratedRegex("""nnz\.api\.([a-zA-Z]+)\.([a-zA-Z]+)""")]
+    private static partial Regex ApiCallPattern();
+
+    private static readonly Dictionary<string, string> ApiMethodCapabilities = new(
+        StringComparer.Ordinal
+    )
+    {
+        ["chat.send"] = "chat.send",
+        ["chat.reply"] = "chat.reply",
+        ["user.get"] = "user.get",
+        ["economy.balance"] = "economy.read",
+        ["music.queue"] = "music.queue",
+        ["music.nowPlaying"] = "music.nowPlaying",
+        ["http.fetch"] = "http.fetch",
+    };
+
+    private static IReadOnlyList<string> DeclaredCapabilities(string sourceCode)
+    {
+        HashSet<string> keys = new(StringComparer.Ordinal);
+        foreach (Match match in HostCallPattern().Matches(sourceCode))
+            keys.Add(match.Groups[1].Value);
+        foreach (Match match in ApiCallPattern().Matches(sourceCode))
+            if (
+                ApiMethodCapabilities.TryGetValue(
+                    $"{match.Groups[1].Value}.{match.Groups[2].Value}",
+                    out string? capability
+                )
+            )
+                keys.Add(capability);
+        return [.. keys];
+    }
 
     public Task<Result<ScriptExecutionOutcomeResult>> ExecuteAsync(
         ScriptExecutionRequest request,

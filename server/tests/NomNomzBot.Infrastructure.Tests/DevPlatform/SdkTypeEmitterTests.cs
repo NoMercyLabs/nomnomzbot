@@ -193,4 +193,55 @@ public sealed class SdkTypeEmitterTests
         requiredNames.Should().Contain("normal");
         requiredNames.Should().NotContain("optionalNote");
     }
+
+    [Fact]
+    public void Script_dts_declares_the_batteries_and_full_api_surface()
+    {
+        string ts = RealEmitter().EmitTypeScript(SdkContext.Script);
+
+        // Batteries — the pure-JS floor, with real signatures (not just a name).
+        ts.Should().Contain("convert(value: number, from: string, to: string): number;");
+        ts.Should().Contain("slugify(value: string): string;");
+        ts.Should().Contain("randomInt(min: number, max: number): number;");
+
+        // The typed api wrappers, including the write/privileged surface, and their return interfaces.
+        ts.Should().Contain("chat: { send(text: string): void; reply(text: string): void };");
+        ts.Should().Contain("http: { fetch(url: string): string | null };");
+        ts.Should().Contain("queue(uri: string): boolean");
+        ts.Should().Contain("get(id?: string): NnzApiUser | null");
+        ts.Should().Contain("interface NnzApiUser {");
+        ts.Should().Contain("interface NnzApiTrack {");
+    }
+
+    [Fact]
+    public void Widget_dts_keeps_the_batteries_and_read_api_but_omits_the_script_only_api()
+    {
+        string ts = RealEmitter().EmitTypeScript(SdkContext.Widget);
+
+        // Batteries are available everywhere.
+        ts.Should().Contain("convert(value: number, from: string, to: string): number;");
+        // The read-mostly api is available to widgets.
+        ts.Should().Contain("get(id?: string): NnzApiUser | null");
+        ts.Should().Contain("nowPlaying(): NnzApiTrack | null");
+
+        // The write/privileged api is script-only — it must not appear in the untrusted widget surface.
+        ts.Should().NotContain("chat: {");
+        ts.Should().NotContain("http: {");
+        ts.Should().NotContain("queue(uri: string): boolean");
+    }
+
+    [Fact]
+    public void Adding_the_fixed_surface_does_not_regress_reflected_event_types()
+    {
+        // The keystone invariant: events stay 100%-auto-reflected from the C# records even though the fixed
+        // SDK surface is now authored alongside them.
+        string ts = RealEmitter().EmitTypeScript(SdkContext.Script);
+
+        ts.Should().Contain("'chat.message': NnzChatMessageReceived;");
+        ts.Should().Contain("interface NnzChatMessageReceived {");
+        ts.Should()
+            .Contain(
+                "on<K extends keyof NnzEventMap>(event: K, fn: (data: NnzEventMap[K]) => void): void;"
+            );
+    }
 }

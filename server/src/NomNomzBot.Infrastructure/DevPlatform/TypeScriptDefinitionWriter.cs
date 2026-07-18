@@ -75,6 +75,11 @@ internal sealed class TypeScriptDefinitionWriter
             sb.AppendLine();
         }
 
+        // The fixed SDK payload interfaces (nnz.api.* return types) — authored, not reflected (dev-platform.md
+        // §3.1); the event map above stays 100%-reflected from the C# records.
+        sb.AppendLine(SdkRuntimeSurface.Interfaces());
+        sb.AppendLine();
+
         sb.AppendLine("interface NnzEventMap {");
         foreach (EventDescriptor descriptor in events)
             sb.AppendLine($"  '{descriptor.WireName}': {_interfaceNames[descriptor.ClrType]};");
@@ -91,6 +96,8 @@ internal sealed class TypeScriptDefinitionWriter
         sb.AppendLine(
             "  off<K extends keyof NnzEventMap>(event: K, fn?: (data: NnzEventMap[K]) => void): void;"
         );
+        // The fixed batteries + nnz.api.* surface (authored source-of-truth, per-context subset).
+        sb.AppendLine(SdkRuntimeSurface.Members(_context));
         sb.AppendLine("};");
 
         return sb.ToString();
