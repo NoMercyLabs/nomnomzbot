@@ -86,29 +86,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   daily-or-coarser is frontend-only.
 - **Done when:** the analytics page charts the daily metrics from `channel/daily` over a date range.
 
-### 2026-07-17 — Pipelines: ~40 of 66 actions are invisible in the builder (drifting hand-maintained catalogue)
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **Diagnosis:** the pipeline builder's block palette comes from a HAND-MAINTAINED Kotlin list (`PipelineCatalogue.kt`,
-  ~25 actions + 2 conditions) that must be manually kept in sync with the backend's ~66 auto-discovered
-  `ICommandAction` types. It has drifted badly — ~40 actions (all OBS ~20, all VTS 6, giveaways, counters,
-  viewer-data, permit/unpermit, submit_media, widget_event, pick_from_list, send_webhook, live-game, stop_sound)
-  and the `var_compare` condition are **not surfaced in the builder at all**, so a streamer literally cannot add
-  them.
-- **Backend follow-up Claude will build:** a server action-catalogue (add `Category` + `Description` to
-  `ICommandAction` per commands-pipelines.md §3.13, and a `GET /pipelines/actions` manifest endpoint) so the
-  builder renders the palette from the backend and can never drift again. When that lands, **replace the
-  hand-maintained `PipelineCatalogue.kt` with the fetched manifest.**
-- **Bigger owner design call (NOT building blind):** there are SIX separate "when X happens, do Y" surfaces —
-  Commands, Event-responses, Chat-triggers, Timers, Reward-redemptions, and Inbound-webhooks — each its own
-  entity + controller + screen, each re-implementing the identical "inline template OR bound pipeline" fork, and
-  redemptions/webhooks can reach a pipeline two different ways. That's the "pipelines reworked into all the other
-  things" the owner means. Unifying them (one trigger→action model) is a large architectural change that needs an
-  owner decision before either track builds it. Flagged, not started.
-- **Also friction (frontend, longer-term):** the builder is a flat step list, not the "visual graph builder" the
-  entity docs claim; then/else branching is in the schema but the engine runs a flat loop (unimplemented) and only
-  the FIRST condition per step is honored; params are raw snake_case JSON with `{{...}}` templating and no
-  variable picker; there's no dry-run/test-fire. These are known gaps for the pipeline UX rework.
-
 ### 2026-07-17 — Games vs commands: build the missing live-games UI + clarify the boundary
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **Diagnosis:** "games and commands overlap" is mostly a UI/mental-model gap — the backend is separated, but
@@ -167,25 +144,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
   pipeline palette. Backend: `PickFromListAction`.
 - **Done when:** the pick-lists page states what the feature is for with an example, the pipeline builder has a
   `pick_from_list` block, and there's a way to insert `{list.pick.<name>}` without hand-typing it.
-
-### 2026-07-17 — Webhooks: inbound endpoints now RUN their target pipeline / event-response
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** an inbound webhook endpoint's `targetPipelineId` / `targetEventType` are now actually executed when a
-  verified webhook lands (previously they were stored but inert — the "webhooks can't be integrated" complaint).
-  The inbound create/edit form should expose the routing choice: **"On receive → run a pipeline"** (a pipeline
-  picker binding `targetPipelineId`) **or "→ trigger an event"** (`targetEventType`, e.g. `custom.github.star`).
-  The webhook payload reaches the pipeline/event as `payload.*` template variables (+ `webhook.provider`,
-  `webhook.event_type`) — surface that in the form's help text so users know what they can reference.
-- **Why:** BUILD-TODO "webhooks … cannot be integrated" — the backend seam is now built; the UI needs to let a
-  user pick the target so the integration is reachable.
-- **Where:** no contract change (the DTO already carried `targetPipelineId`/`targetEventType`); the inbound
-  webhook form + a pipeline picker. Backend: `InboundWebhookAutomationBridge` + spec `webhooks.md` §3.2.
-- **Done when:** creating an inbound endpoint with a target pipeline, then POSTing to its ingest URL, runs that
-  pipeline with the payload variables available.
-- **Also (outbound side):** a new **`send_webhook`** pipeline action now exists — add it to the pipeline builder's
-  block palette. Its config is `endpoint` (an outbound-webhook endpoint id — offer a picker of the channel's
-  outbound endpoints) and optional `event_type` (default `pipeline.send_webhook`). It POSTs the pipeline's current
-  variables to that endpoint. Together with the inbound routing above, webhooks are now wired both directions.
 
 ### 2026-07-17 — TTS: the voices list is now a searchable, paginated, rich catalogue
 - **From:** Stoney_Eagle (via Claude, backend track)
@@ -673,27 +631,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Done when:** setting a duration on a reward, redeeming it, watching the countdown live, pausing/
   resuming, and seeing the redemption fulfilled at zero — all verified on the dev web build.
 
-### 2026-07-16 — Event responses ARE the reaction chains: merge alerts/events into one page
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** the full "welcome them in" chain (sound → overlay → chat, any order, with waits) already
-  works backend-side: every event type on `GET .../event-responses` can bind `responseType:
-  "pipeline"` to a pipeline that chains `play_sound`, `widget_event` (overlay push), `play_tts`,
-  `send_message`, `wait`, and every other palette action. NEW trigger:
-  `engagement.session_first_message` fires the first time a user speaks during THIS stream
-  (session-scoped, cleared on stream start — distinct from `engagement.first_time_chatter` which is
-  first-EVER). Its preset is in the catalog endpoint. Also: the seeding now TOPS UP — revisiting the
-  page adds rows for newly shipped trigger types. UI work: (1) present Alerts / Events / Event
-  Responses as ONE surface (they are one backend concept now); (2) make "bind a pipeline" a
-  first-class flow from the event row (create-and-bind, not paste-an-id); (3) show the new trigger.
-- **Why:** owner items — reaction chains on any event, "alerts and events need to be merged with
-  event responses and triggers". Note: a "user joins/leaves the channel" trigger is NOT offered —
-  Twitch's supported API (EventSub) has no viewer presence events (IRC JOIN/PART is retired); the
-  session-first-message trigger is the honest equivalent.
-- **Where:** `feature/eventresponses` (+ wherever Alerts currently lives); contract in
-  `server/openapi/v1.json`.
-- **Done when:** one page lists every trigger incl. session-first-message, an operator can chain
-  sound+overlay+chat on it without leaving the page, and the chain fires live on dev.
-
 ### 2026-07-16 — Analytics: per-stream views ("stream by stream, not all-time")
 - **From:** Stoney_Eagle (via Claude, backend track)
 - **What:** two new management-plane reads under
@@ -710,22 +647,6 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 - **Where:** `feature/analytics`; contract refreshed in `server/openapi/v1.json`.
 - **Done when:** the analytics page can switch between all-time and a specific stream, showing that
   stream's own numbers, verified on the dev web build.
-
-### 2026-07-16 — Pre-fill every template input from the new preset catalog
-- **From:** Stoney_Eagle (via Claude, backend track)
-- **What:** `GET /api/v1/channels/{channelId}/event-responses/catalog` returns one preset per
-  configurable event type: `eventType`, `defaultTemplate` (a ready-to-send line using `{placeholder}`
-  syntax), and `variables` (the EXACT placeholders that event seeds — safe to offer as insert chips).
-  Pre-fill the event-response message input with `defaultTemplate` whenever the stored message is
-  empty, and surface `variables` next to the field. For the custom-command and timer template inputs
-  (no per-type presets needed): pre-fill commands with a default like `Hello {user}!` — commands seed
-  `{user}`, `{user.name}`, `{target}`, `{args}`, `{args.count}`, `{args.N}` — and timers with a plain
-  text default (timers have no per-event variables).
-- **Why:** owner item — "i am missing the pre-filled templates in all the template input fields."
-- **Where:** `feature/eventresponses` dialog + command/timer create dialogs; new endpoint in
-  `server/openapi/v1.json` (`EventResponsePresetDto`).
-- **Done when:** opening any template input on a fresh channel shows a sensible pre-filled template
-  instead of an empty field, verified on the dev web build.
 
 ### 2026-07-16 — Auth round-trips: send `return_to` so the user lands back on the page they left
 - **From:** Stoney_Eagle (via Claude, backend track)
@@ -1058,6 +979,48 @@ The backend track (`Stoney_Eagle`) leaves frontend work orders here. The fronten
 ## Done
 
 _(completed entries move here, with their commit hashes)_
+
+### 2026-07-17 — Pipelines: ~40 of 66 actions invisible (drifting hand catalogue) — DONE `806980cc`
+- The builder's block palette now renders from the backend registry (`GET pipelines/actions` →
+  `PipelineCatalogueDto`) instead of the hand-maintained `PipelineCatalogue.kt`, so its membership can never
+  drift again — every registered `ICommandAction` appears grouped by its backend category with its description.
+  `PipelineCatalogue.kt` is now the local FIELD-HINT layer only: a block with a matching hint renders typed
+  fields (+ role / endpoint / pick-list pickers); a hint-less backend block renders a generic key/value editor
+  so all ~66 blocks stay configurable. Added typed hints for `send_webhook`, `pick_from_list`, `stop_sound`,
+  `start_live_game`, `cancel_live_game` and the `var_compare` condition. DTOs registered in `ApiContractTest`;
+  `PipelinesControllerTest` proves an unmodelled block (`obs_switch_scene`) still surfaces. `jvmTest` +
+  `compileKotlinWasmJs` green.
+- **Still flagged (NOT built — separate future work, not part of this slice):** the bigger "unify the six
+  trigger→action surfaces into one model" architectural call (owner decision); and the longer-term builder-UX
+  gaps (visual graph builder / then-else branching in the engine / a variable picker / dry-run test-fire).
+
+### 2026-07-17 — Webhooks: inbound endpoints RUN their target + send_webhook action — DONE `7793b6af` `806980cc`
+- The inbound create form now exposes the routing choice — "On receive → run a pipeline" (a pipeline picker
+  binding `targetPipelineId`) or "→ trigger an event" (`targetEventType`) — with help text that the payload
+  reaches vars as `payload.*` plus `webhook.provider` / `webhook.event_type`; each inbound row shows its
+  resolved routing target. `CreateInboundBody` gained `targetPipelineId`/`targetEventType` (registered in
+  `ApiContractTest`); the controller loads the channel pipelines to back the picker. The outbound `send_webhook`
+  pipeline action ships in the palette (endpoint field = an outbound-endpoint picker) via `806980cc`.
+  Note: routing is set at CREATE (the backend update can't clear a target); switching an existing endpoint's
+  target = delete + recreate. `jvmTest` + `compileKotlinWasmJs` green.
+
+### 2026-07-16 — Event responses ARE the reaction chains — DONE `e63531ce`
+- Binding a pipeline is now a first-class create-and-bind flow from the event row (pick an existing pipeline OR
+  "Create a new pipeline" → the controller creates it via `PipelinesApi.createReturning` and binds it by id) —
+  no more pasting a pipeline id. Surfaces the new `engagement.session_first_message` (+ `first_time_chatter`)
+  triggers; the backend tops up new trigger rows on revisit. `EventResponsesControllerTest` proves the
+  create-and-bind loop. `jvmTest` + `compileKotlinWasmJs` green.
+- **Still flagged (NOT built — IA decision):** the nav-level consolidation of the separate `feature/alerts`
+  page INTO this surface. The Event Responses page already lists every trigger (follow/sub/cheer/raid/… — the
+  "alerts") and is the functional reaction-chain surface; merging the two nav entries into one page + retiring
+  the Alerts screen is a page-inventory (frontend-ia.md) change left for a deliberate IA pass.
+
+### 2026-07-16 — Pre-fill every template input from the preset catalog — DONE `e63531ce`
+- `GET event-responses/catalog` (`EventResponsePresetDto`, registered in `ApiContractTest`) is consumed: the
+  event-response message input pre-fills with the preset `defaultTemplate` when empty and offers the event's
+  seeded `variables` as insert chips; the edit dialog also loads the stored config so fields open pre-filled
+  (fixing a prior always-blank bug). Custom commands pre-fill a sensible default template (`Hello {user}!`) on
+  create. `jvmTest` + `compileKotlinWasmJs` green.
 
 ### 2026-07-10 — Activity feed: show the actor name on follow/sub/cheer/raid events — DONE (backend, option b)
 - Resolved backend-side: `NotifyChannelAsync` was hardcoding the top-level `userId`/`userDisplayName`

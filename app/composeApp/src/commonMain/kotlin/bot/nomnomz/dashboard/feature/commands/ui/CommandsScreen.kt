@@ -81,6 +81,7 @@ import nomnomzbot.composeapp.generated.resources.commands_delete_message
 import nomnomzbot.composeapp.generated.resources.commands_delete_title
 import nomnomzbot.composeapp.generated.resources.commands_dialog_cancel
 import nomnomzbot.composeapp.generated.resources.commands_dialog_create
+import nomnomzbot.composeapp.generated.resources.commands_default_template
 import nomnomzbot.composeapp.generated.resources.commands_dialog_create_title
 import nomnomzbot.composeapp.generated.resources.commands_dialog_edit_title
 import nomnomzbot.composeapp.generated.resources.commands_dialog_enabled_label
@@ -469,8 +470,13 @@ private fun CommandFormDialog(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
+    // Pre-fill a sensible default template when creating a fresh command (owner ask: no empty template inputs);
+    // an edit keeps the stored response verbatim.
+    val defaultTemplate: String = stringResource(Res.string.commands_default_template)
     var name: String by remember { mutableStateOf(editor.name) }
-    var response: String by remember { mutableStateOf(editor.response) }
+    var response: String by remember {
+        mutableStateOf(if (!editor.isEdit && editor.response.isBlank()) defaultTemplate else editor.response)
+    }
     var selectedPipelineId: String? by remember { mutableStateOf(editor.pipelineId) }
     var enabled: Boolean by remember { mutableStateOf(editor.isEnabled) }
     var pipelineMenuOpen: Boolean by remember { mutableStateOf(false) }

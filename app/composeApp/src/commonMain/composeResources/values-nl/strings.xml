@@ -492,6 +492,8 @@
     <string name="commands_action_error">Actie mislukt: %1$s</string>
     <string name="commands_dialog_create_title">Nieuw commando</string>
     <string name="commands_dialog_edit_title">Commando bewerken</string>
+    <!-- Vooraf ingevuld standaardsjabloon voor een nieuw commando (owner-verzoek: geen lege sjabloonvelden). -->
+    <string name="commands_default_template">Hallo {user}!</string>
     <string name="commands_dialog_name_label">Naam of trigger</string>
     <string name="commands_dialog_response_label">Antwoord</string>
     <string name="commands_dialog_enabled_label">Ingeschakeld</string>
