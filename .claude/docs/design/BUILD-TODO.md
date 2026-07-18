@@ -59,3 +59,10 @@ desktop device-flow scope re-grant · schedule .ics · the multi-file `src/` edi
   (the watch UI shipped; the link model + one-ban-to-all-platforms is the design part); **import**
   feasibility for Streamer.bot (`.sb`) + provider overlays (opaque formats). (Resolved this session:
   pick-lists rename ✓, games/commands precedence ✓.)
+
+## new issues found
+- [ ] the widget editor is not a vscode style editor and does not have any syntax highlighting, the preview does nothing and the whole thing is pretty much useless because the code section does not scroll.
+- [ ] widgets also do not widget what the widget is supposed to widget, so i don't know what happened there but it looks like it is till the old generic test thing and not the actual widget i choose from the available widgets.
+- [ ] i think you have not done ANY testing for the obs comminication and control for either locally hosted or via a control widget within obs.
+- [ ] i need every feature to be fully tested as if a human is interacting with the pages and features.
+- [ ] i want you to take every command, widget and event hook and port it to the new bot WITHOUT hardcoding it, we should have all the options to get the same experience and features as the old bot, and if you are not able to do that then you need to ensure this gets to be possible with all the generic tooling of the new bot. DO NOT HARDCODE MY OLD BOT'S CODE, GENERIC TOOLING IS THE ONLY WAY TO GO, AND IF YOU ARE NOT ABLE TO DO THAT THEN YOU NEED TO ENSURE THAT IT IS POSSIBLE WITH THE NEW BOT'S GENERIC TOOLING.
