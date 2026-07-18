@@ -428,12 +428,24 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
         CancellationToken ct
     )
     {
-        string code = response.StatusCode switch
+        (string code, string message) = response.StatusCode switch
         {
-            HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "DISCORD_UNAUTHORIZED",
-            HttpStatusCode.NotFound => "DISCORD_NOT_FOUND",
-            HttpStatusCode.TooManyRequests => "DISCORD_RATE_LIMITED",
-            _ => "DISCORD_ERROR",
+            // A 401/403 from Discord means the stored bot token is invalid/expired or the bot lost access —
+            // a reconnect-the-bot state, not a transient failure. Surface a message the dashboard can show as
+            // a reconnect prompt (the controller maps DISCORD_UNAUTHORIZED to a 409, not a raw 500).
+            HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => (
+                "DISCORD_UNAUTHORIZED",
+                "Discord authorization is invalid or expired. Reconnect the Discord bot to continue."
+            ),
+            HttpStatusCode.NotFound => (
+                "DISCORD_NOT_FOUND",
+                $"Discord request failed ({(int)response.StatusCode})."
+            ),
+            HttpStatusCode.TooManyRequests => (
+                "DISCORD_RATE_LIMITED",
+                $"Discord request failed ({(int)response.StatusCode})."
+            ),
+            _ => ("DISCORD_ERROR", $"Discord request failed ({(int)response.StatusCode})."),
         };
         string? detail = await SafeReadBodyAsync(response, ct);
         _logger.LogWarning(
@@ -441,11 +453,7 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
             (int)response.StatusCode,
             code
         );
-        return Result.Failure<string>(
-            $"Discord request failed ({(int)response.StatusCode}).",
-            code,
-            detail
-        );
+        return Result.Failure<string>(message, code, detail);
     }
 
     private static async Task<string?> SafeReadBodyAsync(

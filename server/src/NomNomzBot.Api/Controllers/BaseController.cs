@@ -142,10 +142,20 @@ public abstract class BaseController : ControllerBase
             or "CAPABILITY_UNSUPPORTED"
             or "MARKETPLACE_NO_PUBLISHER_TOKEN"
             or "MARKETPLACE_AUTH_FAILED" => ConflictResponse(result.ErrorMessage),
-            "RATE_LIMITED" => TooManyRequestsResponse(result.ErrorMessage),
-            "SERVICE_UNAVAILABLE" or "MARKETPLACE_UNAVAILABLE" => ServiceUnavailableResponse(
+            // Discord upstream results are never our fault (500). An invalid/expired bot token or a missing
+            // connection is an actionable "reconnect the Discord bot" state → 409, so the client shows a
+            // reconnect prompt instead of a generic failure; other upstream conditions map to their true class.
+            "DISCORD_UNAUTHORIZED" or "DISCORD_NOT_CONNECTED" => ConflictResponse(
                 result.ErrorMessage
             ),
+            "DISCORD_NOT_FOUND" => NotFoundResponse(result.ErrorMessage),
+            "RATE_LIMITED" or "DISCORD_RATE_LIMITED" => TooManyRequestsResponse(
+                result.ErrorMessage
+            ),
+            "SERVICE_UNAVAILABLE"
+            or "MARKETPLACE_UNAVAILABLE"
+            or "DISCORD_ERROR"
+            or "DISCORD_TRANSPORT" => ServiceUnavailableResponse(result.ErrorMessage),
             _ => InternalServerErrorResponse(result.ErrorMessage),
         };
     }
@@ -193,10 +203,20 @@ public abstract class BaseController : ControllerBase
             or "CAPABILITY_UNSUPPORTED"
             or "MARKETPLACE_NO_PUBLISHER_TOKEN"
             or "MARKETPLACE_AUTH_FAILED" => ConflictResponse(result.ErrorMessage),
-            "RATE_LIMITED" => TooManyRequestsResponse(result.ErrorMessage),
-            "SERVICE_UNAVAILABLE" or "MARKETPLACE_UNAVAILABLE" => ServiceUnavailableResponse(
+            // Discord upstream results are never our fault (500). An invalid/expired bot token or a missing
+            // connection is an actionable "reconnect the Discord bot" state → 409, so the client shows a
+            // reconnect prompt instead of a generic failure; other upstream conditions map to their true class.
+            "DISCORD_UNAUTHORIZED" or "DISCORD_NOT_CONNECTED" => ConflictResponse(
                 result.ErrorMessage
             ),
+            "DISCORD_NOT_FOUND" => NotFoundResponse(result.ErrorMessage),
+            "RATE_LIMITED" or "DISCORD_RATE_LIMITED" => TooManyRequestsResponse(
+                result.ErrorMessage
+            ),
+            "SERVICE_UNAVAILABLE"
+            or "MARKETPLACE_UNAVAILABLE"
+            or "DISCORD_ERROR"
+            or "DISCORD_TRANSPORT" => ServiceUnavailableResponse(result.ErrorMessage),
             _ => InternalServerErrorResponse(result.ErrorMessage),
         };
     }
