@@ -100,6 +100,9 @@ import bot.nomnomz.dashboard.feature.supporters.ui.SupportersScreen
 import bot.nomnomz.dashboard.feature.obs.ui.ObsScreen
 import bot.nomnomz.dashboard.feature.vts.ui.VtsScreen
 import bot.nomnomz.dashboard.feature.automation.ui.AutomationScreen
+import bot.nomnomz.dashboard.feature.mediashare.ui.MediaShareScreen
+import bot.nomnomz.dashboard.feature.mydata.ui.MyDataScreen
+import bot.nomnomz.dashboard.feature.bundles.ui.BundlesScreen
 import bot.nomnomz.dashboard.feature.home.ui.HomeScreen
 import bot.nomnomz.dashboard.feature.integrations.ui.IntegrationsScreen
 import bot.nomnomz.dashboard.feature.liveops.ui.ScheduleScreen
@@ -177,6 +180,9 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_webhooks
 import nomnomzbot.composeapp.generated.resources.shell_nav_admin
 import nomnomzbot.composeapp.generated.resources.shell_nav_code_scripts
 import nomnomzbot.composeapp.generated.resources.shell_nav_automation
+import nomnomzbot.composeapp.generated.resources.shell_nav_mediashare
+import nomnomzbot.composeapp.generated.resources.shell_nav_bundles
+import nomnomzbot.composeapp.generated.resources.shell_nav_mydata
 import nomnomzbot.composeapp.generated.resources.shell_nav_custom_events
 import nomnomzbot.composeapp.generated.resources.shell_nav_federation
 import nomnomzbot.composeapp.generated.resources.shell_nav_obs
@@ -362,6 +368,7 @@ fun ShellScreen(
                     graph = graph,
                     role = role,
                     heldActionKeys = access.heldActionKeys,
+                    isReviewer = user?.isAdmin == true,
                     onChannelDeleted = onLogout,
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
@@ -415,6 +422,7 @@ fun ShellScreen(
                         graph = graph,
                         role = role,
                         heldActionKeys = access.heldActionKeys,
+                        isReviewer = user?.isAdmin == true,
                         onChannelDeleted = onLogout,
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                     )
@@ -456,6 +464,7 @@ private fun ShellContent(
     graph: AppGraph,
     role: ManagementRole?,
     heldActionKeys: Set<String>,
+    isReviewer: Boolean = false,
     onChannelDeleted: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -545,7 +554,8 @@ private fun ShellContent(
                 )
             ShellRoute.Economy -> EconomyScreen(controller = graph.economyController, role = role)
             ShellRoute.Alerts -> AlertsScreen(controller = graph.alertsController, role = role)
-            ShellRoute.Widgets -> WidgetsScreen(controller = graph.widgetsController, role = role)
+            ShellRoute.Widgets ->
+                WidgetsScreen(controller = graph.widgetsController, role = role, isReviewer = isReviewer)
             ShellRoute.Features -> FeaturesScreen(controller = graph.featuresController, role = role)
             ShellRoute.Webhooks -> WebhooksScreen(controller = graph.webhooksController, role = role)
             ShellRoute.Federation -> FederationScreen(controller = graph.federationController, role = role)
@@ -556,6 +566,9 @@ private fun ShellContent(
             ShellRoute.Obs -> ObsScreen(controller = graph.obsController, role = role)
             ShellRoute.Vts -> VtsScreen(controller = graph.vtsController, role = role)
             ShellRoute.Automation -> AutomationScreen(controller = graph.automationController, role = role)
+            ShellRoute.MediaShare -> MediaShareScreen(controller = graph.mediaShareController, role = role)
+            ShellRoute.Bundles -> BundlesScreen(controller = graph.bundlesController, role = role)
+            ShellRoute.MyData -> MyDataScreen(controller = graph.myDataController)
             ShellRoute.Admin -> AdminScreen(controller = graph.adminController)
         }
     }
@@ -1259,6 +1272,9 @@ private fun ShellRoute.icon(): ImageVector =
         ShellRoute.Obs -> ObsGlyph
         ShellRoute.Vts -> VtsGlyph
         ShellRoute.Automation -> AutomationGlyph
+        ShellRoute.MediaShare -> MediaShareGlyph
+        ShellRoute.Bundles -> BundlesGlyph
+        ShellRoute.MyData -> MyDataGlyph
         ShellRoute.Settings -> SettingsGlyph
         ShellRoute.Admin -> AdminGlyph
     }
@@ -1302,6 +1318,9 @@ private fun ShellRoute.label(): String =
             ShellRoute.Obs -> Res.string.shell_nav_obs
             ShellRoute.Vts -> Res.string.shell_nav_vts
             ShellRoute.Automation -> Res.string.shell_nav_automation
+            ShellRoute.MediaShare -> Res.string.shell_nav_mediashare
+            ShellRoute.Bundles -> Res.string.shell_nav_bundles
+            ShellRoute.MyData -> Res.string.shell_nav_mydata
             ShellRoute.Admin -> Res.string.shell_nav_admin
         }
     )

@@ -262,6 +262,36 @@ class ApiClient(
     }
 
     /**
+     * POSTs a JSON [body] to a file-download endpoint and returns the whole raw response body as bytes — for the
+     * bundle export, which takes a JSON pick-list and streams back a ZIP rather than a `StatusResponseDto<T>`. On a
+     * non-2xx the error body is problem-details JSON, mapped through [parseError] like every other helper.
+     */
+    internal suspend fun postBytesWithBody(path: String, body: Any): ApiResult<ByteArray> {
+        val base: String = baseUrl() ?: return noConnection()
+        val response: HttpResponse =
+            try {
+                httpClient.post("$base/$path") {
+                    contentType(ContentType.Application.Json)
+                    setBody(body)
+                }
+            } catch (cause: Throwable) {
+                return networkFailure(cause)
+            }
+        if (!response.status.isSuccess()) return ApiResult.Failure(parseError(response))
+        return try {
+            ApiResult.Ok(response.body<ByteArray>())
+        } catch (cause: Throwable) {
+            ApiResult.Failure(
+                ApiError(
+                    status = response.status.value,
+                    code = "READ_BODY",
+                    message = cause.message ?: "Could not read the response body.",
+                )
+            )
+        }
+    }
+
+    /**
      * POSTs multipart/form-data with one file part ([fileFieldName]) plus additional string [fields] to a
      * `StatusResponseDto<T>` endpoint — for sound-clip uploads where the server also expects text fields
      * (name, displayName, defaultVolume) alongside the audio bytes.

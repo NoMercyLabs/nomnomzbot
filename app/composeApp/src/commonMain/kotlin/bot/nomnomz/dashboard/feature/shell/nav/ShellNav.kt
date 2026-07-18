@@ -33,6 +33,7 @@ enum class ShellRoute {
     SongRequests,
     Music,
     SoundClips,
+    MediaShare,
     Tts,
     Widgets,
     Alerts,
@@ -52,7 +53,9 @@ enum class ShellRoute {
     Obs,
     Vts,
     Automation,
+    Bundles,
     Settings,
+    MyData,
     Admin,
 }
 
@@ -120,6 +123,9 @@ object ShellNav {
             NavPage(ShellRoute.Music, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "music:config:read"),
             NavPage(ShellRoute.SongRequests, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
             NavPage(ShellRoute.SoundClips, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "sounds:read"),
+            // Media Share: mods read + moderate the viewer clip queue (media:read / media:moderate, Moderator); the
+            // config write floors at Editor (media:write), gated per-control inside the page.
+            NavPage(ShellRoute.MediaShare, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "media:read"),
             NavPage(ShellRoute.Tts, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "tts:config:read"),
             NavPage(ShellRoute.Widgets, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "widget:read"),
             NavPage(ShellRoute.Alerts, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
@@ -146,10 +152,17 @@ object ShellNav {
             // Automation API tokens: read floors at Editor (automation:tokens:read); every write is Broadcaster-only
             // and Critical (automation:tokens:write).
             NavPage(ShellRoute.Automation, NavGroup.Connect, ManagementRole.Editor, ManagementRole.Broadcaster, readActionKey = "automation:tokens:read"),
+            // Bundles: the installed-list read floors at Moderator (bundles:read); export/import write at Editor
+            // (bundles:export / bundles:import); marketplace publish + the publisher token are Broadcaster, gated
+            // per-control inside the page.
+            NavPage(ShellRoute.Bundles, NavGroup.Setup, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "bundles:read"),
             NavPage(ShellRoute.Integrations, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Roles, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Features, NavGroup.Setup, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Settings, NavGroup.Setup, ManagementRole.Moderator, null, readActionKey = null),
+            // My data: the caller's own GDPR self-service (Gate-1). No management action key — it is always the
+            // signed-in user's own data — so it stays on the read floor and gates nothing per-action.
+            NavPage(ShellRoute.MyData, NavGroup.Setup, ManagementRole.Moderator, null, readActionKey = null),
         )
 
     /**

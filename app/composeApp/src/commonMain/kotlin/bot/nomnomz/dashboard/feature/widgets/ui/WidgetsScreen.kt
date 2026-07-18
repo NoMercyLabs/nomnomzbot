@@ -88,6 +88,8 @@ import nomnomzbot.composeapp.generated.resources.widgets_error
 import nomnomzbot.composeapp.generated.resources.widgets_loading
 import nomnomzbot.composeapp.generated.resources.widgets_retry
 import nomnomzbot.composeapp.generated.resources.shell_nav_overlays
+import nomnomzbot.composeapp.generated.resources.widgets_submit_action
+import nomnomzbot.composeapp.generated.resources.widgets_review_action
 import nomnomzbot.composeapp.generated.resources.widgets_subtitle
 import nomnomzbot.composeapp.generated.resources.widgets_toggle_action
 import nomnomzbot.composeapp.generated.resources.widgets_url_copied
@@ -154,7 +156,7 @@ import org.jetbrains.compose.resources.stringResource
 // edited (the compile-on-save code editor), rolled back to a past version, or deleted — deletion is destructive
 // (its browser-source URL stops resolving once gone), so it confirms first.
 @Composable
-fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
+fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReviewer: Boolean = false) {
     val state: WidgetsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val tokens = LocalTokens.current
@@ -178,6 +180,8 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
     var pendingRollback: PendingRollback? by remember { mutableStateOf(null) }
     var showCreateDialog: Boolean by remember { mutableStateOf(false) }
     var showGalleryDialog: Boolean by remember { mutableStateOf(false) }
+    var showSubmitDialog: Boolean by remember { mutableStateOf(false) }
+    var showReviewQueue: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -200,6 +204,24 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
                     variant = ButtonVariant.Outline,
                 ) {
                     Text(stringResource(Res.string.widgets_gallery_action))
+                }
+                // Submitting a community widget is open to any signed-in user (it lands in the review queue,
+                // not the live catalogue) — the backend validates the SHA/URL and gates the eventual verify.
+                Button(
+                    onClick = { showSubmitDialog = true },
+                    variant = ButtonVariant.Outline,
+                ) {
+                    Text(stringResource(Res.string.widgets_submit_action))
+                }
+                // The review queue only appears for a platform reviewer (gallery:review). The backend is the real
+                // gate — a non-reviewer's list is scoped to their own items and every review write 403s.
+                if (isReviewer) {
+                    Button(
+                        onClick = { showReviewQueue = true },
+                        variant = ButtonVariant.Outline,
+                    ) {
+                        Text(stringResource(Res.string.widgets_review_action))
+                    }
                 }
                 ManageGate(manage) {
                     Button(onClick = { showCreateDialog = true }) {
@@ -324,6 +346,23 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?) {
                 scope.launch { controller.cloneFromGallery(item.id, editorMessages) }
             },
             onDismiss = { showGalleryDialog = false },
+        )
+    }
+
+    if (showSubmitDialog) {
+        WidgetSubmitDialog(
+            submit = { body -> controller.submitToGallery(body) },
+            onDismiss = { showSubmitDialog = false },
+        )
+    }
+
+    if (showReviewQueue) {
+        WidgetReviewSheet(
+            loadQueue = { status -> controller.listReviewQueue(status) },
+            loadDetail = { id -> controller.galleryItemDetail(id) },
+            onReview = { id, body -> controller.reviewGalleryItem(id, body) },
+            onPin = { id, body -> controller.pinGalleryItem(id, body) },
+            onDismiss = { showReviewQueue = false },
         )
     }
 }

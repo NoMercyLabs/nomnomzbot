@@ -21,28 +21,47 @@ import kotlinx.serialization.json.JsonObject
 // interface and fakes it in tests without HTTP.
 //
 // Backend routes (WidgetGalleryController):
-//   GET /api/v1/widget-gallery                    →  PaginatedResponse<GalleryItemSummary>  (framework? + trustTier? filters)
-//   GET /api/v1/widget-gallery/{galleryItemId}    →  StatusResponseDto<GalleryItemDetail>   (the full item incl. its source)
+//   GET  /api/v1/widget-gallery                    →  PaginatedResponse<GalleryItemSummary>  (framework? + trustTier? + reviewStatus? filters)
+//   GET  /api/v1/widget-gallery/{galleryItemId}    →  StatusResponseDto<GalleryItemDetail>   (the full item incl. its source + review meta)
+//   POST /api/v1/widget-gallery                    →  StatusResponseDto<GalleryItemDetail>   (community submit — any signed-in user)
+//   POST /api/v1/widget-gallery/{id}/review        →  StatusResponseDto<GalleryItemDetail>   (reviewer: in_review|verified|rejected)
+//   POST /api/v1/widget-gallery/{id}/pin           →  StatusResponseDto<GalleryItemDetail>   (reviewer: re-pin — kicks back to in_review)
 interface WidgetGalleryApi {
     /**
-     * Browse the verified widget catalogue, newest page first. Optional [framework] / [trustTier] narrow the
-     * list; a blank/null filter is omitted from the query so an unfiltered browse sends neither.
+     * Browse the widget catalogue, newest page first. Optional [framework] / [trustTier] narrow the list; a
+     * blank/null filter is omitted. [reviewStatus] is the REVIEWER-only queue filter (`submitted` / `in_review`
+     * / `verified` / `rejected`) — the backend ignores it for a non-reviewer, so an unfiltered browse omits it.
      */
     suspend fun listGallery(
         framework: String? = null,
         trustTier: String? = null,
+        reviewStatus: String? = null,
         page: Int = 1,
         pageSize: Int = 50,
     ): ApiResult<List<GalleryItemSummary>>
 
-    /** One gallery item in full — carries its [GalleryItemDetail.sourceCode] + default config for the preview. */
+    /** One gallery item in full — carries its [GalleryItemDetail.sourceCode] + default config + review metadata. */
     suspend fun getGalleryItem(galleryItemId: String): ApiResult<GalleryItemDetail>
+
+    /**
+     * Submit a community widget for review (any signed-in user). The [SubmitGalleryItemBody.pinnedCommitSha] must
+     * be the FULL 40-hex commit and the [SubmitGalleryItemBody.gitHubRepoUrl] a `https://github.com/{owner}/{repo}`
+     * URL — the backend validation errors surface as the failure detail. Lands `reviewStatus=submitted`.
+     */
+    suspend fun submitGalleryItem(body: SubmitGalleryItemBody): ApiResult<GalleryItemDetail>
+
+    /** Reviewer decision on [galleryItemId]: `in_review` | `verified` | `rejected`, with optional notes + SaaS flag. */
+    suspend fun reviewGalleryItem(galleryItemId: String, body: ReviewGalleryItemBody): ApiResult<GalleryItemDetail>
+
+    /** Re-pin [galleryItemId] to a new commit/tag — ALWAYS kicks the item back to `in_review` and off the public list. */
+    suspend fun pinGalleryItem(galleryItemId: String, body: PinGalleryItemBody): ApiResult<GalleryItemDetail>
 }
 
 class RestWidgetGalleryApi(private val client: ApiClient) : WidgetGalleryApi {
     override suspend fun listGallery(
         framework: String?,
         trustTier: String?,
+        reviewStatus: String?,
         page: Int,
         pageSize: Int,
     ): ApiResult<List<GalleryItemSummary>> {
@@ -51,6 +70,7 @@ class RestWidgetGalleryApi(private val client: ApiClient) : WidgetGalleryApi {
         val query: StringBuilder = StringBuilder("api/v1/widget-gallery?page=$page&pageSize=$pageSize")
         framework?.takeIf { it.isNotBlank() }?.let { query.append("&framework=").append(it) }
         trustTier?.takeIf { it.isNotBlank() }?.let { query.append("&trustTier=").append(it) }
+        reviewStatus?.takeIf { it.isNotBlank() }?.let { query.append("&reviewStatus=").append(it) }
         return when (
             val result: ApiResult<PaginatedEnvelope<GalleryItemSummary>> = client.getDirect(query.toString())
         ) {
@@ -61,6 +81,21 @@ class RestWidgetGalleryApi(private val client: ApiClient) : WidgetGalleryApi {
 
     override suspend fun getGalleryItem(galleryItemId: String): ApiResult<GalleryItemDetail> =
         client.getEnvelope("api/v1/widget-gallery/$galleryItemId")
+
+    override suspend fun submitGalleryItem(body: SubmitGalleryItemBody): ApiResult<GalleryItemDetail> =
+        client.postEnvelope("api/v1/widget-gallery", body)
+
+    override suspend fun reviewGalleryItem(
+        galleryItemId: String,
+        body: ReviewGalleryItemBody,
+    ): ApiResult<GalleryItemDetail> =
+        client.postEnvelope("api/v1/widget-gallery/$galleryItemId/review", body)
+
+    override suspend fun pinGalleryItem(
+        galleryItemId: String,
+        body: PinGalleryItemBody,
+    ): ApiResult<GalleryItemDetail> =
+        client.postEnvelope("api/v1/widget-gallery/$galleryItemId/pin", body)
 }
 
 /**
@@ -100,6 +135,52 @@ data class GalleryItemDetail(
     val defaultSettings: JsonObject? = null,
     val defaultEventSubscriptions: List<String> = emptyList(),
     val sourceCode: String? = null,
+    // Community-submission + review metadata (widgets-overlays.md §5c) — populated for a GitHub-sourced item; the
+    // review queue reads these off the detail. reviewStatus ∈ submitted | in_review | verified | rejected.
+    val gitHubRepoUrl: String? = null,
+    val pinnedCommitSha: String? = null,
+    val pinnedTag: String? = null,
+    val reviewStatus: String = "",
+    val reviewNotes: String? = null,
+    val reviewedAt: String? = null,
+    val createdAt: String = "",
+)
+
+/**
+ * The community submit body (backend `SubmitGalleryItemRequest`) — a signed-in user proposes a GitHub-hosted
+ * widget for review. [pinnedCommitSha] must be the FULL 40-hex commit; [gitHubRepoUrl] must be a
+ * `https://github.com/{owner}/{repo}` URL. [framework] is `vanilla | vue | react | svelte`.
+ */
+@Serializable
+data class SubmitGalleryItemBody(
+    val name: String,
+    val framework: String,
+    val gitHubRepoUrl: String,
+    val pinnedCommitSha: String,
+    val pinnedTag: String? = null,
+    val description: String? = null,
+)
+
+/**
+ * A reviewer's verdict on a submission (backend `ReviewGalleryItemRequest`). [reviewStatus] is
+ * `in_review | verified | rejected`; [availableInSaaS] offers a verified item on the hosted tier.
+ */
+@Serializable
+data class ReviewGalleryItemBody(
+    val reviewStatus: String,
+    val reviewNotes: String? = null,
+    val availableInSaaS: Boolean = false,
+)
+
+/**
+ * A reviewer re-pin (backend `UpdatePinRequest`) — moves the item to a new [pinnedCommitSha] / [pinnedTag]. A
+ * re-pin ALWAYS returns the item to `in_review` and off the public list, so warn the reviewer in the UI.
+ */
+@Serializable
+data class PinGalleryItemBody(
+    val pinnedCommitSha: String,
+    val pinnedTag: String? = null,
+    val note: String? = null,
 )
 
 /**

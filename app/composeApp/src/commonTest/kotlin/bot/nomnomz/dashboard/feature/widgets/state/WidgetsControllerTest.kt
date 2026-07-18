@@ -23,6 +23,9 @@ import bot.nomnomz.dashboard.core.network.GalleryListRequest
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.core.network.ProjectManifestDto
+import bot.nomnomz.dashboard.core.network.PinGalleryItemBody
+import bot.nomnomz.dashboard.core.network.ReviewGalleryItemBody
+import bot.nomnomz.dashboard.core.network.SubmitGalleryItemBody
 import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetTemplate
@@ -642,6 +645,7 @@ private class FakeWidgetGalleryApi(
     override suspend fun listGallery(
         framework: String?,
         trustTier: String?,
+        reviewStatus: String?,
         page: Int,
         pageSize: Int,
     ): ApiResult<List<GalleryItemSummary>> {
@@ -650,4 +654,16 @@ private class FakeWidgetGalleryApi(
     }
 
     override suspend fun getGalleryItem(galleryItemId: String): ApiResult<GalleryItemDetail> = detail
+
+    override suspend fun submitGalleryItem(body: SubmitGalleryItemBody): ApiResult<GalleryItemDetail> = detail
+
+    override suspend fun reviewGalleryItem(
+        galleryItemId: String,
+        body: ReviewGalleryItemBody,
+    ): ApiResult<GalleryItemDetail> = detail
+
+    override suspend fun pinGalleryItem(
+        galleryItemId: String,
+        body: PinGalleryItemBody,
+    ): ApiResult<GalleryItemDetail> = detail
 }

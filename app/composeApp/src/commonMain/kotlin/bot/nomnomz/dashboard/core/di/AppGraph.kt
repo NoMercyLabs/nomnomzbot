@@ -40,6 +40,17 @@ import bot.nomnomz.dashboard.core.network.AutomationApi
 import bot.nomnomz.dashboard.core.network.DiscordApi
 import bot.nomnomz.dashboard.core.network.ObsApi
 import bot.nomnomz.dashboard.core.network.RestAutomationApi
+import bot.nomnomz.dashboard.core.network.GdprApi
+import bot.nomnomz.dashboard.core.network.RestGdprApi
+import bot.nomnomz.dashboard.core.network.MediaShareApi
+import bot.nomnomz.dashboard.core.network.RestMediaShareApi
+import bot.nomnomz.dashboard.core.network.BundlesApi
+import bot.nomnomz.dashboard.core.network.RestBundlesApi
+import bot.nomnomz.dashboard.core.network.MarketplaceApi
+import bot.nomnomz.dashboard.core.network.RestMarketplaceApi
+import bot.nomnomz.dashboard.feature.mydata.state.MyDataController
+import bot.nomnomz.dashboard.feature.mediashare.state.MediaShareController
+import bot.nomnomz.dashboard.feature.bundles.state.BundlesController
 import bot.nomnomz.dashboard.core.network.RestObsApi
 import bot.nomnomz.dashboard.core.network.RestVtsApi
 import bot.nomnomz.dashboard.core.network.VtsApi
@@ -328,6 +339,10 @@ class AppGraph {
     val obsApi: ObsApi = RestObsApi(apiClient)
     val vtsApi: VtsApi = RestVtsApi(apiClient)
     val automationApi: AutomationApi = RestAutomationApi(apiClient)
+    val gdprApi: GdprApi = RestGdprApi(apiClient)
+    val mediaShareApi: MediaShareApi = RestMediaShareApi(apiClient)
+    val bundlesApi: BundlesApi = RestBundlesApi(apiClient)
+    val marketplaceApi: MarketplaceApi = RestMarketplaceApi(apiClient)
 
     private val oauthLauncher: OAuthLauncher = OAuthLauncher()
     private val connectLauncher: ConnectLauncher = OAuthConnectLauncher(oauthLauncher)
@@ -532,6 +547,31 @@ class AppGraph {
             channelsApi = channelsApi,
             automationApi = automationApi,
             pipelinesApi = pipelinesApi,
+        )
+
+    // The personal GDPR "My data" plane (Gate-1 — the caller's own data). Reuses the shared journal file bridge
+    // for the export download; the current user id (for consent grants) reads live from the session.
+    val myDataController: MyDataController =
+        MyDataController(
+            gdprApi = gdprApi,
+            fileBridge = journalFileBridge,
+            currentUserId = { sessionStore.user.value?.id },
+        )
+
+    val mediaShareController: MediaShareController = MediaShareController(mediaShareApi = mediaShareApi)
+
+    // Local bundle packs + the hosted marketplace client. The export/import ZIP round-trips through the shared
+    // journal file bridge; the export picker lists the channel's own commands/pipelines/widgets/sounds.
+    val bundlesController: BundlesController =
+        BundlesController(
+            channelsApi = channelsApi,
+            bundlesApi = bundlesApi,
+            marketplaceApi = marketplaceApi,
+            commandsApi = commandsApi,
+            pipelinesApi = pipelinesApi,
+            widgetsApi = widgetsApi,
+            soundApi = soundApi,
+            fileBridge = journalFileBridge,
         )
 
     val rolesController: RolesController =

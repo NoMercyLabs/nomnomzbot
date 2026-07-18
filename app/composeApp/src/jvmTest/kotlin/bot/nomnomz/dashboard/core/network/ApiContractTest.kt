@@ -218,6 +218,30 @@ class ApiContractTest {
             CreateAutomationTokenBody.serializer() to "CreateAutomationTokenRequest",
             PairingCode.serializer() to "PairingCodeDto",
             MintPairingCodeBody.serializer() to "MintPairingCodeRequest",
+            // Widget gallery — community submit + reviewer queue (widgets-overlays.md §5c). GalleryItemSummary /
+            // GalleryItemDetail are registered above; these are the new request bodies.
+            SubmitGalleryItemBody.serializer() to "SubmitGalleryItemRequest",
+            ReviewGalleryItemBody.serializer() to "ReviewGalleryItemRequest",
+            PinGalleryItemBody.serializer() to "UpdatePinRequest",
+            // My data (GDPR self-service). RequestErasureBody is a deliberate one-field subset with no matching
+            // named schema, so it is intentionally NOT registered.
+            DataExport.serializer() to "DataExportDto",
+            ErasureRequest.serializer() to "ErasureRequestDto",
+            ConsentRecord.serializer() to "ConsentRecordDto",
+            GrantConsentBody.serializer() to "GrantConsentRequest",
+            // Media Share (viewer clip queue).
+            MediaShareRequest.serializer() to "MediaShareRequestDto",
+            MediaShareConfig.serializer() to "MediaShareConfigDto",
+            UpdateMediaShareConfigBody.serializer() to "UpdateMediaShareConfigRequest",
+            ReorderMediaBody.serializer() to "ReorderMediaRequest",
+            // Bundles + marketplace. The inspect/import/installed/publish RESPONSES are untyped objects on the
+            // backend (no named schema), so only the request bodies + the marketplace item DTO are registered.
+            ExportItemRef.serializer() to "ExportItemRef",
+            BundleMetadataBody.serializer() to "BundleMetadata",
+            ExportBody.serializer() to "ExportRequest",
+            MarketplaceItem.serializer() to "MarketplaceItemDto",
+            MarketplaceInstallBody.serializer() to "MarketplaceInstallRequest",
+            PublisherTokenBody.serializer() to "MarketplacePublisherTokenRequest",
         )
 
     @Test

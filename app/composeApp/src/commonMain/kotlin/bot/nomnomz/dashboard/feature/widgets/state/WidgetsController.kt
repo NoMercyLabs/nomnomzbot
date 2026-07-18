@@ -17,9 +17,13 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateWidgetBody
+import bot.nomnomz.dashboard.core.network.GalleryItemDetail
 import bot.nomnomz.dashboard.core.network.GalleryItemSummary
 import bot.nomnomz.dashboard.core.network.GalleryListRequest
+import bot.nomnomz.dashboard.core.network.PinGalleryItemBody
 import bot.nomnomz.dashboard.core.network.ProjectDto
+import bot.nomnomz.dashboard.core.network.ReviewGalleryItemBody
+import bot.nomnomz.dashboard.core.network.SubmitGalleryItemBody
 import bot.nomnomz.dashboard.core.network.ProjectManifestDto
 import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
 import bot.nomnomz.dashboard.core.network.WidgetSummary
@@ -178,7 +182,43 @@ class WidgetsController(
      * itself) needs no channel resolve.
      */
     suspend fun listGallery(request: GalleryListRequest): ApiResult<List<GalleryItemSummary>> =
-        widgetGalleryApi.listGallery(request.framework, request.trustTier, request.page, request.pageSize)
+        widgetGalleryApi.listGallery(
+            framework = request.framework,
+            trustTier = request.trustTier,
+            page = request.page,
+            pageSize = request.pageSize,
+        )
+
+    /**
+     * Submit a community widget to the gallery for review (any signed-in user). Returns the raw result so the
+     * submit dialog surfaces the backend validation errors (bad SHA / URL) inline without disturbing the page.
+     */
+    suspend fun submitToGallery(body: SubmitGalleryItemBody): ApiResult<GalleryItemDetail> =
+        widgetGalleryApi.submitGalleryItem(body)
+
+    /**
+     * The reviewer queue read (`gallery:review`): the submissions awaiting a verdict. The status filter only works
+     * for a reviewer server-side; a non-reviewer gets their own items. Returns raw so the review panel renders its
+     * own loading/error/list without touching the overlays [state].
+     */
+    suspend fun listReviewQueue(reviewStatus: String): ApiResult<List<GalleryItemSummary>> =
+        widgetGalleryApi.listGallery(reviewStatus = reviewStatus, pageSize = 100)
+
+    /** Load one gallery item in full (its review metadata + source) for the review detail panel. */
+    suspend fun galleryItemDetail(galleryItemId: String): ApiResult<GalleryItemDetail> =
+        widgetGalleryApi.getGalleryItem(galleryItemId)
+
+    /** Reviewer verdict on a submission. Returns the raw result so the panel refreshes the queue on success. */
+    suspend fun reviewGalleryItem(
+        galleryItemId: String,
+        body: ReviewGalleryItemBody,
+    ): ApiResult<GalleryItemDetail> = widgetGalleryApi.reviewGalleryItem(galleryItemId, body)
+
+    /** Reviewer re-pin — moves the item to a new commit and back to `in_review` (off the public list). */
+    suspend fun pinGalleryItem(
+        galleryItemId: String,
+        body: PinGalleryItemBody,
+    ): ApiResult<GalleryItemDetail> = widgetGalleryApi.pinGalleryItem(galleryItemId, body)
 
     /**
      * Install a gallery item into the active channel (compiled + live), then reload so the new overlay appears in

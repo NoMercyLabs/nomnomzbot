@@ -146,7 +146,15 @@ class ShellNavTest {
                 .toSet()
 
         assertEquals(
-            setOf(ShellRoute.Chat, ShellRoute.Moderation, ShellRoute.Community, ShellRoute.Giveaways),
+            setOf(
+                ShellRoute.Chat,
+                ShellRoute.Moderation,
+                ShellRoute.Community,
+                ShellRoute.Giveaways,
+                // Media Share: the mod clip queue moderate actions floor at Moderator (media:moderate); the config
+                // card inside the page gates separately at Editor.
+                ShellRoute.MediaShare,
+            ),
             manageable,
         )
     }
