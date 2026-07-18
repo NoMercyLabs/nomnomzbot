@@ -17,6 +17,7 @@ using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 
@@ -281,6 +282,49 @@ public class WidgetsController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<WidgetVersionDetail> { Data = result.Value });
+    }
+
+    /// <summary>
+    /// Load the widget's current multi-file project (its <c>src/</c> file set + manifest) for the editor to open.
+    /// </summary>
+    [RequireAction("widget:read")]
+    [HttpGet("{widgetId}/project")]
+    [ProducesResponseType<StatusResponseDto<ProjectDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetWidgetProject(
+        string channelId,
+        string widgetId,
+        CancellationToken ct
+    )
+    {
+        Result<ProjectDto> result = await _widgetService.GetProjectAsync(
+            channelId,
+            Decode(widgetId),
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Save the widget's multi-file project (file set + manifest): the server re-builds it (the trust boundary) and,
+    /// on a clean build, appends a new active version. A failed build returns the reason and persists nothing.
+    /// </summary>
+    [RequireAction("widget:write")]
+    [HttpPut("{widgetId}/project")]
+    [ProducesResponseType<StatusResponseDto<WidgetVersionDetail>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SaveWidgetProject(
+        string channelId,
+        string widgetId,
+        [FromBody] ProjectDto project,
+        CancellationToken ct
+    )
+    {
+        Result<WidgetVersionDetail> result = await _widgetService.SaveProjectAsync(
+            channelId,
+            Decode(widgetId),
+            project,
+            ct
+        );
+        return ResultResponse(result);
     }
 
     /// <summary>List a widget's build/version history, newest first.</summary>

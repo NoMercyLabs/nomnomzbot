@@ -17,6 +17,7 @@ using NomNomzBot.Domain.CustomCode.Events;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Widgets.Bundling;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.CustomCode;
@@ -43,7 +44,8 @@ public sealed class CodeScriptServiceTests
             tenant,
             new JintScriptExecutor(),
             bus,
-            new FakeTimeProvider(Now)
+            new FakeTimeProvider(Now),
+            new WidgetDependencyAllowlist()
         );
         return (sut, db, bus);
     }

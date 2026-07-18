@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.DevPlatform.Projects;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
@@ -551,6 +552,125 @@ public class WidgetService : IWidgetService
         return Result.Success(ToVersionDetail(version));
     }
 
+    public async Task<Result<ProjectDto>> GetProjectAsync(
+        string broadcasterId,
+        string widgetId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+        )
+            return Errors.NotFound<ProjectDto>("Widget", widgetId);
+
+        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
+            cancellationToken
+        );
+        if (widget is null)
+            return Errors.NotFound<ProjectDto>("Widget", widgetId);
+
+        // The editor opens the LATEST authored version (what "compile-on-save" last wrote, success or not), so the
+        // author resumes from their most recent save rather than the currently-live one.
+        WidgetVersion? latest = await _db
+            .WidgetVersions.Where(v => v.WidgetId == widgetGuid)
+            .OrderByDescending(v => v.VersionNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (latest is null)
+            return Result.Failure<ProjectDto>(
+                "This widget has no saved project yet — compile a first version.",
+                "NOT_FOUND"
+            );
+
+        return Result.Success(ToProjectDto(latest, widget.Framework));
+    }
+
+    public async Task<Result<WidgetVersionDetail>> SaveProjectAsync(
+        string broadcasterId,
+        string widgetId,
+        ProjectDto project,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+        )
+            return Errors.NotFound<WidgetVersionDetail>("Widget", widgetId);
+
+        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
+            cancellationToken
+        );
+        if (widget is null)
+            return Errors.NotFound<WidgetVersionDetail>("Widget", widgetId);
+
+        ProjectManifest manifest = project.Manifest.ToManifest();
+
+        // The trust boundary (dev-platform.md §4.2): re-build the submitted project server-side rather than trust any
+        // client bundle. BuildAsync runs the entry-exists, path-traversal, and dependency-allowlist guards (phase 3)
+        // AND the bundler — one call covers validation + compile. A failure means NOTHING is persisted (append-only
+        // history stays a record of real saves, not rejected attempts), and the reason is surfaced to the editor.
+        Result<WidgetBuildOutput> build = await _buildService.BuildAsync(
+            new WidgetBuildInput(manifest, project.Files),
+            cancellationToken
+        );
+        if (build.IsFailure)
+            return Result.Failure<WidgetVersionDetail>(
+                build.ErrorMessage ?? "The widget project failed to build.",
+                MapProjectBuildFailureCode(build.ErrorCode)
+            );
+
+        int nextNumber =
+            (
+                await _db
+                    .WidgetVersions.Where(v => v.WidgetId == widget.Id)
+                    .Select(v => (int?)v.VersionNumber)
+                    .MaxAsync(cancellationToken)
+            ) ?? 0;
+        nextNumber += 1;
+
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
+        WidgetVersion version = new()
+        {
+            WidgetId = widget.Id,
+            BroadcasterId = broadcasterGuid,
+            VersionNumber = nextNumber,
+            // The legacy single-source column keeps the entry file's content so consumers that read SourceCode still work.
+            SourceCode = project.Files[manifest.Entry],
+            FilesJson = ProjectJson.SerializeFiles(project.Files),
+            ManifestJson = ProjectJson.SerializeManifest(manifest),
+            BuildStatus = "success",
+            CompiledBundle = build.Value.CompiledBundle,
+            ContentHash = build.Value.ContentHash,
+            BuildLog = build.Value.BuildLog,
+            CompiledAt = now,
+            CreatedAt = now,
+        };
+        _db.WidgetVersions.Add(version);
+
+        // Keep the widget's declared framework in lock-step with the saved manifest so the two never drift.
+        widget.Framework = manifest.Framework;
+        widget.ActiveVersionId = version.Id;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        await _eventBus.PublishAsync(
+            new WidgetBuildSucceededEvent
+            {
+                BroadcasterId = broadcasterGuid,
+                WidgetId = widget.Id,
+                VersionId = version.Id,
+                VersionNumber = version.VersionNumber,
+                ContentHash = build.Value.ContentHash,
+            },
+            cancellationToken
+        );
+        await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "updated", cancellationToken);
+
+        return Result.Success(ToVersionDetail(version));
+    }
+
     public async Task<Result<PagedList<WidgetVersionSummary>>> ListVersionsAsync(
         string broadcasterId,
         string widgetId,
@@ -840,6 +960,31 @@ public class WidgetService : IWidgetService
 
     private static string GenerateCspNonce() =>
         Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
+
+    // Project a stored version's file set + manifest back to the editor's wire shape. A legacy row whose
+    // FilesJson/ManifestJson was never backfilled is projected as its one-file scaffold from the compiled SourceCode,
+    // so GET always returns a coherent project.
+    private static ProjectDto ToProjectDto(WidgetVersion version, string framework)
+    {
+        Dictionary<string, string>? files = ProjectJson.DeserializeFiles(version.FilesJson);
+        ProjectManifest? manifest = ProjectJson.DeserializeManifest(version.ManifestJson);
+        if (files is null || manifest is null)
+            (files, manifest) = ProjectScaffold.SingleFile(
+                "widget",
+                framework,
+                version.SourceCode ?? string.Empty
+            );
+
+        return new ProjectDto(files, ProjectManifestDto.FromManifest(manifest));
+    }
+
+    // A project save either persists a successful version or returns a failure — there is no `error` row. Translate
+    // the build boundary's coded failures to an app error code the API maps sanely: a bundler/validation problem is a
+    // 400 (user input), a missing build tool a 503. The build's message (the reason / build log) is surfaced verbatim.
+    private static string MapProjectBuildFailureCode(string? buildErrorCode) =>
+        buildErrorCode == "WIDGET_BUILD_TOOL_UNAVAILABLE"
+            ? "SERVICE_UNAVAILABLE"
+            : "VALIDATION_FAILED";
 
     private static WidgetVersionSummary ToVersionSummary(WidgetVersion v) =>
         new(v.Id, v.VersionNumber, v.BuildStatus, v.ContentHash, v.CompiledAt, v.CreatedAt);

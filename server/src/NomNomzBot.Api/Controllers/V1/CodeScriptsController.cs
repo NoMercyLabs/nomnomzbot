@@ -16,6 +16,7 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.Platform.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -89,6 +90,33 @@ public class CodeScriptsController(
         return gate.IsFailure
             ? ResultResponse(gate)
             : ResultResponse(await scripts.CreateVersionAsync(id, request, ct));
+    }
+
+    /// <summary>Load a script's current multi-file project (its <c>src/</c> file set + manifest) for the editor.</summary>
+    [HttpGet("{id:guid}/project")]
+    public async Task<IActionResult> GetProject(Guid id, CancellationToken ct)
+    {
+        Result gate = await FeatureGateAsync(ct);
+        return gate.IsFailure
+            ? ResultResponse(gate)
+            : ResultResponse(await scripts.GetProjectAsync(id, ct));
+    }
+
+    /// <summary>
+    /// Save a script's multi-file project (file set + manifest): validate + compile the entry, then append and
+    /// publish a new version on success. A validation or compile failure returns the reason and persists nothing.
+    /// </summary>
+    [HttpPut("{id:guid}/project")]
+    public async Task<IActionResult> SaveProject(
+        Guid id,
+        [FromBody] ProjectDto project,
+        CancellationToken ct
+    )
+    {
+        Result gate = await FeatureGateAsync(ct);
+        return gate.IsFailure
+            ? ResultResponse(gate)
+            : ResultResponse(await scripts.SaveProjectAsync(id, project, ct));
     }
 
     /// <summary>List a code script's versions, paginated.</summary>

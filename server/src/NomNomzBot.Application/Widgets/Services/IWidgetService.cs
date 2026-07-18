@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.Widgets.Dtos;
 
 namespace NomNomzBot.Application.Widgets.Services;
@@ -69,6 +70,32 @@ public interface IWidgetService
         string broadcasterId,
         string widgetId,
         CompileWidgetRequest request,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Load the widget's current multi-file project (its latest version's file set + manifest) for the editor to
+    /// open (dev-platform.md §8). A legacy version whose <c>FilesJson</c> is null is projected as its one-file
+    /// scaffold, so the editor always gets a coherent <see cref="ProjectDto"/>. Fails if the widget has no version yet.
+    /// </summary>
+    Task<Result<ProjectDto>> GetProjectAsync(
+        string broadcasterId,
+        string widgetId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Save a multi-file project (dev-platform.md §8): re-build the submitted file set + manifest through the
+    /// multi-file <c>IWidgetBuildService</c> (the trust boundary — the client bundle is never trusted), then, on a
+    /// clean build, append a new successful <c>WidgetVersion</c> (files + manifest + compiled bundle + hash) and
+    /// point the widget at it — exactly like compile-on-save. A failed build (missing entry, un-allowlisted
+    /// dependency, path traversal, or a bundler error) is a <see cref="Result"/> failure carrying the reason; NO
+    /// version is persisted.
+    /// </summary>
+    Task<Result<WidgetVersionDetail>> SaveProjectAsync(
+        string broadcasterId,
+        string widgetId,
+        ProjectDto project,
         CancellationToken cancellationToken = default
     );
 

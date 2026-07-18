@@ -31,4 +31,23 @@ public static class ProjectJson
 
     public static string SerializeFiles(IReadOnlyDictionary<string, string> files) =>
         JsonSerializer.Serialize(files);
+
+    /// <summary>
+    /// Read a stored manifest back into its domain record (the inverse of <see cref="SerializeManifest"/>). Returns
+    /// <c>null</c> for a legacy row whose <c>ManifestJson</c> is empty/absent, so a caller can fall back to the
+    /// single-file scaffold. The camelCase contract matches the write side exactly, so a round-trip is lossless.
+    /// </summary>
+    public static ProjectManifest? DeserializeManifest(string? json) =>
+        string.IsNullOrWhiteSpace(json)
+            ? null
+            : JsonSerializer.Deserialize<ProjectManifest>(json, ManifestOptions);
+
+    /// <summary>
+    /// Read a stored <c>path → content</c> file set back into a dictionary (the inverse of
+    /// <see cref="SerializeFiles"/>). Returns <c>null</c> for a legacy row whose <c>FilesJson</c> is empty/absent.
+    /// </summary>
+    public static Dictionary<string, string>? DeserializeFiles(string? json) =>
+        string.IsNullOrWhiteSpace(json)
+            ? null
+            : JsonSerializer.Deserialize<Dictionary<string, string>>(json);
 }

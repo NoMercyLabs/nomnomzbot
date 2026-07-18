@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.DevPlatform.Dtos;
 
 namespace NomNomzBot.Application.Contracts.CustomCode;
 
@@ -51,6 +52,27 @@ public interface ICodeScriptService
     Task<Result<PagedList<CodeScriptVersionDto>>> ListVersionsAsync(
         Guid codeScriptId,
         PaginationParams paging,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Load a script's current multi-file project (its current version's file set + manifest) for the editor
+    /// (dev-platform.md §8). A legacy version without a stored project is projected as its one-file scaffold.
+    /// </summary>
+    Task<Result<ProjectDto>> GetProjectAsync(
+        Guid codeScriptId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Save a multi-file project (dev-platform.md §8): validate the file set + manifest (entry present, safe paths,
+    /// allowlisted dependencies), compile the manifest entry (validate-on-save), and — only on a valid compile —
+    /// append a new version, store the whole project, and hot-swap it live. A validation or compile failure returns
+    /// the reason and persists NO version.
+    /// </summary>
+    Task<Result<CodeScriptVersionDto>> SaveProjectAsync(
+        Guid codeScriptId,
+        ProjectDto project,
         CancellationToken cancellationToken = default
     );
 

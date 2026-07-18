@@ -14,7 +14,9 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.DevPlatform.Projects;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Events;
 using NomNomzBot.Domain.CustomCode.ValueObjects;
@@ -32,7 +34,8 @@ public sealed class CodeScriptService(
     ICurrentTenantService tenant,
     IScriptExecutor executor,
     IEventBus eventBus,
-    TimeProvider clock
+    TimeProvider clock,
+    IWidgetDependencyAllowlist dependencyAllowlist
 ) : ICodeScriptService
 {
     public async Task<Result<PagedList<CodeScriptSummaryDto>>> ListAsync(
@@ -274,6 +277,93 @@ public sealed class CodeScriptService(
         );
     }
 
+    public async Task<Result<ProjectDto>> GetProjectAsync(
+        Guid codeScriptId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        CodeScript? script = await LoadAsync(codeScriptId, cancellationToken);
+        if (script is null)
+            return Result.Failure<ProjectDto>("Script not found.", "NOT_FOUND");
+
+        // The editor opens the live (current) version, falling back to the newest saved version for a script that was
+        // created but never published a valid version.
+        CodeScriptVersion? version = script.CurrentVersionId is Guid currentId
+            ? await db.CodeScriptVersions.FirstOrDefaultAsync(
+                v => v.Id == currentId,
+                cancellationToken
+            )
+            : await db
+                .CodeScriptVersions.Where(v => v.CodeScriptId == script.Id)
+                .OrderByDescending(v => v.Version)
+                .FirstOrDefaultAsync(cancellationToken);
+        if (version is null)
+            return Result.Failure<ProjectDto>("This script has no saved project yet.", "NOT_FOUND");
+
+        return Result.Success(ToProjectDto(version));
+    }
+
+    public async Task<Result<CodeScriptVersionDto>> SaveProjectAsync(
+        Guid codeScriptId,
+        ProjectDto project,
+        CancellationToken cancellationToken = default
+    )
+    {
+        CodeScript? script = await LoadAsync(codeScriptId, cancellationToken);
+        if (script is null)
+            return Result.Failure<CodeScriptVersionDto>("Script not found.", "NOT_FOUND");
+
+        ProjectManifest manifest = project.Manifest.ToManifest();
+
+        // Pre-build gate (dev-platform.md §4.2), mirroring the widget build's guards: entry present, safe paths,
+        // allowlisted dependencies. A failure persists nothing.
+        Result validation = ProjectValidation.Validate(
+            project.Files,
+            manifest,
+            dependencyAllowlist
+        );
+        if (validation.IsFailure)
+            // Surface the specific reason (missing entry / unsafe path / un-allowlisted dependency) but under one
+            // stable, 400-mapped code so the editor treats every save rejection uniformly.
+            return Result.Failure<CodeScriptVersionDto>(
+                validation.ErrorMessage,
+                "VALIDATION_FAILED"
+            );
+
+        int nextVersion =
+            await db
+                .CodeScriptVersions.Where(v => v.CodeScriptId == script.Id)
+                .MaxAsync(v => (int?)v.Version, cancellationToken)
+            ?? 0;
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+
+        // Compile the manifest entry (validate-on-save). Unlike the audit-keeping create/version paths, a project
+        // save that fails to compile persists NO version — the caller gets the reason to fix and resubmit.
+        CodeScriptVersion version = await BuildVersionFromProjectAsync(
+            script,
+            nextVersion + 1,
+            project.Files,
+            manifest,
+            now,
+            cancellationToken
+        );
+        if (version.ValidationStatus != "valid")
+            return Result.Failure<CodeScriptVersionDto>(
+                FirstValidationError(version),
+                "VALIDATION_FAILED"
+            );
+
+        // A clean compile: append the version, store the whole project, and hot-swap it live (publish).
+        db.CodeScriptVersions.Add(version);
+        version.PublishedAt = now;
+        script.CurrentVersionId = version.Id;
+        script.UpdatedAt = now;
+        await db.SaveChangesAsync(cancellationToken);
+        await EmitValidatedAsync(version, cancellationToken);
+
+        return Result.Success(ToVersionDto(version));
+    }
+
     public async Task<Result> SetEnabledAsync(
         Guid codeScriptId,
         bool isEnabled,
@@ -310,7 +400,7 @@ public sealed class CodeScriptService(
             )
             : null;
 
-    private async Task<CodeScriptVersion> BuildVersionAsync(
+    private Task<CodeScriptVersion> BuildVersionAsync(
         CodeScript script,
         int versionNumber,
         string sourceCode,
@@ -318,23 +408,38 @@ public sealed class CodeScriptService(
         CancellationToken ct
     )
     {
-        Result<ScriptCompilation> compiled = await executor.CompileAsync(sourceCode, ct);
-
-        // Persist the authored source as a one-file project (dev-platform.md §4.2) alongside the legacy SourceCode —
-        // single-file authoring is a FilesJson with one `index.ts` entry. The entry's content stays what the executor
-        // compiled, so the compiled output + serving contract are unchanged.
+        // Single-file authoring is a one-file project (dev-platform.md §4.2) — an `index.ts` FilesJson entry whose
+        // content IS the authored source — built through the shared project core so both authoring paths agree.
         (Dictionary<string, string> files, ProjectManifest manifest) = ProjectScaffold.SingleFile(
             "script",
             "typescript",
             sourceCode
         );
+        return BuildVersionFromProjectAsync(script, versionNumber, files, manifest, now, ct);
+    }
+
+    // Compiles a script version from a multi-file project: the manifest entry's content is what the executor
+    // validate-on-saves, while the WHOLE file set + manifest are stored so a later editor round-trips them. The caller
+    // guarantees the entry exists (ProjectValidation). Compiled output + serving contract are unchanged from the
+    // single-file path — this is the one place a CodeScriptVersion's compiled/validation fields are populated.
+    private async Task<CodeScriptVersion> BuildVersionFromProjectAsync(
+        CodeScript script,
+        int versionNumber,
+        IReadOnlyDictionary<string, string> files,
+        ProjectManifest manifest,
+        DateTime now,
+        CancellationToken ct
+    )
+    {
+        string entryContent = files[manifest.Entry];
+        Result<ScriptCompilation> compiled = await executor.CompileAsync(entryContent, ct);
 
         CodeScriptVersion version = new()
         {
             CodeScriptId = script.Id,
             BroadcasterId = script.BroadcasterId,
             Version = versionNumber,
-            SourceCode = sourceCode,
+            SourceCode = entryContent,
             FilesJson = ProjectJson.SerializeFiles(files),
             ManifestJson = ProjectJson.SerializeManifest(manifest),
             CreatedAt = now,
@@ -400,6 +505,29 @@ public sealed class CodeScriptService(
             script.UpdatedAt
         );
     }
+
+    // Project a stored version's file set + manifest to the editor's wire shape. A legacy version without a stored
+    // project is projected as its one-file scaffold from the compiled entry, so GET always returns a coherent project.
+    private static ProjectDto ToProjectDto(CodeScriptVersion version)
+    {
+        Dictionary<string, string>? files = ProjectJson.DeserializeFiles(version.FilesJson);
+        ProjectManifest? manifest = ProjectJson.DeserializeManifest(version.ManifestJson);
+        if (files is null || manifest is null)
+            (files, manifest) = ProjectScaffold.SingleFile(
+                "script",
+                "typescript",
+                version.SourceCode
+            );
+
+        return new ProjectDto(files, ProjectManifestDto.FromManifest(manifest));
+    }
+
+    // The reason a just-compiled (not-yet-persisted) version was rejected — the first validation error's message.
+    private static string FirstValidationError(CodeScriptVersion version) =>
+        Deserialize<List<ScriptValidationError>>(version.ValidationErrorsJson)
+            ?.FirstOrDefault()
+            ?.Message
+        ?? "The script failed validation.";
 
     private static CodeScriptVersionDto ToVersionDto(CodeScriptVersion v) =>
         new(
