@@ -75,6 +75,13 @@ class CodeScriptsController(
                 is ApiResult.Ok -> result.value
                 is ApiResult.Failure -> return failWrite(result.error.message)
             }
+        // The append-only version history (newest first) — best-effort: a fetch failure leaves the editor usable
+        // with an empty history rather than blocking the open (the rollback list simply shows nothing to roll to).
+        val versions: List<CodeScriptVersion> =
+            when (val result: ApiResult<List<CodeScriptVersion>> = api.listVersions(id)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> emptyList()
+            }
 
         _state.value =
             CodeScriptsState.Editing(
@@ -82,7 +89,26 @@ class CodeScriptsController(
                 detail = detail,
                 project = project,
                 selectedPath = project.manifest.entry,
+                versions = versions,
             )
+    }
+
+    /**
+     * Roll the script back to a past [versionId] by re-publishing it as the active version (the backend keeps the
+     * full append-only history — nothing is destroyed, the older version simply becomes current again). Re-opens
+     * the script on success so the detail, project source, and version history all reflect the newly-active
+     * version; surfaces the backend's reason over the kept editor on failure. Only applies while [id] is open.
+     */
+    suspend fun rollback(id: String, versionId: String) {
+        val current: CodeScriptsState = _state.value
+        if (current !is CodeScriptsState.Editing || current.detail.id != id) return
+        when (val result: ApiResult<CodeScriptSummary> = api.publishVersion(id, versionId)) {
+            is ApiResult.Ok -> {
+                open(id)
+                loadListSilent()
+            }
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
     }
 
     /** Select a file in the open project's tree (drives the in-page preview pane). */
@@ -255,6 +281,8 @@ sealed interface CodeScriptsState {
         val detail: CodeScriptDetail,
         val project: ProjectDto,
         val selectedPath: String,
+        /** The script's append-only version history (newest first) — backs the rollback list. */
+        val versions: List<CodeScriptVersion> = emptyList(),
         val actionError: String? = null,
         val testRunning: Boolean = false,
         val testResult: TestRunResult? = null,

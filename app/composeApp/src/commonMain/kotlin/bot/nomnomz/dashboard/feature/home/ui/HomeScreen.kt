@@ -58,7 +58,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Tooltip
+import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.ArrowUpGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
@@ -109,6 +114,7 @@ import nomnomzbot.composeapp.generated.resources.home_live_ops_active_poll
 import nomnomzbot.composeapp.generated.resources.home_live_ops_active_prediction
 import nomnomzbot.composeapp.generated.resources.home_live_ops_cancel
 import nomnomzbot.composeapp.generated.resources.home_live_ops_cancel_prediction
+import nomnomzbot.composeapp.generated.resources.home_live_ops_cancel_raid
 import nomnomzbot.composeapp.generated.resources.home_live_ops_commercial_confirm
 import nomnomzbot.composeapp.generated.resources.home_live_ops_commercial_length_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_create_clip
@@ -170,6 +176,7 @@ fun HomeScreen(
     controller: HomeController,
     liveOpsController: LiveOpsController,
     chatPollsController: ChatPollsController,
+    role: ManagementRole? = null,
     hubEvents: SharedFlow<HubEvent>? = null,
 ) {
     val state: HomeState by controller.state.collectAsStateWithLifecycle()
@@ -204,6 +211,7 @@ fun HomeScreen(
                     streamError = current.streamError,
                     liveOpsController = liveOpsController,
                     chatPollsController = chatPollsController,
+                    role = role,
                     onUpdateStream = { title, game, tags ->
                         scope.launch { controller.updateStreamInfo(title, game, tags) }
                     },
@@ -223,12 +231,24 @@ private fun ReadyContent(
     streamError: String?,
     liveOpsController: LiveOpsController,
     chatPollsController: ChatPollsController,
+    role: ManagementRole?,
     onUpdateStream: (title: String?, game: String?, tags: List<String>?) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val scope = rememberCoroutineScope()
     val liveOpsState: LiveOpsState by liveOpsController.state.collectAsStateWithLifecycle()
     val ready: LiveOpsState.Ready? = liveOpsState as? LiveOpsState.Ready
+
+    // The live-ops quick actions (raid / poll / prediction / commercial / clip / marker) are broadcaster-delegable
+    // operator actions; they gate at the Editor floor — matching the Schedule / live-ops:schedule floor — so a
+    // caller below it sees them DISABLED with a "Requires Editor" reason rather than a tap that 403s. The Dashboard
+    // page itself is read-only (null nav manage floor), so this uses an explicit floor rather than the page's.
+    val manage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Editor)
+
+    // A raid has a short pending window before it goes live during which it can be cancelled. The backend does not
+    // surface a "raid pending" flag, so the panel tracks it locally: set when a start returns a raid, cleared on a
+    // cancel — the Cancel-raid action shows only while a raid this session is still in that window.
+    var raidPending: Boolean by remember { mutableStateOf(false) }
 
     var showChangeTitleDialog: Boolean by remember { mutableStateOf(false) }
     var showPollDialog: Boolean by remember { mutableStateOf(false) }
@@ -273,6 +293,8 @@ private fun ReadyContent(
                 QuickActionsCard(
                     ready = ready,
                     isLive = stats.isLive,
+                    manage = manage,
+                    raidPending = raidPending,
                     onChangeTitle = { showChangeTitleDialog = true },
                     onCreateClip = { scope.launch { liveOpsController.createClip() } },
                     onMarkMoment = {
@@ -293,6 +315,12 @@ private fun ReadyContent(
                     onResolvePrediction = { showResolvePredictionDialog = true },
                     onCancelPrediction = { scope.launch { liveOpsController.cancelPrediction() } },
                     onStartRaid = { showRaidDialog = true },
+                    onCancelRaid = {
+                        scope.launch {
+                            liveOpsController.cancelRaid()
+                            raidPending = false
+                        }
+                    },
                     onStartCommercial = { showCommercialDialog = true },
                     onSnoozeAd = { scope.launch { liveOpsController.snoozeNextAd() } },
                 )
@@ -354,7 +382,7 @@ private fun ReadyContent(
         RaidDialog(
             onConfirm = { target ->
                 showRaidDialog = false
-                scope.launch { liveOpsController.startRaid(target) }
+                scope.launch { raidPending = liveOpsController.startRaid(target) != null }
             },
             onDismiss = { showRaidDialog = false },
         )
@@ -671,6 +699,8 @@ private fun ActivityRow(event: ActivityEvent) {
 private fun QuickActionsCard(
     ready: LiveOpsState.Ready?,
     isLive: Boolean,
+    manage: ManageDecision,
+    raidPending: Boolean,
     onChangeTitle: () -> Unit,
     onCreateClip: () -> Unit,
     onMarkMoment: () -> Unit,
@@ -680,6 +710,7 @@ private fun QuickActionsCard(
     onResolvePrediction: () -> Unit,
     onCancelPrediction: () -> Unit,
     onStartRaid: () -> Unit,
+    onCancelRaid: () -> Unit,
     onStartCommercial: () -> Unit,
     onSnoozeAd: () -> Unit,
 ) {
@@ -726,95 +757,162 @@ private fun QuickActionsCard(
             verticalArrangement = Arrangement.spacedBy(spacing.s2),
             maxItemsInEachRow = 2,
         ) {
-            QuickActionButton(
-                icon = EditGlyph,
-                label = stringResource(Res.string.home_change_title),
-                onClick = onChangeTitle,
-                modifier = Modifier.weight(1f),
-            )
+            GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                QuickActionButton(
+                    icon = EditGlyph,
+                    label = stringResource(Res.string.home_change_title),
+                    onClick = onChangeTitle,
+                    enabled = enabled,
+                    modifier = mod,
+                )
+            }
 
             if (activePoll == null) {
-                QuickActionButton(
-                    icon = CheckGlyph,
-                    label = stringResource(Res.string.home_live_ops_create_poll),
-                    onClick = onStartPoll,
-                    modifier = Modifier.weight(1f),
-                )
+                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                    QuickActionButton(
+                        icon = CheckGlyph,
+                        label = stringResource(Res.string.home_live_ops_create_poll),
+                        onClick = onStartPoll,
+                        enabled = enabled,
+                        modifier = mod,
+                    )
+                }
             } else {
-                QuickActionButton(
-                    icon = CheckCircleGlyph,
-                    label = stringResource(Res.string.home_live_ops_end_poll),
-                    onClick = onEndPoll,
-                    modifier = Modifier.weight(1f),
-                    destructive = true,
-                )
+                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                    QuickActionButton(
+                        icon = CheckCircleGlyph,
+                        label = stringResource(Res.string.home_live_ops_end_poll),
+                        onClick = onEndPoll,
+                        enabled = enabled,
+                        modifier = mod,
+                        destructive = true,
+                    )
+                }
             }
 
             if (activePrediction == null) {
-                QuickActionButton(
-                    icon = ArrowUpGlyph,
-                    label = stringResource(Res.string.home_live_ops_create_prediction),
-                    onClick = onStartPrediction,
-                    modifier = Modifier.weight(1f),
-                )
+                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                    QuickActionButton(
+                        icon = ArrowUpGlyph,
+                        label = stringResource(Res.string.home_live_ops_create_prediction),
+                        onClick = onStartPrediction,
+                        enabled = enabled,
+                        modifier = mod,
+                    )
+                }
             } else {
-                QuickActionButton(
-                    icon = CheckCircleGlyph,
-                    label = stringResource(Res.string.home_live_ops_resolve_prediction),
-                    onClick = onResolvePrediction,
-                    modifier = Modifier.weight(1f),
-                )
-                QuickActionButton(
-                    icon = RemoveGlyph,
-                    label = stringResource(Res.string.home_live_ops_cancel_prediction),
-                    onClick = onCancelPrediction,
-                    modifier = Modifier.weight(1f),
-                    destructive = true,
-                )
+                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                    QuickActionButton(
+                        icon = CheckCircleGlyph,
+                        label = stringResource(Res.string.home_live_ops_resolve_prediction),
+                        onClick = onResolvePrediction,
+                        enabled = enabled,
+                        modifier = mod,
+                    )
+                }
+                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                    QuickActionButton(
+                        icon = RemoveGlyph,
+                        label = stringResource(Res.string.home_live_ops_cancel_prediction),
+                        onClick = onCancelPrediction,
+                        enabled = enabled,
+                        modifier = mod,
+                        destructive = true,
+                    )
+                }
             }
 
-            QuickActionButton(
-                icon = CopyGlyph,
-                label = stringResource(Res.string.home_live_ops_create_clip),
-                onClick = onCreateClip,
-                modifier = Modifier.weight(1f),
-            )
+            GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                QuickActionButton(
+                    icon = CopyGlyph,
+                    label = stringResource(Res.string.home_live_ops_create_clip),
+                    onClick = onCreateClip,
+                    enabled = enabled,
+                    modifier = mod,
+                )
+            }
 
             // "Mark this moment" — a VOD bookmark. Twitch only accepts markers while LIVE, so the button is
             // shown only when the channel is live (rather than offering a tap that would always fail offline).
             if (isLive) {
+                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                    QuickActionButton(
+                        icon = AddGlyph,
+                        label = stringResource(Res.string.home_live_ops_mark_moment),
+                        onClick = onMarkMoment,
+                        enabled = enabled,
+                        modifier = mod,
+                    )
+                }
+            }
+
+            // A raid in its pending window can be cancelled before it sends; otherwise offer Start raid.
+            if (raidPending) {
+                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                    QuickActionButton(
+                        icon = RemoveGlyph,
+                        label = stringResource(Res.string.home_live_ops_cancel_raid),
+                        onClick = onCancelRaid,
+                        enabled = enabled,
+                        modifier = mod,
+                        destructive = true,
+                    )
+                }
+            } else {
+                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                    QuickActionButton(
+                        icon = ArrowUpGlyph,
+                        label = stringResource(Res.string.home_live_ops_start_raid),
+                        onClick = onStartRaid,
+                        enabled = enabled,
+                        modifier = mod,
+                    )
+                }
+            }
+
+            GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
                 QuickActionButton(
-                    icon = AddGlyph,
-                    label = stringResource(Res.string.home_live_ops_mark_moment),
-                    onClick = onMarkMoment,
-                    modifier = Modifier.weight(1f),
+                    icon = PlayCircleGlyph,
+                    label = stringResource(Res.string.home_live_ops_start_commercial),
+                    onClick = onStartCommercial,
+                    enabled = enabled,
+                    modifier = mod,
                 )
             }
 
-            QuickActionButton(
-                icon = ArrowUpGlyph,
-                label = stringResource(Res.string.home_live_ops_start_raid),
-                onClick = onStartRaid,
-                modifier = Modifier.weight(1f),
-            )
-
-            QuickActionButton(
-                icon = PlayCircleGlyph,
-                label = stringResource(Res.string.home_live_ops_start_commercial),
-                onClick = onStartCommercial,
-                modifier = Modifier.weight(1f),
-            )
-
             if (ready?.adSchedule != null && (ready.adSchedule?.snoozeCount ?: 0) > 0) {
-                QuickActionButton(
-                    icon = RefreshGlyph,
-                    label = stringResource(Res.string.home_live_ops_snooze_ad),
-                    onClick = onSnoozeAd,
-                    modifier = Modifier.weight(1f),
-                )
+                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                    QuickActionButton(
+                        icon = RefreshGlyph,
+                        label = stringResource(Res.string.home_live_ops_snooze_ad),
+                        onClick = onSnoozeAd,
+                        enabled = enabled,
+                        modifier = mod,
+                    )
+                }
             }
         }
     }
+    }
+}
+
+// Wrap one live-ops quick action in the write gate: below the manage floor the button renders disabled, with the
+// localized reason announced to assistive tech (via [ManageGate]) and shown as a hover [Tooltip]. The gate carries
+// the FlowRow [modifier] (the item weight); the button fills it. [button] receives the resolved enabled flag + the
+// modifier to apply. One helper, every action — the disable-with-reason rule stays identical across the panel.
+@Composable
+private fun GatedQuickAction(
+    manage: ManageDecision,
+    modifier: Modifier = Modifier,
+    button: @Composable (enabled: Boolean, modifier: Modifier) -> Unit,
+) {
+    val reason: String? = manage.deniedReason?.takeIf { it.isNotBlank() }
+    ManageGate(decision = manage, modifier = modifier) { enabled ->
+        if (reason != null) {
+            Tooltip(text = reason) { button(enabled, Modifier.fillMaxWidth()) }
+        } else {
+            button(enabled, Modifier.fillMaxWidth())
+        }
     }
 }
 
@@ -825,19 +923,23 @@ private fun QuickActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     destructive: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val iconTint = if (destructive) tokens.destructive else tokens.mutedForeground
-    val labelColor = if (destructive) tokens.destructive else tokens.cardForeground
+    // Disabled below the manage floor: muted colours + no click wiring (the gate already announces the reason).
+    val baseTint = if (destructive) tokens.destructive else tokens.mutedForeground
+    val baseLabel = if (destructive) tokens.destructive else tokens.cardForeground
+    val iconTint = if (enabled) baseTint else tokens.mutedForeground.copy(alpha = 0.5f)
+    val labelColor = if (enabled) baseLabel else tokens.mutedForeground.copy(alpha = 0.5f)
 
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(tokens.radius.md))
             .background(tokens.muted)
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(vertical = spacing.s3, horizontal = spacing.s2)
             .clearAndSetSemantics {
                 contentDescription = label

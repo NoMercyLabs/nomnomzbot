@@ -22,22 +22,30 @@ package bot.nomnomz.dashboard.core.network
 // The `type` discriminators and the parameter keys/kinds mirror the backend classes' `GetString`/`GetInt`
 // reads, so a typed field the editor writes is one the action reads.
 
-/** Whether a parameter field is free text or a number — drives the input control and the JSON encoding. */
+/**
+ * How a parameter field is edited — drives the input control and the JSON encoding:
+ *  - [Text]: free text → JSON string.
+ *  - [Number]: numeric field → JSON number (falls back to a string when non-integer, e.g. a `-6.0` dB volume).
+ *  - [Bool]: a toggle → JSON boolean (the engine's `GetBool` reads it; an unset toggle omits the param).
+ */
 enum class FieldKind {
     Text,
     Number,
+    Bool,
 }
 
 /**
  * One editable parameter on a block: the backend [key] (the exact param name the action/condition reads), the
- * i18n [labelKey] suffix for its field label, whether it is [required] for a valid block, its [kind], and an
- * optional [placeholder] hint key. The screen resolves `pipelines_field_<labelKey>` for the label.
+ * i18n [labelKey] suffix for its field label, whether it is [required] for a valid block, its [kind], and — for a
+ * closed value set — its [options] (the choice VALUES, rendered as a dropdown; empty = a free field). The screen
+ * resolves `pipelines_field_<labelKey>` for the label; a choice option shows its humanized value.
  */
 data class BlockField(
     val key: String,
     val labelKey: String,
     val required: Boolean,
     val kind: FieldKind = FieldKind.Text,
+    val options: List<String> = emptyList(),
 )
 
 /** What a block is — an action (does something) or a condition (gates the step). */
@@ -53,7 +61,10 @@ enum class BlockRole {
 data class BlockType(
     val type: String,
     val role: BlockRole,
-    val labelKey: String,
+    // The i18n label suffix for the block's display NAME, or null to humanize the backend [type] discriminator
+    // (as hint-less backend blocks already do). Advanced blocks (OBS/VTS/…) carry typed FIELDS but a null name
+    // label, so the field editor is proper while the name reads from the backend — never a hardcoded UI string.
+    val labelKey: String?,
     val fields: List<BlockField> = emptyList(),
 )
 
@@ -370,6 +381,268 @@ object PipelineCatalogue {
                 role = BlockRole.Action,
                 labelKey = "cancel_live_game",
             ),
+            // ── OBS control (obs-control.md §5) — names humanize from the backend type; fields are typed. ──
+            BlockType("obs_switch_scene", BlockRole.Action, null, listOf(BlockField("scene", "scene", true))),
+            BlockType("obs_set_preview_scene", BlockRole.Action, null, listOf(BlockField("scene", "scene", true))),
+            BlockType(
+                "obs_set_source",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("scene", "scene", true),
+                    BlockField("source", "source", true),
+                    BlockField("visible", "visible", false, FieldKind.Bool),
+                ),
+            ),
+            BlockType(
+                "obs_filter",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("source", "source", true),
+                    BlockField("filter", "filter", true),
+                    BlockField("enabled", "enabled", false, FieldKind.Bool),
+                ),
+            ),
+            BlockType(
+                "obs_transition",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("transition", "transition", false),
+                    BlockField("studio", "studio", false, FieldKind.Bool),
+                    BlockField("duration_ms", "duration_ms", false, FieldKind.Number),
+                ),
+            ),
+            BlockType(
+                "obs_input_mute",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("input", "input", true),
+                    BlockField("toggle", "toggle", false, FieldKind.Bool),
+                    BlockField("muted", "muted", false, FieldKind.Bool),
+                ),
+            ),
+            BlockType(
+                "obs_input_volume",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("input", "input", true),
+                    BlockField("volume_db", "volume_db", false, FieldKind.Number),
+                    BlockField("volume_mul", "volume_mul", false, FieldKind.Number),
+                ),
+            ),
+            BlockType(
+                "obs_media",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("input", "input", true),
+                    BlockField("action", "action_verb", false, options = MediaVerbOptions),
+                ),
+            ),
+            BlockType("obs_hotkey", BlockRole.Action, null, listOf(BlockField("hotkey_name", "hotkey_name", true))),
+            BlockType("obs_refresh_browser", BlockRole.Action, null, listOf(BlockField("input", "input", true))),
+            BlockType(
+                "obs_screenshot",
+                BlockRole.Action,
+                null,
+                listOf(BlockField("source", "source", true), BlockField("format", "image_format", false)),
+            ),
+            BlockType("obs_save_replay", BlockRole.Action, null),
+            BlockType(
+                "obs_recording",
+                BlockRole.Action,
+                null,
+                listOf(BlockField("action", "action_verb", false, options = RecordingVerbOptions)),
+            ),
+            BlockType(
+                "obs_streaming",
+                BlockRole.Action,
+                null,
+                listOf(BlockField("action", "action_verb", false, options = OutputToggleOptions)),
+            ),
+            BlockType(
+                "obs_replay_buffer",
+                BlockRole.Action,
+                null,
+                listOf(BlockField("action", "action_verb", false, options = OutputToggleOptions)),
+            ),
+            BlockType(
+                "obs_virtual_cam",
+                BlockRole.Action,
+                null,
+                listOf(BlockField("action", "action_verb", false, options = OutputToggleOptions)),
+            ),
+            BlockType(
+                "obs_request",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("request_type", "request_type", true),
+                    BlockField("request_data", "request_data", false),
+                ),
+            ),
+            BlockType(
+                "obs_request_batch",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("requests", "requests", true),
+                    BlockField("execution", "execution", false, options = BatchExecutionOptions),
+                    BlockField("halt_on_failure", "halt_on_failure", false, FieldKind.Bool),
+                ),
+            ),
+            BlockType(
+                "obs_call_vendor",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("vendor", "vendor", true),
+                    BlockField("request_type", "request_type", true),
+                    BlockField("request_data", "request_data", false),
+                ),
+            ),
+            // ── VTube Studio control (vtube-studio.md §4) — names humanize; fields typed. ──
+            BlockType("vts_load_model", BlockRole.Action, null, listOf(BlockField("model", "model", true))),
+            BlockType("vts_trigger_hotkey", BlockRole.Action, null, listOf(BlockField("hotkey", "hotkey", true))),
+            BlockType(
+                "vts_set_expression",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("expression", "expression", true),
+                    BlockField("active", "active", false, FieldKind.Bool),
+                ),
+            ),
+            BlockType(
+                "vts_move_model",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("x", "move_x", false, FieldKind.Number),
+                    BlockField("y", "move_y", false, FieldKind.Number),
+                    BlockField("rotation", "rotation", false, FieldKind.Number),
+                    BlockField("size", "size", false, FieldKind.Number),
+                    BlockField("time_seconds", "time_seconds", false, FieldKind.Number),
+                    BlockField("relative", "relative", false, FieldKind.Bool),
+                ),
+            ),
+            BlockType(
+                "vts_color_tint",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("r", "color_r", false, FieldKind.Number),
+                    BlockField("g", "color_g", false, FieldKind.Number),
+                    BlockField("b", "color_b", false, FieldKind.Number),
+                    BlockField("a", "color_a", false, FieldKind.Number),
+                    BlockField("art_mesh_tag", "art_mesh_tag", false),
+                ),
+            ),
+            BlockType(
+                "vts_request",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("request_type", "request_type", true),
+                    BlockField("payload_json", "payload_json", false),
+                ),
+            ),
+            // ── Giveaways (giveaways.md §5) — giveaway_id is a GUID; empty draws/enters the active giveaway. ──
+            BlockType("open_giveaway", BlockRole.Action, null, listOf(BlockField("giveaway_id", "giveaway_id", true))),
+            BlockType("draw_giveaway", BlockRole.Action, null, listOf(BlockField("giveaway_id", "giveaway_id", false))),
+            BlockType("enter_giveaway", BlockRole.Action, null, listOf(BlockField("giveaway_id", "giveaway_id", false))),
+            // ── Counters + per-viewer data ──
+            BlockType(
+                "set_counter",
+                BlockRole.Action,
+                null,
+                listOf(BlockField("key", "key", true), BlockField("value", "value", false)),
+            ),
+            BlockType(
+                "adjust_counter",
+                BlockRole.Action,
+                null,
+                listOf(BlockField("key", "key", true), BlockField("delta", "delta", false, FieldKind.Number)),
+            ),
+            BlockType(
+                "set_viewer_data",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("key", "key", true),
+                    BlockField("value", "value", false),
+                    BlockField("target", "target", false),
+                ),
+            ),
+            BlockType(
+                "adjust_viewer_data",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("key", "key", true),
+                    BlockField("delta", "delta", false, FieldKind.Number),
+                    BlockField("target", "target", false),
+                ),
+            ),
+            // ── Rewards (redemption fulfil/refund act on the triggering redemption — no params) ──
+            BlockType("redemption_fulfill", BlockRole.Action, null),
+            BlockType("redemption_refund", BlockRole.Action, null),
+            // ── Permits (roles-permissions §3.6) — role_or_capability is a management role OR a capability key. ──
+            BlockType(
+                "permit",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("target_variable", "target_variable", false),
+                    BlockField("role_or_capability", "role_or_capability", false),
+                    BlockField("duration_minutes", "duration_minutes", false, FieldKind.Number),
+                ),
+            ),
+            BlockType(
+                "unpermit",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("target_variable", "target_variable", false),
+                    BlockField("role_or_capability", "role_or_capability", false),
+                ),
+            ),
+            // ── Stream ── start_raid target is a login/channel; delay 0 raids immediately.
+            BlockType(
+                "start_raid",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("target", "target", true),
+                    BlockField("delay_seconds", "delay_seconds", false, FieldKind.Number),
+                ),
+            ),
+            // ── Scheduling — the `pipeline` field is rendered as a pipeline picker (by name); see the screen. ──
+            BlockType(
+                "schedule_pipeline",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("pipeline", "pipeline", true),
+                    BlockField("delay_seconds", "delay_seconds", false, FieldKind.Number),
+                    BlockField("dedupe_key", "dedupe_key", false),
+                ),
+            ),
+            // ── Widgets — the `widget_id` field is rendered as a widget picker; `data` is a JSON payload. ──
+            BlockType(
+                "widget_event",
+                BlockRole.Action,
+                null,
+                listOf(
+                    BlockField("widget_id", "widget_id", true),
+                    BlockField("event_type", "event_type", true),
+                    BlockField("data", "data", false),
+                ),
+            ),
             // ── Flow ─────────────────────────────────────────────────────────
             BlockType(
                 type = "set_variable",
@@ -533,3 +806,18 @@ data class RuntimePalette(
 /** The canonical role-floor options for the `user_role` condition's `min_role` field (the backend ladder). */
 val UserRoleOptions: List<String> =
     listOf("viewer", "subscriber", "vip", "moderator", "broadcaster")
+
+// Closed choice sets for OBS action verbs — the exact tokens the backend actions match (ObsMediaAction /
+// ObsRecordingAction / ObsStreamingAction / ObsRequestBatchAction), so a picked value is one the engine reads.
+
+/** `obs_media` verbs (ObsMediaAction). */
+val MediaVerbOptions: List<String> = listOf("play", "pause", "stop", "restart", "next", "previous")
+
+/** `obs_recording` verbs (ObsRecordingAction). */
+val RecordingVerbOptions: List<String> = listOf("start", "stop", "toggle", "pause", "resume", "split")
+
+/** Streaming / replay-buffer / virtual-cam verbs — start/stop/toggle. */
+val OutputToggleOptions: List<String> = listOf("start", "stop", "toggle")
+
+/** `obs_request_batch` execution modes (ObsRequestBatchAction). */
+val BatchExecutionOptions: List<String> = listOf("serial", "frame", "parallel")

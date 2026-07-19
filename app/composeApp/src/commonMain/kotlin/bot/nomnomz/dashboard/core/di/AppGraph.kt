@@ -649,6 +649,7 @@ class AppGraph {
             pipelinesApi = pipelinesApi,
             webhooksApi = webhooksApi,
             pickListsApi = pickListsApi,
+            widgetsApi = widgetsApi,
             feedback = feedbackController,
         )
 

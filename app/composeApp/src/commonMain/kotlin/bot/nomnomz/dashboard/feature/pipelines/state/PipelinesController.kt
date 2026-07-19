@@ -30,6 +30,8 @@ import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.RuntimePalette
 import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
 import bot.nomnomz.dashboard.core.network.WebhooksApi
+import bot.nomnomz.dashboard.core.network.WidgetSummary
+import bot.nomnomz.dashboard.core.network.WidgetsApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,6 +52,9 @@ class PipelinesController(
     private val pipelinesApi: PipelinesApi,
     private val webhooksApi: WebhooksApi,
     private val pickListsApi: PickListsApi,
+    // The widget list source for the `widget_event` block's widget picker. Optional (best-effort like every editor
+    // picker source): when absent the widget field degrades to free-text id entry, exactly as an empty list does.
+    private val widgetsApi: WidgetsApi? = null,
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<PipelinesState> = MutableStateFlow(PipelinesState.Loading)
@@ -173,7 +178,25 @@ class PipelinesController(
                 is ApiResult.Ok -> result.value.map { PickerOption(value = it.name, label = it.name) }
                 is ApiResult.Failure -> emptyList()
             }
-        return EditorOptions(outboundEndpoints = endpoints, pickLists = pickLists)
+        // The channel's overlay widgets (for `widget_event`). Absent widgetsApi or a failed fetch → empty → the
+        // widget field falls back to free-text id entry.
+        val widgets: List<PickerOption> =
+            when (val result: ApiResult<List<WidgetSummary>>? = widgetsApi?.list(channel)) {
+                is ApiResult.Ok -> result.value.map { PickerOption(value = it.id, label = it.name) }
+                else -> emptyList()
+            }
+        // The channel's pipelines by NAME (for `schedule_pipeline`) — the action resolves the pipeline by its name.
+        val pipelines: List<PickerOption> =
+            when (val result: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel)) {
+                is ApiResult.Ok -> result.value.map { PickerOption(value = it.name, label = it.name) }
+                is ApiResult.Failure -> emptyList()
+            }
+        return EditorOptions(
+            outboundEndpoints = endpoints,
+            pickLists = pickLists,
+            widgets = widgets,
+            pipelines = pipelines,
+        )
     }
 
     /** Leave the editor and return to the list (discarding any unsaved chain changes). */
@@ -336,4 +359,8 @@ data class PickerOption(val value: String, val label: String)
 data class EditorOptions(
     val outboundEndpoints: List<PickerOption> = emptyList(),
     val pickLists: List<PickerOption> = emptyList(),
+    /** The channel's overlay widgets — the `widget_event` block's `widget_id` picker (value = widget id). */
+    val widgets: List<PickerOption> = emptyList(),
+    /** The channel's pipelines by NAME — the `schedule_pipeline` block's `pipeline` picker (value = name). */
+    val pipelines: List<PickerOption> = emptyList(),
 )

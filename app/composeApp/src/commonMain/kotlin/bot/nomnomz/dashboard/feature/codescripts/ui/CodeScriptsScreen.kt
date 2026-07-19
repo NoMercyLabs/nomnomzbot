@@ -58,6 +58,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.CodeScriptDetail
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
+import bot.nomnomz.dashboard.core.network.CodeScriptVersion
 import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.feature.codescripts.state.CodeScriptsController
@@ -105,6 +106,15 @@ import nomnomzbot.composeapp.generated.resources.scripts_testrun_subtitle
 import nomnomzbot.composeapp.generated.resources.scripts_testrun_title
 import nomnomzbot.composeapp.generated.resources.scripts_testrun_vars_label
 import nomnomzbot.composeapp.generated.resources.scripts_version_label
+import nomnomzbot.composeapp.generated.resources.scripts_versions_current
+import nomnomzbot.composeapp.generated.resources.scripts_versions_empty
+import nomnomzbot.composeapp.generated.resources.scripts_versions_publish
+import nomnomzbot.composeapp.generated.resources.scripts_versions_rollback_cancel
+import nomnomzbot.composeapp.generated.resources.scripts_versions_rollback_confirm
+import nomnomzbot.composeapp.generated.resources.scripts_versions_rollback_message
+import nomnomzbot.composeapp.generated.resources.scripts_versions_rollback_title
+import nomnomzbot.composeapp.generated.resources.scripts_versions_subtitle
+import nomnomzbot.composeapp.generated.resources.scripts_versions_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_code_scripts
 import org.jetbrains.compose.resources.stringResource
 
@@ -162,6 +172,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                     project = current.project,
                     selectedPath = current.selectedPath,
                     detail = current.detail,
+                    versions = current.versions,
                     manage = manage,
                     testRunning = current.testRunning,
                     testResult = current.testResult,
@@ -169,6 +180,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                     onSelectFile = { controller.selectFile(it) },
                     onEditCode = { scope.launch { controller.editCode(current.detail.id, compiledMessage) } },
                     onTestRun = { variables, args -> scope.launch { controller.testRun(current.detail.id, variables, args) } },
+                    onRollback = { versionId -> scope.launch { controller.rollback(current.detail.id, versionId) } },
                 )
             }
             else -> {
@@ -320,6 +332,7 @@ private fun ProjectView(
     project: ProjectDto,
     selectedPath: String,
     detail: CodeScriptDetail,
+    versions: List<CodeScriptVersion>,
     manage: ManageDecision,
     testRunning: Boolean,
     testResult: TestRunResult?,
@@ -327,6 +340,7 @@ private fun ProjectView(
     onSelectFile: (String) -> Unit,
     onEditCode: () -> Unit,
     onTestRun: (variables: Map<String, String>, args: List<String>) -> Unit,
+    onRollback: (versionId: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -388,12 +402,117 @@ private fun ProjectView(
             }
         }
 
+        VersionHistorySection(
+            versions = versions,
+            currentVersionId = detail.currentVersionId,
+            manage = manage,
+            onRollback = onRollback,
+        )
+
         TestRunSection(
             manage = manage,
             running = testRunning,
             result = testResult,
             error = testError,
             onRun = onTestRun,
+        )
+    }
+}
+
+// The append-only version history + rollback list: every past version newest-first, each with its number,
+// validation status, and timestamp. The version currently served is badged and its rollback control is inert;
+// every other row offers "Publish this version" (a rollback re-publishes it as active), gated behind the page's
+// manage floor. This is the safety net for a bad save — a Save & Compile republishes live, and this is the way back.
+@Composable
+private fun VersionHistorySection(
+    versions: List<CodeScriptVersion>,
+    currentVersionId: String?,
+    manage: ManageDecision,
+    onRollback: (versionId: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var pendingRollback: CodeScriptVersion? by remember { mutableStateOf(null) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                Text(text = stringResource(Res.string.scripts_versions_title), style = typography.lg, color = tokens.cardForeground)
+                Text(text = stringResource(Res.string.scripts_versions_subtitle), style = typography.sm, color = tokens.mutedForeground)
+            }
+
+            if (versions.isEmpty()) {
+                Text(text = stringResource(Res.string.scripts_versions_empty), style = typography.xs, color = tokens.mutedForeground)
+            } else {
+                versions.forEachIndexed { index, version ->
+                    if (index > 0) {
+                        Separator()
+                    }
+                    val isCurrent: Boolean = currentVersionId != null && version.id == currentVersionId
+                    val publishLabel: String = stringResource(Res.string.scripts_versions_publish, version.version)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                    ) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = stringResource(Res.string.scripts_version_label, version.version),
+                                    style = typography.sm,
+                                    color = tokens.cardForeground,
+                                )
+                                if (isCurrent) {
+                                    Text(
+                                        text = stringResource(Res.string.scripts_versions_current),
+                                        style = typography.xs,
+                                        color = tokens.primary,
+                                    )
+                                }
+                            }
+                            Text(
+                                text = stringResource(Res.string.scripts_status_label, version.validationStatus),
+                                style = typography.xs,
+                                color = when (version.validationStatus.lowercase()) {
+                                    "valid" -> tokens.primary
+                                    "invalid", "error" -> tokens.destructive
+                                    else -> tokens.mutedForeground
+                                },
+                            )
+                        }
+                        if (!isCurrent) {
+                            ManageGate(manage) { enabled ->
+                                TextButton(onClick = { pendingRollback = version }, enabled = enabled) {
+                                    Text(
+                                        text = publishLabel,
+                                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pendingRollback?.let { version ->
+        ConfirmDialog(
+            title = stringResource(Res.string.scripts_versions_rollback_title),
+            message = stringResource(Res.string.scripts_versions_rollback_message, version.version),
+            confirmLabel = stringResource(Res.string.scripts_versions_rollback_confirm),
+            dismissLabel = stringResource(Res.string.scripts_versions_rollback_cancel),
+            onConfirm = {
+                val target: CodeScriptVersion = version
+                pendingRollback = null
+                onRollback(target.id)
+            },
+            onDismiss = { pendingRollback = null },
         )
     }
 }

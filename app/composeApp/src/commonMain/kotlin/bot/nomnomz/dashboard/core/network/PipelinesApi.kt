@@ -265,15 +265,23 @@ data class PipelineNode(val type: String, val params: Map<String, String> = empt
         return JsonObject(map)
     }
 
-    // A param the editor declares as numeric is written as a JSON number so the engine's GetInt(...) reads it;
-    // everything else stays a JSON string (the engine's GetString tolerates both). Booleans (stop flags) are
-    // modelled on the step, not here, so only number/string params occur on a node.
+    // A param the editor declares as numeric is written as a JSON number so the engine's GetInt(...) reads it; a
+    // Bool param is written as a JSON boolean so the engine's GetBool(...) reads it; everything else stays a JSON
+    // string (the engine's GetString tolerates both). A numeric that isn't a whole number (e.g. a `-6.0` dB
+    // volume) stays a string — the engine's GetDouble parses a string too. Step stop-flags are modelled on the
+    // step, not here; a per-field Bool (an OBS `visible` / VTS `active`) is a real node param and encodes here.
     private fun encodeParam(nodeType: String, key: String, value: String): JsonElement {
-        val isNumeric: Boolean =
-            PipelineCatalogue.fieldFor(nodeType, key)?.kind == FieldKind.Number
-        if (isNumeric) {
-            val number: Int? = value.trim().toIntOrNull()
-            if (number != null) return JsonPrimitive(number)
+        val kind: FieldKind? = PipelineCatalogue.fieldFor(nodeType, key)?.kind
+        when (kind) {
+            FieldKind.Number -> {
+                val number: Int? = value.trim().toIntOrNull()
+                if (number != null) return JsonPrimitive(number)
+            }
+            FieldKind.Bool -> {
+                val flag: Boolean? = value.trim().lowercase().toBooleanStrictOrNull()
+                if (flag != null) return JsonPrimitive(flag)
+            }
+            else -> Unit
         }
         return JsonPrimitive(value)
     }

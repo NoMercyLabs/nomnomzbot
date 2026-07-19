@@ -67,6 +67,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.BlockField
+import bot.nomnomz.dashboard.core.network.FieldKind
 import bot.nomnomz.dashboard.core.network.PaletteBlock
 import bot.nomnomz.dashboard.core.network.PipelineNode
 import bot.nomnomz.dashboard.core.network.PipelineStep
@@ -184,6 +185,56 @@ import nomnomzbot.composeapp.generated.resources.pipelines_field_voice
 import nomnomzbot.composeapp.generated.resources.pipelines_field_volume
 import nomnomzbot.composeapp.generated.resources.pipelines_field_wait_for_finish
 import nomnomzbot.composeapp.generated.resources.pipelines_field_wait_seconds
+import nomnomzbot.composeapp.generated.resources.pipelines_field_scene
+import nomnomzbot.composeapp.generated.resources.pipelines_field_source
+import nomnomzbot.composeapp.generated.resources.pipelines_field_visible
+import nomnomzbot.composeapp.generated.resources.pipelines_field_filter
+import nomnomzbot.composeapp.generated.resources.pipelines_field_enabled
+import nomnomzbot.composeapp.generated.resources.pipelines_field_transition
+import nomnomzbot.composeapp.generated.resources.pipelines_field_studio
+import nomnomzbot.composeapp.generated.resources.pipelines_field_duration_ms
+import nomnomzbot.composeapp.generated.resources.pipelines_field_input
+import nomnomzbot.composeapp.generated.resources.pipelines_field_muted
+import nomnomzbot.composeapp.generated.resources.pipelines_field_toggle
+import nomnomzbot.composeapp.generated.resources.pipelines_field_volume_db
+import nomnomzbot.composeapp.generated.resources.pipelines_field_volume_mul
+import nomnomzbot.composeapp.generated.resources.pipelines_field_action_verb
+import nomnomzbot.composeapp.generated.resources.pipelines_field_hotkey_name
+import nomnomzbot.composeapp.generated.resources.pipelines_field_image_format
+import nomnomzbot.composeapp.generated.resources.pipelines_field_request_type
+import nomnomzbot.composeapp.generated.resources.pipelines_field_request_data
+import nomnomzbot.composeapp.generated.resources.pipelines_field_vendor
+import nomnomzbot.composeapp.generated.resources.pipelines_field_execution
+import nomnomzbot.composeapp.generated.resources.pipelines_field_halt_on_failure
+import nomnomzbot.composeapp.generated.resources.pipelines_field_requests
+import nomnomzbot.composeapp.generated.resources.pipelines_field_model
+import nomnomzbot.composeapp.generated.resources.pipelines_field_hotkey
+import nomnomzbot.composeapp.generated.resources.pipelines_field_expression
+import nomnomzbot.composeapp.generated.resources.pipelines_field_active
+import nomnomzbot.composeapp.generated.resources.pipelines_field_move_x
+import nomnomzbot.composeapp.generated.resources.pipelines_field_move_y
+import nomnomzbot.composeapp.generated.resources.pipelines_field_rotation
+import nomnomzbot.composeapp.generated.resources.pipelines_field_size
+import nomnomzbot.composeapp.generated.resources.pipelines_field_time_seconds
+import nomnomzbot.composeapp.generated.resources.pipelines_field_relative
+import nomnomzbot.composeapp.generated.resources.pipelines_field_color_r
+import nomnomzbot.composeapp.generated.resources.pipelines_field_color_g
+import nomnomzbot.composeapp.generated.resources.pipelines_field_color_b
+import nomnomzbot.composeapp.generated.resources.pipelines_field_color_a
+import nomnomzbot.composeapp.generated.resources.pipelines_field_art_mesh_tag
+import nomnomzbot.composeapp.generated.resources.pipelines_field_payload_json
+import nomnomzbot.composeapp.generated.resources.pipelines_field_giveaway_id
+import nomnomzbot.composeapp.generated.resources.pipelines_field_key
+import nomnomzbot.composeapp.generated.resources.pipelines_field_value
+import nomnomzbot.composeapp.generated.resources.pipelines_field_delta
+import nomnomzbot.composeapp.generated.resources.pipelines_field_target
+import nomnomzbot.composeapp.generated.resources.pipelines_field_pipeline
+import nomnomzbot.composeapp.generated.resources.pipelines_field_delay_seconds
+import nomnomzbot.composeapp.generated.resources.pipelines_field_role_or_capability
+import nomnomzbot.composeapp.generated.resources.pipelines_field_target_variable
+import nomnomzbot.composeapp.generated.resources.pipelines_field_duration_minutes
+import nomnomzbot.composeapp.generated.resources.pipelines_field_widget_id
+import nomnomzbot.composeapp.generated.resources.pipelines_field_data
 import nomnomzbot.composeapp.generated.resources.pipelines_loading
 import nomnomzbot.composeapp.generated.resources.pipelines_new_action
 import nomnomzbot.composeapp.generated.resources.pipelines_no_description
@@ -823,15 +874,30 @@ private fun TypedParamFields(block: PaletteBlock, params: MutableMap<String, Str
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
         for (field in block.fields) {
-            when (field.key) {
+            when {
+                // A boolean param (an OBS `visible`, VTS `active`, …) is a toggle, encoded as a JSON boolean.
+                field.kind == FieldKind.Bool ->
+                    BoolField(
+                        label = fieldDisplayName(field),
+                        checked = params[field.key].toBoolean(),
+                        onCheckedChange = { params[field.key] = it.toString() },
+                    )
+                // A closed value set (OBS action verbs / batch execution mode) is a dropdown over its options.
+                field.options.isNotEmpty() ->
+                    OptionPicker(
+                        label = fieldLabelWithRequired(field),
+                        options = field.options.map { PickerOption(value = it, label = humanize(it)) },
+                        selected = params[field.key].orEmpty(),
+                        onSelect = { params[field.key] = it },
+                    )
                 // The role floor is a closed set — a picker, not free text.
-                "min_role" ->
+                field.key == "min_role" ->
                     RolePicker(
                         selected = params[field.key].orEmpty(),
                         onSelect = { params[field.key] = it },
                     )
                 // send_webhook → pick one of the channel's outbound endpoints (falls back to free text if none).
-                "endpoint" ->
+                field.key == "endpoint" ->
                     OptionPicker(
                         label = fieldLabelWithRequired(field),
                         options = options.outboundEndpoints,
@@ -839,10 +905,26 @@ private fun TypedParamFields(block: PaletteBlock, params: MutableMap<String, Str
                         onSelect = { params[field.key] = it },
                     )
                 // pick_from_list → pick one of the channel's pick-lists by name (falls back to free text).
-                "list" ->
+                field.key == "list" ->
                     OptionPicker(
                         label = fieldLabelWithRequired(field),
                         options = options.pickLists,
+                        selected = params[field.key].orEmpty(),
+                        onSelect = { params[field.key] = it },
+                    )
+                // widget_event → pick one of the channel's overlay widgets by id (falls back to free text).
+                field.key == "widget_id" ->
+                    OptionPicker(
+                        label = fieldLabelWithRequired(field),
+                        options = options.widgets,
+                        selected = params[field.key].orEmpty(),
+                        onSelect = { params[field.key] = it },
+                    )
+                // schedule_pipeline → pick one of the channel's pipelines by name (falls back to free text).
+                field.key == "pipeline" ->
+                    OptionPicker(
+                        label = fieldLabelWithRequired(field),
+                        options = options.pipelines,
                         selected = params[field.key].orEmpty(),
                         onSelect = { params[field.key] = it },
                     )
@@ -855,6 +937,24 @@ private fun TypedParamFields(block: PaletteBlock, params: MutableMap<String, Str
                     )
             }
         }
+    }
+}
+
+// A boolean param rendered as a labelled Switch (design-system Switch), matching the step dialog's stop-on-match row.
+@Composable
+private fun BoolField(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val tokens = LocalTokens.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(text = label, color = tokens.cardForeground)
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.semantics { contentDescription = label },
+        )
     }
 }
 
@@ -1284,6 +1384,56 @@ private fun fieldLabel(labelKey: String): StringResource =
         "compare_left" -> Res.string.pipelines_field_compare_left
         "compare_operator" -> Res.string.pipelines_field_compare_operator
         "compare_right" -> Res.string.pipelines_field_compare_right
+        "scene" -> Res.string.pipelines_field_scene
+        "source" -> Res.string.pipelines_field_source
+        "visible" -> Res.string.pipelines_field_visible
+        "filter" -> Res.string.pipelines_field_filter
+        "enabled" -> Res.string.pipelines_field_enabled
+        "transition" -> Res.string.pipelines_field_transition
+        "studio" -> Res.string.pipelines_field_studio
+        "duration_ms" -> Res.string.pipelines_field_duration_ms
+        "input" -> Res.string.pipelines_field_input
+        "muted" -> Res.string.pipelines_field_muted
+        "toggle" -> Res.string.pipelines_field_toggle
+        "volume_db" -> Res.string.pipelines_field_volume_db
+        "volume_mul" -> Res.string.pipelines_field_volume_mul
+        "action_verb" -> Res.string.pipelines_field_action_verb
+        "hotkey_name" -> Res.string.pipelines_field_hotkey_name
+        "image_format" -> Res.string.pipelines_field_image_format
+        "request_type" -> Res.string.pipelines_field_request_type
+        "request_data" -> Res.string.pipelines_field_request_data
+        "vendor" -> Res.string.pipelines_field_vendor
+        "execution" -> Res.string.pipelines_field_execution
+        "halt_on_failure" -> Res.string.pipelines_field_halt_on_failure
+        "requests" -> Res.string.pipelines_field_requests
+        "model" -> Res.string.pipelines_field_model
+        "hotkey" -> Res.string.pipelines_field_hotkey
+        "expression" -> Res.string.pipelines_field_expression
+        "active" -> Res.string.pipelines_field_active
+        "move_x" -> Res.string.pipelines_field_move_x
+        "move_y" -> Res.string.pipelines_field_move_y
+        "rotation" -> Res.string.pipelines_field_rotation
+        "size" -> Res.string.pipelines_field_size
+        "time_seconds" -> Res.string.pipelines_field_time_seconds
+        "relative" -> Res.string.pipelines_field_relative
+        "color_r" -> Res.string.pipelines_field_color_r
+        "color_g" -> Res.string.pipelines_field_color_g
+        "color_b" -> Res.string.pipelines_field_color_b
+        "color_a" -> Res.string.pipelines_field_color_a
+        "art_mesh_tag" -> Res.string.pipelines_field_art_mesh_tag
+        "payload_json" -> Res.string.pipelines_field_payload_json
+        "giveaway_id" -> Res.string.pipelines_field_giveaway_id
+        "key" -> Res.string.pipelines_field_key
+        "value" -> Res.string.pipelines_field_value
+        "delta" -> Res.string.pipelines_field_delta
+        "target" -> Res.string.pipelines_field_target
+        "pipeline" -> Res.string.pipelines_field_pipeline
+        "delay_seconds" -> Res.string.pipelines_field_delay_seconds
+        "role_or_capability" -> Res.string.pipelines_field_role_or_capability
+        "target_variable" -> Res.string.pipelines_field_target_variable
+        "duration_minutes" -> Res.string.pipelines_field_duration_minutes
+        "widget_id" -> Res.string.pipelines_field_widget_id
+        "data" -> Res.string.pipelines_field_data
         else -> Res.string.pipelines_field_message
     }
 

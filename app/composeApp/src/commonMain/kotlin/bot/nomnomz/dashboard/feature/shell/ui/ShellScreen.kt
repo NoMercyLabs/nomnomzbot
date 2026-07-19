@@ -392,6 +392,7 @@ fun ShellScreen(
                     heldActionKeys = access.heldActionKeys,
                     isReviewer = user?.isAdmin == true,
                     onChannelDeleted = onLogout,
+                    onReconnect = triggerReconnect,
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
             }
@@ -446,6 +447,7 @@ fun ShellScreen(
                         heldActionKeys = access.heldActionKeys,
                         isReviewer = user?.isAdmin == true,
                         onChannelDeleted = onLogout,
+                        onReconnect = triggerReconnect,
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                     )
                 }
@@ -488,6 +490,7 @@ private fun ShellContent(
     heldActionKeys: Set<String>,
     isReviewer: Boolean = false,
     onChannelDeleted: () -> Unit = {},
+    onReconnect: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val activeChannelId: String? by graph.channelSwitcherController.activeChannelId.collectAsStateWithLifecycle()
@@ -498,6 +501,7 @@ private fun ShellContent(
                 controller = graph.homeController,
                 liveOpsController = graph.liveOpsController,
                 chatPollsController = graph.chatPollsController,
+                role = role,
                 hubEvents = graph.dashboardHubClient.events,
             )
             ShellRoute.Chat -> ChatScreen(
@@ -588,7 +592,7 @@ private fun ShellContent(
             ShellRoute.Alerts -> AlertsScreen(controller = graph.alertsController, role = role)
             ShellRoute.Widgets ->
                 WidgetsScreen(controller = graph.widgetsController, role = role, isReviewer = isReviewer)
-            ShellRoute.Features -> FeaturesScreen(controller = graph.featuresController, role = role)
+            ShellRoute.Features -> FeaturesScreen(controller = graph.featuresController, role = role, onRegrantScopes = onReconnect)
             ShellRoute.Webhooks -> WebhooksScreen(controller = graph.webhooksController, role = role)
             ShellRoute.Federation -> FederationScreen(controller = graph.federationController, role = role)
             ShellRoute.CodeScripts -> CodeScriptsScreen(controller = graph.codeScriptsController, role = role)

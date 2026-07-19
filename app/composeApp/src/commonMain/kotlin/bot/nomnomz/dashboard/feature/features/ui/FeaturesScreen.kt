@@ -60,6 +60,7 @@ import nomnomzbot.composeapp.generated.resources.features_retry
 import nomnomzbot.composeapp.generated.resources.features_enabled_at
 import nomnomzbot.composeapp.generated.resources.features_entitlement_unavailable
 import nomnomzbot.composeapp.generated.resources.features_entitlement_upgrade
+import nomnomzbot.composeapp.generated.resources.features_regrant_scopes
 import nomnomzbot.composeapp.generated.resources.features_scopes_label
 import nomnomzbot.composeapp.generated.resources.features_subtitle
 import nomnomzbot.composeapp.generated.resources.shell_nav_features
@@ -70,7 +71,11 @@ import org.jetbrains.compose.resources.stringResource
 // is shown with its key, whether it is on, when it was enabled, and which Twitch OAuth scopes it needs. The
 // broadcaster can flip any flag via the switch; the backend validates and the page reloads on success.
 @Composable
-fun FeaturesScreen(controller: FeaturesController, role: ManagementRole?) {
+fun FeaturesScreen(
+    controller: FeaturesController,
+    role: ManagementRole?,
+    onRegrantScopes: () -> Unit = {},
+) {
     val state: FeaturesState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val tokens = LocalTokens.current
@@ -109,6 +114,7 @@ fun FeaturesScreen(controller: FeaturesController, role: ManagementRole?) {
                                 feature = feature,
                                 manage = manage,
                                 onToggle = { scope.launch { controller.toggle(feature.featureKey) } },
+                                onRegrantScopes = onRegrantScopes,
                             )
                             if (index < current.features.lastIndex) {
                                 Separator()
@@ -126,6 +132,7 @@ private fun FeatureRow(
     feature: FeatureStatus,
     manage: ManageDecision,
     onToggle: () -> Unit,
+    onRegrantScopes: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -192,13 +199,33 @@ private fun FeatureRow(
             }
         }
         if (feature.requiredScopes.isNotEmpty()) {
-            Text(
-                text = "$scopesLabel: ${feature.requiredScopes.joinToString(", ")}",
-                style = typography.xs,
-                color = tokens.mutedForeground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+            ) {
+                Text(
+                    text = "$scopesLabel: ${feature.requiredScopes.joinToString(", ")}",
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                // One-click additive scope re-grant: re-authorizes the operator's Twitch token in place (never a
+                // logout) so it carries this feature's required scopes. The scopes are additive — the re-auth
+                // re-vaults the full streamer scope set — so it satisfies any feature still missing a grant.
+                ManageGate(decision = manage) { enabled ->
+                    TextButton(onClick = onRegrantScopes, enabled = enabled) {
+                        Text(
+                            text = stringResource(Res.string.features_regrant_scopes),
+                            style = typography.xs,
+                            color = if (enabled) tokens.primary else tokens.mutedForeground,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
         }
         if (!feature.entitled) {
             val reason: String =

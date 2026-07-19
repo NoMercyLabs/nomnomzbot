@@ -359,7 +359,7 @@ class PipelinesControllerTest {
     @Test
     fun open_editor_surfaces_the_backend_action_palette_including_unmodelled_blocks() = runTest {
         // The palette membership comes from the backend catalogue — a block the client has NO typed hints for
-        // (obs_switch_scene) still appears, grouped under its backend category, and falls back to the generic
+        // (submit_media) still appears, grouped under its backend category, and falls back to the generic
         // editor (hasHints == false). This is the keystone: the builder can never hide a registered action.
         val api =
             RecordingPipelinesApi(
@@ -370,7 +370,7 @@ class PipelinesControllerTest {
                         actions =
                             listOf(
                                 PipelineActionDescriptor("send_message", "Chat", "Send a chat message"),
-                                PipelineActionDescriptor("obs_switch_scene", "OBS", "Switch the current scene"),
+                                PipelineActionDescriptor("submit_media", "Media", "Submit a media-share clip"),
                             ),
                         conditions = listOf(PipelineConditionDescriptor("user_role")),
                     ),
@@ -383,11 +383,11 @@ class PipelinesControllerTest {
         val state: PipelinesState = controller.state.value
         assertTrue(state is PipelinesState.Editing)
         val palette = (state as PipelinesState.Editing).palette
-        assertEquals(listOf("send_message", "obs_switch_scene"), palette.actions.map { it.type })
+        assertEquals(listOf("send_message", "submit_media"), palette.actions.map { it.type })
         assertTrue(palette.action("send_message")!!.hasHints)
-        assertFalse(palette.action("obs_switch_scene")!!.hasHints)
-        assertEquals("OBS", palette.action("obs_switch_scene")!!.category)
-        assertEquals(listOf("Chat", "OBS"), palette.actionsByCategory.map { it.first })
+        assertFalse(palette.action("submit_media")!!.hasHints)
+        assertEquals("Media", palette.action("submit_media")!!.category)
+        assertEquals(listOf("Chat", "Media"), palette.actionsByCategory.map { it.first })
     }
 
     private fun okChannel(): ChannelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1")))
