@@ -54,21 +54,47 @@ public class ObsController(
     [RequireAction("obs:control")]
     [ProducesResponseType<StatusResponseDto<ObsStateDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetState(Guid channelId, CancellationToken ct) =>
-        ResultResponse(await control.GetStateAsync(channelId, ct));
+        ObsReadResponse(
+            await control.GetStateAsync(channelId, ct),
+            new ObsStateDto(null, false, false, false, false, null)
+        );
 
     /// <summary>The scene list (current one flagged).</summary>
     [HttpGet("scenes")]
     [RequireAction("obs:control")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsSceneDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetScenes(Guid channelId, CancellationToken ct) =>
-        ResultResponse(await control.GetScenesAsync(channelId, ct));
+        ObsReadResponse(await control.GetScenesAsync(channelId, ct), []);
 
     /// <summary>The input list.</summary>
     [HttpGet("inputs")]
     [RequireAction("obs:control")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsInputDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetInputs(Guid channelId, CancellationToken ct) =>
-        ResultResponse(await control.GetInputsAsync(channelId, ct));
+        ObsReadResponse(await control.GetInputsAsync(channelId, ct), []);
+
+    // A read of OBS state when OBS simply is not reachable (disabled, no socket, no bridge leader) is not a
+    // server error — it is the normal "not connected yet" state. Return an empty/disconnected payload at 200 so
+    // the dashboard renders its connect prompt cleanly instead of a scary "Internal Server Error"; the
+    // connection + bridge-status endpoints already tell the UI it is disconnected. Genuine failures still surface.
+    private static readonly string[] ObsUnavailableCodes =
+    [
+        "OBS_DISABLED",
+        "OBS_NOT_CONNECTED",
+        "OBS_BRIDGE_OFFLINE",
+        "OBS_WRONG_MODE",
+    ];
+
+    private IActionResult ObsReadResponse<T>(Result<T> result, T disconnectedFallback)
+    {
+        if (
+            result.IsFailure
+            && result.ErrorCode is not null
+            && ObsUnavailableCodes.Contains(result.ErrorCode)
+        )
+            return Ok(new StatusResponseDto<T> { Data = disconnectedFallback });
+        return ResultResponse(result);
+    }
 
     /// <summary>Switch the program scene.</summary>
     [HttpPost("scene")]
