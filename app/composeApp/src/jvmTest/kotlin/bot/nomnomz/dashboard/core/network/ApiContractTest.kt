@@ -80,6 +80,8 @@ class ApiContractTest {
             WidgetVersionDetail.serializer() to "WidgetVersionDetail",
             ProjectDto.serializer() to "ProjectDto",
             ProjectManifestDto.serializer() to "ProjectManifestDto",
+            TestRunResult.serializer() to "TestRunResultDto",
+            CapturedEffect.serializer() to "CapturedEffectDto",
             GalleryItemSummary.serializer() to "GalleryItemSummary",
             GalleryItemDetail.serializer() to "GalleryItemDetail",
             CustomDataSourceOption.serializer() to "CustomDataSourceOptionDto",

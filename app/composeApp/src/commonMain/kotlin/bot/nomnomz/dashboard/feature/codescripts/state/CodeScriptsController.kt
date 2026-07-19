@@ -19,7 +19,9 @@ import bot.nomnomz.dashboard.core.network.CodeScriptVersion
 import bot.nomnomz.dashboard.core.network.CodeScriptsApi
 import bot.nomnomz.dashboard.core.network.CreateScriptBody
 import bot.nomnomz.dashboard.core.network.ProjectDto
+import bot.nomnomz.dashboard.core.network.ScriptTestRunBody
 import bot.nomnomz.dashboard.core.network.SdkTypesApi
+import bot.nomnomz.dashboard.core.network.TestRunResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -128,6 +130,33 @@ class CodeScriptsController(
         loadListSilent()
     }
 
+    /**
+     * Dry-run the open script's current version with sample [variables] + [args]. Effects are captured, never
+     * performed (backend enforces this). Surfaces the captured result — chat output + effects — inline over the
+     * editor, or the failure reason. Only applies while [id]'s editor is open.
+     */
+    suspend fun testRun(id: String, variables: Map<String, String>, args: List<String>) {
+        val current: CodeScriptsState = _state.value
+        if (current !is CodeScriptsState.Editing || current.detail.id != id) return
+        _state.value = current.copy(testRunning = true, testError = null)
+
+        when (
+            val result: ApiResult<TestRunResult> = api.testRun(id, ScriptTestRunBody(variables, args))
+        ) {
+            is ApiResult.Ok -> updateEditing(id) { it.copy(testRunning = false, testResult = result.value, testError = null) }
+            is ApiResult.Failure -> updateEditing(id) { it.copy(testRunning = false, testError = result.error.message) }
+        }
+    }
+
+    // Apply [transform] to the open editor state only if it is still the same script (guards against the user
+    // closing / switching scripts mid-run).
+    private fun updateEditing(id: String, transform: (CodeScriptsState.Editing) -> CodeScriptsState.Editing) {
+        val current: CodeScriptsState = _state.value
+        if (current is CodeScriptsState.Editing && current.detail.id == id) {
+            _state.value = transform(current)
+        }
+    }
+
     /** Toggle enabled/disabled. */
     suspend fun setEnabled(id: String, enabled: Boolean) {
         when (val result: ApiResult<CodeScriptSummary> = api.setEnabled(id, enabled)) {
@@ -227,5 +256,8 @@ sealed interface CodeScriptsState {
         val project: ProjectDto,
         val selectedPath: String,
         val actionError: String? = null,
+        val testRunning: Boolean = false,
+        val testResult: TestRunResult? = null,
+        val testError: String? = null,
     ) : CodeScriptsState
 }

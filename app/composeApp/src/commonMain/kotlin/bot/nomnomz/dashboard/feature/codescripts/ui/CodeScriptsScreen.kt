@@ -59,6 +59,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.CodeScriptDetail
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
 import bot.nomnomz.dashboard.core.network.ProjectDto
+import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.feature.codescripts.state.CodeScriptsController
 import bot.nomnomz.dashboard.feature.codescripts.state.CodeScriptsState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -89,6 +90,20 @@ import nomnomzbot.composeapp.generated.resources.scripts_loading
 import nomnomzbot.composeapp.generated.resources.scripts_retry
 import nomnomzbot.composeapp.generated.resources.scripts_status_label
 import nomnomzbot.composeapp.generated.resources.scripts_subtitle
+import nomnomzbot.composeapp.generated.resources.scripts_testrun_args_label
+import nomnomzbot.composeapp.generated.resources.scripts_testrun_chat_empty
+import nomnomzbot.composeapp.generated.resources.scripts_testrun_chat_heading
+import nomnomzbot.composeapp.generated.resources.scripts_testrun_effects_empty
+import nomnomzbot.composeapp.generated.resources.scripts_testrun_effects_heading
+import nomnomzbot.composeapp.generated.resources.scripts_testrun_error
+import nomnomzbot.composeapp.generated.resources.scripts_testrun_failed
+import nomnomzbot.composeapp.generated.resources.scripts_testrun_meta
+import nomnomzbot.composeapp.generated.resources.scripts_testrun_ok
+import nomnomzbot.composeapp.generated.resources.scripts_testrun_run
+import nomnomzbot.composeapp.generated.resources.scripts_testrun_running
+import nomnomzbot.composeapp.generated.resources.scripts_testrun_subtitle
+import nomnomzbot.composeapp.generated.resources.scripts_testrun_title
+import nomnomzbot.composeapp.generated.resources.scripts_testrun_vars_label
 import nomnomzbot.composeapp.generated.resources.scripts_version_label
 import nomnomzbot.composeapp.generated.resources.shell_nav_code_scripts
 import org.jetbrains.compose.resources.stringResource
@@ -148,8 +163,12 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                     selectedPath = current.selectedPath,
                     detail = current.detail,
                     manage = manage,
+                    testRunning = current.testRunning,
+                    testResult = current.testResult,
+                    testError = current.testError,
                     onSelectFile = { controller.selectFile(it) },
                     onEditCode = { scope.launch { controller.editCode(current.detail.id, compiledMessage) } },
+                    onTestRun = { variables, args -> scope.launch { controller.testRun(current.detail.id, variables, args) } },
                 )
             }
             else -> {
@@ -302,8 +321,12 @@ private fun ProjectView(
     selectedPath: String,
     detail: CodeScriptDetail,
     manage: ManageDecision,
+    testRunning: Boolean,
+    testResult: TestRunResult?,
+    testError: String?,
     onSelectFile: (String) -> Unit,
     onEditCode: () -> Unit,
+    onTestRun: (variables: Map<String, String>, args: List<String>) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -364,8 +387,155 @@ private fun ProjectView(
                 }
             }
         }
+
+        TestRunSection(
+            manage = manage,
+            running = testRunning,
+            result = testResult,
+            error = testError,
+            onRun = onTestRun,
+        )
     }
 }
+
+// The dry-run panel: a few sample inputs (variables as key=value lines, space-separated args) + a Run button that
+// calls the backend test-run in CAPTURE mode, then shows the captured chat output + captured effects (or the
+// failure reason). Nothing the script does here reaches a real surface.
+@Composable
+private fun TestRunSection(
+    manage: ManageDecision,
+    running: Boolean,
+    result: TestRunResult?,
+    error: String?,
+    onRun: (variables: Map<String, String>, args: List<String>) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var varsText: String by remember { mutableStateOf("") }
+    var argsText: String by remember { mutableStateOf("") }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                Text(text = stringResource(Res.string.scripts_testrun_title), style = typography.lg, color = tokens.cardForeground)
+                Text(text = stringResource(Res.string.scripts_testrun_subtitle), style = typography.sm, color = tokens.mutedForeground)
+            }
+
+            Textarea(
+                value = varsText,
+                onValueChange = { varsText = it },
+                label = stringResource(Res.string.scripts_testrun_vars_label),
+                modifier = Modifier.fillMaxWidth(),
+                monospace = true,
+                minLines = 3,
+            )
+            AppTextField(
+                value = argsText,
+                onValueChange = { argsText = it },
+                label = stringResource(Res.string.scripts_testrun_args_label),
+                isError = false,
+                errorText = null,
+            )
+
+            ManageGate(manage) { enabled ->
+                Button(
+                    onClick = { onRun(parseVariables(varsText), parseArgs(argsText)) },
+                    enabled = enabled && !running,
+                ) {
+                    Text(
+                        if (running) stringResource(Res.string.scripts_testrun_running)
+                        else stringResource(Res.string.scripts_testrun_run)
+                    )
+                }
+            }
+
+            error?.let { ActionErrorBanner(message = stringResource(Res.string.scripts_testrun_error, it)) }
+
+            result?.let { TestRunResultView(it) }
+        }
+    }
+}
+
+@Composable
+private fun TestRunResultView(result: TestRunResult) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text =
+                    if (result.success) stringResource(Res.string.scripts_testrun_ok)
+                    else stringResource(Res.string.scripts_testrun_failed),
+                style = typography.sm,
+                color = if (result.success) tokens.primary else tokens.destructive,
+            )
+            Text(
+                text = stringResource(Res.string.scripts_testrun_meta, result.durationMs, result.hostCallCount),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
+        result.error?.takeIf { it.isNotBlank() }?.let {
+            Text(text = it, style = typography.xs, color = tokens.destructive)
+        }
+
+        Separator()
+
+        Text(text = stringResource(Res.string.scripts_testrun_chat_heading), style = typography.sm, color = tokens.cardForeground)
+        if (result.chatOutput.isEmpty()) {
+            Text(text = stringResource(Res.string.scripts_testrun_chat_empty), style = typography.xs, color = tokens.mutedForeground)
+        } else {
+            result.chatOutput.forEach { line ->
+                Text(text = line, style = typography.sm, color = tokens.foreground)
+            }
+        }
+
+        Separator()
+
+        Text(text = stringResource(Res.string.scripts_testrun_effects_heading), style = typography.sm, color = tokens.cardForeground)
+        if (result.capturedEffects.isEmpty()) {
+            Text(text = stringResource(Res.string.scripts_testrun_effects_empty), style = typography.xs, color = tokens.mutedForeground)
+        } else {
+            result.capturedEffects.forEach { effect ->
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                    Text(text = effect.name, style = typography.sm, color = tokens.foreground)
+                    if (effect.argsPreview.isNotBlank()) {
+                        Text(
+                            text = effect.argsPreview,
+                            style = typography.xs,
+                            color = tokens.mutedForeground,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Parse the variables textarea (one `key=value` per line) into a map; blank lines and lines without `=` are skipped.
+private fun parseVariables(text: String): Map<String, String> =
+    text.lineSequence()
+        .mapNotNull { line ->
+            val trimmed: String = line.trim()
+            if (trimmed.isEmpty() || !trimmed.contains('=')) return@mapNotNull null
+            val key: String = trimmed.substringBefore('=').trim()
+            val value: String = trimmed.substringAfter('=').trim()
+            if (key.isEmpty()) null else key to value
+        }
+        .toMap()
+
+// Parse the args field into positional arguments, split on any run of whitespace.
+private fun parseArgs(text: String): List<String> =
+    text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
 
 @Composable
 private fun CreateScriptDialog(

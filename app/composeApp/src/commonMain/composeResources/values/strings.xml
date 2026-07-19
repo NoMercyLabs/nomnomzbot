@@ -1232,6 +1232,20 @@
     <string name="scripts_editor_source_label">Source</string>
     <string name="scripts_editor_edit_code">Edit &amp; compile</string>
     <string name="scripts_editor_compiled">Compiled and published</string>
+    <string name="scripts_testrun_title">Test run</string>
+    <string name="scripts_testrun_subtitle">Run this script with sample inputs. Effects are captured, never performed.</string>
+    <string name="scripts_testrun_vars_label">Variables (one key=value per line)</string>
+    <string name="scripts_testrun_args_label">Arguments (space-separated)</string>
+    <string name="scripts_testrun_run">Run test</string>
+    <string name="scripts_testrun_running">Running…</string>
+    <string name="scripts_testrun_ok">Success</string>
+    <string name="scripts_testrun_failed">Failed</string>
+    <string name="scripts_testrun_meta">%1$d ms · %2$d host call(s)</string>
+    <string name="scripts_testrun_error">Test run failed: %1$s</string>
+    <string name="scripts_testrun_chat_heading">Captured chat output</string>
+    <string name="scripts_testrun_chat_empty">No chat output.</string>
+    <string name="scripts_testrun_effects_heading">Captured effects</string>
+    <string name="scripts_testrun_effects_empty">No effects captured.</string>
     <string name="scripts_delete_title">Delete script?</string>
     <string name="scripts_delete_message">Delete "%1$s"? This cannot be undone.</string>
     <string name="scripts_delete_confirm">Delete</string>

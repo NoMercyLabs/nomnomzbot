@@ -52,6 +52,13 @@ interface CodeScriptsApi {
     suspend fun publishVersion(id: String, versionId: String): ApiResult<CodeScriptSummary>
     suspend fun setEnabled(id: String, enabled: Boolean): ApiResult<CodeScriptSummary>
     suspend fun delete(id: String): ApiResult<Unit>
+
+    /**
+     * Dry-run the script's current version with sample inputs (backend `POST /code-scripts/{id}/test-run`). The real
+     * sandbox runs the real logic, but every outward/mutating effect (chat, TTS, widgets, storage writes, rewards,
+     * schedules) is CAPTURED and returned rather than performed; reads run live. Nothing is dispatched or persisted.
+     */
+    suspend fun testRun(id: String, body: ScriptTestRunBody): ApiResult<TestRunResult>
 }
 
 class RestCodeScriptsApi(private val client: ApiClient) : CodeScriptsApi {
@@ -91,6 +98,9 @@ class RestCodeScriptsApi(private val client: ApiClient) : CodeScriptsApi {
 
     override suspend fun delete(id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/code-scripts/$id")
+
+    override suspend fun testRun(id: String, body: ScriptTestRunBody): ApiResult<TestRunResult> =
+        client.postEnvelope("api/v1/code-scripts/$id/test-run", body)
 }
 
 /** Script summary shown in the list (backend `CodeScriptSummaryDto`). */
@@ -153,6 +163,32 @@ data class CreateScriptBody(val name: String, val description: String? = null, v
 /** Create-version body. */
 @Serializable
 data class CreateVersionBody(val sourceCode: String, val publish: Boolean = false)
+
+/** Test-run body — sample variables + args for a dry-run (backend `ScriptTestRunRequest`). */
+@Serializable
+data class ScriptTestRunBody(
+    val variables: Map<String, String> = emptyMap(),
+    val args: List<String> = emptyList(),
+)
+
+/**
+ * The outcome of a script (or pipeline) dry-run (backend `TestRunResultDto`). The logic ran for real; every
+ * outward/mutating effect was CAPTURED (see [capturedEffects]) rather than performed, while reads ran live.
+ */
+@Serializable
+data class TestRunResult(
+    val success: Boolean = false,
+    val error: String? = null,
+    val durationMs: Long = 0,
+    val hostCallCount: Int = 0,
+    val capturedEffects: List<CapturedEffect> = emptyList(),
+    val chatOutput: List<String> = emptyList(),
+    val log: List<String> = emptyList(),
+)
+
+/** One captured outward/mutating effect a dry-run recorded instead of performing (backend `CapturedEffectDto`). */
+@Serializable
+data class CapturedEffect(val name: String = "", val argsPreview: String = "")
 
 @Serializable
 private data class SetEnabledBody(val isEnabled: Boolean)

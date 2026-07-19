@@ -1229,6 +1229,20 @@
     <string name="scripts_editor_source_label">Broncode</string>
     <string name="scripts_editor_edit_code">Bewerken en compileren</string>
     <string name="scripts_editor_compiled">Gecompileerd en gepubliceerd</string>
+    <string name="scripts_testrun_title">Testrun</string>
+    <string name="scripts_testrun_subtitle">Voer dit script uit met voorbeeldinvoer. Effecten worden vastgelegd, nooit uitgevoerd.</string>
+    <string name="scripts_testrun_vars_label">Variabelen (één sleutel=waarde per regel)</string>
+    <string name="scripts_testrun_args_label">Argumenten (gescheiden door spaties)</string>
+    <string name="scripts_testrun_run">Test uitvoeren</string>
+    <string name="scripts_testrun_running">Bezig…</string>
+    <string name="scripts_testrun_ok">Geslaagd</string>
+    <string name="scripts_testrun_failed">Mislukt</string>
+    <string name="scripts_testrun_meta">%1$d ms · %2$d hostaanroep(en)</string>
+    <string name="scripts_testrun_error">Testrun mislukt: %1$s</string>
+    <string name="scripts_testrun_chat_heading">Vastgelegde chatuitvoer</string>
+    <string name="scripts_testrun_chat_empty">Geen chatuitvoer.</string>
+    <string name="scripts_testrun_effects_heading">Vastgelegde effecten</string>
+    <string name="scripts_testrun_effects_empty">Geen effecten vastgelegd.</string>
     <string name="scripts_delete_title">Script verwijderen?</string>
     <string name="scripts_delete_message">"%1$s" verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="scripts_delete_confirm">Verwijderen</string>
