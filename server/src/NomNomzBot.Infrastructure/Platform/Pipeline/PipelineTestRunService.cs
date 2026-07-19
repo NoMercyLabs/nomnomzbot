@@ -62,12 +62,19 @@ public sealed class PipelineTestRunService(
         if (tenant.BroadcasterId is not Guid broadcasterId)
             return Result.Failure<TestRunResultDto>("No tenant.", "NO_TENANT");
 
-        bool exists = await db.Pipelines.AnyAsync(
-            p => p.Id == pipelineId && p.BroadcasterId == broadcasterId,
-            cancellationToken
-        );
-        if (!exists)
+        // Load the graph document, exactly like the real dispatch (reward/command/timer all read
+        // GraphJsonCache into PipelineRequest.PipelineJson). Pipelines are stored graph-only — there are no
+        // PipelineStep rows — so a test-run that passed only the id ran zero steps. Wrap the projection so a
+        // missing row (null wrapper → NOT_FOUND) is distinct from a found pipeline with an empty graph.
+        var found = await db
+            .Pipelines.Where(p => p.Id == pipelineId && p.BroadcasterId == broadcasterId)
+            .Select(p => new { p.GraphJsonCache })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (found is null)
             return Result.Failure<TestRunResultDto>("Pipeline not found.", "NOT_FOUND");
+        string graphJson = string.IsNullOrWhiteSpace(found.GraphJsonCache)
+            ? "{}"
+            : found.GraphJsonCache;
 
         CaptureSink sink = new();
         List<ICommandAction> captureActions =
@@ -83,10 +90,14 @@ public sealed class PipelineTestRunService(
         // (step order, conditions, {last.*} wiring, concurrency/timeout) is exercised unchanged.
         PipelineEngine engine = new(db, registry, captureActions, conditions, logger, timeProvider);
 
+        // Pass BOTH the id and the graph: the engine uses PipelineStep rows when they exist and falls back
+        // to PipelineJson otherwise (its own resolution order). Real pipelines are graph-only, so the graph
+        // is what actually runs — but this also honors any step-row pipeline without special-casing.
         PipelineRequest pipelineRequest = new()
         {
             BroadcasterId = broadcasterId,
             PipelineId = pipelineId,
+            PipelineJson = graphJson,
             TriggeredByUserId = broadcasterId.ToString(),
             TriggeredByDisplayName = "Test Run",
             MessageId = null,

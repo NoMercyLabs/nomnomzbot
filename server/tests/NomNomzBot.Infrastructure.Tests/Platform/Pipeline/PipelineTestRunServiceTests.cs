@@ -160,6 +160,42 @@ public sealed class PipelineTestRunServiceTests
         new(vars.ToDictionary(v => v.Item1, v => v.Item2));
 
     [Fact]
+    public async Task Runs_a_graph_only_pipeline_the_production_shape_with_no_step_rows()
+    {
+        // Real pipelines (imported bundles, the dashboard builder) persist ONLY GraphJsonCache — no
+        // PipelineStep rows. The test-run must load that graph like the real dispatch does; passing only the
+        // id ran zero steps (the bug this locks down).
+        PipelineTestRunDbContext db = NewDb();
+        Harness h = Build(db);
+        db.Pipelines.Add(
+            new NomNomzBot.Domain.Commands.Entities.Pipeline
+            {
+                Id = PipelineId,
+                BroadcasterId = Channel,
+                Name = "graph-only",
+                IsEnabled = true,
+                GraphJsonCache = """
+                {"steps":[{"action":{"type":"send_message","message":"from the graph {who}"}}]}
+                """,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        TestRunResultDto result = (
+            await h.Sut.RunAsync(PipelineId, Request(("who", "cache")))
+        ).Value;
+
+        result.Success.Should().BeTrue();
+        result
+            .CapturedEffects.Select(e => e.Name)
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be("send_message");
+        result.ChatOutput.Should().ContainSingle().Which.Should().Be("from the graph cache");
+    }
+
+    [Fact]
     public async Task Captures_chat_and_tts_without_firing_either_seam()
     {
         PipelineTestRunDbContext db = NewDb();
