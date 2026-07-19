@@ -13,6 +13,7 @@ using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Models.Crypto;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
@@ -38,18 +39,21 @@ public class TtsConfigService : ITtsConfigService
     private readonly ITtsService _ttsService;
     private readonly IEventBus _eventBus;
     private readonly ISubjectKeyService _subjectKeys;
+    private readonly IUserService _users;
 
     public TtsConfigService(
         IApplicationDbContext db,
         ITtsService ttsService,
         IEventBus eventBus,
-        ISubjectKeyService subjectKeys
+        ISubjectKeyService subjectKeys,
+        IUserService users
     )
     {
         _db = db;
         _ttsService = ttsService;
         _eventBus = eventBus;
         _subjectKeys = subjectKeys;
+        _users = users;
     }
 
     public async Task<Result<TtsConfigDto>> GetConfigAsync(
@@ -520,6 +524,7 @@ public class TtsConfigService : ITtsConfigService
     public async Task<Result<TtsVoiceImportResultDto>> ImportUserVoiceAssignmentsAsync(
         Guid broadcasterId,
         IReadOnlyList<TtsVoiceAssignmentRowDto> rows,
+        bool createMissing = false,
         CancellationToken cancellationToken = default
     )
     {
@@ -532,8 +537,9 @@ public class TtsConfigService : ITtsConfigService
         if (rows.Count == 0)
             return Result.Success(new TtsVoiceImportResultDto(0, []));
 
-        // One query per lookup table, not per row: known Twitch users (never created here), the voice ids
-        // the channel can actually synthesize, and the viewer assignments that already exist.
+        // One query per lookup table, not per row: known Twitch users (only created per-row when the caller
+        // opted into createMissing), the voice ids the channel can actually synthesize, and the viewer
+        // assignments that already exist.
         List<string> userIds = rows.Select(r => r.TwitchUserId).Distinct().ToList();
         HashSet<string> knownUsers = (
             await _db
@@ -574,15 +580,38 @@ public class TtsConfigService : ITtsConfigService
         List<TtsVoiceImportSkipDto> skipped = [];
         foreach (TtsVoiceAssignmentRowDto row in rows)
         {
-            if (!knownUsers.Contains(row.TwitchUserId))
-            {
-                skipped.Add(new TtsVoiceImportSkipDto(row.TwitchUserId, "unknown_user"));
-                continue;
-            }
+            // Voice first: a row whose voice can never play skips outright — createMissing must not mint a
+            // viewer User for an assignment that would be dropped anyway.
             if (!knownVoices.Contains(row.VoiceId))
             {
                 skipped.Add(new TtsVoiceImportSkipDto(row.TwitchUserId, "unknown_voice"));
                 continue;
+            }
+            if (!knownUsers.Contains(row.TwitchUserId))
+            {
+                // Opt-in migration path: a legacy-bot viewer who has never chatted here yet gets a bare
+                // viewer User row via the SAME get-or-create seam every chat-ingest handler uses (viewer
+                // identity rule) — never a hand-rolled insert. Without a username there is nothing real
+                // to create from, so the row still skips.
+                if (!createMissing || string.IsNullOrWhiteSpace(row.Username))
+                {
+                    skipped.Add(new TtsVoiceImportSkipDto(row.TwitchUserId, "unknown_user"));
+                    continue;
+                }
+
+                Result<Application.Identity.Dtos.UserDto> created = await _users.GetOrCreateAsync(
+                    row.TwitchUserId,
+                    row.Username,
+                    row.Username,
+                    Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+                    cancellationToken
+                );
+                if (created.IsFailure)
+                {
+                    skipped.Add(new TtsVoiceImportSkipDto(row.TwitchUserId, "unknown_user"));
+                    continue;
+                }
+                knownUsers.Add(row.TwitchUserId);
             }
 
             if (existing.TryGetValue(row.TwitchUserId, out UserTtsVoice? assignment))

@@ -43,7 +43,11 @@ public sealed class ByokTtsProviderFactoryTests
         ISubjectKeyService subjectKeys = Substitute.For<ISubjectKeyService>();
         IHttpClientFactory httpFactory = Substitute.For<IHttpClientFactory>();
         httpFactory.CreateClient(Arg.Any<string>()).Returns(new HttpClient());
-        EdgeTtsProvider edge = new(new FakeTimeProvider(), NullLogger<EdgeTtsProvider>.Instance);
+        EdgeTtsProvider edge = new(
+            new FakeTimeProvider(),
+            httpFactory,
+            NullLogger<EdgeTtsProvider>.Instance
+        );
         ByokTtsProviderFactory sut = new(
             db,
             subjectKeys,

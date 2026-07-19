@@ -77,12 +77,15 @@ public interface ITtsConfigService
     /// <summary>
     /// Bulk-import per-viewer voice assignments (≤500 rows) — the migration surface for another bot's
     /// user→voice table. Each row upserts the viewer's assignment; a Twitch user the bot has never seen or a
-    /// voice not in the catalogue is reported back as skipped (with a reason), never an error, and NO user
-    /// rows are created.
+    /// voice not in the catalogue is reported back as skipped (with a reason), never an error. With
+    /// <paramref name="createMissing"/>, an unknown Twitch user whose row carries a username is created as a
+    /// bare viewer User first (the chat-ingest get-or-create seam) — these are real legacy-bot viewers who
+    /// simply have not chatted yet; without it (the default) NO user rows are ever created.
     /// </summary>
     Task<Result<TtsVoiceImportResultDto>> ImportUserVoiceAssignmentsAsync(
         Guid broadcasterId,
         IReadOnlyList<TtsVoiceAssignmentRowDto> rows,
+        bool createMissing = false,
         CancellationToken cancellationToken = default
     );
 

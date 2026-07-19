@@ -27,16 +27,26 @@ namespace NomNomzBot.Infrastructure.Tts;
 public sealed class EdgeTtsProvider : ITtsProvider
 {
     private const string ProviderName = "edge";
-    private const string WssUrl =
-        "wss://speech.platform.bing.com/consumer/speech/synthesize/realtimetts/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=";
     private const string TrustedToken = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
 
+    /// <summary>Same read-aloud surface the synthesis WebSocket uses, so the token stays a single constant.</summary>
+    private const string VoiceListUrl =
+        $"https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list?trustedclienttoken={TrustedToken}";
+
+    internal const string HttpClientName = "edge-tts";
+
     private readonly TimeProvider _timeProvider;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<EdgeTtsProvider> _logger;
 
-    public EdgeTtsProvider(TimeProvider timeProvider, ILogger<EdgeTtsProvider> logger)
+    public EdgeTtsProvider(
+        TimeProvider timeProvider,
+        IHttpClientFactory httpClientFactory,
+        ILogger<EdgeTtsProvider> logger
+    )
     {
         _timeProvider = timeProvider;
+        _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
@@ -170,152 +180,257 @@ public sealed class EdgeTtsProvider : ITtsProvider
         };
     }
 
-    public Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(
+    /// <summary>
+    /// The full live Edge read-aloud voice list (300+ voices — full external-API coverage). Any fetch or
+    /// parse failure falls back to the curated subset, so the catalogue sync (upsert-only) still refreshes
+    /// the well-known voices and never loses rows to a transient outage.
+    /// </summary>
+    public async Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(
         CancellationToken cancellationToken = default
     )
     {
-        // Curated subset of popular Edge TTS voices
-        IReadOnlyList<TtsVoiceInfo> voices =
-        [
-            new()
-            {
-                Id = "en-US-AriaNeural",
-                Name = "Aria",
-                DisplayName = "Aria (US)",
-                Locale = "en-US",
-                Gender = "Female",
-                Provider = ProviderName,
-            },
-            new()
-            {
-                Id = "en-US-GuyNeural",
-                Name = "Guy",
-                DisplayName = "Guy (US)",
-                Locale = "en-US",
-                Gender = "Male",
-                Provider = ProviderName,
-            },
-            new()
-            {
-                Id = "en-US-JennyNeural",
-                Name = "Jenny",
-                DisplayName = "Jenny (US)",
-                Locale = "en-US",
-                Gender = "Female",
-                Provider = ProviderName,
-            },
-            new()
-            {
-                Id = "en-US-DavisNeural",
-                Name = "Davis",
-                DisplayName = "Davis (US)",
-                Locale = "en-US",
-                Gender = "Male",
-                Provider = ProviderName,
-            },
-            new()
-            {
-                Id = "en-GB-SoniaNeural",
-                Name = "Sonia",
-                DisplayName = "Sonia (UK)",
-                Locale = "en-GB",
-                Gender = "Female",
-                Provider = ProviderName,
-            },
-            new()
-            {
-                Id = "en-GB-RyanNeural",
-                Name = "Ryan",
-                DisplayName = "Ryan (UK)",
-                Locale = "en-GB",
-                Gender = "Male",
-                Provider = ProviderName,
-            },
-            new()
-            {
-                Id = "en-AU-NatashaNeural",
-                Name = "Natasha",
-                DisplayName = "Natasha (AU)",
-                Locale = "en-AU",
-                Gender = "Female",
-                Provider = ProviderName,
-            },
-            new()
-            {
-                Id = "en-CA-ClaraNeural",
-                Name = "Clara",
-                DisplayName = "Clara (CA)",
-                Locale = "en-CA",
-                Gender = "Female",
-                Provider = ProviderName,
-            },
-            new()
-            {
-                Id = "de-DE-KatjaNeural",
-                Name = "Katja",
-                DisplayName = "Katja (DE)",
-                Locale = "de-DE",
-                Gender = "Female",
-                Provider = ProviderName,
-            },
-            new()
-            {
-                Id = "de-DE-ConradNeural",
-                Name = "Conrad",
-                DisplayName = "Conrad (DE)",
-                Locale = "de-DE",
-                Gender = "Male",
-                Provider = ProviderName,
-            },
-            new()
-            {
-                Id = "fr-FR-DeniseNeural",
-                Name = "Denise",
-                DisplayName = "Denise (FR)",
-                Locale = "fr-FR",
-                Gender = "Female",
-                Provider = ProviderName,
-            },
-            new()
-            {
-                Id = "es-ES-ElviraNeural",
-                Name = "Elvira",
-                DisplayName = "Elvira (ES)",
-                Locale = "es-ES",
-                Gender = "Female",
-                Provider = ProviderName,
-            },
-            new()
-            {
-                Id = "ja-JP-NanamiNeural",
-                Name = "Nanami",
-                DisplayName = "Nanami (JP)",
-                Locale = "ja-JP",
-                Gender = "Female",
-                Provider = ProviderName,
-            },
-            new()
-            {
-                Id = "ko-KR-SunHiNeural",
-                Name = "SunHi",
-                DisplayName = "SunHi (KR)",
-                Locale = "ko-KR",
-                Gender = "Female",
-                Provider = ProviderName,
-            },
-            new()
-            {
-                Id = "pt-BR-FranciscaNeural",
-                Name = "Francisca",
-                DisplayName = "Francisca (BR)",
-                Locale = "pt-BR",
-                Gender = "Female",
-                Provider = ProviderName,
-            },
-        ];
+        try
+        {
+            HttpClient client = _httpClientFactory.CreateClient(HttpClientName);
+            using HttpRequestMessage request = new(HttpMethod.Get, VoiceListUrl);
+            request.Headers.TryAddWithoutValidation(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            );
+            using HttpResponseMessage response = await client.SendAsync(request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            string json = await response.Content.ReadAsStringAsync(cancellationToken);
 
-        return Task.FromResult(voices);
+            IReadOnlyList<TtsVoiceInfo> voices = ParseVoiceList(json);
+            if (voices.Count == 0)
+            {
+                _logger.LogWarning(
+                    "Edge TTS: live voice list came back empty; using the curated fallback."
+                );
+                return FallbackVoices;
+            }
+            return voices;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Edge TTS: failed to fetch the live voice list; using the curated fallback."
+            );
+            return FallbackVoices;
+        }
     }
+
+    /// <summary>
+    /// Maps the read-aloud list payload (Name/ShortName/Gender/Locale/FriendlyName per voice) to
+    /// <see cref="TtsVoiceInfo"/>: ShortName is the synthesizable voice id, the given name is derived from it
+    /// ("en-US-AnaNeural" → "Ana"), and the display name follows the curated "Ana (US)" style. Rows missing a
+    /// required field are skipped rather than failing the whole list.
+    /// </summary>
+    internal static IReadOnlyList<TtsVoiceInfo> ParseVoiceList(string json)
+    {
+        using JsonDocument doc = JsonDocument.Parse(json);
+        if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            return [];
+
+        List<TtsVoiceInfo> voices = [];
+        foreach (JsonElement element in doc.RootElement.EnumerateArray())
+        {
+            string? shortName = GetString(element, "ShortName");
+            string? locale = GetString(element, "Locale");
+            string? gender = GetString(element, "Gender");
+            if (shortName is null || locale is null || gender is null)
+                continue;
+
+            string givenName = DeriveGivenName(shortName, locale);
+            string region = locale[(locale.LastIndexOf('-') + 1)..];
+            voices.Add(
+                new TtsVoiceInfo
+                {
+                    Id = shortName,
+                    Name = givenName,
+                    DisplayName = $"{givenName} ({region})",
+                    Locale = locale,
+                    Gender = gender,
+                    Provider = ProviderName,
+                }
+            );
+        }
+        return voices;
+    }
+
+    private static string? GetString(JsonElement element, string property) =>
+        element.TryGetProperty(property, out JsonElement value)
+        && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
+    // "en-US-AnaNeural" → "Ana"; "en-US-EmmaMultilingualNeural" → "Emma Multilingual";
+    // "iu-Cans-CA-TaqqiqNeural" → "Taqqiq". Strips the locale prefix and the "Neural" suffix, then
+    // spaces out camel-cased variant words so multi-word names read naturally.
+    private static string DeriveGivenName(string shortName, string locale)
+    {
+        string name = shortName.StartsWith(locale + "-", StringComparison.OrdinalIgnoreCase)
+            ? shortName[(locale.Length + 1)..]
+            : shortName;
+        if (name.EndsWith("Neural", StringComparison.Ordinal))
+            name = name[..^"Neural".Length];
+        if (name.Length == 0)
+            return shortName;
+
+        StringBuilder spaced = new(name.Length + 4);
+        for (int i = 0; i < name.Length; i++)
+        {
+            if (i > 0 && char.IsUpper(name[i]) && char.IsLower(name[i - 1]))
+                spaced.Append(' ');
+            spaced.Append(name[i]);
+        }
+        return spaced.ToString();
+    }
+
+    /// <summary>Curated subset returned when the live list is unreachable — never an empty catalogue.</summary>
+    internal static IReadOnlyList<TtsVoiceInfo> FallbackVoices { get; } =
+    [
+        new()
+        {
+            Id = "en-US-AriaNeural",
+            Name = "Aria",
+            DisplayName = "Aria (US)",
+            Locale = "en-US",
+            Gender = "Female",
+            Provider = ProviderName,
+        },
+        new()
+        {
+            Id = "en-US-GuyNeural",
+            Name = "Guy",
+            DisplayName = "Guy (US)",
+            Locale = "en-US",
+            Gender = "Male",
+            Provider = ProviderName,
+        },
+        new()
+        {
+            Id = "en-US-JennyNeural",
+            Name = "Jenny",
+            DisplayName = "Jenny (US)",
+            Locale = "en-US",
+            Gender = "Female",
+            Provider = ProviderName,
+        },
+        new()
+        {
+            Id = "en-US-DavisNeural",
+            Name = "Davis",
+            DisplayName = "Davis (US)",
+            Locale = "en-US",
+            Gender = "Male",
+            Provider = ProviderName,
+        },
+        new()
+        {
+            Id = "en-GB-SoniaNeural",
+            Name = "Sonia",
+            DisplayName = "Sonia (UK)",
+            Locale = "en-GB",
+            Gender = "Female",
+            Provider = ProviderName,
+        },
+        new()
+        {
+            Id = "en-GB-RyanNeural",
+            Name = "Ryan",
+            DisplayName = "Ryan (UK)",
+            Locale = "en-GB",
+            Gender = "Male",
+            Provider = ProviderName,
+        },
+        new()
+        {
+            Id = "en-AU-NatashaNeural",
+            Name = "Natasha",
+            DisplayName = "Natasha (AU)",
+            Locale = "en-AU",
+            Gender = "Female",
+            Provider = ProviderName,
+        },
+        new()
+        {
+            Id = "en-CA-ClaraNeural",
+            Name = "Clara",
+            DisplayName = "Clara (CA)",
+            Locale = "en-CA",
+            Gender = "Female",
+            Provider = ProviderName,
+        },
+        new()
+        {
+            Id = "de-DE-KatjaNeural",
+            Name = "Katja",
+            DisplayName = "Katja (DE)",
+            Locale = "de-DE",
+            Gender = "Female",
+            Provider = ProviderName,
+        },
+        new()
+        {
+            Id = "de-DE-ConradNeural",
+            Name = "Conrad",
+            DisplayName = "Conrad (DE)",
+            Locale = "de-DE",
+            Gender = "Male",
+            Provider = ProviderName,
+        },
+        new()
+        {
+            Id = "fr-FR-DeniseNeural",
+            Name = "Denise",
+            DisplayName = "Denise (FR)",
+            Locale = "fr-FR",
+            Gender = "Female",
+            Provider = ProviderName,
+        },
+        new()
+        {
+            Id = "es-ES-ElviraNeural",
+            Name = "Elvira",
+            DisplayName = "Elvira (ES)",
+            Locale = "es-ES",
+            Gender = "Female",
+            Provider = ProviderName,
+        },
+        new()
+        {
+            Id = "ja-JP-NanamiNeural",
+            Name = "Nanami",
+            DisplayName = "Nanami (JP)",
+            Locale = "ja-JP",
+            Gender = "Female",
+            Provider = ProviderName,
+        },
+        new()
+        {
+            Id = "ko-KR-SunHiNeural",
+            Name = "SunHi",
+            DisplayName = "SunHi (KR)",
+            Locale = "ko-KR",
+            Gender = "Female",
+            Provider = ProviderName,
+        },
+        new()
+        {
+            Id = "pt-BR-FranciscaNeural",
+            Name = "Francisca",
+            DisplayName = "Francisca (BR)",
+            Locale = "pt-BR",
+            Gender = "Female",
+            Provider = ProviderName,
+        },
+    ];
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 

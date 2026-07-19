@@ -22,6 +22,14 @@ public sealed record TtsVoiceAssignmentRowDto
     [Required]
     [MaxLength(255)]
     public string VoiceId { get; init; } = null!;
+
+    /// <summary>
+    /// Twitch login of the viewer, only consulted when the import runs with <c>createMissing</c>: an unknown
+    /// Twitch user with a username is created as a bare viewer User (the chat-ingest get-or-create seam)
+    /// instead of being skipped. Optional — omitting it keeps the row skip-on-unknown.
+    /// </summary>
+    [MaxLength(100)]
+    public string? Username { get; init; }
 }
 
 /// <summary>Why one import row was skipped instead of applied (<c>unknown_user</c> | <c>unknown_voice</c>).</summary>

@@ -268,7 +268,9 @@ public class TtsConfigController : BaseController
     /// <summary>
     /// Bulk-import per-viewer voice assignments (≤500 rows) — the migration surface for another bot's
     /// user→voice table. Unknown Twitch users and uncatalogued voices come back as skipped rows with a
-    /// reason; nothing is ever created for them.
+    /// reason. With <c>?createMissing=true</c>, an unknown Twitch user whose row carries a username is
+    /// created as a bare viewer User first (the chat-ingest identity seam) so their legacy voice lands;
+    /// without it nothing is ever created for them.
     /// </summary>
     [HttpPost("voices/assignments/import")]
     [RequireAction("tts:config:write")]
@@ -276,13 +278,19 @@ public class TtsConfigController : BaseController
     public async Task<IActionResult> ImportVoiceAssignments(
         string channelId,
         [FromBody] List<TtsVoiceAssignmentRowDto> request,
-        CancellationToken ct
+        CancellationToken ct,
+        [FromQuery] bool createMissing = false
     )
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
         Result<TtsVoiceImportResultDto> result =
-            await _ttsConfigService.ImportUserVoiceAssignmentsAsync(broadcasterId, request, ct);
+            await _ttsConfigService.ImportUserVoiceAssignmentsAsync(
+                broadcasterId,
+                request,
+                createMissing,
+                ct
+            );
         return ResultResponse(result);
     }
 

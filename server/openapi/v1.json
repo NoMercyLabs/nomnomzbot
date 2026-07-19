@@ -58246,7 +58246,7 @@
         "tags": [
           "TTS"
         ],
-        "summary": "Bulk-import per-viewer voice assignments (≤500 rows) — the migration surface for another bot's\r\nuser→voice table. Unknown Twitch users and uncatalogued voices come back as skipped rows with a\r\nreason; nothing is ever created for them.",
+        "summary": "Bulk-import per-viewer voice assignments (≤500 rows) — the migration surface for another bot's\r\nuser→voice table. Unknown Twitch users and uncatalogued voices come back as skipped rows with a\r\nreason. With `?createMissing=true`, an unknown Twitch user whose row carries a username is\r\ncreated as a bare viewer User first (the chat-ingest identity seam) so their legacy voice lands;\r\nwithout it nothing is ever created for them.",
         "parameters": [
           {
             "name": "channelId",
@@ -58254,6 +58254,14 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "createMissing",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
             }
           },
           {
@@ -86689,6 +86697,14 @@
           "voiceId": {
             "maxLength": 255,
             "type": "string"
+          },
+          "username": {
+            "maxLength": 100,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Twitch login of the viewer, only consulted when the import runs with `createMissing`: an unknown\r\nTwitch user with a username is created as a bare viewer User (the chat-ingest get-or-create seam)\r\ninstead of being skipped. Optional — omitting it keeps the row skip-on-unknown."
           }
         },
         "description": "One row of a bulk per-viewer voice-assignment import: the Twitch user id and the catalogue voice they get."

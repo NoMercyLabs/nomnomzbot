@@ -77,7 +77,8 @@ public sealed class TtsViewerSelfServiceTests
             db,
             Substitute.For<ITtsService>(),
             Substitute.For<IEventBus>(),
-            Substitute.For<ISubjectKeyService>()
+            Substitute.For<ISubjectKeyService>(),
+            Substitute.For<Application.Identity.Services.IUserService>()
         );
         return (config, db);
     }

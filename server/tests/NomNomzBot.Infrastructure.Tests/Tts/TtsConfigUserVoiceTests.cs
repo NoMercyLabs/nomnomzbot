@@ -66,7 +66,17 @@ public sealed class TtsConfigUserVoiceTests
         Application.Services.ISubjectKeyService subjectKeys =
             Substitute.For<Application.Services.ISubjectKeyService>();
 
-        return new Harness { Service = new TtsConfigService(db, tts, bus, subjectKeys), Db = db };
+        return new Harness
+        {
+            Service = new TtsConfigService(
+                db,
+                tts,
+                bus,
+                subjectKeys,
+                Substitute.For<Application.Identity.Services.IUserService>()
+            ),
+            Db = db,
+        };
     }
 
     private static SetUserVoiceDto Set(string voiceId) => new() { VoiceId = voiceId };

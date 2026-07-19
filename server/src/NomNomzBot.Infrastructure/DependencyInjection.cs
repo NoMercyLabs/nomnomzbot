@@ -882,7 +882,8 @@ public static class DependencyInjection
 
         // TTS providers (singleton, multi-binding) — special construction with config args,
         // kept explicit. ITtsService is singleton (stateful queues), also kept explicit.
-        services.AddHttpClient("edge-tts");
+        // Bounded voice-list fetch: a slow Edge endpoint degrades to the curated fallback, never a hang.
+        services.AddHttpClient("edge-tts", client => client.Timeout = TimeSpan.FromSeconds(15));
         services.AddSingleton<ITtsProvider, EdgeTtsProvider>();
         services.AddHttpClient("azure-tts");
         services.AddSingleton<ITtsProvider>(sp => new AzureTtsProvider(

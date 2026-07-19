@@ -71,7 +71,17 @@ public sealed class TtsConfigServiceTests
                 )
             );
 
-        return (new TtsConfigService(db, ttsService, bus, subjectKeys), db, bus);
+        return (
+            new TtsConfigService(
+                db,
+                ttsService,
+                bus,
+                subjectKeys,
+                Substitute.For<Application.Identity.Services.IUserService>()
+            ),
+            db,
+            bus
+        );
     }
 
     [Fact]

@@ -52,7 +52,8 @@ public sealed class TtsConfigControllerOwnVoiceTests
             db,
             Substitute.For<ITtsService>(),
             Substitute.For<IEventBus>(),
-            Substitute.For<ISubjectKeyService>()
+            Substitute.For<ISubjectKeyService>(),
+            Substitute.For<NomNomzBot.Application.Identity.Services.IUserService>()
         );
 
         return new TtsConfigController(
