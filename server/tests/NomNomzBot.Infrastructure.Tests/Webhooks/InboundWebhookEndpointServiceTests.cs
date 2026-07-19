@@ -178,6 +178,59 @@ public sealed class InboundWebhookEndpointServiceTests
     }
 
     [Fact]
+    public async Task Get_surfaces_the_generic_adapter_config_for_the_edit_form()
+    {
+        (InboundWebhookEndpointService sut, _, _, _) = Build();
+        GenericInboundConfig config = new(
+            SignatureHeaderName: "X-Signature",
+            SignaturePrefix: "sha256=",
+            SigningStringTemplate: "{timestamp}.{body}",
+            TimestampHeaderName: "X-Timestamp",
+            SharedSecretBodyField: null,
+            EventKindJsonPath: "$.event",
+            ProviderEventIdJsonPath: "$.id"
+        );
+        InboundWebhookEndpointDto created = (
+            await sut.CreateAsync(
+                Channel,
+                Actor,
+                new CreateInboundWebhookRequest
+                {
+                    Name = "zapier",
+                    Adapter = WebhookAdapterKind.Generic,
+                    VerificationSecret = "topsecret",
+                    GenericConfig = config,
+                }
+            )
+        ).Value;
+
+        InboundWebhookEndpointDto fetched = (await sut.GetAsync(Channel, created.Id)).Value;
+
+        fetched.Adapter.Should().Be(WebhookAdapterKind.Generic);
+        fetched.GenericConfig.Should().NotBeNull();
+        fetched.GenericConfig!.SignatureHeaderName.Should().Be("X-Signature");
+        fetched.GenericConfig.SignaturePrefix.Should().Be("sha256=");
+        fetched.GenericConfig.SigningStringTemplate.Should().Be("{timestamp}.{body}");
+        fetched.GenericConfig.TimestampHeaderName.Should().Be("X-Timestamp");
+        fetched.GenericConfig.SharedSecretBodyField.Should().BeNull();
+        fetched.GenericConfig.EventKindJsonPath.Should().Be("$.event");
+        fetched.GenericConfig.ProviderEventIdJsonPath.Should().Be("$.id");
+    }
+
+    [Fact]
+    public async Task Get_leaves_the_generic_config_null_for_a_provider_adapter()
+    {
+        (InboundWebhookEndpointService sut, _, _, _) = Build();
+        InboundWebhookEndpointDto created = (
+            await sut.CreateAsync(Channel, Actor, Req(WebhookAdapterKind.Kofi))
+        ).Value;
+
+        InboundWebhookEndpointDto fetched = (await sut.GetAsync(Channel, created.Id)).Value;
+
+        fetched.GenericConfig.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Delete_soft_deletes_the_endpoint()
     {
         (InboundWebhookEndpointService sut, _, _, RecordingEventBus bus) = Build();

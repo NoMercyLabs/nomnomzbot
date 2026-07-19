@@ -8,9 +8,16 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json.Serialization;
+
 namespace NomNomzBot.Domain.Webhooks.Enums;
 
-/// <summary>The inbound provider an endpoint speaks (webhooks.md §2).</summary>
+/// <summary>
+/// The inbound provider an endpoint speaks (webhooks.md §2). Serialized as its string name on the API wire
+/// (not an ordinal) so the dashboard sends and reads a stable adapter key (e.g. <c>"Generic"</c>) rather than a
+/// brittle integer, and the OpenAPI schema advertises the real choice set.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum WebhookAdapterKind
 {
     Kofi,

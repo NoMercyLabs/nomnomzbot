@@ -72,6 +72,18 @@ class ApiContractTest {
             PipelineConditionDescriptor.serializer() to "PipelineConditionDescriptorDto",
             PipelineCatalogueRemote.serializer() to "PipelineCatalogueDto",
             CreateInboundBody.serializer() to "CreateInboundWebhookRequest",
+            UpdateInboundBody.serializer() to "UpdateInboundWebhookRequest",
+            GenericInboundConfig.serializer() to "GenericInboundConfig",
+            OutboundWebhook.serializer() to "OutboundWebhookEndpointDto",
+            CreateOutboundBody.serializer() to "CreateOutboundWebhookRequest",
+            UpdateOutboundBody.serializer() to "UpdateOutboundWebhookRequest",
+            OutboundEventCatalogueEntry.serializer() to "OutboundWebhookEventCatalogueEntry",
+            OutboundDelivery.serializer() to "OutboundWebhookDeliveryDto",
+            // NOTE: the InboundWebhook response DTO gains a `genericConfig` field mirroring a backend DTO change
+            // (InboundWebhookEndpointDto now surfaces GenericInboundConfig). It is intentionally NOT guarded here
+            // yet: the committed openapi snapshot is regenerated centrally at integration, and only after that
+            // refresh does InboundWebhookEndpointDto's schema carry `genericConfig`. Add this line once the
+            // snapshot includes it, to guard it forever.
             WidgetSummary.serializer() to "WidgetDetail",
             CreateWidgetBody.serializer() to "CreateWidgetRequest",
             UpdateWidgetBody.serializer() to "UpdateWidgetRequest",

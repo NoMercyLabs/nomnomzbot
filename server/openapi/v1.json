@@ -73653,7 +73653,8 @@
           "lastReceivedAt",
           "receiveCount",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "genericConfig"
         ],
         "type": "object",
         "properties": {
@@ -73713,6 +73714,16 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "genericConfig": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GenericInboundConfig"
+              }
+            ]
           }
         },
         "description": "An inbound webhook endpoint view (webhooks.md §4). Never exposes the verification secret — only a set/unset flag."
@@ -91577,7 +91588,15 @@
         "description": "Issue a warning to a chatter — they must acknowledge it before chatting again (Twitch Warn Chat User)."
       },
       "WebhookAdapterKind": {
-        "type": "integer"
+        "enum": [
+          "Kofi",
+          "Github",
+          "Generic",
+          "Fourthwall",
+          "Shopify",
+          "Patreon",
+          "Buymeacoffee"
+        ]
       },
       "WidgetDetail": {
         "required": [

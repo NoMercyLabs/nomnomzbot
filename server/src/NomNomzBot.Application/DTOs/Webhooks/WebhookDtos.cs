@@ -25,7 +25,8 @@ public sealed record InboundWebhookEndpointDto(
     DateTime? LastReceivedAt,
     long ReceiveCount,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    GenericInboundConfig? GenericConfig
 );
 
 /// <summary>A buffered inbound webhook request the dispatcher hands to the adapter (webhooks.md §4). Raw bytes are exact.</summary>

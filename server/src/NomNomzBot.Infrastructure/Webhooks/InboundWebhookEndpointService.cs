@@ -252,6 +252,11 @@ public sealed class InboundWebhookEndpointService(
             e.LastReceivedAt,
             e.ReceiveCount,
             e.CreatedAt,
-            e.UpdatedAt
+            e.UpdatedAt,
+            // Non-secret custom-adapter signing config (header names, JSON paths) — surfaced so the dashboard can
+            // pre-fill the inbound edit form. The verification secret is never part of this and stays sealed.
+            string.IsNullOrEmpty(e.GenericConfigJson)
+                ? null
+                : JsonConvert.DeserializeObject<GenericInboundConfig>(e.GenericConfigJson)
         );
 }

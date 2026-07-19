@@ -24,8 +24,12 @@ import bot.nomnomz.dashboard.core.network.CreatePickListBody
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.InboundWebhook
+import bot.nomnomz.dashboard.core.network.OutboundDelivery
+import bot.nomnomz.dashboard.core.network.OutboundEventCatalogueEntry
 import bot.nomnomz.dashboard.core.network.OutboundWebhook
 import bot.nomnomz.dashboard.core.network.OutboundWebhookCreated
+import bot.nomnomz.dashboard.core.network.UpdateInboundBody
+import bot.nomnomz.dashboard.core.network.UpdateOutboundBody
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineActionDescriptor
@@ -410,14 +414,20 @@ private object StubWebhooksApi : WebhooksApi {
     override suspend fun listInbound(channelId: String): ApiResult<List<InboundWebhook>> = ApiResult.Ok(emptyList())
     override suspend fun createInbound(channelId: String, body: CreateInboundBody): ApiResult<InboundWebhook> =
         ApiResult.Ok(InboundWebhook())
+    override suspend fun updateInbound(channelId: String, endpointId: String, body: UpdateInboundBody): ApiResult<InboundWebhook> =
+        ApiResult.Ok(InboundWebhook())
     override suspend fun toggleInbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun rotateInboundToken(channelId: String, endpointId: String): ApiResult<String> =
         ApiResult.Ok("")
     override suspend fun deleteInbound(channelId: String, endpointId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun outboundEventCatalogue(channelId: String): ApiResult<List<OutboundEventCatalogueEntry>> =
+        ApiResult.Ok(emptyList())
     override suspend fun listOutbound(channelId: String): ApiResult<List<OutboundWebhook>> = ApiResult.Ok(emptyList())
     override suspend fun createOutbound(channelId: String, body: CreateOutboundBody): ApiResult<OutboundWebhookCreated> =
         ApiResult.Ok(OutboundWebhookCreated())
+    override suspend fun updateOutbound(channelId: String, endpointId: String, body: UpdateOutboundBody): ApiResult<OutboundWebhook> =
+        ApiResult.Ok(OutboundWebhook())
     override suspend fun toggleOutbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun reenableOutbound(channelId: String, endpointId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
@@ -425,6 +435,8 @@ private object StubWebhooksApi : WebhooksApi {
         ApiResult.Ok("")
     override suspend fun testOutbound(channelId: String, endpointId: String): ApiResult<WebhookTestResult> =
         ApiResult.Ok(WebhookTestResult())
+    override suspend fun outboundDeliveries(channelId: String, endpointId: String): ApiResult<List<OutboundDelivery>> =
+        ApiResult.Ok(emptyList())
     override suspend fun deleteOutbound(channelId: String, endpointId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 

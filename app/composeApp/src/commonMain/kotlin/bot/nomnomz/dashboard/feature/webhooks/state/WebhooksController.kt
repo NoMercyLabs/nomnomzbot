@@ -15,11 +15,16 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateInboundBody
 import bot.nomnomz.dashboard.core.network.CreateOutboundBody
+import bot.nomnomz.dashboard.core.network.GenericInboundConfig
 import bot.nomnomz.dashboard.core.network.InboundWebhook
+import bot.nomnomz.dashboard.core.network.OutboundDelivery
+import bot.nomnomz.dashboard.core.network.OutboundEventCatalogueEntry
 import bot.nomnomz.dashboard.core.network.OutboundWebhook
 import bot.nomnomz.dashboard.core.network.OutboundWebhookCreated
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.UpdateInboundBody
+import bot.nomnomz.dashboard.core.network.UpdateOutboundBody
 import bot.nomnomz.dashboard.core.network.WebhookTestResult
 import bot.nomnomz.dashboard.core.network.WebhooksApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -83,7 +88,30 @@ class WebhooksController(
                 is ApiResult.Failure -> emptyList()
             }
 
-        _state.value = WebhooksState.Ready(inbound = inbound, outbound = outbound, pipelines = pipelines)
+        // The curated subscribable-event catalogue backs the outbound event CHECKLIST (no more free-text typos).
+        // Best-effort: an empty catalogue degrades the picker but never blocks the page.
+        val catalogue: List<OutboundEventCatalogueEntry> =
+            when (val result: ApiResult<List<OutboundEventCatalogueEntry>> = webhooksApi.outboundEventCatalogue(channel.id)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> emptyList()
+            }
+
+        _state.value =
+            WebhooksState.Ready(
+                inbound = inbound,
+                outbound = outbound,
+                pipelines = pipelines,
+                catalogue = catalogue,
+            )
+    }
+
+    /** Fetch an outbound endpoint's recent delivery log for the debug view. Returns null on call failure. */
+    suspend fun outboundDeliveries(endpointId: String): List<OutboundDelivery>? {
+        val channel: String = channelId ?: run { failWrite("No active channel."); return null }
+        return when (val result: ApiResult<List<OutboundDelivery>> = webhooksApi.outboundDeliveries(channel, endpointId)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> { failWrite(result.error.message); null }
+        }
     }
 
     // ── Inbound ──────────────────────────────────────────────────────────────
@@ -98,6 +126,7 @@ class WebhooksController(
         secret: String,
         targetPipelineId: String?,
         targetEventType: String?,
+        genericConfig: GenericInboundConfig?,
     ) {
         val channel: String = channelId ?: return failWrite("No active channel.")
         val body =
@@ -107,8 +136,35 @@ class WebhooksController(
                 verificationSecret = secret,
                 targetPipelineId = targetPipelineId?.takeIf { it.isNotBlank() },
                 targetEventType = targetEventType?.takeIf { it.isNotBlank() },
+                genericConfig = genericConfig,
             )
         when (val result: ApiResult<InboundWebhook> = webhooksApi.createInbound(channel, body)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
+    /** Full inbound edit — persists name, routing, custom-adapter config and (optionally) a rotated secret. */
+    suspend fun updateInbound(
+        endpointId: String,
+        name: String,
+        secret: String?,
+        targetPipelineId: String?,
+        targetEventType: String?,
+        genericConfig: GenericInboundConfig?,
+        isEnabled: Boolean,
+    ) {
+        val channel: String = channelId ?: return failWrite("No active channel.")
+        val body =
+            UpdateInboundBody(
+                name = name,
+                verificationSecret = secret?.takeIf { it.isNotBlank() },
+                targetPipelineId = targetPipelineId?.takeIf { it.isNotBlank() },
+                targetEventType = targetEventType?.takeIf { it.isNotBlank() },
+                genericConfig = genericConfig,
+                isEnabled = isEnabled,
+            )
+        when (val result: ApiResult<InboundWebhook> = webhooksApi.updateInbound(channel, endpointId, body)) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)
         }
@@ -149,6 +205,16 @@ class WebhooksController(
         ) {
             is ApiResult.Ok -> { load(); result.value }
             is ApiResult.Failure -> { failWrite(result.error.message); null }
+        }
+    }
+
+    /** Full outbound edit — persists the name, the subscribed-event set, and the enabled flag in one PUT. */
+    suspend fun updateOutbound(endpointId: String, name: String, events: List<String>, isEnabled: Boolean) {
+        val channel: String = channelId ?: return failWrite("No active channel.")
+        val body = UpdateOutboundBody(name = name, subscribedEventTypes = events, isEnabled = isEnabled)
+        when (val result: ApiResult<OutboundWebhook> = webhooksApi.updateOutbound(channel, endpointId, body)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
 
@@ -212,6 +278,7 @@ sealed interface WebhooksState {
         val inbound: List<InboundWebhook>,
         val outbound: List<OutboundWebhook>,
         val pipelines: List<PipelineSummary> = emptyList(),
+        val catalogue: List<OutboundEventCatalogueEntry> = emptyList(),
         val actionError: String? = null,
     ) : WebhooksState
 
