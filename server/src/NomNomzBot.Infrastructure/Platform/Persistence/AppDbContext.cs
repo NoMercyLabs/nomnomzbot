@@ -197,6 +197,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Domain.Commands.Entities.Pipeline> Pipelines =>
         Set<Domain.Commands.Entities.Pipeline>();
 
+    public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => Set<ScheduledPipelineTask>();
     public DbSet<PipelineStep> PipelineSteps => Set<PipelineStep>();
     public DbSet<PipelineStepCondition> PipelineStepConditions => Set<PipelineStepCondition>();
     public DbSet<PipelineExecution> PipelineExecutions => Set<PipelineExecution>();

@@ -123,6 +123,7 @@ public interface IApplicationDbContext
     DbSet<EventResponse> EventResponses { get; }
     DbSet<WatchStreak> WatchStreaks { get; }
     DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines { get; }
+    DbSet<ScheduledPipelineTask> ScheduledPipelineTasks { get; }
     DbSet<PipelineStep> PipelineSteps { get; }
     DbSet<PipelineStepCondition> PipelineStepConditions { get; }
     DbSet<PipelineExecution> PipelineExecutions { get; }

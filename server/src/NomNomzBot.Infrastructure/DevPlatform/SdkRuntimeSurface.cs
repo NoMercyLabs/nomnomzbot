@@ -200,6 +200,12 @@ internal static class SdkRuntimeSurface
             sb.AppendLine(
                 "    reward: { get(rewardIdOrTitle: string): NnzApiReward | null; update(rewardIdOrTitle: string, patch: NnzApiRewardPatch): boolean };"
             );
+            sb.AppendLine(
+                "    /** Schedule a saved pipeline to run once after a delay in seconds (survives restarts); optional variables + dedupeKey (re-scheduling with the same key replaces the pending run). */"
+            );
+            sb.AppendLine(
+                "    schedule: { pipeline(pipelineName: string, delaySeconds: number, variables?: Record<string, string>, dedupeKey?: string): boolean };"
+            );
         }
         else
         {

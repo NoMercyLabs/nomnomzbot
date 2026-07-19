@@ -12,6 +12,8 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Dtos;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
@@ -64,6 +66,7 @@ public sealed class ScriptHostBridge(
     IRewardService rewardService,
     IViewerAnalyticsService viewerAnalytics,
     ITtsConfigService ttsConfig,
+    IScheduledPipelineService scheduledPipelines,
     IApplicationDbContext db
 ) : IScriptHostBridge
 {
@@ -92,6 +95,7 @@ public sealed class ScriptHostBridge(
             "stats.viewer" => GetViewerStats,
             "tts.voice.get" => GetTtsVoice,
             "tts.voice.set" => SetTtsVoice,
+            "schedule.pipeline" => SchedulePipeline,
             _ => static (_, _, _) => null, // granted-but-unwired caps no-op; the grant already gated access
         };
 
@@ -516,6 +520,55 @@ public sealed class ScriptHostBridge(
             .GetAwaiter()
             .GetResult();
         return set.IsSuccess ? "ok" : null;
+    }
+
+    private string? SchedulePipeline(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        // args: [pipelineName, delaySeconds, variablesJson?, dedupeKey?]. The name resolves to a pipeline of THIS
+        // channel host-side (unknown → typed NOT_FOUND → the guest sees the boolean false); the delay is clamped
+        // by the service. This is how a Voice-Swap script schedules its own revert.
+        if (
+            args.Count < 2
+            || string.IsNullOrWhiteSpace(args[0])
+            || !int.TryParse(args[1], out int delaySeconds)
+        )
+            return null;
+
+        Dictionary<string, string>? variables = new(StringComparer.OrdinalIgnoreCase);
+        if (args.Count > 2 && !string.IsNullOrWhiteSpace(args[2]))
+        {
+            try
+            {
+                variables = JsonConvert.DeserializeObject<Dictionary<string, string>>(args[2]);
+            }
+            catch (JsonException)
+            {
+                return null; // malformed variables payload — refuse rather than schedule garbage
+            }
+            if (variables is null)
+                return null;
+        }
+
+        string? dedupeKey = args.Count > 3 && !string.IsNullOrWhiteSpace(args[3]) ? args[3] : null;
+
+        Result<ScheduledPipelineTaskDto> scheduled = scheduledPipelines
+            .ScheduleByNameAsync(
+                broadcasterId,
+                args[0],
+                delaySeconds,
+                variables,
+                triggeringUserId,
+                string.Empty,
+                dedupeKey,
+                ct
+            )
+            .GetAwaiter()
+            .GetResult();
+        return scheduled.IsSuccess ? "ok" : null;
     }
 
     // Resolves a viewer reference (internal Guid, Twitch id, or login) to the User row — the same

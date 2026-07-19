@@ -72,6 +72,7 @@ public sealed class ScriptRunnerTests
                 Substitute.For<NomNomzBot.Application.Rewards.Services.IRewardService>(),
                 Substitute.For<NomNomzBot.Application.Contracts.Analytics.IViewerAnalyticsService>(),
                 Substitute.For<NomNomzBot.Application.Tts.Services.ITtsConfigService>(),
+                Substitute.For<NomNomzBot.Application.Commands.Services.IScheduledPipelineService>(),
                 new FakeTimeProvider(Now)
             ),
             db

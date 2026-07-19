@@ -167,6 +167,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
     public DbSet<WatchStreak> WatchStreaks => Set<WatchStreak>();
     public DbSet<Pipeline> Pipelines => Set<Pipeline>();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask> ScheduledPipelineTasks =>
+        throw new NotSupportedException();
     public DbSet<PipelineStep> PipelineSteps => Set<PipelineStep>();
     public DbSet<PipelineStepCondition> PipelineStepConditions => Set<PipelineStepCondition>();
     public DbSet<PipelineExecution> PipelineExecutions => Set<PipelineExecution>();

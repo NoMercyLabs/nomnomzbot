@@ -58,6 +58,8 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
 
     public DbSet<Command> Commands => Set<Command>();
     public DbSet<PipelineEntity> Pipelines => Set<PipelineEntity>();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask> ScheduledPipelineTasks =>
+        throw new NotSupportedException();
     public DbSet<CustomDataSource> CustomDataSources => Set<CustomDataSource>();
     public DbSet<InstalledBundle> InstalledBundles => Set<InstalledBundle>();
     public DbSet<Channel> Channels => Set<Channel>();

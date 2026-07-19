@@ -56,6 +56,9 @@ public sealed class ScriptCapabilityBroker(IFeatureFlagService featureFlags)
         // voice catalogue and stays tenant-scoped; side-effecting low, no Twitch surface.
         new("tts.voice.get", "low", FeatureGate, SideEffecting: false),
         new("tts.voice.set", "low", FeatureGate, SideEffecting: true),
+        // Schedules a saved pipeline to run once after a delay (the deferred-execution primitive — e.g. a
+        // voice-swap script scheduling its own revert). Persists a task; no external/Twitch surface → low tier.
+        new("schedule.pipeline", "low", FeatureGate, SideEffecting: true),
     ];
 
     public IReadOnlyList<ScriptCapabilityDescriptor> Catalog => CatalogEntries;

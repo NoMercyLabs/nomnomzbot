@@ -154,6 +154,14 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 reward: {
                     get: function (idOrTitle) { var r = bot.call('reward.get', String(idOrTitle)); return r ? JSON.parse(r) : null; },
                     update: function (idOrTitle, patch) { return bot.call('reward.update', String(idOrTitle), JSON.stringify(patch)) === 'ok'; }
+                },
+                schedule: {
+                    pipeline: function (pipelineName, delaySeconds, variables, dedupeKey) {
+                        var v = variables === undefined || variables === null ? '{}' : JSON.stringify(variables);
+                        return (dedupeKey === undefined
+                            ? bot.call('schedule.pipeline', String(pipelineName), String(delaySeconds), v)
+                            : bot.call('schedule.pipeline', String(pipelineName), String(delaySeconds), v, String(dedupeKey))) === 'ok';
+                    }
                 }
             }
         };
@@ -221,6 +229,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         ["widget.emit"] = "widget.emit",
         ["reward.get"] = "reward.get",
         ["reward.update"] = "reward.update",
+        ["schedule.pipeline"] = "schedule.pipeline",
     };
 
     private static IReadOnlyList<string> DeclaredCapabilities(string sourceCode)

@@ -12,6 +12,8 @@ using System.Net;
 using FluentAssertions;
 using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Dtos;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
@@ -57,6 +59,7 @@ public sealed class ScriptHostBridgeTests
         IRewardService? rewards = null,
         IViewerAnalyticsService? analytics = null,
         ITtsConfigService? ttsConfig = null,
+        IScheduledPipelineService? scheduler = null,
         IApplicationDbContext? db = null
     ) =>
         BuildFor(
@@ -73,6 +76,7 @@ public sealed class ScriptHostBridgeTests
             rewards,
             analytics,
             ttsConfig,
+            scheduler,
             db
         );
 
@@ -91,6 +95,7 @@ public sealed class ScriptHostBridgeTests
         IRewardService? rewards = null,
         IViewerAnalyticsService? analytics = null,
         ITtsConfigService? ttsConfig = null,
+        IScheduledPipelineService? scheduler = null,
         IApplicationDbContext? db = null
     ) =>
         new(
@@ -108,6 +113,7 @@ public sealed class ScriptHostBridgeTests
             rewards ?? Substitute.For<IRewardService>(),
             analytics ?? Substitute.For<IViewerAnalyticsService>(),
             ttsConfig ?? Substitute.For<ITtsConfigService>(),
+            scheduler ?? Substitute.For<IScheduledPipelineService>(),
             db ?? AuthTestBuilder.NewContext()
         );
 
@@ -1051,5 +1057,112 @@ public sealed class ScriptHostBridgeTests
                 Arg.Any<SetUserVoiceDto>(),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    // ─── schedule.pipeline ────────────────────────────────────────────────────
+
+    private static ScheduledPipelineTaskDto ScheduledDto() =>
+        new(
+            Guid.Parse("0192a000-0000-7000-8000-00000000e0f1"),
+            Guid.Parse("0192a000-0000-7000-8000-00000000e0f2"),
+            "Voice Swap Revert",
+            DateTimeOffset.UtcNow.AddSeconds(300),
+            "pending",
+            "voice-swap-revert:555",
+            "viewer",
+            DateTimeOffset.UtcNow
+        );
+
+    [Fact]
+    public async Task Schedule_pipeline_enqueues_via_the_scheduler_for_the_bridges_tenant()
+    {
+        IScheduledPipelineService scheduler = Substitute.For<IScheduledPipelineService>();
+        IReadOnlyDictionary<string, string>? seenVars = null;
+        scheduler
+            .ScheduleByNameAsync(
+                Channel,
+                "Voice Swap Revert",
+                300,
+                Arg.Do<IReadOnlyDictionary<string, string>>(v => seenVars = v),
+                Viewer.ToString(),
+                string.Empty,
+                "voice-swap-revert:555",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(ScheduledDto()));
+
+        string? result = Build(scheduler: scheduler)
+            .Resolve("schedule.pipeline")(
+                "schedule.pipeline",
+                [
+                    "Voice Swap Revert",
+                    "300",
+                    "{\"revert.to\":\"en-US-Aria\"}",
+                    "voice-swap-revert:555",
+                ],
+                CancellationToken.None
+            );
+
+        result.Should().Be("ok");
+        // The bridge parsed the delay + variables JSON and routed them to the scheduler under THIS tenant.
+        seenVars.Should().NotBeNull();
+        seenVars!["revert.to"].Should().Be("en-US-Aria");
+        await scheduler
+            .Received(1)
+            .ScheduleByNameAsync(
+                Channel,
+                "Voice Swap Revert",
+                300,
+                Arg.Any<IReadOnlyDictionary<string, string>>(),
+                Viewer.ToString(),
+                string.Empty,
+                "voice-swap-revert:555",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Schedule_pipeline_refuses_a_malformed_variables_payload_without_scheduling()
+    {
+        IScheduledPipelineService scheduler = Substitute.For<IScheduledPipelineService>();
+
+        Build(scheduler: scheduler)
+            .Resolve("schedule.pipeline")(
+                "schedule.pipeline",
+                ["Voice Swap Revert", "300", "{not json"],
+                CancellationToken.None
+            )
+            .Should()
+            .BeNull();
+        await scheduler
+            .DidNotReceiveWithAnyArgs()
+            .ScheduleByNameAsync(default, default!, default, default!, default!, default!, default);
+    }
+
+    [Fact]
+    public void Schedule_pipeline_returns_null_for_an_unknown_pipeline_name()
+    {
+        IScheduledPipelineService scheduler = Substitute.For<IScheduledPipelineService>();
+        scheduler
+            .ScheduleByNameAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<IReadOnlyDictionary<string, string>>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<ScheduledPipelineTaskDto>("Pipeline not found.", "NOT_FOUND"));
+
+        Build(scheduler: scheduler)
+            .Resolve("schedule.pipeline")(
+                "schedule.pipeline",
+                ["Ghost Pipeline", "60"],
+                CancellationToken.None
+            )
+            .Should()
+            .BeNull();
     }
 }

@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
@@ -51,6 +52,7 @@ public sealed class ScriptRunner(
     IRewardService rewardService,
     IViewerAnalyticsService viewerAnalytics,
     ITtsConfigService ttsConfig,
+    IScheduledPipelineService scheduledPipelines,
     TimeProvider clock
 ) : IScriptRunner
 {
@@ -152,6 +154,7 @@ public sealed class ScriptRunner(
             rewardService,
             viewerAnalytics,
             ttsConfig,
+            scheduledPipelines,
             db
         );
         Result<ScriptExecutionOutcomeResult> executed = await executor.ExecuteAsync(

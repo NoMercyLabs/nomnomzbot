@@ -180,4 +180,48 @@ public sealed class ScriptCapabilityBrokerTests
 
         result.ErrorCode.Should().Be("FORBIDDEN");
     }
+
+    [Fact]
+    public async Task The_schedule_pipeline_capability_is_catalogued_and_grantable()
+    {
+        ScriptCapabilityBroker sut = Build(featureEnabled: true);
+
+        Result<ScriptCapabilityGrant> result = await sut.BuildGrantAsync(
+            Channel,
+            ["schedule.pipeline"]
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Granted.Select(g => g.Key).Should().Contain("schedule.pipeline");
+        // Side-effecting (it persists a task) but no external/Twitch surface → low tier.
+        sut.Catalog.Single(c => c.Key == "schedule.pipeline").SideEffecting.Should().BeTrue();
+        sut.Catalog.Single(c => c.Key == "schedule.pipeline").FloorTier.Should().Be("low");
+    }
+
+    [Fact]
+    public async Task An_undeclared_schedule_lookalike_key_is_denied_at_grant_time()
+    {
+        ScriptCapabilityBroker sut = Build(featureEnabled: true);
+
+        // Not in the catalogue (only schedule.pipeline is) — the whole grant fails closed.
+        Result<ScriptCapabilityGrant> result = await sut.BuildGrantAsync(
+            Channel,
+            ["schedule.pipeline", "schedule.command"]
+        );
+
+        result.ErrorCode.Should().Be("FORBIDDEN");
+    }
+
+    [Fact]
+    public async Task The_schedule_pipeline_grant_is_forbidden_when_the_feature_is_gated_off()
+    {
+        ScriptCapabilityBroker sut = Build(featureEnabled: false);
+
+        Result<ScriptCapabilityGrant> result = await sut.BuildGrantAsync(
+            Channel,
+            ["schedule.pipeline"]
+        );
+
+        result.ErrorCode.Should().Be("FORBIDDEN");
+    }
 }

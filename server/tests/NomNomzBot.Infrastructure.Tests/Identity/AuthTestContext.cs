@@ -363,6 +363,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<NomNomzBot.Domain.Commands.Entities.Pipeline>()
             .Ignore(e => e.Channel)
             .Ignore(e => e.Steps);
+        b.Entity<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask>().HasKey(e => e.Id);
         b.Ignore<NomNomzBot.Domain.Commands.Entities.PipelineStep>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.EventJournal>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.TenantSequence>();
@@ -480,6 +481,11 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
         Set<NomNomzBot.Domain.Commands.Entities.Pipeline>();
+
+    // ScheduledPipelineTask: scalar-only (VariablesJson is a plain string), so it materializes on InMemory —
+    // mapped live so the deferred-pipeline scheduler / sweeper / action tests persist + query through this harness.
+    public DbSet<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask> ScheduledPipelineTasks =>
+        Set<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStep> PipelineSteps =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition> PipelineStepConditions =>
