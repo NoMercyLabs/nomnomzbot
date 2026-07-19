@@ -54,9 +54,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
+import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -68,6 +70,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.TtsConfig
+import bot.nomnomz.dashboard.core.network.TtsLexiconEntry
 import bot.nomnomz.dashboard.core.network.TtsQueueEntry
 import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsVoice
@@ -94,6 +97,29 @@ import nomnomzbot.composeapp.generated.resources.tts_gender_female
 import nomnomzbot.composeapp.generated.resources.tts_gender_male
 import nomnomzbot.composeapp.generated.resources.tts_gender_neutral
 import nomnomzbot.composeapp.generated.resources.tts_label_min_bits
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_add
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_delete
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_delete_action
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_delete_cancel
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_delete_confirm
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_delete_message
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_delete_title
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_description
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_add
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_add_title
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_cancel
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_edit_title
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_kind_label
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_phrase_label
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_replacement_label
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_save
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_edit
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_edit_action
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_empty
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_error
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_kind_exact
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_kind_word
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_title
 import nomnomzbot.composeapp.generated.resources.tts_label_viewer_self_service
 import nomnomzbot.composeapp.generated.resources.tts_min_bits_hint
 import nomnomzbot.composeapp.generated.resources.tts_provider_azure
@@ -213,6 +239,13 @@ fun TtsScreen(
                         scope.launch { controller.setByokKey(provider, apiKey, region) }
                     },
                     onRemoveByok = { provider -> scope.launch { controller.removeByokKey(provider) } },
+                    onAddLexicon = { phrase, replacement, kind ->
+                        scope.launch { controller.addLexiconEntry(phrase, replacement, kind) }
+                    },
+                    onUpdateLexicon = { id, phrase, replacement, kind ->
+                        scope.launch { controller.updateLexiconEntry(id, phrase, replacement, kind) }
+                    },
+                    onDeleteLexicon = { id -> scope.launch { controller.deleteLexiconEntry(id) } },
                 )
         }
     }
@@ -243,6 +276,9 @@ private fun ReadyContent(
     onSearchVoices: (q: String, locale: String, gender: String, provider: String, accent: String, page: Int) -> Unit,
     onSetByok: (provider: String, apiKey: String, region: String?) -> Unit,
     onRemoveByok: (provider: String) -> Unit,
+    onAddLexicon: (phrase: String, replacement: String, matchKind: String) -> Unit,
+    onUpdateLexicon: (id: String, phrase: String, replacement: String, matchKind: String) -> Unit,
+    onDeleteLexicon: (id: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val loaded: TtsConfig = state.config
@@ -366,6 +402,16 @@ private fun ReadyContent(
             onLookup = onLookupViewerVoice,
             onAssign = onAssignViewerVoice,
             onClear = onClearViewerVoice,
+        )
+
+        PronunciationSection(
+            lexicon = state.lexicon,
+            busy = state.lexiconBusy,
+            error = state.lexiconError,
+            manage = manage,
+            onAdd = onAddLexicon,
+            onUpdate = onUpdateLexicon,
+            onDelete = onDeleteLexicon,
         )
 
         TtsQueueSection(controller = queueController, manage = queueManage)
@@ -1082,6 +1128,264 @@ private fun ViewerVoiceSection(
             onSelect = { pickedVoiceId = it },
         )
     }
+}
+
+// The in-progress lexicon dialog: a null [id] = create, otherwise it edits that rule.
+private data class LexiconEditor(
+    val id: String? = null,
+    val phrase: String = "",
+    val replacement: String = "",
+    val matchKind: String = "word",
+)
+
+// The match-kind wire values (backend UpsertTtsLexiconEntryDto regex) paired with their localized labels.
+private val LEXICON_KINDS: List<Pair<String, StringResource>> =
+    listOf(
+        "word" to Res.string.tts_lexicon_kind_word,
+        "exact" to Res.string.tts_lexicon_kind_exact,
+    )
+
+// The pronunciation lexicon (tts.md): the channel's phrase → spoken-replacement rules. Lists every rule
+// with its match-kind chip; add/edit run through one dialog, delete confirms first. All writes sit at the
+// page's Editor manage floor — below it the actions render disabled with the reason tooltip.
+@Composable
+private fun PronunciationSection(
+    lexicon: List<TtsLexiconEntry>,
+    busy: Boolean,
+    error: String?,
+    manage: ManageDecision,
+    onAdd: (phrase: String, replacement: String, matchKind: String) -> Unit,
+    onUpdate: (id: String, phrase: String, replacement: String, matchKind: String) -> Unit,
+    onDelete: (id: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var editor: LexiconEditor? by remember { mutableStateOf(null) }
+    var pendingDelete: TtsLexiconEntry? by remember { mutableStateOf(null) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(Res.string.tts_lexicon_title),
+                    style = typography.base,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f),
+                )
+                ManageGate(decision = manage) { enabled ->
+                    Button(onClick = { editor = LexiconEditor() }, enabled = enabled && !busy) {
+                        Text(stringResource(Res.string.tts_lexicon_add))
+                    }
+                }
+            }
+            Text(
+                text = stringResource(Res.string.tts_lexicon_description),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+            error?.let { detail ->
+                ActionErrorBanner(message = stringResource(Res.string.tts_lexicon_error, detail))
+            }
+
+            if (lexicon.isEmpty()) {
+                Text(
+                    text = stringResource(Res.string.tts_lexicon_empty),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+            } else {
+                lexicon.forEachIndexed { index, entry ->
+                    if (index > 0) Separator()
+                    LexiconRow(
+                        entry = entry,
+                        busy = busy,
+                        manage = manage,
+                        onEdit = {
+                            editor =
+                                LexiconEditor(
+                                    id = entry.id,
+                                    phrase = entry.phrase,
+                                    replacement = entry.replacement,
+                                    matchKind = entry.matchKind,
+                                )
+                        },
+                        onDelete = { pendingDelete = entry },
+                    )
+                }
+            }
+        }
+    }
+
+    editor?.let { open ->
+        LexiconFormDialog(
+            editor = open,
+            onDismiss = { editor = null },
+            onSubmit = { phrase, replacement, kind ->
+                editor = null
+                val id: String? = open.id
+                if (id == null) onAdd(phrase, replacement, kind)
+                else onUpdate(id, phrase, replacement, kind)
+            },
+        )
+    }
+
+    pendingDelete?.let { entry ->
+        ConfirmDialog(
+            title = stringResource(Res.string.tts_lexicon_delete_title),
+            message = stringResource(Res.string.tts_lexicon_delete_message, entry.phrase),
+            confirmLabel = stringResource(Res.string.tts_lexicon_delete_confirm),
+            dismissLabel = stringResource(Res.string.tts_lexicon_delete_cancel),
+            destructive = true,
+            onConfirm = {
+                pendingDelete = null
+                onDelete(entry.id)
+            },
+            onDismiss = { pendingDelete = null },
+        )
+    }
+}
+
+// One rule: "phrase → replacement" with its match-kind chip, plus Edit / Delete at the Editor floor.
+@Composable
+private fun LexiconRow(
+    entry: TtsLexiconEntry,
+    busy: Boolean,
+    manage: ManageDecision,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val editLabel: String = stringResource(Res.string.tts_lexicon_edit_action, entry.phrase)
+    val deleteLabel: String = stringResource(Res.string.tts_lexicon_delete_action, entry.phrase)
+    val kindLabel: String =
+        stringResource(
+            if (entry.matchKind == "exact") Res.string.tts_lexicon_kind_exact
+            else Res.string.tts_lexicon_kind_word
+        )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "${entry.phrase} → ${entry.replacement}",
+            style = typography.sm,
+            color = tokens.cardForeground,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Badge { Text(kindLabel, maxLines = 1) }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onEdit,
+                enabled = enabled && !busy,
+                modifier = Modifier.semantics { contentDescription = editLabel },
+            ) {
+                Text(stringResource(Res.string.tts_lexicon_edit))
+            }
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onDelete,
+                enabled = enabled && !busy,
+                modifier = Modifier.semantics { contentDescription = deleteLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.tts_lexicon_delete),
+                    color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                )
+            }
+        }
+    }
+}
+
+// One dialog for both create and edit (an empty [editor] = create). Submit stays disabled until both the
+// phrase and the replacement are non-blank; the match kind is picked from chips, never free text.
+@Composable
+private fun LexiconFormDialog(
+    editor: LexiconEditor,
+    onDismiss: () -> Unit,
+    onSubmit: (phrase: String, replacement: String, matchKind: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+
+    var phrase: String by remember { mutableStateOf(editor.phrase) }
+    var replacement: String by remember { mutableStateOf(editor.replacement) }
+    var matchKind: String by remember { mutableStateOf(editor.matchKind) }
+
+    val canSubmit: Boolean = phrase.isNotBlank() && replacement.isNotBlank()
+    val isEdit: Boolean = editor.id != null
+    val title: String =
+        stringResource(
+            if (isEdit) Res.string.tts_lexicon_dialog_edit_title
+            else Res.string.tts_lexicon_dialog_add_title
+        )
+    val submitLabel: String =
+        stringResource(
+            if (isEdit) Res.string.tts_lexicon_dialog_save else Res.string.tts_lexicon_dialog_add
+        )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    value = phrase,
+                    onValueChange = { phrase = it.take(100) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.tts_lexicon_dialog_phrase_label),
+                )
+                AppTextField(
+                    value = replacement,
+                    onValueChange = { replacement = it.take(200) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.tts_lexicon_dialog_replacement_label),
+                )
+                VoiceFilterChips(
+                    label = stringResource(Res.string.tts_lexicon_dialog_kind_label),
+                    options = LEXICON_KINDS,
+                    selected = matchKind,
+                    onSelect = { matchKind = it },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSubmit(phrase.trim(), replacement.trim(), matchKind) },
+                enabled = canSubmit,
+            ) {
+                Text(
+                    text = submitLabel,
+                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(Res.string.tts_lexicon_dialog_cancel),
+                    color = tokens.mutedForeground,
+                )
+            }
+        },
+    )
 }
 
 // One voice match: name + locale/provider, with a "Use" action that sets it as the default voice (Editor floor).

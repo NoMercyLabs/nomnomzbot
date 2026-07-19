@@ -16,10 +16,12 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
+import bot.nomnomz.dashboard.core.network.TtsLexiconEntry
 import bot.nomnomz.dashboard.core.network.TtsTestRequest
 import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsVoice
 import bot.nomnomz.dashboard.core.network.TtsVoicePage
+import bot.nomnomz.dashboard.core.network.UpsertTtsLexiconEntryBody
 import bot.nomnomz.dashboard.core.network.UserTtsVoice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -74,7 +76,63 @@ class TtsController(
                 is ApiResult.Ok -> result.value
             }
 
-        _state.value = TtsState.Ready(config = config, voices = voices)
+        // The pronunciation lexicon (same resilience — the config page never blocks on it).
+        val lexicon: List<TtsLexiconEntry> =
+            when (val result: ApiResult<List<TtsLexiconEntry>> = ttsApi.lexicon(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
+        _state.value = TtsState.Ready(config = config, voices = voices, lexicon = lexicon)
+    }
+
+    /**
+     * Add a pronunciation rule ([phrase] spoken as [replacement], matched per [matchKind]) and refresh the
+     * rule list on success. A failure (e.g. a duplicate phrase) surfaces on the Ready state's lexicon panel
+     * without dropping the loaded config.
+     */
+    suspend fun addLexiconEntry(phrase: String, replacement: String, matchKind: String) {
+        mutateLexicon { channel ->
+            ttsApi.createLexiconEntry(channel, UpsertTtsLexiconEntryBody(phrase, replacement, matchKind))
+        }
+    }
+
+    /** Rewrite the rule [entryId], then refresh the list. Failures surface on the lexicon panel. */
+    suspend fun updateLexiconEntry(entryId: String, phrase: String, replacement: String, matchKind: String) {
+        mutateLexicon { channel ->
+            ttsApi.updateLexiconEntry(channel, entryId, UpsertTtsLexiconEntryBody(phrase, replacement, matchKind))
+        }
+    }
+
+    /** Delete the rule [entryId], then refresh the list. Failures surface on the lexicon panel. */
+    suspend fun deleteLexiconEntry(entryId: String) {
+        mutateLexicon { channel -> ttsApi.deleteLexiconEntry(channel, entryId) }
+    }
+
+    // Run one lexicon write, then re-fetch the authoritative list on success (the backend orders and
+    // de-duplicates — the UI never guesses). On failure the error lands on the panel, the list stays put.
+    private suspend fun mutateLexicon(write: suspend (channelId: String) -> ApiResult<*>) {
+        val channel: String = channelId ?: return
+        val current: TtsState = _state.value
+        if (current !is TtsState.Ready) return
+
+        _state.value = current.copy(lexiconBusy = true, lexiconError = null)
+        when (val result: ApiResult<*> = write(channel)) {
+            is ApiResult.Failure ->
+                (_state.value as? TtsState.Ready)?.let {
+                    _state.value = it.copy(lexiconBusy = false, lexiconError = result.error.message)
+                }
+            is ApiResult.Ok -> {
+                val refreshed: List<TtsLexiconEntry> =
+                    when (val list: ApiResult<List<TtsLexiconEntry>> = ttsApi.lexicon(channel)) {
+                        is ApiResult.Failure -> (_state.value as? TtsState.Ready)?.lexicon ?: emptyList()
+                        is ApiResult.Ok -> list.value
+                    }
+                (_state.value as? TtsState.Ready)?.let {
+                    _state.value = it.copy(lexicon = refreshed, lexiconBusy = false, lexiconError = null)
+                }
+            }
+        }
     }
 
     /**
@@ -301,6 +359,10 @@ sealed interface TtsState {
         val viewerVoice: ViewerVoiceState? = null,
         // The searchable voice-browser state, or null until the operator opens/searches it.
         val voiceBrowser: VoiceBrowserState? = null,
+        // The pronunciation lexicon: the channel's rules plus the panel's write-in-flight / error signals.
+        val lexicon: List<TtsLexiconEntry> = emptyList(),
+        val lexiconBusy: Boolean = false,
+        val lexiconError: String? = null,
     ) : TtsState
 
     data class Error(val detail: String) : TtsState

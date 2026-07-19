@@ -133,6 +133,8 @@ class ApiContractTest {
             TtsVoicePage.serializer() to "PaginatedResponseOfTtsVoiceDto",
             SetTtsByokKeyBody.serializer() to "SetTtsByokKeyDto",
             TtsQueueEntry.serializer() to "TtsQueueEntryDto",
+            TtsLexiconEntry.serializer() to "TtsLexiconEntryDto",
+            UpsertTtsLexiconEntryBody.serializer() to "UpsertTtsLexiconEntryDto",
             BlockedTrack.serializer() to "BlockedTrackDto",
             BlockedTrackPage.serializer() to "PaginatedResponseOfBlockedTrackDto",
             BlockTrackBody.serializer() to "BlockTrackRequest",

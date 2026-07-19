@@ -18,11 +18,13 @@ import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
+import bot.nomnomz.dashboard.core.network.TtsLexiconEntry
 import bot.nomnomz.dashboard.core.network.TtsQueueEntry
 import bot.nomnomz.dashboard.core.network.TtsTestRequest
 import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsVoice
 import bot.nomnomz.dashboard.core.network.TtsVoicePage
+import bot.nomnomz.dashboard.core.network.UpsertTtsLexiconEntryBody
 import bot.nomnomz.dashboard.core.network.UserTtsVoice
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -170,6 +172,23 @@ private class FakeQueueTtsApi(
     val rejected: MutableList<String> = mutableListOf()
 
     override suspend fun config(channelId: String): ApiResult<TtsConfig> = error("stub")
+
+    override suspend fun lexicon(channelId: String): ApiResult<List<TtsLexiconEntry>> =
+        error("stub")
+
+    override suspend fun createLexiconEntry(
+        channelId: String,
+        body: UpsertTtsLexiconEntryBody,
+    ): ApiResult<TtsLexiconEntry> = error("stub")
+
+    override suspend fun updateLexiconEntry(
+        channelId: String,
+        entryId: String,
+        body: UpsertTtsLexiconEntryBody,
+    ): ApiResult<TtsLexiconEntry> = error("stub")
+
+    override suspend fun deleteLexiconEntry(channelId: String, entryId: String): ApiResult<Unit> =
+        error("stub")
 
     override suspend fun updateConfig(channelId: String, update: TtsConfigUpdate): ApiResult<TtsConfig> =
         error("stub")

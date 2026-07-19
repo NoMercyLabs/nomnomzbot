@@ -18,6 +18,8 @@ import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
+import bot.nomnomz.dashboard.core.network.TtsLexiconEntry
+import bot.nomnomz.dashboard.core.network.UpsertTtsLexiconEntryBody
 import bot.nomnomz.dashboard.core.network.TtsTestRequest
 import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsQueueEntry
@@ -254,6 +256,86 @@ class TtsControllerTest {
         assertEquals(listOf("viewer-1"), ttsApi.clearedUserVoices)
         assertNull((controller.state.value as? TtsState.Ready)?.viewerVoice?.currentVoiceId)
     }
+
+    // ── Pronunciation lexicon ────────────────────────────────────────────────
+
+    @Test
+    fun load_surfaces_the_channels_lexicon_rules() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        ttsApi.lexiconEntries.add(
+            TtsLexiconEntry(id = "lex-9", phrase = "brb", replacement = "be right back", matchKind = "word")
+        )
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+
+        controller.load()
+
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals(listOf("brb"), ready.lexicon.map { it.phrase })
+        assertEquals("be right back", ready.lexicon.single().replacement)
+    }
+
+    @Test
+    fun add_lexicon_entry_persists_and_refreshes_the_list() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+
+        controller.addLexiconEntry("JD", "Jaydee", "word")
+
+        // The write reached the API and the refreshed authoritative list is on the state.
+        assertEquals(listOf("JD"), ttsApi.lexiconEntries.map { it.phrase })
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals(1, ready.lexicon.size)
+        assertEquals("Jaydee", ready.lexicon.single().replacement)
+        assertEquals("word", ready.lexicon.single().matchKind)
+        assertNull(ready.lexiconError)
+    }
+
+    @Test
+    fun update_lexicon_entry_rewrites_the_rule() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+        controller.addLexiconEntry("JD", "Jaydee", "word")
+        val id: String = ttsApi.lexiconEntries.single().id
+
+        controller.updateLexiconEntry(id, "JD", "Jay Dee", "exact")
+
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals("Jay Dee", ready.lexicon.single().replacement)
+        assertEquals("exact", ready.lexicon.single().matchKind)
+    }
+
+    @Test
+    fun delete_lexicon_entry_removes_it_from_the_list() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+        controller.addLexiconEntry("JD", "Jaydee", "word")
+        val id: String = ttsApi.lexiconEntries.single().id
+
+        controller.deleteLexiconEntry(id)
+
+        assertTrue(ttsApi.lexiconEntries.isEmpty())
+        assertTrue((controller.state.value as TtsState.Ready).lexicon.isEmpty())
+    }
+
+    @Test
+    fun failed_lexicon_write_surfaces_the_error_and_keeps_the_list() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        ttsApi.lexiconEntries.add(
+            TtsLexiconEntry(id = "lex-1", phrase = "brb", replacement = "be right back", matchKind = "word")
+        )
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+        ttsApi.lexiconWriteFailure = ApiError(409, "ALREADY_EXISTS", "duplicate rule")
+
+        controller.addLexiconEntry("brb", "bathroom break", "word")
+
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals("duplicate rule", ready.lexiconError)
+        assertEquals(listOf("brb"), ready.lexicon.map { it.phrase }) // list untouched
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -368,5 +450,54 @@ private class FakeTtsApi(
         clearedUserVoices.add(userId)
         userVoices[userId] = null
         return ApiResult.Ok(Unit)
+    }
+
+    // In-memory pronunciation lexicon; [lexiconWriteFailure] makes every write fail so error surfacing is testable.
+    val lexiconEntries: MutableList<TtsLexiconEntry> = mutableListOf()
+    var lexiconWriteFailure: ApiError? = null
+    private var nextLexiconId: Int = 1
+
+    override suspend fun lexicon(channelId: String): ApiResult<List<TtsLexiconEntry>> =
+        ApiResult.Ok(lexiconEntries.sortedBy { it.phrase })
+
+    override suspend fun createLexiconEntry(
+        channelId: String,
+        body: UpsertTtsLexiconEntryBody,
+    ): ApiResult<TtsLexiconEntry> {
+        lexiconWriteFailure?.let { return ApiResult.Failure(it) }
+        val entry =
+            TtsLexiconEntry(
+                id = "lex-${nextLexiconId++}",
+                phrase = body.phrase,
+                replacement = body.replacement,
+                matchKind = body.matchKind,
+            )
+        lexiconEntries.add(entry)
+        return ApiResult.Ok(entry)
+    }
+
+    override suspend fun updateLexiconEntry(
+        channelId: String,
+        entryId: String,
+        body: UpsertTtsLexiconEntryBody,
+    ): ApiResult<TtsLexiconEntry> {
+        lexiconWriteFailure?.let { return ApiResult.Failure(it) }
+        val index: Int = lexiconEntries.indexOfFirst { it.id == entryId }
+        if (index < 0) return ApiResult.Failure(ApiError(404, "NOT_FOUND", "no such rule"))
+        val updated =
+            TtsLexiconEntry(
+                id = entryId,
+                phrase = body.phrase,
+                replacement = body.replacement,
+                matchKind = body.matchKind,
+            )
+        lexiconEntries[index] = updated
+        return ApiResult.Ok(updated)
+    }
+
+    override suspend fun deleteLexiconEntry(channelId: String, entryId: String): ApiResult<Unit> {
+        lexiconWriteFailure?.let { return ApiResult.Failure(it) }
+        return if (lexiconEntries.removeAll { it.id == entryId }) ApiResult.Ok(Unit)
+        else ApiResult.Failure(ApiError(404, "NOT_FOUND", "no such rule"))
     }
 }

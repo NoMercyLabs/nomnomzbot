@@ -87,6 +87,25 @@ interface TtsApi {
 
     /** Clear [userId]'s voice override (they fall back to the channel default). A 404 (nothing set) is a success. */
     suspend fun clearUserVoice(channelId: String, userId: String): ApiResult<Unit>
+
+    /** All pronunciation rules for the channel (phrase → what TTS speaks instead), ordered by phrase. */
+    suspend fun lexicon(channelId: String): ApiResult<List<TtsLexiconEntry>>
+
+    /** Add a pronunciation rule; a duplicate (phrase, match kind) is refused by the backend. */
+    suspend fun createLexiconEntry(
+        channelId: String,
+        body: UpsertTtsLexiconEntryBody,
+    ): ApiResult<TtsLexiconEntry>
+
+    /** Rewrite the rule [entryId] (phrase, replacement, and match kind). */
+    suspend fun updateLexiconEntry(
+        channelId: String,
+        entryId: String,
+        body: UpsertTtsLexiconEntryBody,
+    ): ApiResult<TtsLexiconEntry>
+
+    /** Remove the rule [entryId]. */
+    suspend fun deleteLexiconEntry(channelId: String, entryId: String): ApiResult<Unit>
 }
 
 class RestTtsApi(private val client: ApiClient) : TtsApi {
@@ -190,6 +209,26 @@ class RestTtsApi(private val client: ApiClient) : TtsApi {
             is ApiResult.Failure ->
                 if (result.error.status == 404) ApiResult.Ok(Unit) else ApiResult.Failure(result.error)
         }
+
+    // The lexicon list is a StatusResponseDto<List<TtsLexiconEntryDto>> envelope — getEnvelope unwraps `data`.
+    override suspend fun lexicon(channelId: String): ApiResult<List<TtsLexiconEntry>> =
+        client.getEnvelope("api/v1/channels/$channelId/tts/lexicon")
+
+    override suspend fun createLexiconEntry(
+        channelId: String,
+        body: UpsertTtsLexiconEntryBody,
+    ): ApiResult<TtsLexiconEntry> =
+        client.postEnvelope("api/v1/channels/$channelId/tts/lexicon", body)
+
+    override suspend fun updateLexiconEntry(
+        channelId: String,
+        entryId: String,
+        body: UpsertTtsLexiconEntryBody,
+    ): ApiResult<TtsLexiconEntry> =
+        client.putEnvelope("api/v1/channels/$channelId/tts/lexicon/$entryId", body)
+
+    override suspend fun deleteLexiconEntry(channelId: String, entryId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/tts/lexicon/$entryId")
 }
 
 /** The channel's TTS configuration (backend `TtsConfigDto`). Field names mirror the DTO camelCase exactly. */
@@ -326,3 +365,24 @@ data class UserTtsVoice(val userId: String = "", val voiceId: String = "")
 /** Request body to set a viewer's voice (backend `SetUserVoiceDto`). [voiceId] must be a synthesisable voice. */
 @Serializable
 data class SetUserVoiceBody(val voiceId: String)
+
+/**
+ * One pronunciation-lexicon rule (backend `TtsLexiconEntryDto`): whenever [phrase] appears in an utterance,
+ * TTS speaks [replacement] instead. [matchKind] is `word` (whole-word, case-insensitive) or `exact`
+ * (case-sensitive literal).
+ */
+@Serializable
+data class TtsLexiconEntry(
+    val id: String = "",
+    val phrase: String = "",
+    val replacement: String = "",
+    val matchKind: String = "word",
+)
+
+/** Request body to create/update a pronunciation rule (backend `UpsertTtsLexiconEntryDto`). */
+@Serializable
+data class UpsertTtsLexiconEntryBody(
+    val phrase: String,
+    val replacement: String,
+    val matchKind: String = "word",
+)
