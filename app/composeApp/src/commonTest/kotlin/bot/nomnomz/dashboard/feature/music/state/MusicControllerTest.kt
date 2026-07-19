@@ -12,6 +12,9 @@ package bot.nomnomz.dashboard.feature.music.state
 
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BlockTrackBody
+import bot.nomnomz.dashboard.core.network.BlockedTrack
+import bot.nomnomz.dashboard.core.network.BlockedTrackPage
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
@@ -287,6 +290,123 @@ class MusicControllerTest {
         // Only the initial load read the snapshot; the failed control did not trigger a reload.
         assertEquals(1, musicApi.queueCalls)
     }
+
+    @Test
+    fun load_surfaces_the_blocked_track_page_on_the_ready_state() = runTest {
+        val blocked =
+            BlockedTrackPage(
+                data =
+                    listOf(
+                        BlockedTrack(
+                            id = "bt1",
+                            provider = "spotify",
+                            trackUri = "spotify:track:abc",
+                            title = "Baby Shark",
+                            reason = "never again",
+                            createdAt = "2026-07-18T12:00:00Z",
+                        )
+                    ),
+                total = 1,
+                hasMore = false,
+            )
+        val musicApi =
+            FakeMusicApi(
+                snapshots = listOf(ApiResult.Ok(MusicSnapshot(nowPlaying = NowPlaying(trackName = "A")))),
+                blockedResult = ApiResult.Ok(blocked),
+            )
+        val controller = MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
+
+        controller.load()
+
+        val state: MusicState = controller.state.value
+        assertTrue(state is MusicState.Ready)
+        val ready: MusicState.Ready = state as MusicState.Ready
+        // The blocked page projects verbatim: rows, count, and paging signals.
+        assertEquals(listOf("Baby Shark"), ready.blockedTracks.map { it.title })
+        assertEquals("spotify:track:abc", ready.blockedTracks[0].trackUri)
+        assertEquals("never again", ready.blockedTracks[0].reason)
+        assertEquals(1, ready.blockedTotal)
+        assertEquals(1, ready.blockedPage)
+        assertFalse(ready.blockedHasMore)
+        assertEquals(listOf(1), musicApi.blockedReads)
+    }
+
+    @Test
+    fun block_track_posts_the_exact_body_and_rereads_the_blocked_list() = runTest {
+        val musicApi = FakeMusicApi(ApiResult.Ok(MusicSnapshot(nowPlaying = NowPlaying(trackName = "A"))))
+        val controller = MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
+        controller.load()
+        musicApi.blockedReads.clear()
+
+        controller.blockTrack(provider = "spotify", trackUri = "spotify:track:abc", title = "Baby Shark", reason = "no")
+
+        // The create carried the exact request body, and the current page re-read so the new row appears.
+        assertEquals(
+            listOf(BlockTrackBody(provider = "spotify", trackUri = "spotify:track:abc", title = "Baby Shark", reason = "no")),
+            musicApi.blockCalls,
+        )
+        assertEquals(listOf(1), musicApi.blockedReads)
+        assertNull((controller.state.value as MusicState.Ready).actionError)
+    }
+
+    @Test
+    fun a_failed_block_surfaces_the_error_and_keeps_the_rows() = runTest {
+        val musicApi =
+            FakeMusicApi(
+                snapshots = listOf(ApiResult.Ok(MusicSnapshot(nowPlaying = NowPlaying(trackName = "A")))),
+                blockResult = ApiResult.Failure(ApiError(409, "TRACK_BLOCKED", "Track is already blocked.")),
+            )
+        val controller = MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
+        controller.load()
+        musicApi.blockedReads.clear()
+
+        controller.blockTrack(provider = "spotify", trackUri = "spotify:track:abc", title = "Baby Shark", reason = null)
+
+        val state: MusicState.Ready = controller.state.value as MusicState.Ready
+        // The 409 surfaces on the Ready state; nothing re-read, so the rows stay put.
+        assertEquals("Track is already blocked.", state.actionError)
+        assertTrue(musicApi.blockedReads.isEmpty())
+    }
+
+    @Test
+    fun unblock_deletes_by_id_and_rereads_the_current_page() = runTest {
+        val musicApi = FakeMusicApi(ApiResult.Ok(MusicSnapshot(nowPlaying = NowPlaying(trackName = "A"))))
+        val controller = MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
+        controller.load()
+        musicApi.blockedReads.clear()
+
+        controller.unblockTrack("bt1")
+
+        assertEquals(listOf("bt1"), musicApi.unblockCalls)
+        assertEquals(listOf(1), musicApi.blockedReads)
+        assertNull((controller.state.value as MusicState.Ready).actionError)
+    }
+
+    @Test
+    fun load_blocked_tracks_pages_the_list() = runTest {
+        val page2 =
+            BlockedTrackPage(
+                data = listOf(BlockedTrack(id = "bt26", provider = "youtube", trackUri = "yt:v:x", title = "Song 26")),
+                total = 26,
+                hasMore = false,
+            )
+        val musicApi =
+            FakeMusicApi(
+                snapshots = listOf(ApiResult.Ok(MusicSnapshot(nowPlaying = NowPlaying(trackName = "A")))),
+                blockedResult = ApiResult.Ok(page2),
+            )
+        val controller = MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
+        controller.load()
+
+        controller.loadBlockedTracks(2)
+
+        val state: MusicState.Ready = controller.state.value as MusicState.Ready
+        // The pager read page 2 and the Ready state now carries that page + its position.
+        assertEquals(listOf(1, 2), musicApi.blockedReads)
+        assertEquals(2, state.blockedPage)
+        assertEquals(listOf("Song 26"), state.blockedTracks.map { it.title })
+        assertEquals(26, state.blockedTotal)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -314,6 +434,10 @@ private class FakeMusicApi(
     private val controlResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     // Config defaults to failure so tests that don't configure it don't interfere with Empty state detection.
     private val configResult: ApiResult<MusicConfig> = ApiResult.Failure(ApiError(503, "UNAVAILABLE", "no config")),
+    // Blocked-track behavior: the list every read returns, and the configurable mutation results.
+    private val blockedResult: ApiResult<BlockedTrackPage> = ApiResult.Ok(BlockedTrackPage()),
+    private val blockResult: ApiResult<BlockedTrack> = ApiResult.Ok(BlockedTrack()),
+    private val unblockResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : MusicApi {
     // Single-result convenience for the read-only tests (one queue() result, controls unused).
     constructor(result: ApiResult<MusicSnapshot>) : this(snapshots = listOf(result))
@@ -325,6 +449,9 @@ private class FakeMusicApi(
     val pauseCalls: MutableList<String> = mutableListOf()
     val resumeCalls: MutableList<String> = mutableListOf()
     val removeCalls: MutableList<Pair<String, Int>> = mutableListOf()
+    val blockedReads: MutableList<Int> = mutableListOf()
+    val blockCalls: MutableList<BlockTrackBody> = mutableListOf()
+    val unblockCalls: MutableList<String> = mutableListOf()
 
     override suspend fun queue(channelId: String): ApiResult<MusicSnapshot> {
         // Walk through the configured sequence; the last entry repeats once the script runs out.
@@ -379,4 +506,19 @@ private class FakeMusicApi(
         ApiResult.Ok(emptyList())
 
     override suspend fun playContext(channelId: String, contextUri: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun blockedTracks(channelId: String, page: Int, take: Int): ApiResult<BlockedTrackPage> {
+        blockedReads.add(page)
+        return blockedResult
+    }
+
+    override suspend fun blockTrack(channelId: String, body: BlockTrackBody): ApiResult<BlockedTrack> {
+        blockCalls.add(body)
+        return blockResult
+    }
+
+    override suspend fun unblockTrack(channelId: String, blockedTrackId: String): ApiResult<Unit> {
+        unblockCalls.add(blockedTrackId)
+        return unblockResult
+    }
 }

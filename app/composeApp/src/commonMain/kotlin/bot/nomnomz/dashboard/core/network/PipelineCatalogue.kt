@@ -72,6 +72,12 @@ data class BlockType(
 //   song_volume               SongVolumeAction               — "volume" (int 0-100)
 //   song_current              SongCurrentAction              — (no params)
 //   song_queue                SongQueueAction                — "max" (int, default 5)?
+//   song_pause                SongPauseAction                — (no params)
+//   song_resume               SongResumeAction               — (no params)
+//   song_previous             SongPreviousAction             — (no params)
+//   playlist_add              PlaylistAddAction              — "playlist_id", "track_uri"?
+//   song_wrong                SongWrongAction                — (no params)
+//   song_ban                  SongBanAction                  — "reason"?
 //   play_sound                PlaySoundAction                — "clip", "volume" (int)?, "wait_for_finish"?, "handle"?
 //   play_tts                  PlayTtsAction                  — "text" (template, required), "voice" (voice id)?
 //   grant_currency            GrantCurrencyAction            — "amount" (int), "reason"?
@@ -169,6 +175,43 @@ object PipelineCatalogue {
                 role = BlockRole.Action,
                 labelKey = "song_queue",
                 fields = listOf(BlockField("max", "song_queue_max", required = false, kind = FieldKind.Number)),
+            ),
+            BlockType(
+                type = "song_pause",
+                role = BlockRole.Action,
+                labelKey = "song_pause",
+            ),
+            BlockType(
+                type = "song_resume",
+                role = BlockRole.Action,
+                labelKey = "song_resume",
+            ),
+            BlockType(
+                type = "song_previous",
+                role = BlockRole.Action,
+                labelKey = "song_previous",
+            ),
+            BlockType(
+                type = "playlist_add",
+                role = BlockRole.Action,
+                labelKey = "playlist_add",
+                fields =
+                    listOf(
+                        BlockField("playlist_id", "playlist_id", required = true),
+                        // Optional track URI override; empty adds the currently playing track.
+                        BlockField("track_uri", "track_uri", required = false),
+                    ),
+            ),
+            BlockType(
+                type = "song_wrong",
+                role = BlockRole.Action,
+                labelKey = "song_wrong",
+            ),
+            BlockType(
+                type = "song_ban",
+                role = BlockRole.Action,
+                labelKey = "song_ban",
+                fields = listOf(BlockField("reason", "reason", required = false)),
             ),
             // ── Sound / overlay ──────────────────────────────────────────────
             BlockType(

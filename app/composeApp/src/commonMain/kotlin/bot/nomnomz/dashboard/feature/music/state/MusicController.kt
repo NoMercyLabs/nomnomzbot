@@ -11,6 +11,9 @@
 package bot.nomnomz.dashboard.feature.music.state
 
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BlockTrackBody
+import bot.nomnomz.dashboard.core.network.BlockedTrack
+import bot.nomnomz.dashboard.core.network.BlockedTrackPage
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.MusicApi
@@ -102,6 +105,15 @@ class MusicController(
                 is ApiResult.Ok -> result.value
             }
 
+        // Blocked tracks are resilient too — a failure degrades to an empty page (the section shows empty).
+        // A reload keeps the page the operator was on so an unblock doesn't jump back to page 1.
+        val blockedPage: Int = (_state.value as? MusicState.Ready)?.blockedPage ?: 1
+        val blocked: BlockedTrackPage =
+            when (val result: ApiResult<BlockedTrackPage> = musicApi.blockedTracks(channel.id, page = blockedPage)) {
+                is ApiResult.Failure -> BlockedTrackPage()
+                is ApiResult.Ok -> result.value
+            }
+
         // The pretty, human-shareable SR link — `{origin}/sr/@{login}` — resolvable by the public by-channel
         // route (@ + case tolerant). Only built when both the origin and the channel login are known.
         val shareLink: String? =
@@ -119,7 +131,75 @@ class MusicController(
                 shareLink = shareLink,
                 devices = devices,
                 playlists = playlists,
+                blockedTracks = blocked.data,
+                blockedPage = blockedPage,
+                blockedTotal = blocked.total,
+                blockedHasMore = blocked.hasMore,
             )
+    }
+
+    /**
+     * Load one [page] of the blocked-track list into the Ready state (the pager's prev/next). Failures surface
+     * on [MusicState.Ready.actionError]; the current rows stay put.
+     */
+    suspend fun loadBlockedTracks(page: Int) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<BlockedTrackPage> = musicApi.blockedTracks(channel, page = page)) {
+            is ApiResult.Failure -> {
+                val current: MusicState = _state.value
+                if (current is MusicState.Ready) {
+                    _state.value = current.copy(actionError = result.error.message)
+                }
+            }
+            is ApiResult.Ok -> {
+                val current: MusicState = _state.value
+                if (current is MusicState.Ready) {
+                    _state.value =
+                        current.copy(
+                            blockedTracks = result.value.data,
+                            blockedPage = page,
+                            blockedTotal = result.value.total,
+                            blockedHasMore = result.value.hasMore,
+                        )
+                }
+            }
+        }
+    }
+
+    /**
+     * Block a track from song requests. On success the blocked list re-reads (the new entry appears where the
+     * server sorted it); on failure — including TRACK_BLOCKED when it is already on the list — the error
+     * surfaces on the Ready state and the rows stay put.
+     */
+    suspend fun blockTrack(provider: String, trackUri: String, title: String, reason: String?) {
+        val channel: String = channelId ?: return
+        val body = BlockTrackBody(provider = provider, trackUri = trackUri, title = title, reason = reason)
+        when (val result: ApiResult<BlockedTrack> = musicApi.blockTrack(channel, body)) {
+            is ApiResult.Failure -> {
+                val current: MusicState = _state.value
+                if (current is MusicState.Ready) {
+                    _state.value = current.copy(actionError = result.error.message)
+                }
+            }
+            is ApiResult.Ok -> loadBlockedTracks((_state.value as? MusicState.Ready)?.blockedPage ?: 1)
+        }
+    }
+
+    /**
+     * Unblock (remove) a blocked track by its id. Re-reads the current page on success so the row drops off;
+     * surfaces the error on the Ready state on failure. The screen gates this behind a confirmation.
+     */
+    suspend fun unblockTrack(blockedTrackId: String) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<Unit> = musicApi.unblockTrack(channel, blockedTrackId)) {
+            is ApiResult.Failure -> {
+                val current: MusicState = _state.value
+                if (current is MusicState.Ready) {
+                    _state.value = current.copy(actionError = result.error.message)
+                }
+            }
+            is ApiResult.Ok -> loadBlockedTracks((_state.value as? MusicState.Ready)?.blockedPage ?: 1)
+        }
     }
 
     /**
@@ -269,6 +349,11 @@ sealed interface MusicState {
         val shareLink: String? = null,
         val devices: List<MusicDevice> = emptyList(),
         val playlists: List<MusicPlaylist> = emptyList(),
+        // The blocked song-request tracks — one page of rows plus the paging signals the section's pager needs.
+        val blockedTracks: List<BlockedTrack> = emptyList(),
+        val blockedPage: Int = 1,
+        val blockedTotal: Int = 0,
+        val blockedHasMore: Boolean = false,
         val actionError: String? = null,
     ) : MusicState
 

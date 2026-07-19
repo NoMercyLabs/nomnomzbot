@@ -1839,6 +1839,24 @@
     <string name="music_playlists_title">Playlists</string>
     <string name="music_playlists_empty">No playlists found</string>
     <string name="music_playlist_play">Play %1$s</string>
+    <string name="music_blocked_title">Blocked songs</string>
+    <string name="music_blocked_empty">No blocked songs.</string>
+    <string name="music_blocked_reason">Reason: %1$s</string>
+    <string name="music_blocked_date">Blocked %1$s</string>
+    <string name="music_blocked_count">%1$d blocked</string>
+    <string name="music_blocked_prev">Previous</string>
+    <string name="music_blocked_next">Next</string>
+    <string name="music_blocked_unblock">Unblock %1$s</string>
+    <string name="music_blocked_unblock_title">Unblock song?</string>
+    <string name="music_blocked_unblock_message">%1$s can be requested again.</string>
+    <string name="music_blocked_unblock_confirm">Unblock</string>
+    <string name="music_blocked_unblock_dismiss">Cancel</string>
+    <string name="music_block_form_title">Block a track</string>
+    <string name="music_block_provider">Provider</string>
+    <string name="music_block_uri">Track URI</string>
+    <string name="music_block_track_title">Title</string>
+    <string name="music_block_reason">Reason (optional)</string>
+    <string name="music_block_action">Block</string>
 
     <!-- Pipelines page. -->
     <string name="pipelines_title">Pipelines</string>
@@ -1905,6 +1923,12 @@
     <string name="pipelines_block_random">Random chance</string>
     <string name="pipelines_block_song_current">Now playing</string>
     <string name="pipelines_block_song_queue">Song queue</string>
+    <string name="pipelines_block_song_pause">Pause song</string>
+    <string name="pipelines_block_song_resume">Resume song</string>
+    <string name="pipelines_block_song_previous">Previous song</string>
+    <string name="pipelines_block_playlist_add">Add to playlist</string>
+    <string name="pipelines_block_song_wrong">Wrong song (remove own)</string>
+    <string name="pipelines_block_song_ban">Ban song</string>
     <string name="pipelines_block_play_sound">Play sound</string>
     <string name="pipelines_block_play_tts">Read aloud (TTS)</string>
     <string name="pipelines_block_grant_currency">Grant currency</string>
@@ -1930,6 +1954,8 @@
     <string name="pipelines_field_wait_for_finish">Wait for finish (true/false)</string>
     <string name="pipelines_field_handle">Handle</string>
     <string name="pipelines_field_song_queue_max">Max songs to show</string>
+    <string name="pipelines_field_playlist_id">Playlist ID</string>
+    <string name="pipelines_field_track_uri">Track URI (optional)</string>
     <string name="pipelines_field_amount">Amount</string>
     <string name="pipelines_field_set_var">Store in variable</string>
     <string name="pipelines_field_min_balance">Minimum balance</string>

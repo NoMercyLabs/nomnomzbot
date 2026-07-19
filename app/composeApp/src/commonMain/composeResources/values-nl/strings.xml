@@ -1836,6 +1836,24 @@
     <string name="music_playlists_title">Afspeellijsten</string>
     <string name="music_playlists_empty">Geen afspeellijsten gevonden</string>
     <string name="music_playlist_play">Afspelen: %1$s</string>
+    <string name="music_blocked_title">Geblokkeerde nummers</string>
+    <string name="music_blocked_empty">Geen geblokkeerde nummers.</string>
+    <string name="music_blocked_reason">Reden: %1$s</string>
+    <string name="music_blocked_date">Geblokkeerd op %1$s</string>
+    <string name="music_blocked_count">%1$d geblokkeerd</string>
+    <string name="music_blocked_prev">Vorige</string>
+    <string name="music_blocked_next">Volgende</string>
+    <string name="music_blocked_unblock">Deblokkeer %1$s</string>
+    <string name="music_blocked_unblock_title">Nummer deblokkeren?</string>
+    <string name="music_blocked_unblock_message">%1$s kan daarna weer worden aangevraagd.</string>
+    <string name="music_blocked_unblock_confirm">Deblokkeren</string>
+    <string name="music_blocked_unblock_dismiss">Annuleren</string>
+    <string name="music_block_form_title">Een nummer blokkeren</string>
+    <string name="music_block_provider">Provider</string>
+    <string name="music_block_uri">Track-URI</string>
+    <string name="music_block_track_title">Titel</string>
+    <string name="music_block_reason">Reden (optioneel)</string>
+    <string name="music_block_action">Blokkeren</string>
 
     <!-- Pipelines page. -->
     <string name="pipelines_title">Pijplijnen</string>
@@ -1902,6 +1920,12 @@
     <string name="pipelines_block_random">Willekeurige kans</string>
     <string name="pipelines_block_song_current">Nu bezig</string>
     <string name="pipelines_block_song_queue">Nummerwachtrij</string>
+    <string name="pipelines_block_song_pause">Nummer pauzeren</string>
+    <string name="pipelines_block_song_resume">Nummer hervatten</string>
+    <string name="pipelines_block_song_previous">Vorig nummer</string>
+    <string name="pipelines_block_playlist_add">Toevoegen aan afspeellijst</string>
+    <string name="pipelines_block_song_wrong">Verkeerd nummer (eigen verwijderen)</string>
+    <string name="pipelines_block_song_ban">Nummer verbannen</string>
     <string name="pipelines_block_play_sound">Geluid afspelen</string>
     <string name="pipelines_block_play_tts">Voorlezen (TTS)</string>
     <string name="pipelines_block_grant_currency">Valuta toekennen</string>
@@ -1927,6 +1951,8 @@
     <string name="pipelines_field_wait_for_finish">Wachten tot klaar (true/false)</string>
     <string name="pipelines_field_handle">Handle</string>
     <string name="pipelines_field_song_queue_max">Max. nummers weergeven</string>
+    <string name="pipelines_field_playlist_id">Afspeellijst-ID</string>
+    <string name="pipelines_field_track_uri">Track-URI (optioneel)</string>
     <string name="pipelines_field_amount">Bedrag</string>
     <string name="pipelines_field_set_var">Opslaan in variabele</string>
     <string name="pipelines_field_min_balance">Minimumsaldo</string>

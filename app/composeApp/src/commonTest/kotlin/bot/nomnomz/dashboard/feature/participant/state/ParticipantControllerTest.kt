@@ -39,6 +39,9 @@ import bot.nomnomz.dashboard.core.network.GamePlay
 import bot.nomnomz.dashboard.core.network.GamePlayResult
 import bot.nomnomz.dashboard.core.network.GameSummary
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
+import bot.nomnomz.dashboard.core.network.BlockTrackBody
+import bot.nomnomz.dashboard.core.network.BlockedTrack
+import bot.nomnomz.dashboard.core.network.BlockedTrackPage
 import bot.nomnomz.dashboard.core.network.MusicApi
 import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.MusicDevice
@@ -707,6 +710,15 @@ private class FakeMusicApi(private val snapshot: ApiResult<MusicSnapshot>) : Mus
         ApiResult.Ok(emptyList())
 
     override suspend fun playContext(channelId: String, contextUri: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun blockedTracks(channelId: String, page: Int, take: Int): ApiResult<BlockedTrackPage> =
+        ApiResult.Ok(BlockedTrackPage())
+
+    override suspend fun blockTrack(channelId: String, body: BlockTrackBody): ApiResult<BlockedTrack> =
+        ApiResult.Ok(BlockedTrack())
+
+    override suspend fun unblockTrack(channelId: String, blockedTrackId: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
 }
 
 private class FakeSystemApi : SystemApi {

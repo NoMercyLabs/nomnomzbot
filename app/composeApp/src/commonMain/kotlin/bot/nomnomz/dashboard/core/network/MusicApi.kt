@@ -82,6 +82,17 @@ interface MusicApi {
 
     /** Start playback of a playlist or album by URI. */
     suspend fun playContext(channelId: String, contextUri: String): ApiResult<Unit>
+
+    // ── Blocked tracks (the legacy `!bansong` list) ──────────────────────────────
+
+    /** One page of the channel's blocked song-request tracks. */
+    suspend fun blockedTracks(channelId: String, page: Int = 1, take: Int = 25): ApiResult<BlockedTrackPage>
+
+    /** Block a track from song requests. Returns the created entry. */
+    suspend fun blockTrack(channelId: String, body: BlockTrackBody): ApiResult<BlockedTrack>
+
+    /** Unblock a previously blocked track by its [blockedTrackId]. */
+    suspend fun unblockTrack(channelId: String, blockedTrackId: String): ApiResult<Unit>
 }
 
 class RestMusicApi(private val client: ApiClient) : MusicApi {
@@ -139,6 +150,18 @@ class RestMusicApi(private val client: ApiClient) : MusicApi {
 
     override suspend fun playContext(channelId: String, contextUri: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/music/play-context", PlayContextBody(contextUri))
+
+    // The list is a PaginatedResponse (flat `{ data, total, hasMore, ... }`) — getDirect reads the whole body,
+    // same as the TTS voice catalogue; `page`/`take` is the shared paging convention.
+    override suspend fun blockedTracks(channelId: String, page: Int, take: Int): ApiResult<BlockedTrackPage> =
+        client.getDirect("api/v1/channels/$channelId/music/blocked-tracks?page=$page&take=$take")
+
+    // The create echoes the new entry in a StatusResponseDto<BlockedTrackDto> envelope — postEnvelope unwraps it.
+    override suspend fun blockTrack(channelId: String, body: BlockTrackBody): ApiResult<BlockedTrack> =
+        client.postEnvelope("api/v1/channels/$channelId/music/blocked-tracks", body)
+
+    override suspend fun unblockTrack(channelId: String, blockedTrackId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/music/blocked-tracks/$blockedTrackId")
 }
 
 /**
@@ -250,4 +273,43 @@ data class MusicPlaylist(
     val uri: String = "",
     val trackCount: Int = 0,
     val imageUrl: String? = null,
+)
+
+// ── Blocked tracks ───────────────────────────────────────────────────────────
+
+/**
+ * A channel's blocked song-request track (backend `BlockedTrackDto` — the legacy `!bansong` list entry): the
+ * provider + track URI it matches on, the human-readable [title], the optional block [reason], and when/who
+ * blocked it. The field names are the serialized (camelCase) names of `BlockedTrackDto`.
+ */
+@Serializable
+data class BlockedTrack(
+    val id: String = "",
+    val provider: String = "",
+    val trackUri: String = "",
+    val title: String = "",
+    val reason: String? = null,
+    val blockedByUserId: String? = null,
+    val createdAt: String = "",
+)
+
+/**
+ * One page of the blocked-track list (backend `PaginatedResponse<BlockedTrackDto>`): the [data] rows plus the
+ * paging signals — [total] result count and [hasMore] (another page exists after this one).
+ */
+@Serializable
+data class BlockedTrackPage(
+    val data: List<BlockedTrack> = emptyList(),
+    val total: Int = 0,
+    val hasMore: Boolean = false,
+    val nextPage: Int? = null,
+)
+
+/** Block a track from song requests (backend `BlockTrackRequest`). [title] labels the entry in the list. */
+@Serializable
+data class BlockTrackBody(
+    val provider: String,
+    val trackUri: String,
+    val title: String,
+    val reason: String? = null,
 )
