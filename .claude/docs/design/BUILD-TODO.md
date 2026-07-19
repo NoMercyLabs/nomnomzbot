@@ -47,6 +47,11 @@ desktop device-flow scope re-grant · schedule .ics · the multi-file `src/` edi
 ## 🔒 Owner calls — gated, cannot close autonomously
 
 - [ ] **24d.** Confirm authz key names (Plane-C + Gate-2 buckets).
+- [ ] **Self-host owner = platform admin?** The owner user has NO IAM principal, so platform-IAM-gated
+  features 403 for them (found: federation `peers` requires `IamPermissionKeys.AuditRead`; the Federatie
+  screen then shows "Forbidden"). Decide: auto-seed the self-host root owner as a platform-admin IAM
+  principal (so operator features work), and/or nav-gate platform-admin screens so they don't surface to
+  non-admins. Ties into the federation-transport design fork below.
 - [ ] **Code scripts vs vscode editor** — plus **Bamo's JS-over-C# feedback**: decide the
   user-scripting model + a rich built-in helper library so users never touch C#. *(highest leverage)*
 - [ ] **YouTube non-BYOC** — register a Google Cloud OAuth client + pass verification; ship as defaults.
@@ -61,17 +66,26 @@ desktop device-flow scope re-grant · schedule .ics · the multi-file `src/` edi
   pick-lists rename ✓, games/commands precedence ✓.)
 
 ## new issues found
-- [ ] **OBS real-in-the-loop smoke** (needs the owner's machine — the deterministic legs are done and
-  committed: `ObsRealSocketIntegrationTests` drives the production `ClientWebSocket` against a mock
-  obs-ws v5 server on a real port; bridge leader-election/push-ack + the `/obs-bridge` host page have
-  tests). What REMAINS is a human smoke against a REAL OBS: (a) self-host direct — point the bot at a
-  local OBS-WS and switch a scene from the dashboard; (b) bridge — paste `/obs-bridge?token=` as a
-  browser source in OBS and drive it remotely. Provide the exact steps to the owner.
-- [ ] **Every feature human-tested** — screen-by-screen click-through as a human (in progress; editor +
-  widgets overlay + commands + widget settings done). Continue: economy/games knobs, webhooks,
-  sound-clip config, OBS mixer, roles make-a-mod dialog, music/VTS screens.
-- [ ] **Old-bot parity completeness pass** — the 204-item bundle is imported + live on the owner channel
-  (all generic tables: 38 commands / 50 pipelines / 15 code scripts / 13 rewards / 34 event responses /
-  69 pick lists / 35 widgets — nothing hardcoded). REMAINS: diff the OLD bot's full inventory against
-  live to prove NOTHING is missing, and confirm each code script test-runs. Extend generic tooling for
-  any behavior it can't yet express (never hardcode).
+- [ ] **OBS real-in-the-loop smoke — OWNER-run on a real OBS** (the deterministic legs are done:
+  `ObsRealSocketIntegrationTests` drives the production `ClientWebSocket` against a mock obs-ws v5 server
+  on a real port; bridge leader-election/push-ack + the `/obs-bridge` host page have tests; the state-read
+  500-on-disconnect bug is fixed). Steps for the owner's machine:
+  1. **Direct (self-host):** in OBS enable Tools → WebSocket Server (v5, port 4455). Dashboard → OBS →
+     mode `direct`, host `127.0.0.1`, port `4455`, password if set, Enable → Save. The connection card
+     should go live; switch a scene / toggle a mic in the mixer and confirm OBS reacts.
+  2. **Bridge (remote/SaaS):** Dashboard → OBS → "bridge setup" → copy the `/obs-bridge?token=` URL →
+     add it as a Browser Source in OBS (any size, e.g. 1×1). Bridge status should flip to a leader online;
+     drive a scene switch from the dashboard and confirm OBS reacts.
+- [ ] **Every feature human-tested** — swept ~30 screens live as a human (a11y-tree health + error scan).
+  Only defect found = the OBS state-read 500 (fixed); federation peers 403s because the self-host owner has
+  no platform-IAM principal (see owner-calls below). Deep-verified: widget editor (highlight/scroll/live Vue
+  preview renders the real BSOD), commands dialog, widgets overlay render, widget settings. Not yet clicked
+  one-by-one: economy/games knobs, webhooks, sound-clip config, OBS mixer, roles make-a-mod, music/VTS.
+- [ ] **Old-bot parity — command diff DONE.** Compared the legacy repo's ~55 command scripts against live:
+  every user-facing command is covered by a custom command, a **built-in** (music song/skip/volume,
+  song-request, voice, quote, stats, uptime, permits, media, gdpr, games), or a subsystem (shoutout,
+  pronouns, blocked-tracks). The one real gap — `!followage` returned "unknown" (stubbed template var) — is
+  FIXED (real Helix follow-age). Non-chat legacy files (Commands/Editor/Update/Project/Records) are infra,
+  not commands. REMAINS: `{user.messageCount}` still stubbed "0" (superseded by `{viewer.messages}` — decide
+  whether to alias or drop); widgets were oracle-validated already; confirm each of the 15 code scripts
+  test-runs green on the live channel.
