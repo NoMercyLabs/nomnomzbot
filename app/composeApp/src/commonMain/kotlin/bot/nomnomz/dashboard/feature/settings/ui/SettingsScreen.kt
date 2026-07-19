@@ -72,6 +72,9 @@ import bot.nomnomz.dashboard.core.network.EngagementConfig
 import bot.nomnomz.dashboard.core.network.UpdateEngagementConfigBody
 import bot.nomnomz.dashboard.core.network.InviteCodeValidation
 import bot.nomnomz.dashboard.core.network.StreamInfo
+import bot.nomnomz.dashboard.core.network.UpdateBasicsBody
+import bot.nomnomz.dashboard.feature.settings.state.BasicsController
+import bot.nomnomz.dashboard.feature.settings.state.BasicsState
 import bot.nomnomz.dashboard.feature.settings.state.BillingController
 import bot.nomnomz.dashboard.feature.settings.state.BillingState
 import bot.nomnomz.dashboard.feature.settings.state.ChannelBotController
@@ -225,6 +228,18 @@ import nomnomzbot.composeapp.generated.resources.engagement_milestones_hint
 import nomnomzbot.composeapp.generated.resources.engagement_cooldown
 import nomnomzbot.composeapp.generated.resources.engagement_cooldown_hint
 import nomnomzbot.composeapp.generated.resources.engagement_cooldown_invalid
+import nomnomzbot.composeapp.generated.resources.settings_basics_section
+import nomnomzbot.composeapp.generated.resources.settings_basics_subtitle
+import nomnomzbot.composeapp.generated.resources.settings_basics_load_error
+import nomnomzbot.composeapp.generated.resources.settings_basics_prefix
+import nomnomzbot.composeapp.generated.resources.settings_basics_prefix_hint
+import nomnomzbot.composeapp.generated.resources.settings_basics_prefix_invalid
+import nomnomzbot.composeapp.generated.resources.settings_basics_locale
+import nomnomzbot.composeapp.generated.resources.settings_basics_locale_hint
+import nomnomzbot.composeapp.generated.resources.settings_basics_timezone
+import nomnomzbot.composeapp.generated.resources.settings_basics_timezone_hint
+import nomnomzbot.composeapp.generated.resources.settings_basics_autojoin
+import nomnomzbot.composeapp.generated.resources.settings_basics_autojoin_desc
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -241,6 +256,7 @@ fun SettingsScreen(
     channelBotController: ChannelBotController,
     billingController: BillingController,
     personalityController: PersonalityController,
+    basicsController: BasicsController,
     engagementController: EngagementController,
     role: ManagementRole?,
     onChannelDeleted: () -> Unit = {},
@@ -294,6 +310,11 @@ fun SettingsScreen(
                     CenteredMessage(stringResource(Res.string.settings_loading))
             }
         }
+
+        // Bot basics — command prefix, default language, auto-join, timezone. Readable to all, changeable at
+        // the Broadcaster floor (the backend gates the write at setup:write). This is where a streamer sets the
+        // command prefix; it applies to the live chat hot path without a restart.
+        BasicsSection(controller = basicsController, manage = ownerManage)
 
         // Bot personality — the built-in-command voice; readable to all, changeable at the Broadcaster
         // floor (the backend gates the write at setup:write). Independent of the stream-info load state.
@@ -825,6 +846,175 @@ private fun PersonalitySection(controller: PersonalityController, manage: Manage
                 }
             }
         }
+    }
+}
+
+// The "Bot basics" card: the channel's command prefix, default language/locale, auto-join toggle, and the
+// streamer's timezone — all real, from [BasicsController]. Visible to everyone who can open Settings (read-only
+// info at that floor); the FORM gates at the Broadcaster floor (the backend gates the write at setup:write), so
+// below the floor the inputs disable with a reason. Save persists all fields at once and the card adopts the
+// backend's echoed values, so a rejected write shows no change.
+@Composable
+private fun BasicsSection(controller: BasicsController, manage: ManageDecision) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+
+    val state: BasicsState by controller.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) { controller.load() }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Text(
+                text = stringResource(Res.string.settings_basics_section),
+                style = typography.xl,
+                color = tokens.cardForeground,
+            )
+            Text(
+                text = stringResource(Res.string.settings_basics_subtitle),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+
+            when (val current: BasicsState = state) {
+                BasicsState.Loading ->
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Spinner(modifier = Modifier.size(spacing.s6))
+                    }
+
+                is BasicsState.Error ->
+                    Text(
+                        text = stringResource(Res.string.settings_basics_load_error, current.detail),
+                        style = typography.sm,
+                        color = tokens.destructive,
+                    )
+
+                is BasicsState.Ready ->
+                    BasicsForm(
+                        state = current,
+                        manage = manage,
+                        onSave = { body -> scope.launch { controller.save(body) } },
+                    )
+            }
+        }
+    }
+}
+
+// The editable basics form, re-seeded whenever new basics load. The whole form gates as one (ManageGate); Save is
+// offered only when the prefix is valid (1-5 non-whitespace chars) AND the form differs from the loaded baseline.
+// A blank locale/timezone is sent as null (leave unchanged) rather than an empty overwrite.
+@Composable
+private fun BasicsForm(
+    state: BasicsState.Ready,
+    manage: ManageDecision,
+    onSave: (UpdateBasicsBody) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val loaded = state.loaded
+
+    var prefix: String by remember(loaded) { mutableStateOf(loaded.prefix) }
+    var locale: String by remember(loaded) { mutableStateOf(loaded.locale.orEmpty()) }
+    var timezone: String by remember(loaded) { mutableStateOf(loaded.timezone.orEmpty()) }
+    var autoJoin: Boolean by remember(loaded) { mutableStateOf(loaded.autoJoin) }
+
+    val prefixTrimmed: String = prefix.trim()
+    val prefixValid: Boolean =
+        prefixTrimmed.isNotEmpty() && prefixTrimmed.length <= 5 && prefixTrimmed.none { it.isWhitespace() }
+
+    val dirty: Boolean =
+        prefixTrimmed != loaded.prefix ||
+            locale.trim() != loaded.locale.orEmpty() ||
+            timezone.trim() != loaded.timezone.orEmpty() ||
+            autoJoin != loaded.autoJoin
+    val canSave: Boolean = prefixValid && dirty && !state.saving && manage.isAllowed
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
+        ManageGate(decision = manage) { enabled ->
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    value = prefix,
+                    onValueChange = { prefix = it },
+                    enabled = enabled && !state.saving,
+                    isError = !prefixValid,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.settings_basics_prefix),
+                    errorText = stringResource(Res.string.settings_basics_prefix_invalid),
+                    supportingText = stringResource(Res.string.settings_basics_prefix_hint),
+                )
+                AppTextField(
+                    value = locale,
+                    onValueChange = { locale = it },
+                    enabled = enabled && !state.saving,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.settings_basics_locale),
+                    supportingText = stringResource(Res.string.settings_basics_locale_hint),
+                )
+                AppTextField(
+                    value = timezone,
+                    onValueChange = { timezone = it },
+                    enabled = enabled && !state.saving,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.settings_basics_timezone),
+                    supportingText = stringResource(Res.string.settings_basics_timezone_hint),
+                )
+                BasicsAutoJoinRow(
+                    checked = autoJoin,
+                    enabled = enabled && !state.saving,
+                    onCheckedChange = { autoJoin = it },
+                )
+            }
+        }
+
+        SaveBar(
+            saving = state.saving,
+            justSaved = state.justSaved,
+            saveError = state.saveError,
+            manage = manage,
+            canSave = canSave && manage.isAllowed,
+            onSave = {
+                onSave(
+                    UpdateBasicsBody(
+                        prefix = prefixTrimmed,
+                        locale = locale.trim().ifEmpty { null },
+                        autoJoin = autoJoin,
+                        timezone = timezone.trim().ifEmpty { null },
+                    )
+                )
+            },
+        )
+    }
+}
+
+// The auto-join label+description row with a trailing Switch — mirrors the engagement toggle row's shape.
+@Composable
+private fun BasicsAutoJoinRow(checked: Boolean, enabled: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
+            Text(
+                text = stringResource(Res.string.settings_basics_autojoin),
+                style = typography.base,
+                color = tokens.cardForeground,
+            )
+            Text(
+                text = stringResource(Res.string.settings_basics_autojoin_desc),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+        }
+        Switch(checked = checked, onCheckedChange = if (enabled) onCheckedChange else null, enabled = enabled)
     }
 }
 

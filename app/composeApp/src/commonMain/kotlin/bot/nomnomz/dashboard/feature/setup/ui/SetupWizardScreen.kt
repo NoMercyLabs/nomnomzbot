@@ -49,12 +49,20 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.SetupField
 import bot.nomnomz.dashboard.core.network.SetupStep
+import bot.nomnomz.dashboard.feature.setup.state.SetupBasics
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
 import bot.nomnomz.dashboard.feature.setup.state.SetupError
 import bot.nomnomz.dashboard.feature.setup.state.SetupState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.setup_basics_heading
+import nomnomzbot.composeapp.generated.resources.setup_basics_prefix
+import nomnomzbot.composeapp.generated.resources.setup_basics_prefix_hint
+import nomnomzbot.composeapp.generated.resources.setup_basics_locale
+import nomnomzbot.composeapp.generated.resources.setup_basics_locale_hint
+import nomnomzbot.composeapp.generated.resources.setup_basics_timezone
+import nomnomzbot.composeapp.generated.resources.setup_basics_timezone_hint
 import nomnomzbot.composeapp.generated.resources.setup_action_connect_bot
 import nomnomzbot.composeapp.generated.resources.setup_action_continue
 import nomnomzbot.composeapp.generated.resources.setup_action_retry
@@ -166,7 +174,7 @@ private fun SetupStepsFrame(controller: SetupController, state: SetupState.Steps
                     onConnectBot = { scope.launch { controller.connectBot() } },
                 )
             } else {
-                ReviewPanel(state = state)
+                ReviewPanel(controller = controller, state = state)
             }
         }
 
@@ -302,7 +310,7 @@ private fun StepPanel(
 // The review/finish step: a compact per-step status list, then the readiness hint when a required step is
 // still pending. The finish ACTION lives in the footer's Next button (gated by state.ready).
 @Composable
-private fun ReviewPanel(state: SetupState.Steps) {
+private fun ReviewPanel(controller: SetupController, state: SetupState.Steps) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -322,12 +330,56 @@ private fun ReviewPanel(state: SetupState.Steps) {
             ReviewRow(step = step)
         }
 
+        BasicsForm(controller = controller, basics = state.basics)
+
         if (!state.ready) {
             ErrorText(stringResource(Res.string.setup_review_not_ready))
         }
         if (state.error is SetupError.SignIn) {
             ErrorText(stringResource(Res.string.setup_error_signin))
         }
+    }
+}
+
+// The "Configure basics" block on the review step: the command prefix, the bot's default language, and the
+// streamer's timezone. These are applied to the streamer's channel at finish() (once signed in). Everything is
+// optional — the prefix defaults to "!", and a blank language/timezone leaves the channel default untouched.
+@Composable
+private fun BasicsForm(controller: SetupController, basics: SetupBasics) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = spacing.s2),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = stringResource(Res.string.setup_basics_heading),
+            style = typography.base,
+            color = tokens.cardForeground,
+        )
+        AppTextField(
+            value = basics.prefix,
+            onValueChange = { controller.onBasicsChange(basics.copy(prefix = it)) },
+            label = stringResource(Res.string.setup_basics_prefix),
+            supportingText = stringResource(Res.string.setup_basics_prefix_hint),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AppTextField(
+            value = basics.locale,
+            onValueChange = { controller.onBasicsChange(basics.copy(locale = it)) },
+            label = stringResource(Res.string.setup_basics_locale),
+            supportingText = stringResource(Res.string.setup_basics_locale_hint),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AppTextField(
+            value = basics.timezone,
+            onValueChange = { controller.onBasicsChange(basics.copy(timezone = it)) },
+            label = stringResource(Res.string.setup_basics_timezone),
+            supportingText = stringResource(Res.string.setup_basics_timezone_hint),
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

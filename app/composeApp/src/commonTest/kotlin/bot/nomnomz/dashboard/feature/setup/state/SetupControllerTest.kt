@@ -14,6 +14,11 @@ import bot.nomnomz.dashboard.core.connection.ConnectLauncher
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BotOAuthUrl
 import bot.nomnomz.dashboard.core.network.BotStatus
+import bot.nomnomz.dashboard.core.network.ChannelBasics
+import bot.nomnomz.dashboard.core.network.ChannelSettingsApi
+import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.SetupAction
 import bot.nomnomz.dashboard.core.network.SetupField
 import bot.nomnomz.dashboard.core.network.SetupStep
@@ -39,8 +44,46 @@ class SetupControllerTest {
     private fun controller(
         api: FakeSystemApi,
         launcher: ConnectLauncher = FakeConnectLauncher(),
+        channelsApi: ChannelsApi = FakeSetupChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+        settingsApi: FakeSetupChannelSettingsApi = FakeSetupChannelSettingsApi(),
         onReadyToSignIn: suspend () -> Boolean = { true },
-    ): SetupController = SetupController(api, launcher, onReadyToSignIn)
+    ): SetupController =
+        SetupController(api, launcher, channelsApi, settingsApi, onReadyToSignIn)
+
+    @Test
+    fun finish_applies_the_collected_basics_to_the_channel_after_signin() = runTest {
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        val settings = FakeSetupChannelSettingsApi()
+        val controller = controller(api, settingsApi = settings, onReadyToSignIn = { true })
+        controller.load()
+
+        // The user fills the review-step basics, then finishes.
+        controller.onBasicsChange(SetupBasics(prefix = "?", locale = "nl", timezone = "Europe/Amsterdam"))
+        controller.finish()
+
+        // Setup completed AND the basics were PUT to the resolved channel with the exact values (blank → null).
+        assertTrue(api.setupCompleted)
+        assertEquals("ch1", settings.lastBasicsChannelId)
+        assertEquals("?", settings.lastBasics?.prefix)
+        assertEquals("nl", settings.lastBasics?.locale)
+        assertEquals("Europe/Amsterdam", settings.lastBasics?.timezone)
+    }
+
+    @Test
+    fun finish_defaults_a_blank_prefix_to_bang_and_sends_blank_optional_fields_as_null() = runTest {
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        val settings = FakeSetupChannelSettingsApi()
+        val controller = controller(api, settingsApi = settings, onReadyToSignIn = { true })
+        controller.load()
+
+        // Leave everything at defaults except clearing the prefix — a blank prefix must fall back to "!".
+        controller.onBasicsChange(SetupBasics(prefix = "  ", locale = "", timezone = ""))
+        controller.finish()
+
+        assertEquals("!", settings.lastBasics?.prefix)
+        assertNull(settings.lastBasics?.locale)
+        assertNull(settings.lastBasics?.timezone)
+    }
 
     @Test
     fun load_renders_the_backend_steps_and_is_not_ready_when_the_twitch_app_is_missing() = runTest {
@@ -466,6 +509,63 @@ private class FakeSystemApi(
     }
 
     override suspend fun pronouns(): ApiResult<List<bot.nomnomz.dashboard.core.network.PronounOption>> = ApiResult.Ok(emptyList())
+}
+
+// Resolves a single primary channel so finish()'s basics apply has a target; the rest of the surface is
+// unused here and stubs out.
+private class FakeSetupChannelsApi(private val primary: ApiResult<ChannelSummary>) : ChannelsApi {
+    override suspend fun primaryChannel(): ApiResult<ChannelSummary> = primary
+
+    override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
+
+    override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
+
+    override suspend fun join(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun leave(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun reset(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun deleteChannel(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun channelScopes(channelId: String) = error("stub")
+
+    override suspend fun startChannelBotConnect(channelId: String) = error("stub")
+
+    override suspend fun channelBotStatus(channelId: String) = error("stub")
+
+    override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+// Records the exact basics PUT so a test can assert finish() persisted them (channel id + body).
+private class FakeSetupChannelSettingsApi : ChannelSettingsApi {
+    var lastBasicsChannelId: String? = null
+        private set
+
+    var lastBasics: bot.nomnomz.dashboard.core.network.UpdateBasicsBody? = null
+        private set
+
+    override suspend fun getPersonality(channelId: String) = error("unused")
+
+    override suspend fun setPersonality(channelId: String, tone: String) = error("unused")
+
+    override suspend fun getBasics(channelId: String): ApiResult<ChannelBasics> =
+        ApiResult.Ok(ChannelBasics())
+
+    override suspend fun updateBasics(
+        channelId: String,
+        body: bot.nomnomz.dashboard.core.network.UpdateBasicsBody,
+    ): ApiResult<ChannelBasics> {
+        lastBasicsChannelId = channelId
+        lastBasics = body
+        return ApiResult.Ok(
+            ChannelBasics(
+                prefix = body.prefix ?: "!",
+                locale = body.locale,
+                timezone = body.timezone,
+            )
+        )
+    }
 }
 
 // Drives the authorize-URL provider with a fixed loopback redirect (as the desktop launcher would) and

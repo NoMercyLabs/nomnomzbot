@@ -579,6 +579,7 @@ private fun ShellContent(
                     channelBotController = graph.channelBotController,
                     billingController = graph.billingController,
                     personalityController = graph.personalityController,
+                    basicsController = graph.basicsController,
                     engagementController = graph.engagementController,
                     role = role,
                     onChannelDeleted = onChannelDeleted,

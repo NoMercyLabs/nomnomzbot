@@ -81,6 +81,14 @@
     <string name="setup_step_counter">Step %1$d of %2$d</string>
     <string name="setup_review_title">Review &amp; finish</string>
     <string name="setup_review_subtitle">Here's what you set up. Finish to sign in with your Twitch account.</string>
+    <!-- Configure basics (onboarding review step): applied to the streamer's channel after sign-in. -->
+    <string name="setup_basics_heading">Configure basics</string>
+    <string name="setup_basics_prefix">Command prefix</string>
+    <string name="setup_basics_prefix_hint">The character(s) that mark a command, e.g. ! in !uptime.</string>
+    <string name="setup_basics_locale">Default language</string>
+    <string name="setup_basics_locale_hint">BCP-47 code, e.g. en or nl. Leave blank to use the channel default.</string>
+    <string name="setup_basics_timezone">Timezone</string>
+    <string name="setup_basics_timezone_hint">IANA name, e.g. Europe/Amsterdam. Optional.</string>
     <string name="setup_review_status_done">Configured</string>
     <string name="setup_review_status_skipped">Skipped (optional)</string>
     <string name="setup_review_status_pending">Not configured</string>
@@ -2638,6 +2646,19 @@
     <string name="custom_events_status_socket">Socket ingress</string>
     <string name="custom_events_status_disabled">disabled</string>
     <string name="custom_events_status_waiting">waiting for first payload</string>
+    <!-- Bot basics (Settings → Bot basics card): command prefix, default language, auto-join, timezone. -->
+    <string name="settings_basics_section">Bot basics</string>
+    <string name="settings_basics_subtitle">The essentials: the prefix that marks a chat command, the bot\'s default language, whether it auto-joins your chat, and your timezone.</string>
+    <string name="settings_basics_load_error">Could not load basics: %1$s</string>
+    <string name="settings_basics_prefix">Command prefix</string>
+    <string name="settings_basics_prefix_hint">The character(s) that mark a command, e.g. ! in !uptime.</string>
+    <string name="settings_basics_prefix_invalid">Enter 1–5 characters with no spaces.</string>
+    <string name="settings_basics_locale">Default language</string>
+    <string name="settings_basics_locale_hint">BCP-47 code, e.g. en or nl. Leave blank to keep the current value.</string>
+    <string name="settings_basics_timezone">Timezone</string>
+    <string name="settings_basics_timezone_hint">IANA name, e.g. Europe/Amsterdam. Leave blank to keep the current value.</string>
+    <string name="settings_basics_autojoin">Auto-join chat</string>
+    <string name="settings_basics_autojoin_desc">Let the bot join this channel\'s chat automatically.</string>
     <!-- Bot personality (Settings → Bot personality card). Tone tokens mirror PersonalityTone.* on the backend. -->
     <string name="personality_section_title">Bot personality</string>
     <string name="personality_section_subtitle">The voice the built-in commands answer in — it applies everywhere. You can still override any single command.</string>

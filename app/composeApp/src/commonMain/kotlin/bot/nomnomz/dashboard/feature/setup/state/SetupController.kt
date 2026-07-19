@@ -14,10 +14,14 @@ import bot.nomnomz.dashboard.core.connection.ConnectLauncher
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BotOAuthUrl
+import bot.nomnomz.dashboard.core.network.ChannelSettingsApi
+import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.SetupStep
 import bot.nomnomz.dashboard.core.network.SetupWizard
 import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.SystemStatus
+import bot.nomnomz.dashboard.core.network.UpdateBasicsBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,6 +41,10 @@ import kotlinx.coroutines.flow.asStateFlow
 class SetupController(
     private val systemApi: SystemApi,
     private val connectLauncher: ConnectLauncher,
+    // The channel facade + per-channel settings facade — used only at finish() to persist the onboarding
+    // "basics" (prefix / language / timezone) to the freshly-signed-in streamer's channel.
+    private val channelsApi: ChannelsApi,
+    private val channelSettingsApi: ChannelSettingsApi,
     // Hand off to the streamer OAuth once setup is ready. Returns true when the session was established
     // (the gate advances to the shell); false leaves the wizard up with [SetupError.SignIn] surfaced.
     private val onReadyToSignIn: suspend () -> Boolean,
@@ -49,6 +57,10 @@ class SetupController(
     // The user-entered values per step, keyed by "<stepKey>.<fieldKey>". Held outside the rendered state so
     // a reload (which replaces the wizard) doesn't wipe in-progress input the user hasn't saved yet.
     private val fieldValues: MutableMap<String, String> = mutableMapOf()
+
+    // The onboarding "basics" the user fills on the review step. Held outside the rendered state (like
+    // [fieldValues]) so a reload doesn't wipe it; applied to the channel at finish(), once signed in.
+    private var basics: SetupBasics = SetupBasics()
 
     /** Load the self-describing wizard + readiness and render its steps. */
     suspend fun load() {
@@ -83,6 +95,13 @@ class SetupController(
 
     /** The current value of a field (empty when untouched). */
     fun valueOf(stepKey: String, fieldKey: String): String = fieldValues[fieldKeyOf(stepKey, fieldKey)].orEmpty()
+
+    /** Edit the onboarding basics (prefix / language / timezone) shown on the review step. */
+    fun onBasicsChange(basics: SetupBasics) {
+        this.basics = basics
+        val current: SetupState.Steps = _state.value as? SetupState.Steps ?: return
+        _state.value = current.copy(basics = basics)
+    }
 
     /**
      * Save a `save_credentials` step's inputs (Twitch / Spotify / YouTube / Discord), then reload so the
@@ -161,6 +180,30 @@ class SetupController(
         }
         // The streamer session is live; finalize setup so the credential endpoints lock to admins.
         systemApi.completeSetup()
+        // Persist the onboarding basics to the streamer's now-onboarded channel. Best-effort and AFTER
+        // completion: a channel not yet resolvable, or a rejected write, must never block finishing setup —
+        // the Settings "Bot basics" card is the durable home for these and reaches the same PUT.
+        applyBasics()
+    }
+
+    // Resolve the signed-in streamer's channel and PUT the collected basics. A blank prefix falls back to the
+    // conventional "!" so onboarding never persists an empty (match-everything) prefix; blank locale/timezone
+    // are sent as null (leave unchanged). Silent on failure — this is a nice-to-have, not a setup gate.
+    private suspend fun applyBasics() {
+        val channel: ChannelSummary =
+            when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
+                is ApiResult.Failure -> return
+                is ApiResult.Ok -> result.value
+            }
+        val prefix: String = basics.prefix.trim().ifEmpty { "!" }
+        channelSettingsApi.updateBasics(
+            channel.id,
+            UpdateBasicsBody(
+                prefix = prefix,
+                locale = basics.locale.trim().ifEmpty { null },
+                timezone = basics.timezone.trim().ifEmpty { null },
+            ),
+        )
     }
 
     // Re-read the wizard + readiness from the backend and rebuild the steps state. Preserves the user's
@@ -195,6 +238,7 @@ class SetupController(
                 busy = busy,
                 error = error,
                 currentStep = currentStep,
+                basics = basics,
             )
     }
 
@@ -242,6 +286,7 @@ sealed interface SetupState {
         val busy: String?,
         val error: SetupError?,
         val currentStep: Int = 0,
+        val basics: SetupBasics = SetupBasics(),
     ) : SetupState {
         /** The index of the trailing review/finish step (one past the last backend step). */
         val reviewIndex: Int get() = steps.size
@@ -269,6 +314,17 @@ sealed interface SetupState {
 
     data class Error(val detail: String) : SetupState
 }
+
+/**
+ * The onboarding "basics" a new streamer fills on the review step: the command [prefix] (defaults to the
+ * conventional "!"), the bot's default [locale], and the streamer's [timezone]. Applied to the channel at
+ * finish() once signed in.
+ */
+data class SetupBasics(
+    val prefix: String = "!",
+    val locale: String = "",
+    val timezone: String = "",
+)
 
 /** Why a setup action failed — mapped to a localized message in the screen. */
 sealed interface SetupError {

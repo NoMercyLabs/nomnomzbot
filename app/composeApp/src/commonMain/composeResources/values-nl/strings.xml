@@ -78,6 +78,14 @@
     <string name="setup_step_counter">Stap %1$d van %2$d</string>
     <string name="setup_review_title">Controleren &amp; voltooien</string>
     <string name="setup_review_subtitle">Dit heb je ingesteld. Voltooi om je met je Twitch-account aan te melden.</string>
+    <!-- Basis instellen (onboarding-overzichtsstap): toegepast op het kanaal van de streamer na aanmelden. -->
+    <string name="setup_basics_heading">Basis instellen</string>
+    <string name="setup_basics_prefix">Commandoprefix</string>
+    <string name="setup_basics_prefix_hint">Het teken (of de tekens) dat een commando markeert, bijv. ! in !uptime.</string>
+    <string name="setup_basics_locale">Standaardtaal</string>
+    <string name="setup_basics_locale_hint">BCP-47-code, bijv. en of nl. Laat leeg om de kanaalstandaard te gebruiken.</string>
+    <string name="setup_basics_timezone">Tijdzone</string>
+    <string name="setup_basics_timezone_hint">IANA-naam, bijv. Europe/Amsterdam. Optioneel.</string>
     <string name="setup_review_status_done">Geconfigureerd</string>
     <string name="setup_review_status_skipped">Overgeslagen (optioneel)</string>
     <string name="setup_review_status_pending">Niet geconfigureerd</string>
@@ -2624,6 +2632,19 @@
     <string name="custom_events_status_socket">Socket-ingang</string>
     <string name="custom_events_status_disabled">uitgeschakeld</string>
     <string name="custom_events_status_waiting">wacht op eerste payload</string>
+    <!-- Botbasis (Instellingen → Botbasis-kaart): commandoprefix, standaardtaal, automatisch deelnemen, tijdzone. -->
+    <string name="settings_basics_section">Botbasis</string>
+    <string name="settings_basics_subtitle">De essentie: het teken dat een chatcommando markeert, de standaardtaal van de bot, of hij automatisch je chat binnenkomt, en je tijdzone.</string>
+    <string name="settings_basics_load_error">Kon de basis niet laden: %1$s</string>
+    <string name="settings_basics_prefix">Commandoprefix</string>
+    <string name="settings_basics_prefix_hint">Het teken (of de tekens) dat een commando markeert, bijv. ! in !uptime.</string>
+    <string name="settings_basics_prefix_invalid">Voer 1–5 tekens in zonder spaties.</string>
+    <string name="settings_basics_locale">Standaardtaal</string>
+    <string name="settings_basics_locale_hint">BCP-47-code, bijv. en of nl. Laat leeg om de huidige waarde te behouden.</string>
+    <string name="settings_basics_timezone">Tijdzone</string>
+    <string name="settings_basics_timezone_hint">IANA-naam, bijv. Europe/Amsterdam. Laat leeg om de huidige waarde te behouden.</string>
+    <string name="settings_basics_autojoin">Automatisch deelnemen aan chat</string>
+    <string name="settings_basics_autojoin_desc">Laat de bot automatisch de chat van dit kanaal binnenkomen.</string>
     <!-- Botpersoonlijkheid (Instellingen → Botpersoonlijkheid-kaart). -->
     <string name="personality_section_title">Botpersoonlijkheid</string>
     <string name="personality_section_subtitle">De toon waarin je bot antwoordt — dit geldt overal. Je kunt elk commando afzonderlijk aanpassen.</string>

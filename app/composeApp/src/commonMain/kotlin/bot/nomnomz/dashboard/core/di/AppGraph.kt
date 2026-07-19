@@ -191,6 +191,7 @@ import bot.nomnomz.dashboard.feature.settings.state.BillingController
 import bot.nomnomz.dashboard.feature.settings.state.ChannelBotController
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
 import bot.nomnomz.dashboard.feature.settings.state.EngagementController
+import bot.nomnomz.dashboard.feature.settings.state.BasicsController
 import bot.nomnomz.dashboard.feature.settings.state.PersonalityController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
 import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
@@ -379,6 +380,8 @@ class AppGraph {
         SetupController(
             systemApi = systemApi,
             connectLauncher = connectLauncher,
+            channelsApi = channelsApi,
+            channelSettingsApi = channelSettingsApi,
             onReadyToSignIn = connectController::signInStreamer,
         )
 
@@ -487,6 +490,9 @@ class AppGraph {
 
     val personalityController: PersonalityController =
         PersonalityController(channelsApi = channelsApi, settingsApi = channelSettingsApi)
+
+    val basicsController: BasicsController =
+        BasicsController(channelsApi = channelsApi, settingsApi = channelSettingsApi)
 
     val engagementController: EngagementController = EngagementController(api = engagementApi)
 

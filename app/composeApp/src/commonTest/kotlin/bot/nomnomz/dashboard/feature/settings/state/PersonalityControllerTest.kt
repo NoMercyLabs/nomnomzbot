@@ -174,4 +174,11 @@ private class FakePersonalityApi(
         lastSetTone = tone
         return setResult
     }
+
+    override suspend fun getBasics(channelId: String) = error("stub")
+
+    override suspend fun updateBasics(
+        channelId: String,
+        body: bot.nomnomz.dashboard.core.network.UpdateBasicsBody,
+    ) = error("stub")
 }

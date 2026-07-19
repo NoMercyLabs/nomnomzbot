@@ -26,6 +26,12 @@ interface ChannelSettingsApi {
 
     /** Set the channel's personality [tone] (one of [ChannelPersonality.available]); echoes the saved value. */
     suspend fun setPersonality(channelId: String, tone: String): ApiResult<ChannelPersonality>
+
+    /** The channel's onboarding basics — command prefix, default locale, auto-join, timezone. */
+    suspend fun getBasics(channelId: String): ApiResult<ChannelBasics>
+
+    /** Save the channel's basics ([body]); only non-null fields change. Echoes the saved values. */
+    suspend fun updateBasics(channelId: String, body: UpdateBasicsBody): ApiResult<ChannelBasics>
 }
 
 class RestChannelSettingsApi(private val client: ApiClient) : ChannelSettingsApi {
@@ -37,6 +43,12 @@ class RestChannelSettingsApi(private val client: ApiClient) : ChannelSettingsApi
             "api/v1/channels/$channelId/settings/personality",
             SetPersonalityBody(personality = tone),
         )
+
+    override suspend fun getBasics(channelId: String): ApiResult<ChannelBasics> =
+        client.getEnvelope("api/v1/channels/$channelId/settings/basics")
+
+    override suspend fun updateBasics(channelId: String, body: UpdateBasicsBody): ApiResult<ChannelBasics> =
+        client.putEnvelope("api/v1/channels/$channelId/settings/basics", body)
 }
 
 /**
@@ -53,3 +65,28 @@ data class ChannelPersonality(
 /** Body for setting a channel's personality tone (`SetChannelPersonalityRequest`). */
 @Serializable
 data class SetPersonalityBody(val personality: String)
+
+/**
+ * A channel's onboarding "basics" (`ChannelBasicsDto`): the command [prefix] (e.g. `!`), the default [locale]
+ * (BCP-47, nullable), the [autoJoin] toggle, and the streamer's [timezone] (IANA, nullable). Prefills the
+ * Settings "Bot basics" card and the onboarding basics step.
+ */
+@Serializable
+data class ChannelBasics(
+    val prefix: String = "!",
+    val locale: String? = null,
+    val autoJoin: Boolean = true,
+    val timezone: String? = null,
+)
+
+/**
+ * Body for updating a channel's basics (`UpdateChannelSettingsDto`). Every field is nullable — only the
+ * non-null ones are applied server-side, so a partial save (e.g. prefix only) leaves the rest untouched.
+ */
+@Serializable
+data class UpdateBasicsBody(
+    val prefix: String? = null,
+    val locale: String? = null,
+    val autoJoin: Boolean? = null,
+    val timezone: String? = null,
+)
