@@ -19,8 +19,6 @@ using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Economy.Services;
-using NomNomzBot.Application.Identity.Dtos;
-using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
@@ -57,7 +55,6 @@ public sealed class ScriptHostBridge(
     IChatProvider chatProvider,
     ICurrencyAccountService currencyService,
     IMusicService musicService,
-    IUserService userService,
     IHttpClientFactory httpClientFactory,
     IScriptStorageService storageService,
     ITtsDispatchService ttsDispatch,
@@ -138,17 +135,20 @@ public sealed class ScriptHostBridge(
         if (string.IsNullOrWhiteSpace(subject))
             return null;
 
-        Result<UserDto> user = userService.GetAsync(subject, ct).GetAwaiter().GetResult();
-        if (user.IsFailure)
+        // Resolve by login / Twitch id / internal Guid — the SAME converger stats.viewer and tts.voice.*
+        // use. Scripts target @mentions (logins), so a Guid-only lookup made every targeting script
+        // (!stats @u, voice swap, ratio) fail to find its target; this makes the whole SDK consistent.
+        User? user = ResolveViewerUser(subject, ct);
+        if (user is null)
             return null;
 
         return JsonConvert.SerializeObject(
             new
             {
-                id = user.Value.Id,
-                username = user.Value.Username,
-                displayName = user.Value.DisplayName,
-                avatarUrl = user.Value.ProfileImageUrl,
+                id = user.Id,
+                username = user.Username,
+                displayName = user.DisplayName,
+                avatarUrl = user.ProfileImageUrl,
             }
         );
     }

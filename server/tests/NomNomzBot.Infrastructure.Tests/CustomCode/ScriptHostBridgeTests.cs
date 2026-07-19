@@ -19,8 +19,6 @@ using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Economy.Services;
-using NomNomzBot.Application.Identity.Dtos;
-using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
@@ -50,7 +48,6 @@ public sealed class ScriptHostBridgeTests
         IChatProvider? chat = null,
         ICurrencyAccountService? currency = null,
         IMusicService? music = null,
-        IUserService? users = null,
         IHttpClientFactory? http = null,
         IScriptStorageService? storage = null,
         ITtsDispatchService? tts = null,
@@ -67,7 +64,6 @@ public sealed class ScriptHostBridgeTests
             chat,
             currency,
             music,
-            users,
             http,
             storage,
             tts,
@@ -86,7 +82,6 @@ public sealed class ScriptHostBridgeTests
         IChatProvider? chat = null,
         ICurrencyAccountService? currency = null,
         IMusicService? music = null,
-        IUserService? users = null,
         IHttpClientFactory? http = null,
         IScriptStorageService? storage = null,
         ITtsDispatchService? tts = null,
@@ -104,7 +99,6 @@ public sealed class ScriptHostBridgeTests
             chat ?? Substitute.For<IChatProvider>(),
             currency ?? Substitute.For<ICurrencyAccountService>(),
             music ?? Substitute.For<IMusicService>(),
-            users ?? Substitute.For<IUserService>(),
             http ?? Substitute.For<IHttpClientFactory>(),
             storage ?? Substitute.For<IScriptStorageService>(),
             tts ?? Substitute.For<ITtsDispatchService>(),
@@ -258,27 +252,25 @@ public sealed class ScriptHostBridgeTests
     }
 
     [Fact]
-    public void User_get_returns_the_trigger_users_public_profile_without_pii()
+    public async Task User_get_returns_the_trigger_users_public_profile_without_pii()
     {
-        IUserService users = Substitute.For<IUserService>();
-        users
-            .GetAsync(Viewer.ToString(), Arg.Any<CancellationToken>())
-            .Returns(
-                Result.Success(
-                    new UserDto(
-                        Id: Viewer.ToString(),
-                        Username: "cooluser",
-                        DisplayName: "CoolUser",
-                        ProfileImageUrl: "https://cdn.twitch.tv/cooluser.png",
-                        Email: "secret@example.com",
-                        CreatedAt: DateTime.UtcNow,
-                        LastLoginAt: DateTime.UtcNow
-                    )
-                )
-            );
-        ScriptHostBridge bridge = Build(users: users);
+        // user.get resolves the viewer row (login / twitch id / guid) — the same converger the other
+        // caps use — so a seeded trigger user comes back as a PII-free public profile.
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Users.Add(
+            new NomNomzBot.Domain.Identity.Entities.User
+            {
+                Id = Viewer,
+                Username = "cooluser",
+                UsernameNormalized = "COOLUSER",
+                DisplayName = "CoolUser",
+                TwitchUserId = "555900",
+                ProfileImageUrl = "https://cdn.twitch.tv/cooluser.png",
+            }
+        );
+        await db.SaveChangesAsync();
 
-        string? json = bridge.Resolve("user.get")("user.get", [], CancellationToken.None);
+        string? json = Build(db: db).Resolve("user.get")("user.get", [], CancellationToken.None);
 
         JObject profile = JObject.Parse(json!);
         profile["displayName"]!.Value<string>().Should().Be("CoolUser");
@@ -288,15 +280,27 @@ public sealed class ScriptHostBridgeTests
     }
 
     [Fact]
+    public async Task User_get_resolves_an_at_mention_target_by_login()
+    {
+        // The common script shape: !stats @someone. A login arg (with or without @) must resolve —
+        // this is the fix for the Guid-only lookup that made every targeting script miss its target.
+        AuthDbContext db = await SeedViewerAsync(
+            Guid.Parse("0192a000-0000-7000-8000-00000000e0c9"),
+            "targetlogin",
+            "555901"
+        );
+
+        string? json = Build(db: db)
+            .Resolve("user.get")("user.get", ["@targetlogin"], CancellationToken.None);
+
+        JObject.Parse(json!)["username"]!.Value<string>().Should().Be("targetlogin");
+    }
+
+    [Fact]
     public void User_get_returns_null_when_the_user_is_not_found()
     {
-        IUserService users = Substitute.For<IUserService>();
-        users
-            .GetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<UserDto>("Not found.", "NOT_FOUND"));
-
-        Build(users: users)
-            .Resolve("user.get")("user.get", [], CancellationToken.None)
+        Build()
+            .Resolve("user.get")("user.get", ["@nobody"], CancellationToken.None)
             .Should()
             .BeNull();
     }

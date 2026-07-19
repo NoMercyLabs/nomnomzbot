@@ -55,7 +55,6 @@ public sealed class ScriptTestRunServiceTests
             Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>(),
             Substitute.For<NomNomzBot.Application.Economy.Services.ICurrencyAccountService>(),
             Substitute.For<NomNomzBot.Application.Music.Services.IMusicService>(),
-            Substitute.For<NomNomzBot.Application.Identity.Services.IUserService>(),
             Substitute.For<System.Net.Http.IHttpClientFactory>(),
             storage,
             Substitute.For<NomNomzBot.Application.Contracts.Tts.ITtsDispatchService>(),

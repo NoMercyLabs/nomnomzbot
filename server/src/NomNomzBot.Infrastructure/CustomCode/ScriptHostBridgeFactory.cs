@@ -14,7 +14,6 @@ using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Economy.Services;
-using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Application.Tts.Services;
@@ -32,7 +31,6 @@ public sealed class ScriptHostBridgeFactory(
     IChatProvider chatProvider,
     ICurrencyAccountService currencyService,
     IMusicService musicService,
-    IUserService userService,
     IHttpClientFactory httpClientFactory,
     IScriptStorageService storageService,
     ITtsDispatchService ttsDispatch,
@@ -52,7 +50,6 @@ public sealed class ScriptHostBridgeFactory(
             chatProvider,
             currencyService,
             musicService,
-            userService,
             httpClientFactory,
             storageService,
             ttsDispatch,
