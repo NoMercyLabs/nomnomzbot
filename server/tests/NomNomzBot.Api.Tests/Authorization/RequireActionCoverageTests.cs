@@ -83,6 +83,17 @@ public sealed class RequireActionCoverageTests
             .Be(expectedActionKey);
     }
 
+    [Theory]
+    [InlineData(nameof(ObsController.SetInputMute), "obs:control")]
+    [InlineData(nameof(ObsController.SetInputVolume), "obs:control")]
+    public void ObsController_mixer_action_carries_the_expected_action_key(
+        string methodName,
+        string expectedActionKey
+    )
+    {
+        RequiredActionKeyOf(typeof(ObsController), methodName).Should().Be(expectedActionKey);
+    }
+
     [Fact]
     public void PronounsController_PutMe_carries_the_self_write_action_key()
     {

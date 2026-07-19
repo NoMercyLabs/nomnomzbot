@@ -133,7 +133,10 @@ public sealed class SoundClipsController : BaseController
             form.File.FileName,
             form.File.ContentType,
             form.File.OpenReadStream(),
-            form.DefaultVolume
+            form.DefaultVolume,
+            form.CooldownSeconds,
+            form.MinPermissionLevel,
+            form.TriggerWord
         );
 
         Result<SoundClipDto> result = await _service.UploadAsync(
@@ -256,6 +259,16 @@ public sealed class SoundClipsController : BaseController
         public string Name { get; set; } = null!;
         public string? DisplayName { get; set; }
         public int DefaultVolume { get; set; } = 80;
+
+        /// <summary>Global per-clip cooldown (seconds) for the chat soundboard trigger; 0 = none.</summary>
+        public int CooldownSeconds { get; set; }
+
+        /// <summary>Minimum community-standing ladder level to fire the chat trigger (0 = everyone).</summary>
+        public int MinPermissionLevel { get; set; }
+
+        /// <summary>Optional bare, prefix-less chat trigger word; blank = no chat trigger.</summary>
+        public string? TriggerWord { get; set; }
+
         public IFormFile? File { get; set; }
     }
 }

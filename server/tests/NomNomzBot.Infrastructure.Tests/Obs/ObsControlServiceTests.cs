@@ -57,6 +57,26 @@ public sealed class ObsControlServiceTests
                     responder?.Invoke(request) ?? new ObsResponse(true, null, null);
                 return Task.FromResult(Result.Success(response));
             });
+        // A batch responder mirrors the single-request one, one ObsResponse per contained request, in order.
+        transport
+            .SendBatchAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<ObsRequestBatch>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci =>
+            {
+                ObsRequestBatch batch = ci.ArgAt<ObsRequestBatch>(2);
+                List<ObsResponse> responses = [];
+                foreach (ObsRequest request in batch.Requests)
+                {
+                    lock (requests)
+                        requests.Add(request);
+                    responses.Add(responder?.Invoke(request) ?? new ObsResponse(true, null, null));
+                }
+                return Task.FromResult(Result.Success<IReadOnlyList<ObsResponse>>(responses));
+            });
         return new Harness
         {
             Service = new ObsControlService(transport),
@@ -181,6 +201,61 @@ public sealed class ObsControlServiceTests
         ctx.Variables["obs.last_error"].Should().Be("output already active");
         h.Requests.Single().RequestType.Should().Be("StartRecord");
     }
+
+    [Fact]
+    public async Task Get_inputs_enriches_audio_inputs_with_live_mute_and_volume()
+    {
+        // GetInputList returns two inputs; the mixer needs each one's real mute + volume so its sliders open on
+        // truth. An audio input answers GetInputMute/GetInputVolume; a non-audio input (image) rejects them and
+        // must come back with null mute/volume so the mixer can tell them apart.
+        Harness h = Build(request =>
+            request.RequestType switch
+            {
+                "GetInputList" => new ObsResponse(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["inputs"] =
+                            """[{"inputName":"Mic","inputKind":"wasapi_input_capture"},{"inputName":"Logo","inputKind":"image_source"}]""",
+                    },
+                    null
+                ),
+                "GetInputMute" when Name(request) == "Mic" => new ObsResponse(
+                    true,
+                    new Dictionary<string, object?> { ["inputMuted"] = true },
+                    null
+                ),
+                "GetInputVolume" when Name(request) == "Mic" => new ObsResponse(
+                    true,
+                    new Dictionary<string, object?> { ["inputVolumeDb"] = -12.5d },
+                    null
+                ),
+                // The image source has no audio — OBS rejects these two calls.
+                "GetInputMute" or "GetInputVolume" => new ObsResponse(
+                    false,
+                    null,
+                    "input has no audio"
+                ),
+                _ => new ObsResponse(true, null, null),
+            }
+        );
+
+        Result<IReadOnlyList<ObsInputDto>> result = await h.Service.GetInputsAsync(Channel);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().HaveCount(2);
+
+        ObsInputDto mic = result.Value.Single(i => i.Name == "Mic");
+        mic.Muted.Should().BeTrue();
+        mic.VolumeDb.Should().Be(-12.5d);
+
+        ObsInputDto logo = result.Value.Single(i => i.Name == "Logo");
+        logo.Muted.Should().BeNull("a non-audio input exposes no mixer state");
+        logo.VolumeDb.Should().BeNull();
+    }
+
+    private static string? Name(ObsRequest request) =>
+        request.RequestData?.GetValueOrDefault("inputName") as string;
 
     private static PipelineExecutionContext NewContext() =>
         new()

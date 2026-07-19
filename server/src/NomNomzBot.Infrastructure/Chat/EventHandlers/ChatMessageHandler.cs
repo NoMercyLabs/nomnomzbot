@@ -23,6 +23,7 @@ using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Games;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Events;
@@ -144,6 +145,19 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             )
             {
                 await RecordPollVoteAsync(poll, @event, optionIndex, cancellationToken);
+                return;
+            }
+
+            // Soundboard trigger surface: a bare, prefix-less word equal to a clip's TriggerWord plays that clip
+            // (case-insensitive whole-message match). An exact match CLAIMS the line — a played, refused, or
+            // cooling-down soundboard word never also fires a keyword chat trigger — so the two never double-react.
+            if (
+                channelCtx is not null
+                && !channelCtx.SoundTriggers.IsEmpty
+                && channelCtx.SoundTriggers.TryGetValue(text, out CachedSoundTrigger? soundTrigger)
+            )
+            {
+                await FireSoundTriggerAsync(soundTrigger, @event, cancellationToken);
                 return;
             }
 
@@ -700,6 +714,63 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 );
             }
             return;
+        }
+    }
+
+    /// <summary>
+    /// Plays a soundboard clip whose <see cref="CachedSoundTrigger.TriggerWord"/> the chatter typed: the
+    /// community-standing floor first, then the per-clip cooldown (the spam guard), then resolve-and-push to the
+    /// overlay audio bus (the same path <c>play_sound</c> and the dashboard preview use — resolved through a scope
+    /// because the sound services are scoped). A below-floor speaker is silently refused; a clip that resolves as
+    /// missing/disabled simply does not play. Failures never reach the chat hot path.
+    /// </summary>
+    private async Task FireSoundTriggerAsync(
+        CachedSoundTrigger trigger,
+        ChatMessageReceivedEvent @event,
+        CancellationToken ct
+    )
+    {
+        if (!await HasPermissionAsync(@event, trigger.MinPermissionLevel, ct))
+            return;
+
+        string cooldownChannelKey = @event.BroadcasterId.ToString();
+        string cooldownKey = $"sound:{trigger.ClipId:N}";
+        if (_cooldowns.IsOnCooldown(cooldownChannelKey, cooldownKey))
+            return;
+
+        if (trigger.CooldownSeconds > 0)
+            _cooldowns.SetCooldown(
+                cooldownChannelKey,
+                cooldownKey,
+                TimeSpan.FromSeconds(trigger.CooldownSeconds)
+            );
+
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            ISoundClipService clips = scope.ServiceProvider.GetRequiredService<ISoundClipService>();
+            ISoundClipOverlayNotifier overlay =
+                scope.ServiceProvider.GetRequiredService<ISoundClipOverlayNotifier>();
+
+            Result<SoundPlaybackDto> resolved = await clips.ResolveForPlaybackAsync(
+                @event.BroadcasterId,
+                trigger.ClipId.ToString(),
+                volumeOverride: null,
+                ct
+            );
+            if (!resolved.IsSuccess)
+                return;
+
+            await overlay.PlaySoundAsync(@event.BroadcasterId, resolved.Value, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Sound trigger {ClipId} failed in {Channel}",
+                trigger.ClipId,
+                @event.BroadcasterId
+            );
         }
     }
 

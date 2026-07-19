@@ -80,6 +80,38 @@ public class ObsController(
         CancellationToken ct
     ) => ResultResponse(await control.SwitchSceneAsync(channelId, request.Scene, ct));
 
+    /// <summary>Audio mixer — set an input's mute state (obs-control.md §3.1).</summary>
+    [HttpPost("inputs/mute")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetInputMute(
+        Guid channelId,
+        [FromBody] ObsInputMuteRequest request,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await control.SetInputMuteAsync(channelId, request.InputName, request.Muted, ct)
+        );
+
+    /// <summary>Audio mixer — set an input's volume in decibels (obs-control.md §3.1).</summary>
+    [HttpPost("inputs/volume")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetInputVolume(
+        Guid channelId,
+        [FromBody] ObsInputVolumeRequest request,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await control.SetInputVolumeAsync(
+                channelId,
+                request.InputName,
+                volumeDb: request.VolumeDb,
+                volumeMul: null,
+                ct
+            )
+        );
+
     /// <summary>Streaming start/stop/toggle (broadcast-impacting).</summary>
     [HttpPost("streaming")]
     [RequireAction("obs:control:broadcast")]

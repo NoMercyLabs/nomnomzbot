@@ -90,3 +90,9 @@ public sealed record ObsToggleRequest(ObsToggle Action);
 
 /// <summary>REST body for the recording route.</summary>
 public sealed record ObsRecordRequest(RecordAction Action);
+
+/// <summary>REST body for the audio-mixer mute route: set an input's mute to an absolute state.</summary>
+public sealed record ObsInputMuteRequest(string InputName, bool Muted);
+
+/// <summary>REST body for the audio-mixer volume route: set an input's volume in decibels (OBS's dB scale).</summary>
+public sealed record ObsInputVolumeRequest(string InputName, double VolumeDb);

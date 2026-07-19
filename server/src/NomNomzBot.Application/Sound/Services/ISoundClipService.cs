@@ -75,10 +75,20 @@ public sealed record UploadSoundClipRequest(
     string FileName,
     string MimeType,
     System.IO.Stream Content,
-    int DefaultVolume
+    int DefaultVolume,
+    int CooldownSeconds = 0,
+    int MinPermissionLevel = 0,
+    string? TriggerWord = null
 );
 
-public sealed record UpdateSoundClipRequest(string DisplayName, int DefaultVolume, bool IsEnabled);
+public sealed record UpdateSoundClipRequest(
+    string DisplayName,
+    int DefaultVolume,
+    bool IsEnabled,
+    int CooldownSeconds = 0,
+    int MinPermissionLevel = 0,
+    string? TriggerWord = null
+);
 
 public sealed record SoundClipDto(
     Guid Id,
@@ -89,6 +99,12 @@ public sealed record SoundClipDto(
     long SizeBytes,
     int DefaultVolume,
     bool IsEnabled,
+    // Global per-clip cooldown (seconds) applied to the chat soundboard trigger; 0 = none.
+    int CooldownSeconds,
+    // Minimum community-standing ladder level to fire the chat trigger (0 = everyone).
+    int MinPermissionLevel,
+    // Optional bare, prefix-less chat trigger word that plays the clip; null = no chat trigger.
+    string? TriggerWord,
     DateTime CreatedAt,
     // Ready-to-play relative URL for the (anonymous, range-enabled) stream endpoint, so the dashboard can
     // preview a clip in-browser — clicking Preview should be audible on the page, not only pushed to the overlay.

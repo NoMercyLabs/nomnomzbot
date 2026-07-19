@@ -162,6 +162,11 @@ public sealed class ChatDecorationRefreshServiceTests
             CancellationToken ct = default
         ) => Task.CompletedTask;
 
+        public Task InvalidateSoundTriggersAsync(
+            Guid broadcasterId,
+            CancellationToken ct = default
+        ) => Task.CompletedTask;
+
         public Task RemoveAsync(Guid broadcasterId, CancellationToken ct = default) =>
             Task.CompletedTask;
     }

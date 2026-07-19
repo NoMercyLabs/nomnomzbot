@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Sound.Services;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Infrastructure.Sound.Audio;
 
@@ -22,6 +23,7 @@ internal sealed class SoundClipService : ISoundClipService
 {
     private const int MaxSizeBytes = 10 * 1024 * 1024; // 10 MB per clip (spec D4 safe baseline)
     private const int MaxClipsPerChannel = 100;
+    private const int MaxCooldownSeconds = 86_400; // one day (mirrors ChatTriggerService)
 
     private static readonly HashSet<string> AllowedMimeTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -35,16 +37,19 @@ internal sealed class SoundClipService : ISoundClipService
     private readonly IApplicationDbContext _db;
     private readonly ISoundClipStore _store;
     private readonly ISoundClipOverlayNotifier _overlay;
+    private readonly IChannelRegistry _registry;
 
     public SoundClipService(
         IApplicationDbContext db,
         ISoundClipStore store,
-        ISoundClipOverlayNotifier overlay
+        ISoundClipOverlayNotifier overlay,
+        IChannelRegistry registry
     )
     {
         _db = db;
         _store = store;
         _overlay = overlay;
+        _registry = registry;
     }
 
     public async Task<Result<PagedList<SoundClipDto>>> ListAsync(
@@ -143,6 +148,18 @@ internal sealed class SoundClipService : ISoundClipService
                 "DUPLICATE_NAME"
             );
 
+        Result<string?> triggerResult = await NormalizeTriggerWordAsync(
+            broadcasterId,
+            request.TriggerWord,
+            excludeClipId: null,
+            ct
+        );
+        if (!triggerResult.IsSuccess)
+            return Result<SoundClipDto>.Failure(
+                triggerResult.ErrorMessage,
+                triggerResult.ErrorCode
+            );
+
         Result<string> storeResult = await _store.PutAsync(
             broadcasterId,
             request.FileName,
@@ -165,11 +182,15 @@ internal sealed class SoundClipService : ISoundClipService
             SizeBytes = ms.Length,
             DefaultVolume = Math.Clamp(request.DefaultVolume, 0, 100),
             IsEnabled = true,
+            CooldownSeconds = Math.Clamp(request.CooldownSeconds, 0, MaxCooldownSeconds),
+            MinPermissionLevel = Math.Max(0, request.MinPermissionLevel),
+            TriggerWord = triggerResult.Value,
             CreatedByUserId = actorUserId,
         };
 
         _db.SoundClips.Add(clip);
         await _db.SaveChangesAsync(ct);
+        await _registry.InvalidateSoundTriggersAsync(broadcasterId, ct);
 
         return Result<SoundClipDto>.Success(ToDto(clip));
     }
@@ -190,11 +211,27 @@ internal sealed class SoundClipService : ISoundClipService
         if (clip is null)
             return Result<SoundClipDto>.Failure("Sound clip not found.", "NOT_FOUND");
 
+        Result<string?> triggerResult = await NormalizeTriggerWordAsync(
+            broadcasterId,
+            request.TriggerWord,
+            excludeClipId: id,
+            ct
+        );
+        if (!triggerResult.IsSuccess)
+            return Result<SoundClipDto>.Failure(
+                triggerResult.ErrorMessage,
+                triggerResult.ErrorCode
+            );
+
         clip.DisplayName = request.DisplayName;
         clip.DefaultVolume = Math.Clamp(request.DefaultVolume, 0, 100);
         clip.IsEnabled = request.IsEnabled;
+        clip.CooldownSeconds = Math.Clamp(request.CooldownSeconds, 0, MaxCooldownSeconds);
+        clip.MinPermissionLevel = Math.Max(0, request.MinPermissionLevel);
+        clip.TriggerWord = triggerResult.Value;
 
         await _db.SaveChangesAsync(ct);
+        await _registry.InvalidateSoundTriggersAsync(broadcasterId, ct);
         return Result<SoundClipDto>.Success(ToDto(clip));
     }
 
@@ -218,6 +255,7 @@ internal sealed class SoundClipService : ISoundClipService
         // Soft-delete the row first; then remove the blob.
         clip.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
+        await _registry.InvalidateSoundTriggersAsync(broadcasterId, ct);
 
         await _store.DeleteAsync(storageKey, ct);
         return Result.Success();
@@ -278,6 +316,50 @@ internal sealed class SoundClipService : ISoundClipService
         return Result.Success();
     }
 
+    /// <summary>
+    /// Normalizes a requested soundboard trigger word to its stored form (trimmed, lower-cased, blank → null) and
+    /// enforces the write-time rules: a single bare token (no whitespace), at most 50 chars, and unique per channel
+    /// (excluding the clip being updated). Returns the normalized value on success — <c>null</c> means "no chat
+    /// trigger", which is always valid.
+    /// </summary>
+    private async Task<Result<string?>> NormalizeTriggerWordAsync(
+        Guid broadcasterId,
+        string? triggerWord,
+        Guid? excludeClipId,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrWhiteSpace(triggerWord))
+            return Result<string?>.Success(null);
+
+        string normalized = triggerWord.Trim().ToLowerInvariant();
+        if (normalized.Any(char.IsWhiteSpace))
+            return Result<string?>.Failure(
+                "A soundboard trigger word must be a single word with no spaces.",
+                "VALIDATION_FAILED"
+            );
+        if (normalized.Length > 50)
+            return Result<string?>.Failure(
+                "A soundboard trigger word cannot exceed 50 characters.",
+                "VALIDATION_FAILED"
+            );
+
+        bool clash = await _db.SoundClips.AnyAsync(
+            c =>
+                c.BroadcasterId == broadcasterId
+                && c.TriggerWord == normalized
+                && (excludeClipId == null || c.Id != excludeClipId),
+            ct
+        );
+        if (clash)
+            return Result<string?>.Failure(
+                $"The trigger word '{normalized}' is already used by another clip in this channel.",
+                "DUPLICATE_TRIGGER"
+            );
+
+        return Result<string?>.Success(normalized);
+    }
+
     private static SoundClipDto ToDto(SoundClip c) =>
         new(
             c.Id,
@@ -288,6 +370,9 @@ internal sealed class SoundClipService : ISoundClipService
             c.SizeBytes,
             c.DefaultVolume,
             c.IsEnabled,
+            c.CooldownSeconds,
+            c.MinPermissionLevel,
+            c.TriggerWord,
             c.CreatedAt,
             // The stream endpoint is a catch-all route ({*storageKey}) that takes the raw key, so pass it through
             // un-escaped. Anonymous + range-enabled, so an <audio> element on the dashboard can play it directly.

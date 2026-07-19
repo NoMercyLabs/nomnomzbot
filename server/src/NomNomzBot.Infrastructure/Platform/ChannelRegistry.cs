@@ -99,6 +99,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         await LoadBuiltinTogglesAsync(ctx, ct);
         await LoadChannelSettingsAsync(ctx, ct);
         await LoadChatTriggersAsync(ctx, ct);
+        await LoadSoundTriggersAsync(ctx, ct);
         await LoadActiveChatPollAsync(ctx, ct);
         await LoadModerationStandingsAsync(ctx, ct);
 
@@ -177,6 +178,24 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         _logger.LogDebug(
             "Reloaded {Count} moderation standing(s) for channel {BroadcasterId}",
             ctx.ModerationStandings.Count,
+            broadcasterId
+        );
+    }
+
+    public async Task InvalidateSoundTriggersAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        if (!_channels.TryGetValue(broadcasterId, out ChannelContext? ctx))
+            return;
+
+        ctx.SoundTriggers.Clear();
+        await LoadSoundTriggersAsync(ctx, ct);
+
+        _logger.LogDebug(
+            "Reloaded {Count} sound trigger(s) for channel {BroadcasterId}",
+            ctx.SoundTriggers.Count,
             broadcasterId
         );
     }
@@ -277,6 +296,40 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         catch (System.Text.Json.JsonException)
         {
             return 0;
+        }
+    }
+
+    private async Task LoadSoundTriggersAsync(ChannelContext ctx, CancellationToken ct)
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        // Only enabled clips that actually carry a trigger word enter the hot-path cache.
+        var clips = await db
+            .SoundClips.Where(c =>
+                c.BroadcasterId == ctx.BroadcasterId && c.IsEnabled && c.TriggerWord != null
+            )
+            .Select(c => new
+            {
+                c.Id,
+                c.TriggerWord,
+                c.CooldownSeconds,
+                c.MinPermissionLevel,
+            })
+            .ToListAsync(ct);
+
+        foreach (var clip in clips)
+        {
+            // TriggerWord is stored already lower-cased; the dictionary's OrdinalIgnoreCase comparer makes the
+            // lookup case-insensitive against whatever case the chatter typed.
+            ctx.SoundTriggers[clip.TriggerWord!] = new CachedSoundTrigger
+            {
+                ClipId = clip.Id,
+                TriggerWord = clip.TriggerWord!,
+                CooldownSeconds = clip.CooldownSeconds,
+                MinPermissionLevel = clip.MinPermissionLevel,
+            };
         }
     }
 

@@ -471,7 +471,7 @@ public class ObsControlService : IObsControlService
                 status.ErrorCode!
             );
 
-        List<ObsInputDto> inputs = [];
+        List<(string Name, string Kind)> raw = [];
         if (response.Value.ResponseData?.GetValueOrDefault("inputs") is string inputsJson)
         {
             using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(
@@ -491,8 +491,60 @@ public class ObsControlService : IObsControlService
                 )
                     ? kindEl.GetString() ?? ""
                     : "";
-                inputs.Add(new ObsInputDto(name, kind, Muted: null, VolumeDb: null));
+                raw.Add((name, kind));
             }
+        }
+
+        if (raw.Count == 0)
+            return Result.Success<IReadOnlyList<ObsInputDto>>([]);
+
+        // Enrich each input with its live mute + volume so the dashboard mixer opens on real levels — one batch of
+        // GetInputMute/GetInputVolume per input, HaltOnFailure off so a non-audio input (browser/image) that
+        // rejects these simply leaves mute/volume null (that is how the mixer tells audio inputs apart).
+        List<ObsRequest> probes = [];
+        foreach ((string Name, string Kind) input in raw)
+        {
+            probes.Add(
+                new ObsRequest(
+                    "GetInputMute",
+                    new Dictionary<string, object?> { ["inputName"] = input.Name }
+                )
+            );
+            probes.Add(
+                new ObsRequest(
+                    "GetInputVolume",
+                    new Dictionary<string, object?> { ["inputName"] = input.Name }
+                )
+            );
+        }
+
+        Result<IReadOnlyList<ObsResponse>> probeBatch = await _transport.SendBatchAsync(
+            broadcasterId,
+            Guid.CreateVersion7(),
+            new ObsRequestBatch(probes, HaltOnFailure: false),
+            ct
+        );
+        IReadOnlyList<ObsResponse>? probeResults = probeBatch.IsSuccess ? probeBatch.Value : null;
+
+        List<ObsInputDto> inputs = [];
+        for (int i = 0; i < raw.Count; i++)
+        {
+            bool? muted = null;
+            double? volumeDb = null;
+            if (probeResults is not null && probeResults.Count > (2 * i) + 1)
+            {
+                ObsResponse muteResp = probeResults[2 * i];
+                if (muteResp.Ok && muteResp.ResponseData?.GetValueOrDefault("inputMuted") is bool m)
+                    muted = m;
+
+                ObsResponse volResp = probeResults[(2 * i) + 1];
+                if (
+                    volResp.Ok
+                    && volResp.ResponseData?.GetValueOrDefault("inputVolumeDb") is double db
+                )
+                    volumeDb = db;
+            }
+            inputs.Add(new ObsInputDto(raw[i].Name, raw[i].Kind, muted, volumeDb));
         }
         return Result.Success<IReadOnlyList<ObsInputDto>>(inputs);
     }

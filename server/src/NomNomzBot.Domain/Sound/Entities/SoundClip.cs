@@ -49,6 +49,29 @@ public class SoundClip : SoftDeletableEntity, ITenantScoped
 
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>
+    /// Global per-clip cooldown, in seconds, applied to the chat <see cref="TriggerWord"/> soundboard trigger
+    /// (not the dashboard preview or the <c>play_sound</c> pipeline action, which are operator-driven). A second
+    /// trigger inside the window is silently ignored. 0 = no cooldown.
+    /// </summary>
+    public int CooldownSeconds { get; set; }
+
+    /// <summary>
+    /// The minimum community-standing ladder level a chatter needs to fire this clip's <see cref="TriggerWord"/>
+    /// (roles-permissions §0: 0 = everyone, 2 = subscriber, 4 = VIP, 10 = moderator, 40 = broadcaster). Below the
+    /// floor the trigger is silently refused. Ignored when <see cref="TriggerWord"/> is null.
+    /// </summary>
+    public int MinPermissionLevel { get; set; }
+
+    /// <summary>
+    /// Optional chat soundboard trigger: a bare, prefix-less word (e.g. <c>airhorn</c>) that plays this clip when a
+    /// chat message equals it (case-insensitive, whole-message match) — gated by <see cref="MinPermissionLevel"/>
+    /// and <see cref="CooldownSeconds"/>. Null = no chat trigger (the clip is still playable from pipelines and the
+    /// dashboard). Unique per channel when set, so one word maps to at most one clip.
+    /// </summary>
+    [MaxLength(50)]
+    public string? TriggerWord { get; set; }
+
     public Guid CreatedByUserId { get; set; }
 
     // ── Navigations ─────────────────────────────────────────────────────────────

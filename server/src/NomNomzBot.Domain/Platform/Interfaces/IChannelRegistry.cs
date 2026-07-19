@@ -65,6 +65,13 @@ public interface IChannelRegistry
     /// </summary>
     Task InvalidateModerationStandingsAsync(Guid broadcasterId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Reloads the soundboard trigger-word cache for an already-registered channel. Call after any
+    /// upload/update/delete of a sound clip so a changed trigger word / cooldown / permission floor / enabled
+    /// state applies to chat without a restart. No-ops if the channel is not yet in the registry.
+    /// </summary>
+    Task InvalidateSoundTriggersAsync(Guid broadcasterId, CancellationToken ct = default);
+
     Task RemoveAsync(Guid broadcasterId, CancellationToken ct = default);
     IReadOnlyCollection<ChannelContext> GetAll();
     IReadOnlyCollection<ChannelContext> GetLiveChannels();
@@ -125,6 +132,15 @@ public class ChannelContext
     /// refresh via <see cref="IChannelRegistry.InvalidateChatTriggersAsync"/>.
     /// </summary>
     public ConcurrentDictionary<Guid, CachedChatTrigger> ChatTriggers { get; } = new();
+
+    /// <summary>
+    /// Per-channel soundboard trigger cache (enabled clips that carry a trigger word only), keyed by the
+    /// lower-cased trigger word — matched against every ordinary (non-command) chat line as a bare, prefix-less,
+    /// whole-message word. Populated by <c>ChannelRegistry</c>; refresh via
+    /// <see cref="IChannelRegistry.InvalidateSoundTriggersAsync"/>.
+    /// </summary>
+    public ConcurrentDictionary<string, CachedSoundTrigger> SoundTriggers { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// The channel's OPEN bot-run chat poll, or null — the hot path checks this before treating a bare
@@ -213,6 +229,19 @@ public class CachedChatTrigger
 
     /// <summary>Set only for <c>regex</c> triggers (compiled, bounded by a match timeout).</summary>
     public System.Text.RegularExpressions.Regex? CompiledRegex { get; init; }
+}
+
+/// <summary>
+/// Hot-path shape of a soundboard chat trigger: a clip that plays when a chat line equals its bare, prefix-less
+/// <see cref="TriggerWord"/> (case-insensitive whole-message match), gated by a per-clip cooldown and a
+/// community-standing floor. Only enabled clips that carry a trigger word enter the cache.
+/// </summary>
+public class CachedSoundTrigger
+{
+    public required Guid ClipId { get; init; }
+    public required string TriggerWord { get; init; }
+    public required int CooldownSeconds { get; init; }
+    public required int MinPermissionLevel { get; init; }
 }
 
 /// <summary>

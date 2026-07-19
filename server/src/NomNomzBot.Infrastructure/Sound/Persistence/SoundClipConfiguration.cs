@@ -26,10 +26,16 @@ public class SoundClipConfiguration : IEntityTypeConfiguration<SoundClip>
         builder.Property(e => e.MimeType).IsRequired().HasMaxLength(40);
         builder.Property(e => e.DefaultVolume).HasDefaultValue(80);
         builder.Property(e => e.IsEnabled).HasDefaultValue(true);
+        builder.Property(e => e.CooldownSeconds).HasDefaultValue(0);
+        builder.Property(e => e.MinPermissionLevel).HasDefaultValue(0);
+        builder.Property(e => e.TriggerWord).HasMaxLength(50);
 
         builder.HasIndex(e => e.BroadcasterId);
         builder.HasIndex(e => e.CreatedByUserId);
         // Unique slug per channel (spec D5: play_sound resolves by id or Name).
         builder.HasIndex(e => new { e.BroadcasterId, e.Name }).IsUnique();
+        // One soundboard trigger word per channel. A NULL TriggerWord is DISTINCT under both Postgres and
+        // SQLite unique indexes, so many clips can leave the trigger unset while a set word stays unique.
+        builder.HasIndex(e => new { e.BroadcasterId, e.TriggerWord }).IsUnique();
     }
 }
