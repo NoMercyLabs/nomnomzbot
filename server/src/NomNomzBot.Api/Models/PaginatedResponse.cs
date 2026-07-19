@@ -33,7 +33,27 @@ public record PaginatedResponse<T>
 public class PageRequestDto
 {
     public int Page { get; set; } = 1;
-    public int Take { get; set; } = 25;
+
+    private int _take = 25;
+
+    /// <summary>
+    /// Rows per page. Bound from EITHER <c>Take</c> (the historical name) OR <c>pageSize</c> — the REST-
+    /// convention name every frontend caller actually sends. Before this alias, <c>?pageSize=100</c> bound to
+    /// nothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the
+    /// data was invisible. Both query keys now populate the same value.
+    /// </summary>
+    public int Take
+    {
+        get => _take;
+        set => _take = value;
+    }
+
+    public int PageSize
+    {
+        get => _take;
+        set => _take = value;
+    }
+
     public string? Sort { get; set; }
     public string? Order { get; set; } = "asc";
     public string? Search { get; set; }
