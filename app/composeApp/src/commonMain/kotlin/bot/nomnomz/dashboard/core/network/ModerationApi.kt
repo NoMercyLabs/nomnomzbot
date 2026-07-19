@@ -615,7 +615,8 @@ data class AddTermBody(val term: String)
 
 /**
  * The channel's AutoMod filter configuration (backend `AutomodConfigDto`) — four independent filters. camelCase
- * mirror; surfaced read-only for now (the per-filter toggle / edit is a follow-up).
+ * mirror. Each filter is toggleable and its settings editable from the Moderation screen (caps threshold,
+ * emote-spam limit, banned-phrase list, link allow-list); the whole config is re-sent on any change.
  */
 @Serializable
 data class AutomodConfig(

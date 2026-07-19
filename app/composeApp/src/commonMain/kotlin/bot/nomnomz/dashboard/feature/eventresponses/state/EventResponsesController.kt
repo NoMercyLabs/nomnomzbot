@@ -25,6 +25,8 @@ import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.UpdateEventResponseBody
+import bot.nomnomz.dashboard.core.network.WidgetSummary
+import bot.nomnomz.dashboard.core.network.WidgetsApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,6 +41,7 @@ class EventResponsesController(
     private val eventResponsesApi: EventResponsesApi,
     private val pipelinesApi: PipelinesApi,
     private val pickListsApi: PickListsApi,
+    private val widgetsApi: WidgetsApi,
 ) {
     private val _state: MutableStateFlow<EventResponsesState> =
         MutableStateFlow(EventResponsesState.Loading)
@@ -82,6 +85,13 @@ class EventResponsesController(
                 is ApiResult.Ok -> result.value.map { it.name }
                 is ApiResult.Failure -> emptyList()
             }
+        // The channel's widgets — the overlay response type's target picker lists them so an overlay event can
+        // fire a specific widget. Best-effort: a failure just empties the picker.
+        val widgets: List<WidgetSummary> =
+            when (val result: ApiResult<List<WidgetSummary>> = widgetsApi.list(channel.id)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> emptyList()
+            }
 
         when (val result: ApiResult<List<EventResponseSummary>> = eventResponsesApi.list(channel.id)) {
             is ApiResult.Failure -> _state.value = EventResponsesState.Error(result.error.message)
@@ -94,6 +104,7 @@ class EventResponsesController(
                             presets = presets,
                             pipelines = pipelines,
                             pickListNames = pickListNames,
+                            widgets = widgets,
                         )
         }
     }
@@ -146,14 +157,25 @@ class EventResponsesController(
         )
     }
 
-    /** Upsert the full event-response config for [eventType]. */
+    /**
+     * Upsert the full event-response config for [eventType]. For an `overlay` response, [widgetId] names the
+     * widget the event fires — persisted under the [WidgetIdMetadataKey] key of the response's MetadataJson so
+     * the overlay dispatch can target it. A null/blank [widgetId] clears the target (empty metadata).
+     */
     suspend fun save(
         eventType: String,
         responseType: String,
         message: String?,
         pipelineId: String?,
+        widgetId: String?,
     ) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
+        // Only overlay responses carry a widget target; for every other type send an empty metadata map so a
+        // stale target from a previous overlay config never lingers.
+        val metadata: Map<String, String> =
+            if (responseType == "overlay" && !widgetId.isNullOrBlank())
+                mapOf(WidgetIdMetadataKey to widgetId)
+            else emptyMap()
         afterWrite(
             eventResponsesApi.upsert(
                 channel,
@@ -162,6 +184,7 @@ class EventResponsesController(
                     responseType = responseType,
                     message = message?.takeIf { it.isNotBlank() },
                     pipelineId = pipelineId?.takeIf { it.isNotBlank() },
+                    metadata = metadata,
                 ),
             )
         )
@@ -187,8 +210,11 @@ class EventResponsesController(
             else EventResponsesState.Error(detail)
     }
 
-    private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
+    companion object {
+        /** The MetadataJson key under which an `overlay` response stores its target widget id. */
+        const val WidgetIdMetadataKey: String = "widgetId"
+
+        private const val NoChannelError: String = "No active channel — reconnect and try again."
     }
 }
 
@@ -205,6 +231,7 @@ sealed interface EventResponsesState {
         val presets: Map<String, EventResponsePreset> = emptyMap(),
         val pipelines: List<PipelineSummary> = emptyList(),
         val pickListNames: List<String> = emptyList(),
+        val widgets: List<WidgetSummary> = emptyList(),
         val actionError: String? = null,
     ) : EventResponsesState
 

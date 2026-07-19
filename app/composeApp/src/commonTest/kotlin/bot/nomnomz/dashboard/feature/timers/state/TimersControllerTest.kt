@@ -117,7 +117,7 @@ class TimersControllerTest {
         val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        controller.createTimer(name = "Discord", messages = listOf("Join the Discord!"), intervalMinutes = 20, enabled = true, fireOnce = true, pipelineId = null)
+        controller.createTimer(name = "Discord", messages = listOf("Join the Discord!"), intervalMinutes = 20, minChatActivity = 3, enabled = true, fireOnce = true, pipelineId = null)
 
         // The write hit the backend with exactly the dialog's fields, single message folded into the list.
         assertEquals(1, api.created.size)
@@ -125,6 +125,7 @@ class TimersControllerTest {
         assertEquals("Discord", request.name)
         assertEquals(listOf("Join the Discord!"), request.messages)
         assertEquals(20, request.intervalMinutes)
+        assertEquals(3, request.minChatActivity)
         assertEquals(true, request.isEnabled)
         assertEquals(true, request.fireOnce)
 
@@ -146,7 +147,7 @@ class TimersControllerTest {
         val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        controller.updateTimer(id = "00000003-0000-0000-0000-000000000003", name = "New", messages = listOf("Updated"), intervalMinutes = 15, enabled = true, fireOnce = false, pipelineId = null)
+        controller.updateTimer(id = "00000003-0000-0000-0000-000000000003", name = "New", messages = listOf("Updated"), intervalMinutes = 15, minChatActivity = 0, enabled = true, fireOnce = false, pipelineId = null)
 
         val updatedId = "00000003-0000-0000-0000-000000000003"
         val update: UpdateTimerRequest = api.updated.getValue(updatedId)
@@ -207,7 +208,7 @@ class TimersControllerTest {
         val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        controller.createTimer(name = "Nope", messages = listOf("blocked"), intervalMinutes = 30, enabled = true, fireOnce = false, pipelineId = null)
+        controller.createTimer(name = "Nope", messages = listOf("blocked"), intervalMinutes = 30, minChatActivity = 0, enabled = true, fireOnce = false, pipelineId = null)
 
         // The error is surfaced verbatim, the list never reloaded, and the original row is still on the page.
         assertEquals("not allowed", controller.writeError.value)

@@ -366,6 +366,16 @@
     <string name="moderation_automod_off">Off</string>
     <string name="moderation_automod_caps_detail">%1$d%% caps</string>
     <string name="moderation_automod_emote_detail">max %1$d emotes</string>
+    <string name="moderation_automod_caps_threshold_label">Caps threshold (%)</string>
+    <string name="moderation_automod_caps_threshold_hint">Flag a message when this percent of it is capital letters.</string>
+    <string name="moderation_automod_emote_max_label">Max emotes per message</string>
+    <string name="moderation_automod_emote_max_hint">Flag a message that carries more than this many emotes.</string>
+    <string name="moderation_automod_phrases_add_label">Add a banned phrase</string>
+    <string name="moderation_automod_phrases_add">Add</string>
+    <string name="moderation_automod_phrases_empty">No banned phrases yet.</string>
+    <string name="moderation_automod_whitelist_add_label">Add an allowed domain</string>
+    <string name="moderation_automod_whitelist_add">Add</string>
+    <string name="moderation_automod_whitelist_empty">No allowed domains — all links are blocked.</string>
     <string name="moderation_automod_enable">Enable</string>
     <string name="moderation_automod_disable">Disable</string>
     <string name="moderation_automod_enable_action">Enable %1$s filter</string>
@@ -502,6 +512,11 @@
     <string name="tts_test_success">Synthesised via %1$s (%2$d ms)</string>
     <string name="tts_test_error">Test failed: %1$s</string>
     <string name="tts_label_min_permission">Minimum permission</string>
+    <string name="tts_label_mode">Dispatch mode</string>
+    <string name="tts_mode_client_edge">Client (Edge)</string>
+    <string name="tts_mode_byok">Bring your own key</string>
+    <string name="tts_mode_self_host">Self-host</string>
+    <string name="tts_label_default_provider">Default provider</string>
     <string name="tts_label_max_length">Max message length</string>
     <string name="tts_label_skip_bot_messages">Skip bot messages</string>
     <string name="tts_label_read_usernames">Read usernames</string>
@@ -661,6 +676,8 @@
     <string name="timers_dialog_pipeline">Run pipeline (optional)</string>
     <string name="timers_dialog_pipeline_none">None</string>
     <string name="timers_dialog_interval">Interval (minutes)</string>
+    <string name="timers_dialog_min_chat_activity">Min chat messages between fires</string>
+    <string name="timers_dialog_min_chat_activity_hint">Only fire once this many chat messages have arrived since the last fire. Blank = fire regardless.</string>
     <string name="timers_dialog_enabled">Enabled</string>
     <string name="timers_dialog_fire_once">Fire once</string>
     <string name="timers_dialog_fire_once_hint">Sends a single time, then disables itself instead of looping.</string>
@@ -753,6 +770,12 @@
     <string name="rewards_dialog_title_label">Title</string>
     <string name="rewards_dialog_cost_label">Cost in points</string>
     <string name="rewards_dialog_prompt_label">Prompt</string>
+    <string name="rewards_dialog_background_color_label">Background colour (hex, blank = default)</string>
+    <string name="rewards_dialog_max_per_stream_label">Max per stream (blank = no limit)</string>
+    <string name="rewards_dialog_max_per_user_label">Max per user per stream (blank = no limit)</string>
+    <string name="rewards_dialog_cooldown_label">Global cooldown (seconds, blank = none)</string>
+    <string name="rewards_dialog_require_input_label">Require viewer text</string>
+    <string name="rewards_dialog_paused_label">Paused</string>
     <string name="rewards_dialog_timer_label">Countdown on redeem (seconds, blank = none)</string>
     <string name="rewards_dialog_pipeline_label">Run pipeline on redeem</string>
     <string name="rewards_dialog_pipeline_none">None</string>
@@ -2446,6 +2469,9 @@
     <!-- First-class pipeline binding + variable insert chips + pre-filled templates. -->
     <string name="event_responses_dialog_pipeline_pick">Bound pipeline</string>
     <string name="event_responses_dialog_pipeline_choose">Choose a pipeline</string>
+    <string name="event_responses_dialog_widget_pick">Target widget</string>
+    <string name="event_responses_dialog_widget_choose">Choose a widget</string>
+    <string name="event_responses_dialog_widget_empty">No widgets yet — add one on the Widgets page.</string>
     <string name="event_responses_dialog_pipeline_create_new">+ Create a new pipeline</string>
     <string name="event_responses_dialog_pipeline_new_name">New pipeline name</string>
     <string name="event_responses_dialog_pipeline_help">Bind a pipeline to chain sound, overlay and chat on this event.</string>

@@ -363,6 +363,16 @@
     <string name="moderation_automod_off">Uit</string>
     <string name="moderation_automod_caps_detail">%1$d%% hoofdletters</string>
     <string name="moderation_automod_emote_detail">max %1$d emotes</string>
+    <string name="moderation_automod_caps_threshold_label">Hoofdletterdrempel (%)</string>
+    <string name="moderation_automod_caps_threshold_hint">Markeer een bericht als dit percentage ervan uit hoofdletters bestaat.</string>
+    <string name="moderation_automod_emote_max_label">Max emotes per bericht</string>
+    <string name="moderation_automod_emote_max_hint">Markeer een bericht met meer dan dit aantal emotes.</string>
+    <string name="moderation_automod_phrases_add_label">Verboden zin toevoegen</string>
+    <string name="moderation_automod_phrases_add">Toevoegen</string>
+    <string name="moderation_automod_phrases_empty">Nog geen verboden zinnen.</string>
+    <string name="moderation_automod_whitelist_add_label">Toegestaan domein toevoegen</string>
+    <string name="moderation_automod_whitelist_add">Toevoegen</string>
+    <string name="moderation_automod_whitelist_empty">Geen toegestane domeinen — alle links worden geblokkeerd.</string>
     <string name="moderation_automod_enable">Inschakelen</string>
     <string name="moderation_automod_disable">Uitschakelen</string>
     <string name="moderation_automod_enable_action">%1$s-filter inschakelen</string>
@@ -499,6 +509,11 @@
     <string name="tts_test_success">Gesynthetiseerd via %1$s (%2$d ms)</string>
     <string name="tts_test_error">Test mislukt: %1$s</string>
     <string name="tts_label_min_permission">Minimale rechten</string>
+    <string name="tts_label_mode">Verwerkingsmodus</string>
+    <string name="tts_mode_client_edge">Client (Edge)</string>
+    <string name="tts_mode_byok">Eigen sleutel gebruiken</string>
+    <string name="tts_mode_self_host">Zelf hosten</string>
+    <string name="tts_label_default_provider">Standaardprovider</string>
     <string name="tts_label_max_length">Maximale berichtlengte</string>
     <string name="tts_label_skip_bot_messages">Botberichten overslaan</string>
     <string name="tts_label_read_usernames">Gebruikersnamen voorlezen</string>
@@ -658,6 +673,8 @@
     <string name="timers_dialog_pipeline">Pijplijn uitvoeren (optioneel)</string>
     <string name="timers_dialog_pipeline_none">Geen</string>
     <string name="timers_dialog_interval">Interval (minuten)</string>
+    <string name="timers_dialog_min_chat_activity">Min. chatberichten tussen keren</string>
+    <string name="timers_dialog_min_chat_activity_hint">Alleen afvuren als er sinds de vorige keer zoveel chatberichten zijn geweest. Leeg = altijd afvuren.</string>
     <string name="timers_dialog_enabled">Ingeschakeld</string>
     <string name="timers_dialog_fire_once">Eén keer uitvoeren</string>
     <string name="timers_dialog_fire_once_hint">Verstuurt één keer en schakelt zichzelf daarna uit in plaats van te herhalen.</string>
@@ -750,6 +767,12 @@
     <string name="rewards_dialog_title_label">Titel</string>
     <string name="rewards_dialog_cost_label">Kosten in punten</string>
     <string name="rewards_dialog_prompt_label">Tekst</string>
+    <string name="rewards_dialog_background_color_label">Achtergrondkleur (hex, leeg = standaard)</string>
+    <string name="rewards_dialog_max_per_stream_label">Max per stream (leeg = geen limiet)</string>
+    <string name="rewards_dialog_max_per_user_label">Max per kijker per stream (leeg = geen limiet)</string>
+    <string name="rewards_dialog_cooldown_label">Globale afkoeltijd (seconden, leeg = geen)</string>
+    <string name="rewards_dialog_require_input_label">Kijkertekst vereist</string>
+    <string name="rewards_dialog_paused_label">Gepauzeerd</string>
     <string name="rewards_dialog_timer_label">Afteltijd bij inwisselen (seconden, leeg = geen)</string>
     <string name="rewards_dialog_pipeline_label">Pipeline draaien bij inwisselen</string>
     <string name="rewards_dialog_pipeline_none">Geen</string>
@@ -2433,6 +2456,9 @@
     <!-- Eersteklas pipeline-binding + variabele-chips + vooraf ingevulde sjablonen. -->
     <string name="event_responses_dialog_pipeline_pick">Gekoppelde pipeline</string>
     <string name="event_responses_dialog_pipeline_choose">Kies een pipeline</string>
+    <string name="event_responses_dialog_widget_pick">Doelwidget</string>
+    <string name="event_responses_dialog_widget_choose">Kies een widget</string>
+    <string name="event_responses_dialog_widget_empty">Nog geen widgets — voeg er een toe op de Widgets-pagina.</string>
     <string name="event_responses_dialog_pipeline_create_new">+ Nieuwe pipeline maken</string>
     <string name="event_responses_dialog_pipeline_new_name">Naam nieuwe pipeline</string>
     <string name="event_responses_dialog_pipeline_help">Koppel een pipeline om geluid, overlay en chat op dit event te ketenen.</string>

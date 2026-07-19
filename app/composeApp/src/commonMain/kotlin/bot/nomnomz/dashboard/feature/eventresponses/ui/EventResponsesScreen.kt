@@ -59,6 +59,7 @@ import bot.nomnomz.dashboard.core.network.EventResponse
 import bot.nomnomz.dashboard.core.network.EventResponsePreset
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesState
 import bot.nomnomz.dashboard.feature.picklists.ui.PickListInsertMenu
@@ -79,6 +80,9 @@ import nomnomzbot.composeapp.generated.resources.event_responses_dialog_pipeline
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_response_type_label
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_save
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_title
+import nomnomzbot.composeapp.generated.resources.event_responses_dialog_widget_choose
+import nomnomzbot.composeapp.generated.resources.event_responses_dialog_widget_empty
+import nomnomzbot.composeapp.generated.resources.event_responses_dialog_widget_pick
 import nomnomzbot.composeapp.generated.resources.event_responses_edit_action
 import nomnomzbot.composeapp.generated.resources.event_responses_empty
 import nomnomzbot.composeapp.generated.resources.event_responses_error
@@ -152,11 +156,14 @@ fun EventResponsesScreen(
             preset = ready?.presets?.get(response.eventType),
             pipelines = ready?.pipelines ?: emptyList(),
             pickListNames = ready?.pickListNames ?: emptyList(),
+            widgets = ready?.widgets ?: emptyList(),
             loadDetail = { controller.detail(response.eventType) },
             onDismiss = { editing = null },
-            onSave = { responseType, message, pipelineId ->
+            onSave = { responseType, message, pipelineId, widgetId ->
                 editing = null
-                scope.launch { controller.save(response.eventType, responseType, message, pipelineId) }
+                scope.launch {
+                    controller.save(response.eventType, responseType, message, pipelineId, widgetId)
+                }
             },
             onCreateAndBind = { pipelineName ->
                 editing = null
@@ -295,9 +302,10 @@ private fun EditDialog(
     preset: EventResponsePreset?,
     pipelines: List<PipelineSummary>,
     pickListNames: List<String>,
+    widgets: List<WidgetSummary>,
     loadDetail: suspend () -> EventResponse?,
     onDismiss: () -> Unit,
-    onSave: (responseType: String, message: String?, pipelineId: String?) -> Unit,
+    onSave: (responseType: String, message: String?, pipelineId: String?, widgetId: String?) -> Unit,
     onCreateAndBind: (pipelineName: String) -> Unit,
     onDelete: () -> Unit,
     manage: ManageDecision,
@@ -310,6 +318,7 @@ private fun EditDialog(
     var message: String by remember { mutableStateOf("") }
     var pipelineChoice: String by remember { mutableStateOf("") }
     var newPipelineName: String by remember { mutableStateOf("") }
+    var widgetChoice: String by remember { mutableStateOf("") }
     var typeMenuOpen: Boolean by remember { mutableStateOf(false) }
 
     // Load the stored config (so the fields open pre-filled) and fall back to the preset's default template when
@@ -320,12 +329,19 @@ private fun EditDialog(
         val storedMessage: String = detail?.message.orEmpty()
         message = storedMessage.ifBlank { preset?.defaultTemplate.orEmpty() }
         pipelineChoice = detail?.pipelineId.orEmpty()
+        widgetChoice = detail?.metadata?.get(EventResponsesController.WidgetIdMetadataKey).orEmpty()
     }
 
     val createMode: Boolean = pipelineChoice == CreateNewPipeline
     val canSubmit: Boolean =
         manage.isAllowed &&
-            (selectedType != "pipeline" || (if (createMode) newPipelineName.isNotBlank() else pipelineChoice.isNotBlank()))
+            when (selectedType) {
+                "pipeline" -> if (createMode) newPipelineName.isNotBlank() else pipelineChoice.isNotBlank()
+                // An overlay response must target a widget — but only gate on it when the channel actually has
+                // widgets to pick (an empty channel can still save the type and add a widget later).
+                "overlay" -> widgets.isEmpty() || widgetChoice.isNotBlank()
+                else -> true
+            }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -396,6 +412,16 @@ private fun EditDialog(
                     )
                 }
 
+                // Overlay target — which widget this event fires. Persisted in the response's MetadataJson so the
+                // overlay dispatch can render the chosen widget.
+                if (selectedType == "overlay") {
+                    WidgetTargetPicker(
+                        widgets = widgets,
+                        selected = widgetChoice,
+                        onSelect = { widgetChoice = it },
+                    )
+                }
+
                 // Pipeline binding — pick an existing pipeline OR create-and-bind a new one (no pasted ids).
                 if (selectedType == "pipeline") {
                     PipelineBindPicker(
@@ -429,6 +455,7 @@ private fun EditDialog(
                             selectedType,
                             message.takeIf { it.isNotBlank() },
                             pipelineChoice.takeIf { it.isNotBlank() && it != CreateNewPipeline },
+                            widgetChoice.takeIf { selectedType == "overlay" && it.isNotBlank() },
                         )
                     }
                 },
@@ -528,6 +555,54 @@ private fun PipelineBindPicker(pipelines: List<PipelineSummary>, selected: Strin
                     },
                     onClick = { onSelect(CreateNewPipeline); expanded = false },
                 )
+            }
+        }
+    }
+}
+
+// The overlay target picker: the channel's widgets. The selected value is a widget id, or blank (none chosen).
+// Renders an empty-state hint when the channel has no widgets yet (the response type can still be saved).
+@Composable
+private fun WidgetTargetPicker(widgets: List<WidgetSummary>, selected: String, onSelect: (String) -> Unit) {
+    var expanded: Boolean by remember { mutableStateOf(false) }
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
+        Text(
+            text = stringResource(Res.string.event_responses_dialog_widget_pick),
+            style = typography.sm,
+            color = tokens.foreground,
+        )
+        if (widgets.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.event_responses_dialog_widget_empty),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+            return@Column
+        }
+        val currentLabel: String =
+            widgets.firstOrNull { it.id == selected }?.name
+                ?: stringResource(Res.string.event_responses_dialog_widget_choose)
+        Box(modifier = Modifier.fillMaxWidth()) {
+            TextButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = currentLabel,
+                    color = if (selected.isBlank()) tokens.mutedForeground else tokens.foreground,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                widgets.forEach { widget ->
+                    DropdownMenuItem(
+                        text = { Text(text = widget.name, color = tokens.popoverForeground) },
+                        onClick = { onSelect(widget.id); expanded = false },
+                    )
+                }
             }
         }
     }

@@ -579,6 +579,61 @@ class ModerationController(
     }
 
     /**
+     * Set the caps filter's [threshold] (percent of a message that may be caps before it is flagged), re-sending
+     * the whole AutoMod config. Reloads on success; no-ops off a Ready state.
+     */
+    suspend fun setCapsThreshold(threshold: Int) =
+        saveAutomod { it.copy(capsFilter = it.capsFilter.copy(threshold = threshold)) }
+
+    /**
+     * Set the emote-spam filter's [maxEmotes] (how many emotes a message may carry before it is flagged),
+     * re-sending the whole AutoMod config. Reloads on success; no-ops off a Ready state.
+     */
+    suspend fun setEmoteMaxEmotes(maxEmotes: Int) =
+        saveAutomod { it.copy(emoteSpam = it.emoteSpam.copy(maxEmotes = maxEmotes)) }
+
+    /** Add [phrase] to the banned-phrases list (dedup, case-insensitive), then persist + reload. */
+    suspend fun addBannedPhrase(phrase: String) {
+        val trimmed: String = phrase.trim()
+        if (trimmed.isEmpty()) return
+        saveAutomod { c ->
+            if (c.bannedPhrases.phrases.any { it.equals(trimmed, ignoreCase = true) }) c
+            else c.copy(bannedPhrases = c.bannedPhrases.copy(phrases = c.bannedPhrases.phrases + trimmed))
+        }
+    }
+
+    /** Remove [phrase] from the banned-phrases list, then persist + reload. */
+    suspend fun removeBannedPhrase(phrase: String) =
+        saveAutomod { c ->
+            c.copy(bannedPhrases = c.bannedPhrases.copy(phrases = c.bannedPhrases.phrases.filterNot { it == phrase }))
+        }
+
+    /** Add [domain] to the link filter's allow-list (dedup, case-insensitive), then persist + reload. */
+    suspend fun addLinkWhitelist(domain: String) {
+        val trimmed: String = domain.trim()
+        if (trimmed.isEmpty()) return
+        saveAutomod { c ->
+            if (c.linkFilter.whitelist.any { it.equals(trimmed, ignoreCase = true) }) c
+            else c.copy(linkFilter = c.linkFilter.copy(whitelist = c.linkFilter.whitelist + trimmed))
+        }
+    }
+
+    /** Remove [domain] from the link filter's allow-list, then persist + reload. */
+    suspend fun removeLinkWhitelist(domain: String) =
+        saveAutomod { c ->
+            c.copy(linkFilter = c.linkFilter.copy(whitelist = c.linkFilter.whitelist.filterNot { it == domain }))
+        }
+
+    // Apply [transform] to the current AutoMod config and persist the whole thing (the backend POST takes the
+    // full config; unchanged filters ride along). No-ops off a Ready state. Shared by every automod sub-edit.
+    private suspend fun saveAutomod(transform: (AutomodConfig) -> AutomodConfig) {
+        val channel: String = channelId ?: return
+        val current: ModerationState = _state.value
+        if (current !is ModerationState.Ready) return
+        afterWrite(moderationApi.saveAutomod(channel, transform(current.automod)))
+    }
+
+    /**
      * Create a new filter rule with the given [name], [type], [action], optional [durationSeconds] (for
      * `"timeout"` action), and optional [reason]. Reloads on success so the new rule appears in the list.
      */

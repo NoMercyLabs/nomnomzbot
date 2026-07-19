@@ -190,6 +190,11 @@ class RewardsControllerTest {
             title = "Hydrate!",
             cost = 500,
             prompt = "Drink up",
+            isUserInputRequired = true,
+            backgroundColor = "#112233",
+            maxPerStream = 5,
+            maxPerUserPerStream = 1,
+            globalCooldownSeconds = 30,
             timerDurationSeconds = null,
             pipelineId = null,
         )
@@ -201,6 +206,11 @@ class RewardsControllerTest {
         assertEquals("Hydrate!", body.title)
         assertEquals(500, body.cost)
         assertEquals("Drink up", body.prompt)
+        assertEquals(true, body.isUserInputRequired)
+        assertEquals("#112233", body.backgroundColor)
+        assertEquals(5, body.maxPerStream)
+        assertEquals(1, body.maxPerUserPerStream)
+        assertEquals(30, body.globalCooldownSeconds)
 
         // And the reload surfaced the freshly-created row.
         val state: RewardsState = controller.state.value
@@ -230,6 +240,12 @@ class RewardsControllerTest {
             cost = 750,
             prompt = "Sip",
             isEnabled = false,
+            isPaused = true,
+            isUserInputRequired = false,
+            backgroundColor = "#445566",
+            maxPerStream = 10,
+            maxPerUserPerStream = 2,
+            globalCooldownSeconds = 60,
             timerDurationSeconds = null,
             pipelineId = null,
         )
@@ -242,6 +258,11 @@ class RewardsControllerTest {
         assertEquals(750, update.second.cost)
         assertEquals("Sip", update.second.prompt)
         assertEquals(false, update.second.isEnabled)
+        assertEquals(true, update.second.isPaused)
+        assertEquals("#445566", update.second.backgroundColor)
+        assertEquals(10, update.second.maxPerStream)
+        assertEquals(2, update.second.maxPerUserPerStream)
+        assertEquals(60, update.second.globalCooldownSeconds)
 
         // The reload reflects the persisted edit.
         val state: RewardsState = controller.state.value

@@ -40,6 +40,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -98,17 +100,27 @@ import nomnomzbot.composeapp.generated.resources.moderation_stats_deleted
 import nomnomzbot.composeapp.generated.resources.moderation_stats_timeouts
 import nomnomzbot.composeapp.generated.resources.moderation_automod_caps
 import nomnomzbot.composeapp.generated.resources.moderation_automod_caps_detail
+import nomnomzbot.composeapp.generated.resources.moderation_automod_caps_threshold_hint
+import nomnomzbot.composeapp.generated.resources.moderation_automod_caps_threshold_label
 import nomnomzbot.composeapp.generated.resources.moderation_automod_disable
 import nomnomzbot.composeapp.generated.resources.moderation_automod_disable_action
 import nomnomzbot.composeapp.generated.resources.moderation_automod_enable
 import nomnomzbot.composeapp.generated.resources.moderation_automod_enable_action
 import nomnomzbot.composeapp.generated.resources.moderation_automod_emote_detail
+import nomnomzbot.composeapp.generated.resources.moderation_automod_emote_max_hint
+import nomnomzbot.composeapp.generated.resources.moderation_automod_emote_max_label
 import nomnomzbot.composeapp.generated.resources.moderation_automod_emotes
 import nomnomzbot.composeapp.generated.resources.moderation_automod_link
 import nomnomzbot.composeapp.generated.resources.moderation_automod_off
 import nomnomzbot.composeapp.generated.resources.moderation_automod_on
 import nomnomzbot.composeapp.generated.resources.moderation_automod_phrases
+import nomnomzbot.composeapp.generated.resources.moderation_automod_phrases_add
+import nomnomzbot.composeapp.generated.resources.moderation_automod_phrases_add_label
+import nomnomzbot.composeapp.generated.resources.moderation_automod_phrases_empty
 import nomnomzbot.composeapp.generated.resources.moderation_automod_title
+import nomnomzbot.composeapp.generated.resources.moderation_automod_whitelist_add
+import nomnomzbot.composeapp.generated.resources.moderation_automod_whitelist_add_label
+import nomnomzbot.composeapp.generated.resources.moderation_automod_whitelist_empty
 import nomnomzbot.composeapp.generated.resources.moderation_bans_title
 import nomnomzbot.composeapp.generated.resources.moderation_bans_unavailable
 import nomnomzbot.composeapp.generated.resources.moderation_log_by
@@ -388,6 +400,12 @@ fun ModerationScreen(
                     onAddTerm = { term -> scope.launch { controller.addBlockedTerm(term) } },
                     onRemoveTerm = { term -> scope.launch { controller.removeBlockedTerm(term) } },
                     onToggleFilter = { f -> scope.launch { controller.toggleAutomodFilter(f) } },
+                    onSaveCapsThreshold = { v -> scope.launch { controller.setCapsThreshold(v) } },
+                    onSaveEmoteMaxEmotes = { v -> scope.launch { controller.setEmoteMaxEmotes(v) } },
+                    onAddPhrase = { p -> scope.launch { controller.addBannedPhrase(p) } },
+                    onRemovePhrase = { p -> scope.launch { controller.removeBannedPhrase(p) } },
+                    onAddWhitelist = { d -> scope.launch { controller.addLinkWhitelist(d) } },
+                    onRemoveWhitelist = { d -> scope.launch { controller.removeLinkWhitelist(d) } },
                     onToggleRule = { id, on -> scope.launch { controller.toggleRule(id, on) } },
                     onDeleteRule = { id -> scope.launch { controller.deleteRule(id) } },
                     onCreateRule = { name, type, action, duration, reason ->
@@ -477,6 +495,12 @@ private fun BansList(
     onAddTerm: (String) -> Unit,
     onRemoveTerm: (String) -> Unit,
     onToggleFilter: (AutomodFilter) -> Unit,
+    onSaveCapsThreshold: (Int) -> Unit,
+    onSaveEmoteMaxEmotes: (Int) -> Unit,
+    onAddPhrase: (String) -> Unit,
+    onRemovePhrase: (String) -> Unit,
+    onAddWhitelist: (String) -> Unit,
+    onRemoveWhitelist: (String) -> Unit,
     onToggleRule: (Int, Boolean) -> Unit,
     onDeleteRule: (Int) -> Unit,
     onCreateRule: (name: String, type: String, action: String, durationSeconds: Int?, reason: String?) -> Unit,
@@ -721,6 +745,16 @@ private fun BansList(
                         manage = manage,
                         onToggle = { onToggleFilter(AutomodFilter.Link) },
                     )
+                    // Link filter allow-list — domains that stay permitted while links are blocked (add/remove).
+                    AutomodListEditor(
+                        items = automod.linkFilter.whitelist,
+                        addLabel = stringResource(Res.string.moderation_automod_whitelist_add_label),
+                        addAction = stringResource(Res.string.moderation_automod_whitelist_add),
+                        emptyLabel = stringResource(Res.string.moderation_automod_whitelist_empty),
+                        manage = manage,
+                        onAdd = onAddWhitelist,
+                        onRemove = onRemoveWhitelist,
+                    )
                     Separator()
                     AutomodRow(
                         name = stringResource(Res.string.moderation_automod_caps),
@@ -733,6 +767,14 @@ private fun BansList(
                         manage = manage,
                         onToggle = { onToggleFilter(AutomodFilter.Caps) },
                     )
+                    // Caps threshold — the percent of a message that may be caps before it is flagged.
+                    AutomodNumberRow(
+                        value = automod.capsFilter.threshold,
+                        label = stringResource(Res.string.moderation_automod_caps_threshold_label),
+                        hint = stringResource(Res.string.moderation_automod_caps_threshold_hint),
+                        manage = manage,
+                        onSave = onSaveCapsThreshold,
+                    )
                     Separator()
                     AutomodRow(
                         name = stringResource(Res.string.moderation_automod_phrases),
@@ -740,6 +782,16 @@ private fun BansList(
                         detail = null,
                         manage = manage,
                         onToggle = { onToggleFilter(AutomodFilter.Phrases) },
+                    )
+                    // Banned phrases — the terms this filter blocks (add/remove).
+                    AutomodListEditor(
+                        items = automod.bannedPhrases.phrases,
+                        addLabel = stringResource(Res.string.moderation_automod_phrases_add_label),
+                        addAction = stringResource(Res.string.moderation_automod_phrases_add),
+                        emptyLabel = stringResource(Res.string.moderation_automod_phrases_empty),
+                        manage = manage,
+                        onAdd = onAddPhrase,
+                        onRemove = onRemovePhrase,
                     )
                     Separator()
                     AutomodRow(
@@ -752,6 +804,14 @@ private fun BansList(
                             ),
                         manage = manage,
                         onToggle = { onToggleFilter(AutomodFilter.Emotes) },
+                    )
+                    // Emote-spam limit — how many emotes a single message may carry before it is flagged.
+                    AutomodNumberRow(
+                        value = automod.emoteSpam.maxEmotes,
+                        label = stringResource(Res.string.moderation_automod_emote_max_label),
+                        hint = stringResource(Res.string.moderation_automod_emote_max_hint),
+                        manage = manage,
+                        onSave = onSaveEmoteMaxEmotes,
                     )
                     Separator()
                     HeatThresholdRow(
@@ -2619,6 +2679,134 @@ private fun HeatThresholdRow(threshold: Int, manage: ManageDecision, onSave: (In
         ManageGate(decision = manage) { enabled ->
             Button(onClick = { parsed?.let(onSave) }, enabled = enabled && dirty) {
                 Text(stringResource(Res.string.moderation_heat_threshold_save))
+            }
+        }
+    }
+}
+
+// An AutoMod numeric-setting row (caps threshold, emote-spam limit): a compact number field + Save that persists
+// the whole config. Save enables only when the parsed value is a non-negative int that differs from the stored
+// one. Mirrors [HeatThresholdRow].
+@Composable
+private fun AutomodNumberRow(
+    value: Int,
+    label: String,
+    hint: String,
+    manage: ManageDecision,
+    onSave: (Int) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+
+    var input: String by remember(value) { mutableStateOf(value.toString()) }
+    val parsed: Int? = input.trim().toIntOrNull()
+    val valid: Boolean = parsed != null && parsed >= 0
+    val dirty: Boolean = valid && parsed != value
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        AppTextField(
+            value = input,
+            onValueChange = { input = it.filter { ch -> ch.isDigit() } },
+            isError = !valid,
+            label = label,
+            supportingText = hint,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        ManageGate(decision = manage) { enabled ->
+            Button(onClick = { parsed?.let(onSave) }, enabled = enabled && dirty) {
+                Text(stringResource(Res.string.moderation_heat_threshold_save))
+            }
+        }
+    }
+}
+
+// An AutoMod string-list editor (banned phrases, link allow-list): an add input + Add button, and one removable
+// chip-row per stored item. Each add/remove persists the whole config immediately, like the blocked-terms editor.
+@Composable
+private fun AutomodListEditor(
+    items: List<String>,
+    addLabel: String,
+    addAction: String,
+    emptyLabel: String,
+    manage: ManageDecision,
+    onAdd: (String) -> Unit,
+    onRemove: (String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    var draft: String by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        if (items.isEmpty()) {
+            Text(text = emptyLabel, style = typography.xs, color = tokens.mutedForeground)
+        } else {
+            items.forEach { item ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                ) {
+                    Text(
+                        text = item,
+                        style = typography.sm,
+                        color = tokens.cardForeground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    ManageGate(decision = manage) { enabled ->
+                        GlyphButton(
+                            imageVector = TrashGlyph,
+                            label = "$addAction: $item",
+                            onClick = { onRemove(item) },
+                            enabled = enabled,
+                            tint = tokens.destructive,
+                        )
+                    }
+                }
+            }
+        }
+        ManageGate(decision = manage) { enabled ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+            ) {
+                AppTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    label = addLabel,
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
+                )
+                val canSubmit: Boolean = enabled && draft.isNotBlank()
+                TextButton(
+                    onClick = {
+                        val trimmed: String = draft.trim()
+                        if (trimmed.isNotEmpty()) {
+                            onAdd(trimmed)
+                            draft = ""
+                        }
+                    },
+                    enabled = canSubmit,
+                ) {
+                    Text(
+                        text = addAction,
+                        color = if (canSubmit) tokens.primary else tokens.mutedForeground,
+                        maxLines = 1,
+                    )
+                }
             }
         }
     }

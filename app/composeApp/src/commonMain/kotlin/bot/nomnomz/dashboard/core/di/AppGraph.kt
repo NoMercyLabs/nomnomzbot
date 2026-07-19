@@ -483,6 +483,7 @@ class AppGraph {
             eventResponsesApi = eventResponsesApi,
             pipelinesApi = pipelinesApi,
             pickListsApi = pickListsApi,
+            widgetsApi = widgetsApi,
         )
 
     val settingsController: SettingsController =

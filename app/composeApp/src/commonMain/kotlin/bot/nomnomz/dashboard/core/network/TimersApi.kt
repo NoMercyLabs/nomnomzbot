@@ -116,14 +116,16 @@ data class CreateTimerRequest(
 
 /**
  * Update-timer request (backend `UpdateTimerDto`): every field is optional — only the supplied ones change.
- * The edit dialog re-sends the full set it owns (name, message, interval, enabled); `minChatActivity` is left
- * null so the stored value is preserved (the dialog does not expose it).
+ * The edit dialog re-sends the full set it owns (name, message, interval, minChatActivity, enabled).
  */
 @Serializable
 data class UpdateTimerRequest(
     val name: String? = null,
     val messages: List<String>? = null,
     val intervalMinutes: Int? = null,
+    // The anti-spam floor: how many chat messages must arrive between fires before the timer may fire again.
+    // Null = leave the stored value unchanged.
+    val minChatActivity: Int? = null,
     val isEnabled: Boolean? = null,
     // Toggle one-shot mode (fire once then disable) vs looping. Null = leave unchanged.
     val fireOnce: Boolean? = null,
@@ -143,6 +145,8 @@ data class TimerDetail(
     val name: String = "",
     val messages: List<String> = emptyList(),
     val intervalMinutes: Int = 0,
+    // The anti-spam floor: chat messages required between fires. Read so the edit dialog pre-fills the field.
+    val minChatActivity: Int = 0,
     val isEnabled: Boolean = false,
     val fireOnce: Boolean = false,
     val pipelineId: String? = null,

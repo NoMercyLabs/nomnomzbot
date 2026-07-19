@@ -59,6 +59,8 @@ class ApiContractTest {
             UpdateCommandBody.serializer() to "UpdateCommandDto",
             TimerSummary.serializer() to "TimerListItem",
             TimerDetail.serializer() to "TimerDto",
+            CreateTimerRequest.serializer() to "CreateTimerDto",
+            UpdateTimerRequest.serializer() to "UpdateTimerDto",
             BannedUser.serializer() to "BannedUserDto",
             MissingScopes.serializer() to "MissingScopesDto",
             MissingScope.serializer() to "MissingScopeDto",

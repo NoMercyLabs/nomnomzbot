@@ -202,6 +202,16 @@ data class CreateRewardBody(
     val title: String,
     val cost: Int,
     val prompt: String? = null,
+    // Whether redeeming requires the viewer to type text (Twitch "require viewer input"). Maps to
+    // CreateRewardRequest.isUserInputRequired.
+    val isUserInputRequired: Boolean? = null,
+    // The reward's card background colour as a hex string ("#RRGGBB"); null leaves Twitch's default.
+    val backgroundColor: String? = null,
+    // Twitch redemption limits: max redemptions per stream, max per user per stream, and a global cooldown in
+    // seconds between redemptions. Null/0 on any = no limit for that dimension.
+    val maxPerStream: Int? = null,
+    val maxPerUserPerStream: Int? = null,
+    val globalCooldownSeconds: Int? = null,
     // A countdown a redemption of this reward auto-starts (seconds; null/0 = no timer, capped 24h server-side).
     val timerDurationSeconds: Int? = null,
     // A pipeline to run when this reward is redeemed (a ULID; null = none). `explicitNulls = false` omits it when
@@ -221,6 +231,17 @@ data class UpdateRewardBody(
     val cost: Int? = null,
     val prompt: String? = null,
     val isEnabled: Boolean? = null,
+    // Pause redemptions without disabling the reward (Twitch "pause"). Null leaves it unchanged.
+    val isPaused: Boolean? = null,
+    // Whether redeeming requires the viewer to type text. Null leaves it unchanged.
+    val isUserInputRequired: Boolean? = null,
+    // The reward card's background colour as a hex string ("#RRGGBB"). Null leaves it unchanged.
+    val backgroundColor: String? = null,
+    // Twitch redemption limits (max per stream, max per user per stream, global cooldown seconds). 0 clears a
+    // limit; null leaves it unchanged.
+    val maxPerStream: Int? = null,
+    val maxPerUserPerStream: Int? = null,
+    val globalCooldownSeconds: Int? = null,
     // The countdown a redemption auto-starts (seconds; 0 clears, capped 24h). Null omits it from the patch so a
     // toggle/edit that doesn't touch the timer leaves it unchanged.
     val timerDurationSeconds: Int? = null,
@@ -246,8 +267,16 @@ data class RewardSummary(
     val prompt: String? = null,
     val isEnabled: Boolean = false,
     val isManageable: Boolean = false,
+    // Paused = live but temporarily not redeemable (Twitch "pause"); read so the edit dialog pre-fills the toggle.
+    val isPaused: Boolean = false,
+    // Whether redeeming requires the viewer to type text; read so the edit dialog pre-fills the toggle.
+    val isUserInputRequired: Boolean = false,
     val backgroundColor: String? = null,
     val imageUrl: String? = null,
+    // Twitch redemption limits (null/0 = no limit) — read so the edit dialog pre-fills the number fields.
+    val maxPerStream: Int? = null,
+    val maxPerUserPerStream: Int? = null,
+    val globalCooldownSeconds: Int? = null,
     // The reward's countdown length (seconds; null/0 = none) and bound pipeline (a ULID; null = none). Read so the
     // edit dialog pre-fills the timer field + pipeline picker.
     val timerDurationSeconds: Int? = null,

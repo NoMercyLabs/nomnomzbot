@@ -20,10 +20,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ColorField
+import bot.nomnomz.dashboard.core.designsystem.component.parseHexColor
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
@@ -82,13 +86,19 @@ import nomnomzbot.composeapp.generated.resources.rewards_delete_cancel
 import nomnomzbot.composeapp.generated.resources.rewards_delete_confirm
 import nomnomzbot.composeapp.generated.resources.rewards_delete_message
 import nomnomzbot.composeapp.generated.resources.rewards_delete_title
+import nomnomzbot.composeapp.generated.resources.rewards_dialog_background_color_label
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_cancel
+import nomnomzbot.composeapp.generated.resources.rewards_dialog_cooldown_label
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_cost_label
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_create
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_create_title
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_edit_title
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_enabled_label
+import nomnomzbot.composeapp.generated.resources.rewards_dialog_max_per_stream_label
+import nomnomzbot.composeapp.generated.resources.rewards_dialog_max_per_user_label
+import nomnomzbot.composeapp.generated.resources.rewards_dialog_paused_label
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_prompt_label
+import nomnomzbot.composeapp.generated.resources.rewards_dialog_require_input_label
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_save
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_title_label
 import nomnomzbot.composeapp.generated.resources.rewards_disabled
@@ -250,12 +260,38 @@ fun RewardsScreen(
             editor = open,
             pipelines = pipelines,
             onDismiss = { editor = null },
-            onSubmit = { title, cost, prompt, enabled, timerSeconds, pipelineId ->
+            onSubmit = { result ->
                 editor = null
                 scope.launch {
                     if (open.isEdit)
-                        controller.updateReward(open.id, title, cost, prompt, enabled, timerSeconds, pipelineId)
-                    else controller.createReward(title, cost, prompt, timerSeconds, pipelineId)
+                        controller.updateReward(
+                            open.id,
+                            result.title,
+                            result.cost,
+                            result.prompt,
+                            result.isEnabled,
+                            result.isPaused,
+                            result.isUserInputRequired,
+                            result.backgroundColor,
+                            result.maxPerStream,
+                            result.maxPerUserPerStream,
+                            result.globalCooldownSeconds,
+                            result.timerDurationSeconds,
+                            result.pipelineId,
+                        )
+                    else
+                        controller.createReward(
+                            result.title,
+                            result.cost,
+                            result.prompt,
+                            result.isUserInputRequired,
+                            result.backgroundColor,
+                            result.maxPerStream,
+                            result.maxPerUserPerStream,
+                            result.globalCooldownSeconds,
+                            result.timerDurationSeconds,
+                            result.pipelineId,
+                        )
                 }
             },
         )
@@ -791,22 +827,32 @@ private fun RewardRow(
     }
 }
 
+// The collected reward-form values handed back on submit. Blank optional number/colour fields resolve to null
+// (= "no limit" / Twitch default); the timer resolves to 0 when blank (= clear the countdown).
+private data class RewardFormResult(
+    val title: String,
+    val cost: Int,
+    val prompt: String,
+    val isEnabled: Boolean,
+    val isPaused: Boolean,
+    val isUserInputRequired: Boolean,
+    val backgroundColor: String?,
+    val maxPerStream: Int?,
+    val maxPerUserPerStream: Int?,
+    val globalCooldownSeconds: Int?,
+    val timerDurationSeconds: Int?,
+    val pipelineId: String?,
+)
+
 // One composable for both create and edit (DRY): an empty [editor] = create, a pre-filled one = edit. The
 // affirmative button is disabled until the title is non-blank and the cost parses to a positive whole number,
-// so a malformed reward can never be submitted. The cost field is digits-only.
+// so a malformed reward can never be submitted. The cost and limit fields are digits-only.
 @Composable
 private fun RewardFormDialog(
     editor: RewardEditor,
     pipelines: List<PipelineSummary>,
     onDismiss: () -> Unit,
-    onSubmit: (
-        title: String,
-        cost: Int,
-        prompt: String,
-        enabled: Boolean,
-        timerDurationSeconds: Int?,
-        pipelineId: String?,
-    ) -> Unit,
+    onSubmit: (RewardFormResult) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -815,6 +861,12 @@ private fun RewardFormDialog(
     var cost: String by remember { mutableStateOf(editor.cost) }
     var prompt: String by remember { mutableStateOf(editor.prompt) }
     var enabled: Boolean by remember { mutableStateOf(editor.isEnabled) }
+    var paused: Boolean by remember { mutableStateOf(editor.isPaused) }
+    var requireInput: Boolean by remember { mutableStateOf(editor.isUserInputRequired) }
+    var backgroundColor: String by remember { mutableStateOf(editor.backgroundColor) }
+    var maxPerStream: String by remember { mutableStateOf(editor.maxPerStream) }
+    var maxPerUser: String by remember { mutableStateOf(editor.maxPerUserPerStream) }
+    var globalCooldown: String by remember { mutableStateOf(editor.globalCooldownSeconds) }
     var timerSeconds: String by remember { mutableStateOf(editor.timerDurationSeconds) }
     var selectedPipelineId: String? by remember { mutableStateOf(editor.pipelineId) }
     var pipelineMenuOpen: Boolean by remember { mutableStateOf(false) }
@@ -823,7 +875,14 @@ private fun RewardFormDialog(
     // A blank timer field means "no timer" (send 0 to clear); a non-blank one must parse to a non-negative int.
     val parsedTimer: Int? = timerSeconds.ifBlank { "0" }.toIntOrNull()
     val timerValid: Boolean = parsedTimer != null && parsedTimer >= 0
-    val canSubmit: Boolean = title.isNotBlank() && parsedCost != null && parsedCost > 0 && timerValid
+    // Blank limit fields mean "no limit" (send null); a non-blank one must parse to a positive int.
+    val parsedMaxPerStream: Int? = maxPerStream.toIntOrNull()
+    val parsedMaxPerUser: Int? = maxPerUser.toIntOrNull()
+    val parsedCooldown: Int? = globalCooldown.toIntOrNull()
+    // A background colour is optional; when present it must be a valid hex ("#RGB"/"#RRGGBB"/"#AARRGGBB").
+    val colorValid: Boolean = backgroundColor.isBlank() || parseHexColor(backgroundColor) != null
+    val canSubmit: Boolean =
+        title.isNotBlank() && parsedCost != null && parsedCost > 0 && timerValid && colorValid
     val pipelineNoneLabel: String = stringResource(Res.string.rewards_dialog_pipeline_none)
     val selectedPipelineName: String =
         selectedPipelineId?.let { id -> pipelines.firstOrNull { it.id == id }?.name } ?: pipelineNoneLabel
@@ -837,12 +896,17 @@ private fun RewardFormDialog(
             if (editor.isEdit) Res.string.rewards_dialog_save else Res.string.rewards_dialog_create
         )
     val enabledLabel: String = stringResource(Res.string.rewards_dialog_enabled_label)
+    val pausedLabel: String = stringResource(Res.string.rewards_dialog_paused_label)
+    val requireInputLabel: String = stringResource(Res.string.rewards_dialog_require_input_label)
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(text = dialogTitle) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(spacing.s3),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
                 AppTextField(
                     value = title,
                     onValueChange = { title = it },
@@ -862,6 +926,37 @@ private fun RewardFormDialog(
                     onValueChange = { prompt = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.rewards_dialog_prompt_label),
+                )
+                // The reward card's background colour (hex). Blank = Twitch's default. Uses the design-system
+                // colour control (hex field + live swatch).
+                ColorField(
+                    value = backgroundColor,
+                    onValueChange = { backgroundColor = it },
+                    isError = !colorValid,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.rewards_dialog_background_color_label),
+                )
+                // Twitch redemption limits — blank = no limit. Digits only.
+                AppTextField(
+                    value = maxPerStream,
+                    onValueChange = { input -> maxPerStream = input.filter { it.isDigit() } },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.rewards_dialog_max_per_stream_label),
+                )
+                AppTextField(
+                    value = maxPerUser,
+                    onValueChange = { input -> maxPerUser = input.filter { it.isDigit() } },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.rewards_dialog_max_per_user_label),
+                )
+                AppTextField(
+                    value = globalCooldown,
+                    onValueChange = { input -> globalCooldown = input.filter { it.isDigit() } },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.rewards_dialog_cooldown_label),
                 )
                 // Optional countdown a redemption auto-starts (seconds; blank/0 = none). Digits only.
                 AppTextField(
@@ -904,24 +999,39 @@ private fun RewardFormDialog(
                         }
                     }
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(text = enabledLabel, color = tokens.cardForeground)
-                    Switch(
-                        checked = enabled,
-                        onCheckedChange = { enabled = it },
-                        modifier = Modifier.semantics { contentDescription = enabledLabel },
-                    )
+                ToggleRow(
+                    label = requireInputLabel,
+                    checked = requireInput,
+                    onCheckedChange = { requireInput = it },
+                )
+                ToggleRow(label = enabledLabel, checked = enabled, onCheckedChange = { enabled = it })
+                // Pause is an edit-only concept (a freshly created reward is never pre-paused).
+                if (editor.isEdit) {
+                    ToggleRow(label = pausedLabel, checked = paused, onCheckedChange = { paused = it })
                 }
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
-                    parsedCost?.let { onSubmit(title, it, prompt, enabled, parsedTimer ?: 0, selectedPipelineId) }
+                    parsedCost?.let { validCost ->
+                        onSubmit(
+                            RewardFormResult(
+                                title = title,
+                                cost = validCost,
+                                prompt = prompt,
+                                isEnabled = enabled,
+                                isPaused = paused,
+                                isUserInputRequired = requireInput,
+                                backgroundColor = backgroundColor.ifBlank { null },
+                                maxPerStream = parsedMaxPerStream,
+                                maxPerUserPerStream = parsedMaxPerUser,
+                                globalCooldownSeconds = parsedCooldown,
+                                timerDurationSeconds = parsedTimer ?: 0,
+                                pipelineId = selectedPipelineId,
+                            )
+                        )
+                    }
                 },
                 enabled = canSubmit,
             ) {
@@ -940,6 +1050,24 @@ private fun RewardFormDialog(
             }
         },
     )
+}
+
+// A labelled switch row inside the reward form — the label on the leading edge, the switch trailing.
+@Composable
+private fun ToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val tokens = LocalTokens.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(text = label, color = tokens.cardForeground)
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.semantics { contentDescription = label },
+        )
+    }
 }
 
 @Composable
@@ -985,6 +1113,16 @@ private data class RewardEditor(
     val cost: String,
     val prompt: String,
     val isEnabled: Boolean,
+    // Paused = live but temporarily not redeemable; require-input = viewer must type text on redeem.
+    val isPaused: Boolean,
+    val isUserInputRequired: Boolean,
+    // The card background colour as an editable hex string ("" = Twitch default).
+    val backgroundColor: String,
+    // Twitch redemption limits as editable strings ("" = no limit): max per stream, max per user per stream,
+    // and a global cooldown in seconds.
+    val maxPerStream: String,
+    val maxPerUserPerStream: String,
+    val globalCooldownSeconds: String,
     // The countdown length in seconds as an editable string ("" = no timer) and the bound pipeline id (null = none).
     val timerDurationSeconds: String,
     val pipelineId: String?,
@@ -998,6 +1136,12 @@ private data class RewardEditor(
                 cost = "",
                 prompt = "",
                 isEnabled = true,
+                isPaused = false,
+                isUserInputRequired = false,
+                backgroundColor = "",
+                maxPerStream = "",
+                maxPerUserPerStream = "",
+                globalCooldownSeconds = "",
                 timerDurationSeconds = "",
                 pipelineId = null,
             )
@@ -1010,6 +1154,13 @@ private data class RewardEditor(
                 cost = reward.cost.toString(),
                 prompt = reward.prompt.orEmpty(),
                 isEnabled = reward.isEnabled,
+                isPaused = reward.isPaused,
+                isUserInputRequired = reward.isUserInputRequired,
+                backgroundColor = reward.backgroundColor.orEmpty(),
+                // A 0/null stored limit shows as blank ("no limit"); a positive one pre-fills the field.
+                maxPerStream = reward.maxPerStream?.takeIf { it > 0 }?.toString().orEmpty(),
+                maxPerUserPerStream = reward.maxPerUserPerStream?.takeIf { it > 0 }?.toString().orEmpty(),
+                globalCooldownSeconds = reward.globalCooldownSeconds?.takeIf { it > 0 }?.toString().orEmpty(),
                 // A 0/null stored duration shows as blank ("no timer"); a positive one pre-fills the field.
                 timerDurationSeconds = reward.timerDurationSeconds?.takeIf { it > 0 }?.toString().orEmpty(),
                 pipelineId = reward.pipelineId,

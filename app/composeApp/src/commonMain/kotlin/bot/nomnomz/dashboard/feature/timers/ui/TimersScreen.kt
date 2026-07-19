@@ -89,6 +89,8 @@ import nomnomzbot.composeapp.generated.resources.timers_dialog_interval
 import nomnomzbot.composeapp.generated.resources.timers_dialog_add_message
 import nomnomzbot.composeapp.generated.resources.timers_dialog_message
 import nomnomzbot.composeapp.generated.resources.timers_dialog_message_remove
+import nomnomzbot.composeapp.generated.resources.timers_dialog_min_chat_activity
+import nomnomzbot.composeapp.generated.resources.timers_dialog_min_chat_activity_hint
 import nomnomzbot.composeapp.generated.resources.timers_dialog_messages
 import nomnomzbot.composeapp.generated.resources.timers_dialog_pipeline
 import nomnomzbot.composeapp.generated.resources.timers_dialog_pipeline_none
@@ -169,18 +171,27 @@ fun TimersScreen(controller: TimersController, role: ManagementRole?) {
             pipelines = pipelines,
             pickListNames = pickListNames,
             onDismiss = { editTarget = null },
-            onConfirm = { name, messages, interval, enabled, fireOnce, pipelineId ->
+            onConfirm = { name, messages, interval, minChatActivity, enabled, fireOnce, pipelineId ->
                 editTarget = null
                 scope.launch {
                     when (target) {
                         is TimerEditTarget.New ->
-                            controller.createTimer(name, messages, interval, enabled, fireOnce, pipelineId)
+                            controller.createTimer(
+                                name,
+                                messages,
+                                interval,
+                                minChatActivity,
+                                enabled,
+                                fireOnce,
+                                pipelineId,
+                            )
                         is TimerEditTarget.Edit ->
                             controller.updateTimer(
                                 target.timer.id,
                                 name,
                                 messages,
                                 interval,
+                                minChatActivity,
                                 enabled,
                                 fireOnce,
                                 pipelineId,
@@ -400,6 +411,7 @@ private fun TimerEditDialog(
         name: String,
         messages: List<String>,
         intervalMinutes: Int,
+        minChatActivity: Int,
         enabled: Boolean,
         fireOnce: Boolean,
         pipelineId: String?,
@@ -421,6 +433,10 @@ private fun TimerEditDialog(
         mutableStateOf(
             (detail?.intervalMinutes ?: existing?.intervalMinutes ?: DEFAULT_INTERVAL_MINUTES).toString()
         )
+    }
+    // Anti-spam floor: how many chat messages must pass between fires. Blank = 0 (fire regardless of activity).
+    var minChatActivity: String by remember(detail) {
+        mutableStateOf(detail?.minChatActivity?.takeIf { it > 0 }?.toString().orEmpty())
     }
     var enabled: Boolean by remember(detail) { mutableStateOf(detail?.isEnabled ?: existing?.isEnabled ?: true) }
     var fireOnce: Boolean by remember(detail) { mutableStateOf(detail?.fireOnce ?: existing?.fireOnce ?: false) }
@@ -545,6 +561,16 @@ private fun TimerEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.timers_dialog_interval),
                 )
+                // Anti-spam guard — the timer only fires once at least this many chat messages have arrived
+                // since the last fire. Blank/0 = fire regardless of chat activity. Digits only.
+                AppTextField(
+                    value = minChatActivity,
+                    onValueChange = { minChatActivity = it.filter { ch -> ch.isDigit() } },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    supportingText = stringResource(Res.string.timers_dialog_min_chat_activity_hint),
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.timers_dialog_min_chat_activity),
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -587,7 +613,15 @@ private fun TimerEditDialog(
             TextButton(
                 onClick = {
                     intervalMinutes?.let {
-                        onConfirm(name.trim(), cleanedMessages, it, enabled, fireOnce, pipelineId)
+                        onConfirm(
+                            name.trim(),
+                            cleanedMessages,
+                            it,
+                            minChatActivity.toIntOrNull() ?: 0,
+                            enabled,
+                            fireOnce,
+                            pipelineId,
+                        )
                     }
                 },
                 enabled = canSubmit,

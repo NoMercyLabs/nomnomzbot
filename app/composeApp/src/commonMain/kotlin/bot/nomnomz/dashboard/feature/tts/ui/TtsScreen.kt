@@ -135,8 +135,10 @@ import nomnomzbot.composeapp.generated.resources.tts_voices_page
 import nomnomzbot.composeapp.generated.resources.tts_voices_prev
 import nomnomzbot.composeapp.generated.resources.tts_voices_preview_action
 import nomnomzbot.composeapp.generated.resources.tts_error
+import nomnomzbot.composeapp.generated.resources.tts_label_default_provider
 import nomnomzbot.composeapp.generated.resources.tts_label_max_length
 import nomnomzbot.composeapp.generated.resources.tts_label_min_permission
+import nomnomzbot.composeapp.generated.resources.tts_label_mode
 import nomnomzbot.composeapp.generated.resources.tts_label_filter_profanity
 import nomnomzbot.composeapp.generated.resources.tts_label_mod_approval
 import nomnomzbot.composeapp.generated.resources.tts_label_read_usernames
@@ -144,6 +146,12 @@ import nomnomzbot.composeapp.generated.resources.tts_label_skip_bot_messages
 import nomnomzbot.composeapp.generated.resources.tts_label_voice
 import nomnomzbot.composeapp.generated.resources.tts_loading
 import nomnomzbot.composeapp.generated.resources.tts_max_length_invalid
+import nomnomzbot.composeapp.generated.resources.tts_mode_byok
+import nomnomzbot.composeapp.generated.resources.tts_mode_client_edge
+import nomnomzbot.composeapp.generated.resources.tts_mode_self_host
+import nomnomzbot.composeapp.generated.resources.tts_provider_azure
+import nomnomzbot.composeapp.generated.resources.tts_provider_edge
+import nomnomzbot.composeapp.generated.resources.tts_provider_elevenlabs
 import nomnomzbot.composeapp.generated.resources.tts_permission_broadcaster
 import nomnomzbot.composeapp.generated.resources.tts_permission_everyone
 import nomnomzbot.composeapp.generated.resources.tts_permission_moderators
@@ -262,6 +270,23 @@ private val PERMISSIONS: List<Pair<String, StringResource>> =
         "broadcaster" to Res.string.tts_permission_broadcaster,
     )
 
+// The TTS dispatch plane (backend TtsConfigDto.mode) — where synthesis runs. Fixed value set, picked as a chip.
+private val TTS_MODES: List<Pair<String, StringResource>> =
+    listOf(
+        "client_edge" to Res.string.tts_mode_client_edge,
+        "byok" to Res.string.tts_mode_byok,
+        "self_host" to Res.string.tts_mode_self_host,
+    )
+
+// The preferred synthesis provider (backend TtsConfigDto.defaultProvider). Switching to azure/elevenlabs is how
+// a BYOK key is put to use. Fixed value set, picked as a chip.
+private val TTS_PROVIDERS: List<Pair<String, StringResource>> =
+    listOf(
+        "edge" to Res.string.tts_provider_edge,
+        "azure" to Res.string.tts_provider_azure,
+        "elevenlabs" to Res.string.tts_provider_elevenlabs,
+    )
+
 @Composable
 private fun ReadyContent(
     state: TtsState.Ready,
@@ -287,6 +312,10 @@ private fun ReadyContent(
     // it screen-side keeps the controller a thin persistence boundary; `remember(loaded)` resets every field
     // to the saved baseline so the "differs from loaded" check below is exact.
     var isEnabled: Boolean by remember(loaded) { mutableStateOf(loaded.isEnabled) }
+    // Dispatch plane (client_edge | byok | self_host) and preferred synthesis provider (edge | azure |
+    // elevenlabs) — editable so a channel can switch to its BYOK provider.
+    var mode: String by remember(loaded) { mutableStateOf(loaded.mode) }
+    var defaultProvider: String by remember(loaded) { mutableStateOf(loaded.defaultProvider) }
     var defaultVoiceId: String by remember(loaded) { mutableStateOf(loaded.defaultVoiceId ?: "") }
     var maxLengthText: String by remember(loaded) { mutableStateOf(loaded.maxCharacters.toString()) }
     var minPermission: String by remember(loaded) { mutableStateOf(loaded.minPermission) }
@@ -305,11 +334,13 @@ private fun ReadyContent(
     val minBits: Int? = minBitsText.toIntOrNull()
     val minBitsValid: Boolean = minBitsText.isBlank() || (minBits != null && minBits >= 0)
 
-    // copy() keeps the fields this form doesn't edit (mode, defaultProvider, BYOK flags) at their loaded
-    // values, so the differs-from-loaded check and the full-config save never clobber them.
+    // copy() keeps the fields this form doesn't edit (BYOK flags) at their loaded values, so the
+    // differs-from-loaded check and the full-config save never clobber them.
     val edited: TtsConfig =
         loaded.copy(
             isEnabled = isEnabled,
+            mode = mode,
+            defaultProvider = defaultProvider,
             defaultVoiceId = defaultVoiceId.ifBlank { null },
             maxCharacters = maxLength ?: loaded.maxCharacters,
             minPermission = minPermission,
@@ -336,6 +367,10 @@ private fun ReadyContent(
         EditCard(
             isEnabled = isEnabled,
             onEnabledChange = { isEnabled = it },
+            mode = mode,
+            onModeChange = { mode = it },
+            defaultProvider = defaultProvider,
+            onProviderChange = { defaultProvider = it },
             defaultVoiceId = defaultVoiceId,
             onVoiceChange = { defaultVoiceId = it },
             maxLengthText = maxLengthText,
@@ -1462,6 +1497,10 @@ private fun StatusBanner(isEnabled: Boolean) {
 private fun EditCard(
     isEnabled: Boolean,
     onEnabledChange: (Boolean) -> Unit,
+    mode: String,
+    onModeChange: (String) -> Unit,
+    defaultProvider: String,
+    onProviderChange: (String) -> Unit,
     defaultVoiceId: String,
     onVoiceChange: (String) -> Unit,
     maxLengthText: String,
@@ -1495,6 +1534,28 @@ private fun EditCard(
                     labelRes = Res.string.tts_toggle_enabled,
                     checked = isEnabled,
                     onCheckedChange = onEnabledChange,
+                    manage = manage,
+                    enabled = enabled,
+                )
+            }
+            Separator()
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
+                ChipPicker(
+                    labelRes = Res.string.tts_label_mode,
+                    options = TTS_MODES,
+                    selected = mode,
+                    onSelect = onModeChange,
+                    manage = manage,
+                    enabled = enabled,
+                )
+            }
+            Separator()
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3)) {
+                ChipPicker(
+                    labelRes = Res.string.tts_label_default_provider,
+                    options = TTS_PROVIDERS,
+                    selected = defaultProvider,
+                    onSelect = onProviderChange,
                     manage = manage,
                     enabled = enabled,
                 )
@@ -1690,6 +1751,44 @@ private fun PermissionPicker(
         ) {
             for ((value: String, labelRes: StringResource) in PERMISSIONS) {
                 val label: String = stringResource(labelRes)
+                ManageGate(decision = manage) { gateEnabled ->
+                    Badge(
+                        selected = selected == value,
+                        onClick = { onSelect(value) },
+                        enabled = gateEnabled && enabled,
+                        modifier = Modifier.clearAndSetSemantics { contentDescription = label },
+                    ) { Text(label, maxLines = 1) }
+                }
+            }
+        }
+    }
+}
+
+// A single-select chip row over a fixed value set (label from a StringResource) — the TTS Mode and Provider
+// pickers share it. Same shape as [PermissionPicker]; the value written is always one of [options], never free
+// text, so it is always valid server-side.
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChipPicker(
+    labelRes: StringResource,
+    options: List<Pair<String, StringResource>>,
+    selected: String,
+    onSelect: (String) -> Unit,
+    manage: ManageDecision,
+    enabled: Boolean,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        Text(text = stringResource(labelRes), style = typography.sm, color = tokens.mutedForeground)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            for ((value: String, optionRes: StringResource) in options) {
+                val label: String = stringResource(optionRes)
                 ManageGate(decision = manage) { gateEnabled ->
                     Badge(
                         selected = selected == value,

@@ -52,6 +52,7 @@ class EventResponsesControllerTest {
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(listOf(summary))),
             )
@@ -71,6 +72,7 @@ class EventResponsesControllerTest {
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList())),
             )
@@ -86,6 +88,7 @@ class EventResponsesControllerTest {
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Failure(ApiError(status = 503, code = null, message = "no channel"))),
                 eventResponsesApi = RecordingEventResponsesApi(),
             )
@@ -103,6 +106,7 @@ class EventResponsesControllerTest {
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi =
                     RecordingEventResponsesApi(
@@ -122,6 +126,7 @@ class EventResponsesControllerTest {
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -152,6 +157,7 @@ class EventResponsesControllerTest {
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -171,17 +177,42 @@ class EventResponsesControllerTest {
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
 
         controller.load()
-        controller.save("channel.cheer", "chat_message", "Thanks for the cheer!", null)
+        controller.save("channel.cheer", "chat_message", "Thanks for the cheer!", null, null)
 
         assertEquals("channel.cheer", api.lastUpsertedEventType)
         assertEquals("chat_message", api.lastUpsertedBody?.responseType)
         assertEquals("Thanks for the cheer!", api.lastUpsertedBody?.message)
         assertNull(api.lastUpsertedBody?.pipelineId)
+    }
+
+    @Test
+    fun save_overlay_writes_target_widget_id_into_metadata() = runTest {
+        val api = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList()))
+        val controller =
+            EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                eventResponsesApi = api,
+            )
+
+        controller.load()
+        controller.save("channel.raid", "overlay", "Raid alert!", null, "widget-7")
+
+        // The chosen widget id is persisted under the well-known metadata key so the overlay dispatch can
+        // resolve which widget the event fires.
+        assertEquals("overlay", api.lastUpsertedBody?.responseType)
+        assertEquals(
+            "widget-7",
+            api.lastUpsertedBody?.metadata?.get(EventResponsesController.WidgetIdMetadataKey),
+        )
     }
 
     @Test
@@ -191,6 +222,7 @@ class EventResponsesControllerTest {
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -211,6 +243,7 @@ class EventResponsesControllerTest {
                 eventResponsesApi = api,
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
             )
         controller.load()
 
@@ -245,6 +278,73 @@ private object StubPipelinesApi : PipelinesApi {
     override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+// A widgets fake for the event-responses tests: list() returns empty (the overlay picker just needs to load),
+// every other method is unused here and errors if touched.
+private object StubWidgetsApi : bot.nomnomz.dashboard.core.network.WidgetsApi {
+    override suspend fun list(channelId: String): ApiResult<List<bot.nomnomz.dashboard.core.network.WidgetSummary>> =
+        ApiResult.Ok(emptyList())
+    override suspend fun setEnabled(channelId: String, widgetId: String, enabled: Boolean): ApiResult<Unit> =
+        error("stub")
+    override suspend fun delete(channelId: String, widgetId: String): ApiResult<Unit> = error("stub")
+    override suspend fun create(
+        channelId: String,
+        body: bot.nomnomz.dashboard.core.network.CreateWidgetBody,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.WidgetSummary> = error("stub")
+    override suspend fun rename(channelId: String, widgetId: String, name: String): ApiResult<Unit> = error("stub")
+    override suspend fun updateSettings(
+        channelId: String,
+        widgetId: String,
+        settings: kotlinx.serialization.json.JsonObject,
+    ): ApiResult<Unit> = error("stub")
+    override suspend fun getSettingsSchema(
+        channelId: String,
+        widgetId: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.WidgetSettingsSchemaDto> = error("stub")
+    override suspend fun compile(
+        channelId: String,
+        widgetId: String,
+        sourceCode: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.WidgetVersionDetail> = error("stub")
+    override suspend fun listVersions(
+        channelId: String,
+        widgetId: String,
+    ): ApiResult<List<bot.nomnomz.dashboard.core.network.WidgetVersionSummary>> = error("stub")
+    override suspend fun getVersion(
+        channelId: String,
+        widgetId: String,
+        versionId: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.WidgetVersionDetail> = error("stub")
+    override suspend fun rollback(
+        channelId: String,
+        widgetId: String,
+        versionId: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.WidgetSummary> = error("stub")
+    override suspend fun getProject(
+        channelId: String,
+        widgetId: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.ProjectDto> = error("stub")
+    override suspend fun putProject(
+        channelId: String,
+        widgetId: String,
+        project: bot.nomnomz.dashboard.core.network.ProjectDto,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.WidgetVersionDetail> = error("stub")
+    override suspend fun listTemplates(
+        channelId: String,
+    ): ApiResult<List<bot.nomnomz.dashboard.core.network.WidgetTemplate>> = error("stub")
+    override suspend fun clone(
+        channelId: String,
+        installedWidgetId: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.WidgetSummary> = error("stub")
+    override suspend fun install(
+        channelId: String,
+        galleryItemId: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.WidgetSummary> = error("stub")
+    override suspend fun cloneFromGallery(
+        channelId: String,
+        galleryItemId: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.WidgetSummary> = error("stub")
 }
 
 private object StubPickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi {
