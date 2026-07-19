@@ -282,11 +282,9 @@
     <string name="home_live_ops_snooze_ad">Snooze Ad</string>
     <string name="home_live_ops_start_commercial">Run Ad</string>
     <string name="home_live_ops_poll_title_label">Question</string>
-    <string name="home_live_ops_poll_choices_label">Choices (one per line)</string>
     <string name="home_live_ops_poll_duration_label">Duration: %1$d seconds</string>
     <string name="home_live_ops_poll_confirm">Start Poll</string>
     <string name="home_live_ops_prediction_title_label">Question</string>
-    <string name="home_live_ops_prediction_outcomes_label">Outcomes (one per line, min 2)</string>
     <string name="home_live_ops_prediction_window_label">Betting window: %1$d seconds</string>
     <string name="home_live_ops_prediction_confirm">Start Prediction</string>
     <string name="home_live_ops_raid_target_label">Target channel username</string>

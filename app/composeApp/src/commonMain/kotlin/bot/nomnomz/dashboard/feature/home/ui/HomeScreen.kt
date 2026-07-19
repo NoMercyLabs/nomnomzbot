@@ -33,6 +33,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.Slider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -134,12 +135,12 @@ import nomnomzbot.composeapp.generated.resources.home_live_ops_mark_moment
 import nomnomzbot.composeapp.generated.resources.home_live_ops_mark_moment_done
 import nomnomzbot.composeapp.generated.resources.home_live_ops_mark_moment_failed
 import nomnomzbot.composeapp.generated.resources.home_live_ops_outcome_pick
-import nomnomzbot.composeapp.generated.resources.home_live_ops_poll_choices_label
+import nomnomzbot.composeapp.generated.resources.chat_poll_add_option
+import nomnomzbot.composeapp.generated.resources.chat_poll_option_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_poll_confirm
 import nomnomzbot.composeapp.generated.resources.home_live_ops_poll_duration_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_poll_title_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_prediction_confirm
-import nomnomzbot.composeapp.generated.resources.home_live_ops_prediction_outcomes_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_prediction_title_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_prediction_window_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_raid_confirm
@@ -1126,9 +1127,13 @@ private fun PollDialog(
     onDismiss: () -> Unit,
 ) {
     var title: String by remember { mutableStateOf("") }
-    var choicesText: String by remember { mutableStateOf("") }
+    // A Twitch poll needs 2–5 real choices — one field per choice (add/remove), NOT a single "one per line"
+    // input a single-line field can never satisfy (which left the confirm button permanently disabled).
+    var choices: List<String> by remember { mutableStateOf(listOf("", "")) }
     var duration: Float by remember { mutableStateOf(60f) }
     val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
+    val nonBlank: Int = choices.count { it.isNotBlank() }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1141,12 +1146,38 @@ private fun PollDialog(
                     label = stringResource(Res.string.home_live_ops_poll_title_label),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                AppTextField(
-                    value = choicesText,
-                    onValueChange = { choicesText = it },
-                    label = stringResource(Res.string.home_live_ops_poll_choices_label),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                choices.forEachIndexed { index, value ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        AppTextField(
+                            value = value,
+                            onValueChange = { updated ->
+                                choices = choices.toMutableList().also { it[index] = updated }
+                            },
+                            label = stringResource(Res.string.chat_poll_option_label, index + 1),
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (choices.size > 2) {
+                            GlyphButton(
+                                imageVector = RemoveGlyph,
+                                label = stringResource(Res.string.chat_poll_option_label, index + 1),
+                                onClick = { choices = choices.toMutableList().also { it.removeAt(index) } },
+                                tint = tokens.destructive,
+                            )
+                        }
+                    }
+                }
+                if (choices.size < 5) {
+                    GlyphButton(
+                        imageVector = AddGlyph,
+                        label = stringResource(Res.string.chat_poll_add_option),
+                        onClick = { choices = choices + "" },
+                        tint = tokens.primary,
+                    )
+                }
                 Text(
                     text = stringResource(Res.string.home_live_ops_poll_duration_label, duration.toInt()),
                     style = LocalTypography.current.sm,
@@ -1157,10 +1188,9 @@ private fun PollDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val choices: List<String> = choicesText.lines().map { it.trim() }.filter { it.isNotEmpty() }
-                    onConfirm(title, choices, duration.toInt())
+                    onConfirm(title, choices.map { it.trim() }.filter { it.isNotEmpty() }, duration.toInt())
                 },
-                enabled = title.isNotBlank() && choicesText.lines().count { it.isNotBlank() } >= 2,
+                enabled = title.isNotBlank() && nonBlank >= 2,
             ) { Text(stringResource(Res.string.home_live_ops_poll_confirm)) }
         },
         dismissButton = {
@@ -1175,9 +1205,13 @@ private fun PredictionDialog(
     onDismiss: () -> Unit,
 ) {
     var title: String by remember { mutableStateOf("") }
-    var outcomesText: String by remember { mutableStateOf("") }
+    // One field per outcome (2–10, add/remove) — same fix as the poll: the old single-line "one per line"
+    // input could never hold 2 lines, so the confirm button was permanently disabled.
+    var outcomes: List<String> by remember { mutableStateOf(listOf("", "")) }
     var window: Float by remember { mutableStateOf(120f) }
     val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
+    val nonBlank: Int = outcomes.count { it.isNotBlank() }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1190,12 +1224,38 @@ private fun PredictionDialog(
                     label = stringResource(Res.string.home_live_ops_prediction_title_label),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                AppTextField(
-                    value = outcomesText,
-                    onValueChange = { outcomesText = it },
-                    label = stringResource(Res.string.home_live_ops_prediction_outcomes_label),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                outcomes.forEachIndexed { index, value ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        AppTextField(
+                            value = value,
+                            onValueChange = { updated ->
+                                outcomes = outcomes.toMutableList().also { it[index] = updated }
+                            },
+                            label = stringResource(Res.string.chat_poll_option_label, index + 1),
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (outcomes.size > 2) {
+                            GlyphButton(
+                                imageVector = RemoveGlyph,
+                                label = stringResource(Res.string.chat_poll_option_label, index + 1),
+                                onClick = { outcomes = outcomes.toMutableList().also { it.removeAt(index) } },
+                                tint = tokens.destructive,
+                            )
+                        }
+                    }
+                }
+                if (outcomes.size < 10) {
+                    GlyphButton(
+                        imageVector = AddGlyph,
+                        label = stringResource(Res.string.chat_poll_add_option),
+                        onClick = { outcomes = outcomes + "" },
+                        tint = tokens.primary,
+                    )
+                }
                 Text(
                     text = stringResource(Res.string.home_live_ops_prediction_window_label, window.toInt()),
                     style = LocalTypography.current.sm,
@@ -1206,10 +1266,9 @@ private fun PredictionDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val outcomes: List<String> = outcomesText.lines().map { it.trim() }.filter { it.isNotEmpty() }
-                    onConfirm(title, outcomes, window.toInt())
+                    onConfirm(title, outcomes.map { it.trim() }.filter { it.isNotEmpty() }, window.toInt())
                 },
-                enabled = title.isNotBlank() && outcomesText.lines().count { it.isNotBlank() } >= 2,
+                enabled = title.isNotBlank() && nonBlank >= 2,
             ) { Text(stringResource(Res.string.home_live_ops_prediction_confirm)) }
         },
         dismissButton = {

@@ -279,11 +279,9 @@
     <string name="home_live_ops_snooze_ad">Advertentie uitstellen</string>
     <string name="home_live_ops_start_commercial">Advertentie afspelen</string>
     <string name="home_live_ops_poll_title_label">Vraag</string>
-    <string name="home_live_ops_poll_choices_label">Keuzes (één per regel)</string>
     <string name="home_live_ops_poll_duration_label">Duur: %1$d seconden</string>
     <string name="home_live_ops_poll_confirm">Poll starten</string>
     <string name="home_live_ops_prediction_title_label">Vraag</string>
-    <string name="home_live_ops_prediction_outcomes_label">Uitkomsten (één per regel, min. 2)</string>
     <string name="home_live_ops_prediction_window_label">Weddenschapsvenster: %1$d seconden</string>
     <string name="home_live_ops_prediction_confirm">Voorspelling starten</string>
     <string name="home_live_ops_raid_target_label">Doelkanaal gebruikersnaam</string>
