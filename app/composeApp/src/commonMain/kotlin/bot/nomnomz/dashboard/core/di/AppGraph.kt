@@ -70,10 +70,13 @@ import bot.nomnomz.dashboard.core.network.CustomEventsApi
 import bot.nomnomz.dashboard.core.network.RestCustomEventsApi
 import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.QuotesApi
+import bot.nomnomz.dashboard.core.network.AssetsApi
+import bot.nomnomz.dashboard.core.network.RestAssetsApi
 import bot.nomnomz.dashboard.core.network.RestSoundApi
 import bot.nomnomz.dashboard.core.network.SoundApi
 import bot.nomnomz.dashboard.core.network.RestAlertsApi
 import bot.nomnomz.dashboard.core.network.RestAnalyticsApi
+import bot.nomnomz.dashboard.core.io.AssetFilePicker
 import bot.nomnomz.dashboard.core.io.AudioFilePicker
 import bot.nomnomz.dashboard.core.io.JournalFileBridge
 import bot.nomnomz.dashboard.core.network.RestChatApi
@@ -179,6 +182,7 @@ import bot.nomnomz.dashboard.feature.webhooks.state.WebhooksController
 import bot.nomnomz.dashboard.feature.customevents.state.CustomEventsController
 import bot.nomnomz.dashboard.feature.picklists.state.PickListsController
 import bot.nomnomz.dashboard.feature.quotes.state.QuotesController
+import bot.nomnomz.dashboard.feature.assets.state.AssetsController
 import bot.nomnomz.dashboard.feature.sound.state.SoundController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
 import bot.nomnomz.dashboard.feature.roles.state.RolesController
@@ -320,6 +324,7 @@ class AppGraph {
     val giveawaysApi: GiveawaysApi = RestGiveawaysApi(apiClient)
     val supportersApi: SupportersApi = RestSupportersApi(apiClient)
     val soundApi: SoundApi = RestSoundApi(apiClient)
+    val assetsApi: AssetsApi = RestAssetsApi(apiClient)
     val discordApi: DiscordApi = RestDiscordApi(apiClient)
     val rolesApi: RolesApi = RestRolesApi(apiClient)
     val musicApi: MusicApi = RestMusicApi(apiClient)
@@ -566,6 +571,14 @@ class AppGraph {
         SoundController(
             soundApi = soundApi,
             audioPicker = AudioFilePicker(),
+            feedback = feedbackController,
+        )
+
+    val assetsController: AssetsController =
+        AssetsController(
+            assetsApi = assetsApi,
+            assetPicker = AssetFilePicker(),
+            baseUrlProvider = sessionStore::baseUrl,
             feedback = feedbackController,
         )
 

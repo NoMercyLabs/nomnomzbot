@@ -35,6 +35,7 @@ enum class ShellRoute {
     SongRequests,
     Music,
     SoundClips,
+    Assets,
     MediaShare,
     Tts,
     Widgets,
@@ -132,6 +133,9 @@ object ShellNav {
             NavPage(ShellRoute.Music, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "music:config:read"),
             NavPage(ShellRoute.SongRequests, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
             NavPage(ShellRoute.SoundClips, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "sounds:read"),
+            // Assets (overlay/widget media library) sits beside Sound Clips and mirrors its gates exactly —
+            // including the ACTION KEYS: the backend reuses the sound-clip pair (sounds:read / sounds:write).
+            NavPage(ShellRoute.Assets, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "sounds:read"),
             // Media Share: mods read + moderate the viewer clip queue (media:read / media:moderate, Moderator); the
             // config write floors at Editor (media:write), gated per-control inside the page.
             NavPage(ShellRoute.MediaShare, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "media:read"),

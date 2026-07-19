@@ -2494,6 +2494,29 @@
     <string name="feedback_sound_clip_uploaded">Clip uploaded.</string>
     <string name="feedback_sound_clip_upload_failed">Upload failed: %1$s</string>
 
+    <!-- Assets (overlay/widget media library) -->
+    <string name="shell_nav_assets">Assets</string>
+    <string name="assets_loading">Loading assets…</string>
+    <string name="assets_empty">No assets yet. Upload images or audio to use them in overlays and widgets.</string>
+    <string name="assets_error">Couldn't load assets: %1$s</string>
+    <string name="assets_retry">Retry</string>
+    <string name="assets_action_error">%1$s</string>
+    <string name="assets_upload_action">Upload Asset</string>
+    <string name="assets_delete_action">Delete %1$s</string>
+    <string name="assets_delete_title">Delete asset?</string>
+    <string name="assets_delete_message">Delete "%1$s"? Overlays and widgets using it will break. This can't be undone.</string>
+    <string name="assets_delete_confirm">Delete</string>
+    <string name="assets_delete_cancel">Cancel</string>
+    <string name="assets_kind_image">Image</string>
+    <string name="assets_kind_audio">Audio</string>
+    <string name="assets_size_kb">%1$d KB</string>
+    <string name="assets_size_mb">%1$s MB</string>
+    <string name="assets_copy_url">Copy URL</string>
+    <string name="assets_copied">Copied</string>
+    <string name="feedback_asset_uploaded">Asset uploaded.</string>
+    <string name="feedback_asset_deleted">Asset deleted</string>
+    <string name="feedback_asset_save_failed">Couldn't save the asset: %1$s</string>
+
     <!-- Custom Events -->
     <string name="shell_nav_custom_events">Custom Data Sources</string>
     <string name="custom_events_subtitle">Connect external data feeds (heart rate, sensors, APIs) to pipeline triggers and template variables.</string>

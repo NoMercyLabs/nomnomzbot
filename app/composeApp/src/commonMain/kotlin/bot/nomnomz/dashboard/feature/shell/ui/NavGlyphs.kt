@@ -243,6 +243,17 @@ val SoundClipsGlyph: ImageVector = navIcon("SoundClips") {
         )
 }
 
+val AssetsGlyph: ImageVector = navIcon("Assets") {
+        addPath(
+            pathData = addPathNodes("M3 5C3 3.89543 3.89543 3 5 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5ZM21 15L16 10L5 21M9 9C9 9.55228 8.55228 10 8 10C7.44772 10 7 9.55228 7 9C7 8.44772 7.44772 8 8 8C8.55228 8 9 8.44772 9 9Z"),
+            stroke = SolidColor(Color.Black),
+            strokeLineWidth = SW,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
+            fill = SolidColor(Color.Transparent),
+        )
+}
+
 val WidgetsGlyph: ImageVector = navIcon("Widgets") {
         addPath(
             pathData = addPathNodes("M8.5 14.4444L3 12L8.5 9.44444M8.5 14.4444L12 16L15.5 14.4444M8.5 14.4444L3 17L12 21L21 17L15.5 14.4444M15.5 14.4444L21 12L15.5 9.44444M15.5 9.44444L12 11L8.5 9.44444M15.5 9.44444L21 7L12 3L3 7L8.5 9.44444"),

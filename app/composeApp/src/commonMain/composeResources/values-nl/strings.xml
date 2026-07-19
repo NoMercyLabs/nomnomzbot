@@ -2480,6 +2480,29 @@
     <string name="feedback_sound_clip_uploaded">Fragment geüpload.</string>
     <string name="feedback_sound_clip_upload_failed">Upload mislukt: %1$s</string>
 
+    <!-- Assets (overlay/widget media library) -->
+    <string name="shell_nav_assets">Assets</string>
+    <string name="assets_loading">Assets laden…</string>
+    <string name="assets_empty">Nog geen assets. Upload afbeeldingen of audio voor overlays en widgets.</string>
+    <string name="assets_error">Kon assets niet laden: %1$s</string>
+    <string name="assets_retry">Opnieuw proberen</string>
+    <string name="assets_action_error">%1$s</string>
+    <string name="assets_upload_action">Asset uploaden</string>
+    <string name="assets_delete_action">Verwijder %1$s</string>
+    <string name="assets_delete_title">Asset verwijderen?</string>
+    <string name="assets_delete_message">"%1$s" verwijderen? Overlays en widgets die deze gebruiken werken dan niet meer. Dit kan niet ongedaan worden gemaakt.</string>
+    <string name="assets_delete_confirm">Verwijderen</string>
+    <string name="assets_delete_cancel">Annuleren</string>
+    <string name="assets_kind_image">Afbeelding</string>
+    <string name="assets_kind_audio">Audio</string>
+    <string name="assets_size_kb">%1$d KB</string>
+    <string name="assets_size_mb">%1$s MB</string>
+    <string name="assets_copy_url">URL kopiëren</string>
+    <string name="assets_copied">Gekopieerd</string>
+    <string name="feedback_asset_uploaded">Asset geüpload.</string>
+    <string name="feedback_asset_deleted">Asset verwijderd</string>
+    <string name="feedback_asset_save_failed">Kon de asset niet opslaan: %1$s</string>
+
     <!-- Custom Events -->
     <string name="shell_nav_custom_events">Aangepaste Databronnen</string>
     <string name="custom_events_subtitle">Verbind externe datafeeds (hartslag, sensoren, API\'s) met pipeline-triggers en sjabloonvariabelen.</string>

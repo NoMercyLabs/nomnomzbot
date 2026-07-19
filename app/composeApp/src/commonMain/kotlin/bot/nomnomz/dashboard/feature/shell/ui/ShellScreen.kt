@@ -113,6 +113,7 @@ import bot.nomnomz.dashboard.feature.music.ui.MusicScreen
 import bot.nomnomz.dashboard.feature.pipelines.ui.PipelinesScreen
 import bot.nomnomz.dashboard.feature.picklists.ui.PickListsScreen
 import bot.nomnomz.dashboard.feature.quotes.ui.QuotesScreen
+import bot.nomnomz.dashboard.feature.assets.ui.AssetsScreen
 import bot.nomnomz.dashboard.feature.sound.ui.SoundScreen
 import bot.nomnomz.dashboard.feature.rewards.ui.RewardsScreen
 import bot.nomnomz.dashboard.feature.roles.ui.RolesScreen
@@ -170,6 +171,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_menu_open
 import nomnomzbot.composeapp.generated.resources.shell_nav_moderation
 import nomnomzbot.composeapp.generated.resources.shell_nav_music
 import nomnomzbot.composeapp.generated.resources.shell_nav_schedule
+import nomnomzbot.composeapp.generated.resources.shell_nav_assets
 import nomnomzbot.composeapp.generated.resources.shell_nav_sound
 import nomnomzbot.composeapp.generated.resources.shell_nav_overlays
 import nomnomzbot.composeapp.generated.resources.shell_nav_pipelines
@@ -549,6 +551,8 @@ private fun ShellContent(
                 )
             ShellRoute.SoundClips ->
                 SoundScreen(controller = graph.soundController, role = role)
+            ShellRoute.Assets ->
+                AssetsScreen(controller = graph.assetsController, role = role)
             ShellRoute.Tts ->
                 TtsScreen(
                     controller = graph.ttsController,
@@ -1284,6 +1288,7 @@ private fun ShellRoute.icon(): ImageVector =
         ShellRoute.Music -> MusicGlyph
         ShellRoute.SongRequests -> SongRequestsGlyph
         ShellRoute.SoundClips -> SoundClipsGlyph
+        ShellRoute.Assets -> AssetsGlyph
         ShellRoute.Tts -> TtsGlyph
         ShellRoute.Widgets -> WidgetsGlyph
         ShellRoute.Alerts -> AlertsGlyph
@@ -1329,6 +1334,7 @@ private fun ShellRoute.label(): String =
             ShellRoute.SongRequests -> Res.string.shell_nav_song_requests
             ShellRoute.Music -> Res.string.shell_nav_music
             ShellRoute.SoundClips -> Res.string.shell_nav_sound
+            ShellRoute.Assets -> Res.string.shell_nav_assets
             ShellRoute.Tts -> Res.string.shell_nav_tts
             ShellRoute.Widgets -> Res.string.shell_nav_overlays
             ShellRoute.Alerts -> Res.string.shell_nav_alerts

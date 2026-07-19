@@ -265,6 +265,8 @@ class ApiContractTest {
             MarketplaceItem.serializer() to "MarketplaceItemDto",
             MarketplaceInstallBody.serializer() to "MarketplaceInstallRequest",
             PublisherTokenBody.serializer() to "MarketplacePublisherTokenRequest",
+            // Assets (overlay/widget media library).
+            ChannelAsset.serializer() to "ChannelAssetDto",
         )
 
     @Test
