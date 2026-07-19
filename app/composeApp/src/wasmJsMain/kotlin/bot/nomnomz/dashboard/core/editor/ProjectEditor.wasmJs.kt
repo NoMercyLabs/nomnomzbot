@@ -160,7 +160,7 @@ private fun openProjectEditor(
                 CmView: null, CmState: null, langHtml: null, langJs: null, baseExt: null,
                 tsCompartment: null, tsReady: false, tsExtensions: null, tsEnv: null, tsLib: null,
                 previewFrame: null, previewNote: null, previewMode: 'esbuild', previewNoteText: '',
-                esbuild: null, previewTimer: null
+                esbuild: null, previewTimer: null, vue: false, vueSfc: null, fireBar: null
             };
             globalThis.__nnzProjectEdit = slot;
 
@@ -262,6 +262,12 @@ private fun openProjectEditor(
             previewHead.appendChild(previewTitle);
             previewHead.appendChild(refreshBtn);
 
+            // Fire bar: one button per event the widget listens for (scanned from the source), so transient
+            // widgets (alerts/BSOD) can be triggered in the preview without OBS. Populated after each build.
+            var fireBar = document.createElement('div');
+            fireBar.style.cssText = 'display:none;flex-wrap:wrap;gap:6px;padding:8px 12px;border-bottom:1px solid #1f1f1f;background:#0f0f0f;';
+            slot.fireBar = fireBar;
+
             var previewBody = document.createElement('div');
             previewBody.style.cssText = 'flex:1;min-height:0;position:relative;background:#0a0a0a;';
 
@@ -278,6 +284,7 @@ private fun openProjectEditor(
             previewBody.appendChild(previewFrame);
             previewBody.appendChild(previewNote);
             previewCol.appendChild(previewHead);
+            previewCol.appendChild(fireBar);
             previewCol.appendChild(previewBody);
 
             body.appendChild(sidebar);
@@ -458,6 +465,7 @@ private fun openProjectEditor(
             // ── Live preview ─────────────────────────────────────────────────────
             function showPreviewNote(text, isError) {
                 slot.previewFrame.style.display = 'none';
+                if (slot.fireBar) { slot.fireBar.style.display = 'none'; }
                 slot.previewNote.textContent = text;
                 slot.previewNote.style.color = isError ? '#f87171' : '#a3a3a3';
                 slot.previewNote.style.display = 'flex';
@@ -472,16 +480,72 @@ private fun openProjectEditor(
                     'vue': 'https://esm.sh/vue@3.5.39'
                 } });
             }
+            // A socket-free stand-in for the overlay SDK (window.NomNomz) so a widget mounts + subscribes without a
+            // hub. Same surface as /overlay/sdk.js (on/off/onAny/onSettings/settings/reportError); a postMessage
+            // bridge lets the fire bar drive events and push settings. Injected as a classic script so it exists
+            // before the deferred module bundle runs.
+            function previewSdkStub() {
+                return '(function(){' +
+                    'var handlers={},anyH=[],setH=[],settings=(window.WIDGET_SETTINGS&&typeof window.WIDGET_SETTINGS===\"object\")?window.WIDGET_SETTINGS:{};' +
+                    'function on(t,f){if(typeof f===\"function\")(handlers[t]=handlers[t]||[]).push(f);return api;}' +
+                    'function off(t,f){var l=handlers[t];if(l)handlers[t]=l.filter(function(h){return h!==f;});return api;}' +
+                    'function onAny(f){if(typeof f===\"function\")anyH.push(f);return api;}' +
+                    'function onSettings(f){if(typeof f===\"function\"){setH.push(f);try{f(settings);}catch(e){}}return api;}' +
+                    'function emit(t,d){(handlers[t]||[]).forEach(function(f){try{f(d,t);}catch(e){console.error(e);}});anyH.forEach(function(f){try{f(t,d);}catch(e){}});}' +
+                    'var api={on:on,off:off,onAny:onAny,onSettings:onSettings,reportError:function(m){console.error(\"[preview widget]\",m);},get settings(){return settings;}};' +
+                    'window.NomNomz=api;' +
+                    'window.addEventListener(\"message\",function(ev){var m=ev.data;if(!m)return;if(m.__nnzFire){emit(m.__nnzFire.type,m.__nnzFire.data||{});}else if(m.__nnzSettings){settings=m.__nnzSettings;setH.forEach(function(f){try{f(settings);}catch(e){}});}});' +
+                    '})();';
+            }
             function renderPreviewBundle(jsCode, cssCode) {
                 var reset = 'html,body{margin:0;padding:0;background:transparent;color:#e5e5e5;font-family:-apple-system,BlinkMacSystemFont,sans-serif;}';
+                var sdk = slot.vue ? ('<script>' + previewSdkStub() + '<\/script>') : '';
                 var doc = '<!doctype html><html><head><meta charset=\"utf-8\">' +
                     '<style>' + reset + '</style><style>' + (cssCode || '') + '</style>' +
                     '<script type=\"importmap\">' + importMapJson() + '<\/script></head><body>' +
-                    '<div id=\"app\"></div><div id=\"root\"></div>' +
+                    '<div id=\"app\"></div><div id=\"root\"></div>' + sdk +
                     '<script type=\"module\">' + jsCode + '<\/script></body></html>';
                 slot.previewNote.style.display = 'none';
                 slot.previewFrame.style.display = 'block';
                 slot.previewFrame.srcdoc = doc;
+                refreshFireBar();
+            }
+            // Scan every file for the events the widget subscribes to — nnz.on('evt') / NomNomz.on(\"evt\") — and
+            // render one fire button each. Clicking posts the event into the sandboxed preview iframe.
+            function refreshFireBar() {
+                if (!slot.fireBar) { return; }
+                if (!slot.vue) { slot.fireBar.style.display = 'none'; return; }
+                var seen = {}; var events = [];
+                var re = /\.on\(\s*['\"]([a-zA-Z0-9_.:-]+)['\"]/g;
+                var all = snapshotFiles();
+                for (var p in all) {
+                    if (!Object.prototype.hasOwnProperty.call(all, p)) { continue; }
+                    var src = all[p]; var mm;
+                    while ((mm = re.exec(src)) !== null) {
+                        var ev = mm[1];
+                        if (ev && ev !== 'message' && ev !== 'error' && !seen[ev]) { seen[ev] = true; events.push(ev); }
+                    }
+                }
+                slot.fireBar.innerHTML = '';
+                if (!events.length) { slot.fireBar.style.display = 'none'; return; }
+                var lbl = document.createElement('span');
+                lbl.textContent = 'Fire event:';
+                lbl.style.cssText = 'font-size:11px;color:#a3a3a3;align-self:center;margin-right:2px;';
+                slot.fireBar.appendChild(lbl);
+                for (var i = 0; i < events.length; i++) {
+                    (function (ev) {
+                        var b = document.createElement('button');
+                        b.type = 'button'; b.textContent = ev;
+                        b.style.cssText = 'font-size:11px;color:#e5e5e5;background:#1e1e22;border:1px solid #333;border-radius:6px;padding:3px 8px;cursor:pointer;';
+                        b.addEventListener('click', function () {
+                            if (slot.previewFrame && slot.previewFrame.contentWindow) {
+                                slot.previewFrame.contentWindow.postMessage({ __nnzFire: { type: ev, data: {} } }, '*');
+                            }
+                        });
+                        slot.fireBar.appendChild(b);
+                    })(events[i]);
+                }
+                slot.fireBar.style.display = 'flex';
             }
             function renderHtmlDirect() {
                 var f = snapshotFiles();
@@ -510,9 +574,45 @@ private fun openProjectEditor(
                 }
                 var base = parts.join('/');
                 var cands = [base, base + '.js', base + '.ts', base + '.jsx', base + '.tsx', base + '.mjs',
-                    base + '.json', base + '/index.js', base + '/index.ts', base + '/index.jsx', base + '/index.tsx'];
+                    base + '.vue', base + '.json', base + '/index.js', base + '/index.ts', base + '/index.jsx',
+                    base + '/index.tsx', base + '/index.vue'];
                 for (var j = 0; j < cands.length; j++) { if (cands[j] in slot.files) { return cands[j]; } }
                 return null;
+            }
+            // Synthetic entry for Vue projects: the entry SFC exports a component but mounts nothing, so we bundle
+            // from a generated root that imports it and mounts with a fresh createApp — matching the overlay runtime.
+            var VUE_ENTRY = '__nnz_vue_main__.js';
+            function vueEntrySource() {
+                return 'import __App from "./' + slot.entry + '";\n' +
+                    'import { createApp } from "vue";\n' +
+                    'try { window.__nnzApp = createApp(__App); window.__nnzApp.mount("#app"); }\n' +
+                    'catch (e) { var d = document.getElementById("app"); if (d) { d.textContent = "Mount error: " + ((e && e.message) || e); d.style.color = "#f87171"; } }';
+            }
+            // Compile one Vue SFC to an ES module the same way the server does (@vue/compiler-sfc): <script setup>
+            // with the template inlined, a stable scope id, and scoped <style> injected at runtime. The output keeps
+            // TS syntax (esbuild strips it via the 'ts' loader on the caller side).
+            function compileVueFile(path, source) {
+                var sfc = slot.vueSfc;
+                var parsed = sfc.parse(source, { filename: path });
+                if (parsed.errors && parsed.errors.length) { throw new Error(parsed.errors[0].message || String(parsed.errors[0])); }
+                var descriptor = parsed.descriptor;
+                var h = 0; for (var i = 0; i < path.length; i++) { h = ((h << 5) - h + path.charCodeAt(i)) | 0; }
+                var id = Math.abs(h).toString(36);
+                var scoped = descriptor.styles.some(function (s) { return s.scoped; });
+                if (!descriptor.scriptSetup && !descriptor.script) { throw new Error('SFC has no <script> block'); }
+                var cs = sfc.compileScript(descriptor, { id: id, inlineTemplate: true, templateOptions: { scoped: scoped }, babelParserPlugins: ['typescript'] });
+                // rewriteDefault re-parses the compiled script (still TS) — it needs the typescript plugin too.
+                var code = sfc.rewriteDefault(cs.content, '__sfc_main', ['typescript']);
+                if (scoped) { code += '\n__sfc_main.__scopeId = "data-v-' + id + '";'; }
+                var css = '';
+                for (var j = 0; j < descriptor.styles.length; j++) {
+                    var stel = descriptor.styles[j];
+                    var out = sfc.compileStyle({ source: stel.content, filename: path, id: id, scoped: stel.scoped });
+                    css += out.code;
+                }
+                if (css) { code += '\n;(function(){var __st=document.createElement("style");__st.textContent=' + JSON.stringify(css) + ';document.head.appendChild(__st);})();'; }
+                code += '\nexport default __sfc_main;';
+                return code;
             }
             function vfsPlugin() {
                 return { name: 'nnz-vfs', setup: function (build) {
@@ -527,8 +627,13 @@ private fun openProjectEditor(
                         return { path: a.path, external: true };
                     });
                     build.onLoad({ filter: /.*/, namespace: 'nnzvfs' }, function (a) {
+                        if (a.path === VUE_ENTRY) { return { contents: vueEntrySource(), loader: 'js' }; }
                         var c = slot.files[a.path];
                         if (c == null) { return { errors: [{ text: 'Missing file ' + a.path }] }; }
+                        if (a.path.slice(-4) === '.vue') {
+                            try { return { contents: compileVueFile(a.path, c), loader: 'ts' }; }
+                            catch (e) { return { errors: [{ text: 'Vue compile (' + a.path + '): ' + ((e && e.message) || e) }] }; }
+                        }
                         return { contents: c, loader: extLoader(a.path) };
                     });
                 } };
@@ -537,8 +642,22 @@ private fun openProjectEditor(
                 if (!slot.esbuild) { return; }
                 var f = snapshotFiles();
                 if (!(slot.entry in f)) { showPreviewNote('Entry file ' + slot.entry + ' is missing.', true); return; }
+                // Vue projects need @vue/compiler-sfc — load it once, then rebuild.
+                if (slot.vue && !slot.vueSfc) {
+                    showPreviewNote('Loading Vue compiler…', false);
+                    var diVue = new Function('u', 'return import(u);');
+                    diVue('https://esm.sh/@vue/compiler-sfc@3.5.39?deps=vue@3.5.39').then(function (m) {
+                        var mod = (m && m.parse) ? m : (m && m.default ? m.default : m);
+                        slot.vueSfc = mod;
+                        buildEsbuildPreview();
+                    }).catch(function (err) {
+                        showPreviewNote('Vue compiler could not load:\n' + ((err && err.message) || err), true);
+                    });
+                    return;
+                }
+                var entryPoint = slot.vue ? VUE_ENTRY : slot.entry;
                 slot.esbuild.build({
-                    entryPoints: [slot.entry], bundle: true, write: false, format: 'esm', target: 'es2020',
+                    entryPoints: [entryPoint], bundle: true, write: false, format: 'esm', target: 'es2020',
                     outdir: 'nnzout', jsx: 'automatic', jsxImportSource: 'react',
                     loader: { '.png': 'dataurl', '.jpg': 'dataurl', '.jpeg': 'dataurl', '.gif': 'dataurl',
                         '.svg': 'text', '.woff': 'dataurl', '.woff2': 'dataurl' },
@@ -576,8 +695,12 @@ private fun openProjectEditor(
                     slot.previewMode = 'note';
                     slot.previewNoteText = 'Code scripts run in the bot sandbox — press Save & Compile to validate. Autocomplete + inline errors are live in the editor.';
                 } else if (fw === 'vue') {
-                    slot.previewMode = 'note';
-                    slot.previewNoteText = 'Vue components build on the server — press Save & Compile for the rendered preview. The instant client preview covers vanilla / react projects; autocomplete stays live here.';
+                    // Vue SFCs compile client-side with @vue/compiler-sfc (same as the server) and bundle through
+                    // the same esbuild path as vanilla/react — a live, hot-reloading preview that mounts the widget
+                    // with a socket-free NomNomz SDK stub. The fire bar (built once the source is scanned) drives
+                    // the widget's events so transient widgets (alerts/BSOD) can be seen reacting without OBS.
+                    slot.vue = true;
+                    slot.previewMode = 'esbuild';
                 } else if (ee === 'html' || ee === 'htm') {
                     slot.previewMode = 'html';
                 } else {
@@ -712,8 +835,10 @@ private fun openProjectEditor(
                 Promise.all([
                     dynImport2('https://esm.sh/typescript@5.6.3'),
                     dynImport2('https://esm.sh/@typescript/vfs@1.6.0'),
-                    dynImport2('https://esm.sh/@codemirror/autocomplete@6.18.1'),
-                    dynImport2('https://esm.sh/@codemirror/lint@6.8.1')
+                    // Same-state pin as the base editor — the autocomplete + lint extensions land in the live view's
+                    // Compartment, so they must share the one @codemirror/state instance or they never take effect.
+                    dynImport2('https://esm.sh/@codemirror/autocomplete@6.18.1?deps=@codemirror/state@6.4.1'),
+                    dynImport2('https://esm.sh/@codemirror/lint@6.8.1?deps=@codemirror/state@6.4.1')
                 ]).then(function (mods) {
                     if (slot.status === 'closed') { return; }
                     var tsMod = mods[0], vfsMod = mods[1], acMod = mods[2], lintMod = mods[3];
@@ -735,7 +860,9 @@ private fun openProjectEditor(
                 if (!globalThis.__nnzEsbuild) {
                     var dynImport3 = new Function('u', 'return import(u);');
                     globalThis.__nnzEsbuild = dynImport3('https://esm.sh/esbuild-wasm@0.28.1').then(function (m) {
-                        return m.initialize({ wasmURL: 'https://esm.sh/esbuild-wasm@0.28.1/esbuild.wasm' }).then(function () { return m; });
+                        // esm.sh nests the CJS module under .default — the top-level namespace has no initialize/build.
+                        var eb = m.default || m;
+                        return eb.initialize({ wasmURL: 'https://esm.sh/esbuild-wasm@0.28.1/esbuild.wasm' }).then(function () { return eb; });
                     });
                 }
                 globalThis.__nnzEsbuild.then(function (esbuild) {
@@ -750,13 +877,19 @@ private fun openProjectEditor(
             }
 
             // Load CodeMirror 6 + its languages/theme from a CDN. On any failure fall back to the textarea.
+            // CRITICAL: every CodeMirror package that contributes facets (basicSetup, the languages, the theme)
+            // MUST resolve the SAME @codemirror/state instance that EditorState.create uses, or its facets — the
+            // language parser, the highlight style, AND the height/scroll theme — register against a different
+            // state module and silently never apply (flat monochrome text, no scrollbar). esm.sh serves each
+            // package its own bundled copy of @codemirror/state unless pinned, so pin them all to ours via ?deps.
             var dynImport = new Function('u', 'return import(u);');
+            var cmPin = '?deps=@codemirror/state@6.4.1';
             Promise.all([
-                dynImport('https://esm.sh/codemirror@6.0.1'),
+                dynImport('https://esm.sh/codemirror@6.0.1' + cmPin),
                 dynImport('https://esm.sh/@codemirror/state@6.4.1'),
-                dynImport('https://esm.sh/@codemirror/lang-html@6.4.9'),
-                dynImport('https://esm.sh/@codemirror/lang-javascript@6.2.2'),
-                dynImport('https://esm.sh/@codemirror/theme-one-dark@6.1.2')
+                dynImport('https://esm.sh/@codemirror/lang-html@6.4.9' + cmPin),
+                dynImport('https://esm.sh/@codemirror/lang-javascript@6.2.2' + cmPin),
+                dynImport('https://esm.sh/@codemirror/theme-one-dark@6.1.2' + cmPin)
             ]).then(function (mods) {
                 if (slot.textarea || slot.status === 'closed') { return; }
                 var cm = mods[0], cmState = mods[1], langHtml = mods[2], langJs = mods[3], dark = mods[4];
