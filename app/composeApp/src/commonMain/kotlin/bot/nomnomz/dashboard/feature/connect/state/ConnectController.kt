@@ -245,6 +245,15 @@ class ConnectController(
             }
 
             is ApiResult.Ok -> {
+                // A fresh self-host bot whose Twitch app (and/or platform bot) isn't configured yet can't start
+                // ANY Twitch OAuth — `ready == false` is the single gate that routes onboarding to the first-run
+                // Setup wizard instead (SystemStatusDto.ready). `pendingProfile` is already pinned above, so the
+                // wizard's finish() → [signInStreamer] runs this same streamer OAuth once the backend reports ready.
+                if (!statusResult.value.ready) {
+                    _status.value = ConnectStatus.Idle
+                    sessionStore.enterSetup(profile)
+                    return
+                }
                 // Redirect (Authorization Code) login when the operator has a client SECRET configured
                 // (twitchApp.ok) — a clean tap → Twitch → redirect-back, far better on mobile, and it sets the
                 // HttpOnly cookie that remember-me rides. Without a secret (the shared public client) only the

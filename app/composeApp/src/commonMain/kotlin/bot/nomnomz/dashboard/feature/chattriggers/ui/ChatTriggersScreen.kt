@@ -10,7 +10,6 @@
 
 package bot.nomnomz.dashboard.feature.chattriggers.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,11 +42,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
-import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -607,15 +606,14 @@ private fun PickerField(
     onExpandedChange: (Boolean) -> Unit,
     items: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
-    Box {
-        AppTextField(
-            value = value,
-            onValueChange = {},
-            modifier = Modifier.fillMaxWidth().clickable { onExpandedChange(true) },
-            label = label,
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }, content = items)
-    }
+    AppSelectField(
+        label = label,
+        value = value,
+        expanded = expanded,
+        onExpandedChange = onExpandedChange,
+        modifier = Modifier.fillMaxWidth(),
+        menu = items,
+    )
 }
 
 @Composable

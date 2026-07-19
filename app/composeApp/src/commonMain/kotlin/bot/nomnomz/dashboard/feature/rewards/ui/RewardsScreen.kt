@@ -10,7 +10,6 @@
 
 package bot.nomnomz.dashboard.feature.rewards.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,13 +23,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ColorField
 import bot.nomnomz.dashboard.core.designsystem.component.parseHexColor
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
-import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
@@ -969,33 +968,28 @@ private fun RewardFormDialog(
                 )
                 // Optional pipeline to run on redemption. Only shown when the channel has pipelines to bind.
                 if (pipelines.isNotEmpty()) {
-                    Box {
-                        AppTextField(
-                            value = selectedPipelineName,
-                            onValueChange = {},
-                            modifier = Modifier.fillMaxWidth().clickable { pipelineMenuOpen = true },
-                            label = stringResource(Res.string.rewards_dialog_pipeline_label),
+                    AppSelectField(
+                        value = selectedPipelineName,
+                        label = stringResource(Res.string.rewards_dialog_pipeline_label),
+                        expanded = pipelineMenuOpen,
+                        onExpandedChange = { pipelineMenuOpen = it },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(pipelineNoneLabel, color = tokens.mutedForeground) },
+                            onClick = {
+                                selectedPipelineId = null
+                                pipelineMenuOpen = false
+                            },
                         )
-                        DropdownMenu(
-                            expanded = pipelineMenuOpen,
-                            onDismissRequest = { pipelineMenuOpen = false },
-                        ) {
+                        pipelines.forEach { pipeline ->
                             DropdownMenuItem(
-                                text = { Text(pipelineNoneLabel, color = tokens.mutedForeground) },
+                                text = { Text(pipeline.name, color = tokens.cardForeground) },
                                 onClick = {
-                                    selectedPipelineId = null
+                                    selectedPipelineId = pipeline.id
                                     pipelineMenuOpen = false
                                 },
                             )
-                            pipelines.forEach { pipeline ->
-                                DropdownMenuItem(
-                                    text = { Text(pipeline.name, color = tokens.cardForeground) },
-                                    onClick = {
-                                        selectedPipelineId = pipeline.id
-                                        pipelineMenuOpen = false
-                                    },
-                                )
-                            }
                         }
                     }
                 }

@@ -11,7 +11,6 @@
 package bot.nomnomz.dashboard.feature.timers.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +22,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -523,33 +522,28 @@ private fun TimerEditDialog(
                 // Optional pipeline to run every interval (e.g. a shoutout using {timer.message}). Reuses the
                 // Commands dialog's picker shape. Only shown when the channel has pipelines to bind.
                 if (pipelines.isNotEmpty()) {
-                    Box {
-                        AppTextField(
-                            value = selectedPipelineName,
-                            onValueChange = {},
-                            modifier = Modifier.fillMaxWidth().clickable { pipelineMenuOpen = true },
-                            label = stringResource(Res.string.timers_dialog_pipeline),
+                    AppSelectField(
+                        value = selectedPipelineName,
+                        label = stringResource(Res.string.timers_dialog_pipeline),
+                        expanded = pipelineMenuOpen,
+                        onExpandedChange = { pipelineMenuOpen = it },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(pipelineNoneLabel, color = tokens.mutedForeground) },
+                            onClick = {
+                                pipelineId = null
+                                pipelineMenuOpen = false
+                            },
                         )
-                        DropdownMenu(
-                            expanded = pipelineMenuOpen,
-                            onDismissRequest = { pipelineMenuOpen = false },
-                        ) {
+                        pipelines.forEach { pipeline ->
                             DropdownMenuItem(
-                                text = { Text(pipelineNoneLabel, color = tokens.mutedForeground) },
+                                text = { Text(pipeline.name, color = tokens.cardForeground) },
                                 onClick = {
-                                    pipelineId = null
+                                    pipelineId = pipeline.id
                                     pipelineMenuOpen = false
                                 },
                             )
-                            pipelines.forEach { pipeline ->
-                                DropdownMenuItem(
-                                    text = { Text(pipeline.name, color = tokens.cardForeground) },
-                                    onClick = {
-                                        pipelineId = pipeline.id
-                                        pipelineMenuOpen = false
-                                    },
-                                )
-                            }
                         }
                     }
                 }

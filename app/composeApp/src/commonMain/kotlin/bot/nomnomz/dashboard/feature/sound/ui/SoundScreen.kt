@@ -11,7 +11,6 @@
 package bot.nomnomz.dashboard.feature.sound.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,11 +44,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
-import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -446,23 +445,21 @@ private fun EditClipDialog(
                 )
 
                 // Minimum role that can fire the trigger — role NAMES only, never the numeric ladder value.
-                Box {
-                    AppTextField(
-                        value = permissionLabel(minLevel),
-                        onValueChange = {},
-                        label = stringResource(Res.string.sound_clips_dialog_permission_label),
-                        modifier = Modifier.fillMaxWidth().clickable { permMenuOpen = true },
-                    )
-                    DropdownMenu(expanded = permMenuOpen, onDismissRequest = { permMenuOpen = false }) {
-                        PermissionRungs.forEach { (level, res) ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(res), color = tokens.cardForeground) },
-                                onClick = {
-                                    minLevel = level
-                                    permMenuOpen = false
-                                },
-                            )
-                        }
+                AppSelectField(
+                    value = permissionLabel(minLevel),
+                    label = stringResource(Res.string.sound_clips_dialog_permission_label),
+                    expanded = permMenuOpen,
+                    onExpandedChange = { permMenuOpen = it },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    PermissionRungs.forEach { (level, res) ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(res), color = tokens.cardForeground) },
+                            onClick = {
+                                minLevel = level
+                                permMenuOpen = false
+                            },
+                        )
                     }
                 }
 
