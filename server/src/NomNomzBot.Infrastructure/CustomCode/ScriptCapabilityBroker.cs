@@ -8,20 +8,23 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Platform.Services;
 
 namespace NomNomzBot.Infrastructure.CustomCode;
 
 /// <summary>
 /// Per-tenant capability grant assembly (custom-code.md §3.2, catalogue §6.2). Deny-by-default: a script gets only
 /// the capabilities it declared, each validated against the catalogue (must exist, must not be <c>critical</c>, its
-/// feature-flag must be enabled for the channel). Any disallowed declared capability fails the whole grant
+/// gating feature must be enabled for the channel). Any disallowed declared capability fails the whole grant
 /// FORBIDDEN — fail-closed.
+///
+/// The gate is the per-channel <b>Custom Code</b> feature toggle (<see cref="IFeatureService"/>) — the one an
+/// owner flips on in Settings → Features. It is NOT a platform rollout <c>FeatureFlag</c>: gating on that
+/// (never-seeded) flag left the toggle inert and every script denied at run time regardless of the switch.
 /// </summary>
-public sealed class ScriptCapabilityBroker(IFeatureFlagService featureFlags)
-    : IScriptCapabilityBroker
+public sealed class ScriptCapabilityBroker(IFeatureService features) : IScriptCapabilityBroker
 {
     private const string FeatureGate = "custom_code";
 
@@ -86,9 +89,9 @@ public sealed class ScriptCapabilityBroker(IFeatureFlagService featureFlags)
                     "FORBIDDEN"
                 );
             if (
-                !await featureFlags.IsEnabledForAsync(
+                !await features.IsFeatureEnabledAsync(
+                    broadcasterId.ToString(),
                     descriptor.FeatureFlagKey,
-                    broadcasterId,
                     cancellationToken
                 )
             )

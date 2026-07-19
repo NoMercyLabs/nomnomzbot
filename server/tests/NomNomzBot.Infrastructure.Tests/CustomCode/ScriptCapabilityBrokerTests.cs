@@ -9,9 +9,9 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Infrastructure.CustomCode;
 using NSubstitute;
 
@@ -28,11 +28,17 @@ public sealed class ScriptCapabilityBrokerTests
 
     private static ScriptCapabilityBroker Build(bool featureEnabled = true)
     {
-        IFeatureFlagService featureFlags = Substitute.For<IFeatureFlagService>();
-        featureFlags
-            .IsEnabledForAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        // The broker gates on the per-channel Custom Code feature toggle (IFeatureService), NOT a platform
+        // rollout FeatureFlag — the switch an owner actually flips must be the one that admits scripts.
+        IFeatureService features = Substitute.For<IFeatureService>();
+        features
+            .IsFeatureEnabledAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(featureEnabled);
-        return new ScriptCapabilityBroker(featureFlags);
+        return new ScriptCapabilityBroker(features);
     }
 
     [Fact]

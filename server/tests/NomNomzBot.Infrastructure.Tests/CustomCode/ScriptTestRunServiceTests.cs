@@ -11,9 +11,9 @@
 using FluentAssertions;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Auth;
-using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
@@ -40,11 +40,15 @@ public sealed class ScriptTestRunServiceTests
         ICurrentTenantService tenant = Substitute.For<ICurrentTenantService>();
         tenant.BroadcasterId.Returns(Channel);
 
-        IFeatureFlagService flags = Substitute.For<IFeatureFlagService>();
-        flags
-            .IsEnabledForAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        IFeatureService features = Substitute.For<IFeatureService>();
+        features
+            .IsFeatureEnabledAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(flagsEnabled);
-        ScriptCapabilityBroker broker = new(flags);
+        ScriptCapabilityBroker broker = new(features);
 
         ScriptStorageService storage = new(db);
         ScriptHostBridgeFactory bridgeFactory = new(
