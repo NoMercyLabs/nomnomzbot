@@ -127,9 +127,17 @@ class LiveOpsController(
         }
     }
 
-    suspend fun cancelRaid() {
-        val ch: String = channelId ?: return
-        liveOpsApi.cancelRaid(ch)
+    /** Cancel the pending raid. Returns true on success; a failure surfaces on [LiveOpsState.Ready.actionError]
+     * so the UI keeps the Cancel affordance up instead of falsely implying the raid was stopped. */
+    suspend fun cancelRaid(): Boolean {
+        val ch: String = channelId ?: return false
+        return when (val r: ApiResult<Unit> = liveOpsApi.cancelRaid(ch)) {
+            is ApiResult.Ok -> true
+            is ApiResult.Failure -> {
+                setActionError(r.error.message)
+                false
+            }
+        }
     }
 
     suspend fun createClip(): LiveOpsClipStub? {

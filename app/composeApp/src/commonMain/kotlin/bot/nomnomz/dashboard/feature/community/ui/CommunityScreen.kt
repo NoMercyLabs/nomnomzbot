@@ -285,14 +285,18 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
             },
             onExport = {
                 scope.launch {
-                    controller.exportUserData(target.id)
-                    statsTarget = null
+                    // Close only on success; a failed export keeps the dialog open with the error instead of
+                    // silently vanishing as if it worked.
+                    val err: String? = controller.exportUserData(target.id)
+                    if (err == null) statsTarget = null else viewerDataError = err
                 }
             },
             onErase = {
                 scope.launch {
-                    controller.eraseUserData(target.id)
-                    statsTarget = null
+                    // Erase is IRREVERSIBLE — a failure must never read as success. Surface it and keep the
+                    // dialog open; only close when the erase actually completed.
+                    val err: String? = controller.eraseUserData(target.id)
+                    if (err == null) statsTarget = null else viewerDataError = err
                 }
             },
             onDismiss = { statsTarget = null },

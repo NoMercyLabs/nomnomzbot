@@ -69,13 +69,15 @@ class ChatPollsController(
      * [durationSeconds] and announcing it in chat ([announce]). Reloads on success; a failure (e.g. a poll
      * already open → 409) surfaces on the Ready state without dropping the current polls.
      */
+    /** Returns true when the poll opened; false (with the error surfaced on Ready) otherwise, so the form
+     * can keep the operator's typed question/options on a failed open instead of wiping them. */
     suspend fun open(
         question: String,
         options: List<String>,
         durationSeconds: Int?,
         announce: Boolean,
-    ) {
-        val channel: String = channelId ?: return
+    ): Boolean {
+        val channel: String = channelId ?: return false
         val cleanOptions: List<String> = options.map { it.trim() }.filter { it.isNotEmpty() }
         val request = OpenChatPollRequest(
             question = question.trim(),
@@ -83,9 +85,15 @@ class ChatPollsController(
             durationSeconds = durationSeconds,
             announce = announce,
         )
-        when (val result: ApiResult<ChatPoll> = chatPollsApi.open(channel, request)) {
-            is ApiResult.Ok -> load()
-            is ApiResult.Failure -> surfaceError(result.error.message)
+        return when (val result: ApiResult<ChatPoll> = chatPollsApi.open(channel, request)) {
+            is ApiResult.Ok -> {
+                load()
+                true
+            }
+            is ApiResult.Failure -> {
+                surfaceError(result.error.message)
+                false
+            }
         }
     }
 

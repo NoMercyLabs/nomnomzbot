@@ -130,7 +130,7 @@ fun ChatPollsCard(controller: ChatPollsController, modifier: Modifier = Modifier
                 } else {
                     NewPollForm(
                         onOpen = { question, options, duration, announce ->
-                            scope.launch { controller.open(question, options, duration, announce) }
+                            controller.open(question, options, duration, announce)
                         },
                     )
                 }
@@ -233,11 +233,12 @@ private fun PollOptionBar(option: ChatPollOption, maxVotes: Int) {
 // The new-poll form: question, a dynamic 2–10 option list, an optional auto-close duration, an announce toggle.
 @Composable
 private fun NewPollForm(
-    onOpen: (question: String, options: List<String>, durationSeconds: Int?, announce: Boolean) -> Unit,
+    onOpen: suspend (question: String, options: List<String>, durationSeconds: Int?, announce: Boolean) -> Boolean,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
 
     var question: String by remember { mutableStateOf("") }
     var options: List<String> by remember { mutableStateOf(listOf("", "")) }
@@ -310,11 +311,18 @@ private fun NewPollForm(
         }
         Button(
             onClick = {
-                onOpen(question, options, durationText.toIntOrNull()?.takeIf { it > 0 }, announce)
-                question = ""
-                options = listOf("", "")
-                durationText = ""
-                announce = true
+                scope.launch {
+                    // Reset the form only after a successful open — a failed open (e.g. 409 "a poll is already
+                    // open") keeps the typed question/options so the operator doesn't lose their work.
+                    val opened: Boolean =
+                        onOpen(question, options, durationText.toIntOrNull()?.takeIf { it > 0 }, announce)
+                    if (opened) {
+                        question = ""
+                        options = listOf("", "")
+                        durationText = ""
+                        announce = true
+                    }
+                }
             },
             enabled = canOpen,
         ) {

@@ -276,6 +276,7 @@
     <string name="home_live_ops_start_raid">Raid…</string>
     <string name="home_live_ops_cancel_raid">Cancel Raid</string>
     <string name="home_live_ops_create_clip">Create Clip</string>
+    <string name="home_live_ops_clip_done">Clip created — trim and publish it at</string>
     <string name="home_live_ops_mark_moment">Mark moment</string>
     <string name="home_live_ops_mark_moment_done">Moment marked — it\'s bookmarked in your VOD.</string>
     <string name="home_live_ops_mark_moment_failed">Couldn\'t add the marker.</string>

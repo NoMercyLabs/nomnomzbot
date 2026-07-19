@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Spacer
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
@@ -83,6 +84,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.DashboardStats
+import bot.nomnomz.dashboard.core.network.LiveOpsClipStub
 import bot.nomnomz.dashboard.core.network.LiveOpsMarker
 import bot.nomnomz.dashboard.core.network.LiveOpsPoll
 import bot.nomnomz.dashboard.core.network.LiveOpsPrediction
@@ -127,6 +129,7 @@ import nomnomzbot.composeapp.generated.resources.home_live_ops_cancel_prediction
 import nomnomzbot.composeapp.generated.resources.home_live_ops_cancel_raid
 import nomnomzbot.composeapp.generated.resources.home_live_ops_commercial_confirm
 import nomnomzbot.composeapp.generated.resources.home_live_ops_commercial_length_label
+import nomnomzbot.composeapp.generated.resources.home_live_ops_clip_done
 import nomnomzbot.composeapp.generated.resources.home_live_ops_create_clip
 import nomnomzbot.composeapp.generated.resources.home_live_ops_create_poll
 import nomnomzbot.composeapp.generated.resources.home_live_ops_create_prediction
@@ -273,6 +276,7 @@ private fun ReadyContent(
     // Resolved at composition (stringResource is @Composable) so the mark-moment coroutine can set the notice.
     val markSuccessMsg: String = stringResource(Res.string.home_live_ops_mark_moment_done)
     val markFailMsg: String = stringResource(Res.string.home_live_ops_mark_moment_failed)
+    val clipDonePrefix: String = stringResource(Res.string.home_live_ops_clip_done)
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
@@ -308,7 +312,12 @@ private fun ReadyContent(
                     manage = manage,
                     raidPending = raidPending,
                     onChangeTitle = { showChangeTitleDialog = true },
-                    onCreateClip = { scope.launch { liveOpsController.createClip() } },
+                    onCreateClip = {
+                        scope.launch {
+                            val clip: LiveOpsClipStub? = liveOpsController.createClip()
+                            if (clip != null) markerNotice = "$clipDonePrefix ${clip.editUrl}"
+                        }
+                    },
                     onMarkMoment = {
                         scope.launch {
                             val marker: LiveOpsMarker? = liveOpsController.createMarker(null)
@@ -329,13 +338,21 @@ private fun ReadyContent(
                     onStartRaid = { showRaidDialog = true },
                     onCancelRaid = {
                         scope.launch {
-                            liveOpsController.cancelRaid()
-                            raidPending = false
+                            // Only drop the Cancel affordance if the cancel actually succeeded — a failed cancel
+                            // surfaces on actionError below and keeps the button up (the raid is still pending).
+                            if (liveOpsController.cancelRaid()) raidPending = false
                         }
                     },
                     onStartCommercial = { showCommercialDialog = true },
                     onSnoozeAd = { scope.launch { liveOpsController.snoozeNextAd() } },
                 )
+
+                // Every live-ops quick action records a failure on ready.actionError (non-affiliate 403, channel
+                // not live, etc.); render it here so a failed poll/prediction/raid/commercial/clip is never a
+                // silent no-op that reads as a dead button.
+                ready?.actionError?.let { error ->
+                    ActionErrorBanner(message = error)
+                }
 
                 markerNotice?.let { notice ->
                     Text(
