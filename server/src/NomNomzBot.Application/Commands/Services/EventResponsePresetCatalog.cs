@@ -67,6 +67,43 @@ public static class EventResponsePresetCatalog
             "{user} redeemed {reward}!",
             ["user", "user.id", "reward", "reward.id", "redemption.id", "cost", "input"]
         ),
+        // Reward state transitions — derived by RewardLifecycleHandler from the custom-reward.update feed
+        // (old locally-synced state vs the incoming Twitch state; only actual flips fire).
+        new(
+            "reward.paused",
+            "{reward} is paused for now — redemptions are on hold.",
+            ["reward", "reward.id", "cost"]
+        ),
+        new("reward.resumed", "{reward} is back — redeem away!", ["reward", "reward.id", "cost"]),
+        new(
+            "reward.enabled",
+            "{reward} is now available for {cost} points!",
+            ["reward", "reward.id", "cost"]
+        ),
+        new("reward.disabled", "{reward} has been retired.", ["reward", "reward.id", "cost"]),
+        // Ad breaks — {user} is the requester (empty on an automatic break).
+        new(
+            "channel.ad_break.begin",
+            "Ads incoming for {ad.duration} seconds — perfect stretch break!",
+            ["user", "user.id", "ad.duration", "ad.automatic"]
+        ),
+        // Moderation notices — channel.ban covers bans AND timeouts ({duration} = "permanent" or seconds).
+        new(
+            "channel.ban",
+            "{user} was shown the door by {moderator} ({duration}).",
+            ["user", "user.id", "moderator", "reason", "duration"]
+        ),
+        new(
+            "channel.unban",
+            "{user} has been unbanned — welcome back.",
+            ["user", "user.id", "moderator"]
+        ),
+        // Outgoing raid (channel.moderate's raid action) — {user} names the TARGET channel being raided.
+        new(
+            "channel.raid.out",
+            "We're raiding {user} with {viewers} viewers — bring the hype!",
+            ["user", "user.id", "user.name", "viewers"]
+        ),
         new(
             "stream.online",
             "We're live: {title} — playing {game}!",
@@ -97,6 +134,9 @@ public static class EventResponsePresetCatalog
             "Welcome in, {user}!",
             ["user", "user.id", "viewer.name"]
         ),
+        // NO engagement.modiversary: Twitch exposes no mod-anniversary signal anywhere — it is not among
+        // channel.chat.notification's notice types and Helix Get Moderators carries no granted-at date, so
+        // there is no truthful data to fire it from. Deliberately absent rather than faked.
         new(
             "supporter.tip",
             "{user} tipped {supporter.amount} {supporter.currency} — thank you!",

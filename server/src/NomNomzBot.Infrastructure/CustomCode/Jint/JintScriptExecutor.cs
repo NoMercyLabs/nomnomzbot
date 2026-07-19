@@ -141,7 +141,12 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     list: function (prefix) { var r = prefix === undefined ? bot.call('storage.list') : bot.call('storage.list', String(prefix)); return r ? JSON.parse(r) : []; }
                 },
                 tts: {
-                    speak: function (text, voiceId) { var r = voiceId === undefined ? bot.call('tts.speak', String(text)) : bot.call('tts.speak', String(text), String(voiceId)); return r ? JSON.parse(r) : null; }
+                    speak: function (text, voiceId) { var r = voiceId === undefined ? bot.call('tts.speak', String(text)) : bot.call('tts.speak', String(text), String(voiceId)); return r ? JSON.parse(r) : null; },
+                    getVoice: function (userIdOrLogin) { var r = bot.call('tts.voice.get', String(userIdOrLogin)); return r ? JSON.parse(r) : null; },
+                    setVoice: function (userIdOrLogin, voiceId) { return bot.call('tts.voice.set', String(userIdOrLogin), voiceId === undefined ? '' : String(voiceId)) === 'ok'; }
+                },
+                stats: {
+                    viewer: function (userIdOrLogin) { var r = userIdOrLogin === undefined ? bot.call('stats.viewer') : bot.call('stats.viewer', String(userIdOrLogin)); return r ? JSON.parse(r) : null; }
                 },
                 widget: {
                     emit: function (widget, eventType, data) { var r = data === undefined ? bot.call('widget.emit', String(widget), String(eventType)) : bot.call('widget.emit', String(widget), String(eventType), JSON.stringify(data)); return r === 'ok'; }
@@ -210,6 +215,9 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         ["storage.delete"] = "storage.delete",
         ["storage.list"] = "storage.list",
         ["tts.speak"] = "tts.speak",
+        ["tts.getVoice"] = "tts.voice.get",
+        ["tts.setVoice"] = "tts.voice.set",
+        ["stats.viewer"] = "stats.viewer",
         ["widget.emit"] = "widget.emit",
         ["reward.get"] = "reward.get",
         ["reward.update"] = "reward.update",

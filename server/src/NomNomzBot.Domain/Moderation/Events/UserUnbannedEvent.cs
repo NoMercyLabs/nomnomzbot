@@ -15,5 +15,12 @@ namespace NomNomzBot.Domain.Moderation.Events;
 public sealed class UserUnbannedEvent : DomainEventBase
 {
     public required string TargetUserId { get; init; }
+
+    /// <summary>The unbanned viewer's display name (<c>user_name</c>); null on non-Twitch ingests.</summary>
+    public string? TargetDisplayName { get; init; }
+
     public required string ModeratorUserId { get; init; }
+
+    /// <summary>The acting moderator's display name (<c>moderator_user_name</c>); null on non-Twitch ingests.</summary>
+    public string? ModeratorDisplayName { get; init; }
 }

@@ -87,6 +87,9 @@ public sealed class ModerationTranslatorsTests
         published.TargetUserId.Should().Be("1234");
         published.TargetDisplayName.Should().Be("Cool_User");
         published.ModeratorUserId.Should().Be("mod-1");
+        published
+            .ModeratorDisplayName.Should()
+            .Be("Mod_One", "the channel.ban notice's {moderator} variable needs the display name");
         published.Reason.Should().Be("spamming");
         published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
@@ -150,7 +153,8 @@ public sealed class ModerationTranslatorsTests
                     "user_id": "1234",
                     "user_login": "cool_user",
                     "user_name": "Cool_User",
-                    "moderator_user_id": "mod-1"
+                    "moderator_user_id": "mod-1",
+                    "moderator_user_name": "Mod_One"
                 }
                 """
             )
@@ -162,7 +166,9 @@ public sealed class ModerationTranslatorsTests
             .Subject;
         published.BroadcasterId.Should().Be(tenant);
         published.TargetUserId.Should().Be("1234");
+        published.TargetDisplayName.Should().Be("Cool_User");
         published.ModeratorUserId.Should().Be("mod-1");
+        published.ModeratorDisplayName.Should().Be("Mod_One");
         published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 

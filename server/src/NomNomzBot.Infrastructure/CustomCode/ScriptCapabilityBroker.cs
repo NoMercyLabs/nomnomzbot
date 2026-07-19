@@ -50,6 +50,12 @@ public sealed class ScriptCapabilityBroker(IFeatureFlagService featureFlags)
         // Channel-point reward read + patch; update mutates the reward on Twitch via Helix → tos tier.
         new("reward.get", "low", FeatureGate, SideEffecting: false),
         new("reward.update", "tos", FeatureGate, SideEffecting: true),
+        // Per-viewer M.1 analytics snapshot (same profile source the {viewer.*} template stats read).
+        new("stats.viewer", "low", FeatureGate, SideEffecting: false),
+        // Per-viewer TTS voice assignment (the !voice self-service surface) — set validates against the
+        // voice catalogue and stays tenant-scoped; side-effecting low, no Twitch surface.
+        new("tts.voice.get", "low", FeatureGate, SideEffecting: false),
+        new("tts.voice.set", "low", FeatureGate, SideEffecting: true),
     ];
 
     public IReadOnlyList<ScriptCapabilityDescriptor> Catalog => CatalogEntries;

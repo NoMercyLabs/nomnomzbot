@@ -7524,6 +7524,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<bool>("IsManageable")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsPaused")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsPlatform")
                         .HasColumnType("boolean");
 

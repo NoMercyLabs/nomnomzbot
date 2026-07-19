@@ -19,6 +19,9 @@ public sealed class RewardCreatedEvent : DomainEventBase
     public required string Title { get; init; }
     public required int Cost { get; init; }
     public required bool IsEnabled { get; init; }
+
+    /// <summary>Twitch's <c>is_paused</c> flag (redemptions temporarily off while the reward stays listed).</summary>
+    public bool IsPaused { get; init; }
 }
 
 /// <summary>Published when a custom channel point reward is updated on Twitch.</summary>
@@ -28,6 +31,10 @@ public sealed class RewardUpdatedEvent : DomainEventBase
     public required string Title { get; init; }
     public required int Cost { get; init; }
     public required bool IsEnabled { get; init; }
+
+    /// <summary>Twitch's <c>is_paused</c> flag — compared against the locally-synced state to derive the
+    /// <c>reward.paused</c>/<c>reward.resumed</c> event-response transitions.</summary>
+    public bool IsPaused { get; init; }
 }
 
 /// <summary>Published when a custom channel point reward is removed from Twitch.</summary>

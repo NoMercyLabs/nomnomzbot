@@ -78,6 +78,23 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  prompt?: string;");
         sb.AppendLine("  isEnabled?: boolean;");
         sb.AppendLine("  isPaused?: boolean;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine(
+            "/** A viewer's channel stats as nnz.api.stats.viewer returns them (zeros for a never-seen viewer). */"
+        );
+        sb.AppendLine("interface NnzApiViewerStats {");
+        sb.AppendLine("  messages: number;");
+        sb.AppendLine("  watchtimeSeconds: number;");
+        sb.AppendLine("  firstSeen: string | null;");
+        sb.AppendLine("  redemptions: number;");
+        sb.AppendLine("  songRequests: number;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/** A viewer's assigned TTS voice as nnz.api.tts.getVoice returns it. */");
+        sb.AppendLine("interface NnzApiTtsVoice {");
+        sb.AppendLine("  voiceId: string;");
+        sb.AppendLine("  displayName: string;");
         sb.Append('}');
         return sb.ToString();
     }
@@ -162,11 +179,15 @@ internal static class SdkRuntimeSurface
                 "    storage: { get(key: string): string | null; set(key: string, value: string): boolean; delete(key: string): boolean; list(prefix?: string): string[] };"
             );
             sb.AppendLine(
-                "    /** Speak text on the channel's TTS overlay; null when the channel's TTS gate refuses. */"
+                "    /** Speak text on the overlay; read/assign a viewer's per-channel voice (setVoice with no voiceId clears to the channel default). */"
             );
             sb.AppendLine(
-                "    tts: { speak(text: string, voiceId?: string): NnzApiTtsResult | null };"
+                "    tts: { speak(text: string, voiceId?: string): NnzApiTtsResult | null; getVoice(userIdOrLogin: string): NnzApiTtsVoice | null; setVoice(userIdOrLogin: string, voiceId?: string): boolean };"
             );
+            sb.AppendLine(
+                "    /** A viewer's channel stats (messages/watchtime/first-seen/redemptions/song requests); the triggering user when no arg. */"
+            );
+            sb.AppendLine("    stats: { viewer(userIdOrLogin?: string): NnzApiViewerStats };");
             sb.AppendLine(
                 "    /** Push an event to one of this channel's enabled widgets (by id or name). */"
             );

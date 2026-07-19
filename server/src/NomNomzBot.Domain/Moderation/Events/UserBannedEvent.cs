@@ -17,5 +17,9 @@ public sealed class UserBannedEvent : DomainEventBase
     public required string TargetUserId { get; init; }
     public required string TargetDisplayName { get; init; }
     public required string ModeratorUserId { get; init; }
+
+    /// <summary>The acting moderator's display name (<c>moderator_user_name</c>); null on non-Twitch ingests.</summary>
+    public string? ModeratorDisplayName { get; init; }
+
     public string? Reason { get; init; }
 }

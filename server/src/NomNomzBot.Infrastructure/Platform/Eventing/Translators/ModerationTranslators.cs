@@ -37,6 +37,7 @@ public sealed class ChannelBanTranslator(IEventBus bus, TimeProvider clock)
         string targetUserId = payload.GetRequiredString("user_id");
         string targetDisplayName = payload.GetRequiredString("user_name");
         string moderatorUserId = payload.GetRequiredString("moderator_user_id");
+        string? moderatorDisplayName = payload.GetString("moderator_user_name");
         string? reason = payload.GetString("reason");
 
         if (payload.GetBool("is_permanent"))
@@ -48,6 +49,7 @@ public sealed class ChannelBanTranslator(IEventBus bus, TimeProvider clock)
                 TargetUserId = targetUserId,
                 TargetDisplayName = targetDisplayName,
                 ModeratorUserId = moderatorUserId,
+                ModeratorDisplayName = moderatorDisplayName,
                 Reason = reason,
             };
 
@@ -66,6 +68,7 @@ public sealed class ChannelBanTranslator(IEventBus bus, TimeProvider clock)
             TargetUserId = targetUserId,
             TargetDisplayName = targetDisplayName,
             ModeratorUserId = moderatorUserId,
+            ModeratorDisplayName = moderatorDisplayName,
             DurationSeconds = durationSeconds,
             Reason = reason,
         };
@@ -76,7 +79,7 @@ public sealed class ChannelBanTranslator(IEventBus bus, TimeProvider clock)
 
 /// <summary>
 /// Translates <c>channel.unban</c> into <see cref="UserUnbannedEvent"/>. Payload fields: <c>user_id</c>,
-/// <c>moderator_user_id</c>.
+/// <c>user_name</c>, <c>moderator_user_id</c>, <c>moderator_user_name</c>.
 /// </summary>
 public sealed class ChannelUnbanTranslator(IEventBus bus, TimeProvider clock)
     : EventSubEventTranslator(bus, clock)
@@ -94,7 +97,9 @@ public sealed class ChannelUnbanTranslator(IEventBus bus, TimeProvider clock)
             BroadcasterId = notification.BroadcasterId,
             OccurredAt = Clock.GetUtcNow(),
             TargetUserId = payload.GetRequiredString("user_id"),
+            TargetDisplayName = payload.GetString("user_name"),
             ModeratorUserId = payload.GetRequiredString("moderator_user_id"),
+            ModeratorDisplayName = payload.GetString("moderator_user_name"),
         };
 
         return PublishAsync(unbanned, ct);

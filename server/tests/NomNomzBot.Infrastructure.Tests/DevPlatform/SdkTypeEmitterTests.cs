@@ -218,7 +218,10 @@ public sealed class SdkTypeEmitterTests
                 "storage: { get(key: string): string | null; set(key: string, value: string): boolean; delete(key: string): boolean; list(prefix?: string): string[] };"
             );
         ts.Should()
-            .Contain("tts: { speak(text: string, voiceId?: string): NnzApiTtsResult | null };");
+            .Contain(
+                "tts: { speak(text: string, voiceId?: string): NnzApiTtsResult | null; getVoice(userIdOrLogin: string): NnzApiTtsVoice | null; setVoice(userIdOrLogin: string, voiceId?: string): boolean };"
+            );
+        ts.Should().Contain("stats: { viewer(userIdOrLogin?: string): NnzApiViewerStats };");
         ts.Should()
             .Contain(
                 "widget: { emit(widgetIdOrName: string, eventType: string, data?: unknown): boolean };"
@@ -228,6 +231,8 @@ public sealed class SdkTypeEmitterTests
                 "reward: { get(rewardIdOrTitle: string): NnzApiReward | null; update(rewardIdOrTitle: string, patch: NnzApiRewardPatch): boolean };"
             );
         ts.Should().Contain("interface NnzApiTtsResult {");
+        ts.Should().Contain("interface NnzApiTtsVoice {");
+        ts.Should().Contain("interface NnzApiViewerStats {");
         ts.Should().Contain("interface NnzApiReward {");
         ts.Should().Contain("interface NnzApiRewardPatch {");
     }
@@ -249,6 +254,7 @@ public sealed class SdkTypeEmitterTests
         ts.Should().NotContain("queue(uri: string): boolean");
         ts.Should().NotContain("storage: {");
         ts.Should().NotContain("tts: {");
+        ts.Should().NotContain("stats: {");
         ts.Should().NotContain("widget: {");
         ts.Should().NotContain("reward: {");
     }

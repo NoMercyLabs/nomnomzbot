@@ -132,6 +132,42 @@ public sealed class ScriptCapabilityBrokerTests
     }
 
     [Fact]
+    public async Task The_stats_and_voice_capabilities_are_catalogued_and_grantable()
+    {
+        ScriptCapabilityBroker sut = Build(featureEnabled: true);
+
+        Result<ScriptCapabilityGrant> result = await sut.BuildGrantAsync(
+            Channel,
+            ["stats.viewer", "tts.voice.get", "tts.voice.set"]
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result
+            .Value.Granted.Select(g => g.Key)
+            .Should()
+            .BeEquivalentTo("stats.viewer", "tts.voice.get", "tts.voice.set");
+        // Reads are read-only; the voice assignment is the side-effecting low-tier write (no Twitch surface).
+        sut.Catalog.Single(c => c.Key == "stats.viewer").SideEffecting.Should().BeFalse();
+        sut.Catalog.Single(c => c.Key == "tts.voice.get").SideEffecting.Should().BeFalse();
+        sut.Catalog.Single(c => c.Key == "tts.voice.set").SideEffecting.Should().BeTrue();
+        sut.Catalog.Single(c => c.Key == "tts.voice.set").FloorTier.Should().Be("low");
+    }
+
+    [Fact]
+    public async Task An_undeclared_stats_lookalike_key_is_denied_at_grant_time()
+    {
+        ScriptCapabilityBroker sut = Build(featureEnabled: true);
+
+        // Not in the catalogue (only stats.viewer is) — the whole grant fails closed.
+        Result<ScriptCapabilityGrant> result = await sut.BuildGrantAsync(
+            Channel,
+            ["stats.viewer", "stats.channel"]
+        );
+
+        result.ErrorCode.Should().Be("FORBIDDEN");
+    }
+
+    [Fact]
     public async Task An_undeclared_lookalike_key_is_still_denied_at_grant_time()
     {
         ScriptCapabilityBroker sut = Build(featureEnabled: true);

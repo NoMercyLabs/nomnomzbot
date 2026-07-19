@@ -251,6 +251,38 @@ public sealed class ChannelPointsTranslatorsTests
     }
 
     [Fact]
+    public async Task RewardUpdate_CarriesThePausedFlag()
+    {
+        CapturingEventBus bus = new();
+        ChannelPointsRewardUpdateTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                Guid.NewGuid(),
+                "channel.channel_points_custom_reward.update",
+                "1",
+                """
+                {
+                    "id": "9001",
+                    "is_enabled": true,
+                    "is_paused": true,
+                    "title": "Cool Reward",
+                    "cost": 100
+                }
+                """
+            )
+        );
+
+        RewardUpdatedEvent published = bus.EventsOf<RewardUpdatedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        // The paused flag is what the reward.paused/reward.resumed transition source keys on.
+        published.IsPaused.Should().BeTrue("Twitch paused the reward in this update");
+        published.IsEnabled.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task RewardRemove_PublishesRewardRemovedEvent()
     {
         Guid tenant = Guid.NewGuid();

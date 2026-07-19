@@ -12,12 +12,14 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Rewards.Services;
+using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.CustomCode.Entities;
@@ -47,6 +49,8 @@ public sealed class ScriptRunner(
     IWidgetService widgetService,
     IWidgetEventNotifier widgetNotifier,
     IRewardService rewardService,
+    IViewerAnalyticsService viewerAnalytics,
+    ITtsConfigService ttsConfig,
     TimeProvider clock
 ) : IScriptRunner
 {
@@ -145,7 +149,10 @@ public sealed class ScriptRunner(
             ttsDispatch,
             widgetService,
             widgetNotifier,
-            rewardService
+            rewardService,
+            viewerAnalytics,
+            ttsConfig,
+            db
         );
         Result<ScriptExecutionOutcomeResult> executed = await executor.ExecuteAsync(
             request,

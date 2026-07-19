@@ -12,6 +12,7 @@ using System.Text.Json;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Stream.Events;
 
 namespace NomNomzBot.Infrastructure.Platform.Eventing.Translators;
 
@@ -32,7 +33,7 @@ public sealed class ChannelModerateTranslator(IEventBus bus, TimeProvider clock)
 {
     public override string SubscriptionType => "channel.moderate";
 
-    public override Task TranslateAsync(
+    public override async Task TranslateAsync(
         EventSubNotification notification,
         CancellationToken ct = default
     )
@@ -56,6 +57,23 @@ public sealed class ChannelModerateTranslator(IEventBus bus, TimeProvider clock)
             Reason = detail?.GetString("reason"),
         };
 
-        return PublishAsync(moderated, ct);
+        await PublishAsync(moderated, ct);
+
+        // The `raid` action is the ONE observable signal for an OUTGOING raid (the channel.raid subscription is
+        // to_broadcaster-keyed, incoming only): its detail names the raided channel + the viewer count. Split it
+        // into the dedicated OutgoingRaidEvent so channel.raid.out responses fire alongside the generic feed.
+        if (action == "raid" && detail is { } raid)
+        {
+            OutgoingRaidEvent outgoing = new()
+            {
+                BroadcasterId = notification.BroadcasterId,
+                OccurredAt = Clock.GetUtcNow(),
+                ToUserId = raid.GetRequiredString("user_id"),
+                ToDisplayName = raid.GetRequiredString("user_name"),
+                ToLogin = raid.GetRequiredString("user_login"),
+                ViewerCount = raid.GetInt("viewer_count"),
+            };
+            await PublishAsync(outgoing, ct);
+        }
     }
 }

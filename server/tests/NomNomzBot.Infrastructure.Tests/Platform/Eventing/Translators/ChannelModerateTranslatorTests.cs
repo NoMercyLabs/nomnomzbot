@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
 using NomNomzBot.Domain.Moderation.Events;
+using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Platform.Eventing.Translators;
 using NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix;
 
@@ -167,5 +168,80 @@ public sealed class ChannelModerateTranslatorTests
             .TargetUserId.Should()
             .BeEmpty("a settings-only action has no action-named target object");
         published.Reason.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ChannelModerate_RaidAction_AlsoPublishesTheOutgoingRaidEvent()
+    {
+        Guid tenant = Guid.NewGuid();
+        CapturingEventBus bus = new();
+        ChannelModerateTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                tenant,
+                """
+                {
+                    "broadcaster_user_id": "423374343",
+                    "moderator_user_id": "423374343",
+                    "action": "raid",
+                    "ban": null,
+                    "raid": {
+                        "user_id": "141981764",
+                        "user_login": "twitchdev",
+                        "user_name": "TwitchDev",
+                        "viewer_count": 42
+                    }
+                }
+                """
+            )
+        );
+
+        // The generic moderation feed still fires…
+        bus.EventsOf<ModerationActionTakenEvent>()
+            .Should()
+            .ContainSingle()
+            .Which.ActionType.Should()
+            .Be("raid");
+        // …AND the outgoing-raid split carries the target + viewer count (channel.raid is incoming-only,
+        // so this is the ONE truthful source for channel.raid.out).
+        OutgoingRaidEvent outgoing = bus.EventsOf<OutgoingRaidEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        outgoing.BroadcasterId.Should().Be(tenant);
+        outgoing.ToUserId.Should().Be("141981764");
+        outgoing.ToLogin.Should().Be("twitchdev");
+        outgoing.ToDisplayName.Should().Be("TwitchDev");
+        outgoing.ViewerCount.Should().Be(42);
+    }
+
+    [Fact]
+    public async Task ChannelModerate_UnraidAction_DoesNotPublishAnOutgoingRaid()
+    {
+        Guid tenant = Guid.NewGuid();
+        CapturingEventBus bus = new();
+        ChannelModerateTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                tenant,
+                """
+                {
+                    "broadcaster_user_id": "423374343",
+                    "moderator_user_id": "423374343",
+                    "action": "unraid",
+                    "unraid": {
+                        "user_id": "141981764",
+                        "user_login": "twitchdev",
+                        "user_name": "TwitchDev"
+                    }
+                }
+                """
+            )
+        );
+
+        bus.EventsOf<ModerationActionTakenEvent>().Should().ContainSingle();
+        bus.EventsOf<OutgoingRaidEvent>().Should().BeEmpty("cancelling a raid is not raiding out");
     }
 }

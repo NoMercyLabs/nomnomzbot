@@ -11,7 +11,9 @@
 using System.Net;
 using FluentAssertions;
 using Newtonsoft.Json.Linq;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Economy.Services;
@@ -20,6 +22,8 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
+using NomNomzBot.Application.Tts.Dtos;
+using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
@@ -50,7 +54,10 @@ public sealed class ScriptHostBridgeTests
         ITtsDispatchService? tts = null,
         IWidgetService? widgets = null,
         IWidgetEventNotifier? overlay = null,
-        IRewardService? rewards = null
+        IRewardService? rewards = null,
+        IViewerAnalyticsService? analytics = null,
+        ITtsConfigService? ttsConfig = null,
+        IApplicationDbContext? db = null
     ) =>
         BuildFor(
             Channel,
@@ -63,7 +70,10 @@ public sealed class ScriptHostBridgeTests
             tts,
             widgets,
             overlay,
-            rewards
+            rewards,
+            analytics,
+            ttsConfig,
+            db
         );
 
     // Same wiring, but bound to an arbitrary tenant — the tenant-isolation tests need a channel-B bridge.
@@ -78,7 +88,10 @@ public sealed class ScriptHostBridgeTests
         ITtsDispatchService? tts = null,
         IWidgetService? widgets = null,
         IWidgetEventNotifier? overlay = null,
-        IRewardService? rewards = null
+        IRewardService? rewards = null,
+        IViewerAnalyticsService? analytics = null,
+        ITtsConfigService? ttsConfig = null,
+        IApplicationDbContext? db = null
     ) =>
         new(
             channel,
@@ -92,7 +105,10 @@ public sealed class ScriptHostBridgeTests
             tts ?? Substitute.For<ITtsDispatchService>(),
             widgets ?? Substitute.For<IWidgetService>(),
             overlay ?? Substitute.For<IWidgetEventNotifier>(),
-            rewards ?? Substitute.For<IRewardService>()
+            rewards ?? Substitute.For<IRewardService>(),
+            analytics ?? Substitute.For<IViewerAnalyticsService>(),
+            ttsConfig ?? Substitute.For<ITtsConfigService>(),
+            db ?? AuthTestBuilder.NewContext()
         );
 
     private sealed class StubHandler(string body) : HttpMessageHandler
@@ -745,5 +761,295 @@ public sealed class ScriptHostBridgeTests
             .Should()
             .BeNull();
         await rewards.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default!, default!, default);
+    }
+
+    // ─── stats.viewer ─────────────────────────────────────────────────────────
+
+    private static async Task<AuthDbContext> SeedViewerAsync(
+        Guid userId,
+        string login,
+        string twitchId
+    )
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Users.Add(
+            new NomNomzBot.Domain.Identity.Entities.User
+            {
+                Id = userId,
+                Username = login,
+                UsernameNormalized = login.ToUpperInvariant(),
+                DisplayName = login,
+                TwitchUserId = twitchId,
+            }
+        );
+        await db.SaveChangesAsync();
+        return db;
+    }
+
+    [Fact]
+    public async Task Stats_viewer_resolves_a_login_and_returns_the_exact_profile_numbers()
+    {
+        Guid bamo = Guid.Parse("0192a000-0000-7000-8000-00000000e0b1");
+        AuthDbContext db = await SeedViewerAsync(bamo, "bamo", "555001");
+        IViewerAnalyticsService analytics = Substitute.For<IViewerAnalyticsService>();
+        analytics
+            .GetProfileAsync(Channel, bamo, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new ViewerProfileDto(
+                        ViewerUserId: bamo,
+                        ViewerTwitchUserId: "555001",
+                        DisplayName: "bamo",
+                        FirstSeenAt: new DateTime(2026, 1, 5),
+                        LastSeenAt: new DateTime(2026, 7, 1),
+                        TotalWatchSeconds: 7200,
+                        TotalMessages: 420,
+                        TotalCommandsUsed: 12,
+                        TotalRedemptions: 3,
+                        TotalSongRequests: 9,
+                        IsFollower: true,
+                        IsSubscriber: false,
+                        SubTier: null,
+                        IsAnalyticsOptedOut: false
+                    )
+                )
+            );
+
+        string? json = Build(analytics: analytics, db: db)
+            .Resolve("stats.viewer")("stats.viewer", ["bamo"], CancellationToken.None);
+
+        JObject stats = JObject.Parse(json!);
+        stats.Value<long>("messages").Should().Be(420);
+        stats.Value<long>("watchtimeSeconds").Should().Be(7200);
+        stats.Value<string?>("firstSeen").Should().Be("2026-01-05");
+        stats.Value<long>("redemptions").Should().Be(3);
+        stats.Value<long>("songRequests").Should().Be(9);
+    }
+
+    [Fact]
+    public async Task Stats_viewer_defaults_to_the_triggering_user()
+    {
+        AuthDbContext db = await SeedViewerAsync(Viewer, "trigger", "555002");
+        IViewerAnalyticsService analytics = Substitute.For<IViewerAnalyticsService>();
+        analytics
+            .GetProfileAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<ViewerProfileDto>("never seen", "NOT_FOUND"));
+
+        Build(analytics: analytics, db: db)
+            .Resolve("stats.viewer")("stats.viewer", [], CancellationToken.None);
+
+        // The trigger user's Guid (host-supplied) is what reaches the analytics read — never a guest value.
+        await analytics.Received(1).GetProfileAsync(Channel, Viewer, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Stats_viewer_returns_honest_zeros_for_a_never_seen_viewer()
+    {
+        IViewerAnalyticsService analytics = Substitute.For<IViewerAnalyticsService>();
+
+        string? json = Build(analytics: analytics)
+            .Resolve("stats.viewer")("stats.viewer", ["ghost_viewer"], CancellationToken.None);
+
+        JObject stats = JObject.Parse(json!);
+        stats.Value<long>("messages").Should().Be(0);
+        stats.Value<long>("watchtimeSeconds").Should().Be(0);
+        stats["firstSeen"]!.Type.Should().Be(JTokenType.Null);
+        stats.Value<long>("redemptions").Should().Be(0);
+        stats.Value<long>("songRequests").Should().Be(0);
+        // No resolvable viewer → the analytics service is never asked (nothing to ask about).
+        await analytics.DidNotReceiveWithAnyArgs().GetProfileAsync(default, default, default);
+    }
+
+    // ─── tts.voice.get / tts.voice.set ────────────────────────────────────────
+
+    private static TtsVoiceDto Voice(string id, string displayName) =>
+        new(
+            Id: id,
+            Name: id,
+            DisplayName: displayName,
+            Locale: "en-GB",
+            Gender: "Female",
+            Provider: "azure",
+            IsDefault: false,
+            Accent: "british",
+            Age: null,
+            Styles: [],
+            Tags: [],
+            Description: null,
+            PreviewUrl: null
+        );
+
+    [Fact]
+    public async Task Tts_voice_get_returns_the_assignment_with_its_catalogue_display_name()
+    {
+        AuthDbContext db = await SeedViewerAsync(
+            Guid.Parse("0192a000-0000-7000-8000-00000000e0b2"),
+            "bamo",
+            "555003"
+        );
+        ITtsConfigService ttsConfig = Substitute.For<ITtsConfigService>();
+        ttsConfig
+            .GetUserVoiceAsync(Channel, "555003", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new UserTtsVoiceDto("555003", "en-GB-Sonia")));
+        ttsConfig
+            .SearchVoicesAsync(Arg.Any<TtsVoiceQuery>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new PagedList<TtsVoiceDto>([Voice("en-GB-Sonia", "Sonia (British)")], 1, 10, 1)
+                )
+            );
+
+        string? json = Build(ttsConfig: ttsConfig, db: db)
+            .Resolve("tts.voice.get")("tts.voice.get", ["bamo"], CancellationToken.None);
+
+        JObject voice = JObject.Parse(json!);
+        voice.Value<string>("voiceId").Should().Be("en-GB-Sonia");
+        voice.Value<string>("displayName").Should().Be("Sonia (British)");
+    }
+
+    [Fact]
+    public async Task Tts_voice_get_returns_null_when_the_viewer_uses_the_channel_default()
+    {
+        AuthDbContext db = await SeedViewerAsync(
+            Guid.Parse("0192a000-0000-7000-8000-00000000e0b3"),
+            "bamo",
+            "555004"
+        );
+        ITtsConfigService ttsConfig = Substitute.For<ITtsConfigService>();
+        ttsConfig
+            .GetUserVoiceAsync(Channel, "555004", Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<UserTtsVoiceDto>("No voice assigned.", "NOT_FOUND"));
+
+        Build(ttsConfig: ttsConfig, db: db)
+            .Resolve("tts.voice.get")("tts.voice.get", ["bamo"], CancellationToken.None)
+            .Should()
+            .BeNull();
+    }
+
+    [Fact]
+    public async Task Tts_voice_set_assigns_through_the_validating_service()
+    {
+        AuthDbContext db = await SeedViewerAsync(
+            Guid.Parse("0192a000-0000-7000-8000-00000000e0b4"),
+            "bamo",
+            "555005"
+        );
+        ITtsConfigService ttsConfig = Substitute.For<ITtsConfigService>();
+        ttsConfig
+            .SetUserVoiceAsync(
+                Channel,
+                "555005",
+                Arg.Any<SetUserVoiceDto>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new UserTtsVoiceDto("555005", "en-GB-Sonia")));
+
+        Build(ttsConfig: ttsConfig, db: db)
+            .Resolve("tts.voice.set")(
+                "tts.voice.set",
+                ["bamo", "en-GB-Sonia"],
+                CancellationToken.None
+            )
+            .Should()
+            .Be("ok");
+
+        // The service is the ONE assignment path — it validates the voice against the catalogue.
+        await ttsConfig
+            .Received(1)
+            .SetUserVoiceAsync(
+                Channel,
+                "555005",
+                Arg.Is<SetUserVoiceDto>(r => r.VoiceId == "en-GB-Sonia"),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Tts_voice_set_with_an_empty_voice_clears_back_to_the_channel_default()
+    {
+        AuthDbContext db = await SeedViewerAsync(
+            Guid.Parse("0192a000-0000-7000-8000-00000000e0b5"),
+            "bamo",
+            "555006"
+        );
+        ITtsConfigService ttsConfig = Substitute.For<ITtsConfigService>();
+        ttsConfig
+            .ClearUserVoiceAsync(Channel, "555006", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        Build(ttsConfig: ttsConfig, db: db)
+            .Resolve("tts.voice.set")("tts.voice.set", ["bamo", ""], CancellationToken.None)
+            .Should()
+            .Be("ok");
+
+        await ttsConfig
+            .Received(1)
+            .ClearUserVoiceAsync(Channel, "555006", Arg.Any<CancellationToken>());
+        await ttsConfig
+            .DidNotReceiveWithAnyArgs()
+            .SetUserVoiceAsync(default, default!, default!, default);
+    }
+
+    [Fact]
+    public async Task Tts_voice_set_fails_closed_when_the_catalogue_rejects_the_voice()
+    {
+        AuthDbContext db = await SeedViewerAsync(
+            Guid.Parse("0192a000-0000-7000-8000-00000000e0b6"),
+            "bamo",
+            "555007"
+        );
+        ITtsConfigService ttsConfig = Substitute.For<ITtsConfigService>();
+        ttsConfig
+            .SetUserVoiceAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<SetUserVoiceDto>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<UserTtsVoiceDto>("Voice not found.", "NOT_FOUND"));
+
+        Build(ttsConfig: ttsConfig, db: db)
+            .Resolve("tts.voice.set")(
+                "tts.voice.set",
+                ["bamo", "not-a-voice"],
+                CancellationToken.None
+            )
+            .Should()
+            .BeNull();
+    }
+
+    [Fact]
+    public async Task Tts_voice_set_is_scoped_to_the_bridges_own_tenant()
+    {
+        // Channel-B bridge, numeric platform id (digit fallback — no persisted user needed): the write must
+        // carry channel B, never another tenant's Guid, and never a guest-forged one.
+        Guid channelB = Guid.Parse("0192a000-0000-7000-8000-00000000e0c9");
+        ITtsConfigService ttsConfig = Substitute.For<ITtsConfigService>();
+        ttsConfig
+            .SetUserVoiceAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<SetUserVoiceDto>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new UserTtsVoiceDto("777", "en-GB-Sonia")));
+
+        BuildFor(channelB, ttsConfig: ttsConfig)
+            .Resolve("tts.voice.set")(
+                "tts.voice.set",
+                ["777", "en-GB-Sonia"],
+                CancellationToken.None
+            )
+            .Should()
+            .Be("ok");
+
+        await ttsConfig
+            .Received(1)
+            .SetUserVoiceAsync(
+                channelB,
+                "777",
+                Arg.Any<SetUserVoiceDto>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

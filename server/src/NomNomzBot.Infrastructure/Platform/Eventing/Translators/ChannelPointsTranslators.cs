@@ -90,7 +90,7 @@ public sealed class ChannelPointsRewardRedemptionUpdateTranslator(IEventBus bus,
 /// <summary>
 /// Translates <c>channel.channel_points_custom_reward.add</c> into <see cref="RewardCreatedEvent"/>. The reward
 /// fields sit at the top level of the event (not under a nested object): <c>id</c>, <c>title</c>, <c>cost</c>,
-/// <c>is_enabled</c>.
+/// <c>is_enabled</c>, <c>is_paused</c>.
 /// </summary>
 public sealed class ChannelPointsRewardAddTranslator(IEventBus bus, TimeProvider clock)
     : EventSubEventTranslator(bus, clock)
@@ -111,6 +111,7 @@ public sealed class ChannelPointsRewardAddTranslator(IEventBus bus, TimeProvider
             Title = payload.GetRequiredString("title"),
             Cost = payload.GetInt("cost"),
             IsEnabled = payload.GetBool("is_enabled"),
+            IsPaused = payload.GetBool("is_paused"),
         };
 
         return PublishAsync(created, ct);
@@ -119,7 +120,7 @@ public sealed class ChannelPointsRewardAddTranslator(IEventBus bus, TimeProvider
 
 /// <summary>
 /// Translates <c>channel.channel_points_custom_reward.update</c> into <see cref="RewardUpdatedEvent"/>. Same
-/// top-level reward shape as the add: <c>id</c>, <c>title</c>, <c>cost</c>, <c>is_enabled</c>.
+/// top-level reward shape as the add: <c>id</c>, <c>title</c>, <c>cost</c>, <c>is_enabled</c>, <c>is_paused</c>.
 /// </summary>
 public sealed class ChannelPointsRewardUpdateTranslator(IEventBus bus, TimeProvider clock)
     : EventSubEventTranslator(bus, clock)
@@ -140,6 +141,7 @@ public sealed class ChannelPointsRewardUpdateTranslator(IEventBus bus, TimeProvi
             Title = payload.GetRequiredString("title"),
             Cost = payload.GetInt("cost"),
             IsEnabled = payload.GetBool("is_enabled"),
+            IsPaused = payload.GetBool("is_paused"),
         };
 
         return PublishAsync(updated, ct);

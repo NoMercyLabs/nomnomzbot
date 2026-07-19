@@ -31,6 +31,13 @@ public class Reward : SoftDeletableEntity, ITenantScoped
 
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>
+    /// Twitch's <c>is_paused</c> flag, synced from the reward-update EventSub feed (redemptions temporarily
+    /// off while the reward stays listed). The last-known value is what lets the reward-lifecycle trigger
+    /// source derive the <c>reward.paused</c>/<c>reward.resumed</c> event-response transitions.
+    /// </summary>
+    public bool IsPaused { get; set; }
+
     [MaxLength(500)]
     public string? Description { get; set; }
 

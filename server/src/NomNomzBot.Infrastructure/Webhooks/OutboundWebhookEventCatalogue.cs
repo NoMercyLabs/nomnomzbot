@@ -64,6 +64,7 @@ public static class OutboundWebhookEventCatalogue
         new("BitsUsedEvent", "Bits used", "Bits & Cheers"),
         // ── Raids & Shoutouts ──
         new("RaidEvent", "Incoming raid", "Raids & Shoutouts"),
+        new("OutgoingRaidEvent", "Outgoing raid", "Raids & Shoutouts"),
         new("ShoutoutReceivedEvent", "Shoutout received", "Raids & Shoutouts"),
         new("ShoutoutSentEvent", "Shoutout sent", "Raids & Shoutouts"),
         // ── Channel Points ──

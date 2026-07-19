@@ -315,4 +315,105 @@ public sealed class NnzSdkBootstrapTests
                 "reward.update"
             );
     }
+
+    [Fact]
+    public async Task Api_stats_viewer_parses_the_hosts_stats_json()
+    {
+        RecordingBridge bridge = new(
+            (key, _) =>
+                key == "stats.viewer"
+                    ? "{\"messages\":420,\"watchtimeSeconds\":7200,\"firstSeen\":\"2026-01-05\",\"redemptions\":3,\"songRequests\":9}"
+                    : null
+        );
+
+        ScriptExecutionOutcomeResult r = await Run(
+            """
+            var s = nnz.api.stats.viewer('bamo');
+            bot.setVar('msgs', String(s.messages));
+            bot.setVar('watch', String(s.watchtimeSeconds));
+            bot.setVar('first', s.firstSeen);
+            bot.setVar('sr', String(s.songRequests));
+            """,
+            Grant("stats.viewer"),
+            bridge
+        );
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        bridge.Calls[0].Key.Should().Be("stats.viewer");
+        bridge.Calls[0].Args.Should().ContainSingle().Which.Should().Be("bamo");
+        r.VariablesOut["msgs"].Should().Be("420");
+        r.VariablesOut["watch"].Should().Be("7200");
+        r.VariablesOut["first"].Should().Be("2026-01-05");
+        r.VariablesOut["sr"].Should().Be("9");
+    }
+
+    [Fact]
+    public async Task Api_tts_voice_wrappers_carry_the_right_keys_and_map_ok_to_true()
+    {
+        RecordingBridge bridge = new(
+            (key, _) =>
+                key switch
+                {
+                    "tts.voice.get" =>
+                        "{\"voiceId\":\"en-GB-Sonia\",\"displayName\":\"Sonia (British)\"}",
+                    "tts.voice.set" => "ok",
+                    _ => null,
+                }
+        );
+
+        ScriptExecutionOutcomeResult r = await Run(
+            """
+            var v = nnz.api.tts.getVoice('bamo');
+            bot.setVar('voice', v.displayName);
+            bot.setVar('setOk', String(nnz.api.tts.setVoice('bamo', 'en-GB-Sonia')));
+            bot.setVar('clearOk', String(nnz.api.tts.setVoice('bamo')));
+            """,
+            Grant("tts.voice.get", "tts.voice.set"),
+            bridge
+        );
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.VariablesOut["voice"].Should().Be("Sonia (British)");
+        r.VariablesOut["setOk"].Should().Be("true");
+        r.VariablesOut["clearOk"].Should().Be("true");
+        bridge
+            .Calls.Select(c => c.Key)
+            .Should()
+            .Equal("tts.voice.get", "tts.voice.set", "tts.voice.set");
+        // The no-voiceId overload clears: the wrapper sends an empty second arg, the clear contract.
+        bridge.Calls[2].Args.Should().Equal("bamo", "");
+    }
+
+    [Fact]
+    public async Task Api_stats_viewer_is_denied_when_the_capability_is_not_granted()
+    {
+        RecordingBridge bridge = new((_, _) => null);
+
+        ScriptExecutionOutcomeResult r = await Run(
+            "nnz.api.stats.viewer();",
+            Grant(), // nothing granted
+            bridge
+        );
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Denied);
+        bridge.Calls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Compile_declares_the_stats_and_voice_capabilities_from_wrapper_usage()
+    {
+        ScriptCompilation compilation = (
+            await new JintScriptExecutor().CompileAsync(
+                """
+                nnz.api.stats.viewer();
+                nnz.api.tts.getVoice('u');
+                nnz.api.tts.setVoice('u', 'v');
+                """
+            )
+        ).Value;
+
+        compilation
+            .DeclaredCapabilities.Should()
+            .BeEquivalentTo("stats.viewer", "tts.voice.get", "tts.voice.set");
+    }
 }

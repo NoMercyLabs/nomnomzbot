@@ -120,7 +120,8 @@ public class RewardService : IRewardService
             );
 
         // Helix first, then the local copy — so a Twitch refusal never leaves the dashboard showing state
-        // that is not live on Twitch. IsPaused exists only on Twitch (not persisted locally).
+        // that is not live on Twitch. IsPaused syncs locally too, so the paused/resumed transition source
+        // (RewardLifecycleHandler) and a dashboard patch can never disagree about the last-known state.
         if (patchesTwitchFacing && reward.IsManageable && reward.TwitchRewardId is not null)
         {
             Result<TwitchCustomReward> pushed = await _channelPoints.UpdateCustomRewardAsync(
@@ -150,6 +151,8 @@ public class RewardService : IRewardService
             reward.Description = request.Prompt;
         if (request.IsEnabled.HasValue)
             reward.IsEnabled = request.IsEnabled.Value;
+        if (request.IsPaused.HasValue)
+            reward.IsPaused = request.IsPaused.Value;
         if (request.TimerDurationSeconds.HasValue)
             reward.TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds);
         // Absent leaves the binding unchanged; Guid.Empty clears it; a real id binds that pipeline.
@@ -553,6 +556,7 @@ public class RewardService : IRewardService
             Description = tr.Prompt,
             Cost = tr.Cost,
             IsEnabled = tr.IsEnabled,
+            IsPaused = tr.IsPaused,
             TwitchRewardId = tr.Id,
             IsPlatform = true,
             IsManageable = true,
@@ -615,6 +619,7 @@ public class RewardService : IRewardService
                 reward.Title = tr.Title;
                 reward.Cost = tr.Cost;
                 reward.IsEnabled = tr.IsEnabled;
+                reward.IsPaused = tr.IsPaused;
                 reward.Description = tr.Prompt;
                 reward.IsManageable = manageable;
                 upsertedCount++;
@@ -625,6 +630,7 @@ public class RewardService : IRewardService
                 rewardByTitle.TwitchRewardId = tr.Id;
                 rewardByTitle.Cost = tr.Cost;
                 rewardByTitle.IsEnabled = tr.IsEnabled;
+                rewardByTitle.IsPaused = tr.IsPaused;
                 rewardByTitle.Description = tr.Prompt;
                 rewardByTitle.IsManageable = manageable;
                 upsertedCount++;
@@ -641,6 +647,7 @@ public class RewardService : IRewardService
                         TwitchRewardId = tr.Id,
                         Cost = tr.Cost,
                         IsEnabled = tr.IsEnabled,
+                        IsPaused = tr.IsPaused,
                         Description = tr.Prompt,
                         IsPlatform = manageable,
                         IsManageable = manageable,
@@ -667,7 +674,7 @@ public class RewardService : IRewardService
             r.IsEnabled,
             r.IsManageable,
             false,
-            false,
+            r.IsPaused,
             null,
             null,
             null,

@@ -9,8 +9,11 @@
 // -----------------------------------------------------------------------------
 
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Economy.Services;
@@ -19,9 +22,12 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
+using NomNomzBot.Application.Tts.Dtos;
+using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Sandbox;
 
 namespace NomNomzBot.Infrastructure.CustomCode;
@@ -37,8 +43,11 @@ namespace NomNomzBot.Infrastructure.CustomCode;
 /// SSRF-hardened egress client; <c>storage.*</c> is the channel's bounded script KV store; <c>tts.speak</c> routes
 /// through the gated TTS dispatcher; <c>widget.emit</c> pushes an event to one of THIS channel's enabled widgets;
 /// <c>reward.get</c>/<c>reward.update</c> read and patch a channel-point reward through the rewards service
-/// (Helix-synced; only bot-manageable rewards may be updated). Every dispatch fails closed (returns a safe
-/// primitive).
+/// (Helix-synced; only bot-manageable rewards may be updated); <c>stats.viewer</c> reads a viewer's M.1 analytics
+/// profile (the SAME source the <c>{viewer.*}</c> template stats read — a never-seen viewer reads as honest zeros);
+/// <c>tts.voice.get</c>/<c>tts.voice.set</c> read and assign a viewer's per-channel TTS voice (set validates
+/// against the voice catalogue; an empty voice id clears back to the channel default). Every dispatch fails
+/// closed (returns a safe primitive).
 /// </summary>
 public sealed class ScriptHostBridge(
     Guid broadcasterId,
@@ -52,7 +61,10 @@ public sealed class ScriptHostBridge(
     ITtsDispatchService ttsDispatch,
     IWidgetService widgetService,
     IWidgetEventNotifier widgetNotifier,
-    IRewardService rewardService
+    IRewardService rewardService,
+    IViewerAnalyticsService viewerAnalytics,
+    ITtsConfigService ttsConfig,
+    IApplicationDbContext db
 ) : IScriptHostBridge
 {
     private const int MaxResponseBytes = 256 * 1024;
@@ -77,6 +89,9 @@ public sealed class ScriptHostBridge(
             "widget.emit" => EmitWidgetEvent,
             "reward.get" => GetReward,
             "reward.update" => UpdateReward,
+            "stats.viewer" => GetViewerStats,
+            "tts.voice.get" => GetTtsVoice,
+            "tts.voice.set" => SetTtsVoice,
             _ => static (_, _, _) => null, // granted-but-unwired caps no-op; the grant already gated access
         };
 
@@ -399,6 +414,155 @@ public sealed class ScriptHostBridge(
             .GetAwaiter()
             .GetResult();
         return updated.IsSuccess ? "ok" : null;
+    }
+
+    private string? GetViewerStats(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        // The optional arg names a viewer by internal Guid, Twitch id, or login; default to the trigger user.
+        string subject =
+            args.Count > 0 && !string.IsNullOrWhiteSpace(args[0]) ? args[0] : triggeringUserId;
+
+        // Unknown viewer → honest zeros (the shape a !stats script can always render), never null.
+        ViewerProfileDto? profile = null;
+        User? viewer = ResolveViewerUser(subject, ct);
+        if (viewer is not null)
+        {
+            Result<ViewerProfileDto> loaded = viewerAnalytics
+                .GetProfileAsync(broadcasterId, viewer.Id, ct)
+                .GetAwaiter()
+                .GetResult();
+            if (loaded.IsSuccess)
+                profile = loaded.Value;
+        }
+
+        return JsonConvert.SerializeObject(
+            new
+            {
+                messages = profile?.TotalMessages ?? 0,
+                watchtimeSeconds = profile?.TotalWatchSeconds ?? 0,
+                firstSeen = profile?.FirstSeenAt?.ToString("yyyy-MM-dd"),
+                redemptions = profile?.TotalRedemptions ?? 0,
+                songRequests = profile?.TotalSongRequests ?? 0,
+            }
+        );
+    }
+
+    private string? GetTtsVoice(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        string? platformUserId = ResolveViewerPlatformId(
+            args.Count > 0 && !string.IsNullOrWhiteSpace(args[0]) ? args[0] : triggeringUserId,
+            ct
+        );
+        if (platformUserId is null)
+            return null;
+
+        // NOT_FOUND = the viewer uses the channel default — the guest sees null, the honest "no assignment".
+        Result<UserTtsVoiceDto> assigned = ttsConfig
+            .GetUserVoiceAsync(broadcasterId, platformUserId, ct)
+            .GetAwaiter()
+            .GetResult();
+        if (assigned.IsFailure)
+            return null;
+
+        return JsonConvert.SerializeObject(
+            new
+            {
+                voiceId = assigned.Value.VoiceId,
+                displayName = ResolveVoiceDisplayName(assigned.Value.VoiceId, ct),
+            }
+        );
+    }
+
+    private string? SetTtsVoice(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
+            return null;
+        string? platformUserId = ResolveViewerPlatformId(args[0], ct);
+        if (platformUserId is null)
+            return null;
+
+        // An empty voice id clears the assignment back to the channel default (the !voice clear semantics).
+        string voiceId = args.Count > 1 ? args[1] : string.Empty;
+        if (string.IsNullOrWhiteSpace(voiceId))
+        {
+            Result cleared = ttsConfig
+                .ClearUserVoiceAsync(broadcasterId, platformUserId, ct)
+                .GetAwaiter()
+                .GetResult();
+            return cleared.IsSuccess ? "ok" : null;
+        }
+
+        // The service is the ONE assignment path (same as the dashboard/mod override) — it validates the
+        // voice against the synthesizable catalogue, so an unknown voice is a typed failure → null.
+        Result<UserTtsVoiceDto> set = ttsConfig
+            .SetUserVoiceAsync(
+                broadcasterId,
+                platformUserId,
+                new SetUserVoiceDto { VoiceId = voiceId },
+                ct
+            )
+            .GetAwaiter()
+            .GetResult();
+        return set.IsSuccess ? "ok" : null;
+    }
+
+    // Resolves a viewer reference (internal Guid, Twitch id, or login) to the User row — the same
+    // identity-first convergence the template resolver's {viewer.*} stats use. Null when never seen.
+    private User? ResolveViewerUser(string subject, CancellationToken ct)
+    {
+        if (Guid.TryParse(subject, out Guid userGuid))
+            return db
+                .Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == userGuid, ct)
+                .GetAwaiter()
+                .GetResult();
+
+        string login = subject.Trim().TrimStart('@').ToLowerInvariant();
+        return db.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.TwitchUserId == subject, ct)
+                .GetAwaiter()
+                .GetResult()
+            ?? db.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Username == login, ct)
+                .GetAwaiter()
+                .GetResult();
+    }
+
+    // The platform (Twitch) user id the TTS voice table keys on. A numeric id the bot has not persisted yet
+    // still resolves to itself — matching how the dispatch voice-resolver reads assignments by platform id.
+    private string? ResolveViewerPlatformId(string subject, CancellationToken ct)
+    {
+        User? viewer = ResolveViewerUser(subject, ct);
+        if (viewer?.TwitchUserId is string twitchId && !string.IsNullOrEmpty(twitchId))
+            return twitchId;
+        return !Guid.TryParse(subject, out _) && subject.All(char.IsAsciiDigit) ? subject : null;
+    }
+
+    // Best-effort display name off the voice catalogue (exact id match); the id itself when un-catalogued.
+    private string ResolveVoiceDisplayName(string voiceId, CancellationToken ct)
+    {
+        Result<PagedList<TtsVoiceDto>> matches = ttsConfig
+            .SearchVoicesAsync(new TtsVoiceQuery(Q: voiceId, PageSize: 10), ct)
+            .GetAwaiter()
+            .GetResult();
+        if (matches.IsFailure)
+            return voiceId;
+        TtsVoiceDto? exact = matches.Value.Items.FirstOrDefault(v =>
+            string.Equals(v.Id, voiceId, StringComparison.OrdinalIgnoreCase)
+        );
+        return exact?.DisplayName ?? voiceId;
     }
 
     // Resolves a widget of THIS channel by Guid id or (case-insensitive) name; null when absent.
