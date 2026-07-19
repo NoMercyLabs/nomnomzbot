@@ -68,6 +68,13 @@ class ApiClient(
     }
 
     @PublishedApi
+    internal companion object {
+        // Runaway-loop backstop for getAllPages: at pageSize 100 this covers 20 000 rows — far beyond any real
+        // config list — while guaranteeing the walk terminates even if a server ever mis-reports hasMore.
+        const val MAX_LIST_PAGES: Int = 200
+    }
+
+    @PublishedApi
     internal val httpClient: HttpClient = buildHttpClient {
         install(ContentNegotiation) { json(this@ApiClient.json) }
         defaultRequest {
@@ -126,6 +133,32 @@ class ApiClient(
                 )
             )
         }
+    }
+
+    /**
+     * GETs EVERY page of a `PaginatedResponse<T>` list and concatenates the rows — for the config screens that
+     * must show the WHOLE list (commands, pick-lists, widgets, …) rather than silently only the first page.
+     * [pathForPage] builds the request path for a 1-based page index (embed the page size, e.g.
+     * `"…?page=$page&pageSize=100"`); the walk follows the envelope's `hasMore`/`nextPage` until the server
+     * reports no more. A hard page ceiling backstops a runaway loop if the server ever mis-reports `hasMore`.
+     */
+    @PublishedApi
+    internal suspend inline fun <reified T> getAllPages(
+        crossinline pathForPage: (page: Int) -> String
+    ): ApiResult<List<T>> {
+        val all: MutableList<T> = mutableListOf()
+        var page = 1
+        while (page <= MAX_LIST_PAGES) {
+            when (val result: ApiResult<PaginatedEnvelope<T>> = getDirect(pathForPage(page))) {
+                is ApiResult.Failure -> return ApiResult.Failure(result.error)
+                is ApiResult.Ok -> {
+                    all += result.value.data
+                    if (!result.value.hasMore || result.value.data.isEmpty()) return ApiResult.Ok(all)
+                    page = result.value.nextPage ?: (page + 1)
+                }
+            }
+        }
+        return ApiResult.Ok(all)
     }
 
     /** POSTs an optional JSON [body] to a `StatusResponseDto<T>` endpoint, unwrapping `data`. */

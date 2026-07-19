@@ -86,17 +86,8 @@ interface CommunityApi {
 class RestCommunityApi(private val client: ApiClient) : CommunityApi {
 
     override suspend fun members(channelId: String): ApiResult<List<CommunityMember>> {
-        // PaginatedResponse is a flat `{ data: [...] }` (not the single-value StatusResponseDto envelope), so it
-        // is read with getDirect (whole-body deserialize) exactly like the channel list. First page only here.
-        return when (
-            val page: ApiResult<PaginatedEnvelope<CommunityMember>> =
-                client.getDirect(
-                    "api/v1/channels/$channelId/community?page=1&pageSize=25"
-                )
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so the whole community list shows — flat `{ data, hasMore, nextPage }`.
+        return client.getAllPages { page -> "api/v1/channels/$channelId/community?page=$page&pageSize=100" }
     }
 
     override suspend fun membersPage(

@@ -51,15 +51,9 @@ interface AutomationApi {
 }
 
 class RestAutomationApi(private val client: ApiClient) : AutomationApi {
-    // The list is a PaginatedResponse (a flat `{ data: [...] }`), read with getDirect rather than getEnvelope.
     override suspend fun tokens(channelId: String): ApiResult<List<AutomationToken>> =
-        when (
-            val page: ApiResult<PaginatedEnvelope<AutomationToken>> =
-                client.getDirect("api/v1/channels/$channelId/automation/tokens?page=1&pageSize=100")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so ALL tokens show — flat `{ data, hasMore, nextPage }`.
+        client.getAllPages { page -> "api/v1/channels/$channelId/automation/tokens?page=$page&pageSize=100" }
 
     override suspend fun createToken(
         channelId: String,

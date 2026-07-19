@@ -51,15 +51,9 @@ interface AlertsApi {
 
 class RestAlertsApi(private val client: ApiClient) : AlertsApi {
     override suspend fun list(channelId: String): ApiResult<List<AlertSummary>> {
-        // The list is a PaginatedResponse (a flat `{ data: [...] }`), not a StatusResponseDto, so it is read
-        // with getDirect (whole-body deserialize) rather than getEnvelope's `data: T` unwrap — same shape as
-        // the channels and commands lists.
-        return when (
-            val page: ApiResult<PaginatedEnvelope<AlertSummary>> =
-                client.getDirect("api/v1/channels/$channelId/event-responses?page=1&pageSize=100")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        // Walk every page so ALL alert event-responses show — flat `{ data, hasMore, nextPage }`.
+        return client.getAllPages { page ->
+            "api/v1/channels/$channelId/event-responses?page=$page&pageSize=100"
         }
     }
 

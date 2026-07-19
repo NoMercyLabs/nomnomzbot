@@ -43,18 +43,10 @@ interface CommandsApi {
 }
 
 class RestCommandsApi(private val client: ApiClient) : CommandsApi {
-    override suspend fun list(channelId: String): ApiResult<List<CommandSummary>> {
-        // The list is a PaginatedResponse (a flat `{ data: [...] }`), not a StatusResponseDto, so it is read
-        // with getDirect (whole-body deserialize) rather than getEnvelope's `data: T` unwrap — same shape as
-        // the channels list.
-        return when (
-            val page: ApiResult<PaginatedEnvelope<CommandSummary>> =
-                client.getDirect("api/v1/channels/$channelId/commands?page=1&pageSize=25")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
-    }
+    override suspend fun list(channelId: String): ApiResult<List<CommandSummary>> =
+        // A channel can have far more than one page of commands — walk every page so the screen shows them ALL,
+        // not just the first 25/100 (PaginatedResponse is a flat `{ data, hasMore, nextPage }`).
+        client.getAllPages { page -> "api/v1/channels/$channelId/commands?page=$page&pageSize=100" }
 
     // The create response is a `StatusResponseDto<CommandDto>` (201), but the controller re-fetches the list
     // after every write, so the body is irrelevant here — any 2xx is success.

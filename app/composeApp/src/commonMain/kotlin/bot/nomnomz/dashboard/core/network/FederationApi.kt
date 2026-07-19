@@ -47,13 +47,8 @@ interface FederationApi {
 class RestFederationApi(private val client: ApiClient) : FederationApi {
 
     override suspend fun listPeers(): ApiResult<List<FederatedPeer>> =
-        when (
-            val page: ApiResult<PaginatedEnvelope<FederatedPeer>> =
-                client.getDirect("api/v1/federation/peers?page=1&pageSize=25")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so ALL peers show — flat `{ data, hasMore, nextPage }`.
+        client.getAllPages { page -> "api/v1/federation/peers?page=$page&pageSize=100" }
 
     override suspend fun registerPeer(body: RegisterPeerBody): ApiResult<FederatedPeer> =
         client.postEnvelope("api/v1/federation/peers", body)
@@ -71,13 +66,8 @@ class RestFederationApi(private val client: ApiClient) : FederationApi {
         client.deleteUnit("api/v1/federation/peers/$peerId/keys/$keyId")
 
     override suspend fun listOptIns(channelId: String): ApiResult<List<FederatedOptIn>> =
-        when (
-            val page: ApiResult<PaginatedEnvelope<FederatedOptIn>> =
-                client.getDirect("api/v1/channels/$channelId/federation/opt-ins?page=1&pageSize=25")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so ALL opt-ins show — flat `{ data, hasMore, nextPage }`.
+        client.getAllPages { page -> "api/v1/channels/$channelId/federation/opt-ins?page=$page&pageSize=100" }
 
     override suspend fun upsertOptIn(channelId: String, body: UpsertOptInBody): ApiResult<FederatedOptIn> =
         client.putEnvelope("api/v1/channels/$channelId/federation/opt-ins", body)

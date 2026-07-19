@@ -67,15 +67,8 @@ interface PipelinesApi {
 class RestPipelinesApi(private val client: ApiClient) : PipelinesApi {
 
     override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> {
-        // PaginatedResponse is a flat `{ data: [...] }` (not the single-value StatusResponseDto envelope), read
-        // with getDirect like the command/timer lists. First page only — the page reloads after every write.
-        return when (
-            val page: ApiResult<PaginatedEnvelope<PipelineSummary>> =
-                client.getDirect("api/v1/channels/$channelId/pipelines?page=1&pageSize=25")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so ALL pipelines show — PaginatedResponse is a flat `{ data, hasMore, nextPage }`.
+        return client.getAllPages { page -> "api/v1/channels/$channelId/pipelines?page=$page&pageSize=100" }
     }
 
     override suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote> =

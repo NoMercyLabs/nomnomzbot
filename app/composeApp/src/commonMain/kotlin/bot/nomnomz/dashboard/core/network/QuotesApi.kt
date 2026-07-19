@@ -48,16 +48,8 @@ interface QuotesApi {
 
 class RestQuotesApi(private val client: ApiClient) : QuotesApi {
     override suspend fun list(): ApiResult<List<Quote>> {
-        // The list is a PaginatedResponse (a flat `{ data: [...] }`), not a StatusResponseDto, so it is read
-        // with getDirect (whole-body deserialize) rather than getEnvelope's `data: T` unwrap — same shape as
-        // the channels and commands lists.
-        return when (
-            val page: ApiResult<PaginatedEnvelope<Quote>> =
-                client.getDirect("api/v1/quotes?page=1&pageSize=25")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so ALL quotes show — PaginatedResponse is a flat `{ data, hasMore, nextPage }`.
+        return client.getAllPages { page -> "api/v1/quotes?page=$page&pageSize=100" }
     }
 
     override suspend fun page(

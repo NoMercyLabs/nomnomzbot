@@ -52,16 +52,9 @@ interface PickListsApi {
 
 class RestPickListsApi(private val client: ApiClient) : PickListsApi {
     override suspend fun list(): ApiResult<List<PickList>> {
-        // The list is a PaginatedResponse (a flat `{ data: [...] }`), not a StatusResponseDto, so it is read
-        // with getDirect (whole-body deserialize) rather than getEnvelope's `data: T` unwrap — same shape as
-        // the channels and quotes lists.
-        return when (
-            val page: ApiResult<PaginatedEnvelope<PickList>> =
-                client.getDirect("api/v1/picklists?page=1&pageSize=25")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so ALL pick lists show (a channel can easily have dozens) — PaginatedResponse is a
+        // flat `{ data, hasMore, nextPage }`, not the single-value StatusResponseDto envelope.
+        return client.getAllPages { page -> "api/v1/picklists?page=$page&pageSize=100" }
     }
 
     // A single list comes back as a `StatusResponseDto<PickListDto>` (a `data: T` envelope), so it is read with

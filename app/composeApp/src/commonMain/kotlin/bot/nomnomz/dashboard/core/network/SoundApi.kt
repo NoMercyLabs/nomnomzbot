@@ -60,11 +60,8 @@ object SoundPermissionLevel {
 
 class RestSoundApi(private val client: ApiClient) : SoundApi {
     override suspend fun list(): ApiResult<List<SoundClip>> =
-        when (val page: ApiResult<PaginatedEnvelope<SoundClip>> =
-            client.getDirect("api/v1/sound-clips?page=1&pageSize=100")) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so ALL sound clips show — PaginatedResponse is a flat `{ data, hasMore, nextPage }`.
+        client.getAllPages { page -> "api/v1/sound-clips?page=$page&pageSize=100" }
 
     override suspend fun update(id: String, body: UpdateSoundClipBody): ApiResult<Unit> =
         client.putUnit("api/v1/sound-clips/$id", body)

@@ -137,9 +137,17 @@ class RestChannelsApi(
         client.getDirect("api/v1/channels?page=1&pageSize=100")
 }
 
-/** The backend `PaginatedResponse<T>` shape — a flat `data` array plus paging metadata we ignore here. */
+/**
+ * The backend `PaginatedResponse<T>` shape — a flat `data` array plus the paging signals. [hasMore] and
+ * [nextPage] drive [ApiClient.getAllPages] so a caller that needs the WHOLE list (config screens) can walk
+ * every page instead of silently showing only the first one.
+ */
 @Serializable
-data class PaginatedEnvelope<T>(val data: List<T> = emptyList())
+data class PaginatedEnvelope<T>(
+    val data: List<T> = emptyList(),
+    val hasMore: Boolean = false,
+    val nextPage: Int? = null,
+)
 
 /** The channel's white-label bot status (`BotStatusDto`). Same shape as the platform bot status. */
 typealias ChannelBotStatusDetail = BotStatus

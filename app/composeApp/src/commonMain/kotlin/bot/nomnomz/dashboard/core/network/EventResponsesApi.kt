@@ -51,14 +51,9 @@ interface EventResponsesApi {
 
 class RestEventResponsesApi(private val client: ApiClient) : EventResponsesApi {
     override suspend fun list(channelId: String): ApiResult<List<EventResponseSummary>> =
-        when (
-            val page: ApiResult<PaginatedEnvelope<EventResponseSummary>> =
-                client.getDirect(
-                    "api/v1/channels/$channelId/event-responses?page=1&pageSize=50"
-                )
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        // Walk every page so ALL event responses show — flat `{ data, hasMore, nextPage }`.
+        client.getAllPages { page ->
+            "api/v1/channels/$channelId/event-responses?page=$page&pageSize=100"
         }
 
     override suspend fun catalog(channelId: String): ApiResult<List<EventResponsePreset>> =

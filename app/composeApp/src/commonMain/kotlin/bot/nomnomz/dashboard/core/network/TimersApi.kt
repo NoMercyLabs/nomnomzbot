@@ -47,16 +47,8 @@ interface TimersApi {
 class RestTimersApi(private val client: ApiClient) : TimersApi {
 
     override suspend fun list(channelId: String): ApiResult<List<TimerSummary>> {
-        // PaginatedResponse is a flat `{ data: [...] }` (not the single-value StatusResponseDto envelope), so it
-        // is read with getDirect (whole-body deserialize) exactly like the channel/community lists. First page
-        // only — the page reloads it after every write.
-        return when (
-            val page: ApiResult<PaginatedEnvelope<TimerSummary>> =
-                client.getDirect("api/v1/channels/$channelId/timers?page=1&pageSize=25")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so ALL timers show — PaginatedResponse is a flat `{ data, hasMore, nextPage }`.
+        return client.getAllPages { page -> "api/v1/channels/$channelId/timers?page=$page&pageSize=100" }
     }
 
     // The writes return `StatusResponseDto<TimerDto>`, but the page reloads the list on success rather than

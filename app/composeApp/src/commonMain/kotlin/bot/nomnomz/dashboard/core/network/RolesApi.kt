@@ -120,13 +120,8 @@ class RestRolesApi(private val client: ApiClient) : RolesApi {
         client.getEnvelope("api/v1/channels/$channelId/roles/effective/me")
 
     override suspend fun members(channelId: String): ApiResult<List<ChannelMembership>> =
-        when (
-            val page: ApiResult<PaginatedEnvelope<ChannelMembership>> =
-                client.getDirect("api/v1/channels/$channelId/roles?page=1&pageSize=100")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so ALL role members show — flat `{ data, hasMore, nextPage }`.
+        client.getAllPages { page -> "api/v1/channels/$channelId/roles?page=$page&pageSize=100" }
 
     override suspend fun permits(channelId: String): ApiResult<List<PermitGrant>> =
         client.getEnvelope("api/v1/channels/$channelId/permits")

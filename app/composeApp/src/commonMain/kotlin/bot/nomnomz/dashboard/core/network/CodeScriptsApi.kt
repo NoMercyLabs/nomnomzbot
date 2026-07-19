@@ -64,10 +64,8 @@ interface CodeScriptsApi {
 class RestCodeScriptsApi(private val client: ApiClient) : CodeScriptsApi {
 
     override suspend fun list(): ApiResult<List<CodeScriptSummary>> =
-        when (val page: ApiResult<PaginatedEnvelope<CodeScriptSummary>> = client.getDirect("api/v1/code-scripts?page=1&pageSize=50")) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so ALL code scripts show — flat `{ data, hasMore, nextPage }`.
+        client.getAllPages { page -> "api/v1/code-scripts?page=$page&pageSize=100" }
 
     override suspend fun get(id: String): ApiResult<CodeScriptDetail> =
         client.getEnvelope("api/v1/code-scripts/$id")

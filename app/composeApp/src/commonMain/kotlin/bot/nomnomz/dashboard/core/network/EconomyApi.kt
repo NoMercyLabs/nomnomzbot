@@ -206,13 +206,8 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
         )
 
     override suspend fun catalog(channelId: String): ApiResult<List<CatalogItem>> =
-        when (
-            val page: ApiResult<PaginatedEnvelope<CatalogItem>> =
-                client.getDirect("api/v1/channels/$channelId/economy/catalog?page=1&pageSize=25")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so the whole catalog shows — flat `{ data, hasMore, nextPage }`.
+        client.getAllPages { page -> "api/v1/channels/$channelId/economy/catalog?page=$page&pageSize=100" }
 
     override suspend fun setCatalogItemEnabled(
         channelId: String,

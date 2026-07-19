@@ -123,16 +123,8 @@ interface WidgetsApi {
 
 class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
     override suspend fun list(channelId: String): ApiResult<List<WidgetSummary>> {
-        // The list is a PaginatedResponse (a flat `{ data: [...] }`), not a StatusResponseDto, so it is read
-        // with getDirect (whole-body deserialize) rather than getEnvelope's `data: T` unwrap — same shape as
-        // the commands / channels lists.
-        return when (
-            val page: ApiResult<PaginatedEnvelope<WidgetSummary>> =
-                client.getDirect("api/v1/channels/$channelId/widgets?page=1&pageSize=25")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so ALL widgets show — PaginatedResponse is a flat `{ data, hasMore, nextPage }`.
+        return client.getAllPages { page -> "api/v1/channels/$channelId/widgets?page=$page&pageSize=100" }
     }
 
     // The update response is a `StatusResponseDto<WidgetDetail>`, but the controller re-fetches the list after

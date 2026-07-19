@@ -288,13 +288,8 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
         client.postUnit("api/v1/channels/$channelId/moderation/automod", config)
 
     override suspend fun rules(channelId: String): ApiResult<List<ModerationRule>> =
-        when (
-            val page: ApiResult<PaginatedEnvelope<ModerationRule>> =
-                client.getDirect("api/v1/channels/$channelId/moderation/rules?page=1&pageSize=25")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so ALL moderation rules show — flat `{ data, hasMore, nextPage }`.
+        client.getAllPages { page -> "api/v1/channels/$channelId/moderation/rules?page=$page&pageSize=100" }
 
     // POST creates a new rule; the backend returns a StatusResponseDto<ModerationRuleDetail> with the new row.
     override suspend fun createRule(

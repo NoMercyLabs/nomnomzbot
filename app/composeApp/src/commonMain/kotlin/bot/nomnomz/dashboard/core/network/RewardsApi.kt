@@ -106,16 +106,8 @@ interface RewardsApi {
 class RestRewardsApi(private val client: ApiClient) : RewardsApi {
 
     override suspend fun list(channelId: String): ApiResult<List<RewardSummary>> {
-        // PaginatedResponse is a flat `{ data: [...] }` (not the single-value StatusResponseDto envelope), so it
-        // is read with getDirect (whole-body deserialize) exactly like the channel/community lists. First page
-        // only here; the pager layers on later.
-        return when (
-            val page: ApiResult<PaginatedEnvelope<RewardSummary>> =
-                client.getDirect("api/v1/channels/$channelId/rewards?page=1&pageSize=25")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+        // Walk every page so ALL rewards show — PaginatedResponse is a flat `{ data, hasMore, nextPage }`.
+        return client.getAllPages { page -> "api/v1/channels/$channelId/rewards?page=$page&pageSize=100" }
     }
 
     // The create response is a `StatusResponseDto<RewardDetail>` (201), but the controller re-fetches the list
