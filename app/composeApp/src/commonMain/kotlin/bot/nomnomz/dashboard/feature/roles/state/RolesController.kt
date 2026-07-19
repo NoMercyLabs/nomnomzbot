@@ -18,6 +18,7 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ManagementRole
 import bot.nomnomz.dashboard.core.network.PermitGrant
 import bot.nomnomz.dashboard.core.network.RolesApi
+import bot.nomnomz.dashboard.core.network.UserSearchResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -98,10 +99,30 @@ class RolesController(
             }
     }
 
-    /** Assign [userId] the management [role], then reload so the membership list reflects it. */
+    /**
+     * Search the platform's users for the viewer picker — the piece that lets the assign-role and grant-permit
+     * flows reach a viewer who is NOT already a member. Best-effort: a failed search yields an empty list so the
+     * picker shows "no matches" rather than sinking the page. The write that follows re-checks authorization.
+     */
+    suspend fun searchViewers(query: String): List<UserSearchResult> =
+        when (val result: ApiResult<List<UserSearchResult>> = rolesApi.searchViewers(query)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> emptyList()
+        }
+
+    /** Assign [userId] the management [role] (permanent membership), then reload so the member list reflects it. */
     suspend fun assignRole(userId: String, role: ManagementRole) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(rolesApi.assignRole(channel, userId, role))
+    }
+
+    /**
+     * Grant [userId] a whole management [role] via a permit ([expiresAt] ISO-8601 or null; optional [reason]), then
+     * reload so the permit list shows it. Distinct from [assignRole] — this is a delegated, optionally expiring lift.
+     */
+    suspend fun grantRole(userId: String, role: ManagementRole, expiresAt: String?, reason: String?) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(rolesApi.grantRole(channel, userId, role, expiresAt, reason))
     }
 
     /** Remove [userId]'s management role, then reload so they drop off the membership list. The screen confirms. */
@@ -110,10 +131,13 @@ class RolesController(
         afterWrite(rolesApi.removeRole(channel, userId))
     }
 
-    /** Grant [userId] the capability [actionKey] (optional [reason]), then reload so the permit list shows it. */
-    suspend fun grantCapability(userId: String, actionKey: String, reason: String?) {
+    /**
+     * Grant [userId] the capability [actionKey] ([expiresAt] ISO-8601 or null; optional [reason]), then reload so
+     * the permit list shows it.
+     */
+    suspend fun grantCapability(userId: String, actionKey: String, expiresAt: String?, reason: String?) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(rolesApi.grantCapability(channel, userId, actionKey, reason))
+        afterWrite(rolesApi.grantCapability(channel, userId, actionKey, expiresAt, reason))
     }
 
     /**

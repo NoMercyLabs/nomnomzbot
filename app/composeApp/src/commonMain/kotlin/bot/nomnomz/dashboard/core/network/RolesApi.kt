@@ -57,6 +57,14 @@ interface RolesApi {
     /** The per-action permission matrix — the closed set of action keys a capability can be granted on. */
     suspend fun actionMatrix(channelId: String): ApiResult<List<ActionPermission>>
 
+    /**
+     * Search the platform's users by login/display name for the viewer picker (`GET /api/v1/users?query=…`).
+     * This is what lets the assign-role and grant-permit flows reach a viewer who is NOT already a member — the
+     * result's [UserSearchResult.id] is the platform User GUID the writes key on. Floored at `community:read` on
+     * the resolved tenant (the operator's active channel), so a Broadcaster driving this page always clears it.
+     */
+    suspend fun searchViewers(query: String): ApiResult<List<UserSearchResult>>
+
     /** Set an override [level] on the action [actionKey] — overrides the default floor without removing it. */
     suspend fun setOverride(channelId: String, actionKey: String, level: Int): ApiResult<Unit>
 
@@ -69,11 +77,29 @@ interface RolesApi {
     /** Remove [userId]'s management role (demote to no membership). The screen confirms this first. */
     suspend fun removeRole(channelId: String, userId: String): ApiResult<Unit>
 
-    /** Grant [userId] a single capability — the [actionKey] permit (per-user delegation, optional [reason]). */
+    /**
+     * Grant [userId] a whole management [role] via a permit (`POST /permits/role`) — a delegated, optionally
+     * expiring lift to the role rather than a permanent membership (that is [assignRole]). [expiresAt] is an ISO-8601
+     * instant (null = no expiry); [reason] is audit. Reaches any user id, so it is the grant-a-role-to-a-viewer path.
+     */
+    suspend fun grantRole(
+        channelId: String,
+        userId: String,
+        role: ManagementRole,
+        expiresAt: String?,
+        reason: String?,
+    ): ApiResult<Unit>
+
+    /**
+     * Grant [userId] a single capability — the [actionKey] permit (per-user delegation). [expiresAt] is an ISO-8601
+     * instant (null = permanent); [reason] is audit. Reaches any user id, so it is the grant-a-capability-to-a-viewer
+     * path.
+     */
     suspend fun grantCapability(
         channelId: String,
         userId: String,
         actionKey: String,
+        expiresAt: String?,
         reason: String?,
     ): ApiResult<Unit>
 
@@ -108,6 +134,19 @@ class RestRolesApi(private val client: ApiClient) : RolesApi {
     override suspend fun actionMatrix(channelId: String): ApiResult<List<ActionPermission>> =
         client.getEnvelope("api/v1/channels/$channelId/action-permissions")
 
+    override suspend fun searchViewers(query: String): ApiResult<List<UserSearchResult>> =
+        // A flat `{ data: [...] }` PaginatedResponse (like the members list), so getDirect. The tenant the search
+        // is authorized against comes from the ApiClient's X-Channel-Id (the operator's active channel).
+        when (
+            val page: ApiResult<PaginatedEnvelope<UserSearchResult>> =
+                client.getDirect(
+                    "api/v1/users?query=${query.encodeQuery()}&page=1&pageSize=20"
+                )
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
+
     override suspend fun setOverride(channelId: String, actionKey: String, level: Int): ApiResult<Unit> =
         client.putUnit(
             "api/v1/channels/$channelId/action-permissions/${actionKey.encodeQuery()}",
@@ -131,15 +170,38 @@ class RestRolesApi(private val client: ApiClient) : RolesApi {
     override suspend fun removeRole(channelId: String, userId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/roles/$userId")
 
+    override suspend fun grantRole(
+        channelId: String,
+        userId: String,
+        role: ManagementRole,
+        expiresAt: String?,
+        reason: String?,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/permits/role",
+            GrantRoleBody(
+                userId = userId,
+                role = role.wire,
+                expiresAt = expiresAt,
+                reason = reason,
+            ),
+        )
+
     override suspend fun grantCapability(
         channelId: String,
         userId: String,
         actionKey: String,
+        expiresAt: String?,
         reason: String?,
     ): ApiResult<Unit> =
         client.postUnit(
             "api/v1/channels/$channelId/permits/capability",
-            GrantCapabilityBody(userId = userId, actionKey = actionKey, reason = reason),
+            GrantCapabilityBody(
+                userId = userId,
+                actionKey = actionKey,
+                expiresAt = expiresAt,
+                reason = reason,
+            ),
         )
 
     override suspend fun revokePermit(
@@ -332,9 +394,36 @@ data class ActionPermission(
     val effectiveLevel: Int = 0,
 )
 
+/**
+ * One user matched by the viewer picker (backend `UserSearchResult`, surfaced through the `UserDto`-typed
+ * `GET /api/v1/users` contract). [id] is the platform User GUID the role/permit writes key on; [displayName] /
+ * [username] label the row and [profileImageUrl] gives it an avatar. The picker reads only this subset of the
+ * declared `UserDto` (ApiClient's Json ignores the extra `email`/`createdAt`/`lastLoginAt` fields).
+ */
+@Serializable
+data class UserSearchResult(
+    val id: String,
+    val username: String = "",
+    val displayName: String = "",
+    val profileImageUrl: String? = null,
+)
+
 /** Request body for the role assignment (backend `RolesController.SetRoleBody`): the user GUID + role ordinal. */
 @Serializable
 data class SetRoleBody(val userId: String, val role: Int)
+
+/**
+ * Request body for a role permit (backend `PermitsController.GrantRoleBody`): the target user GUID, the role
+ * ordinal, an optional ISO-8601 [expiresAt] (null = no expiry — ApiClient's Json drops the null so it isn't sent),
+ * and an optional [reason].
+ */
+@Serializable
+data class GrantRoleBody(
+    val userId: String,
+    val role: Int,
+    val expiresAt: String?,
+    val reason: String?,
+)
 
 /** Request body for an action-permission level override (backend `ActionPermissionsController.SetOverrideBody`). */
 @Serializable
@@ -342,8 +431,13 @@ data class SetOverrideBody(val level: Int)
 
 /**
  * Request body for a capability permit (backend `PermitsController.GrantCapabilityBody`): the target user, the
- * action key, an optional reason. `expiresAt` is omitted (a permanent capability grant); the backend treats a
- * missing expiry as no expiry, and ApiClient's Json drops nulls so the field simply isn't sent.
+ * action key, an optional ISO-8601 [expiresAt] (null = no expiry), and an optional [reason]. ApiClient's Json
+ * drops nulls, so a permanent grant simply omits `expiresAt`.
  */
 @Serializable
-data class GrantCapabilityBody(val userId: String, val actionKey: String, val reason: String?)
+data class GrantCapabilityBody(
+    val userId: String,
+    val actionKey: String,
+    val expiresAt: String?,
+    val reason: String?,
+)

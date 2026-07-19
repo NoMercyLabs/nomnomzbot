@@ -1837,6 +1837,35 @@
     <string name="roles_role_lead_moderator">Lead moderator</string>
     <string name="roles_role_editor">Editor</string>
     <string name="roles_role_broadcaster">Broadcaster</string>
+    <!-- Assign a management role to any viewer (search picker). -->
+    <string name="roles_assign_viewer_action">Assign a role to a viewer</string>
+    <string name="roles_assign_viewer_title">Assign a management role</string>
+    <string name="roles_assign_pick_role">Choose a role</string>
+    <string name="roles_assign_confirm">Assign</string>
+    <!-- Grant a permit to any viewer. -->
+    <string name="roles_grant_permit_action">Grant a permit</string>
+    <string name="roles_grant_permit_title">Grant a permit</string>
+    <string name="roles_grant_permit_for_title">Grant a permit to %1$s</string>
+    <string name="roles_permit_type_label">Permit type</string>
+    <string name="roles_permit_type_role">Whole role</string>
+    <string name="roles_permit_type_capability">Single capability</string>
+    <string name="roles_grant_pick_role">Pick a role</string>
+    <string name="roles_permit_expiry_label">Expires</string>
+    <string name="roles_permit_expiry_never">Never</string>
+    <string name="roles_permit_expiry_1h">In 1 hour</string>
+    <string name="roles_permit_expiry_1d">In 1 day</string>
+    <string name="roles_permit_expiry_1w">In 1 week</string>
+    <string name="roles_permit_expiry_30d">In 30 days</string>
+    <string name="roles_permit_reason_label">Reason (optional)</string>
+    <string name="roles_permit_reason_placeholder">Why grant this?</string>
+    <!-- Viewer search picker. -->
+    <string name="roles_viewer_search_label">Find a viewer</string>
+    <string name="roles_viewer_search_placeholder">Search by name…</string>
+    <string name="roles_viewer_search_hint">Type at least 2 characters to search.</string>
+    <string name="roles_viewer_search_searching">Searching…</string>
+    <string name="roles_viewer_search_empty">No matching viewers.</string>
+    <string name="roles_viewer_search_change">Change viewer</string>
+    <string name="roles_viewer_selected">Selected: %1$s</string>
 
     <!-- Music page. -->
     <string name="music_loading">Loading music…</string>

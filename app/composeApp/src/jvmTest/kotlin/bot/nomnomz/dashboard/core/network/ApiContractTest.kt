@@ -166,6 +166,11 @@ class ApiContractTest {
             NetworkBanResult.serializer() to "NetworkBanResultDto",
             ChannelBanOutcome.serializer() to "ChannelBanOutcomeDto",
             ResolvedAccess.serializer() to "ResolvedAccessDto",
+            // Roles & Permits IAM: the viewer-search result (declared via the UserDto-typed /users contract) plus
+            // the two permit-grant request bodies that reach an arbitrary viewer.
+            UserSearchResult.serializer() to "UserDto",
+            GrantRoleBody.serializer() to "GrantRoleBody",
+            GrantCapabilityBody.serializer() to "GrantCapabilityBody",
             PickList.serializer() to "PickListDto",
             PickListPreview.serializer() to "PickListPreviewDto",
             CreatePickListBody.serializer() to "CreatePickListRequest",

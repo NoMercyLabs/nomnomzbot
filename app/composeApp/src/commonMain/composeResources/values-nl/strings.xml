@@ -1834,6 +1834,35 @@
     <string name="roles_role_lead_moderator">Hoofdmoderator</string>
     <string name="roles_role_editor">Redacteur</string>
     <string name="roles_role_broadcaster">Streamer</string>
+    <!-- Een beheerdersrol toewijzen aan een willekeurige kijker (zoekkiezer). -->
+    <string name="roles_assign_viewer_action">Rol toewijzen aan een kijker</string>
+    <string name="roles_assign_viewer_title">Beheerdersrol toewijzen</string>
+    <string name="roles_assign_pick_role">Kies een rol</string>
+    <string name="roles_assign_confirm">Toewijzen</string>
+    <!-- Een permit verlenen aan een willekeurige kijker. -->
+    <string name="roles_grant_permit_action">Permit verlenen</string>
+    <string name="roles_grant_permit_title">Permit verlenen</string>
+    <string name="roles_grant_permit_for_title">Permit verlenen aan %1$s</string>
+    <string name="roles_permit_type_label">Type permit</string>
+    <string name="roles_permit_type_role">Volledige rol</string>
+    <string name="roles_permit_type_capability">Losse bevoegdheid</string>
+    <string name="roles_grant_pick_role">Kies een rol</string>
+    <string name="roles_permit_expiry_label">Verloopt</string>
+    <string name="roles_permit_expiry_never">Nooit</string>
+    <string name="roles_permit_expiry_1h">Over 1 uur</string>
+    <string name="roles_permit_expiry_1d">Over 1 dag</string>
+    <string name="roles_permit_expiry_1w">Over 1 week</string>
+    <string name="roles_permit_expiry_30d">Over 30 dagen</string>
+    <string name="roles_permit_reason_label">Reden (optioneel)</string>
+    <string name="roles_permit_reason_placeholder">Waarom dit verlenen?</string>
+    <!-- Kijker-zoekkiezer. -->
+    <string name="roles_viewer_search_label">Zoek een kijker</string>
+    <string name="roles_viewer_search_placeholder">Zoek op naam…</string>
+    <string name="roles_viewer_search_hint">Typ minstens 2 tekens om te zoeken.</string>
+    <string name="roles_viewer_search_searching">Zoeken…</string>
+    <string name="roles_viewer_search_empty">Geen overeenkomende kijkers.</string>
+    <string name="roles_viewer_search_change">Kijker wijzigen</string>
+    <string name="roles_viewer_selected">Geselecteerd: %1$s</string>
 
     <!-- Music page. -->
     <string name="music_loading">Muziek laden…</string>

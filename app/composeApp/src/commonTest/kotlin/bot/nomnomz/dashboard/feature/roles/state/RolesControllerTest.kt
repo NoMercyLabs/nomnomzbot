@@ -22,6 +22,7 @@ import bot.nomnomz.dashboard.core.network.PermitGrant
 import bot.nomnomz.dashboard.core.network.PermitGrantType
 import bot.nomnomz.dashboard.core.network.ResolvedAccess
 import bot.nomnomz.dashboard.core.network.RolesApi
+import bot.nomnomz.dashboard.core.network.UserSearchResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -256,11 +257,11 @@ class RolesControllerTest {
         val controller = RolesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rolesApi)
 
         controller.load()
-        controller.grantCapability("u1", "stream:title:set", "Trusted editor")
+        controller.grantCapability("u1", "stream:title:set", null, "Trusted editor")
 
         // The write hit the capability route with the resolved channel, the user, the key, and the reason.
         assertEquals(
-            listOf(GrantCall("ch1", "u1", "stream:title:set", "Trusted editor")),
+            listOf(GrantCall("ch1", "u1", "stream:title:set", null, "Trusted editor")),
             rolesApi.grantCalls,
         )
         // The list reloaded and the new permit is now present, reading as a capability grant on its key.
@@ -286,9 +287,9 @@ class RolesControllerTest {
         val controller = RolesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rolesApi)
 
         controller.load()
-        controller.grantCapability("u1", "ban:user", null)
+        controller.grantCapability("u1", "ban:user", null, null)
 
-        assertEquals(listOf(GrantCall("ch1", "u1", "ban:user", null)), rolesApi.grantCalls)
+        assertEquals(listOf(GrantCall("ch1", "u1", "ban:user", null, null)), rolesApi.grantCalls)
         val state: RolesState = controller.state.value
         assertTrue(state is RolesState.Ready)
         // The lists are intact (no permit was added) and the failure is surfaced.
@@ -349,6 +350,89 @@ class RolesControllerTest {
         assertEquals("Not allowed.", state.actionError)
         assertEquals(1, rolesApi.membersCalls)
     }
+
+    @Test
+    fun grant_role_calls_the_role_permit_route_with_expiry_and_reason_then_reloads() = runTest {
+        val roleGrant =
+            PermitGrant(
+                id = "pr1",
+                userId = "u9",
+                username = "U-u9",
+                grantType = PermitGrantType.Role.wire,
+                grantedRole = ManagementRole.Moderator.wire,
+                grantedByUserId = "owner",
+                expiresAt = "2026-08-01T00:00:00Z",
+            )
+        val rolesApi =
+            FakeRolesApi(
+                membersResults = listOf(ApiResult.Ok(emptyList())),
+                // First read empty; after the grant the reload returns the new role permit.
+                permitsResults = listOf(ApiResult.Ok(emptyList()), ApiResult.Ok(listOf(roleGrant))),
+            )
+        val controller = RolesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rolesApi)
+
+        controller.load()
+        controller.grantRole("u9", ManagementRole.Moderator, "2026-08-01T00:00:00Z", "Guest mod for the raid")
+
+        // The write hit the role-permit route with the resolved channel, user, role, expiry, and reason.
+        assertEquals(
+            listOf(
+                GrantRoleCall(
+                    "ch1",
+                    "u9",
+                    ManagementRole.Moderator,
+                    "2026-08-01T00:00:00Z",
+                    "Guest mod for the raid",
+                )
+            ),
+            rolesApi.grantRoleCalls,
+        )
+        // The list reloaded and the new permit is present, reading as a role grant lifting the viewer to Moderator.
+        val state: RolesState = controller.state.value
+        assertTrue(state is RolesState.Ready)
+        val permits: List<PermitGrant> = (state as RolesState.Ready).permits
+        assertEquals(1, permits.size)
+        assertEquals(PermitGrantType.Role, permits.first().type)
+        assertEquals(ManagementRole.Moderator, permits.first().role)
+        assertEquals("u9", permits.first().userId)
+        assertNull(state.actionError)
+    }
+
+    @Test
+    fun search_viewers_returns_the_backend_matches_for_the_picker() = runTest {
+        val matches =
+            listOf(
+                UserSearchResult(id = "u1", username = "alice", displayName = "Alice"),
+                UserSearchResult(id = "u2", username = "alicorn", displayName = "Alicorn"),
+            )
+        val rolesApi =
+            FakeRolesApi(
+                membersResults = listOf(ApiResult.Ok(emptyList())),
+                searchResult = ApiResult.Ok(matches),
+            )
+        val controller = RolesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rolesApi)
+
+        val results: List<UserSearchResult> = controller.searchViewers("ali")
+
+        assertEquals(listOf("ali"), rolesApi.searchQueries)
+        assertEquals(listOf("u1", "u2"), results.map { it.id })
+        assertEquals("Alice", results.first().displayName)
+    }
+
+    @Test
+    fun search_viewers_yields_an_empty_list_when_the_backend_fails() = runTest {
+        val rolesApi =
+            FakeRolesApi(
+                membersResults = listOf(ApiResult.Ok(emptyList())),
+                searchResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "No access.")),
+            )
+        val controller = RolesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rolesApi)
+
+        val results: List<UserSearchResult> = controller.searchViewers("bob")
+
+        // A failed search degrades to "no matches" rather than sinking the picker.
+        assertEquals(emptyList(), results)
+    }
 }
 
 // ── Builders ────────────────────────────────────────────────────────────────
@@ -402,11 +486,21 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
-/** A captured capability-grant call (channel, user, action key, reason) — a Triple can't carry four fields. */
+/** A captured capability-grant call (channel, user, action key, expiry, reason). */
 private data class GrantCall(
     val channelId: String,
     val userId: String,
     val actionKey: String,
+    val expiresAt: String?,
+    val reason: String?,
+)
+
+/** A captured role-permit-grant call (channel, user, role, expiry, reason). */
+private data class GrantRoleCall(
+    val channelId: String,
+    val userId: String,
+    val role: ManagementRole,
+    val expiresAt: String?,
     val reason: String?,
 )
 
@@ -417,7 +511,9 @@ private class FakeRolesApi(
     private val assignResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val removeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val grantResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val grantRoleResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val revokeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val searchResult: ApiResult<List<UserSearchResult>> = ApiResult.Ok(emptyList()),
 ) : RolesApi {
     // Single-result convenience overloads via named args; the sequences let a reload return a changed page.
     constructor(
@@ -434,7 +530,9 @@ private class FakeRolesApi(
     val assignCalls: MutableList<Triple<String, String, ManagementRole>> = mutableListOf()
     val removeCalls: MutableList<Pair<String, String>> = mutableListOf()
     val grantCalls: MutableList<GrantCall> = mutableListOf()
+    val grantRoleCalls: MutableList<GrantRoleCall> = mutableListOf()
     val revokeCalls: MutableList<Triple<String, String, String?>> = mutableListOf()
+    val searchQueries: MutableList<String> = mutableListOf()
 
     override suspend fun effectiveMe(channelId: String): ApiResult<ResolvedAccess> =
         ApiResult.Ok(
@@ -455,6 +553,11 @@ private class FakeRolesApi(
 
     override suspend fun actionMatrix(channelId: String): ApiResult<List<ActionPermission>> = matrixResult
 
+    override suspend fun searchViewers(query: String): ApiResult<List<UserSearchResult>> {
+        searchQueries.add(query)
+        return searchResult
+    }
+
     override suspend fun assignRole(
         channelId: String,
         userId: String,
@@ -469,13 +572,25 @@ private class FakeRolesApi(
         return removeResult
     }
 
+    override suspend fun grantRole(
+        channelId: String,
+        userId: String,
+        role: ManagementRole,
+        expiresAt: String?,
+        reason: String?,
+    ): ApiResult<Unit> {
+        grantRoleCalls.add(GrantRoleCall(channelId, userId, role, expiresAt, reason))
+        return grantRoleResult
+    }
+
     override suspend fun grantCapability(
         channelId: String,
         userId: String,
         actionKey: String,
+        expiresAt: String?,
         reason: String?,
     ): ApiResult<Unit> {
-        grantCalls.add(GrantCall(channelId, userId, actionKey, reason))
+        grantCalls.add(GrantCall(channelId, userId, actionKey, expiresAt, reason))
         return grantResult
     }
 

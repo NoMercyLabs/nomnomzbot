@@ -22,6 +22,7 @@ import bot.nomnomz.dashboard.core.network.ManagementRole as WireRole
 import bot.nomnomz.dashboard.core.network.PermitGrant
 import bot.nomnomz.dashboard.core.network.ResolvedAccess
 import bot.nomnomz.dashboard.core.network.RolesApi
+import bot.nomnomz.dashboard.core.network.UserSearchResult
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 import kotlin.test.Test
@@ -282,15 +283,27 @@ private class FakeRolesApi(private val access: ApiResult<ResolvedAccess>) : Role
     override suspend fun actionMatrix(channelId: String): ApiResult<List<ActionPermission>> =
         ApiResult.Ok(emptyList())
 
+    override suspend fun searchViewers(query: String): ApiResult<List<UserSearchResult>> =
+        ApiResult.Ok(emptyList())
+
     override suspend fun assignRole(channelId: String, userId: String, role: WireRole): ApiResult<Unit> =
         ApiResult.Ok(Unit)
 
     override suspend fun removeRole(channelId: String, userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
+    override suspend fun grantRole(
+        channelId: String,
+        userId: String,
+        role: WireRole,
+        expiresAt: String?,
+        reason: String?,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
     override suspend fun grantCapability(
         channelId: String,
         userId: String,
         actionKey: String,
+        expiresAt: String?,
         reason: String?,
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
 

@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.roles.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
@@ -58,23 +60,36 @@ import bot.nomnomz.dashboard.core.network.ChannelMembership
 import bot.nomnomz.dashboard.core.network.ManagementRole
 import bot.nomnomz.dashboard.core.network.PermitGrant
 import bot.nomnomz.dashboard.core.network.PermitGrantType
+import bot.nomnomz.dashboard.core.network.UserSearchResult
 import bot.nomnomz.dashboard.feature.roles.state.RolesController
 import bot.nomnomz.dashboard.feature.roles.state.RolesState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole as NavManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.roles_action_error
 import nomnomzbot.composeapp.generated.resources.roles_action_overrides_section
+import nomnomzbot.composeapp.generated.resources.roles_assign_confirm
+import nomnomzbot.composeapp.generated.resources.roles_assign_pick_role
 import nomnomzbot.composeapp.generated.resources.roles_assign_picker
+import nomnomzbot.composeapp.generated.resources.roles_assign_viewer_action
+import nomnomzbot.composeapp.generated.resources.roles_assign_viewer_title
 import nomnomzbot.composeapp.generated.resources.roles_empty
 import nomnomzbot.composeapp.generated.resources.roles_error
 import nomnomzbot.composeapp.generated.resources.roles_grant_action
 import nomnomzbot.composeapp.generated.resources.roles_grant_action_short
-import nomnomzbot.composeapp.generated.resources.roles_grant_dialog_title
 import nomnomzbot.composeapp.generated.resources.roles_grant_empty
+import nomnomzbot.composeapp.generated.resources.roles_grant_permit_action
+import nomnomzbot.composeapp.generated.resources.roles_grant_permit_for_title
+import nomnomzbot.composeapp.generated.resources.roles_grant_permit_title
 import nomnomzbot.composeapp.generated.resources.roles_grant_pick_action
+import nomnomzbot.composeapp.generated.resources.roles_grant_pick_role
 import nomnomzbot.composeapp.generated.resources.roles_loading
 import nomnomzbot.composeapp.generated.resources.roles_member_description
 import nomnomzbot.composeapp.generated.resources.roles_members_section
@@ -89,7 +104,18 @@ import nomnomzbot.composeapp.generated.resources.roles_override_reset
 import nomnomzbot.composeapp.generated.resources.roles_override_set
 import nomnomzbot.composeapp.generated.resources.roles_permit_capability
 import nomnomzbot.composeapp.generated.resources.roles_permit_description
+import nomnomzbot.composeapp.generated.resources.roles_permit_expiry_1d
+import nomnomzbot.composeapp.generated.resources.roles_permit_expiry_1h
+import nomnomzbot.composeapp.generated.resources.roles_permit_expiry_1w
+import nomnomzbot.composeapp.generated.resources.roles_permit_expiry_30d
+import nomnomzbot.composeapp.generated.resources.roles_permit_expiry_label
+import nomnomzbot.composeapp.generated.resources.roles_permit_expiry_never
+import nomnomzbot.composeapp.generated.resources.roles_permit_reason_label
+import nomnomzbot.composeapp.generated.resources.roles_permit_reason_placeholder
 import nomnomzbot.composeapp.generated.resources.roles_permit_role
+import nomnomzbot.composeapp.generated.resources.roles_permit_type_capability
+import nomnomzbot.composeapp.generated.resources.roles_permit_type_label
+import nomnomzbot.composeapp.generated.resources.roles_permit_type_role
 import nomnomzbot.composeapp.generated.resources.roles_permits_empty
 import nomnomzbot.composeapp.generated.resources.roles_permits_section
 import nomnomzbot.composeapp.generated.resources.roles_remove_action
@@ -112,6 +138,13 @@ import nomnomzbot.composeapp.generated.resources.roles_role_lead_moderator
 import nomnomzbot.composeapp.generated.resources.roles_role_moderator
 import nomnomzbot.composeapp.generated.resources.roles_role_subscriber
 import nomnomzbot.composeapp.generated.resources.roles_role_vip
+import nomnomzbot.composeapp.generated.resources.roles_viewer_search_change
+import nomnomzbot.composeapp.generated.resources.roles_viewer_search_empty
+import nomnomzbot.composeapp.generated.resources.roles_viewer_search_hint
+import nomnomzbot.composeapp.generated.resources.roles_viewer_search_label
+import nomnomzbot.composeapp.generated.resources.roles_viewer_search_placeholder
+import nomnomzbot.composeapp.generated.resources.roles_viewer_search_searching
+import nomnomzbot.composeapp.generated.resources.roles_viewer_selected
 import nomnomzbot.composeapp.generated.resources.shell_nav_roles
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -148,9 +181,15 @@ fun RolesScreen(controller: RolesController, role: NavManagementRole?) {
                 RolesContent(
                     state = current,
                     manage = manage,
-                    onAssignRole = { userId, role -> scope.launch { controller.assignRole(userId, role) } },
+                    searchViewers = { query -> controller.searchViewers(query) },
+                    onAssignRole = { userId, assignedRole -> scope.launch { controller.assignRole(userId, assignedRole) } },
                     onRemoveRole = { userId -> scope.launch { controller.removeRole(userId) } },
-                    onGrant = { userId, key -> scope.launch { controller.grantCapability(userId, key, null) } },
+                    onGrantCapability = { userId, key, expiresAt, reason ->
+                        scope.launch { controller.grantCapability(userId, key, expiresAt, reason) }
+                    },
+                    onGrantRole = { userId, grantedRole, expiresAt, reason ->
+                        scope.launch { controller.grantRole(userId, grantedRole, expiresAt, reason) }
+                    },
                     onRevoke = { userId, selector -> scope.launch { controller.revokePermit(userId, selector) } },
                     onSetOverride = { actionKey, level -> scope.launch { controller.setOverride(actionKey, level) } },
                     onResetOverride = { actionKey -> scope.launch { controller.resetOverride(actionKey) } },
@@ -163,23 +202,27 @@ fun RolesScreen(controller: RolesController, role: NavManagementRole?) {
 private fun RolesContent(
     state: RolesState.Ready,
     manage: ManageDecision,
+    searchViewers: suspend (query: String) -> List<UserSearchResult>,
     onAssignRole: (userId: String, role: ManagementRole) -> Unit,
     onRemoveRole: (userId: String) -> Unit,
-    onGrant: (userId: String, actionKey: String) -> Unit,
+    onGrantCapability: (userId: String, actionKey: String, expiresAt: String?, reason: String?) -> Unit,
+    onGrantRole: (userId: String, role: ManagementRole, expiresAt: String?, reason: String?) -> Unit,
     onRevoke: (userId: String, selector: String?) -> Unit,
     onSetOverride: (actionKey: String, level: Int) -> Unit,
     onResetOverride: (actionKey: String) -> Unit,
 ) {
-    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
     val typography = LocalTypography.current
 
-    // The member awaiting a remove confirmation / a capability grant, the permit awaiting a revoke, and the
-    // action awaiting an override change — the screen owns all dialogs' open/closed state.
+    // The member awaiting a remove confirmation, the permit awaiting a revoke, and the action awaiting an override
+    // change — plus the two viewer-reaching flows: the assign-role-to-a-viewer dialog and the grant-permit dialog
+    // (opened either with search, or preselected to a member via their row's Grant control).
     var pendingRemove: ChannelMembership? by remember { mutableStateOf(null) }
-    var pendingGrant: ChannelMembership? by remember { mutableStateOf(null) }
     var pendingRevoke: PermitGrant? by remember { mutableStateOf(null) }
     var pendingOverride: ActionPermission? by remember { mutableStateOf(null) }
+    var assignViewerOpen: Boolean by remember { mutableStateOf(false) }
+    var permitTarget: PermitTarget? by remember { mutableStateOf(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -193,20 +236,33 @@ private fun RolesContent(
 
         item(key = "members-section") {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                SectionLabel(stringResource(Res.string.roles_members_section))
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column {
-                        state.members.forEachIndexed { index, member ->
-                            MemberRow(
-                                member = member,
-                                manage = manage,
-                                canGrant = state.grantableActions.isNotEmpty(),
-                                onAssignRole = { role -> onAssignRole(member.userId, role) },
-                                onRemove = { pendingRemove = member },
-                                onGrant = { pendingGrant = member },
-                            )
-                            if (index < state.members.lastIndex) {
-                                Separator()
+                // The section header carries the reach-a-viewer action: assign a management role to any viewer the
+                // operator searches for — not just re-pick an existing member's role.
+                SectionHeader(
+                    label = stringResource(Res.string.roles_members_section),
+                    manage = manage,
+                    actionLabel = stringResource(Res.string.roles_assign_viewer_action),
+                    onAction = { assignViewerOpen = true },
+                )
+                if (state.members.isNotEmpty()) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column {
+                            state.members.forEachIndexed { index, member ->
+                                MemberRow(
+                                    member = member,
+                                    manage = manage,
+                                    onAssignRole = { role -> onAssignRole(member.userId, role) },
+                                    onRemove = { pendingRemove = member },
+                                    onGrant = {
+                                        permitTarget =
+                                            PermitTarget.Preselected(
+                                                ViewerRef(member.userId, memberName(member))
+                                            )
+                                    },
+                                )
+                                if (index < state.members.lastIndex) {
+                                    Separator()
+                                }
                             }
                         }
                     }
@@ -216,7 +272,14 @@ private fun RolesContent(
 
         item(key = "permits-section") {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                SectionLabel(stringResource(Res.string.roles_permits_section))
+                // The section header carries the reach-a-viewer action: grant a permit (a whole role or a single
+                // capability, optionally expiring) to any viewer the operator searches for.
+                SectionHeader(
+                    label = stringResource(Res.string.roles_permits_section),
+                    manage = manage,
+                    actionLabel = stringResource(Res.string.roles_grant_permit_action),
+                    onAction = { permitTarget = PermitTarget.Search },
+                )
                 if (state.permits.isEmpty()) {
                     Text(
                         text = stringResource(Res.string.roles_permits_empty),
@@ -283,15 +346,31 @@ private fun RolesContent(
         )
     }
 
-    pendingGrant?.let { member ->
-        GrantCapabilityDialog(
-            memberName = memberName(member),
-            actions = state.grantableActions,
-            onConfirm = { actionKey ->
-                onGrant(member.userId, actionKey)
-                pendingGrant = null
+    if (assignViewerOpen) {
+        AssignRoleToViewerDialog(
+            searchViewers = searchViewers,
+            onConfirm = { userId, role ->
+                onAssignRole(userId, role)
+                assignViewerOpen = false
             },
-            onDismiss = { pendingGrant = null },
+            onDismiss = { assignViewerOpen = false },
+        )
+    }
+
+    permitTarget?.let { target ->
+        GrantPermitDialog(
+            preselected = (target as? PermitTarget.Preselected)?.viewer,
+            grantableActions = state.grantableActions,
+            searchViewers = searchViewers,
+            onGrantCapability = { userId, actionKey, expiresAt, reason ->
+                onGrantCapability(userId, actionKey, expiresAt, reason)
+                permitTarget = null
+            },
+            onGrantRole = { userId, role, expiresAt, reason ->
+                onGrantRole(userId, role, expiresAt, reason)
+                permitTarget = null
+            },
+            onDismiss = { permitTarget = null },
         )
     }
 
@@ -327,7 +406,6 @@ private fun RolesContent(
 private fun MemberRow(
     member: ChannelMembership,
     manage: ManageDecision,
-    canGrant: Boolean,
     onAssignRole: (role: ManagementRole) -> Unit,
     onRemove: () -> Unit,
     onGrant: () -> Unit,
@@ -359,7 +437,7 @@ private fun MemberRow(
                 .clearAndSetSemantics { contentDescription = rowDescription },
         )
         RolePicker(name = name, current = member.managementRole, manage = manage, onSelect = onAssignRole)
-        if (canGrant) GrantButton(name = name, manage = manage, onGrant = onGrant)
+        GrantButton(name = name, manage = manage, onGrant = onGrant)
         RemoveButton(name = name, manage = manage, onRemove = onRemove)
     }
 }
@@ -511,77 +589,240 @@ private fun PermitRow(permit: PermitGrant, manage: ManageDecision, onRevoke: () 
     }
 }
 
-// The capability-grant dialog: pick one of the channel's permit-grantable action keys for the member, then
-// confirm. Each key is selectable from the closed list; the confirm stays disabled until one is chosen.
+// ── Viewer-reaching flows (B6 / B7) ──────────────────────────────────────────
+
+/** A chosen viewer for the assign-role / grant-permit flows: the platform User GUID plus a display [name]. */
+private data class ViewerRef(val userId: String, val name: String)
+
+/** Which viewer the grant-permit dialog targets: one found via search, or one preselected from a member row. */
+private sealed interface PermitTarget {
+    /** Open the dialog with the viewer picker enabled (reach an arbitrary viewer). */
+    data object Search : PermitTarget
+
+    /** Open the dialog already targeting [viewer] (a member's Grant control). */
+    data class Preselected(val viewer: ViewerRef) : PermitTarget
+}
+
+/** Whether the grant-permit dialog is issuing a whole-role permit or a single-capability permit. */
+private enum class PermitKind { Capability, Role }
+
+/**
+ * The offered permit expiries. [duration] is added to "now" at confirm to produce the ISO-8601 `expiresAt`; a null
+ * duration means a permanent grant (no expiry sent). Users never see raw timestamps — only these named choices.
+ */
+private enum class PermitExpiry(val label: StringResource, val duration: Duration?) {
+    Never(Res.string.roles_permit_expiry_never, null),
+    OneHour(Res.string.roles_permit_expiry_1h, 1.hours),
+    OneDay(Res.string.roles_permit_expiry_1d, 24.hours),
+    OneWeek(Res.string.roles_permit_expiry_1w, 7.days),
+    ThirtyDays(Res.string.roles_permit_expiry_30d, 30.days),
+}
+
+// A section header row: the muted section label plus a trailing, manage-gated action button (the reach-a-viewer
+// entry point). Below the manage floor the button is disabled with the same "Requires Broadcaster" reason as
+// every other write on the page.
 @Composable
-private fun GrantCapabilityDialog(
-    memberName: String,
-    actions: List<ActionPermission>,
-    onConfirm: (actionKey: String) -> Unit,
+private fun SectionHeader(
+    label: String,
+    manage: ManageDecision,
+    actionLabel: String,
+    onAction: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Box(modifier = Modifier.weight(1f)) { SectionLabel(label) }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onAction,
+                enabled = enabled,
+                modifier = Modifier.semantics {
+                    role = Role.Button
+                    contentDescription = actionLabel
+                },
+            ) {
+                Text(
+                    text = actionLabel,
+                    style = typography.sm,
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+// The viewer picker: a search field that queries the platform's users (community/search) and lists the matches
+// for selection. Once a viewer is chosen it collapses to the selected name plus a "change" affordance. This is
+// the piece that lets the assign-role and grant-permit flows reach a viewer who is NOT already a member. The
+// [selected] viewer is owned by the parent dialog; this composable owns only its transient query + results.
+@Composable
+private fun ViewerSearchField(
+    searchViewers: suspend (query: String) -> List<UserSearchResult>,
+    selected: ViewerRef?,
+    onSelect: (ViewerRef) -> Unit,
+    onClear: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    if (selected != null) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            Text(
+                text = stringResource(Res.string.roles_viewer_selected, selected.name),
+                style = typography.sm,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onClear) {
+                Text(
+                    text = stringResource(Res.string.roles_viewer_search_change),
+                    style = typography.sm,
+                    color = tokens.primary,
+                    maxLines = 1,
+                )
+            }
+        }
+        return
+    }
+
+    var query: String by remember { mutableStateOf("") }
+    var results: List<UserSearchResult> by remember { mutableStateOf(emptyList()) }
+    var searching: Boolean by remember { mutableStateOf(false) }
+
+    val trimmed: String = query.trim()
+    // Re-run the search when the query changes; LaunchedEffect cancels the previous run, so the 300ms delay
+    // debounces keystrokes and only the latest query hits the backend.
+    LaunchedEffect(trimmed) {
+        if (trimmed.length < 2) {
+            results = emptyList()
+            searching = false
+            return@LaunchedEffect
+        }
+        searching = true
+        delay(300)
+        results = searchViewers(trimmed)
+        searching = false
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        AppTextField(
+            value = query,
+            onValueChange = { query = it },
+            label = stringResource(Res.string.roles_viewer_search_label),
+            placeholder = stringResource(Res.string.roles_viewer_search_placeholder),
+            supportingText =
+                if (trimmed.length < 2) stringResource(Res.string.roles_viewer_search_hint) else null,
+        )
+        when {
+            searching ->
+                Text(
+                    text = stringResource(Res.string.roles_viewer_search_searching),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+            trimmed.length >= 2 && results.isEmpty() ->
+                Text(
+                    text = stringResource(Res.string.roles_viewer_search_empty),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+        }
+        results.take(5).forEach { user ->
+            val name: String =
+                user.displayName.ifBlank { user.username }.ifBlank { user.id }
+            TextButton(
+                onClick = { onSelect(ViewerRef(user.id, name)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = name
+                    },
+            ) {
+                Text(
+                    text = name,
+                    style = typography.sm,
+                    color = tokens.popoverForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+// Assign a PERMANENT management role to any viewer (B6 — the make-a-mod flow). Pick a viewer via search, pick a
+// role by NAME, confirm. The backend re-checks no-escalation, so an over-reach surfaces as the page's error banner.
+@Composable
+private fun AssignRoleToViewerDialog(
+    searchViewers: suspend (query: String) -> List<UserSearchResult>,
+    onConfirm: (userId: String, role: ManagementRole) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    var selectedKey: String? by remember { mutableStateOf(null) }
-    var expanded: Boolean by remember { mutableStateOf(false) }
+    var selectedViewer: ViewerRef? by remember { mutableStateOf(null) }
+    var selectedRole: ManagementRole? by remember { mutableStateOf(null) }
+    var roleExpanded: Boolean by remember { mutableStateOf(false) }
 
-    val title: String = stringResource(Res.string.roles_grant_dialog_title, memberName)
-    val pickLabel: String = stringResource(Res.string.roles_grant_pick_action)
-    val triggerLabel: String = selectedKey ?: pickLabel
-    val confirmLabel: String = stringResource(Res.string.roles_grant_action_short)
+    val pickRoleLabel: String = stringResource(Res.string.roles_assign_pick_role)
+    val roleTrigger: String = selectedRole?.let { stringResource(roleLabel(it)) } ?: pickRoleLabel
     val dismissLabel: String = stringResource(Res.string.roles_remove_dismiss)
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = title) },
+        title = { Text(text = stringResource(Res.string.roles_assign_viewer_title)) },
         text = {
-            if (actions.isEmpty()) {
-                Text(text = stringResource(Res.string.roles_grant_empty), color = tokens.mutedForeground)
-            } else {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                ViewerSearchField(
+                    searchViewers = searchViewers,
+                    selected = selectedViewer,
+                    onSelect = { selectedViewer = it },
+                    onClear = { selectedViewer = null },
+                )
                 Box {
                     TextButton(
-                        onClick = { expanded = true },
+                        onClick = { roleExpanded = true },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .semantics { contentDescription = pickLabel },
+                            .semantics { contentDescription = pickRoleLabel },
                     ) {
                         Text(
-                            text = triggerLabel,
+                            text = roleTrigger,
                             style = typography.sm,
                             color = tokens.primary,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        actions.forEach { action ->
+                    DropdownMenu(expanded = roleExpanded, onDismissRequest = { roleExpanded = false }) {
+                        ManagementRole.byLevelDescending.forEach { role ->
+                            val label: String = stringResource(roleLabel(role))
                             DropdownMenuItem(
                                 text = {
-                                    Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
-                                        Text(
-                                            text = action.actionKey,
-                                            style = typography.sm,
-                                            color = tokens.popoverForeground,
-                                        )
-                                        action.description?.takeIf { it.isNotBlank() }?.let { description ->
-                                            Text(
-                                                text = description,
-                                                style = typography.xs,
-                                                color = tokens.mutedForeground,
-                                            )
-                                        }
-                                    }
+                                    Text(text = label, style = typography.sm, color = tokens.popoverForeground)
                                 },
-                                modifier = Modifier.semantics {
-                                    role = Role.Button
-                                    contentDescription = action.actionKey
-                                },
+                                modifier = Modifier.semantics { this.role = Role.Button },
                                 onClick = {
-                                    selectedKey = action.actionKey
-                                    expanded = false
+                                    selectedRole = role
+                                    roleExpanded = false
                                 },
                             )
                         }
@@ -590,11 +831,16 @@ private fun GrantCapabilityDialog(
             }
         },
         confirmButton = {
-            val chosen: String? = selectedKey
-            TextButton(onClick = { chosen?.let(onConfirm) }, enabled = chosen != null) {
+            val viewer: ViewerRef? = selectedViewer
+            val role: ManagementRole? = selectedRole
+            val enabled: Boolean = viewer != null && role != null
+            TextButton(
+                onClick = { if (viewer != null && role != null) onConfirm(viewer.userId, role) },
+                enabled = enabled,
+            ) {
                 Text(
-                    text = confirmLabel,
-                    color = if (chosen != null) tokens.primary else tokens.mutedForeground,
+                    text = stringResource(Res.string.roles_assign_confirm),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
                     maxLines = 1,
                 )
             }
@@ -605,6 +851,277 @@ private fun GrantCapabilityDialog(
             }
         },
     )
+}
+
+// Grant a PERMIT to a viewer (B7): a whole management role or a single capability, optionally expiring, with an
+// optional reason. Reaches an arbitrary viewer via search when [preselected] is null, or targets a member row's
+// viewer directly. The confirm stays disabled until a viewer AND a role/capability are chosen.
+@Composable
+private fun GrantPermitDialog(
+    preselected: ViewerRef?,
+    grantableActions: List<ActionPermission>,
+    searchViewers: suspend (query: String) -> List<UserSearchResult>,
+    onGrantCapability: (userId: String, actionKey: String, expiresAt: String?, reason: String?) -> Unit,
+    onGrantRole: (userId: String, role: ManagementRole, expiresAt: String?, reason: String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var selectedViewer: ViewerRef? by remember { mutableStateOf(preselected) }
+    var kind: PermitKind by remember { mutableStateOf(PermitKind.Capability) }
+    var selectedActionKey: String? by remember { mutableStateOf(null) }
+    var selectedRole: ManagementRole? by remember { mutableStateOf(null) }
+    var expiry: PermitExpiry by remember { mutableStateOf(PermitExpiry.Never) }
+    var reason: String by remember { mutableStateOf("") }
+
+    var kindExpanded: Boolean by remember { mutableStateOf(false) }
+    var actionExpanded: Boolean by remember { mutableStateOf(false) }
+    var roleExpanded: Boolean by remember { mutableStateOf(false) }
+    var expiryExpanded: Boolean by remember { mutableStateOf(false) }
+
+    val title: String =
+        preselected?.let { stringResource(Res.string.roles_grant_permit_for_title, it.name) }
+            ?: stringResource(Res.string.roles_grant_permit_title)
+    val dismissLabel: String = stringResource(Res.string.roles_remove_dismiss)
+
+    val kindLabel: String =
+        when (kind) {
+            PermitKind.Capability -> stringResource(Res.string.roles_permit_type_capability)
+            PermitKind.Role -> stringResource(Res.string.roles_permit_type_role)
+        }
+    val actionTrigger: String = selectedActionKey ?: stringResource(Res.string.roles_grant_pick_action)
+    val roleTrigger: String =
+        selectedRole?.let { stringResource(roleLabel(it)) } ?: stringResource(Res.string.roles_grant_pick_role)
+
+    val viewer: ViewerRef? = selectedViewer
+    val enabled: Boolean =
+        viewer != null &&
+            when (kind) {
+                PermitKind.Capability -> selectedActionKey != null
+                PermitKind.Role -> selectedRole != null
+            }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                ViewerSearchField(
+                    searchViewers = searchViewers,
+                    selected = selectedViewer,
+                    onSelect = { selectedViewer = it },
+                    onClear = { selectedViewer = null },
+                )
+
+                // Permit type: whole role vs single capability.
+                LabeledDropdown(
+                    label = stringResource(Res.string.roles_permit_type_label),
+                    trigger = kindLabel,
+                    expanded = kindExpanded,
+                    onExpandedChange = { kindExpanded = it },
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = stringResource(Res.string.roles_permit_type_capability),
+                                style = typography.sm,
+                                color = tokens.popoverForeground,
+                            )
+                        },
+                        modifier = Modifier.semantics { role = Role.Button },
+                        onClick = {
+                            kind = PermitKind.Capability
+                            kindExpanded = false
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = stringResource(Res.string.roles_permit_type_role),
+                                style = typography.sm,
+                                color = tokens.popoverForeground,
+                            )
+                        },
+                        modifier = Modifier.semantics { role = Role.Button },
+                        onClick = {
+                            kind = PermitKind.Role
+                            kindExpanded = false
+                        },
+                    )
+                }
+
+                when (kind) {
+                    PermitKind.Capability ->
+                        if (grantableActions.isEmpty()) {
+                            Text(
+                                text = stringResource(Res.string.roles_grant_empty),
+                                style = typography.sm,
+                                color = tokens.mutedForeground,
+                            )
+                        } else {
+                            LabeledDropdown(
+                                label = stringResource(Res.string.roles_permit_type_capability),
+                                trigger = actionTrigger,
+                                expanded = actionExpanded,
+                                onExpandedChange = { actionExpanded = it },
+                            ) {
+                                grantableActions.forEach { action ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
+                                                Text(
+                                                    text = action.actionKey,
+                                                    style = typography.sm,
+                                                    color = tokens.popoverForeground,
+                                                )
+                                                action.description?.takeIf { it.isNotBlank() }?.let { description ->
+                                                    Text(
+                                                        text = description,
+                                                        style = typography.xs,
+                                                        color = tokens.mutedForeground,
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.semantics {
+                                            role = Role.Button
+                                            contentDescription = action.actionKey
+                                        },
+                                        onClick = {
+                                            selectedActionKey = action.actionKey
+                                            actionExpanded = false
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    PermitKind.Role ->
+                        LabeledDropdown(
+                            label = stringResource(Res.string.roles_permit_type_role),
+                            trigger = roleTrigger,
+                            expanded = roleExpanded,
+                            onExpandedChange = { roleExpanded = it },
+                        ) {
+                            ManagementRole.byLevelDescending.forEach { role ->
+                                val label: String = stringResource(roleLabel(role))
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(text = label, style = typography.sm, color = tokens.popoverForeground)
+                                    },
+                                    modifier = Modifier.semantics { this.role = Role.Button },
+                                    onClick = {
+                                        selectedRole = role
+                                        roleExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                }
+
+                // Optional expiry — a named duration; "Never" sends no expiry.
+                LabeledDropdown(
+                    label = stringResource(Res.string.roles_permit_expiry_label),
+                    trigger = stringResource(expiry.label),
+                    expanded = expiryExpanded,
+                    onExpandedChange = { expiryExpanded = it },
+                ) {
+                    PermitExpiry.entries.forEach { choice ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = stringResource(choice.label),
+                                    style = typography.sm,
+                                    color = tokens.popoverForeground,
+                                )
+                            },
+                            modifier = Modifier.semantics { role = Role.Button },
+                            onClick = {
+                                expiry = choice
+                                expiryExpanded = false
+                            },
+                        )
+                    }
+                }
+
+                AppTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = stringResource(Res.string.roles_permit_reason_label),
+                    placeholder = stringResource(Res.string.roles_permit_reason_placeholder),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val target: ViewerRef = viewer ?: return@TextButton
+                    val expiresAt: String? = expiry.duration?.let { Clock.System.now().plus(it).toString() }
+                    val reasonOrNull: String? = reason.trim().ifBlank { null }
+                    when (kind) {
+                        PermitKind.Capability ->
+                            selectedActionKey?.let { key ->
+                                onGrantCapability(target.userId, key, expiresAt, reasonOrNull)
+                            }
+                        PermitKind.Role ->
+                            selectedRole?.let { role ->
+                                onGrantRole(target.userId, role, expiresAt, reasonOrNull)
+                            }
+                    }
+                },
+                enabled = enabled,
+            ) {
+                Text(
+                    text = stringResource(Res.string.roles_grant_action_short),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = dismissLabel, color = tokens.mutedForeground, maxLines = 1)
+            }
+        },
+    )
+}
+
+// A labelled dropdown control: a muted caption above a full-width trigger that opens [menuContent]. Shared by the
+// grant-permit dialog's type / capability / role / expiry pickers so each reads consistently.
+@Composable
+private fun LabeledDropdown(
+    label: String,
+    trigger: String,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    menuContent: @Composable ColumnScope.() -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        Text(text = label, style = typography.sm, color = tokens.foreground)
+        Box {
+            TextButton(
+                onClick = { onExpandedChange(true) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = label },
+            ) {
+                Text(
+                    text = trigger,
+                    style = typography.sm,
+                    color = tokens.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }, content = menuContent)
+        }
+    }
 }
 
 @Composable
