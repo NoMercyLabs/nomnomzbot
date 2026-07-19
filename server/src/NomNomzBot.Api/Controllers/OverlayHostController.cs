@@ -135,8 +135,11 @@ public sealed class OverlayHostController : ControllerBase
         "default-src 'none'; "
         + $"script-src 'self' 'nonce-{nonce}'; "
         + "style-src 'self' 'unsafe-inline'; "
-        + "img-src https: data:; "
-        + "media-src https:; "
+        // 'self' — same-origin at any scheme — matters on plain-http LAN/self-host origins where a
+        // scheme-source of https: matches nothing; blob:/data: on media only, for client-synthesized
+        // TTS audio (the legacy audioBase64 path and client_edge synthesis) — media can't script.
+        + "img-src 'self' https: data:; "
+        + "media-src 'self' https: blob: data:; "
         + "font-src https: data:; "
         + "connect-src 'self' https: wss: ws:; "
         + "base-uri 'none'; object-src 'none'; frame-src 'none'; form-action 'none'";
