@@ -531,4 +531,31 @@ No new third-party dependency is introduced by this subsystem.
 
 ---
 
+## 10. As built — pronunciation lexicon + bulk voice-assignment import (2026-07-19)
+
+The per-channel **pronunciation lexicon** shipped as `TtsLexiconEntry` (tenant-scoped, soft-delete; unique
+`(BroadcasterId, Phrase, MatchKind)` filtered on `DeletedAt IS NULL`): `Phrase` (≤100) is spoken as
+`Replacement` (≤200) with `MatchKind` = `word` (whole-word via lookarounds, case-insensitive — default) |
+`exact` (case-sensitive literal). `ITtsLexiconService` (auto-registered by convention) owns CRUD + the
+dispatch hot path `ApplyAsync`: rules are cached per channel (`tts:lexicon:{broadcasterId}`, 10 min TTL,
+evicted on every write) and applied in ONE non-recursive pass over the original utterance — matches are
+collected against the input (phrases regex-escaped, 250 ms per-rule match timeout), overlaps resolved
+earliest-start → longest → rule order, output assembled once; bounded at 200 rules. Enforcement sits in
+`TtsDispatchService.DispatchAsync`, the shared leg both direct dispatch and post-approval flow through, so
+usernames and message content are rewritten on every plane (client_edge push and server-side synthesis
+alike) — this one generic mechanism subsumes the legacy bot's username-pronunciation and slang-expansion
+features. REST: `GET/POST /channels/{channelId}/tts/lexicon` + `PUT/DELETE /tts/lexicon/{entryId}` on
+`TtsConfigController`, reusing the config keys (`tts:config:read` / `tts:config:write`). The dashboard TTS
+page gained a "Pronunciation" section (list with match-kind chip, add/edit dialog, confirm-delete; Editor
+manage floor).
+
+**Bulk voice-assignment import** (the legacy 105-row migration surface, backend-only — no dashboard UI by
+design): `POST /channels/{channelId}/tts/voices/assignments/import` (`tts:config:write`) accepts a raw
+array `[{twitchUserId, voiceId}]`, ≤500 rows. Each row upserts `UserTtsVoice`; a Twitch id with no
+`UserIdentity` (`unknown_user`) or a voice absent from the catalogue (`unknown_voice`, provider-enumeration
+fallback pre-sync) is returned in `skipped` with its reason — no User rows are ever created. Response:
+`{imported, skipped:[{twitchUserId, reason}]}` (`TtsVoiceImportResultDto`).
+
+---
+
 _End of spec._

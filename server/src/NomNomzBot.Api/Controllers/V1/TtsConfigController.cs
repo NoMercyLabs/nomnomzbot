@@ -30,16 +30,19 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class TtsConfigController : BaseController
 {
     private readonly ITtsConfigService _ttsConfigService;
+    private readonly ITtsLexiconService _ttsLexiconService;
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
 
     public TtsConfigController(
         ITtsConfigService ttsConfigService,
+        ITtsLexiconService ttsLexiconService,
         IApplicationDbContext db,
         ICurrentUserService currentUser
     )
     {
         _ttsConfigService = ttsConfigService;
+        _ttsLexiconService = ttsLexiconService;
         _db = db;
         _currentUser = currentUser;
     }
@@ -178,6 +181,109 @@ public class TtsConfigController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<TtsTestResultDto> { Data = result.Value });
+    }
+
+    // ── Pronunciation lexicon (tts.md) — per-channel phrase → spoken-replacement rules ──────────────
+    // Reuses the config action keys: reading the rules is a config read, changing them is a config write.
+
+    /// <summary>All pronunciation rules for the channel (phrase → what TTS speaks instead).</summary>
+    [HttpGet("lexicon")]
+    [RequireAction("tts:config:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<TtsLexiconEntryDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetLexicon(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        Result<IReadOnlyList<TtsLexiconEntryDto>> result = await _ttsLexiconService.ListAsync(
+            broadcasterId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Add a pronunciation rule. A duplicate (phrase, match kind) is refused with 409-style ALREADY_EXISTS.</summary>
+    [HttpPost("lexicon")]
+    [RequireAction("tts:config:write")]
+    [ProducesResponseType<StatusResponseDto<TtsLexiconEntryDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> CreateLexiconEntry(
+        string channelId,
+        [FromBody] UpsertTtsLexiconEntryDto request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        Result<TtsLexiconEntryDto> result = await _ttsLexiconService.CreateAsync(
+            broadcasterId,
+            request,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Rewrite a pronunciation rule (phrase, replacement, and match kind).</summary>
+    [HttpPut("lexicon/{entryId}")]
+    [RequireAction("tts:config:write")]
+    [ProducesResponseType<StatusResponseDto<TtsLexiconEntryDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateLexiconEntry(
+        string channelId,
+        string entryId,
+        [FromBody] UpsertTtsLexiconEntryDto request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        if (!Guid.TryParse(entryId, out Guid id))
+            return BadRequestResponse("Invalid lexicon entry id.");
+        Result<TtsLexiconEntryDto> result = await _ttsLexiconService.UpdateAsync(
+            broadcasterId,
+            id,
+            request,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Remove a pronunciation rule.</summary>
+    [HttpDelete("lexicon/{entryId}")]
+    [RequireAction("tts:config:write")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DeleteLexiconEntry(
+        string channelId,
+        string entryId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        if (!Guid.TryParse(entryId, out Guid id))
+            return BadRequestResponse("Invalid lexicon entry id.");
+        Result result = await _ttsLexiconService.DeleteAsync(broadcasterId, id, ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Bulk-import per-viewer voice assignments (≤500 rows) — the migration surface for another bot's
+    /// user→voice table. Unknown Twitch users and uncatalogued voices come back as skipped rows with a
+    /// reason; nothing is ever created for them.
+    /// </summary>
+    [HttpPost("voices/assignments/import")]
+    [RequireAction("tts:config:write")]
+    [ProducesResponseType<StatusResponseDto<TtsVoiceImportResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ImportVoiceAssignments(
+        string channelId,
+        [FromBody] List<TtsVoiceAssignmentRowDto> request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        Result<TtsVoiceImportResultDto> result =
+            await _ttsConfigService.ImportUserVoiceAssignmentsAsync(broadcasterId, request, ct);
+        return ResultResponse(result);
     }
 
     /// <summary>Get a viewer's assigned TTS voice (404 when they use the channel default).</summary>

@@ -110,6 +110,7 @@ public interface IApplicationDbContext
     DbSet<UserTtsVoice> UserTtsVoices { get; }
     DbSet<TtsUsageRecord> TtsUsageRecords { get; }
     DbSet<TtsCacheEntry> TtsCacheEntries { get; }
+    DbSet<TtsLexiconEntry> TtsLexiconEntries { get; }
     DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries { get; }
     DbSet<Pronoun> Pronouns { get; }
     DbSet<DeletionAuditLog> DeletionAuditLogs { get; }

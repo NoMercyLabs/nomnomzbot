@@ -43,6 +43,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     private readonly ITtsService _tts;
     private readonly IByokTtsProviderFactory _byokProviders;
     private readonly ITtsConfigService _config;
+    private readonly ITtsLexiconService _lexicon;
     private readonly ITtsProfanityCensor _censor;
     private readonly ISoundClipStore _audioStore;
     private readonly ISoundClipOverlayNotifier _overlay;
@@ -57,6 +58,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         ITtsService tts,
         IByokTtsProviderFactory byokProviders,
         ITtsConfigService config,
+        ITtsLexiconService lexicon,
         ITtsProfanityCensor censor,
         ISoundClipStore audioStore,
         ISoundClipOverlayNotifier overlay,
@@ -71,6 +73,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         _tts = tts;
         _byokProviders = byokProviders;
         _config = config;
+        _lexicon = lexicon;
         _censor = censor;
         _audioStore = audioStore;
         _overlay = overlay;
@@ -383,8 +386,10 @@ public sealed class TtsDispatchService : ITtsDispatchService
     /// Routes a passing utterance to the channel's dispatch plane (tts.md §3.4): <c>client_edge</c> pushes the text
     /// to the OBS widget to render edge-side (no server audio); <c>byok</c>/<c>self_host</c> synthesize server-side.
     /// Shared by direct dispatch and post-approval so both planes obey the channel's <c>Mode</c>.
+    /// Right before either leg, the channel's pronunciation lexicon rewrites the utterance (usernames and
+    /// message content alike) — so what is synthesized/pushed is always the lexicon-applied text.
     /// </summary>
-    private Task<Result<TtsDispatchOutcome>> DispatchAsync(
+    private async Task<Result<TtsDispatchOutcome>> DispatchAsync(
         Guid broadcasterId,
         TtsConfigDto config,
         string text,
@@ -394,30 +399,35 @@ public sealed class TtsDispatchService : ITtsDispatchService
         bool? wasModApproved,
         Guid? streamId,
         CancellationToken ct
-    ) =>
-        config.Mode == "client_edge"
-            ? DispatchClientEdgeAsync(
-                broadcasterId,
-                config,
-                text,
-                voiceId,
-                requestedByTwitchUserId,
-                wasCensored,
-                wasModApproved,
-                streamId,
-                ct
-            )
-            : SynthesizeStorePlayAsync(
-                broadcasterId,
-                config,
-                text,
-                voiceId,
-                requestedByTwitchUserId,
-                wasCensored,
-                wasModApproved,
-                streamId,
-                ct
-            );
+    )
+    {
+        text = await _lexicon.ApplyAsync(broadcasterId, text, ct);
+        return await (
+            config.Mode == "client_edge"
+                ? DispatchClientEdgeAsync(
+                    broadcasterId,
+                    config,
+                    text,
+                    voiceId,
+                    requestedByTwitchUserId,
+                    wasCensored,
+                    wasModApproved,
+                    streamId,
+                    ct
+                )
+                : SynthesizeStorePlayAsync(
+                    broadcasterId,
+                    config,
+                    text,
+                    voiceId,
+                    requestedByTwitchUserId,
+                    wasCensored,
+                    wasModApproved,
+                    streamId,
+                    ct
+                )
+        );
+    }
 
     /// <summary>
     /// Client-edge leg (tts.md §3.4, decision 3): the server synthesizes NOTHING — it pushes the resolved voice +

@@ -48,6 +48,13 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
         new(
             new DbContextOptionsBuilder<TtsTestDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                // The production interceptor, so Remove() on a soft-deletable entity (TtsLexiconEntry)
+                // stamps DeletedAt exactly as the real AppDbContext does.
+                .AddInterceptors(
+                    new NomNomzBot.Infrastructure.Platform.Persistence.Interceptors.SoftDeleteInterceptor(
+                        TimeProvider.System
+                    )
+                )
                 .Options
         );
 
@@ -62,10 +69,18 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
     public DbSet<TtsConfig> TtsConfigs => Set<TtsConfig>();
     public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
     public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries => Set<TtsApprovalQueueEntry>();
+    public DbSet<TtsLexiconEntry> TtsLexiconEntries => Set<TtsLexiconEntry>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<UserTtsVoice>(e => e.HasKey(v => v.Id));
+        b.Entity<TtsLexiconEntry>(e => e.HasKey(l => l.Id));
+        b.Entity<UserIdentity>(e =>
+        {
+            e.HasKey(i => i.Id);
+            e.Ignore(i => i.Connection); // no IntegrationConnections / Users tables in this focused context
+            e.Ignore(i => i.User);
+        });
         b.Entity<TtsUsageRecord>(e => e.HasKey(r => r.Id));
         b.Entity<TtsVoice>(e => e.HasKey(v => v.Id));
         b.Entity<TtsApprovalQueueEntry>(e =>
@@ -91,6 +106,8 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
         typeof(TtsVoice),
         typeof(TtsApprovalQueueEntry),
         typeof(TtsConfig),
+        typeof(TtsLexiconEntry),
+        typeof(UserIdentity),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -116,7 +133,7 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
     public DbSet<RecordEntity> Records => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
         throw new NotSupportedException();
-    public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
+    public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ErasureRequest> ErasureRequests =>
         throw new NotSupportedException();

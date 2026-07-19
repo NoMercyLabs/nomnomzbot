@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
@@ -22,6 +23,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Tts.Events;
 using NomNomzBot.Domain.Tts.Interfaces;
+using NomNomzBot.Infrastructure.Platform.Caching;
 using NomNomzBot.Infrastructure.Tts;
 using NSubstitute;
 
@@ -52,6 +54,7 @@ public sealed class TtsDispatchServiceTests
         public required ISoundClipOverlayNotifier Overlay { get; init; }
         public required ITtsOverlayNotifier TtsOverlay { get; init; }
         public required IEventBus Bus { get; init; }
+        public required ITtsLexiconService Lexicon { get; init; }
     }
 
     private static Harness Build(
@@ -117,11 +120,21 @@ public sealed class TtsDispatchServiceTests
         ITtsOverlayNotifier ttsOverlay = Substitute.For<ITtsOverlayNotifier>();
         IEventBus bus = Substitute.For<IEventBus>();
         IByokTtsProviderFactory byokProviders = Substitute.For<IByokTtsProviderFactory>();
+        // The REAL lexicon service over the same context — dispatch tests prove the substitution and its
+        // write-invalidated cache end to end, not a mock echoing input.
+        TtsLexiconService lexicon = new(
+            db,
+            new MemoryCacheService(
+                new MemoryCache(new MemoryCacheOptions()),
+                NullLogger<MemoryCacheService>.Instance
+            )
+        );
 
         TtsDispatchService service = new(
             tts,
             byokProviders,
             config,
+            lexicon,
             new TtsProfanityCensor(),
             store,
             overlay,
@@ -142,6 +155,7 @@ public sealed class TtsDispatchServiceTests
             Overlay = overlay,
             TtsOverlay = ttsOverlay,
             Bus = bus,
+            Lexicon = lexicon,
         };
     }
 
@@ -805,5 +819,95 @@ public sealed class TtsDispatchServiceTests
                 Arg.Any<CancellationToken>()
             );
         (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
+    }
+
+    // ── Pronunciation lexicon (tts.md) — applied right before synthesis/push ──
+
+    [Fact]
+    public async Task RequestSpeakAsync_AppliesLexicon_BeforeSynthesis_AndLedgersTheSpokenText()
+    {
+        Harness h = Build();
+        h.Db.TtsLexiconEntries.Add(
+            new TtsLexiconEntry
+            {
+                BroadcasterId = Tenant,
+                Phrase = "JD",
+                Replacement = "Jaydee",
+                MatchKind = "word",
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("jd says hi to JDx")
+        );
+
+        // Whole-word, case-insensitive: "jd" is rewritten, "JDx" is not.
+        result.IsSuccess.Should().BeTrue();
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                "Jaydee says hi to JDx",
+                "default-voice",
+                Arg.Any<CancellationToken>()
+            );
+        TtsUsageRecord ledger = await h.Db.TtsUsageRecords.SingleAsync();
+        ledger.CharacterCount.Should().Be("Jaydee says hi to JDx".Length);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_ClientEdge_PushesTheLexiconAppliedText()
+    {
+        Harness h = Build(mode: "client_edge");
+        h.Db.TtsLexiconEntries.Add(
+            new TtsLexiconEntry
+            {
+                BroadcasterId = Tenant,
+                Phrase = "brb",
+                Replacement = "be right back",
+                MatchKind = "word",
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("brb chat"));
+
+        result.IsSuccess.Should().BeTrue();
+        await h
+            .TtsOverlay.Received(1)
+            .SpeakAsync(
+                Tenant,
+                Arg.Is<TtsOverlaySpeakDto>(dto => dto.Text == "be right back chat"),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_LexiconWrite_InvalidatesTheCache_SoTheNextDispatchReflectsIt()
+    {
+        Harness h = Build();
+
+        // First dispatch primes the (empty) lexicon cache.
+        (await h.Service.RequestSpeakAsync(Speak("gg chat")))
+            .IsSuccess.Should()
+            .BeTrue();
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync("gg chat", "default-voice", Arg.Any<CancellationToken>());
+
+        // Writing a rule through the service must evict the cache — the very next dispatch speaks the new form.
+        (
+            await h.Lexicon.CreateAsync(
+                Tenant,
+                new UpsertTtsLexiconEntryDto { Phrase = "gg", Replacement = "good game" }
+            )
+        )
+            .IsSuccess.Should()
+            .BeTrue();
+
+        (await h.Service.RequestSpeakAsync(Speak("gg chat"))).IsSuccess.Should().BeTrue();
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync("good game chat", "default-voice", Arg.Any<CancellationToken>());
     }
 }

@@ -515,6 +515,98 @@ public class TtsConfigService : ITtsConfigService
         return Result.Success(new UserTtsVoiceDto(userId, request.VoiceId));
     }
 
+    private const int MaxImportRows = 500;
+
+    public async Task<Result<TtsVoiceImportResultDto>> ImportUserVoiceAssignmentsAsync(
+        Guid broadcasterId,
+        IReadOnlyList<TtsVoiceAssignmentRowDto> rows,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (rows.Count > MaxImportRows)
+            return Errors
+                .ValidationFailed(
+                    $"A voice-assignment import is capped at {MaxImportRows} rows per request."
+                )
+                .ToTyped<TtsVoiceImportResultDto>();
+        if (rows.Count == 0)
+            return Result.Success(new TtsVoiceImportResultDto(0, []));
+
+        // One query per lookup table, not per row: known Twitch users (never created here), the voice ids
+        // the channel can actually synthesize, and the viewer assignments that already exist.
+        List<string> userIds = rows.Select(r => r.TwitchUserId).Distinct().ToList();
+        HashSet<string> knownUsers = (
+            await _db
+                .UserIdentities.Where(i =>
+                    i.Provider == Domain.Identity.Enums.AuthEnums.Platform.Twitch
+                    && userIds.Contains(i.ProviderUserId)
+                )
+                .Select(i => i.ProviderUserId)
+                .ToListAsync(cancellationToken)
+        ).ToHashSet(StringComparer.Ordinal);
+
+        List<string> voiceIds = rows.Select(r => r.VoiceId).Distinct().ToList();
+        HashSet<string> knownVoices = (
+            await _db
+                .TtsVoices.Where(v => voiceIds.Contains(v.Id))
+                .Select(v => v.Id)
+                .ToListAsync(cancellationToken)
+        ).ToHashSet(StringComparer.Ordinal);
+        // Pre-sync fallback: an empty catalogue means "what the providers enumerate" is the valid set.
+        if (knownVoices.Count == 0 && !await _db.TtsVoices.AnyAsync(cancellationToken))
+        {
+            IReadOnlyList<TtsVoiceInfo> providerVoices = await _ttsService.GetAvailableVoicesAsync(
+                cancellationToken
+            );
+            knownVoices = providerVoices
+                .Select(v => v.Id)
+                .Where(voiceIds.Contains)
+                .ToHashSet(StringComparer.Ordinal);
+        }
+
+        Dictionary<string, UserTtsVoice> existing = await _db
+            .UserTtsVoices.Where(v =>
+                v.BroadcasterId == broadcasterId && userIds.Contains(v.UserId)
+            )
+            .ToDictionaryAsync(v => v.UserId, cancellationToken);
+
+        int imported = 0;
+        List<TtsVoiceImportSkipDto> skipped = [];
+        foreach (TtsVoiceAssignmentRowDto row in rows)
+        {
+            if (!knownUsers.Contains(row.TwitchUserId))
+            {
+                skipped.Add(new TtsVoiceImportSkipDto(row.TwitchUserId, "unknown_user"));
+                continue;
+            }
+            if (!knownVoices.Contains(row.VoiceId))
+            {
+                skipped.Add(new TtsVoiceImportSkipDto(row.TwitchUserId, "unknown_voice"));
+                continue;
+            }
+
+            if (existing.TryGetValue(row.TwitchUserId, out UserTtsVoice? assignment))
+            {
+                assignment.VoiceId = row.VoiceId;
+            }
+            else
+            {
+                UserTtsVoice created = new()
+                {
+                    BroadcasterId = broadcasterId,
+                    UserId = row.TwitchUserId,
+                    VoiceId = row.VoiceId,
+                };
+                _db.UserTtsVoices.Add(created);
+                existing[row.TwitchUserId] = created; // a later duplicate row upserts, not double-inserts
+            }
+            imported++;
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success(new TtsVoiceImportResultDto(imported, skipped));
+    }
+
     public async Task<Result> ClearUserVoiceAsync(
         Guid broadcasterId,
         string userId,

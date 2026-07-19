@@ -136,6 +136,7 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<TtsCacheEntry> TtsCacheEntries => throw new NotSupportedException();
+    public DbSet<TtsLexiconEntry> TtsLexiconEntries => throw new NotSupportedException();
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<User> Users => throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();

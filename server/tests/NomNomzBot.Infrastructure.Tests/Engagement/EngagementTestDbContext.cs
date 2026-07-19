@@ -233,6 +233,7 @@ internal sealed class EngagementTestDbContext : DbContext, IApplicationDbContext
     public DbSet<UserTtsVoice> UserTtsVoices => throw new NotSupportedException();
     public DbSet<TtsUsageRecord> TtsUsageRecords => throw new NotSupportedException();
     public DbSet<TtsCacheEntry> TtsCacheEntries => throw new NotSupportedException();
+    public DbSet<TtsLexiconEntry> TtsLexiconEntries => throw new NotSupportedException();
     public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries =>
         throw new NotSupportedException();
     public DbSet<Pronoun> Pronouns => throw new NotSupportedException();

@@ -74,6 +74,18 @@ public interface ITtsConfigService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Bulk-import per-viewer voice assignments (≤500 rows) — the migration surface for another bot's
+    /// user→voice table. Each row upserts the viewer's assignment; a Twitch user the bot has never seen or a
+    /// voice not in the catalogue is reported back as skipped (with a reason), never an error, and NO user
+    /// rows are created.
+    /// </summary>
+    Task<Result<TtsVoiceImportResultDto>> ImportUserVoiceAssignmentsAsync(
+        Guid broadcasterId,
+        IReadOnlyList<TtsVoiceAssignmentRowDto> rows,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Remove a viewer's voice assignment so they fall back to the channel default.</summary>
     Task<Result> ClearUserVoiceAsync(
         Guid broadcasterId,

@@ -171,6 +171,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();
     public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();
     public DbSet<TtsCacheEntry> TtsCacheEntries => Set<TtsCacheEntry>();
+    public DbSet<TtsLexiconEntry> TtsLexiconEntries => Set<TtsLexiconEntry>();
     public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries => Set<TtsApprovalQueueEntry>();
 
     // Reference data

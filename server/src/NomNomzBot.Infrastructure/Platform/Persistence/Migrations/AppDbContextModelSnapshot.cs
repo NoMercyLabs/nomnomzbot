@@ -8045,6 +8045,49 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("TtsConfigs");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Tts.Entities.TtsLexiconEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MatchKind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Phrase")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Replacement")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "Phrase", "MatchKind")
+                        .IsUnique()
+                        .HasDatabaseName("IX_TtsLexiconEntry_Broadcaster_Phrase_MatchKind")
+                        .HasFilter("\"DeletedAt\" IS NULL");
+
+                    b.ToTable("TtsLexiconEntries");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Tts.Entities.TtsUsageRecord", b =>
                 {
                     b.Property<int>("Id")
