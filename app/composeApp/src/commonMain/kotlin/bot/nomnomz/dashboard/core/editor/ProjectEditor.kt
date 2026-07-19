@@ -53,7 +53,7 @@ interface ProjectEditorIO {
 }
 
 // The per-target [ProjectEditorIO] implementation. Controllers depend on the interface and fake it in tests;
-// production wiring constructs the platform actual. [CompileFeedback] is shared with CustomCodeEditor.
+// production wiring constructs the platform actual.
 expect class ProjectEditor() : ProjectEditorIO {
     override suspend fun editAndCompile(
         title: String,
@@ -64,3 +64,6 @@ expect class ProjectEditor() : ProjectEditorIO {
         compile: suspend (Map<String, String>) -> CompileFeedback,
     )
 }
+
+/** The outcome of a compile the editor renders inline — green on success, red with the real build error. */
+data class CompileFeedback(val ok: Boolean, val message: String)
