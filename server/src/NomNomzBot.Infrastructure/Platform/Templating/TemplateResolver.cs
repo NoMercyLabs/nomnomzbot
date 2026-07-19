@@ -20,6 +20,7 @@ using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.PickLists.Services;
 using NomNomzBot.Application.ViewerData.Services;
 using NomNomzBot.Domain.Identity.Entities;
@@ -472,7 +473,13 @@ public sealed partial class TemplateResolver : ITemplateResolver
             string? userId = vars.GetValueOrDefault("user.id");
             if (!string.IsNullOrEmpty(userId) && broadcasterId is not null)
             {
-                await ResolveUserDbFieldsAsync(vars, userId, broadcasterId.Value, ct);
+                await ResolveUserDbFieldsAsync(
+                    vars,
+                    userId,
+                    broadcasterId.Value,
+                    needed.Contains("user.followAge"),
+                    ct
+                );
             }
         }
 
@@ -482,7 +489,13 @@ public sealed partial class TemplateResolver : ITemplateResolver
             string? targetName = vars.GetValueOrDefault("target");
             if (!string.IsNullOrEmpty(targetName))
             {
-                await ResolveTargetAsync(vars, targetName, ct);
+                await ResolveTargetAsync(
+                    vars,
+                    targetName,
+                    broadcasterId,
+                    needed.Contains("target.followAge"),
+                    ct
+                );
             }
         }
 
@@ -560,6 +573,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
         Dictionary<string, string> vars,
         string twitchUserId,
         Guid broadcasterId,
+        bool needFollowAge,
         CancellationToken ct
     )
     {
@@ -593,8 +607,18 @@ public sealed partial class TemplateResolver : ITemplateResolver
             // Grammar helpers key off the primary pronoun only (AltPronoun only drives the display badge).
             ApplyPronounGrammarVars(vars, "user.", user.Pronoun);
 
-            // Follow age & message count would require a ChannelEvent lookup — set placeholders for now
-            vars.TryAdd("user.followAge", "unknown");
+            // Real follow age via Helix Get Channel Followers (moderator:read:followers). "not following" when
+            // the viewer does not follow, "unknown" only when the lookup itself fails — never a fake duration.
+            // Only pay for the Helix call when the template actually asks for {user.followAge}.
+            if (needFollowAge && !vars.ContainsKey("user.followAge"))
+                vars["user.followAge"] = await ResolveFollowAgeAsync(
+                    scope,
+                    broadcasterId,
+                    twitchUserId,
+                    ct
+                );
+
+            // Message count needs a per-user chat aggregate that does not exist yet — placeholder until then.
             vars.TryAdd("user.messageCount", "0");
         }
         catch (Exception ex)
@@ -603,9 +627,45 @@ public sealed partial class TemplateResolver : ITemplateResolver
         }
     }
 
+    // Resolve a viewer's real follow age off the live Twitch follower list, formatted like the other ages.
+    // Every failure mode degrades to a truthful string (never a fabricated duration): "not following" when the
+    // channel has no follow record for them, "unknown" when the Helix call itself could not be made.
+    private async Task<string> ResolveFollowAgeAsync(
+        IServiceScope scope,
+        Guid broadcasterId,
+        string userTwitchId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            ITwitchHelixClient helix =
+                scope.ServiceProvider.GetRequiredService<ITwitchHelixClient>();
+            Result<TwitchChannelFollower?> follower = await helix.Channels.GetChannelFollowerAsync(
+                broadcasterId,
+                userTwitchId,
+                ct
+            );
+            if (follower.IsFailure)
+                return "unknown";
+            if (follower.Value is null)
+                return "not following";
+            return FormatAge(
+                _timeProvider.GetUtcNow().UtcDateTime - follower.Value.FollowedAt.UtcDateTime
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to resolve follow age for {UserId}", userTwitchId);
+            return "unknown";
+        }
+    }
+
     private async Task ResolveTargetAsync(
         Dictionary<string, string> vars,
         string targetName,
+        Guid? broadcasterId,
+        bool needFollowAge,
         CancellationToken ct
     )
     {
@@ -627,7 +687,16 @@ public sealed partial class TemplateResolver : ITemplateResolver
             // {{target.id}} is the Twitch user string id, not the internal Guid PK.
             vars.TryAdd("target.id", target.TwitchUserId!);
             vars.TryAdd("target.name", target.Username ?? targetName);
-            vars.TryAdd("target.followAge", "unknown");
+            if (needFollowAge && !vars.ContainsKey("target.followAge"))
+                vars["target.followAge"] =
+                    broadcasterId is not null && !string.IsNullOrEmpty(target.TwitchUserId)
+                        ? await ResolveFollowAgeAsync(
+                            scope,
+                            broadcasterId.Value,
+                            target.TwitchUserId,
+                            ct
+                        )
+                        : "unknown";
 
             ApplyPronounGrammarVars(vars, "target.", target.Pronoun);
         }

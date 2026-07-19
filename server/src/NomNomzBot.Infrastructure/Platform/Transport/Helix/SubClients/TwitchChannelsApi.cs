@@ -192,6 +192,47 @@ public sealed class TwitchChannelsApi(
         return await transport.GetPageAsync<TwitchChannelFollower>(request, ct);
     }
 
+    public async Task<Result<TwitchChannelFollower?>> GetChannelFollowerAsync(
+        Guid broadcasterId,
+        string userTwitchId,
+        CancellationToken ct = default
+    )
+    {
+        Result scope = await RequireScopeAsync(
+            broadcasterId,
+            TwitchScopes.ModeratorReadFollowers,
+            ct
+        );
+        if (scope.IsFailure)
+            return scope.WithValue<TwitchChannelFollower?>(null);
+
+        Result<string> channel = await ResolveAsync(broadcasterId, ct);
+        if (channel.IsFailure)
+            return channel.WithValue<TwitchChannelFollower?>(null);
+
+        // user_id narrows the follower list to the one user — Helix returns that single row (with its
+        // followed_at) when they follow, or an empty page when they do not.
+        List<KeyValuePair<string, string>> query =
+        [
+            new("broadcaster_id", channel.Value),
+            new("user_id", userTwitchId),
+        ];
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Get,
+            "channels/followers",
+            TwitchHelixAuth.User,
+            broadcasterId,
+            Query: query
+        );
+
+        Result<TwitchPage<TwitchChannelFollower>> page =
+            await transport.GetPageAsync<TwitchChannelFollower>(request, ct);
+        if (page.IsFailure)
+            return page.WithValue<TwitchChannelFollower?>(null);
+        return Result.Success<TwitchChannelFollower?>(page.Value.Items.FirstOrDefault());
+    }
+
     public async Task<Result<int>> GetChannelFollowerCountAsync(
         Guid broadcasterId,
         CancellationToken ct = default

@@ -63,4 +63,15 @@ public interface ITwitchChannelsApi
         Guid broadcasterId,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Get a SINGLE user's follow record (<c>channels/followers?user_id=</c>) — the follow date for the
+    /// <c>{{user.followAge}}</c>/<c>{{target.followAge}}</c> template helpers. Returns null when that user does
+    /// not follow the channel. Requires <c>moderator:read:followers</c>.
+    /// </summary>
+    Task<Result<TwitchChannelFollower?>> GetChannelFollowerAsync(
+        Guid broadcasterId,
+        string userTwitchId,
+        CancellationToken ct = default
+    );
 }
