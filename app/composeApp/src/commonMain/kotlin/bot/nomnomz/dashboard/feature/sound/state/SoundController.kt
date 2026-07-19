@@ -78,8 +78,24 @@ class SoundController(
         displayName: String,
         defaultVolume: Int,
         isEnabled: Boolean,
+        cooldownSeconds: Int,
+        minPermissionLevel: Int,
+        triggerWord: String?,
     ) {
-        afterWrite(soundApi.update(id, UpdateSoundClipBody(displayName, defaultVolume, isEnabled)))
+        afterWrite(
+            soundApi.update(
+                id,
+                UpdateSoundClipBody(
+                    displayName = displayName,
+                    defaultVolume = defaultVolume,
+                    isEnabled = isEnabled,
+                    cooldownSeconds = cooldownSeconds,
+                    minPermissionLevel = minPermissionLevel,
+                    // A blank trigger word means "no chat trigger" — send null so the backend clears it.
+                    triggerWord = triggerWord?.trim()?.ifBlank { null },
+                ),
+            )
+        )
     }
 
     suspend fun deleteClip(id: String) {

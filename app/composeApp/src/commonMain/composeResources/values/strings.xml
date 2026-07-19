@@ -2801,6 +2801,15 @@
     <string name="sound_clips_dialog_display_name_label">Display name</string>
     <string name="sound_clips_dialog_volume_label">Default volume (%1$d%%)</string>
     <string name="sound_clips_dialog_enabled_label">Enabled</string>
+    <string name="sound_clips_dialog_trigger_label">Chat trigger word</string>
+    <string name="sound_clips_dialog_trigger_help">A single word chatters type to play this clip (no prefix). Leave blank for none.</string>
+    <string name="sound_clips_dialog_cooldown_label">Trigger cooldown (seconds)</string>
+    <string name="sound_clips_dialog_permission_label">Who can trigger it</string>
+    <string name="sound_clips_perm_everyone">Everyone</string>
+    <string name="sound_clips_perm_subscriber">Subscriber</string>
+    <string name="sound_clips_perm_vip">VIP</string>
+    <string name="sound_clips_perm_moderator">Moderator</string>
+    <string name="sound_clips_perm_broadcaster">Broadcaster</string>
     <string name="sound_clips_dialog_save">Save</string>
     <string name="sound_clips_dialog_cancel">Cancel</string>
     <string name="sound_clips_duration_ms">%1$d ms</string>
@@ -3044,6 +3053,11 @@
     <string name="obs_streaming_stop">Stop streaming</string>
     <string name="obs_recording_start">Start recording</string>
     <string name="obs_recording_stop">Stop recording</string>
+    <string name="obs_mixer_title">Audio mixer</string>
+    <string name="obs_mixer_desc">Mute and set the level of each OBS audio input.</string>
+    <string name="obs_mixer_empty">No audio inputs reported.</string>
+    <string name="obs_mixer_db">%1$d dB</string>
+    <string name="obs_mixer_mute_action">Mute %1$s</string>
 
     <!-- VTube Studio page -->
     <string name="vts_subtitle">Connect VTube Studio and control your model, hotkeys, and expressions.</string>

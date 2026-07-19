@@ -49,6 +49,15 @@ interface SoundApi {
     ): ApiResult<SoundClip>
 }
 
+/** The community-standing ladder rungs a soundboard trigger's minimum-role picker offers (roles-permissions §0). */
+object SoundPermissionLevel {
+    const val Everyone: Int = 0
+    const val Subscriber: Int = 2
+    const val Vip: Int = 4
+    const val Moderator: Int = 10
+    const val Broadcaster: Int = 40
+}
+
 class RestSoundApi(private val client: ApiClient) : SoundApi {
     override suspend fun list(): ApiResult<List<SoundClip>> =
         when (val page: ApiResult<PaginatedEnvelope<SoundClip>> =
@@ -102,6 +111,12 @@ data class SoundClip(
     val sizeBytes: Long = 0L,
     val defaultVolume: Int = 80,
     val isEnabled: Boolean = true,
+    // Global per-clip cooldown (seconds) applied to the chat soundboard trigger; 0 = none.
+    val cooldownSeconds: Int = 0,
+    // Minimum community-standing ladder level to fire the chat trigger (see [SoundPermissionLevel]; 0 = everyone).
+    val minPermissionLevel: Int = 0,
+    // Optional bare, prefix-less chat trigger word that plays the clip; null = no chat trigger.
+    val triggerWord: String? = null,
     val createdAt: String = "",
     // Relative, anonymous stream URL the dashboard plays for an in-browser Preview (backend SoundClipDto.previewUrl).
     val previewUrl: String = "",
@@ -113,4 +128,7 @@ data class UpdateSoundClipBody(
     val displayName: String,
     val defaultVolume: Int,
     val isEnabled: Boolean,
+    val cooldownSeconds: Int = 0,
+    val minPermissionLevel: Int = 0,
+    val triggerWord: String? = null,
 )

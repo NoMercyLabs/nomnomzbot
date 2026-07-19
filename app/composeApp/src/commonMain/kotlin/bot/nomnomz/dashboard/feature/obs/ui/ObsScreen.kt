@@ -52,12 +52,14 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.RevealableSecretField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Slider
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ObsConnection
+import bot.nomnomz.dashboard.core.network.ObsInput
 import bot.nomnomz.dashboard.feature.obs.state.ObsController
 import bot.nomnomz.dashboard.feature.obs.state.ObsLive
 import bot.nomnomz.dashboard.feature.obs.state.ObsUiState
@@ -86,6 +88,11 @@ import nomnomzbot.composeapp.generated.resources.obs_enabled_label
 import nomnomzbot.composeapp.generated.resources.obs_error
 import nomnomzbot.composeapp.generated.resources.obs_host_label
 import nomnomzbot.composeapp.generated.resources.obs_loading
+import nomnomzbot.composeapp.generated.resources.obs_mixer_db
+import nomnomzbot.composeapp.generated.resources.obs_mixer_desc
+import nomnomzbot.composeapp.generated.resources.obs_mixer_empty
+import nomnomzbot.composeapp.generated.resources.obs_mixer_mute_action
+import nomnomzbot.composeapp.generated.resources.obs_mixer_title
 import nomnomzbot.composeapp.generated.resources.obs_mode_bridge
 import nomnomzbot.composeapp.generated.resources.obs_mode_direct
 import nomnomzbot.composeapp.generated.resources.obs_mode_label
@@ -179,6 +186,18 @@ fun ObsScreen(controller: ObsController, role: ManagementRole?) {
                         onToggleRecording = { scope.launch { controller.toggleRecording() } },
                         onRefresh = { scope.launch { controller.refreshLive() } },
                     )
+                    if (current.live.reachable) {
+                        MixerCard(
+                            live = current.live,
+                            controlManage = controlManage,
+                            onSetMute = { input, muted ->
+                                scope.launch { controller.setInputMute(input, muted) }
+                            },
+                            onSetVolume = { input, volumeDb ->
+                                scope.launch { controller.setInputVolume(input, volumeDb) }
+                            },
+                        )
+                    }
                 }
         }
     }
@@ -440,6 +459,113 @@ private fun ControlCard(
                 }
             }
         }
+    }
+}
+
+// The audio mixer: every OBS audio input with a mute toggle + a volume fader (dB), gated at Moderator
+// (obs:control). Only inputs that actually expose mixer state (mute or volume) are shown — a browser/image source
+// has no audio and is skipped. Live control of the connected OBS; nothing is persisted here.
+@Composable
+private fun MixerCard(
+    live: ObsLive,
+    controlManage: ManageDecision,
+    onSetMute: (String, Boolean) -> Unit,
+    onSetVolume: (String, Double) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val audioInputs: List<ObsInput> = live.inputs.filter { it.muted != null || it.volumeDb != null }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            SectionHeader(
+                title = stringResource(Res.string.obs_mixer_title),
+                description = stringResource(Res.string.obs_mixer_desc),
+                trailing = {},
+            )
+
+            if (audioInputs.isEmpty()) {
+                Text(
+                    text = stringResource(Res.string.obs_mixer_empty),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                return@Column
+            }
+
+            ManageGate(decision = controlManage) { gateEnabled ->
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
+                    audioInputs.forEach { input ->
+                        MixerRow(
+                            input = input,
+                            enabled = gateEnabled,
+                            onSetMute = onSetMute,
+                            onSetVolume = onSetVolume,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MixerRow(
+    input: ObsInput,
+    enabled: Boolean,
+    onSetMute: (String, Boolean) -> Unit,
+    onSetVolume: (String, Double) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    // OBS reports volume in dB; the fader spans a practical -60 dB … 0 dB. Local state drives the fader live and
+    // commits to OBS only when the drag finishes, so a drag is one control call, not one per frame.
+    var faderDb: Float by remember(input.name, input.volumeDb) {
+        mutableStateOf((input.volumeDb ?: 0.0).toFloat().coerceIn(-60f, 0f))
+    }
+    val muted: Boolean = input.muted == true
+    val muteLabel: String = stringResource(Res.string.obs_mixer_mute_action, input.name)
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = input.name,
+                style = typography.sm,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = stringResource(Res.string.obs_mixer_db, faderDb.toInt()),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+            Switch(
+                checked = !muted,
+                onCheckedChange = { on -> onSetMute(input.name, !on) },
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = muteLabel },
+            )
+        }
+        Slider(
+            value = faderDb,
+            onValueChange = { faderDb = it },
+            valueRange = -60f..0f,
+            enabled = enabled,
+            onValueChangeFinished = { onSetVolume(input.name, faderDb.toDouble()) },
+        )
     }
 }
 

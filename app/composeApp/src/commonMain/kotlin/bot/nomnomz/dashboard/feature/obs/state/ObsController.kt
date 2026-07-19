@@ -145,6 +145,18 @@ class ObsController(
         afterLiveAction(obsApi.switchScene(id, scene))
     }
 
+    /** Audio mixer — set an input's mute to [muted], then re-read live state so the toggle reflects OBS. */
+    suspend fun setInputMute(inputName: String, muted: Boolean) {
+        val id: String = channelId ?: return failWrite(NoChannelError)
+        afterLiveAction(obsApi.setInputMute(id, inputName, muted))
+    }
+
+    /** Audio mixer — set an input's volume to [volumeDb] decibels, then re-read live state. */
+    suspend fun setInputVolume(inputName: String, volumeDb: Double) {
+        val id: String = channelId ?: return failWrite(NoChannelError)
+        afterLiveAction(obsApi.setInputVolume(id, inputName, volumeDb))
+    }
+
     /** Start or stop the stream based on the current live flag; then re-read live state. */
     suspend fun toggleStreaming() {
         val id: String = channelId ?: return failWrite(NoChannelError)

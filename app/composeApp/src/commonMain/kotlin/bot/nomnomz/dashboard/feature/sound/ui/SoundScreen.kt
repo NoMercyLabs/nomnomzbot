@@ -11,16 +11,21 @@
 package bot.nomnomz.dashboard.feature.sound.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -43,6 +49,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -73,10 +81,14 @@ import nomnomzbot.composeapp.generated.resources.sound_clips_delete_confirm
 import nomnomzbot.composeapp.generated.resources.sound_clips_delete_message
 import nomnomzbot.composeapp.generated.resources.sound_clips_delete_title
 import nomnomzbot.composeapp.generated.resources.sound_clips_dialog_cancel
+import nomnomzbot.composeapp.generated.resources.sound_clips_dialog_cooldown_label
 import nomnomzbot.composeapp.generated.resources.sound_clips_dialog_display_name_label
 import nomnomzbot.composeapp.generated.resources.sound_clips_dialog_edit_title
 import nomnomzbot.composeapp.generated.resources.sound_clips_dialog_enabled_label
+import nomnomzbot.composeapp.generated.resources.sound_clips_dialog_permission_label
 import nomnomzbot.composeapp.generated.resources.sound_clips_dialog_save
+import nomnomzbot.composeapp.generated.resources.sound_clips_dialog_trigger_help
+import nomnomzbot.composeapp.generated.resources.sound_clips_dialog_trigger_label
 import nomnomzbot.composeapp.generated.resources.sound_clips_dialog_volume_label
 import nomnomzbot.composeapp.generated.resources.sound_clips_disabled_badge
 import nomnomzbot.composeapp.generated.resources.sound_clips_duration_ms
@@ -84,6 +96,11 @@ import nomnomzbot.composeapp.generated.resources.sound_clips_edit_action
 import nomnomzbot.composeapp.generated.resources.sound_clips_empty
 import nomnomzbot.composeapp.generated.resources.sound_clips_error
 import nomnomzbot.composeapp.generated.resources.sound_clips_loading
+import nomnomzbot.composeapp.generated.resources.sound_clips_perm_broadcaster
+import nomnomzbot.composeapp.generated.resources.sound_clips_perm_everyone
+import nomnomzbot.composeapp.generated.resources.sound_clips_perm_moderator
+import nomnomzbot.composeapp.generated.resources.sound_clips_perm_subscriber
+import nomnomzbot.composeapp.generated.resources.sound_clips_perm_vip
 import nomnomzbot.composeapp.generated.resources.sound_clips_preview_action
 import nomnomzbot.composeapp.generated.resources.sound_clips_retry
 import nomnomzbot.composeapp.generated.resources.sound_clips_size_kb
@@ -142,13 +159,16 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
         EditClipDialog(
             clip = clip,
             onDismiss = { editTarget = null },
-            onSave = { displayName, volume, isEnabled ->
+            onSave = { displayName, volume, isEnabled, cooldownSeconds, minPermissionLevel, triggerWord ->
                 scope.launch {
                     controller.updateClip(
                         id = clip.id,
                         displayName = displayName,
                         defaultVolume = volume,
                         isEnabled = isEnabled,
+                        cooldownSeconds = cooldownSeconds,
+                        minPermissionLevel = minPermissionLevel,
+                        triggerWord = triggerWord,
                     )
                     editTarget = null
                 }
@@ -354,7 +374,7 @@ private fun ClipRow(
 private fun EditClipDialog(
     clip: SoundClip,
     onDismiss: () -> Unit,
-    onSave: (String, Int, Boolean) -> Unit,
+    onSave: (String, Int, Boolean, Int, Int, String?) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
@@ -363,8 +383,14 @@ private fun EditClipDialog(
     var displayName: String by remember(clip.id) { mutableStateOf(clip.displayName) }
     var volume: Float by remember(clip.id) { mutableStateOf(clip.defaultVolume.toFloat()) }
     var isEnabled: Boolean by remember(clip.id) { mutableStateOf(clip.isEnabled) }
+    var triggerWord: String by remember(clip.id) { mutableStateOf(clip.triggerWord.orEmpty()) }
+    var cooldown: String by remember(clip.id) { mutableStateOf(clip.cooldownSeconds.toString()) }
+    var minLevel: Int by remember(clip.id) { mutableStateOf(clip.minPermissionLevel) }
+    var permMenuOpen: Boolean by remember(clip.id) { mutableStateOf(false) }
 
     val enabledLabel: String = stringResource(Res.string.sound_clips_dialog_enabled_label)
+    val cooldownValue: Int? = cooldown.ifBlank { "0" }.toIntOrNull()
+    val cooldownValid: Boolean = cooldownValue != null && cooldownValue >= 0
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -376,7 +402,10 @@ private fun EditClipDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
+            Column(
+                modifier = Modifier.heightIn(max = spacing.s24 * 4).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(spacing.s4),
+            ) {
                 AppTextField(
                     value = displayName,
                     onValueChange = { displayName = it },
@@ -396,6 +425,47 @@ private fun EditClipDialog(
                         steps = 9,
                     )
                 }
+
+                // Soundboard chat trigger: a bare, prefix-less word a chatter types to play the clip. Blank = off.
+                AppTextField(
+                    value = triggerWord,
+                    onValueChange = { input -> triggerWord = input.filterNot { it.isWhitespace() } },
+                    label = stringResource(Res.string.sound_clips_dialog_trigger_label),
+                    supportingText = stringResource(Res.string.sound_clips_dialog_trigger_help),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                // Cooldown (seconds) for the chat trigger — spam guard.
+                AppTextField(
+                    value = cooldown,
+                    onValueChange = { input -> cooldown = input.filter { it.isDigit() } },
+                    isError = !cooldownValid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = stringResource(Res.string.sound_clips_dialog_cooldown_label),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                // Minimum role that can fire the trigger — role NAMES only, never the numeric ladder value.
+                Box {
+                    AppTextField(
+                        value = permissionLabel(minLevel),
+                        onValueChange = {},
+                        label = stringResource(Res.string.sound_clips_dialog_permission_label),
+                        modifier = Modifier.fillMaxWidth().clickable { permMenuOpen = true },
+                    )
+                    DropdownMenu(expanded = permMenuOpen, onDismissRequest = { permMenuOpen = false }) {
+                        PermissionRungs.forEach { (level, res) ->
+                            DropdownMenuItem(
+                                text = { Text(stringResource(res), color = tokens.cardForeground) },
+                                onClick = {
+                                    minLevel = level
+                                    permMenuOpen = false
+                                },
+                            )
+                        }
+                    }
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -416,8 +486,17 @@ private fun EditClipDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onSave(displayName.trim(), volume.toInt(), isEnabled) },
-                enabled = displayName.isNotBlank(),
+                onClick = {
+                    onSave(
+                        displayName.trim(),
+                        volume.toInt(),
+                        isEnabled,
+                        cooldownValue ?: 0,
+                        minLevel,
+                        triggerWord.trim().ifBlank { null },
+                    )
+                },
+                enabled = displayName.isNotBlank() && cooldownValid,
             ) {
                 Text(text = stringResource(Res.string.sound_clips_dialog_save))
             }
@@ -432,6 +511,21 @@ private fun EditClipDialog(
         },
     )
 }
+
+// The permission rungs the picker offers as ROLE NAMES mapped to their unified-ladder value (roles-permissions
+// §0). Ascending so [permissionLabel] resolves a stored level to the highest rung it clears.
+private val PermissionRungs: List<Pair<Int, org.jetbrains.compose.resources.StringResource>> =
+    listOf(
+        0 to Res.string.sound_clips_perm_everyone,
+        2 to Res.string.sound_clips_perm_subscriber,
+        4 to Res.string.sound_clips_perm_vip,
+        10 to Res.string.sound_clips_perm_moderator,
+        40 to Res.string.sound_clips_perm_broadcaster,
+    )
+
+@Composable
+private fun permissionLabel(level: Int): String =
+    stringResource(PermissionRungs.lastOrNull { level >= it.first }?.second ?: Res.string.sound_clips_perm_everyone)
 
 @Composable
 private fun ErrorContent(detail: String, onRetry: () -> Unit) {

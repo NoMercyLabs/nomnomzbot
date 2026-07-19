@@ -2787,6 +2787,15 @@
     <string name="sound_clips_dialog_display_name_label">Weergavenaam</string>
     <string name="sound_clips_dialog_volume_label">Standaardvolume (%1$d%%)</string>
     <string name="sound_clips_dialog_enabled_label">Ingeschakeld</string>
+    <string name="sound_clips_dialog_trigger_label">Chat-triggerwoord</string>
+    <string name="sound_clips_dialog_trigger_help">Eén woord dat chatters typen om deze clip af te spelen (zonder prefix). Laat leeg voor geen.</string>
+    <string name="sound_clips_dialog_cooldown_label">Trigger-afkoeltijd (seconden)</string>
+    <string name="sound_clips_dialog_permission_label">Wie kan het activeren</string>
+    <string name="sound_clips_perm_everyone">Iedereen</string>
+    <string name="sound_clips_perm_subscriber">Abonnee</string>
+    <string name="sound_clips_perm_vip">VIP</string>
+    <string name="sound_clips_perm_moderator">Moderator</string>
+    <string name="sound_clips_perm_broadcaster">Streamer</string>
     <string name="sound_clips_dialog_save">Opslaan</string>
     <string name="sound_clips_dialog_cancel">Annuleren</string>
     <string name="sound_clips_duration_ms">%1$d ms</string>
@@ -3030,6 +3039,11 @@
     <string name="obs_streaming_stop">Streamen stoppen</string>
     <string name="obs_recording_start">Opname starten</string>
     <string name="obs_recording_stop">Opname stoppen</string>
+    <string name="obs_mixer_title">Audiomixer</string>
+    <string name="obs_mixer_desc">Demp en stel het niveau van elke OBS-audio-invoer in.</string>
+    <string name="obs_mixer_empty">Geen audio-invoeren gerapporteerd.</string>
+    <string name="obs_mixer_db">%1$d dB</string>
+    <string name="obs_mixer_mute_action">%1$s dempen</string>
 
     <!-- VTube Studio-pagina -->
     <string name="vts_subtitle">Verbind VTube Studio en bestuur je model, sneltoetsen en expressies.</string>

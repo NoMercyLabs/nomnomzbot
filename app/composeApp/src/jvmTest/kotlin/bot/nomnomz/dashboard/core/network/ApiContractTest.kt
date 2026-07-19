@@ -253,6 +253,8 @@ class ApiContractTest {
             ObsSceneBody.serializer() to "ObsSceneRequest",
             ObsToggleBody.serializer() to "ObsToggleRequest",
             ObsRecordBody.serializer() to "ObsRecordRequest",
+            ObsInputMuteBody.serializer() to "ObsInputMuteRequest",
+            ObsInputVolumeBody.serializer() to "ObsInputVolumeRequest",
             // VTube Studio (vtube-studio.md §4): connection config + inventory DTOs and the control request bodies.
             VtsConnection.serializer() to "VtsConnectionDto",
             UpsertVtsConnectionBody.serializer() to "UpsertVtsConnectionRequest",

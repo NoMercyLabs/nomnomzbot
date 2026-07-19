@@ -60,6 +60,12 @@ interface ObsApi {
     /** Switch the current program scene to [scene]. */
     suspend fun switchScene(channelId: String, scene: String): ApiResult<Unit>
 
+    /** Audio mixer — set an input's mute to an absolute [muted] state. */
+    suspend fun setInputMute(channelId: String, inputName: String, muted: Boolean): ApiResult<Unit>
+
+    /** Audio mixer — set an input's volume in decibels ([volumeDb], OBS's dB scale). */
+    suspend fun setInputVolume(channelId: String, inputName: String, volumeDb: Double): ApiResult<Unit>
+
     /** Control the stream output ([action]: 0 = start, 1 = stop, 2 = toggle — see [ObsToggle]). */
     suspend fun setStreaming(channelId: String, action: Int): ApiResult<Unit>
 
@@ -98,6 +104,18 @@ class RestObsApi(private val client: ApiClient) : ObsApi {
     // action, so the body is irrelevant here — any 2xx is success.
     override suspend fun switchScene(channelId: String, scene: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/obs/scene", ObsSceneBody(scene = scene))
+
+    override suspend fun setInputMute(channelId: String, inputName: String, muted: Boolean): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/obs/inputs/mute",
+            ObsInputMuteBody(inputName = inputName, muted = muted),
+        )
+
+    override suspend fun setInputVolume(channelId: String, inputName: String, volumeDb: Double): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/obs/inputs/volume",
+            ObsInputVolumeBody(inputName = inputName, volumeDb = volumeDb),
+        )
 
     override suspend fun setStreaming(channelId: String, action: Int): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/obs/streaming", ObsToggleBody(action = action))
@@ -205,6 +223,14 @@ data class ObsInput(
 /** The switch-scene body (backend `ObsSceneRequest`). */
 @Serializable
 data class ObsSceneBody(val scene: String)
+
+/** The mixer mute body (backend `ObsInputMuteRequest`): set [inputName]'s mute to an absolute [muted] state. */
+@Serializable
+data class ObsInputMuteBody(val inputName: String, val muted: Boolean)
+
+/** The mixer volume body (backend `ObsInputVolumeRequest`): set [inputName]'s [volumeDb] in decibels. */
+@Serializable
+data class ObsInputVolumeBody(val inputName: String, val volumeDb: Double)
 
 /** The streaming-toggle body (backend `ObsToggleRequest`): [action] is an [ObsToggle] value. */
 @Serializable
