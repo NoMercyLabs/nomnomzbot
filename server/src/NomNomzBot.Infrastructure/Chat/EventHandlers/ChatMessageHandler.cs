@@ -128,7 +128,11 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         if (string.IsNullOrEmpty(text))
             return;
 
-        if (text[0] != '!')
+        // The command prefix is per-channel (Channel.CommandPrefix, default "!"), read from the registry's
+        // cached settings so this stays a no-DB hot path; a changed prefix applies once the registry reloads.
+        string commandPrefix = channelCtx?.CommandPrefix ?? "!";
+
+        if (!text.StartsWith(commandPrefix, StringComparison.Ordinal))
         {
             // Open chat poll: a bare option number is a VOTE and is consumed — it never doubles as a
             // trigger match while the poll runs.
@@ -158,10 +162,14 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         if (IsClaimedByActiveGame(@event.BroadcasterId, text))
             return;
 
-        // Parse: !commandname arg1 arg2 ...
-        int spaceIdx = text.IndexOf(' ');
-        string commandName = (spaceIdx > 0 ? text[1..spaceIdx] : text[1..]).ToLowerInvariant();
-        string args = spaceIdx > 0 ? text[(spaceIdx + 1)..].Trim() : string.Empty;
+        // Parse: <prefix>commandname arg1 arg2 ... — strip the (already-matched) prefix, then split on the
+        // first space into command name + args.
+        string afterPrefix = text[commandPrefix.Length..];
+        int spaceIdx = afterPrefix.IndexOf(' ');
+        string commandName = (
+            spaceIdx > 0 ? afterPrefix[..spaceIdx] : afterPrefix
+        ).ToLowerInvariant();
+        string args = spaceIdx > 0 ? afterPrefix[(spaceIdx + 1)..].Trim() : string.Empty;
 
         if (string.IsNullOrEmpty(commandName))
             return;

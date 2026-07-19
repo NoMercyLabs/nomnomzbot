@@ -200,14 +200,115 @@ public class ChannelService : IChannelService
         if (channel is null)
             return Errors.ChannelNotFound<ChannelDto>(broadcasterId);
 
+        string? prefixError = ValidatePrefix(request.Prefix);
+        if (prefixError is not null)
+            return Result.Failure<ChannelDto>(prefixError, "VALIDATION_FAILED");
+
+        await ApplyAndPersistAsync(broadcasterGuid, channel, request, cancellationToken);
+        return Result.Success(ToDto(channel));
+    }
+
+    public async Task<Result<ChannelBasicsDto>> GetBasicsAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound<ChannelBasicsDto>(broadcasterId);
+
+        // Projection avoids loading the whole aggregate; the anonymous shape lets us map the User-owned
+        // timezone alongside the channel scalars in one round trip.
+        var row = await _db
+            .Channels.Where(c => c.Id == broadcasterGuid)
+            .Select(c => new
+            {
+                c.CommandPrefix,
+                c.Language,
+                c.Enabled,
+                c.User.Timezone,
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (row is null)
+            return Errors.ChannelNotFound<ChannelBasicsDto>(broadcasterId);
+
+        return Result.Success(
+            new ChannelBasicsDto(row.CommandPrefix, row.Language, row.Enabled, row.Timezone)
+        );
+    }
+
+    public async Task<Result<ChannelBasicsDto>> UpdateBasicsAsync(
+        string broadcasterId,
+        UpdateChannelSettingsDto request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound<ChannelBasicsDto>(broadcasterId);
+
+        Channel? channel = await _db
+            .Channels.Include(c => c.User)
+            .FirstOrDefaultAsync(c => c.Id == broadcasterGuid, cancellationToken);
+
+        if (channel is null)
+            return Errors.ChannelNotFound<ChannelBasicsDto>(broadcasterId);
+
+        string? prefixError = ValidatePrefix(request.Prefix);
+        if (prefixError is not null)
+            return Result.Failure<ChannelBasicsDto>(prefixError, "VALIDATION_FAILED");
+
+        await ApplyAndPersistAsync(broadcasterGuid, channel, request, cancellationToken);
+        return Result.Success(
+            new ChannelBasicsDto(
+                channel.CommandPrefix,
+                channel.Language,
+                channel.Enabled,
+                channel.User.Timezone
+            )
+        );
+    }
+
+    /// <summary>
+    /// Validates the command prefix: null leaves it unchanged; otherwise it must be 1-5 non-whitespace
+    /// characters. Returns an error message when invalid, or null when valid/unchanged.
+    /// </summary>
+    private static string? ValidatePrefix(string? prefix)
+    {
+        if (prefix is null)
+            return null;
+
+        string trimmed = prefix.Trim();
+        if (trimmed.Length is < 1 or > 5 || trimmed.Any(char.IsWhiteSpace))
+            return "Command prefix must be 1-5 non-whitespace characters (e.g. \"!\").";
+
+        return null;
+    }
+
+    /// <summary>
+    /// Applies the supplied (already-validated) settings to the loaded channel, persists them, refreshes the
+    /// in-memory registry so the chat hot path picks up a prefix/locale change without a restart, and fans out
+    /// the change for other consumers. The caller must have loaded <c>channel.User</c>.
+    /// </summary>
+    private async Task ApplyAndPersistAsync(
+        Guid broadcasterGuid,
+        Channel channel,
+        UpdateChannelSettingsDto request,
+        CancellationToken cancellationToken
+    )
+    {
         if (request.DisplayName is not null)
             channel.User.DisplayName = request.DisplayName;
+        if (request.Prefix is not null)
+            channel.CommandPrefix = request.Prefix.Trim();
         if (request.Locale is not null)
             channel.Language = request.Locale;
         if (request.AutoJoin.HasValue)
             channel.Enabled = request.AutoJoin.Value;
+        if (request.Timezone is not null)
+            channel.User.Timezone = request.Timezone.Length == 0 ? null : request.Timezone;
 
         await _db.SaveChangesAsync(cancellationToken);
+        await _registry.InvalidateSettingsAsync(broadcasterGuid, cancellationToken);
         await _eventBus.PublishAsync(
             new ChannelConfigChangedEvent
             {
@@ -217,7 +318,6 @@ public class ChannelService : IChannelService
             },
             cancellationToken
         );
-        return Result.Success(ToDto(channel));
     }
 
     public async Task<Result<ChannelPersonalityDto>> GetPersonalityAsync(

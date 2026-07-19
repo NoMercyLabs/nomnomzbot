@@ -78,6 +78,10 @@ public class ChannelConfiguration : IEntityTypeConfiguration<Channel>
             .HasMaxLength(20)
             .HasDefaultValue(NomNomzBot.Domain.Identity.Enums.PersonalityTone.Informative);
 
+        // Command prefix (e.g. "!"). Store default = "!" so existing rows backfill to the conventional prefix
+        // on migration and a new row never carries an empty prefix (which would match every chat message).
+        builder.Property(e => e.CommandPrefix).IsRequired().HasMaxLength(5).HasDefaultValue("!");
+
         builder.Property(e => e.IsOnboarded).IsRequired();
 
         builder.Property(e => e.OverlayToken).IsRequired().HasMaxLength(36);

@@ -424,12 +424,17 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        string? personality = await db
+        var settings = await db
             .Channels.Where(c => c.Id == ctx.BroadcasterId)
-            .Select(c => c.Personality)
+            .Select(c => new { c.Personality, c.CommandPrefix })
             .FirstOrDefaultAsync(ct);
 
-        ctx.Personality = PersonalityTone.Normalize(personality);
+        ctx.Personality = PersonalityTone.Normalize(settings?.Personality);
+        // Guard against an empty/whitespace stored prefix (never expected past validation) so the hot path's
+        // StartsWith check can never match every message.
+        ctx.CommandPrefix = string.IsNullOrWhiteSpace(settings?.CommandPrefix)
+            ? "!"
+            : settings.CommandPrefix;
     }
 
     /// <summary>

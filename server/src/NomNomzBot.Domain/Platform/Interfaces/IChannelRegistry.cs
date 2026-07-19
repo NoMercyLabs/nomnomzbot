@@ -90,6 +90,13 @@ public class ChannelContext
     public string Personality { get; set; } = PersonalityTone.Informative;
 
     /// <summary>
+    /// The prefix that marks a chat message as a command (<c>Channel.CommandPrefix</c>, e.g. <c>!</c>). Read on
+    /// the chat hot path to decide whether a message is a command; defaults to <c>!</c> until the registry
+    /// loads the channel's setting. Refresh via <see cref="IChannelRegistry.InvalidateSettingsAsync"/>.
+    /// </summary>
+    public string CommandPrefix { get; set; } = "!";
+
+    /// <summary>
     /// Per-channel built-in response-template overrides: key = the built-in's bare catalog key (lowercase,
     /// no leading "!"), value = the override template parsed from <c>ChannelBuiltinCommand.OverridesJson</c>.
     /// Absence = no override (fall back to the tone template). Populated by <c>ChannelRegistry</c> alongside

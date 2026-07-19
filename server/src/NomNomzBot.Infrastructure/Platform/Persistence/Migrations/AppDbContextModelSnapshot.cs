@@ -4167,6 +4167,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime?>("BotJoinedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("CommandPrefix")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)")
+                        .HasDefaultValue("!");
+
                     b.PrimitiveCollection<string>("ContentLabels")
                         .IsRequired()
                         .ValueGeneratedOnAdd()

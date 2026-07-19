@@ -432,6 +432,44 @@ public class ChannelsController : BaseController
         return Ok(new StatusResponseDto<ChannelPersonalityDto> { Data = result.Value });
     }
 
+    /// <summary>
+    /// Get the channel's onboarding "basics" — the command prefix, default locale, auto-join, and the
+    /// streamer's timezone. Moderator-floored like every dashboard read; the Settings "Bot basics" card and
+    /// the onboarding basics step both prefill from this.
+    /// </summary>
+    [HttpGet("{channelId}/settings/basics")]
+    [RequireAction("dashboard:read")]
+    [ProducesResponseType<StatusResponseDto<ChannelBasicsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetBasics(string channelId, CancellationToken ct)
+    {
+        Result<ChannelBasicsDto> result = await _channelService.GetBasicsAsync(channelId, ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Update the channel's onboarding "basics" (command prefix, default locale, auto-join, timezone) and
+    /// echo the saved values. Broadcaster/Editor-gated like the other channel settings writes; a changed
+    /// prefix applies to the live chat hot path without a restart.
+    /// </summary>
+    [HttpPut("{channelId}/settings/basics")]
+    [RequireAction("setup:write")]
+    [ProducesResponseType<StatusResponseDto<ChannelBasicsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateBasics(
+        string channelId,
+        [FromBody] UpdateChannelSettingsDto request,
+        CancellationToken ct
+    )
+    {
+        Result<ChannelBasicsDto> result = await _channelService.UpdateBasicsAsync(
+            channelId,
+            request,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<ChannelBasicsDto> { Data = result.Value });
+    }
+
     /// <summary>Bot joins the channel (subscribes to EventSub and starts listening).</summary>
     [HttpPost("{channelId}/join")]
     [RequireAction("setup:write")]

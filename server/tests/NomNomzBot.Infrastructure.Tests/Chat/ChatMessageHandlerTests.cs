@@ -159,6 +159,57 @@ public sealed class ChatMessageHandlerTests
             );
     }
 
+    // ── per-channel command prefix (Channel.CommandPrefix) ──────────────────
+
+    [Fact]
+    public async Task Command_typed_with_the_channels_custom_prefix_dispatches()
+    {
+        // The channel runs a non-default prefix ("?"); a matching command must resolve and dispatch.
+        ChannelContext ctx = NewChannelContext();
+        ctx.CommandPrefix = "?";
+        AddTemplateCommand(ctx, "hello", "Hi there");
+
+        (ChatMessageHandler sut, _, IEventBus bus) = BuildWithGames(
+            ctx,
+            new LiveGameSessionRegistry()
+        );
+
+        await sut.HandleAsync(MessageEvent("?hello"), CancellationToken.None);
+
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.BroadcasterId == Broadcaster && e.CommandName == "hello" && e.Succeeded
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Bang_prefix_is_ignored_when_the_channels_prefix_is_custom()
+    {
+        // The same command typed with the DEFAULT "!" prefix must NOT dispatch once the channel's prefix is "?"
+        // — otherwise the setting is cosmetic. It falls through to the ordinary-chat path (no send, no fact).
+        ChannelContext ctx = NewChannelContext();
+        ctx.CommandPrefix = "?";
+        AddTemplateCommand(ctx, "hello", "Hi there");
+
+        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(
+            ctx,
+            new LiveGameSessionRegistry()
+        );
+
+        await sut.HandleAsync(MessageEvent("!hello"), CancellationToken.None);
+
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default);
+        await bus.DidNotReceiveWithAnyArgs()
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+                default!,
+                default
+            );
+    }
+
     [Fact]
     public async Task A_youtube_message_executes_commands_and_replies_through_the_platform_router()
     {

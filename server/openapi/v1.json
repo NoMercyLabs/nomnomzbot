@@ -11535,6 +11535,220 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/settings/basics": {
+      "get": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Get the channel's onboarding \"basics\" — the command prefix, default locale, auto-join, and the\r\nstreamer's timezone. Moderator-floored like every dashboard read; the Settings \"Bot basics\" card and\r\nthe onboarding basics step both prefill from this.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfChannelBasicsDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Update the channel's onboarding \"basics\" (command prefix, default locale, auto-join, timezone) and\r\necho the saved values. Broadcaster/Editor-gated like the other channel settings writes; a changed\r\nprefix applies to the live chat hot path without a restart.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChannelSettingsDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChannelSettingsDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChannelSettingsDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfChannelBasicsDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/join": {
       "post": {
         "tags": [
@@ -67270,6 +67484,36 @@
         },
         "description": "One channel's ban outcome — its login, whether the ban landed, and the error when it did not."
       },
+      "ChannelBasicsDto": {
+        "required": [
+          "prefix",
+          "locale",
+          "autoJoin",
+          "timezone"
+        ],
+        "type": "object",
+        "properties": {
+          "prefix": {
+            "type": "string"
+          },
+          "locale": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "autoJoin": {
+            "type": "boolean"
+          },
+          "timezone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "The channel's onboarding \"basics\" — the settable-anywhere command string ChannelBasicsDto.Prefix, the default\r\nstring? ChannelBasicsDto.Locale, the bool ChannelBasicsDto.AutoJoin toggle, and the streamer's string? ChannelBasicsDto.Timezone.\r\nBacks both the Settings \"Bot basics\" card and the onboarding basics step."
+      },
       "ChannelDto": {
         "required": [
           "id",
@@ -80639,6 +80883,36 @@
           }
         }
       },
+      "StatusResponseDtoOfChannelBasicsDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChannelBasicsDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfChannelDto": {
         "type": "object",
         "properties": {
@@ -88196,19 +88470,29 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The command prefix (1-5 non-whitespace chars, e.g. `!`). Null leaves it unchanged."
           },
           "locale": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The channel's default language/locale (BCP-47, e.g. `en`). Null leaves it unchanged."
           },
           "autoJoin": {
             "type": [
               "null",
               "boolean"
-            ]
+            ],
+            "description": "Whether the bot auto-joins this channel's chat. Null leaves it unchanged."
+          },
+          "timezone": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The streamer's IANA timezone (e.g. `Europe/Amsterdam`). Null leaves it unchanged."
           }
         },
         "description": "Request to update channel settings."

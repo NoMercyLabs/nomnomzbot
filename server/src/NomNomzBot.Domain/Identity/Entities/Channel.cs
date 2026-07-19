@@ -85,6 +85,15 @@ public class Channel : SoftDeletableEntity
     [MaxLength(20)]
     public string Personality { get; set; } = PersonalityTone.Informative;
 
+    /// <summary>
+    /// The prefix that marks a chat message as a command (e.g. <c>!</c> in <c>!uptime</c>). One-to-five
+    /// non-whitespace characters; the chat hot path (<c>ChatMessageHandler</c>) reads it to decide whether a
+    /// message is a command, so a change applies live once the registry reloads the channel's settings.
+    /// Defaults to <c>!</c> for every new and existing channel.
+    /// </summary>
+    [MaxLength(5)]
+    public string CommandPrefix { get; set; } = "!";
+
     public bool IsOnboarded { get; set; }
 
     public DateTime? BotJoinedAt { get; set; }

@@ -52,6 +52,22 @@ public interface IChannelService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>Get the channel's onboarding "basics" (command prefix, locale, auto-join, timezone).</summary>
+    Task<Result<ChannelBasicsDto>> GetBasicsAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Update the channel's "basics" (command prefix, locale, auto-join, timezone) and echo the saved values.
+    /// A changed prefix applies to the live chat hot path without a restart.
+    /// </summary>
+    Task<Result<ChannelBasicsDto>> UpdateBasicsAsync(
+        string broadcasterId,
+        UpdateChannelSettingsDto request,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Get the channel's built-in-command personality tone.</summary>
     Task<Result<ChannelPersonalityDto>> GetPersonalityAsync(
         string broadcasterId,

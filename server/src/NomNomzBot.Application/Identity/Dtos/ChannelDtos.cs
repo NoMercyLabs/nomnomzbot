@@ -56,10 +56,31 @@ public sealed record UpdateChannelSettingsDto
 {
     public string? DisplayName { get; init; }
     public string? SubscriptionTier { get; init; }
+
+    /// <summary>The command prefix (1-5 non-whitespace chars, e.g. <c>!</c>). Null leaves it unchanged.</summary>
     public string? Prefix { get; init; }
+
+    /// <summary>The channel's default language/locale (BCP-47, e.g. <c>en</c>). Null leaves it unchanged.</summary>
     public string? Locale { get; init; }
+
+    /// <summary>Whether the bot auto-joins this channel's chat. Null leaves it unchanged.</summary>
     public bool? AutoJoin { get; init; }
+
+    /// <summary>The streamer's IANA timezone (e.g. <c>Europe/Amsterdam</c>). Null leaves it unchanged.</summary>
+    public string? Timezone { get; init; }
 }
+
+/// <summary>
+/// The channel's onboarding "basics" — the settable-anywhere command <see cref="Prefix"/>, the default
+/// <see cref="Locale"/>, the <see cref="AutoJoin"/> toggle, and the streamer's <see cref="Timezone"/>.
+/// Backs both the Settings "Bot basics" card and the onboarding basics step.
+/// </summary>
+public sealed record ChannelBasicsDto(
+    string Prefix,
+    string? Locale,
+    bool AutoJoin,
+    string? Timezone
+);
 
 /// <summary>Request to create/onboard a new channel.</summary>
 public sealed record CreateChannelRequest
