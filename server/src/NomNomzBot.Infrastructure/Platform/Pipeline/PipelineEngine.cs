@@ -306,6 +306,14 @@ public sealed class PipelineEngine : IPipelineEngine
                 }
             );
 
+            // Expose the just-run action's outcome as pipeline variables so a LATER step can branch on it
+            // (e.g. `play_tts` with continue_on_error, then a `redemption_refund` gated by a comparison on
+            // {last.success} == false). Without this a pipeline could proceed past a failure but never react
+            // to it — the generic building block behind the legacy "refund on failed queue / empty TTS" flows.
+            ctx.Variables["last.success"] = actionResult.Succeeded ? "true" : "false";
+            ctx.Variables["last.output"] = actionResult.Output ?? string.Empty;
+            ctx.Variables["last.error"] = actionResult.ErrorMessage ?? string.Empty;
+
             if (actionResult.Succeeded)
             {
                 executed++;
