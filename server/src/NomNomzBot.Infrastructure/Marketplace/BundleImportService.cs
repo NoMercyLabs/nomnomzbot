@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.IO.Compression;
+using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -174,6 +175,7 @@ public class BundleImportService : IBundleImportService
         string channelId = broadcasterId.ToString();
         List<(string Type, Guid Id, string Name)> created = [];
         Dictionary<string, Guid> pipelineIdsByName = [];
+        Dictionary<string, Guid> scriptIdsByName = [];
 
         // Code scripts go through the tenant-ambient code-script module (custom-code.md broker invariant:
         // no BroadcasterId parameter). Refuse up front — BEFORE any write — when the resolved tenant is
@@ -186,7 +188,135 @@ public class BundleImportService : IBundleImportService
 
         try
         {
-            // Pipelines first — commands re-link against them by bundle name.
+            // Code scripts first — they have no intra-bundle dependencies, and pipelines re-link their
+            // run_code steps against them by bundle name (mirroring the command → pipeline name re-link).
+            foreach (CodeScriptExport export in bundle.CodeScripts)
+            {
+                CodeScript? existing = await _db.CodeScripts.FirstOrDefaultAsync(
+                    s =>
+                        s.BroadcasterId == broadcasterId
+                        && s.Name == export.Name
+                        && s.DeletedAt == null,
+                    ct
+                );
+                string name = export.Name;
+                if (existing is not null)
+                {
+                    if (policy == ImportConflictPolicy.Skip)
+                    {
+                        // The skipped script still anchors run_code re-links — to the existing entity.
+                        scriptIdsByName[export.Name] = existing.Id;
+                        continue;
+                    }
+                    if (policy == ImportConflictPolicy.Overwrite)
+                    {
+                        Result deleted = await _codeScripts.DeleteAsync(existing.Id, ct);
+                        if (deleted.IsFailure)
+                            return await RollbackAsync(
+                                broadcasterId,
+                                actorUserId,
+                                created,
+                                deleted.ErrorMessage,
+                                deleted.ErrorCode,
+                                ct
+                            );
+                    }
+                    else
+                    {
+                        name = await FreeNameAsync(
+                            export.Name,
+                            freeText: true,
+                            maxLength: 100,
+                            candidate =>
+                                _db.CodeScripts.AnyAsync(
+                                    s =>
+                                        s.BroadcasterId == broadcasterId
+                                        && s.Name == candidate
+                                        && s.DeletedAt == null,
+                                    ct
+                                )
+                        );
+                    }
+                }
+
+                // Create + Version 1 from the entry file — validate-on-save recompiles the source on THIS
+                // instance. A rejected compile still persists the script + version for audit, so the
+                // failure path deletes that remnant before rolling the bundle back.
+                string entrySource = export.Files[export.Manifest.Entry];
+                Result<CodeScriptDetailDto> createdScript = await _codeScripts.CreateAsync(
+                    new CreateCodeScriptRequest(name, export.Description, entrySource),
+                    ct
+                );
+                if (createdScript.IsFailure)
+                {
+                    CodeScript? remnant = await _db.CodeScripts.FirstOrDefaultAsync(
+                        s =>
+                            s.BroadcasterId == broadcasterId
+                            && s.Name == name
+                            && s.DeletedAt == null,
+                        ct
+                    );
+                    if (remnant is not null)
+                        await _codeScripts.DeleteAsync(remnant.Id, CancellationToken.None);
+                    return await RollbackAsync(
+                        broadcasterId,
+                        actorUserId,
+                        created,
+                        createdScript.ErrorMessage,
+                        createdScript.ErrorCode,
+                        ct
+                    );
+                }
+                created.Add((BundleFormat.CodeScriptType, createdScript.Value.Id, name));
+                // Keyed by the EXPORT name (rename-on-collision notwithstanding) — the graphs re-link by it.
+                scriptIdsByName[export.Name] = createdScript.Value.Id;
+
+                // A multi-file project (or one declaring dependencies) is stored whole via the project
+                // save, so the editor round-trips the full src/ tree on the importing instance too.
+                if (export.Files.Count > 1 || export.Manifest.Dependencies.Count > 0)
+                {
+                    Result<CodeScriptVersionDto> savedProject = await _codeScripts.SaveProjectAsync(
+                        createdScript.Value.Id,
+                        new ProjectDto(
+                            export.Files.ToDictionary(kv => kv.Key, kv => kv.Value),
+                            new ProjectManifestDto(
+                                export.Manifest.Entry,
+                                export.Manifest.Kind,
+                                export.Manifest.Framework,
+                                export.Manifest.Dependencies
+                            )
+                        ),
+                        ct
+                    );
+                    if (savedProject.IsFailure)
+                        return await RollbackAsync(
+                            broadcasterId,
+                            actorUserId,
+                            created,
+                            savedProject.ErrorMessage,
+                            savedProject.ErrorCode,
+                            ct
+                        );
+                }
+
+                // D4: imported custom code ALWAYS lands disabled — enabling is an explicit owner action.
+                Result disabledScript = await _codeScripts.SetEnabledAsync(
+                    createdScript.Value.Id,
+                    false,
+                    ct
+                );
+                if (disabledScript.IsFailure)
+                    return await RollbackAsync(
+                        broadcasterId,
+                        actorUserId,
+                        created,
+                        disabledScript.ErrorMessage,
+                        disabledScript.ErrorCode,
+                        ct
+                    );
+            }
+
+            // Pipelines next — commands re-link against them by bundle name.
             foreach (PipelineExport export in bundle.Pipelines)
             {
                 Pipeline? existing = await _db.Pipelines.FirstOrDefaultAsync(
@@ -230,17 +360,37 @@ public class BundleImportService : IBundleImportService
                     }
                 }
 
+                // run_code re-link: every step carrying a code_script_name gets its code_script_id set to
+                // the script imported from this bundle (or an existing tenant script with that name). An
+                // unresolvable name fails typed BEFORE this pipeline is created.
+                Result<string?> relinked = await RelinkRunCodeAsync(
+                    broadcasterId,
+                    export.GraphJson,
+                    scriptIdsByName,
+                    ct
+                );
+                if (relinked.IsFailure)
+                    return await RollbackAsync(
+                        broadcasterId,
+                        actorUserId,
+                        created,
+                        relinked.ErrorMessage,
+                        relinked.ErrorCode,
+                        ct
+                    );
+                string? graphJson = relinked.Value;
+
                 // D4: a run_code-bearing pipeline always lands disabled, whatever the export says.
-                bool hasRunCode = BundleConventions.ContainsRunCode(export.GraphJson);
+                bool hasRunCode = BundleConventions.ContainsRunCode(graphJson);
                 CreatePipelineDto request = new()
                 {
                     Name = name,
                     Description = export.Description,
                     TriggerKind = export.TriggerKind,
                     IsEnabled = export.IsEnabled && !hasRunCode,
-                    GraphJsonCache = export.GraphJson is not null
+                    GraphJsonCache = graphJson is not null
                         ? System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
-                            export.GraphJson
+                            graphJson
                         )
                         : null,
                 };
@@ -693,126 +843,6 @@ public class BundleImportService : IBundleImportService
                 created.Add((BundleFormat.PickListType, createdList.Value.Id, name));
             }
 
-            foreach (CodeScriptExport export in bundle.CodeScripts)
-            {
-                CodeScript? existing = await _db.CodeScripts.FirstOrDefaultAsync(
-                    s =>
-                        s.BroadcasterId == broadcasterId
-                        && s.Name == export.Name
-                        && s.DeletedAt == null,
-                    ct
-                );
-                string name = export.Name;
-                if (existing is not null)
-                {
-                    if (policy == ImportConflictPolicy.Skip)
-                        continue;
-                    if (policy == ImportConflictPolicy.Overwrite)
-                    {
-                        Result deleted = await _codeScripts.DeleteAsync(existing.Id, ct);
-                        if (deleted.IsFailure)
-                            return await RollbackAsync(
-                                broadcasterId,
-                                actorUserId,
-                                created,
-                                deleted.ErrorMessage,
-                                deleted.ErrorCode,
-                                ct
-                            );
-                    }
-                    else
-                    {
-                        name = await FreeNameAsync(
-                            export.Name,
-                            freeText: true,
-                            maxLength: 100,
-                            candidate =>
-                                _db.CodeScripts.AnyAsync(
-                                    s =>
-                                        s.BroadcasterId == broadcasterId
-                                        && s.Name == candidate
-                                        && s.DeletedAt == null,
-                                    ct
-                                )
-                        );
-                    }
-                }
-
-                // Create + Version 1 from the entry file — validate-on-save recompiles the source on THIS
-                // instance. A rejected compile still persists the script + version for audit, so the
-                // failure path deletes that remnant before rolling the bundle back.
-                string entrySource = export.Files[export.Manifest.Entry];
-                Result<CodeScriptDetailDto> createdScript = await _codeScripts.CreateAsync(
-                    new CreateCodeScriptRequest(name, export.Description, entrySource),
-                    ct
-                );
-                if (createdScript.IsFailure)
-                {
-                    CodeScript? remnant = await _db.CodeScripts.FirstOrDefaultAsync(
-                        s =>
-                            s.BroadcasterId == broadcasterId
-                            && s.Name == name
-                            && s.DeletedAt == null,
-                        ct
-                    );
-                    if (remnant is not null)
-                        await _codeScripts.DeleteAsync(remnant.Id, CancellationToken.None);
-                    return await RollbackAsync(
-                        broadcasterId,
-                        actorUserId,
-                        created,
-                        createdScript.ErrorMessage,
-                        createdScript.ErrorCode,
-                        ct
-                    );
-                }
-                created.Add((BundleFormat.CodeScriptType, createdScript.Value.Id, name));
-
-                // A multi-file project (or one declaring dependencies) is stored whole via the project
-                // save, so the editor round-trips the full src/ tree on the importing instance too.
-                if (export.Files.Count > 1 || export.Manifest.Dependencies.Count > 0)
-                {
-                    Result<CodeScriptVersionDto> savedProject = await _codeScripts.SaveProjectAsync(
-                        createdScript.Value.Id,
-                        new ProjectDto(
-                            export.Files.ToDictionary(kv => kv.Key, kv => kv.Value),
-                            new ProjectManifestDto(
-                                export.Manifest.Entry,
-                                export.Manifest.Kind,
-                                export.Manifest.Framework,
-                                export.Manifest.Dependencies
-                            )
-                        ),
-                        ct
-                    );
-                    if (savedProject.IsFailure)
-                        return await RollbackAsync(
-                            broadcasterId,
-                            actorUserId,
-                            created,
-                            savedProject.ErrorMessage,
-                            savedProject.ErrorCode,
-                            ct
-                        );
-                }
-
-                // D4: imported custom code ALWAYS lands disabled — enabling is an explicit owner action.
-                Result disabledScript = await _codeScripts.SetEnabledAsync(
-                    createdScript.Value.Id,
-                    false,
-                    ct
-                );
-                if (disabledScript.IsFailure)
-                    return await RollbackAsync(
-                        broadcasterId,
-                        actorUserId,
-                        created,
-                        disabledScript.ErrorMessage,
-                        disabledScript.ErrorCode,
-                        ct
-                    );
-            }
-
             foreach (WidgetExport export in bundle.Widgets)
             {
                 Widget? existing = await _db.Widgets.FirstOrDefaultAsync(
@@ -1080,6 +1110,65 @@ public class BundleImportService : IBundleImportService
         );
 
         return Result.Success(ToDto(row));
+    }
+
+    // ── run_code re-link (import side) ──────────────────────────────────────────
+
+    /// <summary>
+    /// Re-links every <c>run_code</c> step in a bundled pipeline graph: a step carrying
+    /// <c>code_script_name</c> gets <c>code_script_id</c> set to the script imported from the same bundle
+    /// (falling back to an existing tenant script with that name); the name stays as a harmless hint. An
+    /// unresolvable name fails <c>BUNDLE_INVALID</c> so the pipeline is never created against a dangling
+    /// reference. Steps without a name are left untouched — they run fail-closed at execution time.
+    /// </summary>
+    private async Task<Result<string?>> RelinkRunCodeAsync(
+        Guid broadcasterId,
+        string? graphJson,
+        Dictionary<string, Guid> scriptIdsByName,
+        CancellationToken ct
+    )
+    {
+        JsonObject? graph = BundleConventions.ParseGraph(graphJson);
+        if (graph is null)
+            return Result.Success(graphJson);
+
+        bool rewritten = false;
+        foreach (JsonObject bag in BundleConventions.RunCodeParameterBags(graph))
+        {
+            string? scriptName = BundleConventions.GetStringParam(
+                bag,
+                BundleConventions.CodeScriptNameParam
+            );
+            if (string.IsNullOrWhiteSpace(scriptName))
+                continue;
+
+            Guid scriptId;
+            if (scriptIdsByName.TryGetValue(scriptName, out Guid bundledId))
+            {
+                scriptId = bundledId;
+            }
+            else
+            {
+                CodeScript? existing = await _db.CodeScripts.FirstOrDefaultAsync(
+                    s =>
+                        s.BroadcasterId == broadcasterId
+                        && s.Name == scriptName
+                        && s.DeletedAt == null,
+                    ct
+                );
+                if (existing is null)
+                    return Result.Failure<string?>(
+                        $"A pipeline runs code script '{scriptName}', which is neither in the bundle nor on this channel.",
+                        "BUNDLE_INVALID"
+                    );
+                scriptId = existing.Id;
+            }
+
+            bag[BundleConventions.CodeScriptIdParam] = scriptId.ToString();
+            rewritten = true;
+        }
+
+        return Result.Success(rewritten ? graph.ToJsonString() : graphJson);
     }
 
     // ── Ledger ──────────────────────────────────────────────────────────────────
@@ -1450,6 +1539,26 @@ public class BundleImportService : IBundleImportService
                 RequireBundledPipeline("Timer", timer.Name, timer.PipelineName);
             foreach (ChatTriggerExport trigger in chatTriggers)
                 RequireBundledPipeline("Chat trigger", trigger.Pattern, trigger.PipelineName);
+
+            // Every `code_script:<name>` edge must resolve inside the bundle too (run_code re-link) —
+            // like the pipeline edges, this fails the bundle at inspect, BEFORE any write.
+            HashSet<string> bundledScriptNames = codeScripts
+                .Select(s => s.Name)
+                .ToHashSet(StringComparer.Ordinal);
+            string scriptEdgePrefix = $"{BundleFormat.CodeScriptType}:";
+            foreach (BundleManifestItem item in manifest.Items)
+            {
+                foreach (string dependency in item.Dependencies ?? [])
+                {
+                    if (!dependency.StartsWith(scriptEdgePrefix, StringComparison.Ordinal))
+                        continue;
+                    string scriptName = dependency[scriptEdgePrefix.Length..];
+                    if (!bundledScriptNames.Contains(scriptName))
+                        issues.Add(
+                            $"{item.Type} '{item.Name}' depends on code script '{scriptName}', which is not in the bundle."
+                        );
+                }
+            }
 
             IReadOnlyList<string> capabilities = BundleConventions.CollectCapabilities(
                 pipelines,

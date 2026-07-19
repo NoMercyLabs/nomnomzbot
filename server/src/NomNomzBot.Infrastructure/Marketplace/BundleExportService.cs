@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.IO.Compression;
+using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -210,13 +211,26 @@ public class BundleExportService : IBundleExportService
 
             foreach (Pipeline pipeline in pipelines.Values)
             {
+                // run_code re-link (D2): a graph's tenant-local code_script_id never travels. Each run_code
+                // step is rewritten to carry the referenced script's NAME instead, the script auto-pulls into
+                // the bundle (it is exported by the code-script loop below), and the pipeline's manifest item
+                // gains a `code_script:<name>` dependency edge. A step whose script is missing/deleted
+                // exports with neither id nor name — and no edge — so the importer leaves it inert.
+                (string? graphJson, IReadOnlyList<string> dependencies) =
+                    await ExportRunCodeGraphAsync(
+                        broadcasterId,
+                        pipeline.GraphJsonCache,
+                        codeScripts,
+                        ct
+                    );
+
                 PipelineExport export = new()
                 {
                     Name = pipeline.Name,
                     Description = pipeline.Description,
                     TriggerKind = pipeline.TriggerKind,
                     IsEnabled = pipeline.IsEnabled,
-                    GraphJson = pipeline.GraphJsonCache,
+                    GraphJson = graphJson,
                 };
                 manifestItems.Add(
                     await WriteItemAsync(
@@ -224,7 +238,7 @@ public class BundleExportService : IBundleExportService
                         BundleFormat.PipelineType,
                         pipeline.Name,
                         export,
-                        [],
+                        dependencies,
                         usedSlugs,
                         ct
                     )
@@ -548,6 +562,67 @@ public class BundleExportService : IBundleExportService
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Rewrites a pipeline graph for export: every <c>run_code</c> step's <c>code_script_id</c> is REMOVED
+    /// (a raw tenant GUID must never enter the archive) and replaced with <c>code_script_name</c>; each
+    /// referenced script auto-pulls into <paramref name="codeScripts"/> so it travels in the bundle; and the
+    /// returned edges (<c>code_script:&lt;name&gt;</c>) go on the pipeline's manifest item. A step whose
+    /// script no longer exists keeps neither binding and produces no edge.
+    /// </summary>
+    private async Task<(
+        string? GraphJson,
+        IReadOnlyList<string> Dependencies
+    )> ExportRunCodeGraphAsync(
+        Guid broadcasterId,
+        string? graphJson,
+        Dictionary<Guid, CodeScript> codeScripts,
+        CancellationToken ct
+    )
+    {
+        JsonObject? graph = BundleConventions.ParseGraph(graphJson);
+        if (graph is null)
+            return (graphJson, []);
+
+        List<string> dependencies = [];
+        bool rewritten = false;
+        foreach (JsonObject bag in BundleConventions.RunCodeParameterBags(graph))
+        {
+            if (!bag.ContainsKey(BundleConventions.CodeScriptIdParam))
+                continue;
+
+            string? rawId = BundleConventions.GetStringParam(
+                bag,
+                BundleConventions.CodeScriptIdParam
+            );
+            bag.Remove(BundleConventions.CodeScriptIdParam);
+            bag.Remove(BundleConventions.CodeScriptNameParam);
+            rewritten = true;
+
+            if (!Guid.TryParse(rawId, out Guid scriptId))
+                continue;
+
+            if (!codeScripts.TryGetValue(scriptId, out CodeScript? script))
+            {
+                script = await _db.CodeScripts.FirstOrDefaultAsync(
+                    s =>
+                        s.BroadcasterId == broadcasterId && s.Id == scriptId && s.DeletedAt == null,
+                    ct
+                );
+                if (script is not null)
+                    codeScripts[scriptId] = script;
+            }
+            if (script is null)
+                continue; // Missing/deleted script: the step travels inert — no name, no edge.
+
+            bag[BundleConventions.CodeScriptNameParam] = script.Name;
+            string edge = $"{BundleFormat.CodeScriptType}:{script.Name}";
+            if (!dependencies.Contains(edge))
+                dependencies.Add(edge);
+        }
+
+        return (rewritten ? graph.ToJsonString() : graphJson, dependencies);
+    }
 
     private static async Task<Result> ResolveAsync<TEntity>(
         DbSet<TEntity> set,

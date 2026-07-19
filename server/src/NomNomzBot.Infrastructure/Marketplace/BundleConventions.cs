@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json.Nodes;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using NomNomzBot.Application.Contracts.Marketplace;
@@ -83,6 +84,76 @@ internal static class BundleConventions
     /// <summary>True when a pipeline graph document contains a <c>run_code</c> action (D4 gate).</summary>
     public static bool ContainsRunCode(string? graphJson) =>
         graphJson is not null && graphJson.Contains("\"run_code\"", StringComparison.Ordinal);
+
+    // ── run_code graph re-link mechanics (export: id → name, import: name → id) ─────────────────
+
+    /// <summary>The pipeline action key of a sandboxed-script step.</summary>
+    public const string RunCodeActionType = "run_code";
+
+    /// <summary>The tenant-local script binding of a <c>run_code</c> step — must never travel in a bundle.</summary>
+    public const string CodeScriptIdParam = "code_script_id";
+
+    /// <summary>The portable script binding a bundled <c>run_code</c> step carries instead of the id.</summary>
+    public const string CodeScriptNameParam = "code_script_name";
+
+    /// <summary>
+    /// Parses a pipeline graph document into a mutable node tree (System.Text.Json — the library the engine
+    /// and <c>PipelineService</c> read/write graphs with), case-insensitive on property names like the
+    /// engine's deserializer. Null/blank/malformed input yields null: the caller leaves the document as-is.
+    /// </summary>
+    public static JsonObject? ParseGraph(string? graphJson)
+    {
+        if (string.IsNullOrWhiteSpace(graphJson))
+            return null;
+        try
+        {
+            return JsonNode.Parse(
+                    graphJson,
+                    new JsonNodeOptions { PropertyNameCaseInsensitive = true }
+                ) as JsonObject;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Every <c>run_code</c> step's parameter bag in a graph document, across both graph spellings the
+    /// system reads: the engine's steps form (<c>{"steps":[{"action":{"type":"run_code",…}}]}</c>), where
+    /// params sit flat on the action object, and the builder's nodes form
+    /// (<c>{"nodes":[{"type":"run_code","config":{…}}]}</c>), where they sit in the node's <c>config</c>
+    /// object (the node itself when it has none). Mutating a returned bag mutates the parsed graph.
+    /// </summary>
+    public static IReadOnlyList<JsonObject> RunCodeParameterBags(JsonObject graph)
+    {
+        List<JsonObject> bags = [];
+
+        if (graph["steps"] is JsonArray steps)
+            foreach (JsonNode? step in steps)
+                if (
+                    step is JsonObject stepObject
+                    && stepObject["action"] is JsonObject action
+                    && IsRunCode(action["type"])
+                )
+                    bags.Add(action);
+
+        if (graph["nodes"] is JsonArray nodes)
+            foreach (JsonNode? node in nodes)
+                if (node is JsonObject nodeObject && IsRunCode(nodeObject["type"]))
+                    bags.Add(nodeObject["config"] as JsonObject ?? nodeObject);
+
+        return bags;
+    }
+
+    /// <summary>The string value of a graph parameter, or null when absent/non-string.</summary>
+    public static string? GetStringParam(JsonObject bag, string key) =>
+        bag[key] is JsonValue value && value.TryGetValue(out string? text) ? text : null;
+
+    private static bool IsRunCode(JsonNode? type) =>
+        type is JsonValue value
+        && value.TryGetValue(out string? text)
+        && string.Equals(text, RunCodeActionType, StringComparison.OrdinalIgnoreCase);
 
     // The D4 capability catalog: pipeline-graph action keys → the plain-language capability each implies.
     // Scanned as quoted tokens in the graph document — the graph is the builder's own JSON, so an action in

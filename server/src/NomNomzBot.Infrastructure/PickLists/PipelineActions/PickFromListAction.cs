@@ -9,25 +9,32 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.PickLists.Services;
 
 namespace NomNomzBot.Infrastructure.PickLists.PipelineActions;
 
 /// <summary>
-/// Pipeline action <c>pick_from_list</c> — draws one random entry from a named pick list and stores it in a
-/// pipeline variable (default <c>pick</c>) for later steps to reference as <c>{{pick}}</c>. This is the
-/// discoverable palette block the entity/service docs always promised but that never existed: previously the
-/// ONLY way to use a pick list was to hand-type the magic <c>{list.pick.&lt;name&gt;}</c> string into some other
-/// field. Storing into a variable also lets a SINGLE pick be reused across several steps (a bare
-/// <c>{list.pick.name}</c> re-rolls on every occurrence). Fails with the service's reason when the list is
-/// missing/empty, so the pipeline log is truthful.
+/// Pipeline action <c>pick_from_list</c> — draws one random entry from a named pick list, resolves the entry
+/// through <see cref="ITemplateResolver"/>, and stores the RESOLVED text in a pipeline variable (default
+/// <c>pick</c>) for later steps to reference as <c>{{pick}}</c>. Resolving before storing matters twice over:
+/// the engine's substitution is single-pass, so a stored entry like <c>"{user} is {list.pick.adjectives}"</c>
+/// would otherwise stay literal when a later step substitutes <c>{pick}</c>; and it makes the block's promise
+/// real — one pick is rolled ONCE, fully resolved (nested <c>{list.pick.*}</c>, <c>{user}</c>, grammar vars),
+/// and reused verbatim across every later step (a bare <c>{list.pick.name}</c> re-rolls on every occurrence).
+/// Fails with the service's reason when the list is missing/empty, so the pipeline log is truthful.
 /// </summary>
 public sealed class PickFromListAction : ICommandAction
 {
     private readonly IPickListService _lists;
+    private readonly ITemplateResolver _resolver;
 
-    public PickFromListAction(IPickListService lists) => _lists = lists;
+    public PickFromListAction(IPickListService lists, ITemplateResolver resolver)
+    {
+        _lists = lists;
+        _resolver = resolver;
+    }
 
     public string ActionType => "pick_from_list";
 
@@ -57,7 +64,16 @@ public sealed class PickFromListAction : ICommandAction
                 picked.ErrorMessage ?? $"pick_from_list couldn't pick from '{list}'."
             );
 
-        ctx.Variables[variable] = picked.Value;
+        // Resolve the picked entry NOW, against the pipeline's current variables — the roll happens once,
+        // and every later read of the variable sees the same fully-resolved string.
+        string resolved = await _resolver.ResolveAsync(
+            picked.Value,
+            ctx.Variables,
+            ctx.BroadcasterId,
+            ctx.CancellationToken
+        );
+
+        ctx.Variables[variable] = resolved;
         return ActionResult.Success($"pick_from_list:{list}");
     }
 }

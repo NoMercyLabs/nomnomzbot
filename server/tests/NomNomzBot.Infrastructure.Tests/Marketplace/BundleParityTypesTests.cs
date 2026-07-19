@@ -808,6 +808,248 @@ public sealed class BundleParityTypesTests
         (await target.Db.InstalledBundles.CountAsync()).Should().Be(0);
     }
 
+    // ── run_code re-link by name (export id→name, import name→id) ───────────────
+
+    /// <summary>The engine's steps-form graph: run_code params sit flat on the action object.</summary>
+    private static string RunCodeStepsGraph(Guid scriptId) =>
+        $$$"""{"steps":[{"action":{"type":"run_code","code_script_id":"{{{scriptId}}}"}}]}""";
+
+    /// <summary>The builder's nodes-form graph: run_code params sit in the node's config object.</summary>
+    private static string RunCodeNodesGraph(Guid scriptId) =>
+        $$$"""{"nodes":[{"id":"n1","type":"run_code","config":{"code_script_id":"{{{scriptId}}}"}}]}""";
+
+    private static async Task<(Guid ScriptId, Guid PipelineId)> SeedRunCodePipelineAsync(
+        Harness h,
+        Func<Guid, string> graph
+    )
+    {
+        CodeScriptDetailDto script = (
+            await h.CodeScripts.CreateAsync(
+                new CreateCodeScriptRequest("greeter", "Greets chat", "export {};")
+            )
+        ).Value;
+        PipelineDto pipeline = (
+            await h.Pipelines.CreateAsync(
+                h.ActingChannel.ToString(),
+                new CreatePipelineDto
+                {
+                    Name = "Code Flow",
+                    TriggerKind = "manual",
+                    IsEnabled = true,
+                    GraphJsonCache =
+                        System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
+                            graph(script.Id)
+                        ),
+                }
+            )
+        ).Value;
+        return (script.Id, pipeline.Id);
+    }
+
+    private static async Task<MemoryStream> ExportPipelineAsync(Harness h, Guid pipelineId)
+    {
+        Result<System.IO.Stream> zip = await h.Export.ExportAsync(
+            h.ActingChannel,
+            new ExportRequest(
+                [new ExportItemRef(BundleFormat.PipelineType, pipelineId)],
+                new BundleMetadata("Code Pack", "1.0.0", null, null, null)
+            )
+        );
+        zip.IsSuccess.Should().BeTrue(zip.ErrorMessage);
+        MemoryStream buffer = new();
+        await zip.Value.CopyToAsync(buffer);
+        buffer.Position = 0;
+        return buffer;
+    }
+
+    private static string StoredRunCodeScriptId(string? graphJsonCache)
+    {
+        using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(
+            graphJsonCache!
+        );
+        return doc
+            .RootElement.GetProperty("steps")[0]
+            .GetProperty("action")
+            .GetProperty("code_script_id")
+            .GetString()!;
+    }
+
+    [Fact]
+    public async Task Run_code_pipeline_exports_the_script_by_name_with_an_edge_and_no_tenant_guid()
+    {
+        Harness h = Build(Channel);
+        // Nodes form — the builder document spelling, params inside the node's config object.
+        (Guid scriptId, Guid pipelineId) = await SeedRunCodePipelineAsync(h, RunCodeNodesGraph);
+
+        MemoryStream zip = await ExportPipelineAsync(h, pipelineId);
+        Dictionary<string, string> entries = ReadEntries(zip);
+
+        // The referenced script auto-pulled into the bundle alongside the requested pipeline.
+        entries.Keys.Should().Contain(["pipelines/code-flow.json", "code-scripts/greeter.json"]);
+        BundleManifest manifest = BundleConventions.Deserialize<BundleManifest>(
+            entries["manifest.json"]
+        )!;
+        manifest.Items.Should().HaveCount(2);
+        manifest
+            .Items.Single(i => i.Type == BundleFormat.PipelineType)
+            .Dependencies.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be("code_script:greeter");
+
+        // The exported graph carries the NAME binding; the tenant GUID appears nowhere in the archive.
+        entries["pipelines/code-flow.json"].Should().Contain("code_script_name");
+        entries["pipelines/code-flow.json"].Should().NotContain("code_script_id");
+        entries.Values.Should().OnlyContain(text => !text.Contains(scriptId.ToString()));
+    }
+
+    [Fact]
+    public async Task Run_code_round_trip_rebinds_the_graph_to_the_imported_script_and_lands_disabled()
+    {
+        Harness source = Build(Channel);
+        // Steps form — the engine's graph spelling, params flat on the action object.
+        (Guid scriptId, Guid pipelineId) = await SeedRunCodePipelineAsync(
+            source,
+            RunCodeStepsGraph
+        );
+        MemoryStream zip = await ExportPipelineAsync(source, pipelineId);
+
+        Harness target = Build(OtherChannel);
+        Result<InstalledBundleDto> installed = await target.Import.ImportAsync(
+            OtherChannel,
+            Actor,
+            zip,
+            ImportConflictPolicy.Rename
+        );
+        installed.IsSuccess.Should().BeTrue(installed.ErrorMessage);
+
+        CodeScript importedScript = await target.Db.CodeScripts.SingleAsync();
+        importedScript.IsEnabled.Should().BeFalse(); // D4
+        importedScript.Id.Should().NotBe(scriptId);
+
+        PipelineEntity importedPipeline = await target.Db.Pipelines.SingleAsync();
+        importedPipeline.IsEnabled.Should().BeFalse(); // D4: run_code pipeline lands disabled
+        // The stored graph is re-bound to the NEWLY-created script's id, not the source tenant's.
+        StoredRunCodeScriptId(importedPipeline.GraphJsonCache)
+            .Should()
+            .Be(importedScript.Id.ToString());
+        importedPipeline.GraphJsonCache.Should().NotContain(scriptId.ToString());
+    }
+
+    [Fact]
+    public async Task Skip_policy_reimport_anchors_run_code_to_the_existing_script()
+    {
+        Harness source = Build(Channel);
+        (Guid _, Guid pipelineId) = await SeedRunCodePipelineAsync(source, RunCodeStepsGraph);
+        MemoryStream zip = await ExportPipelineAsync(source, pipelineId);
+
+        Harness target = Build(OtherChannel);
+        Result<InstalledBundleDto> first = await target.Import.ImportAsync(
+            OtherChannel,
+            Actor,
+            zip,
+            ImportConflictPolicy.Skip
+        );
+        first.IsSuccess.Should().BeTrue(first.ErrorMessage);
+        CodeScript existingScript = await target.Db.CodeScripts.SingleAsync();
+
+        // The pipeline is deleted by hand; the script stays. The re-import must anchor to it.
+        PipelineEntity firstPipeline = await target.Db.Pipelines.SingleAsync();
+        (await target.Pipelines.DeleteAsync(OtherChannel.ToString(), firstPipeline.Id))
+            .IsSuccess.Should()
+            .BeTrue();
+
+        zip.Position = 0;
+        Result<InstalledBundleDto> second = await target.Import.ImportAsync(
+            OtherChannel,
+            Actor,
+            zip,
+            ImportConflictPolicy.Skip
+        );
+        second.IsSuccess.Should().BeTrue(second.ErrorMessage);
+
+        // No second script was created; the recreated pipeline points at the EXISTING script's id.
+        (await target.Db.CodeScripts.CountAsync())
+            .Should()
+            .Be(1);
+        PipelineEntity recreated = await target.Db.Pipelines.SingleAsync();
+        StoredRunCodeScriptId(recreated.GraphJsonCache).Should().Be(existingScript.Id.ToString());
+    }
+
+    [Fact]
+    public async Task Bundle_with_an_edge_to_a_code_script_not_in_the_bundle_fails_typed_before_any_write()
+    {
+        Harness h = Build(Channel);
+        string graph = """{"steps":[{"action":{"type":"run_code","code_script_name":"ghost"}}]}""";
+        string pipelineJson = BundleConventions.Serialize(
+            new PipelineExport { Name = "Ghost Flow", GraphJson = graph }
+        );
+        using MemoryStream zip = BuildZip(
+            (
+                "manifest.json",
+                """
+                {"schemaVersion":1,"metadata":{"name":"Ghost Pack","version":"1.0.0"},
+                 "items":[{"type":"pipeline","name":"Ghost Flow","path":"pipelines/ghost-flow.json","dependencies":["code_script:ghost"]}]}
+                """
+            ),
+            ("pipelines/ghost-flow.json", pipelineJson)
+        );
+
+        Result<BundleInspection> inspection = await h.Import.InspectAsync(Channel, zip);
+        inspection.IsSuccess.Should().BeTrue(inspection.ErrorMessage);
+        inspection
+            .Value.Issues.Should()
+            .ContainSingle(i => i.Contains("ghost") && i.Contains("not in the bundle"));
+
+        zip.Position = 0;
+        Result<InstalledBundleDto> installed = await h.Import.ImportAsync(
+            Channel,
+            Actor,
+            zip,
+            ImportConflictPolicy.Rename
+        );
+        installed.IsFailure.Should().BeTrue();
+        installed.ErrorCode.Should().Be("BUNDLE_INVALID");
+        (await h.Db.Pipelines.CountAsync()).Should().Be(0);
+        (await h.Db.CodeScripts.CountAsync()).Should().Be(0);
+        (await h.Db.InstalledBundles.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Edgeless_run_code_name_absent_from_bundle_and_tenant_fails_typed_with_zero_writes()
+    {
+        Harness h = Build(Channel);
+        string graph = """{"steps":[{"action":{"type":"run_code","code_script_name":"ghost"}}]}""";
+        string pipelineJson = BundleConventions.Serialize(
+            new PipelineExport { Name = "Ghost Flow", GraphJson = graph }
+        );
+        // A hand-made bundle without the exporter's dependency edge: parse passes, so the re-link's own
+        // typed check must catch the dangling name at pipeline-creation time — before the pipeline exists.
+        using MemoryStream zip = BuildZip(
+            (
+                "manifest.json",
+                """
+                {"schemaVersion":1,"metadata":{"name":"Ghost Pack","version":"1.0.0"},
+                 "items":[{"type":"pipeline","name":"Ghost Flow","path":"pipelines/ghost-flow.json","dependencies":[]}]}
+                """
+            ),
+            ("pipelines/ghost-flow.json", pipelineJson)
+        );
+
+        Result<InstalledBundleDto> installed = await h.Import.ImportAsync(
+            Channel,
+            Actor,
+            zip,
+            ImportConflictPolicy.Rename
+        );
+
+        installed.IsFailure.Should().BeTrue();
+        installed.ErrorCode.Should().Be("BUNDLE_INVALID");
+        installed.ErrorMessage.Should().Contain("ghost");
+        (await h.Db.Pipelines.CountAsync()).Should().Be(0);
+        (await h.Db.InstalledBundles.CountAsync()).Should().Be(0);
+    }
+
     // ── Uninstall ───────────────────────────────────────────────────────────────
 
     [Fact]
