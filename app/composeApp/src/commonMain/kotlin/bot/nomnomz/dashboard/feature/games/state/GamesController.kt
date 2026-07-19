@@ -25,6 +25,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.json.JsonObject
 
 // The Games page's state-holder (economy.md §3.5 — the channel's configured mini-games). Resolves the active
 // channel, then loads its real game config from the backend (no fabricated games). It also drives the page's
@@ -144,9 +145,11 @@ class GamesController(
     }
 
     /**
-     * Edit a game's bet limits, cooldown, and 18+ gate. The upsert is a full PUT, so this carries [game]'s other
-     * fields (category, permission, odds, per-stream cap, config) back unchanged and overrides only the edited
-     * fields. Reloads on success; surfaces the error on failure.
+     * Edit a game's full configuration — bet limits, cooldown, 18+ gate, the gambling odds ([winChancePercent],
+     * [payoutMultiplier], [houseEdgePercent]), the per-stream play cap ([maxPlaysPerStream]), the minimum-role
+     * [permission] (a CommunityStanding name), and the per-game tuning knobs ([config]). The upsert is a full PUT,
+     * so this echoes [game]'s address ([GameSummary.gameType]) and category back unchanged and overrides every
+     * edited field. Reloads on success; surfaces the error on failure.
      */
     suspend fun updateGameConfig(
         game: GameSummary,
@@ -154,6 +157,12 @@ class GamesController(
         maxBet: Long?,
         cooldownSeconds: Int,
         requires18Plus: Boolean,
+        winChancePercent: Double?,
+        payoutMultiplier: Double?,
+        houseEdgePercent: Double?,
+        maxPlaysPerStream: Int?,
+        permission: String,
+        config: JsonObject?,
     ) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(
@@ -164,6 +173,12 @@ class GamesController(
                     maxBet = maxBet,
                     cooldownSeconds = cooldownSeconds,
                     requires18Plus = requires18Plus,
+                    winChancePercent = winChancePercent,
+                    payoutMultiplier = payoutMultiplier,
+                    houseEdgePercent = houseEdgePercent,
+                    maxPlaysPerStream = maxPlaysPerStream,
+                    permission = permission,
+                    config = config,
                 ),
             )
         )
@@ -199,6 +214,12 @@ private fun GameSummary.toBody(
     minBet: Long? = this.minBet,
     maxBet: Long? = this.maxBet,
     cooldownSeconds: Int = this.cooldownSeconds,
+    winChancePercent: Double? = this.winChancePercent,
+    payoutMultiplier: Double? = this.payoutMultiplier,
+    houseEdgePercent: Double? = this.houseEdgePercent,
+    maxPlaysPerStream: Int? = this.maxPlaysPerStream,
+    permission: String = this.permission,
+    config: JsonObject? = this.config,
 ): UpsertGameConfigBody =
     UpsertGameConfigBody(
         gameType = gameType,

@@ -245,6 +245,17 @@ class EconomyController(
     }
 
     /**
+     * Create or replace an earning rule with the full field set ([body]) — the source key, gain rate, optional unit
+     * window, per-window / per-stream caps, minimum earning role, and enabled flag. Keyed by [UpsertEarningRuleBody.source]
+     * (the backend creates the rule for a new source or replaces the existing one). Reloads on success; surfaces the
+     * error on the Ready state on failure. No-ops when no channel is loaded yet.
+     */
+    suspend fun upsertEarningRule(body: UpsertEarningRuleBody) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.upsertEarningRule(channel, body))
+    }
+
+    /**
      * Create a new catalog item with [request] and reload so it appears in the store list. Surfaces the error on the
      * Ready state on failure.
      */

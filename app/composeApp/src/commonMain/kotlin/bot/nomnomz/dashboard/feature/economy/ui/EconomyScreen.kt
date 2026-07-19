@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.economy.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +53,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -81,6 +84,7 @@ import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.CurrencyLedgerEntry
 import bot.nomnomz.dashboard.core.network.EarningRule
+import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.TransferBody
@@ -125,6 +129,32 @@ import nomnomzbot.composeapp.generated.resources.economy_catalog_row_description
 import nomnomzbot.composeapp.generated.resources.economy_catalog_stock
 import nomnomzbot.composeapp.generated.resources.economy_catalog_title
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_cancel
+import nomnomzbot.composeapp.generated.resources.economy_earning_add
+import nomnomzbot.composeapp.generated.resources.economy_earning_edit
+import nomnomzbot.composeapp.generated.resources.economy_earning_edit_action
+import nomnomzbot.composeapp.generated.resources.economy_earning_dialog_create_title
+import nomnomzbot.composeapp.generated.resources.economy_earning_dialog_edit_title
+import nomnomzbot.composeapp.generated.resources.economy_earning_dialog_source_label
+import nomnomzbot.composeapp.generated.resources.economy_earning_dialog_rate_label
+import nomnomzbot.composeapp.generated.resources.economy_earning_dialog_window_label
+import nomnomzbot.composeapp.generated.resources.economy_earning_dialog_window_cap_label
+import nomnomzbot.composeapp.generated.resources.economy_earning_dialog_stream_cap_label
+import nomnomzbot.composeapp.generated.resources.economy_earning_dialog_role_label
+import nomnomzbot.composeapp.generated.resources.economy_earning_dialog_enabled_label
+import nomnomzbot.composeapp.generated.resources.economy_earning_dialog_save
+import nomnomzbot.composeapp.generated.resources.economy_earning_dialog_cancel
+import nomnomzbot.composeapp.generated.resources.economy_earning_role_everyone
+import nomnomzbot.composeapp.generated.resources.economy_earning_role_subscriber
+import nomnomzbot.composeapp.generated.resources.economy_earning_role_vip
+import nomnomzbot.composeapp.generated.resources.economy_earning_role_moderator
+import nomnomzbot.composeapp.generated.resources.economy_earning_source_chat_message
+import nomnomzbot.composeapp.generated.resources.economy_earning_source_watch_time
+import nomnomzbot.composeapp.generated.resources.economy_earning_source_follow
+import nomnomzbot.composeapp.generated.resources.economy_earning_source_subscription
+import nomnomzbot.composeapp.generated.resources.economy_earning_source_gift_subscription
+import nomnomzbot.composeapp.generated.resources.economy_earning_source_cheer
+import nomnomzbot.composeapp.generated.resources.economy_earning_source_raid
+import nomnomzbot.composeapp.generated.resources.economy_earning_source_supporter
 import nomnomzbot.composeapp.generated.resources.economy_earning_delete
 import nomnomzbot.composeapp.generated.resources.economy_earning_delete_cancel
 import nomnomzbot.composeapp.generated.resources.economy_earning_delete_confirm
@@ -242,6 +272,7 @@ import nomnomzbot.composeapp.generated.resources.economy_purchases_refund_title
 import nomnomzbot.composeapp.generated.resources.economy_purchases_status
 import nomnomzbot.composeapp.generated.resources.economy_purchases_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_economy
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 // The Economy page (economy.md §4): an editable form over the channel's currency definition (name, symbol, earn
@@ -292,6 +323,9 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
                     onToggleEarningRule = { source, enabled ->
                         scope.launch { controller.toggleEarningRule(source, enabled) }
                     },
+                    onUpsertEarningRule = { body ->
+                        scope.launch { controller.upsertEarningRule(body) }
+                    },
                     onDeleteEarningRule = { ruleId ->
                         scope.launch { controller.deleteEarningRule(ruleId) }
                     },
@@ -341,6 +375,7 @@ private fun ReadyContent(
     onCreateCatalogItem: (CreateCatalogItemBody) -> Unit,
     onDeleteCatalogItem: (String) -> Unit,
     onToggleEarningRule: (source: String, enabled: Boolean) -> Unit,
+    onUpsertEarningRule: (UpsertEarningRuleBody) -> Unit,
     onDeleteEarningRule: (ruleId: String) -> Unit,
     onCreateSavingsJar: (CreateSavingsJarBody) -> Unit,
     loadJarDetail: suspend (jarId: String) -> SavingsJarDetail?,
@@ -475,6 +510,7 @@ private fun ReadyContent(
             rules = state.earningRules,
             manage = payoutRules,
             onToggle = onToggleEarningRule,
+            onUpsert = onUpsertEarningRule,
             onDelete = onDeleteEarningRule,
         )
 
@@ -1289,25 +1325,47 @@ private fun TransferDialog(
     )
 }
 
-// The earning rules (economy.md §4): one row per source — the source key, a disabled flag, and the gain rate.
+// The earning rules (economy.md §4): one row per source — the source key, a disabled flag, and the gain rate. The
+// header carries an Add action (create a rule for any not-yet-configured source); each row edits the FULL rule
+// (rate, unit window, per-window / per-stream caps, minimum earning role, enabled) via [EarningRuleDialog].
 @Composable
 private fun EarningRulesSection(
     rules: List<EarningRule>,
     manage: ManageDecision,
     onToggle: (source: String, enabled: Boolean) -> Unit,
+    onUpsert: (UpsertEarningRuleBody) -> Unit,
     onDelete: (ruleId: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    Text(
-        text = stringResource(Res.string.economy_earning_title),
-        style = typography.lg,
-        color = tokens.cardForeground,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-    )
+    // null = closed; a non-null editor is open (a seeded rule = edit, a blank editor = create).
+    var editor: EarningRuleEditor? by remember { mutableStateOf(null) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = stringResource(Res.string.economy_earning_title),
+            style = typography.lg,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        ManageGate(decision = manage) { enabled ->
+            TextButton(onClick = { editor = EarningRuleEditor.blank() }, enabled = enabled) {
+                Text(
+                    text = stringResource(Res.string.economy_earning_add),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
 
     if (rules.isEmpty()) {
         Text(
@@ -1315,23 +1373,34 @@ private fun EarningRulesSection(
             style = typography.sm,
             color = tokens.mutedForeground,
         )
-        return
-    }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            rules.forEachIndexed { index, rule ->
-                EarningRuleRow(
-                    rule = rule,
-                    manage = manage,
-                    onToggle = { onToggle(rule.source, !rule.isEnabled) },
-                    onDelete = { onDelete(rule.id) },
-                )
-                if (index < rules.lastIndex) {
-                    Separator()
+    } else {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                rules.forEachIndexed { index, rule ->
+                    EarningRuleRow(
+                        rule = rule,
+                        manage = manage,
+                        onToggle = { onToggle(rule.source, !rule.isEnabled) },
+                        onEdit = { editor = EarningRuleEditor.of(rule) },
+                        onDelete = { onDelete(rule.id) },
+                    )
+                    if (index < rules.lastIndex) {
+                        Separator()
+                    }
                 }
             }
         }
+    }
+
+    editor?.let { current ->
+        EarningRuleDialog(
+            editor = current,
+            onConfirm = { body ->
+                onUpsert(body)
+                editor = null
+            },
+            onDismiss = { editor = null },
+        )
     }
 }
 
@@ -1340,6 +1409,7 @@ private fun EarningRuleRow(
     rule: EarningRule,
     manage: ManageDecision,
     onToggle: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -1406,6 +1476,20 @@ private fun EarningRuleRow(
                 )
             }
         }
+        val editLabel: String = stringResource(Res.string.economy_earning_edit_action, rule.source)
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onEdit,
+                enabled = enabled,
+                modifier = Modifier.clearAndSetSemantics { contentDescription = editLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.economy_earning_edit),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
         ManageGate(decision = manage) { enabled ->
             TextButton(onClick = { pendingDelete = true }, enabled = enabled) {
                 Text(
@@ -1429,6 +1513,263 @@ private fun EarningRuleRow(
         )
     }
 }
+
+// The create/edit dialog seed. A blank editor opens a create form (source is picked from the not-yet-configured
+// sources); an editor seeded from a rule opens a pre-filled edit form with the source fixed (it addresses the rule).
+private data class EarningRuleEditor(
+    val isEdit: Boolean,
+    val source: String,
+    val rate: String,
+    val unitWindowSeconds: String,
+    val perWindowCap: String,
+    val perStreamCap: String,
+    val minRoleLevel: Int,
+    val isEnabled: Boolean,
+) {
+    companion object {
+        fun blank(): EarningRuleEditor =
+            EarningRuleEditor(
+                isEdit = false,
+                source = EarningSourceTokens.first(),
+                rate = "",
+                unitWindowSeconds = "",
+                perWindowCap = "",
+                perStreamCap = "",
+                minRoleLevel = 0,
+                isEnabled = true,
+            )
+
+        fun of(rule: EarningRule): EarningRuleEditor =
+            EarningRuleEditor(
+                isEdit = true,
+                source = rule.source,
+                rate = rule.rate.toString(),
+                unitWindowSeconds = rule.unitWindowSeconds?.toString().orEmpty(),
+                perWindowCap = rule.perWindowCap?.toString().orEmpty(),
+                perStreamCap = rule.perStreamCap?.toString().orEmpty(),
+                minRoleLevel = rule.minRoleLevel ?: 0,
+                isEnabled = rule.isEnabled,
+            )
+    }
+}
+
+// The full earning-rule editor: the engagement source (fixed on edit, picked on create), the gain rate per unit,
+// the optional unit window (seconds), the per-window and per-stream caps, the minimum earning role (role NAMES
+// only), and the enabled flag. A blank cap/window means "no limit" (null); rate must parse to a non-negative whole
+// number. Save is disabled while any field is invalid so an invalid rule can never be sent.
+@Composable
+private fun EarningRuleDialog(
+    editor: EarningRuleEditor,
+    onConfirm: (UpsertEarningRuleBody) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var source: String by remember { mutableStateOf(editor.source) }
+    var rate: String by remember { mutableStateOf(editor.rate) }
+    var window: String by remember { mutableStateOf(editor.unitWindowSeconds) }
+    var windowCap: String by remember { mutableStateOf(editor.perWindowCap) }
+    var streamCap: String by remember { mutableStateOf(editor.perStreamCap) }
+    var minRoleLevel: Int by remember { mutableStateOf(editor.minRoleLevel) }
+    var isEnabled: Boolean by remember { mutableStateOf(editor.isEnabled) }
+    var sourceMenuOpen: Boolean by remember { mutableStateOf(false) }
+    var roleMenuOpen: Boolean by remember { mutableStateOf(false) }
+
+    val rateValue: Long? = rate.toLongOrNull()
+    val rateValid: Boolean = rateValue != null && rateValue >= 0
+    val windowValid: Boolean = window.isBlank() || (window.toIntOrNull()?.let { it > 0 } == true)
+    val windowCapValid: Boolean = windowCap.isBlank() || (windowCap.toLongOrNull()?.let { it >= 0 } == true)
+    val streamCapValid: Boolean = streamCap.isBlank() || (streamCap.toLongOrNull()?.let { it >= 0 } == true)
+    val canSave: Boolean = rateValid && windowValid && windowCapValid && streamCapValid
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(
+                    if (editor.isEdit) Res.string.economy_earning_dialog_edit_title
+                    else Res.string.economy_earning_dialog_create_title
+                ),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                if (editor.isEdit) {
+                    AppTextField(
+                        value = earningSourceLabel(source),
+                        onValueChange = {},
+                        enabled = false,
+                        label = stringResource(Res.string.economy_earning_dialog_source_label),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    EconomyPickerField(
+                        label = stringResource(Res.string.economy_earning_dialog_source_label),
+                        value = earningSourceLabel(source),
+                        expanded = sourceMenuOpen,
+                        onExpandedChange = { sourceMenuOpen = it },
+                    ) {
+                        EarningSourceTokens.forEach { token ->
+                            DropdownMenuItem(
+                                text = { Text(earningSourceLabel(token), color = tokens.cardForeground) },
+                                onClick = {
+                                    source = token
+                                    sourceMenuOpen = false
+                                },
+                            )
+                        }
+                    }
+                }
+                AppTextField(
+                    value = rate,
+                    onValueChange = { rate = it },
+                    isError = !rateValid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = stringResource(Res.string.economy_earning_dialog_rate_label),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = window,
+                    onValueChange = { window = it },
+                    isError = !windowValid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = stringResource(Res.string.economy_earning_dialog_window_label),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = windowCap,
+                    onValueChange = { windowCap = it },
+                    isError = !windowCapValid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = stringResource(Res.string.economy_earning_dialog_window_cap_label),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = streamCap,
+                    onValueChange = { streamCap = it },
+                    isError = !streamCapValid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = stringResource(Res.string.economy_earning_dialog_stream_cap_label),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                EconomyPickerField(
+                    label = stringResource(Res.string.economy_earning_dialog_role_label),
+                    value = earningRoleLabel(minRoleLevel),
+                    expanded = roleMenuOpen,
+                    onExpandedChange = { roleMenuOpen = it },
+                ) {
+                    EarningRoleRungs.forEach { (level, res) ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(res), color = tokens.cardForeground) },
+                            onClick = {
+                                minRoleLevel = level
+                                roleMenuOpen = false
+                            },
+                        )
+                    }
+                }
+                SwitchRow(
+                    label = stringResource(Res.string.economy_earning_dialog_enabled_label),
+                    checked = isEnabled,
+                    onCheckedChange = { isEnabled = it },
+                    enabled = true,
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm(
+                        UpsertEarningRuleBody(
+                            source = source,
+                            isEnabled = isEnabled,
+                            rate = rateValue ?: 0,
+                            unitWindowSeconds = window.toIntOrNull(),
+                            perWindowCap = windowCap.toLongOrNull(),
+                            perStreamCap = streamCap.toLongOrNull(),
+                            minRoleLevel = minRoleLevel.takeIf { it > 0 },
+                        )
+                    )
+                },
+                enabled = canSave,
+            ) {
+                Text(stringResource(Res.string.economy_earning_dialog_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.economy_earning_dialog_cancel))
+            }
+        },
+    )
+}
+
+// A read-only field that opens a themed dropdown when clicked (the shared select pattern used across the dashboard).
+@Composable
+private fun EconomyPickerField(
+    label: String,
+    value: String,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    items: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    Box {
+        AppTextField(
+            value = value,
+            onValueChange = {},
+            modifier = Modifier.fillMaxWidth().clickable { onExpandedChange(true) },
+            label = label,
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }, content = items)
+    }
+}
+
+// The engagement sources the backend's EarningSource enum accepts (parsed case-insensitively). The stored value is
+// the enum name; the label localizes it.
+private val EarningSourceTokens: List<String> =
+    listOf(
+        "ChatMessage",
+        "WatchTime",
+        "Follow",
+        "Subscription",
+        "GiftSubscription",
+        "Cheer",
+        "Raid",
+        "Supporter",
+    )
+
+@Composable
+private fun earningSourceLabel(token: String): String =
+    stringResource(
+        when (token.lowercase()) {
+            "chatmessage", "chat_message" -> Res.string.economy_earning_source_chat_message
+            "watchtime", "watch_time" -> Res.string.economy_earning_source_watch_time
+            "follow" -> Res.string.economy_earning_source_follow
+            "subscription" -> Res.string.economy_earning_source_subscription
+            "giftsubscription", "gift_subscription" -> Res.string.economy_earning_source_gift_subscription
+            "cheer" -> Res.string.economy_earning_source_cheer
+            "raid" -> Res.string.economy_earning_source_raid
+            "supporter" -> Res.string.economy_earning_source_supporter
+            else -> Res.string.economy_earning_source_chat_message
+        }
+    )
+
+// The minimum earning-role rungs (CommunityStanding ladder values) — role NAMES only, never the numeric value.
+private val EarningRoleRungs: List<Pair<Int, StringResource>> =
+    listOf(
+        0 to Res.string.economy_earning_role_everyone,
+        2 to Res.string.economy_earning_role_subscriber,
+        4 to Res.string.economy_earning_role_vip,
+        10 to Res.string.economy_earning_role_moderator,
+    )
+
+@Composable
+private fun earningRoleLabel(level: Int): String =
+    stringResource(EarningRoleRungs.lastOrNull { level >= it.first }?.second ?: Res.string.economy_earning_role_everyone)
 
 @Composable
 private fun CatalogSection(

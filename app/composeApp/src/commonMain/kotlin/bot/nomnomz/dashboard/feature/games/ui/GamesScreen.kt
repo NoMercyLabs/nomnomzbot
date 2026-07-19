@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.games.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,6 +52,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -77,12 +81,29 @@ import nomnomzbot.composeapp.generated.resources.games_18plus
 import nomnomzbot.composeapp.generated.resources.games_action_error
 import nomnomzbot.composeapp.generated.resources.games_cooldown
 import nomnomzbot.composeapp.generated.resources.games_dialog_18plus_label
+import nomnomzbot.composeapp.generated.resources.games_dialog_advanced_section
 import nomnomzbot.composeapp.generated.resources.games_dialog_cancel
+import nomnomzbot.composeapp.generated.resources.games_dialog_config_add
+import nomnomzbot.composeapp.generated.resources.games_dialog_config_key_hint
+import nomnomzbot.composeapp.generated.resources.games_dialog_config_remove
+import nomnomzbot.composeapp.generated.resources.games_dialog_config_value_hint
 import nomnomzbot.composeapp.generated.resources.games_dialog_cooldown_label
+import nomnomzbot.composeapp.generated.resources.games_dialog_house_edge_label
+import nomnomzbot.composeapp.generated.resources.games_dialog_limits_section
 import nomnomzbot.composeapp.generated.resources.games_dialog_max_bet_label
+import nomnomzbot.composeapp.generated.resources.games_dialog_max_plays_label
 import nomnomzbot.composeapp.generated.resources.games_dialog_min_bet_label
+import nomnomzbot.composeapp.generated.resources.games_dialog_odds_section
+import nomnomzbot.composeapp.generated.resources.games_dialog_payout_label
+import nomnomzbot.composeapp.generated.resources.games_dialog_permission_label
 import nomnomzbot.composeapp.generated.resources.games_dialog_save
 import nomnomzbot.composeapp.generated.resources.games_dialog_title
+import nomnomzbot.composeapp.generated.resources.games_dialog_win_chance_label
+import nomnomzbot.composeapp.generated.resources.games_perm_broadcaster
+import nomnomzbot.composeapp.generated.resources.games_perm_everyone
+import nomnomzbot.composeapp.generated.resources.games_perm_moderator
+import nomnomzbot.composeapp.generated.resources.games_perm_subscriber
+import nomnomzbot.composeapp.generated.resources.games_perm_vip
 import nomnomzbot.composeapp.generated.resources.games_history_empty
 import nomnomzbot.composeapp.generated.resources.games_history_title
 import nomnomzbot.composeapp.generated.resources.games_disabled
@@ -106,7 +127,12 @@ import nomnomzbot.composeapp.generated.resources.games_live_active_title
 import nomnomzbot.composeapp.generated.resources.games_live_participants
 import nomnomzbot.composeapp.generated.resources.games_live_cancel
 import nomnomzbot.composeapp.generated.resources.games_live_requires_mod
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 
 // The Games page (economy.md §3.5): the channel's configured mini-games — every game is real config from
 // [GamesController] (the backend sources it from the channel's game config; no fabricated games). Games are a
@@ -178,10 +204,22 @@ fun GamesScreen(controller: GamesController, role: ManagementRole?) {
         GameConfigDialog(
             game = game,
             onDismiss = { editing = null },
-            onSave = { minBet, maxBet, cooldownSeconds, requires18Plus ->
+            onSave = { edit ->
                 editing = null
                 scope.launch {
-                    controller.updateGameConfig(game, minBet, maxBet, cooldownSeconds, requires18Plus)
+                    controller.updateGameConfig(
+                        game = game,
+                        minBet = edit.minBet,
+                        maxBet = edit.maxBet,
+                        cooldownSeconds = edit.cooldownSeconds,
+                        requires18Plus = edit.requires18Plus,
+                        winChancePercent = edit.winChancePercent,
+                        payoutMultiplier = edit.payoutMultiplier,
+                        houseEdgePercent = edit.houseEdgePercent,
+                        maxPlaysPerStream = edit.maxPlaysPerStream,
+                        permission = edit.permission,
+                        config = edit.config,
+                    )
                 }
             },
         )
@@ -563,16 +601,32 @@ private fun GameRow(
     }
 }
 
-// The per-game config editor: bet limits, cooldown, and the 18+ gate. Bet fields accept whole numbers; a blank
-// bet means "no limit" (null). The cooldown defaults to the row's current value and falls back to 0 when blank.
-// Save is disabled while any numeric field holds non-digits or min bet exceeds max bet, so an invalid config can
-// never be sent. The game type, category, odds, permission, and per-stream cap are not edited here — the
-// controller carries them back unchanged.
+// The full submitted config, bundled so the save callback has one clean parameter.
+private data class GameConfigEdit(
+    val minBet: Long?,
+    val maxBet: Long?,
+    val cooldownSeconds: Int,
+    val requires18Plus: Boolean,
+    val winChancePercent: Double?,
+    val payoutMultiplier: Double?,
+    val houseEdgePercent: Double?,
+    val maxPlaysPerStream: Int?,
+    val permission: String,
+    val config: JsonObject?,
+)
+
+// The per-game config editor — the WHOLE tunable surface, grouped: limits (bet bounds, cooldown, per-stream play
+// cap, 18+ gate), odds & payout (win chance %, payout multiplier, house edge %), the minimum-role permission
+// (role NAMES only, a CommunityStanding), and the per-game tuning knobs (ConfigJson) as a key/value editor
+// prefilled with the game's current keys (win_radius, success_chance, max_multiplier, …). A blank number field
+// means "no limit"/"unset" (null); non-blank fields must parse to a non-negative value. Percent fields are
+// clamped to 0–100. Save is disabled while any field is invalid or min bet exceeds max bet, so an invalid config
+// can never be sent. Only the game type + category are fixed (the address) — carried back unchanged.
 @Composable
 private fun GameConfigDialog(
     game: GameSummary,
     onDismiss: () -> Unit,
-    onSave: (minBet: Long?, maxBet: Long?, cooldownSeconds: Int, requires18Plus: Boolean) -> Unit,
+    onSave: (GameConfigEdit) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -580,17 +634,39 @@ private fun GameConfigDialog(
     var minBet: String by remember { mutableStateOf(game.minBet?.toString().orEmpty()) }
     var maxBet: String by remember { mutableStateOf(game.maxBet?.toString().orEmpty()) }
     var cooldown: String by remember { mutableStateOf(game.cooldownSeconds.toString()) }
+    var maxPlays: String by remember { mutableStateOf(game.maxPlaysPerStream?.toString().orEmpty()) }
     var requires18Plus: Boolean by remember { mutableStateOf(game.requires18Plus) }
+    var winChance: String by remember { mutableStateOf(game.winChancePercent?.let { formatDecimal(it) }.orEmpty()) }
+    var payout: String by remember { mutableStateOf(game.payoutMultiplier?.let { formatDecimal(it) }.orEmpty()) }
+    var houseEdge: String by remember { mutableStateOf(game.houseEdgePercent?.let { formatDecimal(it) }.orEmpty()) }
+    var permission: String by remember {
+        mutableStateOf(game.permission.ifBlank { "Everyone" })
+    }
+    var permMenuOpen: Boolean by remember { mutableStateOf(false) }
+    // The ConfigJson knobs as editable rows, seeded from the game's current keys. Replaced by index on edit so the
+    // SnapshotStateList triggers recomposition.
+    val configEntries = remember { mutableStateListOf<Pair<String, String>>().apply { addAll(configToEntries(game.config)) } }
 
-    // A blank bet field is a valid "no limit"; a non-blank field must parse to a non-negative whole number.
+    // A blank bet/play field is a valid "no limit"; a non-blank field must parse to a non-negative whole number.
     val minBetValue: Long? = minBet.toLongOrNull()
     val maxBetValue: Long? = maxBet.toLongOrNull()
     val cooldownValue: Int? = cooldown.ifBlank { "0" }.toIntOrNull()
+    val maxPlaysValue: Int? = maxPlays.toIntOrNull()
+    val winChanceValue: Double? = winChance.toDoubleOrNull()
+    val payoutValue: Double? = payout.toDoubleOrNull()
+    val houseEdgeValue: Double? = houseEdge.toDoubleOrNull()
+
     val minBetValid: Boolean = minBet.isBlank() || (minBetValue != null && minBetValue >= 0)
     val maxBetValid: Boolean = maxBet.isBlank() || (maxBetValue != null && maxBetValue >= 0)
     val cooldownValid: Boolean = cooldownValue != null && cooldownValue >= 0
+    val maxPlaysValid: Boolean = maxPlays.isBlank() || (maxPlaysValue != null && maxPlaysValue >= 0)
+    val winChanceValid: Boolean = winChance.isBlank() || (winChanceValue != null && winChanceValue in 0.0..100.0)
+    val payoutValid: Boolean = payout.isBlank() || (payoutValue != null && payoutValue >= 0.0)
+    val houseEdgeValid: Boolean = houseEdge.isBlank() || (houseEdgeValue != null && houseEdgeValue in 0.0..100.0)
     val rangeValid: Boolean = minBetValue == null || maxBetValue == null || minBetValue <= maxBetValue
-    val canSave: Boolean = minBetValid && maxBetValid && cooldownValid && rangeValid
+    val canSave: Boolean =
+        minBetValid && maxBetValid && cooldownValid && maxPlaysValid &&
+            winChanceValid && payoutValid && houseEdgeValid && rangeValid
 
     val eighteenPlusLabel: String = stringResource(Res.string.games_dialog_18plus_label)
 
@@ -599,6 +675,7 @@ private fun GameConfigDialog(
         title = { Text(text = stringResource(Res.string.games_dialog_title, game.gameType)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                DialogSectionLabel(stringResource(Res.string.games_dialog_limits_section))
                 AppTextField(
                     value = minBet,
                     onValueChange = { minBet = it },
@@ -623,6 +700,14 @@ private fun GameConfigDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.games_dialog_cooldown_label),
                 )
+                AppTextField(
+                    value = maxPlays,
+                    onValueChange = { maxPlays = it },
+                    isError = !maxPlaysValid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.games_dialog_max_plays_label),
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -635,12 +720,99 @@ private fun GameConfigDialog(
                         modifier = Modifier.semantics { contentDescription = eighteenPlusLabel },
                     )
                 }
+
+                // Minimum role that can play — role NAMES only, never the numeric ladder value (house rule).
+                PickerField(
+                    label = stringResource(Res.string.games_dialog_permission_label),
+                    value = permissionLabel(permission),
+                    expanded = permMenuOpen,
+                    onExpandedChange = { permMenuOpen = it },
+                ) {
+                    GamePermissionRungs.forEach { (name, res) ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(res), color = tokens.cardForeground) },
+                            onClick = {
+                                permission = name
+                                permMenuOpen = false
+                            },
+                        )
+                    }
+                }
+
+                DialogSectionLabel(stringResource(Res.string.games_dialog_odds_section))
+                AppTextField(
+                    value = winChance,
+                    onValueChange = { winChance = it },
+                    isError = !winChanceValid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.games_dialog_win_chance_label),
+                )
+                AppTextField(
+                    value = payout,
+                    onValueChange = { payout = it },
+                    isError = !payoutValid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.games_dialog_payout_label),
+                )
+                AppTextField(
+                    value = houseEdge,
+                    onValueChange = { houseEdge = it },
+                    isError = !houseEdgeValid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.games_dialog_house_edge_label),
+                )
+
+                DialogSectionLabel(stringResource(Res.string.games_dialog_advanced_section))
+                configEntries.forEachIndexed { index, entry ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                    ) {
+                        AppTextField(
+                            value = entry.first,
+                            onValueChange = { configEntries[index] = it to entry.second },
+                            modifier = Modifier.weight(1f),
+                            label = stringResource(Res.string.games_dialog_config_key_hint),
+                        )
+                        AppTextField(
+                            value = entry.second,
+                            onValueChange = { configEntries[index] = entry.first to it },
+                            modifier = Modifier.weight(1f),
+                            label = stringResource(Res.string.games_dialog_config_value_hint),
+                        )
+                        GlyphButton(
+                            imageVector = EditGlyph,
+                            label = stringResource(Res.string.games_dialog_config_remove, entry.first),
+                            onClick = { configEntries.removeAt(index) },
+                        )
+                    }
+                }
+                TextButton(onClick = { configEntries.add("" to "") }) {
+                    Text(text = stringResource(Res.string.games_dialog_config_add), color = tokens.primary)
+                }
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
-                    onSave(minBetValue, maxBetValue, cooldownValue ?: 0, requires18Plus)
+                    onSave(
+                        GameConfigEdit(
+                            minBet = minBetValue,
+                            maxBet = maxBetValue,
+                            cooldownSeconds = cooldownValue ?: 0,
+                            requires18Plus = requires18Plus,
+                            winChancePercent = winChanceValue,
+                            payoutMultiplier = payoutValue,
+                            houseEdgePercent = houseEdgeValue,
+                            maxPlaysPerStream = maxPlaysValue,
+                            permission = permission,
+                            config = entriesToConfig(configEntries),
+                        )
+                    )
                 },
                 enabled = canSave,
             ) {
@@ -660,6 +832,83 @@ private fun GameConfigDialog(
         },
     )
 }
+
+// A small group heading inside the config dialog.
+@Composable
+private fun DialogSectionLabel(text: String) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    Text(text = text, style = typography.sm, color = tokens.mutedForeground, maxLines = 1)
+}
+
+// A read-only field that opens a themed dropdown when clicked (the shared select pattern — an AppTextField shows
+// the current value, its Box anchors the DropdownMenu).
+@Composable
+private fun PickerField(
+    label: String,
+    value: String,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    items: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    Box {
+        AppTextField(
+            value = value,
+            onValueChange = {},
+            modifier = Modifier.fillMaxWidth().clickable { onExpandedChange(true) },
+            label = label,
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }, content = items)
+    }
+}
+
+// The minimum-role options — the CommunityStanding names the backend's game Permission accepts, mapped to their
+// localized role NAMES (never a numeric ladder value). The stored value is the enum name string.
+private val GamePermissionRungs: List<Pair<String, StringResource>> =
+    listOf(
+        "Everyone" to Res.string.games_perm_everyone,
+        "Subscriber" to Res.string.games_perm_subscriber,
+        "Vip" to Res.string.games_perm_vip,
+        "Moderator" to Res.string.games_perm_moderator,
+        "Broadcaster" to Res.string.games_perm_broadcaster,
+    )
+
+@Composable
+private fun permissionLabel(name: String): String =
+    stringResource(
+        GamePermissionRungs.firstOrNull { it.first.equals(name, ignoreCase = true) }?.second
+            ?: Res.string.games_perm_everyone
+    )
+
+// Render the game's opaque ConfigJson as editable key/value rows: each primitive's raw content as a string.
+private fun configToEntries(config: JsonObject?): List<Pair<String, String>> =
+    config?.map { (key, value) -> key to ((value as? JsonPrimitive)?.content ?: value.toString()) } ?: emptyList()
+
+// Rebuild a ConfigJson object from the edited rows, dropping blank keys. Values are typed back to the tightest
+// JSON primitive (whole number → long, decimal → double, true/false → boolean, otherwise string) so a game that
+// reads a numeric knob still sees a number. Null when no keys remain (the game falls back to its in-code defaults).
+private fun entriesToConfig(entries: List<Pair<String, String>>): JsonObject? {
+    val clean: List<Pair<String, String>> = entries.filter { it.first.isNotBlank() }
+    if (clean.isEmpty()) return null
+    return buildJsonObject {
+        clean.forEach { (key, value) -> put(key, parseConfigValue(value)) }
+    }
+}
+
+private fun parseConfigValue(raw: String): JsonElement {
+    val trimmed: String = raw.trim()
+    trimmed.toLongOrNull()?.let { return JsonPrimitive(it) }
+    trimmed.toDoubleOrNull()?.let { return JsonPrimitive(it) }
+    return when (trimmed.lowercase()) {
+        "true" -> JsonPrimitive(true)
+        "false" -> JsonPrimitive(false)
+        else -> JsonPrimitive(raw)
+    }
+}
+
+// Drop a trailing ".0" so a whole-number knob like a 2.0× multiplier shows as "2" in the field.
+private fun formatDecimal(value: Double): String =
+    if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
 
 @Composable
 private fun Badge(

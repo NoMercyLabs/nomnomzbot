@@ -23,6 +23,10 @@ import bot.nomnomz.dashboard.core.network.UpsertGameConfigBody
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
@@ -182,25 +186,38 @@ class GamesControllerTest {
             GamesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), gamesApi)
         controller.load()
 
+        val editedConfig: JsonObject = buildJsonObject { put("win_radius", JsonPrimitive(8)) }
         controller.updateGameConfig(
             game,
             minBet = 50,
             maxBet = 2000,
             cooldownSeconds = 60,
             requires18Plus = true,
+            winChancePercent = 33.5,
+            payoutMultiplier = 3.0,
+            houseEdgePercent = 12.0,
+            maxPlaysPerStream = 20,
+            permission = "Moderator",
+            config = editedConfig,
         )
 
-        // The edit sent the new bet limits / cooldown / 18+ while preserving the row's identity + unedited fields.
+        // The edit sent the new bet limits / cooldown / 18+ AND the odds, per-stream cap, permission, and ConfigJson
+        // knobs — the whole tunable surface, not merely the bet slice — while preserving the row's identity.
         val body: UpsertGameConfigBody = gamesApi.upserted.first()
         assertEquals("slots", body.gameType)
         assertEquals(50, body.minBet)
         assertEquals(2000, body.maxBet)
         assertEquals(60, body.cooldownSeconds)
         assertEquals(true, body.requires18Plus)
-        assertEquals("Subscriber", body.permission)
+        assertEquals(33.5, body.winChancePercent)
+        assertEquals(3.0, body.payoutMultiplier)
+        assertEquals(12.0, body.houseEdgePercent)
+        assertEquals(20, body.maxPlaysPerStream)
+        assertEquals("Moderator", body.permission)
+        assertEquals(editedConfig, body.config)
         assertEquals(true, body.isEnabled)
 
-        // The reload surfaces the persisted edit.
+        // The reload surfaces the persisted edit across every field.
         val state: GamesState = controller.state.value
         assertTrue(state is GamesState.Ready)
         val updated: GameSummary = (state as GamesState.Ready).games.first()
@@ -208,6 +225,11 @@ class GamesControllerTest {
         assertEquals(2000, updated.maxBet)
         assertEquals(60, updated.cooldownSeconds)
         assertTrue(updated.requires18Plus)
+        assertEquals(33.5, updated.winChancePercent)
+        assertEquals(3.0, updated.payoutMultiplier)
+        assertEquals(20, updated.maxPlaysPerStream)
+        assertEquals("Moderator", updated.permission)
+        assertEquals(editedConfig, updated.config)
     }
 
     @Test
@@ -225,6 +247,12 @@ class GamesControllerTest {
             maxBet = null,
             cooldownSeconds = 0,
             requires18Plus = false,
+            winChancePercent = null,
+            payoutMultiplier = null,
+            houseEdgePercent = null,
+            maxPlaysPerStream = null,
+            permission = "Everyone",
+            config = null,
         )
 
         val body: UpsertGameConfigBody = gamesApi.upserted.first()

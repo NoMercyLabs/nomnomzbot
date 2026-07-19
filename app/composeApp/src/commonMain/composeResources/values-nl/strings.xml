@@ -780,6 +780,23 @@
     <string name="games_dialog_max_bet_label">Maximale inzet (leeg voor geen limiet)</string>
     <string name="games_dialog_cooldown_label">Afkoeltijd (seconden)</string>
     <string name="games_dialog_18plus_label">Vereist 18+</string>
+    <string name="games_dialog_max_plays_label">Max. keren per stream (leeg = geen limiet)</string>
+    <string name="games_dialog_win_chance_label">Winkans (%)</string>
+    <string name="games_dialog_payout_label">Uitbetalingsfactor</string>
+    <string name="games_dialog_house_edge_label">Huisvoordeel (%)</string>
+    <string name="games_dialog_permission_label">Minimale rol</string>
+    <string name="games_dialog_limits_section">Limieten &amp; toegang</string>
+    <string name="games_dialog_odds_section">Kansen &amp; uitbetaling</string>
+    <string name="games_dialog_advanced_section">Geavanceerde instellingen</string>
+    <string name="games_dialog_config_key_hint">Instelling</string>
+    <string name="games_dialog_config_value_hint">Waarde</string>
+    <string name="games_dialog_config_add">Instelling toevoegen</string>
+    <string name="games_dialog_config_remove">Instelling %1$s verwijderen</string>
+    <string name="games_perm_everyone">Iedereen</string>
+    <string name="games_perm_subscriber">Abonnee</string>
+    <string name="games_perm_vip">VIP</string>
+    <string name="games_perm_moderator">Moderator</string>
+    <string name="games_perm_broadcaster">Streamer</string>
     <string name="games_dialog_save">Opslaan</string>
     <string name="games_dialog_cancel">Annuleren</string>
     <string name="games_history_title">Speelgeschiedenis</string>
@@ -1005,6 +1022,32 @@
     <string name="economy_earning_delete_message">De verdienvrijstelling "%1$s" permanent verwijderen?</string>
     <string name="economy_earning_delete_confirm">Verwijderen</string>
     <string name="economy_earning_delete_cancel">Annuleren</string>
+    <string name="economy_earning_add">Regel toevoegen</string>
+    <string name="economy_earning_edit">Bewerken</string>
+    <string name="economy_earning_edit_action">%1$s-verdienregel bewerken</string>
+    <string name="economy_earning_dialog_create_title">Nieuwe verdienregel</string>
+    <string name="economy_earning_dialog_edit_title">Verdienregel bewerken</string>
+    <string name="economy_earning_dialog_source_label">Verdient met</string>
+    <string name="economy_earning_dialog_rate_label">Bedrag per eenheid</string>
+    <string name="economy_earning_dialog_window_label">Tijdvenster in seconden (leeg = geen)</string>
+    <string name="economy_earning_dialog_window_cap_label">Max. per venster (leeg = geen limiet)</string>
+    <string name="economy_earning_dialog_stream_cap_label">Max. per stream (leeg = geen limiet)</string>
+    <string name="economy_earning_dialog_role_label">Minimale rol</string>
+    <string name="economy_earning_dialog_enabled_label">Ingeschakeld</string>
+    <string name="economy_earning_dialog_save">Opslaan</string>
+    <string name="economy_earning_dialog_cancel">Annuleren</string>
+    <string name="economy_earning_role_everyone">Iedereen</string>
+    <string name="economy_earning_role_subscriber">Abonnee</string>
+    <string name="economy_earning_role_vip">VIP</string>
+    <string name="economy_earning_role_moderator">Moderator</string>
+    <string name="economy_earning_source_chat_message">Chatbericht</string>
+    <string name="economy_earning_source_watch_time">Kijktijd</string>
+    <string name="economy_earning_source_follow">Volgen</string>
+    <string name="economy_earning_source_subscription">Abonnement</string>
+    <string name="economy_earning_source_gift_subscription">Cadeau-abonnement</string>
+    <string name="economy_earning_source_cheer">Cheer</string>
+    <string name="economy_earning_source_raid">Raid</string>
+    <string name="economy_earning_source_supporter">Supporter</string>
     <string name="economy_jars_title">Spaarpotten</string>
     <string name="economy_jars_empty">Nog geen spaarpotten</string>
     <string name="economy_jars_add">+ Nieuwe pot</string>

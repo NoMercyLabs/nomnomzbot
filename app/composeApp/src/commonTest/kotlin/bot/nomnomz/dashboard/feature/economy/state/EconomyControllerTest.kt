@@ -168,6 +168,43 @@ class EconomyControllerTest {
     }
 
     @Test
+    fun upserting_an_earning_rule_sends_the_full_field_set_then_reloads() = runTest {
+        val economyApi =
+            FakeEconomyApi(
+                configResult = ApiResult.Ok(loadedConfig),
+                leaderboardResult = ApiResult.Ok(leaderboard),
+            )
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+        controller.load()
+
+        controller.upsertEarningRule(
+            UpsertEarningRuleBody(
+                source = "WatchTime",
+                isEnabled = true,
+                rate = 10,
+                unitWindowSeconds = 300,
+                perWindowCap = 50,
+                perStreamCap = 500,
+                minRoleLevel = 2,
+            )
+        )
+
+        // Every configurable field of the rule reached the API — rate, unit window, both caps, and the min role —
+        // not merely the enabled flag the old toggle-only surface could send.
+        val sent: UpsertEarningRuleBody =
+            requireNotNull(economyApi.lastEarningRuleUpsert) { "no earning-rule upsert recorded" }
+        assertEquals("WatchTime", sent.source)
+        assertEquals(true, sent.isEnabled)
+        assertEquals(10, sent.rate)
+        assertEquals(300, sent.unitWindowSeconds)
+        assertEquals(50, sent.perWindowCap)
+        assertEquals(500, sent.perStreamCap)
+        assertEquals(2, sent.minRoleLevel)
+        assertTrue(controller.state.value is EconomyState.Ready) // reloaded; page intact
+    }
+
+    @Test
     fun freezing_an_account_calls_the_api_with_the_viewer_and_flag_then_reloads() = runTest {
         val economyApi =
             FakeEconomyApi(
@@ -490,8 +527,13 @@ private class FakeEconomyApi(
 
     override suspend fun deleteCatalogItem(channelId: String, itemId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
-    override suspend fun upsertEarningRule(channelId: String, request: UpsertEarningRuleBody): ApiResult<EarningRule> =
-        ApiResult.Ok(EarningRule())
+    var lastEarningRuleUpsert: UpsertEarningRuleBody? = null
+        private set
+
+    override suspend fun upsertEarningRule(channelId: String, request: UpsertEarningRuleBody): ApiResult<EarningRule> {
+        lastEarningRuleUpsert = request
+        return ApiResult.Ok(EarningRule())
+    }
 
     override suspend fun savingsJars(channelId: String): ApiResult<List<SavingsJar>> = ApiResult.Ok(emptyList())
 
