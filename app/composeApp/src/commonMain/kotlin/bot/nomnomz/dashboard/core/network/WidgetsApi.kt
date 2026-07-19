@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.core.network
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 // The typed widgets facade — the channel's OBS browser-source overlays the Overlays page renders. Widgets are
@@ -59,6 +60,13 @@ interface WidgetsApi {
      * (e.g. the `chat_box` font/background knobs) writes the whole object here. Other fields stay untouched.
      */
     suspend fun updateSettings(channelId: String, widgetId: String, settings: JsonObject): ApiResult<Unit>
+
+    /**
+     * The widget's typed settings schema — the field/type/default contract the dashboard renders its generic
+     * settings form from (so a first-party widget is configured through controls, not by editing its source).
+     * Fails for a self-authored custom widget with no first-party schema (those use the code editor).
+     */
+    suspend fun getSettingsSchema(channelId: String, widgetId: String): ApiResult<WidgetSettingsSchemaDto>
 
     /**
      * Compile-on-save: send the authored [sourceCode] to be built into the widget's next append-only version.
@@ -160,6 +168,12 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
             "api/v1/channels/$channelId/widgets/$widgetId",
             UpdateWidgetBody(settings = settings),
         )
+
+    override suspend fun getSettingsSchema(
+        channelId: String,
+        widgetId: String,
+    ): ApiResult<WidgetSettingsSchemaDto> =
+        client.getEnvelope("api/v1/channels/$channelId/widgets/$widgetId/settings-schema")
 
     override suspend fun compile(
         channelId: String,
@@ -283,6 +297,42 @@ data class WidgetSummary(
     val eventSubscriptions: List<String> = emptyList(),
     val settings: JsonObject? = null,
 )
+
+/**
+ * A widget's typed settings schema (backend `WidgetSettingsSchema`): the fields the dashboard renders its generic
+ * settings form from, plus the widget's read-only default [eventSubscriptions] (its data wiring, shown for context).
+ */
+@Serializable
+data class WidgetSettingsSchemaDto(
+    val widgetKey: String = "",
+    val name: String = "",
+    val fields: List<WidgetSettingsFieldDto> = emptyList(),
+    val eventSubscriptions: List<String> = emptyList(),
+)
+
+/**
+ * One editable setting (backend `WidgetSettingsField`). [type] picks the control: `bool` (switch), `number`
+ * (slider when [min]/[max]/[step] are all set, else a numeric field), `text` (field), `color` (hex field + swatch),
+ * `select` (dropdown over [options]), `multiselect` (chips over [options]), `json` (raw-JSON textarea). [default] is
+ * the widget's catalogue default for the key (any JSON shape); [group] sections the form.
+ */
+@Serializable
+data class WidgetSettingsFieldDto(
+    val key: String = "",
+    val label: String = "",
+    val type: String = "",
+    val group: String = "",
+    val default: JsonElement? = null,
+    val help: String? = null,
+    val options: List<WidgetSettingsFieldOptionDto>? = null,
+    val min: Double? = null,
+    val max: Double? = null,
+    val step: Double? = null,
+)
+
+/** A single choice for a `select`/`multiselect` field (backend `WidgetSettingsFieldOption`). */
+@Serializable
+data class WidgetSettingsFieldOptionDto(val value: String = "", val label: String = "")
 
 /**
  * A starter widget template the create flow offers (backend `WidgetTemplate`): a working, SDK-using [source] to

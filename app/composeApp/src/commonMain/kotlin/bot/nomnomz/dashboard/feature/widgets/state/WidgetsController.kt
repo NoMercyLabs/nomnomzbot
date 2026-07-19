@@ -27,6 +27,7 @@ import bot.nomnomz.dashboard.core.network.SdkTypesApi
 import bot.nomnomz.dashboard.core.network.SubmitGalleryItemBody
 import bot.nomnomz.dashboard.core.network.ProjectManifestDto
 import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
+import bot.nomnomz.dashboard.core.network.WidgetSettingsSchemaDto
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetTemplate
 import bot.nomnomz.dashboard.core.network.WidgetVersionDetail
@@ -171,6 +172,15 @@ class WidgetsController(
     suspend fun listVersions(widgetId: String): ApiResult<List<WidgetVersionSummary>> {
         val channel: String = channelId ?: return ApiResult.Failure(NoChannelApiError)
         return widgetsApi.listVersions(channel, widgetId)
+    }
+
+    /**
+     * The widget's typed settings schema for the settings dialog. Returns the raw result so the dialog renders its
+     * own loading / error / form — a read that does not disturb the page's [state].
+     */
+    suspend fun loadSettingsSchema(widgetId: String): ApiResult<WidgetSettingsSchemaDto> {
+        val channel: String = channelId ?: return ApiResult.Failure(NoChannelApiError)
+        return widgetsApi.getSettingsSchema(channel, widgetId)
     }
 
     /** The starter templates the create dialog offers. Returns the raw result for the dialog to render. */

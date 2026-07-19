@@ -257,11 +257,12 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
         }
     }
 
-    // Typed per-widget-type settings dialog — only reachable for widgets that have a registered typed form
-    // (the row shows the Settings affordance only in that case), so the form is always non-null here.
+    // Schema-driven settings dialog — only reachable for first-party widgets (the row shows the Settings affordance
+    // only then). It loads the widget's typed schema from the backend and renders a generic form from it.
     pendingSettings?.let { widget ->
-        typedSettingsFormFor(widget)?.Render(
+        WidgetSettingsDialog(
             widget = widget,
+            loadSchema = { controller.loadSettingsSchema(widget.id) },
             onDismiss = { pendingSettings = null },
             onSave = { settings ->
                 pendingSettings = null
@@ -480,8 +481,9 @@ private fun WidgetRow(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    // A typed settings form exists only for known widget types (e.g. chat_box); the affordance is shown only then.
-    val hasTypedSettings: Boolean = remember(widget) { typedSettingsFormFor(widget) != null }
+    // Typed settings exist for first-party widgets (their type has an authored schema the backend serves); the
+    // Settings affordance is shown only then. A self-authored custom widget is configured via the code editor.
+    val hasTypedSettings: Boolean = widget.source == "first_party"
 
     val stateLabel: String =
         stringResource(

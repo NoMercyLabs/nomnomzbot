@@ -612,6 +612,25 @@ private class RecordingWidgetsApi(
         return ApiResult.Ok(Unit)
     }
 
+    // Records which widget's schema the settings dialog requested and returns the configured schema.
+    val loadedSchemaIds: MutableList<String> = mutableListOf()
+    var settingsSchemaResult:
+        ApiResult<bot.nomnomz.dashboard.core.network.WidgetSettingsSchemaDto> =
+        ApiResult.Ok(
+            bot.nomnomz.dashboard.core.network.WidgetSettingsSchemaDto(
+                widgetKey = "chat_box",
+                name = "Chat Box",
+            )
+        )
+
+    override suspend fun getSettingsSchema(
+        channelId: String,
+        widgetId: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.WidgetSettingsSchemaDto> {
+        loadedSchemaIds += widgetId
+        return settingsSchemaResult
+    }
+
     // The legacy single-source compile endpoint is no longer exercised by the controller (editing goes through
     // the project PUT), but the interface still declares it; records the source for completeness.
     override suspend fun compile(
