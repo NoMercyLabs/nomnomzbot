@@ -26,7 +26,9 @@ public class TtsVoiceConfiguration : IEntityTypeConfiguration<TtsVoice>
 
         builder.Property(e => e.DisplayName).IsRequired().HasMaxLength(255);
 
-        builder.Property(e => e.Locale).IsRequired().HasMaxLength(10);
+        // 20, not 10 — real Edge locales exceed ten chars (zh-CN-liaoning, iu-Cans-CA); the live catalog
+        // sync failed with 22001 truncation on the old width.
+        builder.Property(e => e.Locale).IsRequired().HasMaxLength(20);
 
         builder.Property(e => e.Gender).IsRequired().HasMaxLength(10);
 

@@ -24,7 +24,7 @@ public class TtsVoice : BaseEntity
     [MaxLength(255)]
     public string DisplayName { get; set; } = null!;
 
-    [MaxLength(10)]
+    [MaxLength(20)]
     public string Locale { get; set; } = null!;
 
     [MaxLength(10)]

@@ -8144,7 +8144,7 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<string>("Locale")
                         .IsRequired()
-                        .HasMaxLength(10)
+                        .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
