@@ -3013,6 +3013,7 @@
     <string name="obs_port_label">Poort</string>
     <string name="obs_password_label">WebSocket-wachtwoord</string>
     <string name="obs_password_stored">Er is een wachtwoord opgeslagen. Laat leeg om het te behouden.</string>
+    <string name="obs_password_hint">Je lokale OBS WebSocket-wachtwoord (OBS → Hulpmiddelen → WebSocket Server-instellingen). Vereist als OBS authenticatie aan heeft — het wordt veilig naar de bridge gestuurd.</string>
     <string name="obs_clear_password">Opgeslagen wachtwoord wissen</string>
     <string name="obs_enabled_label">Ingeschakeld</string>
     <string name="obs_status_enabled">Ingeschakeld</string>

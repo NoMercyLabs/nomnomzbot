@@ -3027,6 +3027,7 @@
     <string name="obs_port_label">Port</string>
     <string name="obs_password_label">WebSocket password</string>
     <string name="obs_password_stored">A password is stored. Leave blank to keep it.</string>
+    <string name="obs_password_hint">Your local OBS WebSocket password (OBS → Tools → WebSocket Server Settings). Required when OBS has authentication on — it is delivered securely to the bridge.</string>
     <string name="obs_clear_password">Clear stored password</string>
     <string name="obs_enabled_label">Enabled</string>
     <string name="obs_status_enabled">Enabled</string>

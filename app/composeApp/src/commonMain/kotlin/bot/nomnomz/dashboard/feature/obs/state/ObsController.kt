@@ -84,7 +84,19 @@ class ObsController(
                 is ApiResult.Failure -> null
             }
 
-        val live: ObsLive = readLive(id)
+        // A read of OBS state returns a graceful 200-with-empty-state even when OBS is offline (disabled / no
+        // bridge leader / not connected all come back 200 so the page shows its connect prompt, not a 500). So a
+        // 200 alone is NOT "reachable" — trusting it lit up Start Streaming + the mixer while the bridge card said
+        // offline. Gate on the real transport signal: bridge mode needs a registered bridge; direct mode keeps its
+        // own server-local signal (no relay to mask it).
+        val probed: ObsLive = readLive(id)
+        val reachable: Boolean =
+            when {
+                !connection.isEnabled -> false
+                connection.mode == "bridge" -> (bridgeStatus?.instanceCount ?: 0) > 0
+                else -> probed.reachable
+            }
+        val live: ObsLive = probed.copy(reachable = reachable)
 
         val previous: ObsUiState.Ready? = _state.value as? ObsUiState.Ready
         _state.value =

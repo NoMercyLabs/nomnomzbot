@@ -99,6 +99,7 @@ import nomnomzbot.composeapp.generated.resources.obs_mode_label
 import nomnomzbot.composeapp.generated.resources.obs_no_scenes
 import nomnomzbot.composeapp.generated.resources.obs_not_reachable
 import nomnomzbot.composeapp.generated.resources.obs_not_reachable_detail
+import nomnomzbot.composeapp.generated.resources.obs_password_hint
 import nomnomzbot.composeapp.generated.resources.obs_password_label
 import nomnomzbot.composeapp.generated.resources.obs_password_stored
 import nomnomzbot.composeapp.generated.resources.obs_port_label
@@ -238,6 +239,8 @@ private fun ConnectionCard(
                 ModeChip(label = stringResource(Res.string.obs_mode_bridge), selected = mode == "bridge", onClick = { mode = "bridge" })
             }
 
+            // Host + port are the SERVER's dial target — direct mode only (in bridge mode the browser source
+            // dials its own localhost, so these don't apply).
             if (mode == "direct") {
                 AppTextField(
                     value = host,
@@ -251,22 +254,27 @@ private fun ConnectionCard(
                     label = stringResource(Res.string.obs_port_label),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                RevealableSecretField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = stringResource(Res.string.obs_password_label),
-                    supportingText =
-                        if (connection.hasPassword) stringResource(Res.string.obs_password_stored) else null,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (connection.hasPassword) {
-                    ManageGate(decision = manage) { gateEnabled ->
-                        TextButton(onClick = onClearPassword, enabled = gateEnabled) {
-                            Text(
-                                text = stringResource(Res.string.obs_clear_password),
-                                color = if (gateEnabled) tokens.destructive else tokens.mutedForeground,
-                            )
-                        }
+            }
+
+            // OBS-WebSocket password — needed in BOTH modes. Direct opens the socket server-side with it; bridge
+            // has it delivered to the browser source so its LOCAL OBS Identify authenticates. Modern OBS enables
+            // auth with a generated password by default, so a blank password fails control on most setups.
+            RevealableSecretField(
+                value = password,
+                onValueChange = { password = it },
+                label = stringResource(Res.string.obs_password_label),
+                supportingText =
+                    if (connection.hasPassword) stringResource(Res.string.obs_password_stored)
+                    else stringResource(Res.string.obs_password_hint),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (connection.hasPassword) {
+                ManageGate(decision = manage) { gateEnabled ->
+                    TextButton(onClick = onClearPassword, enabled = gateEnabled) {
+                        Text(
+                            text = stringResource(Res.string.obs_clear_password),
+                            color = if (gateEnabled) tokens.destructive else tokens.mutedForeground,
+                        )
                     }
                 }
             }
