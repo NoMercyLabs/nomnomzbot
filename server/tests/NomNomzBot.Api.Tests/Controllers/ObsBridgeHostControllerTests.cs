@@ -41,7 +41,12 @@ public sealed class ObsBridgeHostControllerTests
                 "SignalR JSON-protocol frames are record-separator delimited"
             )
             .And.Contain("ExecuteObsRequest", "the bridge receives command pushes from the leader")
-            .And.Contain("AckCommand", "each command is acked by id");
+            .And.Contain("AckCommand", "each command is acked by id")
+            .And.Contain(
+                "SetObsCredentials",
+                "the server delivers the channel's OBS-WS password over the relay so the OBS Identify handshake "
+                    + "authenticates against an auth-enabled OBS (otherwise the bridge is 'connected but not reachable')"
+            );
     }
 
     [Fact]

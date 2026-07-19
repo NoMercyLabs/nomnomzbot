@@ -44,6 +44,9 @@ public interface IObsConnectionService
         CancellationToken ct = default
     );
 
-    /// <summary>The sealed OBS-WS password opened for the DIRECT transport only — never for an API response.</summary>
+    /// <summary>
+    /// The sealed OBS-WS password opened for a TRANSPORT — the direct socket, or the bridge relay push that
+    /// hands it to the browser-source bridge over the authenticated hub. Never returned on an API response.
+    /// </summary>
     Task<string?> GetPasswordForTransportAsync(Guid broadcasterId, CancellationToken ct = default);
 }

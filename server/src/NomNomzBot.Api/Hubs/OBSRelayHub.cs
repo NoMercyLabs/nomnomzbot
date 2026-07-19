@@ -38,6 +38,7 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
 
     private readonly IApplicationDbContext _db;
     private readonly IObsBridgeRegistry _bridges;
+    private readonly IObsConnectionService _connections;
     private readonly ObsBridgeCommandBook _commands;
     private readonly IEventBus _eventBus;
     private readonly TimeProvider _clock;
@@ -46,6 +47,7 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
     public OBSRelayHub(
         IApplicationDbContext db,
         IObsBridgeRegistry bridges,
+        IObsConnectionService connections,
         ObsBridgeCommandBook commands,
         IEventBus eventBus,
         TimeProvider clock,
@@ -54,6 +56,7 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
     {
         _db = db;
         _bridges = bridges;
+        _connections = connections;
         _commands = commands;
         _eventBus = eventBus;
         _clock = clock;
@@ -87,6 +90,16 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
             _clock.GetUtcNow().UtcDateTime,
             Context.ConnectionAborted
         );
+
+        // Hand the bridge the channel's OBS-WebSocket password (null when passwordless) so its LOCAL OBS
+        // Identify handshake authenticates. Without this the bridge registers here ("connected") but every
+        // command fails OBS auth ("not reachable") whenever the streamer's OBS-WS has auth on (the default).
+        string? obsPassword = await _connections.GetPasswordForTransportAsync(
+            connection.BroadcasterId,
+            Context.ConnectionAborted
+        );
+        await Clients.Caller.SetObsCredentials(obsPassword);
+
         _logger.LogInformation(
             "OBS bridge connected for {Channel} ({Connection}).",
             connection.BroadcasterId,

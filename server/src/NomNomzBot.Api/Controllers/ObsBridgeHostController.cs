@@ -73,10 +73,10 @@ public sealed class ObsBridgeHostController : ControllerBase
           // ── OBS leg: a local OBS-WebSocket v5 connection (mirrors DirectObsTransport) ──────────────
           var obs = (function () {
             var URL = "ws://127.0.0.1:4455";
-            // This page carries NO secret (obs-control.md §4: the password is never in the URL). The local OBS a
-            // streamer configures for the bridge is normally passwordless; if a password is required the actual
-            // OBSRelayHub contract does not yet deliver one, so obsPassword stays null and Identify goes out
-            // unauthenticated. computeAuth mirrors the v5 hash so a future relay-delivered password just works.
+            // This page carries NO secret in its URL (obs-control.md §4). When the streamer's OBS-WS has auth on
+            // (the OBS default), the server delivers the channel's OBS-WS password over the AUTHENTICATED relay
+            // after connect (SetObsCredentials -> setPassword below), and computeAuth runs the v5 hash with it.
+            // Passwordless OBS setups simply leave this null and Identify goes out unauthenticated.
             var obsPassword = null;
 
             var sock = null, ready = false, connecting = false;
@@ -123,7 +123,7 @@ public sealed class ObsBridgeHostController : ControllerBase
               };
               if (d.authentication) {
                 if (!obsPassword) {
-                  console.error("[obs-bridge] local OBS requires a password but the bridge has none — set OBS WebSocket to no auth.");
+                  console.error("[obs-bridge] local OBS requires a password but none was delivered — set the OBS WebSocket password in the dashboard's OBS settings.");
                   send(null); // OBS will reject; onclose fails the queued commands gracefully.
                   return;
                 }
@@ -158,6 +158,9 @@ public sealed class ObsBridgeHostController : ControllerBase
               ready = false; connecting = false; sock = null;
               var ids = Object.keys(pending);
               ids.forEach(function (id) { var cb = pending[id]; delete pending[id]; cb(null, reason); });
+              // Also drain commands still QUEUED (awaiting a live socket) so a local-OBS connect failure fails
+              // them fast instead of stranding the first command until the server's 15s timeout.
+              failAll(reason);
             }
             function failAll(reason) {
               var q = queue; queue = [];
@@ -203,6 +206,9 @@ public sealed class ObsBridgeHostController : ControllerBase
             }
 
             return {
+              // The server hands us the channel's OBS-WS password over the relay (SetObsCredentials); apply it
+              // BEFORE the first connect so the Identify handshake authenticates against an auth-enabled OBS.
+              setPassword: function (pw) { obsPassword = pw || null; },
               execute: function (commandId, payload) {
                 if (ready && sock && sock.readyState === WebSocket.OPEN) { run(commandId, payload); return; }
                 queue.push({ commandId: commandId, payload: payload });
@@ -368,6 +374,8 @@ public sealed class ObsBridgeHostController : ControllerBase
             }
 
             function dispatch(target, args) {
+              // Server pushes the OBS-WS password on connect (before any command) so the OBS leg can authenticate.
+              if (target === "SetObsCredentials") { obs.setPassword(args[0]); return; }
               if (target !== "ExecuteObsRequest") return;
               var commandId = args[0], payloadJson = args[1];
               var payload; try { payload = JSON.parse(payloadJson); }
