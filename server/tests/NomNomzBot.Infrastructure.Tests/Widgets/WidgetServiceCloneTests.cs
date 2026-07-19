@@ -18,6 +18,7 @@ using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Content.Widgets;
 using NomNomzBot.Infrastructure.Widgets;
 using NSubstitute;
 
@@ -42,7 +43,14 @@ public sealed class WidgetServiceCloneTests
         build
             .BuildAsync(Arg.Any<WidgetBuildInput>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new WidgetBuildOutput("BUNDLE", "hash", "")));
-        return new WidgetService(db, EmptyConfig, Substitute.For<IEventBus>(), build, Clock);
+        return new WidgetService(
+            db,
+            EmptyConfig,
+            Substitute.For<IEventBus>(),
+            build,
+            new WidgetSettingsSchemaProvider(),
+            Clock
+        );
     }
 
     private static async Task SeedChannelAsync(WidgetSqliteTestDatabase database, Guid channelId)

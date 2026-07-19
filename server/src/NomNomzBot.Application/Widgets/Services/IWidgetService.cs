@@ -62,6 +62,18 @@ public interface IWidgetService
     );
 
     /// <summary>
+    /// The typed settings schema for a widget, so the dashboard renders a generic settings form (no source editing).
+    /// Resolves the widget's first-party type from its gallery link (<c>GalleryItemId</c> → the item's natural key)
+    /// and returns that type's schema. Fails with NOT_FOUND when the widget is unknown, or when it is a self-authored
+    /// <c>custom</c> widget with no first-party schema (those are configured through the code editor).
+    /// </summary>
+    Task<Result<WidgetSettingsSchema>> GetSettingsSchemaAsync(
+        string broadcasterId,
+        string widgetId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Compile-on-save: append the widget's next <c>WidgetVersion</c>, build it, and (on success) point the widget
     /// at it. A failed build is a persisted <c>error</c> version, not a discard; the returned detail carries the
     /// build status either way, and the build lifecycle event is published for the overlay/editor to react to.

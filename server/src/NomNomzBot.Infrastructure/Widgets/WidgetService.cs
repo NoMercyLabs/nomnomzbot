@@ -32,6 +32,7 @@ public class WidgetService : IWidgetService
     private readonly string _overlayBaseUrl;
     private readonly IEventBus _eventBus;
     private readonly IWidgetBuildService _buildService;
+    private readonly IWidgetSettingsSchemaProvider _settingsSchemas;
     private readonly TimeProvider _timeProvider;
 
     public WidgetService(
@@ -39,6 +40,7 @@ public class WidgetService : IWidgetService
         IConfiguration configuration,
         IEventBus eventBus,
         IWidgetBuildService buildService,
+        IWidgetSettingsSchemaProvider settingsSchemas,
         TimeProvider timeProvider
     )
     {
@@ -51,6 +53,7 @@ public class WidgetService : IWidgetService
             ?? "http://localhost:5080";
         _eventBus = eventBus;
         _buildService = buildService;
+        _settingsSchemas = settingsSchemas;
         _timeProvider = timeProvider;
     }
 
@@ -446,6 +449,47 @@ public class WidgetService : IWidgetService
             );
 
         return Result.Success(ToDetail(widget, channel.OverlayToken, _overlayBaseUrl));
+    }
+
+    public async Task<Result<WidgetSettingsSchema>> GetSettingsSchemaAsync(
+        string broadcasterId,
+        string widgetId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+        )
+            return Errors.NotFound<WidgetSettingsSchema>("Widget", widgetId);
+
+        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
+            cancellationToken
+        );
+        if (widget is null)
+            return Errors.NotFound<WidgetSettingsSchema>("Widget", widgetId);
+
+        // A first-party widget is installed from a gallery item whose NaturalKey IS its widget key (alerts,
+        // chat_box, …); that key selects the authored schema. A self-authored `custom` widget carries no gallery
+        // link (and no first-party key), so it has no typed schema — it is configured through the code editor.
+        string? naturalKey = widget.GalleryItemId is Guid galleryItemId
+            ? await _db
+                .WidgetGalleryItems.Where(item => item.Id == galleryItemId)
+                .Select(item => item.NaturalKey)
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
+
+        WidgetSettingsSchema? schema = naturalKey is not null
+            ? _settingsSchemas.GetByKey(naturalKey)
+            : null;
+        if (schema is null)
+            return Result.Failure<WidgetSettingsSchema>(
+                "This widget has no typed settings schema — configure it through the code editor.",
+                "WIDGET_NO_SETTINGS_SCHEMA"
+            );
+
+        return Result.Success(schema);
     }
 
     public async Task<Result<WidgetVersionDetail>> CompileAsync(

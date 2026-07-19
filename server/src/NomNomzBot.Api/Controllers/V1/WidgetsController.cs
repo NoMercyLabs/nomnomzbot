@@ -142,6 +142,29 @@ public class WidgetsController : BaseController
         return Ok(new StatusResponseDto<WidgetDetail> { Data = WithOverlayOrigin(result.Value) });
     }
 
+    /// <summary>
+    /// Get a widget's typed settings schema — the field/type/default contract the dashboard renders its generic
+    /// settings form from, so a first-party widget is configured through controls rather than by editing its source.
+    /// </summary>
+    [RequireAction("widget:read")]
+    [HttpGet("{widgetId}/settings-schema")]
+    [ProducesResponseType<StatusResponseDto<WidgetSettingsSchema>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetWidgetSettingsSchema(
+        string channelId,
+        string widgetId,
+        CancellationToken ct
+    )
+    {
+        Result<WidgetSettingsSchema> result = await _widgetService.GetSettingsSchemaAsync(
+            channelId,
+            Decode(widgetId),
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<WidgetSettingsSchema> { Data = result.Value });
+    }
+
     /// <summary>Create a new overlay widget for a channel.</summary>
     [RequireAction("widget:write")]
     [HttpPost]

@@ -19,6 +19,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Domain.Widgets.Events;
+using NomNomzBot.Infrastructure.Content.Widgets;
 using NomNomzBot.Infrastructure.Widgets;
 using NSubstitute;
 
@@ -43,7 +44,7 @@ public sealed class WidgetServiceCompileTests
         WidgetTestDbContext db,
         IEventBus eventBus,
         IWidgetBuildService buildService
-    ) => new(db, EmptyConfig, eventBus, buildService, Clock);
+    ) => new(db, EmptyConfig, eventBus, buildService, new WidgetSettingsSchemaProvider(), Clock);
 
     private static Result<WidgetBuildOutput> Ok(
         string bundle = "BUNDLE",

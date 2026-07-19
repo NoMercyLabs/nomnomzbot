@@ -21,6 +21,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Domain.Widgets.Events;
+using NomNomzBot.Infrastructure.Content.Widgets;
 using NomNomzBot.Infrastructure.Widgets;
 using NomNomzBot.Infrastructure.Widgets.Bundling;
 using NSubstitute;
@@ -60,7 +61,7 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
         );
 
     private WidgetService NewService(WidgetTestDbContext db, IEventBus bus) =>
-        new(db, EmptyConfig, bus, RealBuild(), Clock);
+        new(db, EmptyConfig, bus, RealBuild(), new WidgetSettingsSchemaProvider(), Clock);
 
     private static async Task<Guid> SeedChannelAsync(WidgetSqliteTestDatabase database)
     {

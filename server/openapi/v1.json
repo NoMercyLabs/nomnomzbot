@@ -64775,6 +64775,112 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/widgets/{widgetId}/settings-schema": {
+      "get": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Get a widget's typed settings schema — the field/type/default contract the dashboard renders its generic\r\nsettings form from, so a first-party widget is configured through controls rather than by editing its source.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "widgetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfWidgetSettingsSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/widgets/clone": {
       "post": {
         "tags": [
@@ -86338,6 +86444,36 @@
           }
         }
       },
+      "StatusResponseDtoOfWidgetSettingsSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WidgetSettingsSchema"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfWidgetVersionDetail": {
         "type": "object",
         "properties": {
@@ -91540,6 +91676,120 @@
           }
         },
         "description": "A widget's full detail. The authored source and compiled bundle are NOT here — they live on append-only\r\n`WidgetVersion` rows; Guid? WidgetDetail.ActiveVersionId names the version the overlay currently serves.\r\n`Framework` is the source language (vue|react|svelte|vanilla); `Source` is the provenance\r\n(first_party|verified_gallery|custom)."
+      },
+      "WidgetSettingsField": {
+        "required": [
+          "key",
+          "label",
+          "type",
+          "group",
+          "default"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string"
+          },
+          "default": { },
+          "help": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "options": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/WidgetSettingsFieldOption"
+            }
+          },
+          "min": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "max": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "step": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        },
+        "description": "One editable setting on a widget. string WidgetSettingsField.Type picks the control the dashboard renders:\r\n`bool` (switch), `number` (stepper/slider), `text` (field), `color` (colour control),\r\n`select` (single-choice dropdown over IReadOnlyList&lt;WidgetSettingsFieldOption&gt;? WidgetSettingsField.Options), `multiselect` (chip toggles over\r\nIReadOnlyList&lt;WidgetSettingsFieldOption&gt;? WidgetSettingsField.Options), or `json` (raw-JSON textarea for a structural map/list the schema does not flatten).\r\nobject? WidgetSettingsField.Default is the catalogue default (so a cleared field falls back to the widget's shipped value);\r\ndouble? WidgetSettingsField.Min/double? WidgetSettingsField.Max/double? WidgetSettingsField.Step bound a numeric control; string WidgetSettingsField.Group lets the form\r\nsection the fields."
+      },
+      "WidgetSettingsFieldOption": {
+        "required": [
+          "value",
+          "label"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "description": "A single choice for a `select`/`multiselect` field: the wire string WidgetSettingsFieldOption.Value and its display string WidgetSettingsFieldOption.Label."
+      },
+      "WidgetSettingsSchema": {
+        "required": [
+          "widgetKey",
+          "name",
+          "fields",
+          "eventSubscriptions"
+        ],
+        "type": "object",
+        "properties": {
+          "widgetKey": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WidgetSettingsField"
+            }
+          },
+          "eventSubscriptions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "The typed settings schema for one first-party widget type (widgets-overlays.md). It is the contract the\r\ndashboard renders a generic, schema-driven settings form from — so a first-party widget is configured through\r\ncontrols, never by hand-editing its Vue source. Derived from the widget's authored `cfg` shape and its\r\ncatalogue `DefaultSettings`; every settings key the widget honours is covered by exactly one\r\nWidgetSettingsField (a coverage test fails the build if a type drifts un-schematised).\r\nIReadOnlyList&lt;string&gt; WidgetSettingsSchema.EventSubscriptions is the widget's default wire topics — read-only reference (the widget's data\r\nwiring is intrinsic, not user-config), shown so the operator sees what the overlay listens for."
       },
       "WidgetTemplate": {
         "required": [

@@ -18,6 +18,7 @@ using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Content.Widgets;
 using NomNomzBot.Infrastructure.Widgets;
 using NSubstitute;
 
@@ -37,7 +38,14 @@ public sealed class WidgetServiceOverlayTests
     private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
 
     private static WidgetService NewService(WidgetTestDbContext db, IWidgetBuildService build) =>
-        new(db, EmptyConfig, Substitute.For<IEventBus>(), build, Clock);
+        new(
+            db,
+            EmptyConfig,
+            Substitute.For<IEventBus>(),
+            build,
+            new WidgetSettingsSchemaProvider(),
+            Clock
+        );
 
     private static IWidgetBuildService BuildReturning(string bundle, string hash)
     {

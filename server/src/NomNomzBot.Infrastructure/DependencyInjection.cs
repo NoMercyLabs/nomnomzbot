@@ -341,6 +341,12 @@ public static class DependencyInjection
             Application.Widgets.Services.IVueSfcCompiler,
             Widgets.Bundling.JintVueSfcCompiler
         >();
+        // The typed settings-schema catalogue for the first-party widgets (one schema per widget type) — immutable
+        // reference data, so a SINGLETON. Not an I<X>Service, so register explicitly.
+        services.AddSingleton<
+            Application.Widgets.Services.IWidgetSettingsSchemaProvider,
+            Content.Widgets.WidgetSettingsSchemaProvider
+        >();
         // Every outbound HttpClient the factory builds (provider fetches, OAuth, Twitch, TTS, webhooks…) sends
         // the product User-Agent by default, stamped with the running build version. A client may still override.
         services.ConfigureHttpClientDefaults(builder =>
