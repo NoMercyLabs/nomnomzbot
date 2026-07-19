@@ -72,53 +72,89 @@ class RestCommandsApi(private val client: ApiClient) : CommandsApi {
 }
 
 /**
- * The create-command request body (backend `CreateCommandDto`). [name] and [templateResponse] are the
- * essentials for a text command; attach a [pipelineId] to run a visual pipeline instead. A command may
- * carry both — the pipeline runs first and the template response is a fallback. [tier] is computed here:
- * "pipeline" when a pipeline id is set, otherwise "template". [isEnabled] lets a command be created
- * already-on (the default).
+ * The create-command request body (backend `CreateCommandDto`). [name] plus a reaction ([templateResponse] for
+ * a text command, [templateResponses] for a random-response list, or a [pipelineId] to run a visual pipeline)
+ * are the essentials. [tier] names the authoring kind (template | pipeline | code). [minPermissionLevel] is the
+ * unified-ladder value a chatter must clear (0 = everyone). [prefixMode] (Default | Custom | None) with an
+ * optional [customPrefix], and [matchMode] (StartsWith | Exact | Contains | Regex) with an optional
+ * [matchPattern] (required for Regex), govern how the trigger is recognized. [cooldownSeconds] is the global
+ * spam guard; [cooldownPerUser] scopes a separate [userCooldownSeconds] per chatter. [aliases] are alternate
+ * trigger names. [isEnabled] lets a command be created already-on (the default). `explicitNulls = false` on the
+ * shared Json omits the null fields from the wire body.
  */
 @Serializable
 data class CreateCommandBody(
     val name: String,
+    val tier: String = "template",
+    val minPermissionLevel: Int = 0,
+    val prefixMode: String = "Default",
+    val customPrefix: String? = null,
+    val matchMode: String = "StartsWith",
+    val matchPattern: String? = null,
     val templateResponse: String? = null,
+    val templateResponses: List<String>? = null,
     val pipelineId: String? = null,
-    val tier: String = if (pipelineId != null) "pipeline" else "template",
+    val cooldownSeconds: Int = 0,
+    val userCooldownSeconds: Int = 0,
+    val cooldownPerUser: Boolean = false,
+    val description: String? = null,
+    val aliases: List<String>? = null,
     val isEnabled: Boolean = true,
 )
 
 /**
- * The update-command request body (backend `UpdateCommandDto`) — every field nullable so an update is a
- * partial patch. A toggle sends only [isEnabled]; an edit sends [templateResponse] and/or [pipelineId]; all
- * other fields stay null and the backend leaves them untouched. `explicitNulls = false` on the shared Json
- * means null fields are omitted from the wire body.
+ * The update-command request body (backend `UpdateCommandDto`) — every field nullable so an update is a partial
+ * patch. A toggle sends only [isEnabled]; a full edit sends every field. All null fields stay untouched on the
+ * backend. `explicitNulls = false` on the shared Json omits the null fields from the wire body. An empty-string
+ * [customPrefix]/[matchPattern] clears the stored value (backend semantics); an empty [templateResponses] clears
+ * the random-response list.
  */
 @Serializable
 data class UpdateCommandBody(
-    val templateResponse: String? = null,
-    val pipelineId: String? = null,
     val tier: String? = null,
+    val minPermissionLevel: Int? = null,
+    val prefixMode: String? = null,
+    val customPrefix: String? = null,
+    val matchMode: String? = null,
+    val matchPattern: String? = null,
+    val templateResponse: String? = null,
+    val templateResponses: List<String>? = null,
+    val pipelineId: String? = null,
+    val cooldownSeconds: Int? = null,
+    val userCooldownSeconds: Int? = null,
+    val cooldownPerUser: Boolean? = null,
+    val description: String? = null,
+    val aliases: List<String>? = null,
     val isEnabled: Boolean? = null,
 )
 
 /**
- * A custom chat command's list-view item (backend `CommandListItem`): the trigger [name], whether it is
- * live, its cooldown, the optional [templateResponse] (pre-filled in the edit form), the attached
- * [pipelineId] (also pre-filled in the edit form), an optional [description], aliases, and lifetime usage.
- * These fields are included in the list so the edit dialog can open without a separate detail fetch.
+ * A custom chat command's list-view item (backend `CommandListItem`). Guarded against the full `CommandDto`
+ * schema (ApiContractTest), whose fields it is a subset of. Carries every field the edit dialog pre-fills so it
+ * can open without a separate detail fetch: the trigger [name], [tier], the [minPermissionLevel] floor, the
+ * [prefixMode]/[customPrefix] and [matchMode]/[matchPattern] recognition config, the [templateResponse] (single)
+ * or [templateResponses] (random list), the attached [pipelineId], the [cooldownSeconds] guard plus the
+ * per-user [cooldownPerUser]/[userCooldownSeconds] pair, the [description], [aliases], live flag, and usage.
  */
 @Serializable
 data class CommandSummary(
     val id: String = "",
     val name: String = "",
-    val tier: String = "",
+    val tier: String = "template",
     val minPermissionLevel: Int = 0,
     val isEnabled: Boolean = false,
+    val prefixMode: String = "Default",
+    val customPrefix: String? = null,
+    val matchMode: String = "StartsWith",
+    val matchPattern: String? = null,
     val cooldownSeconds: Int = 0,
+    val userCooldownSeconds: Int = 0,
+    val cooldownPerUser: Boolean = false,
     val description: String? = null,
     val aliases: List<String> = emptyList(),
     val useCount: Long = 0,
     val createdAt: String = "",
     val templateResponse: String? = null,
+    val templateResponses: List<String>? = null,
     val pipelineId: String? = null,
 )

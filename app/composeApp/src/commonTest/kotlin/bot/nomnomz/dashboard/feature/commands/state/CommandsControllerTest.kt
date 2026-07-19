@@ -118,15 +118,44 @@ class CommandsControllerTest {
         controller.load()
         assertTrue(controller.state.value is CommandsState.Empty)
 
-        controller.createCommand(name = "!hi", templateResponse = "yo", pipelineId = null, isEnabled = true)
+        controller.createCommand(
+            CommandInput(
+                name = "!hi",
+                tier = "template",
+                minPermissionLevel = 10,
+                prefixMode = "Custom",
+                customPrefix = "?",
+                matchMode = "Regex",
+                matchPattern = "^hi$",
+                templateResponse = "yo",
+                templateResponses = emptyList(),
+                pipelineId = null,
+                cooldownSeconds = 30,
+                userCooldownSeconds = 15,
+                cooldownPerUser = true,
+                description = "greeting",
+                aliases = listOf("!hey", "!yo"),
+                isEnabled = true,
+            )
+        )
 
-        // The api recorded exactly the body the controller built.
+        // The api recorded exactly the body the controller built — every newly-exposed field carried through.
         assertEquals(1, commandsApi.created.size)
         val body: CreateCommandBody = commandsApi.created.first()
         assertEquals("ch1", commandsApi.createdChannelId)
         assertEquals("!hi", body.name)
         assertEquals("yo", body.templateResponse)
         assertEquals(true, body.isEnabled)
+        assertEquals(10, body.minPermissionLevel)
+        assertEquals("Custom", body.prefixMode)
+        assertEquals("?", body.customPrefix)
+        assertEquals("Regex", body.matchMode)
+        assertEquals("^hi$", body.matchPattern)
+        assertEquals(30, body.cooldownSeconds)
+        assertEquals(15, body.userCooldownSeconds)
+        assertEquals(true, body.cooldownPerUser)
+        assertEquals("greeting", body.description)
+        assertEquals(listOf("!hey", "!yo"), body.aliases)
 
         // And the reload surfaced the freshly-created row.
         val state: CommandsState = controller.state.value

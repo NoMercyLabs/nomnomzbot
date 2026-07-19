@@ -55,6 +55,8 @@ class ApiContractTest {
             SetupAction.serializer() to "SetupActionDto",
             CommunityMember.serializer() to "CommunityUserDto",
             CommandSummary.serializer() to "CommandDto",
+            CreateCommandBody.serializer() to "CreateCommandDto",
+            UpdateCommandBody.serializer() to "UpdateCommandDto",
             TimerSummary.serializer() to "TimerListItem",
             TimerDetail.serializer() to "TimerDto",
             BannedUser.serializer() to "BannedUserDto",

@@ -109,56 +109,22 @@ class CommandsController(
     }
 
     /**
-     * Create a command, then reload so the new row appears. A command either responds with a text
-     * [templateResponse], runs a [pipelineId], or both (pipeline runs first; response is a fallback).
+     * Create a command from the dialog's full [input], then reload so the new row appears. Every field the
+     * backend supports is sent — the recognition config (prefix + match), the reaction (a single template, a
+     * random-response list, or a pipeline), the permission floor, the cooldown pair, aliases, and the live flag.
      */
-    suspend fun createCommand(
-        name: String,
-        templateResponse: String?,
-        pipelineId: String?,
-        isEnabled: Boolean,
-    ) {
+    suspend fun createCommand(input: CommandInput) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(
-            commandsApi.create(
-                channel,
-                CreateCommandBody(
-                    name = name,
-                    templateResponse = templateResponse?.takeIf { it.isNotBlank() },
-                    pipelineId = pipelineId,
-                    isEnabled = isEnabled,
-                ),
-            )
-        )
+        afterWrite(commandsApi.create(channel, input.toCreateBody()))
     }
 
     /**
-     * Edit a command's response text and/or pipeline, addressed by its current [name]. Reloads on success.
+     * Edit a command from the dialog's full [input], addressed by its current [name]. A full-form patch: every
+     * editable field is sent so the backend applies exactly what the dialog shows. Reloads on success.
      */
-    suspend fun updateCommand(
-        name: String,
-        templateResponse: String?,
-        pipelineId: String?,
-        isEnabled: Boolean,
-    ) {
+    suspend fun updateCommand(name: String, input: CommandInput) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
-        val tier: String? = when {
-            pipelineId != null -> "pipeline"
-            templateResponse?.isNotBlank() == true -> "template"
-            else -> null
-        }
-        afterWrite(
-            commandsApi.update(
-                channel,
-                name,
-                UpdateCommandBody(
-                    templateResponse = templateResponse?.takeIf { it.isNotBlank() },
-                    pipelineId = pipelineId,
-                    tier = tier,
-                    isEnabled = isEnabled,
-                ),
-            )
-        )
+        afterWrite(commandsApi.update(channel, name, input.toUpdateBody()))
     }
 
     /** Flip a command's enabled flag via the update endpoint (no dedicated toggle route). Reloads on success. */
@@ -227,6 +193,75 @@ class CommandsController(
         const val NoChannelError: String = "No active channel — reconnect and try again."
     }
 }
+
+/**
+ * The full editable field set the create/edit dialog submits — one clean parameter for the controller instead
+ * of a dozen positional arguments. Mirrors every field the backend command DTO accepts. [templateResponse] is
+ * the single-response text (null when the command uses a random list or a pipeline); [templateResponses] is the
+ * random-response list (empty otherwise); [pipelineId] binds a visual pipeline (null otherwise). [customPrefix]
+ * is meaningful only when [prefixMode] is "Custom"; [matchPattern] only when [matchMode] is "Regex".
+ */
+data class CommandInput(
+    val name: String,
+    val tier: String,
+    val minPermissionLevel: Int,
+    val prefixMode: String,
+    val customPrefix: String?,
+    val matchMode: String,
+    val matchPattern: String?,
+    val templateResponse: String?,
+    val templateResponses: List<String>,
+    val pipelineId: String?,
+    val cooldownSeconds: Int,
+    val userCooldownSeconds: Int,
+    val cooldownPerUser: Boolean,
+    val description: String?,
+    val aliases: List<String>,
+    val isEnabled: Boolean,
+)
+
+// Create sends only the fields that carry a value — blanks and empty lists fall back to the backend defaults.
+private fun CommandInput.toCreateBody(): CreateCommandBody =
+    CreateCommandBody(
+        name = name.trim(),
+        tier = tier,
+        minPermissionLevel = minPermissionLevel,
+        prefixMode = prefixMode,
+        customPrefix = customPrefix?.takeIf { it.isNotBlank() },
+        matchMode = matchMode,
+        matchPattern = matchPattern?.takeIf { it.isNotBlank() },
+        templateResponse = templateResponse?.takeIf { it.isNotBlank() },
+        templateResponses = templateResponses.filter { it.isNotBlank() }.takeIf { it.isNotEmpty() },
+        pipelineId = pipelineId,
+        cooldownSeconds = cooldownSeconds,
+        userCooldownSeconds = userCooldownSeconds,
+        cooldownPerUser = cooldownPerUser,
+        description = description?.takeIf { it.isNotBlank() },
+        aliases = aliases.filter { it.isNotBlank() }.takeIf { it.isNotEmpty() },
+        isEnabled = isEnabled,
+    )
+
+// Edit is a full-form patch: every editable field is sent so the backend applies exactly what the dialog shows.
+// An empty string clears the stored custom prefix / regex pattern / single response / description (backend
+// semantics); an empty list clears the random-response list and the aliases.
+private fun CommandInput.toUpdateBody(): UpdateCommandBody =
+    UpdateCommandBody(
+        tier = tier,
+        minPermissionLevel = minPermissionLevel,
+        prefixMode = prefixMode,
+        customPrefix = customPrefix.orEmpty(),
+        matchMode = matchMode,
+        matchPattern = matchPattern.orEmpty(),
+        templateResponse = templateResponse.orEmpty(),
+        templateResponses = templateResponses.filter { it.isNotBlank() },
+        pipelineId = pipelineId,
+        cooldownSeconds = cooldownSeconds,
+        userCooldownSeconds = userCooldownSeconds,
+        cooldownPerUser = cooldownPerUser,
+        description = description.orEmpty(),
+        aliases = aliases.filter { it.isNotBlank() },
+        isEnabled = isEnabled,
+    )
 
 /** The Commands page render state. */
 sealed interface CommandsState {
