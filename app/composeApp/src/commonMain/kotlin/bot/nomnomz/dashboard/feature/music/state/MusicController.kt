@@ -274,18 +274,27 @@ class MusicController(
             if (evt !is HubEvent.MusicStateChanged) return@collect
             val current: MusicState = _state.value
             if (current !is MusicState.Ready) return@collect
-            val track: NowPlaying? =
-                if (evt.state.currentTrack == null) null
-                else NowPlaying(
-                    trackName = evt.state.currentTrack.trackName,
-                    artist = evt.state.currentTrack.artist,
-                    album = evt.state.currentTrack.album,
-                    imageUrl = evt.state.currentTrack.albumArtUrl,
-                    durationMs = evt.state.currentTrack.durationMs,
-                    isPlaying = evt.state.isPlaying,
-                    provider = evt.state.currentTrack.provider,
-                )
-            _state.value = current.copy(nowPlaying = track)
+
+            val hubTrack = evt.state.currentTrack
+            if (hubTrack == null) {
+                _state.value = current.copy(nowPlaying = null)
+                return@collect
+            }
+
+            val existing: NowPlaying? = current.nowPlaying
+            val sameTrack: Boolean =
+                existing != null &&
+                    existing.trackName == hubTrack.trackName &&
+                    existing.artist == hubTrack.artist
+            if (sameTrack) {
+                // Same track — just reflect the play/pause flip, keeping the known progress + requester (the hub
+                // payload carries neither, so rebuilding from it would blank the requester and zero the bar).
+                _state.value = current.copy(nowPlaying = existing.copy(isPlaying = evt.state.isPlaying))
+            } else {
+                // New track — pull the authoritative snapshot (which DOES carry progressMs + requestedBy) rather
+                // than patch with the hub payload's defaults.
+                load()
+            }
         }
     }
 

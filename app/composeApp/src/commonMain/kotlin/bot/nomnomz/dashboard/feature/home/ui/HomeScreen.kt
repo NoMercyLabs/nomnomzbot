@@ -1121,9 +1121,12 @@ private fun ChangeTitleDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val tags: List<String>? =
+                    // Always send the tags list (empty = clear). editTags is pre-filled from the current tags, so
+                    // an untouched field re-sends them unchanged; clearing the field now actually clears them —
+                    // the backend treats an empty list as "clear" and null as "leave unchanged", and the old
+                    // `.takeIf { isNotEmpty() }` collapsed a cleared field to null, so tags could never be removed.
+                    val tags: List<String> =
                         editTags.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                            .takeIf { it.isNotEmpty() }
                     onSave(
                         editTitle.trim().takeIf { it.isNotEmpty() },
                         selectedGame?.name?.trim()?.takeIf { it.isNotEmpty() },
