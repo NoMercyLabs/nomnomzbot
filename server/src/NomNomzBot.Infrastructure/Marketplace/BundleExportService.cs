@@ -13,12 +13,17 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Marketplace;
+using NomNomzBot.Application.DevPlatform.Projects;
 using NomNomzBot.Application.Marketplace.Services;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomEvents.Entities;
+using NomNomzBot.Domain.PickLists.Entities;
+using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 
 namespace NomNomzBot.Infrastructure.Marketplace;
 
@@ -69,6 +74,12 @@ public class BundleExportService : IBundleExportService
         Dictionary<Guid, Widget> widgets = [];
         Dictionary<Guid, SoundClip> sounds = [];
         Dictionary<Guid, CustomDataSource> dataSources = [];
+        Dictionary<Guid, EventResponse> eventResponses = [];
+        Dictionary<Guid, Reward> rewards = [];
+        Dictionary<Guid, DomainTimer> timers = [];
+        Dictionary<Guid, ChatTrigger> chatTriggers = [];
+        Dictionary<Guid, PickList> pickLists = [];
+        Dictionary<Guid, CodeScript> codeScripts = [];
 
         foreach (ExportItemRef itemRef in refs)
         {
@@ -109,6 +120,48 @@ public class BundleExportService : IBundleExportService
                     dataSources,
                     ct
                 ),
+                BundleFormat.EventResponseType => await ResolveAsync(
+                    _db.EventResponses,
+                    broadcasterId,
+                    itemRef.Id,
+                    eventResponses,
+                    ct
+                ),
+                BundleFormat.RewardType => await ResolveAsync(
+                    _db.Rewards,
+                    broadcasterId,
+                    itemRef.Id,
+                    rewards,
+                    ct
+                ),
+                BundleFormat.TimerType => await ResolveAsync(
+                    _db.Timers,
+                    broadcasterId,
+                    itemRef.Id,
+                    timers,
+                    ct
+                ),
+                BundleFormat.ChatTriggerType => await ResolveAsync(
+                    _db.ChatTriggers,
+                    broadcasterId,
+                    itemRef.Id,
+                    chatTriggers,
+                    ct
+                ),
+                BundleFormat.PickListType => await ResolveAsync(
+                    _db.PickLists,
+                    broadcasterId,
+                    itemRef.Id,
+                    pickLists,
+                    ct
+                ),
+                BundleFormat.CodeScriptType => await ResolveAsync(
+                    _db.CodeScripts,
+                    broadcasterId,
+                    itemRef.Id,
+                    codeScripts,
+                    ct
+                ),
                 _ => Result.Failure(
                     $"Unknown export item type '{itemRef.Type}'.",
                     "VALIDATION_FAILED"
@@ -118,10 +171,18 @@ public class BundleExportService : IBundleExportService
                 return resolved.ToTyped<System.IO.Stream>();
         }
 
-        // ── Complete the dependency graph: a command's pipeline always travels with it ──
-        foreach (Command command in commands.Values.ToList())
+        // ── Complete the dependency graph: a pipeline-bound item's pipeline always travels with it ──
+        List<Guid?> boundPipelineIds =
+        [
+            .. commands.Values.Select(c => c.PipelineId),
+            .. eventResponses.Values.Select(e => e.PipelineId),
+            .. rewards.Values.Select(r => r.PipelineId),
+            .. timers.Values.Select(t => t.PipelineId),
+            .. chatTriggers.Values.Select(t => t.PipelineId),
+        ];
+        foreach (Guid? boundId in boundPipelineIds)
         {
-            if (command.PipelineId is not Guid pipelineId || pipelines.ContainsKey(pipelineId))
+            if (boundId is not Guid pipelineId || pipelines.ContainsKey(pipelineId))
                 continue;
             Result pulled = await ResolveAsync(
                 _db.Pipelines,
@@ -140,6 +201,12 @@ public class BundleExportService : IBundleExportService
         {
             List<BundleManifestItem> manifestItems = [];
             HashSet<string> usedSlugs = [];
+
+            // The `pipeline:<name>` re-link/dependency mechanics shared by every pipeline-bound item type.
+            string? PipelineNameOf(Guid? pipelineId) =>
+                pipelineId is Guid id ? pipelines[id].Name : null;
+            static IReadOnlyList<string> PipelineEdge(string? pipelineName) =>
+                pipelineName is null ? [] : [$"{BundleFormat.PipelineType}:{pipelineName}"];
 
             foreach (Pipeline pipeline in pipelines.Values)
             {
@@ -166,9 +233,7 @@ public class BundleExportService : IBundleExportService
 
             foreach (Command command in commands.Values)
             {
-                string? pipelineName = command.PipelineId is Guid linkedId
-                    ? pipelines[linkedId].Name
-                    : null;
+                string? pipelineName = PipelineNameOf(command.PipelineId);
                 CommandExport export = new()
                 {
                     Name = command.Name,
@@ -183,9 +248,7 @@ public class BundleExportService : IBundleExportService
                     Aliases = command.Aliases,
                     IsEnabled = command.IsEnabled,
                 };
-                IReadOnlyList<string> dependencies = pipelineName is null
-                    ? []
-                    : [$"{BundleFormat.PipelineType}:{pipelineName}"];
+                IReadOnlyList<string> dependencies = PipelineEdge(pipelineName);
                 manifestItems.Add(
                     await WriteItemAsync(
                         archive,
@@ -289,8 +352,195 @@ public class BundleExportService : IBundleExportService
                 );
             }
 
-            BundleManifest manifest = new() { Metadata = request.Metadata, Items = manifestItems };
-            await WriteJsonEntryAsync(archive, BundleFormat.ManifestEntryName, manifest, ct);
+            foreach (EventResponse response in eventResponses.Values)
+            {
+                string? pipelineName = PipelineNameOf(response.PipelineId);
+                EventResponseExport export = new()
+                {
+                    EventType = response.EventType,
+                    ResponseType = response.ResponseType,
+                    Message = response.Message,
+                    PipelineName = pipelineName,
+                    Metadata = response.MetadataJson,
+                    IsEnabled = response.IsEnabled,
+                };
+                manifestItems.Add(
+                    await WriteItemAsync(
+                        archive,
+                        BundleFormat.EventResponseType,
+                        response.EventType,
+                        export,
+                        PipelineEdge(pipelineName),
+                        usedSlugs,
+                        ct
+                    )
+                );
+            }
+
+            foreach (Reward reward in rewards.Values)
+            {
+                // D2: TwitchRewardId / IsManageable / IsPlatform never travel — an imported reward is a
+                // fresh LOCAL definition the target channel pushes to Twitch through its own sync.
+                string? pipelineName = PipelineNameOf(reward.PipelineId);
+                RewardExport export = new()
+                {
+                    Title = reward.Title,
+                    Description = reward.Description,
+                    Response = reward.Response,
+                    Cost = reward.Cost ?? 0,
+                    TimerDurationSeconds = reward.TimerDurationSeconds,
+                    PipelineName = pipelineName,
+                    IsEnabled = reward.IsEnabled,
+                };
+                manifestItems.Add(
+                    await WriteItemAsync(
+                        archive,
+                        BundleFormat.RewardType,
+                        reward.Title,
+                        export,
+                        PipelineEdge(pipelineName),
+                        usedSlugs,
+                        ct
+                    )
+                );
+            }
+
+            foreach (DomainTimer timer in timers.Values)
+            {
+                // LastFiredAt / NextMessageIndex are runtime counters (D2) — never exported.
+                string? pipelineName = PipelineNameOf(timer.PipelineId);
+                TimerExport export = new()
+                {
+                    Name = timer.Name,
+                    Messages = timer.Messages,
+                    IntervalMinutes = timer.IntervalMinutes,
+                    MinChatActivity = timer.MinChatActivity,
+                    FireOnce = timer.FireOnce,
+                    PipelineName = pipelineName,
+                    IsEnabled = timer.IsEnabled,
+                };
+                manifestItems.Add(
+                    await WriteItemAsync(
+                        archive,
+                        BundleFormat.TimerType,
+                        timer.Name,
+                        export,
+                        PipelineEdge(pipelineName),
+                        usedSlugs,
+                        ct
+                    )
+                );
+            }
+
+            foreach (ChatTrigger trigger in chatTriggers.Values)
+            {
+                string? pipelineName = PipelineNameOf(trigger.PipelineId);
+                ChatTriggerExport export = new()
+                {
+                    Pattern = trigger.Pattern,
+                    MatchType = trigger.MatchType,
+                    CaseSensitive = trigger.CaseSensitive,
+                    Response = trigger.Response,
+                    PipelineName = pipelineName,
+                    CooldownSeconds = trigger.CooldownSeconds,
+                    MinPermissionLevel = trigger.MinPermissionLevel,
+                    IsEnabled = trigger.IsEnabled,
+                };
+                manifestItems.Add(
+                    await WriteItemAsync(
+                        archive,
+                        BundleFormat.ChatTriggerType,
+                        trigger.Pattern,
+                        export,
+                        PipelineEdge(pipelineName),
+                        usedSlugs,
+                        ct
+                    )
+                );
+            }
+
+            foreach (PickList pickList in pickLists.Values)
+            {
+                PickListExport export = new()
+                {
+                    Name = pickList.Name,
+                    Description = pickList.Description,
+                    Items = pickList.Items,
+                };
+                manifestItems.Add(
+                    await WriteItemAsync(
+                        archive,
+                        BundleFormat.PickListType,
+                        pickList.Name,
+                        export,
+                        [],
+                        usedSlugs,
+                        ct
+                    )
+                );
+            }
+
+            foreach (CodeScript script in codeScripts.Values)
+            {
+                // Export the live (current) version's project, falling back to the newest saved version
+                // for a script that never published a valid one — the same read GetProjectAsync makes.
+                CodeScriptVersion? version = script.CurrentVersionId is Guid currentId
+                    ? await _db.CodeScriptVersions.FirstOrDefaultAsync(v => v.Id == currentId, ct)
+                    : await _db
+                        .CodeScriptVersions.Where(v => v.CodeScriptId == script.Id)
+                        .OrderByDescending(v => v.Version)
+                        .FirstOrDefaultAsync(ct);
+                if (version is null)
+                    return Result.Failure<System.IO.Stream>(
+                        $"Code script '{script.Name}' has no saved version to export.",
+                        "EXPORT_FAILED"
+                    );
+
+                Dictionary<string, string>? files = ProjectJson.DeserializeFiles(version.FilesJson);
+                ProjectManifest? manifest = ProjectJson.DeserializeManifest(version.ManifestJson);
+                if (files is null || manifest is null)
+                    (files, manifest) = ProjectScaffold.SingleFile(
+                        "script",
+                        script.Language,
+                        version.SourceCode
+                    );
+
+                CodeScriptExport export = new()
+                {
+                    Name = script.Name,
+                    Description = script.Description,
+                    Language = script.Language,
+                    Files = files,
+                    Manifest = new CodeScriptManifestExport(
+                        manifest.Entry,
+                        manifest.Kind,
+                        manifest.Framework,
+                        manifest.Dependencies
+                    ),
+                    DeclaredCapabilities =
+                        BundleConventions.Deserialize<List<string>>(
+                            version.DeclaredCapabilitiesJson
+                        ) ?? [],
+                };
+                manifestItems.Add(
+                    await WriteItemAsync(
+                        archive,
+                        BundleFormat.CodeScriptType,
+                        script.Name,
+                        export,
+                        [],
+                        usedSlugs,
+                        ct
+                    )
+                );
+            }
+
+            BundleManifest bundleManifest = new()
+            {
+                Metadata = request.Metadata,
+                Items = manifestItems,
+            };
+            await WriteJsonEntryAsync(archive, BundleFormat.ManifestEntryName, bundleManifest, ct);
         }
 
         buffer.Position = 0;

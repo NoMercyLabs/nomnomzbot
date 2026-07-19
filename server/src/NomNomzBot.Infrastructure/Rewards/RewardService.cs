@@ -53,12 +53,18 @@ public class RewardService : IRewardService
         if (!channel)
             return Errors.ChannelNotFound<RewardDetail>(broadcasterId);
 
+        // A locally-created reward is a bot-owned DEFINITION: it persists the full requested shape and is
+        // manageable by construction (it has no Twitch id yet — sync/recreate pushes it to Twitch later).
         Reward reward = new()
         {
             Id = Guid.NewGuid(),
             BroadcasterId = broadcaster,
             Title = request.Title,
+            Cost = request.Cost,
+            Description = request.Prompt,
+            Response = request.Response,
             IsEnabled = true,
+            IsManageable = true,
             TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds),
             PipelineId = request.PipelineId,
         };

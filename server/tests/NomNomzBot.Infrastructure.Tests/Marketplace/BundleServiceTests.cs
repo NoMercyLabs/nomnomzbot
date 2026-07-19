@@ -12,13 +12,18 @@ using System.IO.Compression;
 using System.Text;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Marketplace;
 using NomNomzBot.Application.CustomEvents.Services;
 using NomNomzBot.Application.Marketplace.Services;
+using NomNomzBot.Application.PickLists.Services;
+using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Commands.Entities;
@@ -97,6 +102,13 @@ public sealed class BundleServiceTests
             Substitute.For<IWidgetService>(),
             Substitute.For<ISoundClipService>(),
             dataSources,
+            Substitute.For<IEventResponseService>(),
+            Substitute.For<IRewardService>(),
+            Substitute.For<ITimerManagementService>(),
+            Substitute.For<IChatTriggerService>(),
+            Substitute.For<IPickListService>(),
+            Substitute.For<ICodeScriptService>(),
+            Substitute.For<ICurrentTenantService>(),
             bus
         );
         return new Harness(db, export, import, commands, pipelines, dataSources, bus, protector);

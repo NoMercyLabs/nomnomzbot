@@ -187,3 +187,40 @@ ZIP bundles with a versioned per-type export contract (D1); secrets/PII stripped
   Bearer), GET `/v1/submissions/{id}` → `{submissionId, status pending|approved|rejected, reviewNote}`.
 - **Rate buckets:** install 10/hour, publish 5/hour per channel via `IRateLimiterPartitionStore`;
   denial `RATE_LIMITED` + Retry-After.
+
+### §8 addendum — parity item types (2026-07-19)
+
+The bundle format grew six item types so a complete channel setup travels through the ONE generic
+import surface: `event_response`, `reward`, `timer`, `chat_trigger`, `pick_list`, `code_script`
+(constants on `BundleFormat`; export contracts `EventResponseExport` / `RewardExport` / `TimerExport`
+/ `ChatTriggerExport` / `PickListExport` / `CodeScriptExport` (+ `CodeScriptManifestExport`) beside
+the original five). Per-type folders: `event-responses/`, `rewards/`, `timers/`, `chat-triggers/`,
+`pick-lists/`, `code-scripts/` (one JSON doc each; a code script's multi-file project rides INSIDE
+its JSON as `files` + `manifest`). Mechanics:
+
+- **Pipeline edges generalized.** `event_response`/`reward`/`timer`/`chat_trigger` (like `command`)
+  carry `PipelineName` + a `pipeline:<name>` dependency edge; export auto-pulls the bound pipeline;
+  inspect fails the bundle (`BUNDLE_INVALID`, before any write) when any edge doesn't resolve
+  inside the bundle; import re-links BY NAME to the bundle's imported pipeline (fresh id).
+- **`event_response` is keyed per EventType, not named** — import UPSERTS by event type through
+  `IEventResponseService.UpsertAsync` regardless of conflict policy (a channel has at most one row
+  per event; the lazy catalog seed restores the disabled default after uninstall/rollback).
+- **`reward` never exports `TwitchRewardId`/`IsManageable`/`IsPlatform`** — import creates a LOCAL,
+  bot-manageable definition via `IRewardService.CreateAsync` (which now persists the full request
+  shape — Cost/Prompt/`Response` (new field)/`IsManageable=true`); Helix is never called, so a
+  target with no Twitch connection imports fine and sync/recreate pushes later. Rename-on-collision
+  keys on Title (free-text ` (bundle N)`).
+- **Rename conventions:** free-text ` (bundle N)` for reward Title, timer Name, chat-trigger
+  Pattern, code-script Name; slug `-bundle-N` for pick-list Name (a `{list.pick.<name>}` key).
+- **`code_script` import** = `ICodeScriptService.CreateAsync` (entry file; validate-on-save
+  recompiles on the importing instance) + `SaveProjectAsync` for multi-file projects, then ALWAYS
+  `SetEnabledAsync(false)` (D4, the `run_code` convention). A rejected compile deletes the
+  audit remnant and rolls the bundle back. Code scripts ride the tenant-ambient module — import
+  refuses `TENANT_MISMATCH` before any write if the resolved tenant isn't the import target.
+- **Capability summary extended:** per-type flags for the new types, `executes custom code` for any
+  bundled script, and the script's `DeclaredCapabilities` keys mapped to plain language
+  (`BundleConventions.ScriptCapability`, generic fallback for unknown keys) listed next to the
+  pipeline-action entries.
+- **Uninstall/rollback cover all six** through the owning module services; pipeline-bound types
+  delete before pipelines. Runtime counters (`Timer.LastFiredAt`/`NextMessageIndex`) and per-viewer
+  data never export (D2).

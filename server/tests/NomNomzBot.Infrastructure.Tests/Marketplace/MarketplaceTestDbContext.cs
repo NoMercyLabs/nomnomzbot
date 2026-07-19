@@ -37,11 +37,12 @@ using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 namespace NomNomzBot.Infrastructure.Tests.Marketplace;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> over the bundle import/export surface — <see cref="Command"/>,
-/// <see cref="PipelineEntity"/>, <see cref="CustomDataSource"/>, and <see cref="InstalledBundle"/> — on the
-/// EF Core InMemory provider, for the marketplace round-trip tests. Everything else throws, since those
-/// tests never reach it. Mirrors the "declare every DbSet, auto-ignore the unmapped ones" shape of
-/// <c>Commands/CommandsTestDbContext.cs</c>.
+/// A focused <see cref="IApplicationDbContext"/> over the bundle import/export surface — pipelines, commands,
+/// custom data sources, the six parity item types (event responses, rewards, timers, chat triggers, pick
+/// lists, code scripts + versions), <see cref="Channel"/> (reward/pick-list creation checks it), and
+/// <see cref="InstalledBundle"/> — on the EF Core InMemory provider, for the marketplace round-trip tests.
+/// Everything else throws, since those tests never reach it. Mirrors the "declare every DbSet, auto-ignore
+/// the unmapped ones" shape of <c>Commands/CommandsTestDbContext.cs</c>.
 /// </summary>
 internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContext
 {
@@ -59,6 +60,15 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<PipelineEntity> Pipelines => Set<PipelineEntity>();
     public DbSet<CustomDataSource> CustomDataSources => Set<CustomDataSource>();
     public DbSet<InstalledBundle> InstalledBundles => Set<InstalledBundle>();
+    public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<EventResponse> EventResponses => Set<EventResponse>();
+    public DbSet<Reward> Rewards => Set<Reward>();
+    public DbSet<DomainTimer> Timers => Set<DomainTimer>();
+    public DbSet<ChatTrigger> ChatTriggers => Set<ChatTrigger>();
+    public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
+        Set<NomNomzBot.Domain.PickLists.Entities.PickList>();
+    public DbSet<CodeScript> CodeScripts => Set<CodeScript>();
+    public DbSet<CodeScriptVersion> CodeScriptVersions => Set<CodeScriptVersion>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -101,6 +111,68 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
             e.Ignore(i => i.InstalledByUser);
         });
 
+        b.Entity<Channel>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.User);
+            e.Ignore(c => c.Moderators);
+            e.Ignore(c => c.Streams);
+            e.Ignore(c => c.Events);
+            e.Ignore(c => c.Tags);
+            e.Ignore(c => c.ContentLabels);
+        });
+
+        b.Entity<EventResponse>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.Ignore(r => r.Pipeline);
+            e.Ignore(r => r.Channel);
+            e.Property(r => r.MetadataJson)
+                .HasConversion(
+                    JsonValueConverter.Converter<Dictionary<string, string>>(),
+                    JsonValueConverter.Comparer<Dictionary<string, string>>()
+                );
+        });
+
+        b.Entity<Reward>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.Ignore(r => r.Channel);
+        });
+
+        b.Entity<DomainTimer>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Ignore(t => t.Pipeline);
+            e.Ignore(t => t.Channel);
+            e.Property(t => t.Messages)
+                .HasConversion(
+                    JsonValueConverter.Converter<List<string>>(),
+                    JsonValueConverter.Comparer<List<string>>()
+                );
+        });
+
+        b.Entity<ChatTrigger>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Ignore(t => t.Pipeline);
+            e.Ignore(t => t.Channel);
+        });
+
+        b.Entity<NomNomzBot.Domain.PickLists.Entities.PickList>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Ignore(p => p.Channel);
+            e.Property(p => p.Items)
+                .HasConversion(
+                    JsonValueConverter.Converter<List<string>>(),
+                    JsonValueConverter.Comparer<List<string>>()
+                );
+        });
+
+        b.Entity<CodeScript>(e => e.HasKey(s => s.Id));
+        b.Entity<CodeScriptVersion>(e => e.HasKey(v => v.Id));
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -113,6 +185,14 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
         typeof(PipelineEntity),
         typeof(CustomDataSource),
         typeof(InstalledBundle),
+        typeof(Channel),
+        typeof(EventResponse),
+        typeof(Reward),
+        typeof(DomainTimer),
+        typeof(ChatTrigger),
+        typeof(NomNomzBot.Domain.PickLists.Entities.PickList),
+        typeof(CodeScript),
+        typeof(CodeScriptVersion),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -131,14 +211,10 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ErasureRequest> ErasureRequests =>
         throw new NotSupportedException();
-    public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Service> Services => throw new NotSupportedException();
-    public DbSet<DomainTimer> Timers => throw new NotSupportedException();
-    public DbSet<Reward> Rewards => throw new NotSupportedException();
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
     public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
-    public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>
@@ -163,8 +239,6 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
         throw new NotSupportedException();
     public DbSet<Quote> Quotes => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<Widget> Widgets => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetVersion> WidgetVersions =>
@@ -240,7 +314,6 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ComplianceAuditLog> ComplianceAuditLogs =>
         throw new NotSupportedException();
-    public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStep> PipelineSteps =>
         throw new NotSupportedException();
@@ -328,8 +401,6 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<ChannelChatterDay> ChannelChatterDays => throw new NotSupportedException();
     public DbSet<FeatureFlag> FeatureFlags => throw new NotSupportedException();
     public DbSet<FeatureFlagOverride> FeatureFlagOverrides => throw new NotSupportedException();
-    public DbSet<CodeScript> CodeScripts => throw new NotSupportedException();
-    public DbSet<CodeScriptVersion> CodeScriptVersions => throw new NotSupportedException();
     public DbSet<SoundClip> SoundClips => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
         throw new NotSupportedException();

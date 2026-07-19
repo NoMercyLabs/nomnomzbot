@@ -11,23 +11,34 @@
 using System.IO.Compression;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Marketplace;
 using NomNomzBot.Application.CustomEvents.Services;
+using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.Marketplace.Services;
+using NomNomzBot.Application.PickLists.Dtos;
+using NomNomzBot.Application.PickLists.Services;
+using NomNomzBot.Application.Rewards.Dtos;
+using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomEvents.Entities;
 using NomNomzBot.Domain.Marketplace.Entities;
 using NomNomzBot.Domain.Marketplace.Events;
+using NomNomzBot.Domain.PickLists.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 
 namespace NomNomzBot.Infrastructure.Marketplace;
 
@@ -49,6 +60,13 @@ public class BundleImportService : IBundleImportService
     private readonly IWidgetService _widgets;
     private readonly ISoundClipService _sounds;
     private readonly ICustomDataSourceService _dataSources;
+    private readonly IEventResponseService _eventResponses;
+    private readonly IRewardService _rewards;
+    private readonly ITimerManagementService _timers;
+    private readonly IChatTriggerService _chatTriggers;
+    private readonly IPickListService _pickLists;
+    private readonly ICodeScriptService _codeScripts;
+    private readonly ICurrentTenantService _tenant;
     private readonly IEventBus _eventBus;
 
     public BundleImportService(
@@ -58,6 +76,13 @@ public class BundleImportService : IBundleImportService
         IWidgetService widgets,
         ISoundClipService sounds,
         ICustomDataSourceService dataSources,
+        IEventResponseService eventResponses,
+        IRewardService rewards,
+        ITimerManagementService timers,
+        IChatTriggerService chatTriggers,
+        IPickListService pickLists,
+        ICodeScriptService codeScripts,
+        ICurrentTenantService tenant,
         IEventBus eventBus
     )
     {
@@ -67,6 +92,13 @@ public class BundleImportService : IBundleImportService
         _widgets = widgets;
         _sounds = sounds;
         _dataSources = dataSources;
+        _eventResponses = eventResponses;
+        _rewards = rewards;
+        _timers = timers;
+        _chatTriggers = chatTriggers;
+        _pickLists = pickLists;
+        _codeScripts = codeScripts;
+        _tenant = tenant;
         _eventBus = eventBus;
     }
 
@@ -142,6 +174,15 @@ public class BundleImportService : IBundleImportService
         string channelId = broadcasterId.ToString();
         List<(string Type, Guid Id, string Name)> created = [];
         Dictionary<string, Guid> pipelineIdsByName = [];
+
+        // Code scripts go through the tenant-ambient code-script module (custom-code.md broker invariant:
+        // no BroadcasterId parameter). Refuse up front — BEFORE any write — when the resolved tenant is
+        // not the import target, rather than creating scripts on the wrong channel.
+        if (bundle.CodeScripts.Count > 0 && _tenant.BroadcasterId != broadcasterId)
+            return Result.Failure<InstalledBundleDto>(
+                "This bundle contains code scripts, which can only be imported while acting on the target channel.",
+                "TENANT_MISMATCH"
+            );
 
         try
         {
@@ -317,6 +358,459 @@ public class BundleImportService : IBundleImportService
                             ct
                         );
                 }
+            }
+
+            // Event responses are keyed per event type — every channel already (lazily) has one row per
+            // catalog event, so the import UPSERTS by EventType regardless of the conflict policy. A
+            // rollback/uninstall deletes the row; the module's lazy seed restores the disabled default.
+            foreach (EventResponseExport export in bundle.EventResponses)
+            {
+                Result<EventResponseDto> upserted = await _eventResponses.UpsertAsync(
+                    channelId,
+                    export.EventType,
+                    new UpdateEventResponseDto
+                    {
+                        IsEnabled = export.IsEnabled,
+                        ResponseType = export.ResponseType,
+                        Message = export.Message,
+                        PipelineId = export.PipelineName is not null
+                            ? pipelineIdsByName.GetValueOrDefault(export.PipelineName)
+                            : null,
+                        Metadata = export.Metadata.ToDictionary(kv => kv.Key, kv => kv.Value),
+                    },
+                    ct
+                );
+                if (upserted.IsFailure)
+                    return await RollbackAsync(
+                        broadcasterId,
+                        actorUserId,
+                        created,
+                        upserted.ErrorMessage,
+                        upserted.ErrorCode,
+                        ct
+                    );
+                created.Add((BundleFormat.EventResponseType, upserted.Value.Id, export.EventType));
+            }
+
+            foreach (RewardExport export in bundle.Rewards)
+            {
+                Reward? existing = await _db.Rewards.FirstOrDefaultAsync(
+                    r => r.BroadcasterId == broadcasterId && r.Title == export.Title,
+                    ct
+                );
+                string title = export.Title;
+                if (existing is not null)
+                {
+                    if (policy == ImportConflictPolicy.Skip)
+                        continue;
+                    if (policy == ImportConflictPolicy.Overwrite)
+                    {
+                        Result deleted = await _rewards.DeleteAsync(
+                            channelId,
+                            existing.Id.ToString(),
+                            ct
+                        );
+                        if (deleted.IsFailure)
+                            return await RollbackAsync(
+                                broadcasterId,
+                                actorUserId,
+                                created,
+                                deleted.ErrorMessage,
+                                deleted.ErrorCode,
+                                ct
+                            );
+                    }
+                    else
+                    {
+                        title = await FreeNameAsync(
+                            export.Title,
+                            freeText: true,
+                            maxLength: 255,
+                            candidate =>
+                                _db.Rewards.AnyAsync(
+                                    r => r.BroadcasterId == broadcasterId && r.Title == candidate,
+                                    ct
+                                )
+                        );
+                    }
+                }
+
+                // D2: the import creates a LOCAL, bot-manageable definition (no TwitchRewardId) — the
+                // channel's existing sync/recreate endpoints push it to Twitch later, so Helix being
+                // unavailable can never fail the bundle.
+                Result<RewardDetail> createdReward = await _rewards.CreateAsync(
+                    channelId,
+                    new CreateRewardRequest
+                    {
+                        Title = title,
+                        Cost = export.Cost,
+                        Prompt = export.Description,
+                        Response = export.Response,
+                        TimerDurationSeconds = export.TimerDurationSeconds,
+                        PipelineId = export.PipelineName is not null
+                            ? pipelineIdsByName.GetValueOrDefault(export.PipelineName)
+                            : null,
+                    },
+                    ct
+                );
+                if (createdReward.IsFailure)
+                    return await RollbackAsync(
+                        broadcasterId,
+                        actorUserId,
+                        created,
+                        createdReward.ErrorMessage,
+                        createdReward.ErrorCode,
+                        ct
+                    );
+                created.Add((BundleFormat.RewardType, Guid.Parse(createdReward.Value.Id), title));
+
+                // A local reward has no Twitch id, so this disable applies locally without a Helix call.
+                if (!export.IsEnabled)
+                {
+                    Result<RewardDetail> disabled = await _rewards.UpdateAsync(
+                        channelId,
+                        createdReward.Value.Id,
+                        new UpdateRewardRequest { IsEnabled = false },
+                        ct
+                    );
+                    if (disabled.IsFailure)
+                        return await RollbackAsync(
+                            broadcasterId,
+                            actorUserId,
+                            created,
+                            disabled.ErrorMessage,
+                            disabled.ErrorCode,
+                            ct
+                        );
+                }
+            }
+
+            foreach (TimerExport export in bundle.Timers)
+            {
+                DomainTimer? existing = await _db.Timers.FirstOrDefaultAsync(
+                    t => t.BroadcasterId == broadcasterId && t.Name == export.Name,
+                    ct
+                );
+                string name = export.Name;
+                if (existing is not null)
+                {
+                    if (policy == ImportConflictPolicy.Skip)
+                        continue;
+                    if (policy == ImportConflictPolicy.Overwrite)
+                    {
+                        Result deleted = await _timers.DeleteAsync(channelId, existing.Id, ct);
+                        if (deleted.IsFailure)
+                            return await RollbackAsync(
+                                broadcasterId,
+                                actorUserId,
+                                created,
+                                deleted.ErrorMessage,
+                                deleted.ErrorCode,
+                                ct
+                            );
+                    }
+                    else
+                    {
+                        name = await FreeNameAsync(
+                            export.Name,
+                            freeText: true,
+                            maxLength: 100,
+                            candidate =>
+                                _db.Timers.AnyAsync(
+                                    t => t.BroadcasterId == broadcasterId && t.Name == candidate,
+                                    ct
+                                )
+                        );
+                    }
+                }
+
+                Result<TimerDto> createdTimer = await _timers.CreateAsync(
+                    channelId,
+                    new CreateTimerDto
+                    {
+                        Name = name,
+                        Messages = export.Messages.ToList(),
+                        PipelineId = export.PipelineName is not null
+                            ? pipelineIdsByName.GetValueOrDefault(export.PipelineName)
+                            : null,
+                        IntervalMinutes = export.IntervalMinutes,
+                        MinChatActivity = export.MinChatActivity,
+                        IsEnabled = export.IsEnabled,
+                        FireOnce = export.FireOnce,
+                    },
+                    ct
+                );
+                if (createdTimer.IsFailure)
+                    return await RollbackAsync(
+                        broadcasterId,
+                        actorUserId,
+                        created,
+                        createdTimer.ErrorMessage,
+                        createdTimer.ErrorCode,
+                        ct
+                    );
+                created.Add((BundleFormat.TimerType, createdTimer.Value.Id, name));
+            }
+
+            foreach (ChatTriggerExport export in bundle.ChatTriggers)
+            {
+                ChatTrigger? existing = await _db.ChatTriggers.FirstOrDefaultAsync(
+                    t => t.BroadcasterId == broadcasterId && t.Pattern == export.Pattern,
+                    ct
+                );
+                string pattern = export.Pattern;
+                if (existing is not null)
+                {
+                    if (policy == ImportConflictPolicy.Skip)
+                        continue;
+                    if (policy == ImportConflictPolicy.Overwrite)
+                    {
+                        Result deleted = await _chatTriggers.DeleteAsync(
+                            channelId,
+                            existing.Id,
+                            ct
+                        );
+                        if (deleted.IsFailure)
+                            return await RollbackAsync(
+                                broadcasterId,
+                                actorUserId,
+                                created,
+                                deleted.ErrorMessage,
+                                deleted.ErrorCode,
+                                ct
+                            );
+                    }
+                    else
+                    {
+                        pattern = await FreeNameAsync(
+                            export.Pattern,
+                            freeText: true,
+                            maxLength: 200,
+                            candidate =>
+                                _db.ChatTriggers.AnyAsync(
+                                    t => t.BroadcasterId == broadcasterId && t.Pattern == candidate,
+                                    ct
+                                )
+                        );
+                    }
+                }
+
+                Result<ChatTriggerDto> createdTrigger = await _chatTriggers.CreateAsync(
+                    channelId,
+                    new CreateChatTriggerRequest
+                    {
+                        Pattern = pattern,
+                        MatchType = export.MatchType,
+                        CaseSensitive = export.CaseSensitive,
+                        IsEnabled = export.IsEnabled,
+                        Response = export.Response,
+                        PipelineId = export.PipelineName is not null
+                            ? pipelineIdsByName.GetValueOrDefault(export.PipelineName)
+                            : null,
+                        CooldownSeconds = export.CooldownSeconds,
+                        MinPermissionLevel = export.MinPermissionLevel,
+                    },
+                    ct
+                );
+                if (createdTrigger.IsFailure)
+                    return await RollbackAsync(
+                        broadcasterId,
+                        actorUserId,
+                        created,
+                        createdTrigger.ErrorMessage,
+                        createdTrigger.ErrorCode,
+                        ct
+                    );
+                created.Add((BundleFormat.ChatTriggerType, createdTrigger.Value.Id, pattern));
+            }
+
+            foreach (PickListExport export in bundle.PickLists)
+            {
+                PickList? existing = await _db
+                    .PickLists.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(
+                        p =>
+                            p.BroadcasterId == broadcasterId
+                            && p.Name == export.Name
+                            && p.DeletedAt == null,
+                        ct
+                    );
+                string name = export.Name;
+                if (existing is not null)
+                {
+                    if (policy == ImportConflictPolicy.Skip)
+                        continue;
+                    if (policy == ImportConflictPolicy.Overwrite)
+                    {
+                        Result deleted = await _pickLists.DeleteAsync(
+                            broadcasterId,
+                            existing.Id,
+                            ct
+                        );
+                        if (deleted.IsFailure)
+                            return await RollbackAsync(
+                                broadcasterId,
+                                actorUserId,
+                                created,
+                                deleted.ErrorMessage,
+                                deleted.ErrorCode,
+                                ct
+                            );
+                    }
+                    else
+                    {
+                        name = await FreeNameAsync(
+                            export.Name,
+                            freeText: false,
+                            maxLength: 100,
+                            candidate =>
+                                _db.PickLists.IgnoreQueryFilters()
+                                    .AnyAsync(
+                                        p =>
+                                            p.BroadcasterId == broadcasterId
+                                            && p.Name == candidate
+                                            && p.DeletedAt == null,
+                                        ct
+                                    )
+                        );
+                    }
+                }
+
+                Result<PickListDto> createdList = await _pickLists.CreateAsync(
+                    broadcasterId,
+                    new CreatePickListRequest(name, export.Description, export.Items.ToList()),
+                    ct
+                );
+                if (createdList.IsFailure)
+                    return await RollbackAsync(
+                        broadcasterId,
+                        actorUserId,
+                        created,
+                        createdList.ErrorMessage,
+                        createdList.ErrorCode,
+                        ct
+                    );
+                created.Add((BundleFormat.PickListType, createdList.Value.Id, name));
+            }
+
+            foreach (CodeScriptExport export in bundle.CodeScripts)
+            {
+                CodeScript? existing = await _db.CodeScripts.FirstOrDefaultAsync(
+                    s =>
+                        s.BroadcasterId == broadcasterId
+                        && s.Name == export.Name
+                        && s.DeletedAt == null,
+                    ct
+                );
+                string name = export.Name;
+                if (existing is not null)
+                {
+                    if (policy == ImportConflictPolicy.Skip)
+                        continue;
+                    if (policy == ImportConflictPolicy.Overwrite)
+                    {
+                        Result deleted = await _codeScripts.DeleteAsync(existing.Id, ct);
+                        if (deleted.IsFailure)
+                            return await RollbackAsync(
+                                broadcasterId,
+                                actorUserId,
+                                created,
+                                deleted.ErrorMessage,
+                                deleted.ErrorCode,
+                                ct
+                            );
+                    }
+                    else
+                    {
+                        name = await FreeNameAsync(
+                            export.Name,
+                            freeText: true,
+                            maxLength: 100,
+                            candidate =>
+                                _db.CodeScripts.AnyAsync(
+                                    s =>
+                                        s.BroadcasterId == broadcasterId
+                                        && s.Name == candidate
+                                        && s.DeletedAt == null,
+                                    ct
+                                )
+                        );
+                    }
+                }
+
+                // Create + Version 1 from the entry file — validate-on-save recompiles the source on THIS
+                // instance. A rejected compile still persists the script + version for audit, so the
+                // failure path deletes that remnant before rolling the bundle back.
+                string entrySource = export.Files[export.Manifest.Entry];
+                Result<CodeScriptDetailDto> createdScript = await _codeScripts.CreateAsync(
+                    new CreateCodeScriptRequest(name, export.Description, entrySource),
+                    ct
+                );
+                if (createdScript.IsFailure)
+                {
+                    CodeScript? remnant = await _db.CodeScripts.FirstOrDefaultAsync(
+                        s =>
+                            s.BroadcasterId == broadcasterId
+                            && s.Name == name
+                            && s.DeletedAt == null,
+                        ct
+                    );
+                    if (remnant is not null)
+                        await _codeScripts.DeleteAsync(remnant.Id, CancellationToken.None);
+                    return await RollbackAsync(
+                        broadcasterId,
+                        actorUserId,
+                        created,
+                        createdScript.ErrorMessage,
+                        createdScript.ErrorCode,
+                        ct
+                    );
+                }
+                created.Add((BundleFormat.CodeScriptType, createdScript.Value.Id, name));
+
+                // A multi-file project (or one declaring dependencies) is stored whole via the project
+                // save, so the editor round-trips the full src/ tree on the importing instance too.
+                if (export.Files.Count > 1 || export.Manifest.Dependencies.Count > 0)
+                {
+                    Result<CodeScriptVersionDto> savedProject = await _codeScripts.SaveProjectAsync(
+                        createdScript.Value.Id,
+                        new ProjectDto(
+                            export.Files.ToDictionary(kv => kv.Key, kv => kv.Value),
+                            new ProjectManifestDto(
+                                export.Manifest.Entry,
+                                export.Manifest.Kind,
+                                export.Manifest.Framework,
+                                export.Manifest.Dependencies
+                            )
+                        ),
+                        ct
+                    );
+                    if (savedProject.IsFailure)
+                        return await RollbackAsync(
+                            broadcasterId,
+                            actorUserId,
+                            created,
+                            savedProject.ErrorMessage,
+                            savedProject.ErrorCode,
+                            ct
+                        );
+                }
+
+                // D4: imported custom code ALWAYS lands disabled — enabling is an explicit owner action.
+                Result disabledScript = await _codeScripts.SetEnabledAsync(
+                    createdScript.Value.Id,
+                    false,
+                    ct
+                );
+                if (disabledScript.IsFailure)
+                    return await RollbackAsync(
+                        broadcasterId,
+                        actorUserId,
+                        created,
+                        disabledScript.ErrorMessage,
+                        disabledScript.ErrorCode,
+                        ct
+                    );
             }
 
             foreach (WidgetExport export in bundle.Widgets)
@@ -643,6 +1137,12 @@ public class BundleImportService : IBundleImportService
         List<WidgetExport> Widgets,
         List<(SoundExport Export, byte[] Audio)> Sounds,
         List<CustomDataSourceExport> DataSources,
+        List<EventResponseExport> EventResponses,
+        List<RewardExport> Rewards,
+        List<TimerExport> Timers,
+        List<ChatTriggerExport> ChatTriggers,
+        List<PickListExport> PickLists,
+        List<CodeScriptExport> CodeScripts,
         IReadOnlyList<string> Capabilities,
         List<string> Issues
     );
@@ -723,6 +1223,12 @@ public class BundleImportService : IBundleImportService
             List<WidgetExport> widgets = [];
             List<(SoundExport, byte[])> sounds = [];
             List<CustomDataSourceExport> dataSources = [];
+            List<EventResponseExport> eventResponses = [];
+            List<RewardExport> rewards = [];
+            List<TimerExport> timers = [];
+            List<ChatTriggerExport> chatTriggers = [];
+            List<PickListExport> pickLists = [];
+            List<CodeScriptExport> codeScripts = [];
 
             foreach (BundleManifestItem item in manifest.Items)
             {
@@ -815,33 +1321,148 @@ public class BundleImportService : IBundleImportService
                             dataSources.Add(export);
                         break;
                     }
+                    case BundleFormat.EventResponseType:
+                    {
+                        EventResponseExport? export = await ReadItemAsync<EventResponseExport>(
+                            archive,
+                            item,
+                            issues,
+                            ct
+                        );
+                        if (
+                            export is not null
+                            && Validate(item, export.SchemaVersion, export.EventType, issues)
+                        )
+                            eventResponses.Add(export);
+                        break;
+                    }
+                    case BundleFormat.RewardType:
+                    {
+                        RewardExport? export = await ReadItemAsync<RewardExport>(
+                            archive,
+                            item,
+                            issues,
+                            ct
+                        );
+                        if (
+                            export is not null
+                            && Validate(item, export.SchemaVersion, export.Title, issues)
+                        )
+                            rewards.Add(export);
+                        break;
+                    }
+                    case BundleFormat.TimerType:
+                    {
+                        TimerExport? export = await ReadItemAsync<TimerExport>(
+                            archive,
+                            item,
+                            issues,
+                            ct
+                        );
+                        if (
+                            export is not null
+                            && Validate(item, export.SchemaVersion, export.Name, issues)
+                        )
+                            timers.Add(export);
+                        break;
+                    }
+                    case BundleFormat.ChatTriggerType:
+                    {
+                        ChatTriggerExport? export = await ReadItemAsync<ChatTriggerExport>(
+                            archive,
+                            item,
+                            issues,
+                            ct
+                        );
+                        if (
+                            export is not null
+                            && Validate(item, export.SchemaVersion, export.Pattern, issues)
+                        )
+                            chatTriggers.Add(export);
+                        break;
+                    }
+                    case BundleFormat.PickListType:
+                    {
+                        PickListExport? export = await ReadItemAsync<PickListExport>(
+                            archive,
+                            item,
+                            issues,
+                            ct
+                        );
+                        if (
+                            export is not null
+                            && Validate(item, export.SchemaVersion, export.Name, issues)
+                        )
+                            pickLists.Add(export);
+                        break;
+                    }
+                    case BundleFormat.CodeScriptType:
+                    {
+                        CodeScriptExport? export = await ReadItemAsync<CodeScriptExport>(
+                            archive,
+                            item,
+                            issues,
+                            ct
+                        );
+                        if (
+                            export is null
+                            || !Validate(item, export.SchemaVersion, export.Name, issues)
+                        )
+                            break;
+                        if (
+                            export.Manifest is null
+                            || !export.Files.ContainsKey(export.Manifest.Entry)
+                        )
+                        {
+                            issues.Add(
+                                $"Code script '{item.Name}' has no project entry file — the manifest entry must be present in its file set."
+                            );
+                            break;
+                        }
+                        codeScripts.Add(export);
+                        break;
+                    }
                     default:
                         issues.Add($"Item '{item.Name}' has an unknown type '{item.Type}'.");
                         break;
                 }
             }
 
-            // A command's pipeline link must resolve inside the bundle — an import never links to an id.
+            // Every pipeline link must resolve inside the bundle — an import never links to an id. This
+            // fails the bundle at inspect, BEFORE any write.
             HashSet<string> bundledPipelineNames = pipelines
                 .Select(p => p.Name)
                 .ToHashSet(StringComparer.Ordinal);
-            foreach (CommandExport command in commands)
+            void RequireBundledPipeline(string itemKind, string itemName, string? pipelineName)
             {
-                if (
-                    command.PipelineName is not null
-                    && !bundledPipelineNames.Contains(command.PipelineName)
-                )
+                if (pipelineName is not null && !bundledPipelineNames.Contains(pipelineName))
                     issues.Add(
-                        $"Command '{command.Name}' depends on pipeline '{command.PipelineName}', which is not in the bundle."
+                        $"{itemKind} '{itemName}' depends on pipeline '{pipelineName}', which is not in the bundle."
                     );
             }
+            foreach (CommandExport command in commands)
+                RequireBundledPipeline("Command", command.Name, command.PipelineName);
+            foreach (EventResponseExport response in eventResponses)
+                RequireBundledPipeline("Event response", response.EventType, response.PipelineName);
+            foreach (RewardExport reward in rewards)
+                RequireBundledPipeline("Reward", reward.Title, reward.PipelineName);
+            foreach (TimerExport timer in timers)
+                RequireBundledPipeline("Timer", timer.Name, timer.PipelineName);
+            foreach (ChatTriggerExport trigger in chatTriggers)
+                RequireBundledPipeline("Chat trigger", trigger.Pattern, trigger.PipelineName);
 
             IReadOnlyList<string> capabilities = BundleConventions.CollectCapabilities(
                 pipelines,
                 commands,
+                codeScripts,
                 hasWidgets: widgets.Count > 0,
                 hasSounds: sounds.Count > 0,
-                hasDataSources: dataSources.Count > 0
+                hasDataSources: dataSources.Count > 0,
+                hasEventResponses: eventResponses.Count > 0,
+                hasRewards: rewards.Count > 0,
+                hasTimers: timers.Count > 0,
+                hasChatTriggers: chatTriggers.Count > 0,
+                hasPickLists: pickLists.Count > 0
             );
 
             return Result.Success(
@@ -852,6 +1473,12 @@ public class BundleImportService : IBundleImportService
                     widgets,
                     sounds,
                     dataSources,
+                    eventResponses,
+                    rewards,
+                    timers,
+                    chatTriggers,
+                    pickLists,
+                    codeScripts,
                     capabilities,
                     issues
                 )
@@ -989,14 +1616,49 @@ public class BundleImportService : IBundleImportService
                 case BundleFormat.CustomDataSourceType:
                     await _dataSources.DeleteAsync(broadcasterId, id, actorUserId, ct);
                     break;
+                case BundleFormat.EventResponseType:
+                    // Event responses are addressed by EventType; the lazy catalog seed restores the
+                    // disabled default row afterwards, so deleting an upserted response is safe.
+                    string? eventType =
+                        name.Length > 0
+                            ? name
+                            : await _db
+                                .EventResponses.Where(e =>
+                                    e.BroadcasterId == broadcasterId && e.Id == id
+                                )
+                                .Select(e => e.EventType)
+                                .FirstOrDefaultAsync(ct);
+                    if (eventType is not null)
+                        await _eventResponses.DeleteAsync(channelId, eventType, ct);
+                    break;
+                case BundleFormat.RewardType:
+                    await _rewards.DeleteAsync(channelId, id.ToString(), ct);
+                    break;
+                case BundleFormat.TimerType:
+                    await _timers.DeleteAsync(channelId, id, ct);
+                    break;
+                case BundleFormat.ChatTriggerType:
+                    await _chatTriggers.DeleteAsync(channelId, id, ct);
+                    break;
+                case BundleFormat.PickListType:
+                    await _pickLists.DeleteAsync(broadcasterId, id, ct);
+                    break;
+                case BundleFormat.CodeScriptType:
+                    await _codeScripts.DeleteAsync(id, ct);
+                    break;
             }
         }
     }
 
+    // Pipeline-bound item types delete before pipelines, so nothing ever points at a deleted pipeline.
     private static int DeleteOrder(string type) =>
         type switch
         {
             BundleFormat.CommandType => 0,
+            BundleFormat.EventResponseType => 0,
+            BundleFormat.RewardType => 0,
+            BundleFormat.TimerType => 0,
+            BundleFormat.ChatTriggerType => 0,
             BundleFormat.PipelineType => 1,
             _ => 2,
         };

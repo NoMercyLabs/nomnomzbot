@@ -43,6 +43,12 @@ internal static class BundleConventions
             BundleFormat.WidgetType => $"widgets/{slug}/widget.json",
             BundleFormat.SoundType => $"sounds/{slug}.json",
             BundleFormat.CustomDataSourceType => $"custom-data-sources/{slug}.json",
+            BundleFormat.EventResponseType => $"event-responses/{slug}.json",
+            BundleFormat.RewardType => $"rewards/{slug}.json",
+            BundleFormat.TimerType => $"timers/{slug}.json",
+            BundleFormat.ChatTriggerType => $"chat-triggers/{slug}.json",
+            BundleFormat.PickListType => $"pick-lists/{slug}.json",
+            BundleFormat.CodeScriptType => $"code-scripts/{slug}.json",
             _ => throw new ArgumentOutOfRangeException(
                 nameof(type),
                 type,
@@ -97,6 +103,37 @@ internal static class BundleConventions
         ("vts_", "controls VTube Studio"),
     ];
 
+    // The declared-capability catalog for bundled code scripts: script capability keys (custom-code.md §3.1)
+    // → the plain-language capability each implies, listed by inspect next to the pipeline-action ones. An
+    // unknown key still surfaces (fail-open on visibility) via the generic fallback in ScriptCapability.
+    private static readonly IReadOnlyDictionary<string, string> ScriptCapabilities = new Dictionary<
+        string,
+        string
+    >(StringComparer.Ordinal)
+    {
+        ["chat.send"] = "sends chat messages",
+        ["chat.reply"] = "sends chat messages",
+        ["user.get"] = "reads user profiles",
+        ["economy.read"] = "reads channel currency",
+        ["music.queue"] = "controls music playback",
+        ["music.nowPlaying"] = "controls music playback",
+        ["http.fetch"] = "makes outbound HTTP requests",
+        ["storage.get"] = "stores script data",
+        ["storage.set"] = "stores script data",
+        ["storage.delete"] = "stores script data",
+        ["storage.list"] = "stores script data",
+        ["tts.speak"] = "plays audio on the overlay",
+        ["widget.emit"] = "pushes events to overlay widgets",
+        ["reward.get"] = "manages channel point rewards",
+        ["reward.update"] = "manages channel point rewards",
+    };
+
+    /// <summary>The plain-language capability a script capability key implies (generic fallback for unknown keys).</summary>
+    public static string ScriptCapability(string key) =>
+        ScriptCapabilities.TryGetValue(key, out string? capability)
+            ? capability
+            : $"custom code capability '{key}'";
+
     /// <summary>
     /// The D4 capability summary of a parsed bundle — what its content can do once installed, surfaced to
     /// the importer before install and carried on <c>BundleInstalledEvent</c>.
@@ -104,9 +141,15 @@ internal static class BundleConventions
     public static IReadOnlyList<string> CollectCapabilities(
         IReadOnlyList<PipelineExport> pipelines,
         IReadOnlyList<CommandExport> commands,
+        IReadOnlyList<CodeScriptExport> codeScripts,
         bool hasWidgets,
         bool hasSounds,
-        bool hasDataSources
+        bool hasDataSources,
+        bool hasEventResponses,
+        bool hasRewards,
+        bool hasTimers,
+        bool hasChatTriggers,
+        bool hasPickLists
     )
     {
         List<string> capabilities = [];
@@ -126,8 +169,19 @@ internal static class BundleConventions
                 capabilities.Add(capability);
         }
 
-        if (commands.Any(c => c.Tier == "code") && !capabilities.Contains("executes custom code"))
+        if (
+            (commands.Any(c => c.Tier == "code") || codeScripts.Count > 0)
+            && !capabilities.Contains("executes custom code")
+        )
             capabilities.Add("executes custom code");
+
+        // The capabilities each bundled script's source declares, next to the pipeline-action ones (D4).
+        foreach (string capability in codeScripts.SelectMany(s => s.DeclaredCapabilities))
+        {
+            string mapped = ScriptCapability(capability);
+            if (!capabilities.Contains(mapped))
+                capabilities.Add(mapped);
+        }
 
         if (hasWidgets)
             capabilities.Add("adds overlay widgets (installed as unverified custom widgets)");
@@ -135,6 +189,20 @@ internal static class BundleConventions
             capabilities.Add("adds sound clips");
         if (hasDataSources)
             capabilities.Add("connects an external data source (credential must be re-entered)");
+        if (hasEventResponses)
+            capabilities.Add(
+                "responds to channel events (overwrites the existing per-event responses)"
+            );
+        if (hasRewards)
+            capabilities.Add(
+                "adds channel point rewards (created locally; synced to Twitch on demand)"
+            );
+        if (hasTimers)
+            capabilities.Add("adds chat timers");
+        if (hasChatTriggers)
+            capabilities.Add("reacts to chat keywords");
+        if (hasPickLists)
+            capabilities.Add("adds pick lists");
 
         return capabilities;
     }

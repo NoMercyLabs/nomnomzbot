@@ -71,6 +71,10 @@ public sealed record CreateRewardRequest
     public required string Title { get; init; }
     public required int Cost { get; init; }
     public string? Prompt { get; init; }
+
+    /// <summary>The chat template announced when the reward is redeemed; null when none.</summary>
+    public string? Response { get; init; }
+
     public bool IsUserInputRequired { get; init; }
     public string? BackgroundColor { get; init; }
     public int? MaxPerStream { get; init; }

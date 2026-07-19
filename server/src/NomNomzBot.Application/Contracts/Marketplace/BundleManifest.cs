@@ -31,6 +31,12 @@ public static class BundleFormat
     public const string WidgetType = "widget";
     public const string SoundType = "sound";
     public const string CustomDataSourceType = "custom_data_source";
+    public const string EventResponseType = "event_response";
+    public const string RewardType = "reward";
+    public const string TimerType = "timer";
+    public const string ChatTriggerType = "chat_trigger";
+    public const string PickListType = "pick_list";
+    public const string CodeScriptType = "code_script";
 }
 
 /// <summary>The author-supplied metadata of a bundle (name/version/attribution).</summary>
