@@ -68291,10 +68291,15 @@
           "tier",
           "minPermissionLevel",
           "isEnabled",
+          "prefixMode",
+          "customPrefix",
+          "matchMode",
+          "matchPattern",
           "templateResponse",
           "templateResponses",
           "pipelineId",
           "cooldownSeconds",
+          "userCooldownSeconds",
           "cooldownPerUser",
           "description",
           "aliases",
@@ -68326,6 +68331,24 @@
           "isEnabled": {
             "type": "boolean"
           },
+          "prefixMode": {
+            "type": "string"
+          },
+          "customPrefix": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "matchMode": {
+            "type": "string"
+          },
+          "matchPattern": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "templateResponse": {
             "type": [
               "null",
@@ -68350,6 +68373,14 @@
             "format": "ulid"
           },
           "cooldownSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "userCooldownSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -68398,12 +68429,19 @@
           "tier",
           "minPermissionLevel",
           "isEnabled",
+          "prefixMode",
+          "customPrefix",
+          "matchMode",
+          "matchPattern",
           "cooldownSeconds",
+          "userCooldownSeconds",
+          "cooldownPerUser",
           "description",
           "aliases",
           "useCount",
           "createdAt",
           "templateResponse",
+          "templateResponses",
           "pipelineId"
         ],
         "type": "object",
@@ -68430,6 +68468,24 @@
           "isEnabled": {
             "type": "boolean"
           },
+          "prefixMode": {
+            "type": "string"
+          },
+          "customPrefix": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "matchMode": {
+            "type": "string"
+          },
+          "matchPattern": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "cooldownSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -68437,6 +68493,17 @@
               "string"
             ],
             "format": "int32"
+          },
+          "userCooldownSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cooldownPerUser": {
+            "type": "boolean"
           },
           "description": {
             "type": [
@@ -68467,6 +68534,15 @@
               "null",
               "string"
             ]
+          },
+          "templateResponses": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           },
           "pipelineId": {
             "type": [
@@ -69067,6 +69143,32 @@
             "description": "0=everyone, 1=follower, 2=sub, 3=vip, 4=moderator, 5=broadcaster",
             "format": "int32"
           },
+          "prefixMode": {
+            "maxLength": 20,
+            "type": "string",
+            "description": "How the prefix is resolved: Default (channel prefix) | Custom | None."
+          },
+          "customPrefix": {
+            "maxLength": 8,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Custom prefix character(s) when string CreateCommandDto.PrefixMode is Custom."
+          },
+          "matchMode": {
+            "maxLength": 20,
+            "type": "string",
+            "description": "How the trigger input is matched against the name: StartsWith | Exact | Contains | Regex."
+          },
+          "matchPattern": {
+            "maxLength": 200,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Required when string CreateCommandDto.MatchMode is Regex; null otherwise."
+          },
           "templateResponse": {
             "maxLength": 2000,
             "type": [
@@ -69101,6 +69203,17 @@
             ],
             "format": "int32"
           },
+          "userCooldownSeconds": {
+            "maximum": 86400,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Per-user cooldown duration in seconds; applied when bool CreateCommandDto.CooldownPerUser is true.",
+            "format": "int32"
+          },
           "cooldownPerUser": {
             "type": "boolean"
           },
@@ -69119,6 +69232,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "isEnabled": {
+            "type": "boolean",
+            "description": "Whether the command is live on creation (default true)."
           }
         },
         "description": "Request to create a new command."
@@ -88251,6 +88368,38 @@
             ],
             "format": "int32"
           },
+          "prefixMode": {
+            "maxLength": 20,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "How the prefix is resolved: Default | Custom | None. Null leaves it unchanged."
+          },
+          "customPrefix": {
+            "maxLength": 8,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Custom prefix when string? UpdateCommandDto.PrefixMode is Custom; empty string clears it."
+          },
+          "matchMode": {
+            "maxLength": 20,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "How the trigger input is matched: StartsWith | Exact | Contains | Regex. Null leaves it unchanged."
+          },
+          "matchPattern": {
+            "maxLength": 200,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Regex pattern when string? UpdateCommandDto.MatchMode is Regex; empty string clears it."
+          },
           "templateResponse": {
             "maxLength": 2000,
             "type": [
@@ -88284,6 +88433,18 @@
               "integer",
               "string"
             ],
+            "format": "int32"
+          },
+          "userCooldownSeconds": {
+            "maximum": 86400,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Per-user cooldown duration in seconds; applied when bool? UpdateCommandDto.CooldownPerUser is true.",
             "format": "int32"
           },
           "cooldownPerUser": {

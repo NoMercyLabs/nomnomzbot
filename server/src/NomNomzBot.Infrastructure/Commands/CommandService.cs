@@ -100,14 +100,19 @@ public class CommandService : ICommandService
             NameNormalized = nameNormalized,
             Tier = request.Tier,
             MinPermissionLevel = request.MinPermissionLevel,
+            PrefixMode = request.PrefixMode,
+            CustomPrefix = request.CustomPrefix,
+            MatchMode = request.MatchMode,
+            MatchPattern = request.MatchPattern,
             TemplateResponse = request.TemplateResponse,
             TemplateResponses = request.TemplateResponses ?? [],
             PipelineId = request.PipelineId,
             CooldownSeconds = request.CooldownSeconds,
+            UserCooldownSeconds = request.UserCooldownSeconds,
             CooldownPerUser = request.CooldownPerUser,
             Description = request.Description,
             Aliases = request.Aliases ?? [],
-            IsEnabled = true,
+            IsEnabled = request.IsEnabled,
         };
 
         _db.Commands.Add(command);
@@ -145,6 +150,14 @@ public class CommandService : ICommandService
             command.Tier = request.Tier;
         if (request.MinPermissionLevel.HasValue)
             command.MinPermissionLevel = request.MinPermissionLevel.Value;
+        if (request.PrefixMode is not null)
+            command.PrefixMode = request.PrefixMode;
+        if (request.CustomPrefix is not null)
+            command.CustomPrefix = request.CustomPrefix.Length == 0 ? null : request.CustomPrefix;
+        if (request.MatchMode is not null)
+            command.MatchMode = request.MatchMode;
+        if (request.MatchPattern is not null)
+            command.MatchPattern = request.MatchPattern.Length == 0 ? null : request.MatchPattern;
         if (request.TemplateResponse is not null)
             command.TemplateResponse = request.TemplateResponse;
         if (request.TemplateResponses is not null)
@@ -162,6 +175,8 @@ public class CommandService : ICommandService
             command.PipelineId = request.PipelineId.Value;
         if (request.CooldownSeconds.HasValue)
             command.CooldownSeconds = request.CooldownSeconds.Value;
+        if (request.UserCooldownSeconds.HasValue)
+            command.UserCooldownSeconds = request.UserCooldownSeconds.Value;
         if (request.CooldownPerUser.HasValue)
             command.CooldownPerUser = request.CooldownPerUser.Value;
         if (request.Description is not null)
@@ -256,12 +271,19 @@ public class CommandService : ICommandService
                 c.Tier,
                 c.MinPermissionLevel,
                 c.IsEnabled,
+                c.PrefixMode,
+                c.CustomPrefix,
+                c.MatchMode,
+                c.MatchPattern,
                 c.CooldownSeconds,
+                c.UserCooldownSeconds,
+                c.CooldownPerUser,
                 c.Description,
                 c.Aliases,
                 c.UseCount,
                 c.CreatedAt,
                 c.TemplateResponse,
+                c.TemplateResponses,
                 c.PipelineId
             ))
             .ToListAsync(cancellationToken);
@@ -374,10 +396,15 @@ public class CommandService : ICommandService
             c.Tier,
             c.MinPermissionLevel,
             c.IsEnabled,
+            c.PrefixMode,
+            c.CustomPrefix,
+            c.MatchMode,
+            c.MatchPattern,
             c.TemplateResponse,
             c.TemplateResponses,
             c.PipelineId,
             c.CooldownSeconds,
+            c.UserCooldownSeconds,
             c.CooldownPerUser,
             c.Description,
             c.Aliases,

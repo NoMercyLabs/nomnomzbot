@@ -138,4 +138,98 @@ public sealed class CommandServiceTests
         result.IsSuccess.Should().BeFalse();
         bus.Published.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Create_persists_prefix_match_and_per_user_cooldown_fields()
+    {
+        (CommandService sut, _) = Build();
+
+        CreateCommandDto request = new()
+        {
+            Name = "greet",
+            PrefixMode = "Custom",
+            CustomPrefix = "?",
+            MatchMode = "Regex",
+            MatchPattern = "^gr[ae]et$",
+            CooldownSeconds = 60,
+            CooldownPerUser = true,
+            UserCooldownSeconds = 15,
+            MinPermissionLevel = 10,
+            IsEnabled = false,
+        };
+
+        CommandDto created = (await sut.CreateAsync(Channel.ToString(), request)).Value;
+
+        // The returned shape carries the newly-exposed fields verbatim…
+        created.PrefixMode.Should().Be("Custom");
+        created.CustomPrefix.Should().Be("?");
+        created.MatchMode.Should().Be("Regex");
+        created.MatchPattern.Should().Be("^gr[ae]et$");
+        created.UserCooldownSeconds.Should().Be(15);
+        created.CooldownPerUser.Should().BeTrue();
+        created.MinPermissionLevel.Should().Be(10);
+        created.IsEnabled.Should().BeFalse();
+
+        // …and they are actually persisted (a re-fetch reads them back, not just the create echo).
+        CommandDto fetched = (await sut.GetAsync(Channel.ToString(), "greet")).Value;
+        fetched.PrefixMode.Should().Be("Custom");
+        fetched.CustomPrefix.Should().Be("?");
+        fetched.MatchMode.Should().Be("Regex");
+        fetched.MatchPattern.Should().Be("^gr[ae]et$");
+        fetched.UserCooldownSeconds.Should().Be(15);
+        fetched.CooldownPerUser.Should().BeTrue();
+        fetched.IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Update_patches_prefix_match_and_per_user_cooldown_fields()
+    {
+        (CommandService sut, _) = Build();
+        await sut.CreateAsync(Channel.ToString(), Req("greet"));
+
+        await sut.UpdateAsync(
+            Channel.ToString(),
+            "greet",
+            new UpdateCommandDto
+            {
+                PrefixMode = "None",
+                MatchMode = "Regex",
+                MatchPattern = "^hey$",
+                UserCooldownSeconds = 42,
+                CooldownPerUser = true,
+            }
+        );
+
+        CommandDto fetched = (await sut.GetAsync(Channel.ToString(), "greet")).Value;
+        fetched.PrefixMode.Should().Be("None");
+        fetched.MatchMode.Should().Be("Regex");
+        fetched.MatchPattern.Should().Be("^hey$");
+        fetched.UserCooldownSeconds.Should().Be(42);
+        fetched.CooldownPerUser.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Update_with_empty_custom_prefix_clears_it()
+    {
+        (CommandService sut, _) = Build();
+        await sut.CreateAsync(
+            Channel.ToString(),
+            new CreateCommandDto
+            {
+                Name = "greet",
+                PrefixMode = "Custom",
+                CustomPrefix = "?",
+            }
+        );
+
+        await sut.UpdateAsync(
+            Channel.ToString(),
+            "greet",
+            new UpdateCommandDto { PrefixMode = "Default", CustomPrefix = "" }
+        );
+
+        CommandDto fetched = (await sut.GetAsync(Channel.ToString(), "greet")).Value;
+        fetched.PrefixMode.Should().Be("Default");
+        fetched.CustomPrefix.Should().BeNull();
+    }
 }
