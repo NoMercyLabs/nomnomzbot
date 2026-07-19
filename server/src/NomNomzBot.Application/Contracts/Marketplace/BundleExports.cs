@@ -100,6 +100,24 @@ public sealed record SoundExport
 }
 
 /// <summary>
+/// A portable media asset: the library metadata plus the binary payload as a sibling ZIP entry (never a
+/// storage key). The importer re-uploads the payload through the asset module, so content sniffing and
+/// both size caps run again on the importing instance.
+/// </summary>
+public sealed record AssetExport
+{
+    public int SchemaVersion { get; init; } = BundleFormat.CurrentSchemaVersion;
+    public required string Name { get; init; }
+    public required string DisplayName { get; init; }
+
+    /// <summary>image/png | image/jpeg | image/gif | image/webp | image/svg+xml | audio/mpeg | audio/ogg | audio/wav.</summary>
+    public required string MimeType { get; init; }
+
+    /// <summary>ZIP entry path of the binary payload (inside <c>/assets/</c>).</summary>
+    public required string PayloadPath { get; init; }
+}
+
+/// <summary>
 /// A portable event response definition. Event responses are keyed per <see cref="EventType"/>, not named —
 /// a channel has at most one response per event — so import is an UPSERT by event type (overwriting the
 /// channel's existing/seeded row) rather than a create with rename-on-collision. A pipeline-typed response

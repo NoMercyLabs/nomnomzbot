@@ -298,6 +298,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion>();
     public DbSet<NomNomzBot.Domain.Sound.Entities.SoundClip> SoundClips =>
         Set<NomNomzBot.Domain.Sound.Entities.SoundClip>();
+    public DbSet<NomNomzBot.Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
+        Set<NomNomzBot.Domain.Assets.Entities.ChannelAsset>();
     public DbSet<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource> CustomDataSources =>
         Set<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>

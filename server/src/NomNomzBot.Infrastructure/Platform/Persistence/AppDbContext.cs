@@ -327,6 +327,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<Domain.CustomCode.Entities.CodeScriptVersion>();
     public DbSet<Domain.Sound.Entities.SoundClip> SoundClips =>
         Set<Domain.Sound.Entities.SoundClip>();
+    public DbSet<Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
+        Set<Domain.Assets.Entities.ChannelAsset>();
     public DbSet<Domain.CustomEvents.Entities.CustomDataSource> CustomDataSources =>
         Set<Domain.CustomEvents.Entities.CustomDataSource>();
     public DbSet<WidgetVersion> WidgetVersions => Set<WidgetVersion>();

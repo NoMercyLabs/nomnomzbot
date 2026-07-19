@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Assets.Services;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -29,6 +30,7 @@ using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Assets.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomEvents.Entities;
@@ -60,6 +62,7 @@ public class BundleImportService : IBundleImportService
     private readonly IPipelineService _pipelines;
     private readonly IWidgetService _widgets;
     private readonly ISoundClipService _sounds;
+    private readonly IChannelAssetService _assets;
     private readonly ICustomDataSourceService _dataSources;
     private readonly IEventResponseService _eventResponses;
     private readonly IRewardService _rewards;
@@ -76,6 +79,7 @@ public class BundleImportService : IBundleImportService
         IPipelineService pipelines,
         IWidgetService widgets,
         ISoundClipService sounds,
+        IChannelAssetService assets,
         ICustomDataSourceService dataSources,
         IEventResponseService eventResponses,
         IRewardService rewards,
@@ -92,6 +96,7 @@ public class BundleImportService : IBundleImportService
         _pipelines = pipelines;
         _widgets = widgets;
         _sounds = sounds;
+        _assets = assets;
         _dataSources = dataSources;
         _eventResponses = eventResponses;
         _rewards = rewards;
@@ -994,6 +999,58 @@ public class BundleImportService : IBundleImportService
                 created.Add((BundleFormat.SoundType, createdSound.Value.Id, name));
             }
 
+            foreach ((AssetExport export, byte[] payload) in bundle.Assets)
+            {
+                ChannelAsset? existingAsset = await _db.ChannelAssets.FirstOrDefaultAsync(
+                    a => a.BroadcasterId == broadcasterId && a.Name == export.Name,
+                    ct
+                );
+                string assetName = export.Name;
+                if (existingAsset is not null)
+                {
+                    if (policy == ImportConflictPolicy.Skip)
+                        continue;
+                    // Overwrite: keep the name — the asset module's upload replaces by name in place.
+                    if (policy == ImportConflictPolicy.Rename)
+                    {
+                        assetName = await FreeNameAsync(
+                            export.Name,
+                            freeText: false,
+                            maxLength: 50,
+                            candidate =>
+                                _db.ChannelAssets.AnyAsync(
+                                    a => a.BroadcasterId == broadcasterId && a.Name == candidate,
+                                    ct
+                                )
+                        );
+                    }
+                }
+
+                // Re-upload through the asset module: content sniffing + both size caps run again.
+                using MemoryStream assetContent = new(payload);
+                Result<ChannelAssetDto> createdAsset = await _assets.UploadAsync(
+                    broadcasterId,
+                    actorUserId,
+                    new UploadChannelAssetRequest(
+                        assetName,
+                        export.DisplayName,
+                        Path.GetFileName(export.PayloadPath),
+                        assetContent
+                    ),
+                    ct
+                );
+                if (createdAsset.IsFailure)
+                    return await RollbackAsync(
+                        broadcasterId,
+                        actorUserId,
+                        created,
+                        createdAsset.ErrorMessage,
+                        createdAsset.ErrorCode,
+                        ct
+                    );
+                created.Add((BundleFormat.AssetType, createdAsset.Value.Id, assetName));
+            }
+
             foreach (CustomDataSourceExport export in bundle.DataSources)
             {
                 CustomDataSource? existing = await _db.CustomDataSources.FirstOrDefaultAsync(
@@ -1225,6 +1282,7 @@ public class BundleImportService : IBundleImportService
         List<CommandExport> Commands,
         List<WidgetExport> Widgets,
         List<(SoundExport Export, byte[] Audio)> Sounds,
+        List<(AssetExport Export, byte[] Payload)> Assets,
         List<CustomDataSourceExport> DataSources,
         List<EventResponseExport> EventResponses,
         List<RewardExport> Rewards,
@@ -1311,6 +1369,7 @@ public class BundleImportService : IBundleImportService
             List<CommandExport> commands = [];
             List<WidgetExport> widgets = [];
             List<(SoundExport, byte[])> sounds = [];
+            List<(AssetExport, byte[])> assets = [];
             List<CustomDataSourceExport> dataSources = [];
             List<EventResponseExport> eventResponses = [];
             List<RewardExport> rewards = [];
@@ -1397,6 +1456,39 @@ public class BundleImportService : IBundleImportService
                             await audioStream.CopyToAsync(audio, ct);
                         }
                         sounds.Add((export, audio.ToArray()));
+                        break;
+                    }
+                    case BundleFormat.AssetType:
+                    {
+                        AssetExport? export = await ReadItemAsync<AssetExport>(
+                            archive,
+                            item,
+                            issues,
+                            ct
+                        );
+                        if (
+                            export is null
+                            || !Validate(item, export.SchemaVersion, export.Name, issues)
+                        )
+                            break;
+                        ZipArchiveEntry? payloadEntry = string.IsNullOrWhiteSpace(
+                            export.PayloadPath
+                        )
+                            ? null
+                            : archive.GetEntry(export.PayloadPath);
+                        if (payloadEntry is null)
+                        {
+                            issues.Add(
+                                $"Asset '{item.Name}' has no payload at '{export.PayloadPath}'."
+                            );
+                            break;
+                        }
+                        await using MemoryStream payload = new();
+                        await using (System.IO.Stream payloadStream = payloadEntry.Open())
+                        {
+                            await payloadStream.CopyToAsync(payload, ct);
+                        }
+                        assets.Add((export, payload.ToArray()));
                         break;
                     }
                     case BundleFormat.CustomDataSourceType:
@@ -1566,6 +1658,7 @@ public class BundleImportService : IBundleImportService
                 codeScripts,
                 hasWidgets: widgets.Count > 0,
                 hasSounds: sounds.Count > 0,
+                hasAssets: assets.Count > 0,
                 hasDataSources: dataSources.Count > 0,
                 hasEventResponses: eventResponses.Count > 0,
                 hasRewards: rewards.Count > 0,
@@ -1581,6 +1674,7 @@ public class BundleImportService : IBundleImportService
                     commands,
                     widgets,
                     sounds,
+                    assets,
                     dataSources,
                     eventResponses,
                     rewards,
@@ -1721,6 +1815,9 @@ public class BundleImportService : IBundleImportService
                     break;
                 case BundleFormat.SoundType:
                     await _sounds.DeleteAsync(broadcasterId, id, actorUserId, ct);
+                    break;
+                case BundleFormat.AssetType:
+                    await _assets.DeleteAsync(broadcasterId, id, actorUserId, ct);
                     break;
                 case BundleFormat.CustomDataSourceType:
                     await _dataSources.DeleteAsync(broadcasterId, id, actorUserId, ct);

@@ -12,11 +12,13 @@ using System.IO.Compression;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Assets.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Marketplace;
 using NomNomzBot.Application.DevPlatform.Projects;
 using NomNomzBot.Application.Marketplace.Services;
 using NomNomzBot.Application.Sound.Services;
+using NomNomzBot.Domain.Assets.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomEvents.Entities;
@@ -38,11 +40,17 @@ public class BundleExportService : IBundleExportService
 {
     private readonly IApplicationDbContext _db;
     private readonly ISoundClipStore _soundStore;
+    private readonly IChannelAssetStore _assetStore;
 
-    public BundleExportService(IApplicationDbContext db, ISoundClipStore soundStore)
+    public BundleExportService(
+        IApplicationDbContext db,
+        ISoundClipStore soundStore,
+        IChannelAssetStore assetStore
+    )
     {
         _db = db;
         _soundStore = soundStore;
+        _assetStore = assetStore;
     }
 
     public async Task<Result<System.IO.Stream>> ExportAsync(
@@ -74,6 +82,7 @@ public class BundleExportService : IBundleExportService
         Dictionary<Guid, Pipeline> pipelines = [];
         Dictionary<Guid, Widget> widgets = [];
         Dictionary<Guid, SoundClip> sounds = [];
+        Dictionary<Guid, ChannelAsset> assets = [];
         Dictionary<Guid, CustomDataSource> dataSources = [];
         Dictionary<Guid, EventResponse> eventResponses = [];
         Dictionary<Guid, Reward> rewards = [];
@@ -112,6 +121,13 @@ public class BundleExportService : IBundleExportService
                     broadcasterId,
                     itemRef.Id,
                     sounds,
+                    ct
+                ),
+                BundleFormat.AssetType => await ResolveAsync(
+                    _db.ChannelAssets,
+                    broadcasterId,
+                    itemRef.Id,
+                    assets,
                     ct
                 ),
                 BundleFormat.CustomDataSourceType => await ResolveAsync(
@@ -334,6 +350,40 @@ public class BundleExportService : IBundleExportService
                 await WriteJsonEntryAsync(archive, entryPath, export, ct);
                 manifestItems.Add(
                     new BundleManifestItem(BundleFormat.SoundType, sound.Name, entryPath, [])
+                );
+            }
+
+            foreach (ChannelAsset asset in assets.Values)
+            {
+                Result<System.IO.Stream> payload = await _assetStore.OpenAsync(
+                    asset.StorageKey,
+                    ct
+                );
+                if (payload.IsFailure)
+                    return Result.Failure<System.IO.Stream>(
+                        $"The payload of asset '{asset.Name}' could not be read: {payload.ErrorMessage}",
+                        "EXPORT_FAILED"
+                    );
+
+                string slug = UniqueSlug(asset.Name, usedSlugs);
+                string payloadPath = BundleConventions.AssetPayloadPath(slug, asset.MimeType);
+                await using (System.IO.Stream source = payload.Value)
+                await using (System.IO.Stream entry = archive.CreateEntry(payloadPath).Open())
+                {
+                    await source.CopyToAsync(entry, ct);
+                }
+
+                AssetExport export = new()
+                {
+                    Name = asset.Name,
+                    DisplayName = asset.DisplayName,
+                    MimeType = asset.MimeType,
+                    PayloadPath = payloadPath,
+                };
+                string entryPath = BundleConventions.EntryPath(BundleFormat.AssetType, slug);
+                await WriteJsonEntryAsync(archive, entryPath, export, ct);
+                manifestItems.Add(
+                    new BundleManifestItem(BundleFormat.AssetType, asset.Name, entryPath, [])
                 );
             }
 

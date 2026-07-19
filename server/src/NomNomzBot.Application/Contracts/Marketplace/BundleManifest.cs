@@ -30,6 +30,7 @@ public static class BundleFormat
     public const string CommandType = "command";
     public const string WidgetType = "widget";
     public const string SoundType = "sound";
+    public const string AssetType = "asset";
     public const string CustomDataSourceType = "custom_data_source";
     public const string EventResponseType = "event_response";
     public const string RewardType = "reward";

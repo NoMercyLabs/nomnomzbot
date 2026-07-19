@@ -54,6 +54,19 @@ public sealed class RequireActionCoverageTests
     }
 
     [Theory]
+    [InlineData(nameof(AssetsController.List), "sounds:read")]
+    [InlineData(nameof(AssetsController.Get), "sounds:read")]
+    [InlineData(nameof(AssetsController.Upload), "sounds:write")]
+    [InlineData(nameof(AssetsController.Delete), "sounds:write")]
+    public void AssetsController_action_carries_the_expected_action_key(
+        string methodName,
+        string expectedActionKey
+    )
+    {
+        RequiredActionKeyOf(typeof(AssetsController), methodName).Should().Be(expectedActionKey);
+    }
+
+    [Theory]
     [InlineData(nameof(SoundClipsController.List), "sounds:read")]
     [InlineData(nameof(SoundClipsController.Get), "sounds:read")]
     [InlineData(nameof(SoundClipsController.Upload), "sounds:write")]

@@ -209,6 +209,7 @@ public interface IApplicationDbContext
     DbSet<CodeScript> CodeScripts { get; }
     DbSet<CodeScriptVersion> CodeScriptVersions { get; }
     DbSet<SoundClip> SoundClips { get; }
+    DbSet<NomNomzBot.Domain.Assets.Entities.ChannelAsset> ChannelAssets { get; }
     DbSet<CustomDataSource> CustomDataSources { get; }
 
     // Marketplace — the installed-bundle ledger (marketplace.md D6, schema H.11).

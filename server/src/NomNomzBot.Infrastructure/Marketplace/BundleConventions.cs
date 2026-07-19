@@ -43,6 +43,7 @@ internal static class BundleConventions
             BundleFormat.CommandType => $"commands/{slug}.json",
             BundleFormat.WidgetType => $"widgets/{slug}/widget.json",
             BundleFormat.SoundType => $"sounds/{slug}.json",
+            BundleFormat.AssetType => $"assets/{slug}.json",
             BundleFormat.CustomDataSourceType => $"custom-data-sources/{slug}.json",
             BundleFormat.EventResponseType => $"event-responses/{slug}.json",
             BundleFormat.RewardType => $"rewards/{slug}.json",
@@ -68,6 +69,21 @@ internal static class BundleConventions
             "audio/ogg" => ".ogg",
             "audio/wav" => ".wav",
             _ => ".bin",
+        };
+
+    /// <summary>ZIP entry path of a media asset's binary payload, next to its metadata document.</summary>
+    public static string AssetPayloadPath(string slug, string mimeType) =>
+        $"assets/{slug}{AssetExtension(mimeType)}";
+
+    public static string AssetExtension(string mimeType) =>
+        mimeType switch
+        {
+            "image/png" => ".png",
+            "image/jpeg" => ".jpg",
+            "image/gif" => ".gif",
+            "image/webp" => ".webp",
+            "image/svg+xml" => ".svg",
+            _ => AudioExtension(mimeType),
         };
 
     /// <summary>Filesystem/ZIP-safe slug of an item name: lowercase, <c>[a-z0-9-_]</c> only.</summary>
@@ -215,6 +231,7 @@ internal static class BundleConventions
         IReadOnlyList<CodeScriptExport> codeScripts,
         bool hasWidgets,
         bool hasSounds,
+        bool hasAssets,
         bool hasDataSources,
         bool hasEventResponses,
         bool hasRewards,
@@ -258,6 +275,8 @@ internal static class BundleConventions
             capabilities.Add("adds overlay widgets (installed as unverified custom widgets)");
         if (hasSounds)
             capabilities.Add("adds sound clips");
+        if (hasAssets)
+            capabilities.Add("adds media assets (images/audio for overlays)");
         if (hasDataSources)
             capabilities.Add("connects an external data source (credential must be re-entered)");
         if (hasEventResponses)

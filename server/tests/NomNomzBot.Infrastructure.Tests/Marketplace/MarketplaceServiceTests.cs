@@ -78,13 +78,18 @@ public sealed class MarketplaceServiceTests
             Substitute.For<ICustomDataIngestService>(),
             []
         );
-        BundleExportService export = new(db, Substitute.For<ISoundClipStore>());
+        BundleExportService export = new(
+            db,
+            Substitute.For<ISoundClipStore>(),
+            Substitute.For<NomNomzBot.Application.Assets.Services.IChannelAssetStore>()
+        );
         BundleImportService import = new(
             db,
             commands,
             pipelines,
             Substitute.For<IWidgetService>(),
             Substitute.For<ISoundClipService>(),
+            Substitute.For<NomNomzBot.Application.Assets.Services.IChannelAssetService>(),
             dataSources,
             Substitute.For<IEventResponseService>(),
             Substitute.For<IRewardService>(),

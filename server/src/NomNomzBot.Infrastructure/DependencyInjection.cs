@@ -383,6 +383,16 @@ public static class DependencyInjection
         // Sound clip library (spec §3, §4, §5).
         services.AddScoped<Application.Sound.Services.ISoundClipService, Sound.SoundClipService>();
         services.AddScoped<Application.Sound.Services.ISoundClipStore, Sound.DiskSoundClipStore>();
+
+        // Channel media asset library (images/audio for overlay widgets — sound-clip twin).
+        services.AddScoped<
+            Application.Assets.Services.IChannelAssetService,
+            Assets.ChannelAssetService
+        >();
+        services.AddScoped<
+            Application.Assets.Services.IChannelAssetStore,
+            Assets.DiskChannelAssetStore
+        >();
         // No-op fallback; the API host replaces this with the SignalR-backed SoundClipOverlayNotifierAdapter.
         services.AddScoped<
             Application.Sound.Services.ISoundClipOverlayNotifier,

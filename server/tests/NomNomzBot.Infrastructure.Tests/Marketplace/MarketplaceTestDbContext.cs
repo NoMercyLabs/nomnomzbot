@@ -111,6 +111,15 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
             e.Ignore(i => i.InstalledByUser);
         });
 
+        b.Entity<NomNomzBot.Domain.Assets.Entities.ChannelAsset>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.Ignore(a => a.Channel);
+            e.Ignore(a => a.CreatedByUser);
+            // Mirror production's soft-delete global filter so replace/delete behavior is truthful.
+            e.HasQueryFilter(a => a.DeletedAt == null);
+        });
+
         b.Entity<Channel>(e =>
         {
             e.HasKey(c => c.Id);
@@ -193,6 +202,7 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
         typeof(NomNomzBot.Domain.PickLists.Entities.PickList),
         typeof(CodeScript),
         typeof(CodeScriptVersion),
+        typeof(NomNomzBot.Domain.Assets.Entities.ChannelAsset),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -403,6 +413,8 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<FeatureFlag> FeatureFlags => throw new NotSupportedException();
     public DbSet<FeatureFlagOverride> FeatureFlagOverrides => throw new NotSupportedException();
     public DbSet<SoundClip> SoundClips => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
+        Set<NomNomzBot.Domain.Assets.Entities.ChannelAsset>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterConnection> SupporterConnections =>
