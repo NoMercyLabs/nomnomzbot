@@ -534,7 +534,7 @@ private fun ShellContent(
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                 )
-            ShellRoute.Analytics -> AnalyticsScreen(controller = graph.analyticsController)
+            ShellRoute.Analytics -> AnalyticsScreen(controller = graph.analyticsController, role = role)
             ShellRoute.Rewards ->
                 RewardsScreen(
                     controller = graph.rewardsController,

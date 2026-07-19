@@ -16,6 +16,7 @@ import bot.nomnomz.dashboard.core.network.AddQuoteBody
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.EditQuoteBody
 import bot.nomnomz.dashboard.core.network.Quote
+import bot.nomnomz.dashboard.core.network.QuotePage
 import bot.nomnomz.dashboard.core.network.QuotesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,19 +40,56 @@ class QuotesController(
     /** The page render state: loading / ready (with the quotes) / empty / error. */
     val state: StateFlow<QuotesState> = _state.asStateFlow()
 
-    /** List the channel's quotes. */
+    // The active search fragment (null = no filter) and 1-based page the library sits on — the "stuck on page 1"
+    // fix. A write reloads the CURRENT search + page; a search change or new search resets to page 1.
+    private var search: String? = null
+    private var page: Int = 1
+
+    /** Load the current search + page of the channel's quotes. */
     suspend fun load() {
         // Only show the full-page loading state on first load; a refetch after a mutation keeps
         // the current content on screen (no flash) and swaps it when the new data arrives.
         if (_state.value !is QuotesState.Ready) _state.value = QuotesState.Loading
 
-        when (val result: ApiResult<List<Quote>> = quotesApi.list()) {
+        when (val result: ApiResult<QuotePage> = quotesApi.page(search, page, PageSize)) {
             is ApiResult.Failure -> _state.value = QuotesState.Error(result.error.message)
-            is ApiResult.Ok ->
+            is ApiResult.Ok -> {
+                val quotePage: QuotePage = result.value
                 _state.value =
-                    if (result.value.isEmpty()) QuotesState.Empty
-                    else QuotesState.Ready(result.value)
+                    if (quotePage.data.isEmpty() && page == 1 && search.isNullOrBlank()) {
+                        QuotesState.Empty
+                    } else {
+                        QuotesState.Ready(
+                            quotes = quotePage.data,
+                            search = search.orEmpty(),
+                            page = page,
+                            hasPrev = page > 1,
+                            hasMore = quotePage.hasMore,
+                            total = quotePage.total,
+                        )
+                    }
+            }
         }
+    }
+
+    /** Set the search fragment (blank clears it), reset to the first page, and reload. */
+    suspend fun setSearch(query: String) {
+        search = query.takeIf { it.isNotBlank() }
+        page = 1
+        load()
+    }
+
+    /** Advance to the next page of the current search. The screen only calls this while `hasMore` is true. */
+    suspend fun nextPage() {
+        page += 1
+        load()
+    }
+
+    /** Step back to the previous page. A no-op on the first page. */
+    suspend fun prevPage() {
+        if (page <= 1) return
+        page -= 1
+        load()
     }
 
     /** Create a quote, then reload so the new row appears. Surfaces the error on failure. */
@@ -106,6 +144,10 @@ class QuotesController(
     // Optional attribution fields are sent as null (omitted from the wire body) when the operator leaves them
     // blank — an empty string is not a meaningful "who said it".
     private fun String?.orNullIfBlank(): String? = this?.takeIf { it.isNotBlank() }
+
+    private companion object {
+        const val PageSize: Int = 25
+    }
 }
 
 /** The Quotes page render state. */
@@ -113,10 +155,20 @@ sealed interface QuotesState {
     data object Loading : QuotesState
 
     /**
-     * The channel's quotes are listed. [actionError] is non-null only when the last create/edit/delete failed —
-     * the screen surfaces it as a transient banner while keeping the list rendered.
+     * The channel's quotes are listed, one page of the current [search]. [page] is the 1-based page number;
+     * [hasPrev]/[hasMore] drive the prev/next controls and [total] the "of N" count when the backend knows it.
+     * [actionError] is non-null only when the last create/edit/delete failed — surfaced as a transient banner
+     * while the list stays rendered.
      */
-    data class Ready(val quotes: List<Quote>, val actionError: String? = null) : QuotesState
+    data class Ready(
+        val quotes: List<Quote>,
+        val search: String = "",
+        val page: Int = 1,
+        val hasPrev: Boolean = false,
+        val hasMore: Boolean = false,
+        val total: Int? = null,
+        val actionError: String? = null,
+    ) : QuotesState
 
     data object Empty : QuotesState
 

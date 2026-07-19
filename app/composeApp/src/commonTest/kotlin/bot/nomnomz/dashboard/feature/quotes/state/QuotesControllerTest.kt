@@ -17,6 +17,7 @@ import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.EditQuoteBody
 import bot.nomnomz.dashboard.core.network.Quote
+import bot.nomnomz.dashboard.core.network.QuotePage
 import bot.nomnomz.dashboard.core.network.QuotesApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -252,6 +253,33 @@ class QuotesControllerTest {
         assertEquals(Res.string.feedback_quote_save_failed, feedback.only.label)
         assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
     }
+
+    @Test
+    fun set_search_filters_the_page_to_matching_quotes_from_the_first_page() = runTest {
+        val quotesApi =
+            RecordingQuotesApi(
+                ApiResult.Ok(
+                    listOf(
+                        Quote(id = "q1", number = 1, text = "Kappa is forever"),
+                        Quote(id = "q2", number = 2, text = "GG WP", quotedDisplayName = "Bob"),
+                    )
+                )
+            )
+        val controller = QuotesController(quotesApi)
+        controller.load()
+
+        controller.setSearch("kappa")
+
+        // The search threaded through to the paged read at page 1, and only the matching quote survived.
+        val lastCall: Triple<String?, Int, Int> = quotesApi.pageCalls.last()
+        assertEquals("kappa", lastCall.first)
+        assertEquals(1, lastCall.second)
+        val state: QuotesState = controller.state.value
+        assertTrue(state is QuotesState.Ready)
+        val ready: QuotesState.Ready = state as QuotesState.Ready
+        assertEquals(listOf("Kappa is forever"), ready.quotes.map { it.text })
+        assertEquals("kappa", ready.search)
+    }
 }
 
 // A recording fake that behaves like the backend store: list() returns the live store, and each successful
@@ -271,8 +299,35 @@ private class RecordingQuotesApi(
     val updated: MutableList<Pair<Int, EditQuoteBody>> = mutableListOf()
     val deleted: MutableList<Int> = mutableListOf()
 
+    val pageCalls: MutableList<Triple<String?, Int, Int>> = mutableListOf()
+
     override suspend fun list(): ApiResult<List<Quote>> =
         listFailure?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(store.toList())
+
+    // Behaves like the backend paged read: filters the live store by the search fragment (text / attribution)
+    // and pages it so a search + prev/next observes the real consequence, not merely that a call happened.
+    override suspend fun page(search: String?, page: Int, pageSize: Int): ApiResult<QuotePage> {
+        pageCalls.add(Triple(search, page, pageSize))
+        listFailure?.let { return ApiResult.Failure(it) }
+        val filtered: List<Quote> =
+            store.filter { quote ->
+                search.isNullOrBlank() ||
+                    quote.text.contains(search, ignoreCase = true) ||
+                    quote.quotedDisplayName?.contains(search, ignoreCase = true) == true ||
+                    quote.contextGame?.contains(search, ignoreCase = true) == true
+            }
+        val fromIndex: Int = ((page - 1) * pageSize).coerceIn(0, filtered.size)
+        val toIndex: Int = (fromIndex + pageSize).coerceIn(0, filtered.size)
+        val slice: List<Quote> = filtered.subList(fromIndex, toIndex)
+        return ApiResult.Ok(
+            QuotePage(
+                data = slice,
+                nextPage = if (toIndex < filtered.size) page + 1 else null,
+                hasMore = toIndex < filtered.size,
+                total = filtered.size,
+            )
+        )
+    }
 
     override suspend fun create(body: AddQuoteBody): ApiResult<Unit> {
         created += body

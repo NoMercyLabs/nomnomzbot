@@ -57,6 +57,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
+import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
+import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -212,7 +215,6 @@ import nomnomzbot.composeapp.generated.resources.moderation_rule_type_emotes
 import nomnomzbot.composeapp.generated.resources.moderation_rule_type_links
 import nomnomzbot.composeapp.generated.resources.moderation_rule_type_profanity
 import nomnomzbot.composeapp.generated.resources.moderation_rule_type_spam
-import nomnomzbot.composeapp.generated.resources.moderation_action_user_id
 import nomnomzbot.composeapp.generated.resources.moderation_action_user_id_required
 import nomnomzbot.composeapp.generated.resources.moderation_announce_action
 import nomnomzbot.composeapp.generated.resources.moderation_announce_color_blue
@@ -393,6 +395,7 @@ fun ModerationScreen(
                         scope.launch { controller.networkUnban(userId, "all_moderated") }
                     },
                     onViewContext = { userId -> scope.launch { controller.openUserContext(userId) } },
+                    searchViewers = { query -> controller.searchViewers(query) },
                     onPerformAction = { action, userId, duration, reason ->
                         scope.launch { controller.performAction(action, userId, duration, reason) }
                     },
@@ -490,6 +493,7 @@ private fun BansList(
     onUnban: (userId: String) -> Unit,
     onNetworkUnban: (userId: String) -> Unit,
     onViewContext: (userId: String) -> Unit,
+    searchViewers: suspend (query: String) -> List<PickerOption>,
     onPerformAction: (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> Unit,
     onToggleShield: (Boolean) -> Unit,
     onAddTerm: (String) -> Unit,
@@ -1000,6 +1004,7 @@ private fun BansList(
 
     if (showActionDialog) {
         ModerateViewerDialog(
+            searchViewers = searchViewers,
             onConfirm = { action, userId, duration, reason ->
                 onPerformAction(action, userId, duration, reason)
                 showActionDialog = false
@@ -1061,6 +1066,7 @@ private fun BansList(
 // a duration in seconds (default 600 = 10 minutes). The caller owns open/closed state.
 @Composable
 private fun ModerateViewerDialog(
+    searchViewers: suspend (query: String) -> List<PickerOption>,
     onConfirm: (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1068,7 +1074,9 @@ private fun ModerateViewerDialog(
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
 
-    var userId: String by remember { mutableStateOf("") }
+    // The picked viewer — [PickerRef.id] is the Twitch user id the ban / timeout writes key on. Null until a
+    // viewer is chosen from the debounced search, so the action can't fire against a hand-typed guess.
+    var target: PickerRef? by remember { mutableStateOf(null) }
     var reason: String by remember { mutableStateOf("") }
     var durationText: String by remember { mutableStateOf("600") }
     var isBan: Boolean by remember { mutableStateOf(true) }
@@ -1085,19 +1093,20 @@ private fun ModerateViewerDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = userId,
-                    onValueChange = { userId = it; showUserIdError = false },
-                    label = stringResource(Res.string.moderation_action_user_id),
-                    isError = showUserIdError,
-                    errorText =
-                        if (showUserIdError) {
-                            stringResource(Res.string.moderation_action_user_id_required)
-                        } else {
-                            null
-                        },
+                SearchPickerField(
+                    search = searchViewers,
+                    selected = target,
+                    onSelect = { ref -> target = ref; showUserIdError = false },
+                    onClear = { target = null },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (showUserIdError) {
+                    Text(
+                        text = stringResource(Res.string.moderation_action_user_id_required),
+                        style = typography.xs,
+                        color = tokens.destructive,
+                    )
+                }
                 TabsList {
                     TabsTrigger(
                         selected = isBan,
@@ -1131,7 +1140,8 @@ private fun ModerateViewerDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    if (userId.isBlank()) {
+                    val picked: PickerRef? = target
+                    if (picked == null) {
                         showUserIdError = true
                         return@Button
                     }
@@ -1139,7 +1149,7 @@ private fun ModerateViewerDialog(
                     val duration: Int? =
                         if (!isBan) durationText.trim().toIntOrNull()?.takeIf { it > 0 } else null
                     val reasonOrNull: String? = reason.trim().takeIf { it.isNotEmpty() }
-                    onConfirm(action, userId.trim(), duration, reasonOrNull)
+                    onConfirm(action, picked.id, duration, reasonOrNull)
                 },
             ) {
                 Text(stringResource(Res.string.moderation_action_confirm))

@@ -32,6 +32,32 @@ interface CommunityApi {
     suspend fun members(channelId: String): ApiResult<List<CommunityMember>>
 
     /**
+     * One page of the channel's community, filtered by [role] (`null`/"all", "follower", "vip", "moderator") and
+     * paginated (`GET /community?page=&take=&role=&cursor=`). The followers tab is cursor-paginated straight from
+     * Twitch — pass the previous page's [CommunityPage.nextCursor] as [cursor] — while the other tabs are
+     * page-numbered ([page]). The envelope carries both continuations so the screen can drive next/prev on any tab.
+     */
+    suspend fun membersPage(
+        channelId: String,
+        role: String?,
+        page: Int,
+        pageSize: Int,
+        cursor: String?,
+    ): ApiResult<CommunityPage>
+
+    /**
+     * Autocomplete over the channel's known viewers by name (`GET /community/search?q=&limit=`, backend
+     * `SearchViewers`). Each option's [ViewerOption.id] is the Twitch user id the moderation / trust / VIP / ban
+     * writes consume — the id the "pick a viewer" picker feeds those actions. Powers reaching a viewer beyond the
+     * current page.
+     */
+    suspend fun searchViewers(
+        channelId: String,
+        query: String,
+        limit: Int = 20,
+    ): ApiResult<List<ViewerOption>>
+
+    /**
      * Top chatters by message volume — up to 50 rows ranked by message count (backend `RewardsController
      * .GetLeaderboard`, `GET /rewards/leaderboard`). The endpoint lives in `RewardsController` for historical
      * reasons but is community analytics: it surfaces who is most active in chat.
@@ -72,6 +98,30 @@ class RestCommunityApi(private val client: ApiClient) : CommunityApi {
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
     }
+
+    override suspend fun membersPage(
+        channelId: String,
+        role: String?,
+        page: Int,
+        pageSize: Int,
+        cursor: String?,
+    ): ApiResult<CommunityPage> {
+        val roleParam: String =
+            if (role.isNullOrBlank() || role == "all") "" else "&role=${role.encodeQuery()}"
+        val cursorParam: String = if (cursor.isNullOrBlank()) "" else "&cursor=${cursor.encodeQuery()}"
+        return client.getDirect(
+            "api/v1/channels/$channelId/community?page=$page&take=$pageSize$roleParam$cursorParam"
+        )
+    }
+
+    override suspend fun searchViewers(
+        channelId: String,
+        query: String,
+        limit: Int,
+    ): ApiResult<List<ViewerOption>> =
+        client.getEnvelope(
+            "api/v1/channels/$channelId/community/search?q=${query.encodeQuery()}&limit=$limit"
+        )
 
     override suspend fun topChatters(channelId: String): ApiResult<List<ChatActivityEntry>> =
         client.getEnvelope("api/v1/channels/$channelId/rewards/leaderboard")
@@ -148,6 +198,33 @@ data class CommunityMember(
     val profileImageUrl: String? = null,
     val trustLevel: String = "viewer",
     val isBanned: Boolean = false,
+)
+
+/**
+ * One page of the community list (backend `PaginatedResponse<CommunityUserDto>`). [data] is the page's rows;
+ * [nextPage] is the next 1-based page number for the page-numbered tabs (null at the end), [nextCursor] is the
+ * Twitch continuation token for the cursor-paginated followers tab (null at the end), and [hasMore] tells the
+ * screen whether a "next" affordance should be live. [total] is the full count where the backend knows it.
+ */
+@Serializable
+data class CommunityPage(
+    val data: List<CommunityMember> = emptyList(),
+    val nextPage: Int? = null,
+    val nextCursor: String? = null,
+    val hasMore: Boolean = false,
+    val total: Int? = null,
+)
+
+/**
+ * One viewer option for the community picker (backend `CommunityController.ViewerOptionDto`). [id] is the Twitch
+ * user id the moderation / trust / VIP / ban writes consume; [label] is the display name and [subLabel] the
+ * username.
+ */
+@Serializable
+data class ViewerOption(
+    val id: String = "",
+    val label: String = "",
+    val subLabel: String = "",
 )
 
 /**

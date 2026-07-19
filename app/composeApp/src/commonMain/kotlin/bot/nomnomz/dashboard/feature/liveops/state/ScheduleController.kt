@@ -10,13 +10,16 @@
 
 package bot.nomnomz.dashboard.feature.liveops.state
 
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.io.JournalFileIO
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.Category
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateScheduleSegmentBody
 import bot.nomnomz.dashboard.core.network.LiveOpsApi
 import bot.nomnomz.dashboard.core.network.LiveOpsSchedule
+import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.UpdateScheduleSegmentBody
 import bot.nomnomz.dashboard.core.network.UpdateScheduleSettingsBody
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class ScheduleController(
     private val channelsApi: ChannelsApi,
     private val liveOpsApi: LiveOpsApi,
+    private val streamApi: StreamApi,
     private val fileBridge: JournalFileIO,
 ) {
     private val _state: MutableStateFlow<ScheduleState> = MutableStateFlow(ScheduleState.Loading)
@@ -173,6 +177,19 @@ class ScheduleController(
                 false
             }
             is ApiResult.Ok -> fileBridge.saveFile("schedule.ics", result.value.encodeToByteArray())
+        }
+    }
+
+    /**
+     * Autocomplete Twitch categories for the segment editor's category picker. Maps each match to a
+     * [PickerOption] whose [PickerOption.id] is the Twitch category id the segment write consumes and
+     * [PickerOption.label] the canonical game name. Best-effort: empty on failure or before the channel resolves.
+     */
+    suspend fun searchCategories(query: String): List<PickerOption> {
+        val channel: String = channelId ?: return emptyList()
+        return when (val result: ApiResult<List<Category>> = streamApi.searchCategories(channel, query)) {
+            is ApiResult.Ok -> result.value.map { PickerOption(id = it.id, label = it.name) }
+            is ApiResult.Failure -> emptyList()
         }
     }
 

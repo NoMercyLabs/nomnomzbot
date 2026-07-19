@@ -59,6 +59,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
+import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
+import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
@@ -356,6 +359,7 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
                     onTransfer = { request ->
                         scope.launch { controller.transfer(request) }
                     },
+                    searchViewers = { query -> controller.searchViewers(query) },
                     onRefundPurchase = { purchaseId ->
                         scope.launch { controller.refundPurchase(purchaseId) }
                     },
@@ -388,6 +392,7 @@ private fun ReadyContent(
     onAdjustAccount: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
     loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
     onTransfer: (TransferBody) -> Unit,
+    searchViewers: suspend (query: String) -> List<PickerOption>,
     onRefundPurchase: (purchaseId: Long) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -504,6 +509,7 @@ private fun ReadyContent(
             onAdjust = onAdjustAccount,
             loadLedger = loadLedger,
             onTransfer = onTransfer,
+            searchViewers = searchViewers,
         )
 
         EarningRulesSection(
@@ -934,6 +940,7 @@ private fun AccountsSection(
     onAdjust: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
     loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
     onTransfer: (TransferBody) -> Unit,
+    searchViewers: suspend (query: String) -> List<PickerOption>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -977,6 +984,7 @@ private fun AccountsSection(
                         onFreeze = onFreeze,
                         onAdjust = onAdjust,
                         loadLedger = loadLedger,
+                        searchViewers = searchViewers,
                     )
                     if (index < accounts.lastIndex) {
                         Separator()
@@ -988,7 +996,7 @@ private fun AccountsSection(
 
     if (showTransfer) {
         TransferDialog(
-            accounts = accounts,
+            searchViewers = searchViewers,
             onConfirm = { request -> showTransfer = false; onTransfer(request) },
             onDismiss = { showTransfer = false },
         )
@@ -1002,6 +1010,7 @@ private fun AccountRow(
     onFreeze: (String, Boolean) -> Unit,
     onAdjust: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
     loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
+    searchViewers: suspend (query: String) -> List<PickerOption>,
 ) {
     var showAdjust: Boolean by remember { mutableStateOf(false) }
     var showLedger: Boolean by remember { mutableStateOf(false) }
@@ -1111,8 +1120,14 @@ private fun AccountRow(
 
     if (showAdjust) {
         AccountAdjustDialog(
-            viewerLabel = account.viewerTwitchUserId,
-            onConfirm = { amount, reason -> showAdjust = false; onAdjust(account.viewerUserId, amount, reason) },
+            // Opened from a row, so the target is pre-selected (the row already carries the platform User GUID);
+            // the picker shows it with a "Change" affordance so the operator can retarget without leaving.
+            initial = PickerRef(account.viewerUserId, account.viewerTwitchUserId),
+            searchViewers = searchViewers,
+            onConfirm = { viewerUserId, amount, reason ->
+                showAdjust = false
+                onAdjust(viewerUserId, amount, reason)
+            },
             onDismiss = { showAdjust = false },
         )
     }
@@ -1129,24 +1144,35 @@ private fun AccountRow(
 
 @Composable
 private fun AccountAdjustDialog(
-    viewerLabel: String,
-    onConfirm: (amount: Long, reason: String?) -> Unit,
+    initial: PickerRef?,
+    searchViewers: suspend (query: String) -> List<PickerOption>,
+    onConfirm: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    // The account to adjust — [PickerRef.id] is the platform User GUID the adjust write keys on. Seeded from the
+    // row that opened the dialog; the picker lets the operator retarget to any other viewer.
+    var target: PickerRef? by remember { mutableStateOf(initial) }
     var amountText: String by remember { mutableStateOf("") }
     var reason: String by remember { mutableStateOf("") }
     val amount: Long? = amountText.toLongOrNull()
     val amountValid: Boolean = amount != null
+    val canConfirm: Boolean = amountValid && target != null
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.economy_account_adjust_title, viewerLabel), style = typography.lg, color = tokens.cardForeground) },
+        title = { Text(stringResource(Res.string.economy_account_adjust_title, target?.name.orEmpty()), style = typography.lg, color = tokens.cardForeground) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                SearchPickerField(
+                    search = searchViewers,
+                    selected = target,
+                    onSelect = { ref -> target = ref },
+                    onClear = { target = null },
+                )
                 AppTextField(
                     value = amountText,
                     onValueChange = { amountText = it.filter { c -> c == '-' || c.isDigit() } },
@@ -1164,7 +1190,15 @@ private fun AccountAdjustDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { if (amountValid) onConfirm(amount!!, reason.trim().ifBlank { null }) }, enabled = amountValid) {
+            Button(
+                onClick = {
+                    val picked: PickerRef? = target
+                    if (canConfirm && picked != null) {
+                        onConfirm(picked.id, amount!!, reason.trim().ifBlank { null })
+                    }
+                },
+                enabled = canConfirm,
+            ) {
                 Text(stringResource(Res.string.economy_account_adjust_confirm))
             }
         },
@@ -1252,7 +1286,7 @@ private fun LedgerDialog(
 
 @Composable
 private fun TransferDialog(
-    accounts: List<CurrencyAccountSummary>,
+    searchViewers: suspend (query: String) -> List<PickerOption>,
     onConfirm: (TransferBody) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1260,13 +1294,16 @@ private fun TransferDialog(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    var fromId: String by remember { mutableStateOf(accounts.firstOrNull()?.viewerUserId.orEmpty()) }
-    var toId: String by remember { mutableStateOf("") }
+    // Both endpoints are picked from the debounced viewer search — [PickerRef.id] is the platform User GUID the
+    // transfer keys on. Null until chosen, so the transfer can't fire against a hand-typed guess.
+    var from: PickerRef? by remember { mutableStateOf(null) }
+    var to: PickerRef? by remember { mutableStateOf(null) }
     var amountText: String by remember { mutableStateOf("") }
     var reason: String by remember { mutableStateOf("") }
 
     val amount: Long? = amountText.toLongOrNull()?.takeIf { it > 0 }
-    val canConfirm: Boolean = fromId.isNotBlank() && toId.isNotBlank() && fromId != toId && amount != null
+    val sameAccount: Boolean = from != null && to != null && from?.id == to?.id
+    val canConfirm: Boolean = from != null && to != null && !sameAccount && amount != null
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1279,20 +1316,27 @@ private fun TransferDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = fromId,
-                    onValueChange = { fromId = it },
+                SearchPickerField(
+                    search = searchViewers,
+                    selected = from,
+                    onSelect = { ref -> from = ref },
+                    onClear = { from = null },
                     label = stringResource(Res.string.economy_transfer_from),
-                    isError = false,
-                    errorText = null,
                 )
-                AppTextField(
-                    value = toId,
-                    onValueChange = { toId = it },
+                SearchPickerField(
+                    search = searchViewers,
+                    selected = to,
+                    onSelect = { ref -> to = ref },
+                    onClear = { to = null },
                     label = stringResource(Res.string.economy_transfer_to),
-                    isError = toId.isNotBlank() && toId == fromId,
-                    errorText = if (toId.isNotBlank() && toId == fromId) stringResource(Res.string.economy_transfer_same_account) else null,
                 )
+                if (sameAccount) {
+                    Text(
+                        text = stringResource(Res.string.economy_transfer_same_account),
+                        style = typography.xs,
+                        color = tokens.destructive,
+                    )
+                }
                 AppTextField(
                     value = amountText,
                     onValueChange = { amountText = it.filter(Char::isDigit) },
@@ -1312,8 +1356,17 @@ private fun TransferDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    if (canConfirm) {
-                        onConfirm(TransferBody(fromViewerUserId = fromId, toViewerUserId = toId, amount = amount!!, reason = reason.trim().ifBlank { null }))
+                    val fromRef: PickerRef? = from
+                    val toRef: PickerRef? = to
+                    if (canConfirm && fromRef != null && toRef != null) {
+                        onConfirm(
+                            TransferBody(
+                                fromViewerUserId = fromRef.id,
+                                toViewerUserId = toRef.id,
+                                amount = amount!!,
+                                reason = reason.trim().ifBlank { null },
+                            )
+                        )
                     }
                 },
                 enabled = canConfirm,

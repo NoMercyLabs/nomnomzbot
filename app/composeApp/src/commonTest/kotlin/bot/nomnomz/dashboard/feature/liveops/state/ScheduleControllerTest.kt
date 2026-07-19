@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.io.JournalFileIO
 import bot.nomnomz.dashboard.core.io.PickedFile
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.Category
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateScheduleSegmentBody
@@ -21,6 +22,8 @@ import bot.nomnomz.dashboard.core.network.LiveOpsApi
 import bot.nomnomz.dashboard.core.network.LiveOpsSchedule
 import bot.nomnomz.dashboard.core.network.LiveOpsScheduleSegment
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
+import bot.nomnomz.dashboard.core.network.StreamApi
+import bot.nomnomz.dashboard.core.network.StreamInfoUpdate
 import bot.nomnomz.dashboard.core.network.UpdateScheduleSegmentBody
 import bot.nomnomz.dashboard.core.network.UpdateScheduleSettingsBody
 import kotlin.test.Test
@@ -44,7 +47,7 @@ class ScheduleControllerTest {
                         )
                     )
             )
-        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleFileIO())
+        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleStreamApi(), FakeScheduleFileIO())
 
         controller.load()
 
@@ -64,7 +67,7 @@ class ScheduleControllerTest {
                         LiveOpsSchedule(segments = listOf(LiveOpsScheduleSegment(id = "s9", title = "Friday")))
                     ),
             )
-        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleFileIO())
+        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleStreamApi(), FakeScheduleFileIO())
         controller.load()
 
         controller.addSegment(
@@ -98,7 +101,7 @@ class ScheduleControllerTest {
                     ),
                 scheduleAfterWrite = ApiResult.Ok(LiveOpsSchedule()),
             )
-        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleFileIO())
+        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleStreamApi(), FakeScheduleFileIO())
         controller.load()
 
         controller.deleteSegment("s1")
@@ -119,7 +122,7 @@ class ScheduleControllerTest {
                 icalendar = ApiResult.Ok("BEGIN:VCALENDAR\nX-WR-CALNAME:Stream\nEND:VCALENDAR"),
             )
         val files = FakeScheduleFileIO()
-        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, files)
+        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleStreamApi(), files)
         controller.load()
 
         val saved: Boolean = controller.downloadIcalendar()
@@ -140,7 +143,7 @@ class ScheduleControllerTest {
                 icalendar = ApiResult.Failure(ApiError(500, "SERVER_ERROR", "calendar unavailable")),
             )
         val files = FakeScheduleFileIO()
-        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, files)
+        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleStreamApi(), files)
         controller.load()
 
         val saved: Boolean = controller.downloadIcalendar()
@@ -163,6 +166,15 @@ private class FakeScheduleFileIO : JournalFileIO {
     }
 
     override suspend fun pickFile(): PickedFile? = null
+}
+
+// Only the category search matters to the schedule controller — it returns no matches here (the picker rows are
+// exercised in UI, not this state test). info/update are not part of the schedule flow, so they throw if called.
+private class FakeScheduleStreamApi : StreamApi {
+    override suspend fun info(channelId: String) = error("unused")
+    override suspend fun update(channelId: String, update: StreamInfoUpdate) = error("unused")
+    override suspend fun searchCategories(channelId: String, query: String): ApiResult<List<Category>> =
+        ApiResult.Ok(emptyList())
 }
 
 private class FakeScheduleChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {

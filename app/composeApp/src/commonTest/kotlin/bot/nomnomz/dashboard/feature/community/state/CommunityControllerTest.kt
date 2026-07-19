@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.community.state
 
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.network.AnalyticsApi
 import bot.nomnomz.dashboard.core.network.AnalyticsSummary
 import bot.nomnomz.dashboard.core.network.ApiError
@@ -20,12 +21,16 @@ import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.CommunityMember
+import bot.nomnomz.dashboard.core.network.CommunityPage
 import bot.nomnomz.dashboard.core.network.CommunityTrustLevel
 import bot.nomnomz.dashboard.core.network.DailyMetricRow
 import bot.nomnomz.dashboard.core.network.StreamAnalytics
 import bot.nomnomz.dashboard.core.network.StreamListItem
 import bot.nomnomz.dashboard.core.network.TopViewerEntry
 import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
+import bot.nomnomz.dashboard.core.network.ViewerEngagementDay
+import bot.nomnomz.dashboard.core.network.ViewerOption
+import bot.nomnomz.dashboard.core.network.ViewerProfilePage
 import bot.nomnomz.dashboard.core.network.WatchStreak
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -375,6 +380,68 @@ class CommunityControllerTest {
         val data: Map<String, String>? = controller.getViewerData("u1")
         assertEquals(mapOf("deaths" to "12", "favorite_game" to "Elden Ring"), data)
     }
+
+    @Test
+    fun select_role_loads_the_first_page_of_that_role() = runTest {
+        val allMember = CommunityMember(id = "u1", displayName = "Everyone")
+        val vipMember = CommunityMember(id = "u2", displayName = "A Vip", trustLevel = "vip")
+        val communityApi =
+            FakeCommunityApi(
+                // load() consumes the "all" page; selectRole("vip") consumes the "vip" page.
+                membersResults =
+                    listOf(
+                        ApiResult.Ok(listOf(allMember)),
+                        ApiResult.Ok(listOf(vipMember)),
+                    )
+            )
+        val controller =
+            CommunityController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                communityApi,
+                FakeUsersApi(),
+                FakeViewerDataApi(),
+            )
+
+        controller.load()
+        controller.selectRole(CommunityRole.Vip)
+
+        // The role-filtered fetch threaded the "vip" role and reset to the first page, and the list swapped.
+        val lastCall: Triple<String?, Int, String?> = communityApi.pageCalls.last()
+        assertEquals(CommunityRole.Vip, lastCall.first)
+        assertEquals(1, lastCall.second)
+        val state: CommunityState = controller.state.value
+        assertTrue(state is CommunityState.Ready)
+        val ready: CommunityState.Ready = state as CommunityState.Ready
+        assertEquals(CommunityRole.Vip, ready.role)
+        assertEquals(listOf("u2"), ready.members.map { it.id })
+    }
+
+    @Test
+    fun search_viewers_maps_backend_options_to_picker_options_keyed_on_twitch_id() = runTest {
+        val communityApi =
+            FakeCommunityApi(
+                membersResults = listOf(ApiResult.Ok(emptyList())),
+                searchResults =
+                    listOf(ViewerOption(id = "tw-42", label = "Nibbles", subLabel = "nibbles")),
+            )
+        val controller =
+            CommunityController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                communityApi,
+                FakeUsersApi(),
+                FakeViewerDataApi(),
+            )
+        controller.load()
+
+        val options: List<PickerOption> = controller.searchViewers("nib")
+
+        // The search hit the resolved channel, and each option carries the Twitch id the ban/vip/trust writes key on.
+        assertEquals(listOf("ch1" to "nib"), communityApi.searchCalls)
+        assertEquals(1, options.size)
+        assertEquals("tw-42", options.first().id)
+        assertEquals("Nibbles", options.first().label)
+        assertEquals("nibbles", options.first().sublabel)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -401,10 +468,13 @@ private class FakeCommunityApi(
     private val trustResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val banResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val unbanResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val searchResults: List<ViewerOption> = emptyList(),
 ) : CommunityApi {
     // Single-result convenience for the read-only tests (one members() result, default-OK writes).
     constructor(result: ApiResult<List<CommunityMember>>) : this(membersResults = listOf(result))
 
+    // The controller loads the list through membersPage; membersCalls counts those page fetches. Each call walks
+    // the configured script so a post-write reload observes the next scripted state (the last entry repeats).
     var membersCalls: Int = 0
         private set
 
@@ -412,14 +482,43 @@ private class FakeCommunityApi(
     val banCalls: MutableList<Triple<String, String, String>> = mutableListOf()
     val unbanCalls: MutableList<Pair<String, String>> = mutableListOf()
 
+    /** Each membersPage call recorded as (role, page, cursor) — proves the role tab / paging thread through. */
+    val pageCalls: MutableList<Triple<String?, Int, String?>> = mutableListOf()
+    val searchCalls: MutableList<Pair<String, String>> = mutableListOf()
+
     override suspend fun topChatters(channelId: String): ApiResult<List<ChatActivityEntry>> =
         ApiResult.Ok(emptyList())
 
-    override suspend fun members(channelId: String): ApiResult<List<CommunityMember>> {
-        // Walk through the configured sequence; the last entry repeats once the script runs out.
+    private fun nextMembersResult(): ApiResult<List<CommunityMember>> {
         val index: Int = minOf(membersCalls, membersResults.lastIndex)
         membersCalls += 1
         return membersResults[index]
+    }
+
+    override suspend fun members(channelId: String): ApiResult<List<CommunityMember>> = nextMembersResult()
+
+    override suspend fun membersPage(
+        channelId: String,
+        role: String?,
+        page: Int,
+        pageSize: Int,
+        cursor: String?,
+    ): ApiResult<CommunityPage> {
+        pageCalls.add(Triple(role, page, cursor))
+        return when (val result: ApiResult<List<CommunityMember>> = nextMembersResult()) {
+            is ApiResult.Ok ->
+                ApiResult.Ok(CommunityPage(data = result.value, hasMore = false, total = result.value.size))
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
+        }
+    }
+
+    override suspend fun searchViewers(
+        channelId: String,
+        query: String,
+        limit: Int,
+    ): ApiResult<List<ViewerOption>> {
+        searchCalls.add(channelId to query)
+        return ApiResult.Ok(searchResults)
     }
 
     override suspend fun setTrust(channelId: String, userId: String, level: String): ApiResult<Unit> {
@@ -445,6 +544,11 @@ private class FakeCommunityApi(
 }
 
 private class FakeUsersApi : bot.nomnomz.dashboard.core.network.UsersApi {
+    override suspend fun search(
+        query: String,
+        limit: Int,
+    ): ApiResult<List<bot.nomnomz.dashboard.core.network.UserSearchResult>> = ApiResult.Ok(emptyList())
+
     override suspend fun stats(userId: String): ApiResult<bot.nomnomz.dashboard.core.network.UserStats> =
         ApiResult.Ok(bot.nomnomz.dashboard.core.network.UserStats())
 
@@ -490,6 +594,16 @@ private class FakeAnalyticsApi(
         top: Int,
     ): ApiResult<List<TopViewerEntry>> = ApiResult.Ok(emptyList())
 
+    override suspend fun listViewers(
+        channelId: String,
+        search: String?,
+        sort: String,
+        followersOnly: Boolean?,
+        subscribersOnly: Boolean?,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<ViewerProfilePage> = ApiResult.Ok(ViewerProfilePage())
+
     override suspend fun viewerProfile(
         channelId: String,
         viewerUserId: String,
@@ -498,6 +612,13 @@ private class FakeAnalyticsApi(
         requestedViewerId = viewerUserId
         return ApiResult.Ok(profile)
     }
+
+    override suspend fun viewerEngagement(
+        channelId: String,
+        viewerUserId: String,
+        from: String,
+        to: String,
+    ): ApiResult<List<ViewerEngagementDay>> = ApiResult.Ok(emptyList())
 
     override suspend fun viewerStreak(channelId: String, viewerUserId: String): ApiResult<WatchStreak> =
         ApiResult.Ok(WatchStreak())

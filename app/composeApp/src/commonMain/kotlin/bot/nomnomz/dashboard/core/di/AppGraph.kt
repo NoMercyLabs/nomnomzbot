@@ -418,6 +418,7 @@ class AppGraph {
             dashboardApi = dashboardApi,
             streamApi = streamApi,
             commandsApi = commandsApi,
+            communityApi = communityApi,
             hubClient = dashboardHubClient,
             baseUrl = sessionStore::baseUrl,
             accessToken = sessionStore::accessToken,
@@ -459,7 +460,12 @@ class AppGraph {
         )
 
     val moderationController: ModerationController =
-        ModerationController(channelsApi = channelsApi, moderationApi = moderationApi, feedback = feedbackController)
+        ModerationController(
+            channelsApi = channelsApi,
+            moderationApi = moderationApi,
+            communityApi = communityApi,
+            feedback = feedbackController,
+        )
 
     val analyticsController: AnalyticsController =
         AnalyticsController(channelsApi = channelsApi, analyticsApi = analyticsApi)
@@ -531,7 +537,7 @@ class AppGraph {
         )
 
     val economyController: EconomyController =
-        EconomyController(channelsApi = channelsApi, economyApi = economyApi)
+        EconomyController(channelsApi = channelsApi, economyApi = economyApi, usersApi = usersApi)
 
     val alertsController: AlertsController =
         AlertsController(channelsApi = channelsApi, alertsApi = alertsApi)
@@ -678,6 +684,7 @@ class AppGraph {
         ScheduleController(
             channelsApi = channelsApi,
             liveOpsApi = liveOpsApi,
+            streamApi = streamApi,
             fileBridge = journalFileBridge,
         )
 

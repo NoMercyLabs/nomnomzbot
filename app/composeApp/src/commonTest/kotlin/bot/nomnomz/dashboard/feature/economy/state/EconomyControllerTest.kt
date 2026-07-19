@@ -35,6 +35,8 @@ import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
 import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
+import bot.nomnomz.dashboard.core.network.UserSearchResult
+import bot.nomnomz.dashboard.core.network.UsersApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -76,7 +78,7 @@ class EconomyControllerTest {
                 leaderboardResult = ApiResult.Ok(leaderboard),
             )
         val controller =
-            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
 
         controller.load()
 
@@ -110,7 +112,7 @@ class EconomyControllerTest {
                     ),
             )
         val controller =
-            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
 
         controller.load()
 
@@ -129,7 +131,7 @@ class EconomyControllerTest {
                 accountsResult = ApiResult.Failure(ApiError(500, "ERR", "boom")),
             )
         val controller =
-            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
 
         controller.load()
 
@@ -157,7 +159,7 @@ class EconomyControllerTest {
                     ),
             )
         val controller =
-            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
 
         controller.load()
 
@@ -175,7 +177,7 @@ class EconomyControllerTest {
                 leaderboardResult = ApiResult.Ok(leaderboard),
             )
         val controller =
-            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
         controller.load()
 
         controller.upsertEarningRule(
@@ -224,7 +226,7 @@ class EconomyControllerTest {
                     ),
             )
         val controller =
-            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
         controller.load()
 
         controller.freezeAccount("v1", frozen = true)
@@ -254,7 +256,7 @@ class EconomyControllerTest {
                     ),
             )
         val controller =
-            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
 
         controller.load()
 
@@ -277,7 +279,7 @@ class EconomyControllerTest {
                     ),
             )
         val controller =
-            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
         controller.load()
 
         controller.setCatalogItemEnabled("c1", enabled = false)
@@ -297,6 +299,7 @@ class EconomyControllerTest {
                     configResult = ApiResult.Ok(null),
                     leaderboardResult = ApiResult.Ok(emptyList()),
                 ),
+                FakeUsersApi(),
             )
 
         controller.load()
@@ -318,6 +321,7 @@ class EconomyControllerTest {
                     configResult = ApiResult.Ok(loadedConfig),
                     leaderboardResult = ApiResult.Ok(leaderboard),
                 ),
+                FakeUsersApi(),
             )
 
         controller.load()
@@ -334,6 +338,7 @@ class EconomyControllerTest {
                     configResult = ApiResult.Failure(ApiError(500, "ERR", "boom")),
                     leaderboardResult = ApiResult.Ok(leaderboard),
                 ),
+                FakeUsersApi(),
             )
 
         controller.load()
@@ -350,6 +355,7 @@ class EconomyControllerTest {
                     configResult = ApiResult.Ok(loadedConfig),
                     leaderboardResult = ApiResult.Failure(ApiError(500, "ERR", "boom")),
                 ),
+                FakeUsersApi(),
             )
 
         controller.load()
@@ -376,7 +382,7 @@ class EconomyControllerTest {
                 updateResult = ApiResult.Ok(echoed),
             )
         val controller =
-            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
         controller.load()
 
         val edited: CurrencyConfig = loadedConfig.copy(currencyName = "Cookies", startingBalance = 250)
@@ -418,7 +424,7 @@ class EconomyControllerTest {
                 updateResult = ApiResult.Failure(ApiError(500, "ERR", "save boom")),
             )
         val controller =
-            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi)
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
         controller.load()
 
         controller.save(loadedConfig.copy(startingBalance = 9))
@@ -452,6 +458,17 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun channelBotStatus(channelId: String) = error("stub")
     override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
+}
+
+private class FakeUsersApi(
+    private val searchResult: ApiResult<List<UserSearchResult>> = ApiResult.Ok(emptyList()),
+) : UsersApi {
+    override suspend fun search(query: String, limit: Int): ApiResult<List<UserSearchResult>> =
+        searchResult
+
+    override suspend fun stats(userId: String) = error("stub")
+    override suspend fun export(userId: String) = error("stub")
+    override suspend fun erase(userId: String) = error("stub")
 }
 
 private class FakeEconomyApi(

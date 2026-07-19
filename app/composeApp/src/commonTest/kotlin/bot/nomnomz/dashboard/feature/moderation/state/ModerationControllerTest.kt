@@ -34,6 +34,7 @@ import bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody
 import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationApi
@@ -43,6 +44,7 @@ import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.core.network.UserModerationContext
 import bot.nomnomz.dashboard.core.network.UserNote
+import bot.nomnomz.dashboard.core.network.ViewerOption
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -77,6 +79,7 @@ class ModerationControllerTest {
                         )
                     )
                 ),
+                FakeCommunityApi(),
             )
 
         controller.load()
@@ -109,7 +112,7 @@ class ModerationControllerTest {
             )
         val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
         api.userContextResult = ApiResult.Ok(context)
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load() // resolves the channel so the per-user lookup targets it
 
         assertNull(controller.userContext.value)
@@ -148,6 +151,7 @@ class ModerationControllerTest {
                             )
                         ),
                 ),
+                FakeCommunityApi(),
             )
 
         controller.load()
@@ -171,6 +175,7 @@ class ModerationControllerTest {
             ModerationController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 moderationApi,
+                FakeCommunityApi(),
             )
 
         controller.load()
@@ -194,6 +199,7 @@ class ModerationControllerTest {
             ModerationController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 moderationApi,
+                FakeCommunityApi(),
             )
 
         controller.load()
@@ -213,6 +219,7 @@ class ModerationControllerTest {
             ModerationController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 moderationApi,
+                FakeCommunityApi(),
             )
         controller.load()
 
@@ -234,6 +241,7 @@ class ModerationControllerTest {
             ModerationController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 moderationApi,
+                FakeCommunityApi(),
             )
 
         controller.load()
@@ -261,6 +269,7 @@ class ModerationControllerTest {
             ModerationController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 moderationApi,
+                FakeCommunityApi(),
             )
         controller.load()
 
@@ -288,6 +297,7 @@ class ModerationControllerTest {
             ModerationController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 moderationApi,
+                FakeCommunityApi(),
             )
         controller.load()
 
@@ -309,6 +319,7 @@ class ModerationControllerTest {
             ModerationController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeModerationApi(ApiResult.Ok(emptyList())),
+                FakeCommunityApi(),
             )
 
         controller.load()
@@ -322,6 +333,7 @@ class ModerationControllerTest {
             ModerationController(
                 FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
                 FakeModerationApi(ApiResult.Ok(emptyList())),
+                FakeCommunityApi(),
             )
 
         controller.load()
@@ -338,6 +350,7 @@ class ModerationControllerTest {
             ModerationController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeModerationApi(ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope."))),
+                FakeCommunityApi(),
             )
 
         controller.load()
@@ -356,7 +369,7 @@ class ModerationControllerTest {
                 shieldResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
                 blockedTermsResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
 
         controller.load()
 
@@ -384,6 +397,7 @@ class ModerationControllerTest {
             ModerationController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 moderationApi,
+                FakeCommunityApi(),
             )
 
         controller.load()
@@ -412,6 +426,7 @@ class ModerationControllerTest {
             ModerationController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 moderationApi,
+                FakeCommunityApi(),
             )
 
         controller.load()
@@ -435,6 +450,7 @@ class ModerationControllerTest {
             ModerationController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeModerationApi(bansResults = listOf(ApiResult.Ok(listOf(trolly)), ApiResult.Ok(emptyList()))),
+                FakeCommunityApi(),
                 feedback,
             )
 
@@ -457,6 +473,7 @@ class ModerationControllerTest {
                     bansResults = listOf(ApiResult.Ok(listOf(trolly))),
                     unbanResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
                 ),
+                FakeCommunityApi(),
                 feedback,
             )
 
@@ -472,7 +489,7 @@ class ModerationControllerTest {
     @Test
     fun warn_records_the_reason_and_reloads_the_rap_sheet() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(listOf(BannedUser(id = "u1", username = "troll"))))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
         controller.openUserContext("123")
 
@@ -487,7 +504,7 @@ class ModerationControllerTest {
     fun warn_surfaces_the_backend_message_when_the_action_is_refused() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(listOf(BannedUser(id = "u1"))))
         api.warnResult = ApiResult.Ok(ModerationActionResult(success = false, message = "Missing scope."))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
 
         controller.warn("123", "spamming links")
@@ -502,7 +519,7 @@ class ModerationControllerTest {
     @Test
     fun set_suspicious_records_the_status_and_reloads_the_rap_sheet() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(listOf(BannedUser(id = "u1"))))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
         controller.openUserContext("123")
 
@@ -517,7 +534,7 @@ class ModerationControllerTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
         api.unbanRequestsResult =
             ApiResult.Ok(listOf(UnbanRequest(id = "r1", userLogin = "troll", text = "sorry")))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
 
         controller.load()
 
@@ -533,7 +550,7 @@ class ModerationControllerTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
         api.unbanRequestsResult =
             ApiResult.Ok(listOf(UnbanRequest(id = "r1", userLogin = "troll", text = "sorry")))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
 
         controller.resolveUnbanRequest("r1", approve = true, note = null)
@@ -545,7 +562,7 @@ class ModerationControllerTest {
     @Test
     fun network_unban_records_the_target_and_scope_then_reloads() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(listOf(BannedUser(id = "u1", username = "troll"))))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
 
         controller.networkUnban("u1", "all_moderated")
@@ -570,7 +587,7 @@ class ModerationControllerTest {
                     )
                 )
             )
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
 
         controller.load()
 
@@ -586,7 +603,7 @@ class ModerationControllerTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
         api.reportsResult =
             ApiResult.Ok(listOf(ViewerReport(id = "rep1", reportedUsername = "spammer", status = "open")))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
 
         controller.resolveReport("rep1", "escalate")
@@ -602,7 +619,7 @@ class ModerationControllerTest {
         api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
         api.notesResult =
             ApiResult.Ok(listOf(UserNote(id = 1, subjectUserId = "u1", content = "watch this one", pinned = true)))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
 
         controller.openUserContext("u1")
@@ -616,7 +633,7 @@ class ModerationControllerTest {
     fun add_note_posts_the_content_and_reloads_the_panel() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
         api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
         controller.openUserContext("u1")
 
@@ -631,7 +648,7 @@ class ModerationControllerTest {
     fun pin_note_edits_only_the_pinned_flag_and_leaves_content_untouched() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
         api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
 
         controller.editNote("u1", "n1", content = null, pinned = true)
@@ -644,7 +661,7 @@ class ModerationControllerTest {
     fun delete_note_removes_it_and_reloads_the_panel() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
         api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
         controller.openUserContext("u1")
 
@@ -661,7 +678,7 @@ class ModerationControllerTest {
             ApiResult.Ok(EscalationPolicy(isEnabled = true, offenseWindowHours = 168))
         api.sharedBanResult = ApiResult.Ok(SharedBanSettings(acceptSharedChatBans = true, shareOutgoingBans = false))
         api.nukeBatchesResult = ApiResult.Ok(listOf(NetworkNukeBatch(id = "b1", channelCount = 3, status = "active")))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
 
         controller.load()
 
@@ -676,7 +693,7 @@ class ModerationControllerTest {
     @Test
     fun save_escalation_policy_sends_the_whole_ladder_and_reloads() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
 
         controller.saveEscalationPolicy(
@@ -703,7 +720,7 @@ class ModerationControllerTest {
     fun forgive_user_resets_the_ladder_and_reloads_the_panel() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
         api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
         controller.openUserContext("u1")
 
@@ -721,7 +738,7 @@ class ModerationControllerTest {
                 bansResults = listOf(ApiResult.Ok(listOf(BannedUser(id = "u1")))),
                 automodResult = ApiResult.Ok(AutomodConfig(heatTimeoutThreshold = 80)),
             )
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
 
         controller.setHeatTimeoutThreshold(50)
@@ -733,7 +750,7 @@ class ModerationControllerTest {
     @Test
     fun network_nuke_forces_confirmation_and_records_the_target() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
 
         controller.networkNuke("victim42", reason = "raid", matchTerm = null)
@@ -748,7 +765,7 @@ class ModerationControllerTest {
     @Test
     fun save_shared_ban_settings_sends_both_switches_explicitly() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
 
         controller.saveSharedBanSettings(accept = true, share = false)
@@ -760,7 +777,7 @@ class ModerationControllerTest {
     @Test
     fun add_trusted_channel_records_the_id_and_reloads() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
 
         controller.addTrustedChannel("partner-ulid")
@@ -773,7 +790,7 @@ class ModerationControllerTest {
     fun set_standing_sends_provider_and_tier_then_reloads_the_panel() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
         api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
         controller.openUserContext("u1")
 
@@ -787,7 +804,7 @@ class ModerationControllerTest {
     fun clear_standing_restores_normal_and_reloads_the_panel() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
         api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
         controller.load()
         controller.openUserContext("u1")
 
@@ -815,6 +832,32 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun channelBotStatus(channelId: String) = error("stub")
     override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
+}
+
+private class FakeCommunityApi(
+    private val searchResult: ApiResult<List<ViewerOption>> = ApiResult.Ok(emptyList()),
+) : CommunityApi {
+    override suspend fun searchViewers(
+        channelId: String,
+        query: String,
+        limit: Int,
+    ): ApiResult<List<ViewerOption>> = searchResult
+
+    override suspend fun members(channelId: String) = error("stub")
+    override suspend fun membersPage(
+        channelId: String,
+        role: String?,
+        page: Int,
+        pageSize: Int,
+        cursor: String?,
+    ) = error("stub")
+    override suspend fun topChatters(channelId: String) = error("stub")
+    override suspend fun setTrust(channelId: String, userId: String, level: String) = error("stub")
+    override suspend fun ban(channelId: String, userId: String, reason: String) = error("stub")
+    override suspend fun unban(channelId: String, userId: String) = error("stub")
+    override suspend fun addVip(channelId: String, userId: String) = error("stub")
+    override suspend fun removeVip(channelId: String, userId: String) = error("stub")
+    override suspend fun shoutout(channelId: String, targetTwitchUserId: String) = error("stub")
 }
 
 private class FakeModerationApi(

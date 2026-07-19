@@ -44,8 +44,31 @@ interface AnalyticsApi {
         top: Int,
     ): ApiResult<List<TopViewerEntry>>
 
+    /**
+     * One page of the channel's viewer analytics profiles (`GET /analytics/viewers`), filtered by [search] name
+     * fragment and [sort] (`Watch`, `Messages`, `Commands`, `Redemptions`, `LastSeen`) and paginated. This is the
+     * viewer drill-down entry point — pick a row and read its full profile with [viewerProfile].
+     */
+    suspend fun listViewers(
+        channelId: String,
+        search: String?,
+        sort: String,
+        followersOnly: Boolean?,
+        subscribersOnly: Boolean?,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<ViewerProfilePage>
+
     /** One viewer's full analytics profile (messages, watch time, follower/sub status, opt-out flag). */
     suspend fun viewerProfile(channelId: String, viewerUserId: String): ApiResult<ViewerAnalyticsProfile>
+
+    /** One viewer's daily engagement series over the inclusive `[from, to]` range (the drill-down trend). */
+    suspend fun viewerEngagement(
+        channelId: String,
+        viewerUserId: String,
+        from: String,
+        to: String,
+    ): ApiResult<List<ViewerEngagementDay>>
 
     /** One viewer's watch streak for the channel. */
     suspend fun viewerStreak(channelId: String, viewerUserId: String): ApiResult<WatchStreak>
@@ -101,11 +124,39 @@ class RestAnalyticsApi(private val client: ApiClient) : AnalyticsApi {
             "api/v1/channels/$channelId/analytics/channel/top-viewers?metric=$metric&from=$from&to=$to&top=$top"
         )
 
+    override suspend fun listViewers(
+        channelId: String,
+        search: String?,
+        sort: String,
+        followersOnly: Boolean?,
+        subscribersOnly: Boolean?,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<ViewerProfilePage> {
+        val searchParam: String = if (search.isNullOrBlank()) "" else "&search=${search.encodeQuery()}"
+        val followerParam: String = followersOnly?.let { "&followersOnly=$it" } ?: ""
+        val subParam: String = subscribersOnly?.let { "&subscribersOnly=$it" } ?: ""
+        return client.getDirect(
+            "api/v1/channels/$channelId/analytics/viewers?sort=${sort.encodeQuery()}" +
+                "&page=$page&take=$pageSize$searchParam$followerParam$subParam"
+        )
+    }
+
     override suspend fun viewerProfile(
         channelId: String,
         viewerUserId: String,
     ): ApiResult<ViewerAnalyticsProfile> =
         client.getEnvelope("api/v1/channels/$channelId/analytics/viewers/$viewerUserId")
+
+    override suspend fun viewerEngagement(
+        channelId: String,
+        viewerUserId: String,
+        from: String,
+        to: String,
+    ): ApiResult<List<ViewerEngagementDay>> =
+        client.getEnvelope(
+            "api/v1/channels/$channelId/analytics/viewers/$viewerUserId/engagement?from=$from&to=$to"
+        )
 
     override suspend fun viewerStreak(
         channelId: String,
@@ -207,6 +258,49 @@ data class TopViewerEntry(
     val viewerUserId: String = "",
     val displayName: String? = null,
     val metricValue: Long = 0,
+)
+
+/**
+ * One page of the viewer analytics list (backend `PaginatedResponse<ViewerProfileListItemDto>`). Flat `data`
+ * plus the page continuation; the drill-down pages through this with next/prev.
+ */
+@Serializable
+data class ViewerProfilePage(
+    val data: List<ViewerProfileListEntry> = emptyList(),
+    val nextPage: Int? = null,
+    val hasMore: Boolean = false,
+    val total: Int? = null,
+)
+
+/**
+ * One row of the viewer analytics list (backend `ViewerProfileListItemDto`). [viewerUserId] is the internal User
+ * GUID the profile/engagement/streak reads key on. The endpoint is untyped on the backend (no OpenAPI schema), so
+ * this DTO is hand-mirrored and intentionally NOT registered in `ApiContractTest`.
+ */
+@Serializable
+data class ViewerProfileListEntry(
+    val viewerUserId: String = "",
+    val displayName: String? = null,
+    val totalWatchSeconds: Long = 0,
+    val totalMessages: Long = 0,
+    val lastSeenAt: String? = null,
+)
+
+/**
+ * One day of a viewer's engagement roll-up (backend `ViewerEngagementDailyDto`). Untyped backend endpoint (no
+ * OpenAPI schema) — hand-mirrored, NOT registered in `ApiContractTest`.
+ */
+@Serializable
+data class ViewerEngagementDay(
+    val activityDate: String = "",
+    val watchSeconds: Long = 0,
+    val messageCount: Int = 0,
+    val commandCount: Int = 0,
+    val redemptionCount: Int = 0,
+    val songRequestCount: Int = 0,
+    val currencyEarned: Long = 0,
+    val currencySpent: Long = 0,
+    val gamesPlayed: Int = 0,
 )
 
 /** One viewer's full analytics profile (backend `ViewerProfileDto`) — the stats the Me screen shows. */

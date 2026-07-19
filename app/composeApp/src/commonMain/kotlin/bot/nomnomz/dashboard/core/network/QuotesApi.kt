@@ -29,6 +29,13 @@ interface QuotesApi {
     /** The channel's quotes, newest first. */
     suspend fun list(): ApiResult<List<Quote>>
 
+    /**
+     * One page of the channel's quotes (`GET /quotes?search=&page=&take=`), optionally filtered by the [search]
+     * text fragment (backend `QuoteSearch`, matched against text/attribution). Newest first; the envelope carries
+     * the page continuation so the library is navigable beyond the first page.
+     */
+    suspend fun page(search: String?, page: Int, pageSize: Int): ApiResult<QuotePage>
+
     /** Create a new quote on the channel (backend POST). */
     suspend fun create(body: AddQuoteBody): ApiResult<Unit>
 
@@ -51,6 +58,15 @@ class RestQuotesApi(private val client: ApiClient) : QuotesApi {
             is ApiResult.Failure -> ApiResult.Failure(page.error)
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
+    }
+
+    override suspend fun page(
+        search: String?,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<QuotePage> {
+        val searchParam: String = if (search.isNullOrBlank()) "" else "&search=${search.encodeQuery()}"
+        return client.getDirect("api/v1/quotes?page=$page&take=$pageSize$searchParam")
     }
 
     // The create response is a `StatusResponseDto<QuoteDto>` (201), but the controller re-fetches the list
@@ -87,6 +103,18 @@ data class EditQuoteBody(
     val text: String,
     val quotedDisplayName: String? = null,
     val contextGame: String? = null,
+)
+
+/**
+ * One page of the quote library (backend `PaginatedResponse<QuoteDto>`). Flat `data` plus the page continuation;
+ * the screen pages through this with next/prev.
+ */
+@Serializable
+data class QuotePage(
+    val data: List<Quote> = emptyList(),
+    val nextPage: Int? = null,
+    val hasMore: Boolean = false,
+    val total: Int? = null,
 )
 
 /**

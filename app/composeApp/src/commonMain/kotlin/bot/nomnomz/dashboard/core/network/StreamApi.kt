@@ -32,6 +32,13 @@ interface StreamApi {
 
     /** Persist [update]; the backend echoes the saved stream info back (with the canonicalized game name). */
     suspend fun update(channelId: String, update: StreamInfoUpdate): ApiResult<StreamInfo>
+
+    /**
+     * Twitch game/category autocomplete (`GET /stream/categories?query=…`, backend `SearchCategories`). Powers
+     * the category picker that replaces the raw free-text game id — a match carries the canonical [Category.name]
+     * the stream update writes and the [Category.id] the schedule segment writes. A blank query yields no rows.
+     */
+    suspend fun searchCategories(channelId: String, query: String): ApiResult<List<Category>>
 }
 
 class RestStreamApi(private val client: ApiClient) : StreamApi {
@@ -42,7 +49,28 @@ class RestStreamApi(private val client: ApiClient) : StreamApi {
         channelId: String,
         update: StreamInfoUpdate,
     ): ApiResult<StreamInfo> = client.putEnvelope("api/v1/channels/$channelId/stream", update)
+
+    override suspend fun searchCategories(
+        channelId: String,
+        query: String,
+    ): ApiResult<List<Category>> =
+        // StatusResponseDto<List<CategoryDto>> envelope — getEnvelope unwraps the `data` list.
+        client.getEnvelope(
+            "api/v1/channels/$channelId/stream/categories?query=${query.encodeQuery()}"
+        )
 }
+
+/**
+ * One Twitch game/category match (backend `CategoryDto`): [id] is the Twitch category id the schedule segment's
+ * `categoryId` write consumes, [name] is the canonical game name the stream-info update writes, and [boxArtUrl]
+ * is the cover art (template url with `{width}`/`{height}` placeholders) the picker row can show.
+ */
+@Serializable
+data class Category(
+    val id: String = "",
+    val name: String = "",
+    val boxArtUrl: String? = null,
+)
 
 /**
  * The channel's stream info (backend `StreamInfoDto`). Field names mirror the DTO camelCase exactly. The first

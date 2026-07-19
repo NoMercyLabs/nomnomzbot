@@ -22,9 +22,13 @@ import bot.nomnomz.dashboard.core.network.StreamAnalytics
 import bot.nomnomz.dashboard.core.network.StreamListItem
 import bot.nomnomz.dashboard.core.network.TopViewerEntry
 import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
+import bot.nomnomz.dashboard.core.network.ViewerEngagementDay
+import bot.nomnomz.dashboard.core.network.ViewerProfileListEntry
+import bot.nomnomz.dashboard.core.network.ViewerProfilePage
 import bot.nomnomz.dashboard.core.network.WatchStreak
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
@@ -235,6 +239,91 @@ class AnalyticsControllerTest {
         assertEquals(null, allTime.streamDetail)
     }
 
+    @Test
+    fun load_viewers_surfaces_the_first_page_of_the_viewer_list() = runTest {
+        val page: ViewerProfilePage =
+            ViewerProfilePage(
+                data =
+                    listOf(
+                        ViewerProfileListEntry(
+                            viewerUserId = "iu1",
+                            displayName = "Nibbles",
+                            totalWatchSeconds = 7200,
+                            totalMessages = 340,
+                            lastSeenAt = "2026-07-18T20:00:00Z",
+                        )
+                    ),
+                nextPage = 2,
+                hasMore = true,
+                total = 51,
+            )
+        val analyticsApi = FakeAnalyticsApi(summaryResult = ApiResult.Ok(AnalyticsSummary()), viewersResult = ApiResult.Ok(page))
+        val controller =
+            AnalyticsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), analyticsApi)
+
+        controller.loadViewers()
+
+        // The list resolved the channel, defaulted to the Watch sort + page 1, and projected the row + paging.
+        assertEquals("ch1", analyticsApi.requestedChannelId)
+        assertEquals("Watch", analyticsApi.requestedViewerSort)
+        assertEquals(1, analyticsApi.requestedViewerPage)
+        val ready: ViewerListState.Ready = controller.viewers.value as ViewerListState.Ready
+        assertEquals(1, ready.viewers.size)
+        assertEquals("Nibbles", ready.viewers.first().displayName)
+        assertEquals(340L, ready.viewers.first().totalMessages)
+        assertTrue(ready.hasMore)
+        assertEquals(51, ready.total)
+    }
+
+    @Test
+    fun next_viewers_page_advances_the_requested_page() = runTest {
+        val analyticsApi =
+            FakeAnalyticsApi(
+                summaryResult = ApiResult.Ok(AnalyticsSummary()),
+                viewersResult = ApiResult.Ok(ViewerProfilePage(hasMore = true)),
+            )
+        val controller =
+            AnalyticsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), analyticsApi)
+
+        controller.loadViewers()
+        controller.nextViewersPage()
+
+        assertEquals(2, analyticsApi.requestedViewerPage)
+        val ready: ViewerListState.Ready = controller.viewers.value as ViewerListState.Ready
+        assertEquals(2, ready.page)
+        assertTrue(ready.hasPrev)
+    }
+
+    @Test
+    fun open_viewer_loads_the_profile_by_internal_user_id() = runTest {
+        val profile: ViewerAnalyticsProfile =
+            ViewerAnalyticsProfile(
+                viewerUserId = "iu1",
+                totalMessages = 999,
+                totalRedemptions = 4,
+                isSubscriber = true,
+                subTier = "2000",
+            )
+        val analyticsApi =
+            FakeAnalyticsApi(summaryResult = ApiResult.Ok(AnalyticsSummary()), profileResult = ApiResult.Ok(profile))
+        val controller =
+            AnalyticsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), analyticsApi)
+
+        controller.openViewer("iu1", "Nibbles")
+
+        // The drill-down addressed the viewer by their internal id and folded the profile into the detail state.
+        assertEquals("iu1", analyticsApi.requestedViewerId)
+        val detail: ViewerDetailState = assertNotNull(controller.viewerDetail.value)
+        assertEquals("Nibbles", detail.displayName)
+        assertEquals(999L, detail.profile?.totalMessages)
+        assertTrue(detail.profile?.isSubscriber == true)
+        assertTrue(!detail.loading)
+        assertTrue(!detail.error)
+
+        controller.closeViewer()
+        assertEquals(null, controller.viewerDetail.value)
+    }
+
     private companion object {
         val ISO_DATE = Regex("""\d{4}-\d{2}-\d{2}""")
     }
@@ -265,11 +354,17 @@ private class FakeAnalyticsApi(
     private val topViewersResult: ApiResult<List<TopViewerEntry>> = ApiResult.Ok(emptyList()),
     private val streamsResult: ApiResult<List<StreamListItem>> = ApiResult.Ok(emptyList()),
     private val streamDetailResult: ApiResult<StreamAnalytics> = ApiResult.Ok(StreamAnalytics()),
+    private val viewersResult: ApiResult<ViewerProfilePage> = ApiResult.Ok(ViewerProfilePage()),
+    private val profileResult: ApiResult<ViewerAnalyticsProfile> = ApiResult.Ok(ViewerAnalyticsProfile()),
 ) : AnalyticsApi {
     var requestedChannelId: String? = null
     var requestedFrom: String? = null
     var requestedTo: String? = null
     var requestedStreamId: String? = null
+    var requestedViewerSearch: String? = null
+    var requestedViewerSort: String? = null
+    var requestedViewerPage: Int? = null
+    var requestedViewerId: String? = null
 
     constructor(result: ApiResult<AnalyticsSummary>) : this(summaryResult = result)
 
@@ -308,10 +403,36 @@ private class FakeAnalyticsApi(
         top: Int,
     ): ApiResult<List<TopViewerEntry>> = topViewersResult
 
+    override suspend fun listViewers(
+        channelId: String,
+        search: String?,
+        sort: String,
+        followersOnly: Boolean?,
+        subscribersOnly: Boolean?,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<ViewerProfilePage> {
+        requestedChannelId = channelId
+        requestedViewerSearch = search
+        requestedViewerSort = sort
+        requestedViewerPage = page
+        return viewersResult
+    }
+
     override suspend fun viewerProfile(
         channelId: String,
         viewerUserId: String,
-    ): ApiResult<ViewerAnalyticsProfile> = ApiResult.Ok(ViewerAnalyticsProfile())
+    ): ApiResult<ViewerAnalyticsProfile> {
+        requestedViewerId = viewerUserId
+        return profileResult
+    }
+
+    override suspend fun viewerEngagement(
+        channelId: String,
+        viewerUserId: String,
+        from: String,
+        to: String,
+    ): ApiResult<List<ViewerEngagementDay>> = ApiResult.Ok(emptyList())
 
     override suspend fun viewerStreak(
         channelId: String,

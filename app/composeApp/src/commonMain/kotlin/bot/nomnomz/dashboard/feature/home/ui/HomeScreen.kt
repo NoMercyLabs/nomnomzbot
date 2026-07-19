@@ -61,6 +61,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
+import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
+import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Tooltip
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
@@ -93,6 +96,12 @@ import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsState
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.category_picker_empty
+import nomnomzbot.composeapp.generated.resources.category_picker_label
+import nomnomzbot.composeapp.generated.resources.category_picker_placeholder
+import nomnomzbot.composeapp.generated.resources.channel_picker_empty
+import nomnomzbot.composeapp.generated.resources.channel_picker_label
+import nomnomzbot.composeapp.generated.resources.channel_picker_placeholder
 import nomnomzbot.composeapp.generated.resources.home_activity_ban
 import nomnomzbot.composeapp.generated.resources.home_activity_cheer
 import nomnomzbot.composeapp.generated.resources.home_activity_empty
@@ -134,7 +143,6 @@ import nomnomzbot.composeapp.generated.resources.home_live_ops_prediction_outcom
 import nomnomzbot.composeapp.generated.resources.home_live_ops_prediction_title_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_prediction_window_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_raid_confirm
-import nomnomzbot.composeapp.generated.resources.home_live_ops_raid_target_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_resolve_prediction
 import nomnomzbot.composeapp.generated.resources.home_live_ops_snooze_ad
 import nomnomzbot.composeapp.generated.resources.home_live_ops_start_commercial
@@ -155,7 +163,6 @@ import nomnomzbot.composeapp.generated.resources.home_platforms_offline
 import nomnomzbot.composeapp.generated.resources.home_status_live
 import nomnomzbot.composeapp.generated.resources.home_status_offline
 import nomnomzbot.composeapp.generated.resources.home_stream_error
-import nomnomzbot.composeapp.generated.resources.home_stream_game_label
 import nomnomzbot.composeapp.generated.resources.home_stream_save
 import nomnomzbot.composeapp.generated.resources.home_stream_section
 import nomnomzbot.composeapp.generated.resources.home_stream_tags_label
@@ -215,6 +222,8 @@ fun HomeScreen(
                     onUpdateStream = { title, game, tags ->
                         scope.launch { controller.updateStreamInfo(title, game, tags) }
                     },
+                    onSearchCategories = controller::searchCategories,
+                    onSearchRaidTargets = controller::searchRaidTargets,
                 )
         }
     }
@@ -233,6 +242,8 @@ private fun ReadyContent(
     chatPollsController: ChatPollsController,
     role: ManagementRole?,
     onUpdateStream: (title: String?, game: String?, tags: List<String>?) -> Unit,
+    onSearchCategories: suspend (String) -> List<PickerOption>,
+    onSearchRaidTargets: suspend (String) -> List<PickerOption>,
 ) {
     val spacing = LocalSpacing.current
     val scope = rememberCoroutineScope()
@@ -350,6 +361,7 @@ private fun ReadyContent(
         ChangeTitleDialog(
             streamInfo = streamInfo,
             error = streamError,
+            onSearchCategories = onSearchCategories,
             onSave = { title, game, tags ->
                 showChangeTitleDialog = false
                 onUpdateStream(title, game, tags)
@@ -380,6 +392,7 @@ private fun ReadyContent(
 
     if (showRaidDialog) {
         RaidDialog(
+            onSearchRaidTargets = onSearchRaidTargets,
             onConfirm = { target ->
                 showRaidDialog = false
                 scope.launch { raidPending = liveOpsController.startRaid(target) != null }
@@ -1036,11 +1049,16 @@ private fun TopCommandsCard(commands: List<CommandSummary>) {
 private fun ChangeTitleDialog(
     streamInfo: StreamInfo?,
     error: String?,
+    onSearchCategories: suspend (String) -> List<PickerOption>,
     onSave: (title: String?, game: String?, tags: List<String>?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var editTitle: String by remember(streamInfo?.title) { mutableStateOf(streamInfo?.title ?: "") }
-    var editGame: String by remember(streamInfo?.gameName) { mutableStateOf(streamInfo?.gameName ?: "") }
+    // The category picker owns a PickerRef selection; the stream update writes only the NAME, so the current
+    // game is seeded as PickerRef(name, name) — the id is unused on this write. onClear reopens the search.
+    var selectedGame: PickerRef? by remember(streamInfo?.gameName) {
+        mutableStateOf(streamInfo?.gameName?.takeIf { it.isNotBlank() }?.let { PickerRef(it, it) })
+    }
     var editTags: String by remember(streamInfo?.tags) {
         mutableStateOf(streamInfo?.tags?.joinToString(", ") ?: "")
     }
@@ -1057,10 +1075,14 @@ private fun ChangeTitleDialog(
                     label = stringResource(Res.string.home_stream_title_label),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                AppTextField(
-                    value = editGame,
-                    onValueChange = { editGame = it },
-                    label = stringResource(Res.string.home_stream_game_label),
+                SearchPickerField(
+                    search = onSearchCategories,
+                    selected = selectedGame,
+                    onSelect = { selectedGame = it },
+                    onClear = { selectedGame = null },
+                    label = stringResource(Res.string.category_picker_label),
+                    placeholder = stringResource(Res.string.category_picker_placeholder),
+                    emptyText = stringResource(Res.string.category_picker_empty),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 AppTextField(
@@ -1086,7 +1108,7 @@ private fun ChangeTitleDialog(
                             .takeIf { it.isNotEmpty() }
                     onSave(
                         editTitle.trim().takeIf { it.isNotEmpty() },
-                        editGame.trim().takeIf { it.isNotEmpty() },
+                        selectedGame?.name?.trim()?.takeIf { it.isNotEmpty() },
                         tags,
                     )
                 },
@@ -1198,24 +1220,31 @@ private fun PredictionDialog(
 
 @Composable
 private fun RaidDialog(
+    onSearchRaidTargets: suspend (String) -> List<PickerOption>,
     onConfirm: (targetBroadcasterId: String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var target: String by remember { mutableStateOf("") }
+    // The picker's PickerRef.id is the Twitch broadcaster id the raid write consumes; the search only finds the
+    // channel's own known viewers/chatters by name (the available endpoint).
+    var selected: PickerRef? by remember { mutableStateOf(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.home_live_ops_start_raid)) },
         text = {
-            AppTextField(
-                value = target,
-                onValueChange = { target = it },
-                label = stringResource(Res.string.home_live_ops_raid_target_label),
+            SearchPickerField(
+                search = onSearchRaidTargets,
+                selected = selected,
+                onSelect = { selected = it },
+                onClear = { selected = null },
+                label = stringResource(Res.string.channel_picker_label),
+                placeholder = stringResource(Res.string.channel_picker_placeholder),
+                emptyText = stringResource(Res.string.channel_picker_empty),
                 modifier = Modifier.fillMaxWidth(),
             )
         },
         confirmButton = {
-            Button(onClick = { onConfirm(target.trim()) }, enabled = target.isNotBlank()) {
+            Button(onClick = { selected?.let { onConfirm(it.id) } }, enabled = selected != null) {
                 Text(stringResource(Res.string.home_live_ops_raid_confirm))
             }
         },

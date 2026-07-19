@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
@@ -80,9 +83,16 @@ import nomnomzbot.composeapp.generated.resources.quotes_error
 import nomnomzbot.composeapp.generated.resources.quotes_loading
 import nomnomzbot.composeapp.generated.resources.quotes_new_action
 import nomnomzbot.composeapp.generated.resources.quotes_number
+import nomnomzbot.composeapp.generated.resources.quotes_page_indicator
+import nomnomzbot.composeapp.generated.resources.quotes_page_indicator_total
+import nomnomzbot.composeapp.generated.resources.quotes_pager_next
+import nomnomzbot.composeapp.generated.resources.quotes_pager_prev
 import nomnomzbot.composeapp.generated.resources.quotes_requires_delete
 import nomnomzbot.composeapp.generated.resources.quotes_requires_write
 import nomnomzbot.composeapp.generated.resources.quotes_retry
+import nomnomzbot.composeapp.generated.resources.quotes_search_empty
+import nomnomzbot.composeapp.generated.resources.quotes_search_label
+import nomnomzbot.composeapp.generated.resources.quotes_search_placeholder
 import nomnomzbot.composeapp.generated.resources.quotes_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_quotes
 import org.jetbrains.compose.resources.stringResource
@@ -125,21 +135,37 @@ fun QuotesScreen(controller: QuotesController, heldActionKeys: Set<String>) {
                 ManagedContent(
                     quotes = emptyList(),
                     actionError = null,
+                    search = "",
+                    page = 1,
+                    hasPrev = false,
+                    hasMore = false,
+                    total = null,
                     writeManage = writeManage,
                     deleteManage = deleteManage,
                     onNew = { editor = QuoteEditor.create() },
                     onEdit = { quote -> editor = QuoteEditor.edit(quote) },
                     onDelete = { quote -> pendingDelete = quote },
+                    onSearch = { query -> scope.launch { controller.setSearch(query) } },
+                    onPrevPage = { scope.launch { controller.prevPage() } },
+                    onNextPage = { scope.launch { controller.nextPage() } },
                 )
             is QuotesState.Ready ->
                 ManagedContent(
                     quotes = current.quotes,
                     actionError = current.actionError,
+                    search = current.search,
+                    page = current.page,
+                    hasPrev = current.hasPrev,
+                    hasMore = current.hasMore,
+                    total = current.total,
                     writeManage = writeManage,
                     deleteManage = deleteManage,
                     onNew = { editor = QuoteEditor.create() },
                     onEdit = { quote -> editor = QuoteEditor.edit(quote) },
                     onDelete = { quote -> pendingDelete = quote },
+                    onSearch = { query -> scope.launch { controller.setSearch(query) } },
+                    onPrevPage = { scope.launch { controller.prevPage() } },
+                    onNextPage = { scope.launch { controller.nextPage() } },
                 )
         }
     }
@@ -181,15 +207,27 @@ fun QuotesScreen(controller: QuotesController, heldActionKeys: Set<String>) {
 private fun ManagedContent(
     quotes: List<Quote>,
     actionError: String?,
+    search: String,
+    page: Int,
+    hasPrev: Boolean,
+    hasMore: Boolean,
+    total: Int?,
     writeManage: ManageDecision,
     deleteManage: ManageDecision,
     onNew: () -> Unit,
     onEdit: (Quote) -> Unit,
     onDelete: (Quote) -> Unit,
+    onSearch: (String) -> Unit,
+    onPrevPage: () -> Unit,
+    onNextPage: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+
+    // The search field is a local buffer submitted on the keyboard action; the committed query lives in the
+    // controller (which resets to page 1 on change). Seeded from the state so it survives a reload.
+    var query: String by remember(search) { mutableStateOf(search) }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -198,11 +236,23 @@ private fun ManagedContent(
         Header(writeManage = writeManage, onNew = onNew)
         actionError?.let { ActionErrorBanner(message = stringResource(Res.string.quotes_action_error, it)) }
 
+        AppTextField(
+            value = query,
+            onValueChange = { query = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.quotes_search_label),
+            placeholder = stringResource(Res.string.quotes_search_placeholder),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { onSearch(query) }),
+        )
+
         Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
             if (quotes.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = stringResource(Res.string.quotes_empty),
+                        text =
+                            if (search.isBlank()) stringResource(Res.string.quotes_empty)
+                            else stringResource(Res.string.quotes_search_empty),
                         style = typography.base,
                         color = tokens.mutedForeground,
                     )
@@ -223,6 +273,61 @@ private fun ManagedContent(
                     }
                 }
             }
+        }
+
+        Pager(
+            page = page,
+            total = total,
+            hasPrev = hasPrev,
+            hasMore = hasMore,
+            onPrev = onPrevPage,
+            onNext = onNextPage,
+        )
+    }
+}
+
+// The prev/next pager under the quote list. Prev/next disable at the ends; the indicator shows the current page
+// and, when the backend knows it, the total quote count.
+@Composable
+private fun Pager(
+    page: Int,
+    total: Int?,
+    hasPrev: Boolean,
+    hasMore: Boolean,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(onClick = onPrev, enabled = hasPrev) {
+            Text(
+                text = stringResource(Res.string.quotes_pager_prev),
+                color = if (hasPrev) tokens.primary else tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
+        Text(
+            text =
+                if (total != null) stringResource(Res.string.quotes_page_indicator_total, page, total)
+                else stringResource(Res.string.quotes_page_indicator, page),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Center,
+        )
+        TextButton(onClick = onNext, enabled = hasMore) {
+            Text(
+                text = stringResource(Res.string.quotes_pager_next),
+                color = if (hasMore) tokens.primary else tokens.mutedForeground,
+                maxLines = 1,
+            )
         }
     }
 }

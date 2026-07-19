@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.economy.state
 
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.CatalogPurchase
@@ -33,6 +34,8 @@ import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.TransferBody
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
 import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
+import bot.nomnomz.dashboard.core.network.UserSearchResult
+import bot.nomnomz.dashboard.core.network.UsersApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,6 +48,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class EconomyController(
     private val channelsApi: ChannelsApi,
     private val economyApi: EconomyApi,
+    private val usersApi: UsersApi,
 ) {
     private val _state: MutableStateFlow<EconomyState> = MutableStateFlow(EconomyState.Loading)
 
@@ -384,6 +388,25 @@ class EconomyController(
             is ApiResult.Failure -> null
         }
     }
+
+    /**
+     * Autocomplete over the platform's users for the shared transfer / adjust pickers. Each match's
+     * [PickerOption.id] is the internal platform User GUID — the id the transfer / adjust writes key on
+     * (`viewerUserId:guid`). Best-effort: a failed search yields an empty list so the picker shows "no matches"
+     * rather than sinking the dialog. The write that follows re-checks authorization.
+     */
+    suspend fun searchViewers(query: String): List<PickerOption> =
+        when (val result: ApiResult<List<UserSearchResult>> = usersApi.search(query)) {
+            is ApiResult.Ok ->
+                result.value.map {
+                    PickerOption(
+                        id = it.id,
+                        label = it.displayName.ifBlank { it.username },
+                        sublabel = it.username,
+                    )
+                }
+            is ApiResult.Failure -> emptyList()
+        }
 
     /** Transfer [amount] from one viewer to another. Reloads on success. */
     suspend fun transfer(request: TransferBody) {

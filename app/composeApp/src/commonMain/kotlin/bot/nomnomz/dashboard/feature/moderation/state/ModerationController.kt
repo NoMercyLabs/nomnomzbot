@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.moderation.state
 
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -17,6 +18,7 @@ import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.CreateModerationRuleBody
 import bot.nomnomz.dashboard.core.network.ModerationActionResult
@@ -37,6 +39,7 @@ import bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody
 import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.UserModerationContext
 import bot.nomnomz.dashboard.core.network.UserNote
+import bot.nomnomz.dashboard.core.network.ViewerOption
 import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,6 +58,7 @@ import nomnomzbot.composeapp.generated.resources.feedback_unbanned
 class ModerationController(
     private val channelsApi: ChannelsApi,
     private val moderationApi: ModerationApi,
+    private val communityApi: CommunityApi,
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<ModerationState> = MutableStateFlow(ModerationState.Loading)
@@ -70,6 +74,23 @@ class ModerationController(
 
     // The channel the loaded bans belong to, kept so [unban] targets the same channel without re-resolving.
     private var channelId: String? = null
+
+    /**
+     * Autocomplete over the channel's known viewers for the shared "moderate a viewer" picker. Each match's
+     * [PickerOption.id] is the viewer's Twitch user id — the id the ban / timeout / warn / standing writes key on.
+     * Best-effort: no resolved channel or a failed search yields an empty list so the picker shows "no matches"
+     * rather than sinking the dialog. The write that follows re-checks authorization.
+     */
+    suspend fun searchViewers(query: String): List<PickerOption> {
+        val channel: String = channelId ?: return emptyList()
+        return when (
+            val result: ApiResult<List<ViewerOption>> = communityApi.searchViewers(channel, query)
+        ) {
+            is ApiResult.Ok ->
+                result.value.map { PickerOption(id = it.id, label = it.label, sublabel = it.subLabel) }
+            is ApiResult.Failure -> emptyList()
+        }
+    }
 
     /** Resolve the active channel, then load its banned-viewer list. */
     suspend fun load() {

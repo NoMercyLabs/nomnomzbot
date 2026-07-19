@@ -58,14 +58,20 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
+import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
+import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
+import bot.nomnomz.dashboard.core.designsystem.component.TabsList
+import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.CommunityTrustLevel
+import bot.nomnomz.dashboard.feature.community.state.CommunityRole
 import bot.nomnomz.dashboard.core.network.UserStats
 import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
@@ -110,6 +116,17 @@ import nomnomzbot.composeapp.generated.resources.community_trust_vip
 import nomnomzbot.composeapp.generated.resources.community_unban_action
 import nomnomzbot.composeapp.generated.resources.community_unban_action_short
 import nomnomzbot.composeapp.generated.resources.community_more_actions
+import nomnomzbot.composeapp.generated.resources.community_no_members_in_role
+import nomnomzbot.composeapp.generated.resources.community_page_indicator
+import nomnomzbot.composeapp.generated.resources.community_page_indicator_total
+import nomnomzbot.composeapp.generated.resources.community_pager_next
+import nomnomzbot.composeapp.generated.resources.community_pager_prev
+import nomnomzbot.composeapp.generated.resources.community_role_all
+import nomnomzbot.composeapp.generated.resources.community_role_follower
+import nomnomzbot.composeapp.generated.resources.community_role_moderator
+import nomnomzbot.composeapp.generated.resources.community_role_vip
+import nomnomzbot.composeapp.generated.resources.community_search_label
+import nomnomzbot.composeapp.generated.resources.community_search_placeholder
 import nomnomzbot.composeapp.generated.resources.community_shoutout_action
 import nomnomzbot.composeapp.generated.resources.community_top_chatters_messages
 import nomnomzbot.composeapp.generated.resources.community_top_chatters_title
@@ -214,8 +231,17 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
                 MemberList(
                     members = current.members,
                     topChatters = current.topChatters,
+                    role = current.role,
+                    page = current.page,
+                    hasPrev = current.hasPrev,
+                    hasMore = current.hasMore,
+                    total = current.total,
                     actionError = current.actionError,
                     manage = manage,
+                    onSelectRole = { role -> scope.launch { controller.selectRole(role) } },
+                    onPrevPage = { scope.launch { controller.prevPage() } },
+                    onNextPage = { scope.launch { controller.nextPage() } },
+                    onSearchViewers = { query -> controller.searchViewers(query) },
                     onSetTrust = { userId, level -> scope.launch { controller.setTrust(userId, level) } },
                     onBan = { userId, reason -> scope.launch { controller.ban(userId, reason) } },
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
@@ -278,8 +304,17 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
 private fun MemberList(
     members: List<CommunityMember>,
     topChatters: List<ChatActivityEntry>,
+    role: String,
+    page: Int,
+    hasPrev: Boolean,
+    hasMore: Boolean,
+    total: Int?,
     actionError: String?,
     manage: ManageDecision,
+    onSelectRole: (String) -> Unit,
+    onPrevPage: () -> Unit,
+    onNextPage: () -> Unit,
+    onSearchViewers: suspend (String) -> List<PickerOption>,
     onSetTrust: (userId: String, level: String) -> Unit,
     onBan: (userId: String, reason: String) -> Unit,
     onUnban: (userId: String) -> Unit,
@@ -294,6 +329,9 @@ private fun MemberList(
     // The member awaiting a ban / unban confirmation, if any — the screen owns the dialog's open/closed state.
     var pendingBan: CommunityMember? by remember { mutableStateOf(null) }
     var pendingUnban: CommunityMember? by remember { mutableStateOf(null) }
+    // A viewer found via the "reach a viewer beyond this page" picker — synthesized into a member row so the same
+    // ban / VIP / trust / shoutout / stats actions apply to them by their Twitch id.
+    var pickedViewer: PickerRef? by remember { mutableStateOf(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -303,6 +341,37 @@ private fun MemberList(
         actionError?.let { detail ->
             item(key = "action-error") {
                 ActionErrorBanner(message = stringResource(Res.string.community_action_error, detail))
+            }
+        }
+        item(key = "role-tabs") {
+            RoleTabs(role = role, onSelectRole = onSelectRole)
+        }
+        item(key = "viewer-search") {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                SearchPickerField(
+                    search = onSearchViewers,
+                    selected = pickedViewer,
+                    onSelect = { pickedViewer = it },
+                    onClear = { pickedViewer = null },
+                    label = stringResource(Res.string.community_search_label),
+                    placeholder = stringResource(Res.string.community_search_placeholder),
+                )
+                pickedViewer?.let { picked ->
+                    val synthetic: CommunityMember =
+                        CommunityMember(id = picked.id, displayName = picked.name)
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        MemberRow(
+                            member = synthetic,
+                            manage = manage,
+                            onSetTrust = { level -> onSetTrust(picked.id, level) },
+                            onBan = { pendingBan = synthetic },
+                            onUnban = { pendingUnban = synthetic },
+                            onShoutout = { onShoutout(picked.id) },
+                            onVipToggle = { onVipToggle(picked.id, false) },
+                            onViewStats = { onViewStats(synthetic) },
+                        )
+                    }
+                }
             }
         }
         if (topChatters.isNotEmpty()) {
@@ -364,22 +433,43 @@ private fun MemberList(
         }
         item(key = "members-card") {
             Card(modifier = Modifier.fillMaxWidth()) {
-                members.forEachIndexed { index, member ->
-                    MemberRow(
-                        member = member,
-                        manage = manage,
-                        onSetTrust = { level -> onSetTrust(member.id, level) },
-                        onBan = { pendingBan = member },
-                        onUnban = { pendingUnban = member },
-                        onShoutout = { onShoutout(member.id) },
-                        onVipToggle = { onVipToggle(member.id, member.trustLevel == CommunityTrustLevel.Vip) },
-                        onViewStats = { onViewStats(member) },
+                if (members.isEmpty()) {
+                    Text(
+                        text = stringResource(Res.string.community_no_members_in_role),
+                        style = typography.sm,
+                        color = tokens.mutedForeground,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = spacing.s4, vertical = spacing.s4),
                     )
-                    if (index < members.lastIndex) {
-                        Separator()
+                } else {
+                    members.forEachIndexed { index, member ->
+                        MemberRow(
+                            member = member,
+                            manage = manage,
+                            onSetTrust = { level -> onSetTrust(member.id, level) },
+                            onBan = { pendingBan = member },
+                            onUnban = { pendingUnban = member },
+                            onShoutout = { onShoutout(member.id) },
+                            onVipToggle = { onVipToggle(member.id, member.trustLevel == CommunityTrustLevel.Vip) },
+                            onViewStats = { onViewStats(member) },
+                        )
+                        if (index < members.lastIndex) {
+                            Separator()
+                        }
                     }
                 }
             }
+        }
+        item(key = "pager") {
+            Pager(
+                page = page,
+                total = total,
+                hasPrev = hasPrev,
+                hasMore = hasMore,
+                onPrev = onPrevPage,
+                onNext = onNextPage,
+            )
         }
     }
 
@@ -414,6 +504,70 @@ private fun MemberList(
             },
             onDismiss = { pendingUnban = null },
         )
+    }
+}
+
+// The role filter tab strip: all / followers / VIPs / moderators. Switching a tab reloads its first page.
+@Composable
+private fun RoleTabs(role: String, onSelectRole: (String) -> Unit) {
+    val typography = LocalTypography.current
+
+    TabsList(modifier = Modifier.fillMaxWidth()) {
+        CommunityRole.tabs.forEach { tab ->
+            TabsTrigger(
+                selected = tab == role,
+                onClick = { if (tab != role) onSelectRole(tab) },
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(text = stringResource(roleTabLabel(tab)), style = typography.sm, maxLines = 1)
+            }
+        }
+    }
+}
+
+// The prev/next pager under the member list. Prev/next are disabled at the ends; the indicator shows the current
+// page and, when the backend knows it, the total member count for the active role.
+@Composable
+private fun Pager(
+    page: Int,
+    total: Int?,
+    hasPrev: Boolean,
+    hasMore: Boolean,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s2),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(onClick = onPrev, enabled = hasPrev) {
+            Text(
+                text = stringResource(Res.string.community_pager_prev),
+                color = if (hasPrev) tokens.primary else tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
+        Text(
+            text =
+                if (total != null) stringResource(Res.string.community_page_indicator_total, page, total)
+                else stringResource(Res.string.community_page_indicator, page),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Center,
+        )
+        TextButton(onClick = onNext, enabled = hasMore) {
+            Text(
+                text = stringResource(Res.string.community_pager_next),
+                color = if (hasMore) tokens.primary else tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
     }
 }
 
@@ -1053,4 +1207,13 @@ private fun trustLabel(trustLevel: String): StringResource =
         CommunityTrustLevel.Vip -> Res.string.community_trust_vip
         CommunityTrustLevel.Subscriber -> Res.string.community_trust_subscriber
         else -> Res.string.community_trust_viewer
+    }
+
+/** Map a role tab key to its localized label. */
+private fun roleTabLabel(role: String): StringResource =
+    when (role) {
+        CommunityRole.Follower -> Res.string.community_role_follower
+        CommunityRole.Vip -> Res.string.community_role_vip
+        CommunityRole.Moderator -> Res.string.community_role_moderator
+        else -> Res.string.community_role_all
     }

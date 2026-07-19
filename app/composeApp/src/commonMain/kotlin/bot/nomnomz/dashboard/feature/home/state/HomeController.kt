@@ -10,17 +10,21 @@
 
 package bot.nomnomz.dashboard.feature.home.state
 
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.Category
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.CommandsApi
+import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.core.network.StreamInfoUpdate
+import bot.nomnomz.dashboard.core.network.ViewerOption
 import bot.nomnomz.dashboard.core.realtime.DashboardHubClient
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,6 +62,7 @@ class HomeController(
     private val dashboardApi: DashboardApi,
     private val streamApi: StreamApi,
     private val commandsApi: CommandsApi,
+    private val communityApi: CommunityApi,
     private val hubClient: DashboardHubClient? = null,
     private val baseUrl: () -> String? = { null },
     private val accessToken: () -> String? = { null },
@@ -159,6 +164,33 @@ class HomeController(
                     )
                 }
             }
+        }
+    }
+
+    /**
+     * Autocomplete Twitch categories for the stream-info "game" picker. Maps each match to a [PickerOption]
+     * whose [PickerOption.id] is the Twitch category id and [PickerOption.label] the canonical game name — the
+     * stream update writes only the NAME. Best-effort: empty on failure or before the channel resolves.
+     */
+    suspend fun searchCategories(query: String): List<PickerOption> {
+        val channel: String = channelId ?: return emptyList()
+        return when (val result: ApiResult<List<Category>> = streamApi.searchCategories(channel, query)) {
+            is ApiResult.Ok -> result.value.map { PickerOption(id = it.id, label = it.name) }
+            is ApiResult.Failure -> emptyList()
+        }
+    }
+
+    /**
+     * Autocomplete raid targets for the raid dialog. NOTE: community/search only finds the channel's OWN known
+     * viewers/chatters by name (the available endpoint) — it yields the Twitch user id the raid write consumes.
+     * Best-effort: empty on failure or before the channel resolves.
+     */
+    suspend fun searchRaidTargets(query: String): List<PickerOption> {
+        val channel: String = channelId ?: return emptyList()
+        return when (val result: ApiResult<List<ViewerOption>> = communityApi.searchViewers(channel, query)) {
+            is ApiResult.Ok ->
+                result.value.map { PickerOption(id = it.id, label = it.label, sublabel = it.subLabel) }
+            is ApiResult.Failure -> emptyList()
         }
     }
 

@@ -19,6 +19,11 @@ import bot.nomnomz.dashboard.core.network.DailyMetricRow
 import bot.nomnomz.dashboard.core.network.StreamAnalytics
 import bot.nomnomz.dashboard.core.network.StreamListItem
 import bot.nomnomz.dashboard.core.network.TopViewerEntry
+import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
+import bot.nomnomz.dashboard.core.network.ViewerEngagementDay
+import bot.nomnomz.dashboard.core.network.ViewerProfileListEntry
+import bot.nomnomz.dashboard.core.network.ViewerProfilePage
+import bot.nomnomz.dashboard.core.network.WatchStreak
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.async
@@ -39,8 +44,23 @@ class AnalyticsController(
     /** The page render state: loading / ready (with the summary) / error. */
     val state: StateFlow<AnalyticsState> = _state.asStateFlow()
 
+    private val _viewers: MutableStateFlow<ViewerListState> = MutableStateFlow(ViewerListState.Idle)
+
+    /** The viewer drill-down list state (searchable, sortable, paginated). Loaded lazily by [loadViewers]. */
+    val viewers: StateFlow<ViewerListState> = _viewers.asStateFlow()
+
+    private val _viewerDetail: MutableStateFlow<ViewerDetailState?> = MutableStateFlow(null)
+
+    /** The open per-viewer profile, or null when the drill-down list (not a single viewer) is showing. */
+    val viewerDetail: StateFlow<ViewerDetailState?> = _viewerDetail.asStateFlow()
+
     // Resolved on first load, reused by [selectStream] so a stream switch never re-resolves the channel.
     private var channelId: String? = null
+
+    // The viewer-list query the drill-down sits on — the "stuck on page 1" fix for the viewer table.
+    private var viewerSearch: String? = null
+    private var viewerSort: String = ViewerSort.Watch
+    private var viewerPage: Int = 1
 
     /** Resolve the active channel, then load summary + daily trends + top viewers + stream history concurrently. */
     suspend fun load() {
@@ -131,11 +151,225 @@ class AnalyticsController(
         }
     }
 
+    // ── Viewer drill-down ──────────────────────────────────────────────────────
+
+    /** Resolve the channel if needed, then load the first page of the viewer analytics list. */
+    suspend fun loadViewers() {
+        viewerSearch = null
+        viewerSort = ViewerSort.Watch
+        viewerPage = 1
+        fetchViewers(isInitial = true)
+    }
+
+    /** Set the viewer search fragment (blank clears it), reset to the first page, and reload. */
+    suspend fun setViewerSearch(query: String) {
+        viewerSearch = query.takeIf { it.isNotBlank() }
+        viewerPage = 1
+        fetchViewers(isInitial = false)
+    }
+
+    /** Switch the viewer-list sort (one of [ViewerSort]), reset to the first page, and reload. */
+    suspend fun setViewerSort(sort: String) {
+        viewerSort = sort
+        viewerPage = 1
+        fetchViewers(isInitial = false)
+    }
+
+    /** Advance to the next page of the viewer list. The screen only calls this while `hasMore` is true. */
+    suspend fun nextViewersPage() {
+        viewerPage += 1
+        fetchViewers(isInitial = false)
+    }
+
+    /** Step back to the previous page of the viewer list. A no-op on the first page. */
+    suspend fun prevViewersPage() {
+        if (viewerPage <= 1) return
+        viewerPage -= 1
+        fetchViewers(isInitial = false)
+    }
+
+    private suspend fun fetchViewers(isInitial: Boolean) {
+        val channel: String =
+            ensureChannel()
+                ?: run {
+                    _viewers.value = ViewerListState.Error(NoChannelError)
+                    return
+                }
+        if (isInitial || _viewers.value !is ViewerListState.Ready) _viewers.value = ViewerListState.Loading
+        when (
+            val result: ApiResult<ViewerProfilePage> =
+                analyticsApi.listViewers(
+                    channelId = channel,
+                    search = viewerSearch,
+                    sort = viewerSort,
+                    followersOnly = null,
+                    subscribersOnly = null,
+                    page = viewerPage,
+                    pageSize = VIEWER_PAGE_SIZE,
+                )
+        ) {
+            is ApiResult.Failure -> _viewers.value = ViewerListState.Error(result.error.message)
+            is ApiResult.Ok -> {
+                val viewerPageResult: ViewerProfilePage = result.value
+                _viewers.value =
+                    ViewerListState.Ready(
+                        viewers = viewerPageResult.data,
+                        search = viewerSearch.orEmpty(),
+                        sort = viewerSort,
+                        page = viewerPage,
+                        hasPrev = viewerPage > 1,
+                        hasMore = viewerPageResult.hasMore,
+                        total = viewerPageResult.total,
+                    )
+            }
+        }
+    }
+
+    /**
+     * Open [viewerUserId]'s profile drill-down: the full profile (required), plus the watch streak and the last
+     * 30 days of daily engagement (both supplementary — a failure just leaves that part blank). [displayName] is
+     * carried through for the header while the profile loads.
+     */
+    suspend fun openViewer(viewerUserId: String, displayName: String) {
+        val channel: String = ensureChannel() ?: return
+        _viewerDetail.value =
+            ViewerDetailState(viewerUserId = viewerUserId, displayName = displayName, loading = true)
+
+        val to: String = today()
+        val from: String = daysBefore(to, WINDOW_DAYS - 1)
+
+        val profile: ViewerAnalyticsProfile? =
+            when (val result: ApiResult<ViewerAnalyticsProfile> = analyticsApi.viewerProfile(channel, viewerUserId)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> null
+            }
+        val streak: WatchStreak? =
+            when (val result: ApiResult<WatchStreak> = analyticsApi.viewerStreak(channel, viewerUserId)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> null
+            }
+        val engagement: List<ViewerEngagementDay> =
+            when (
+                val result: ApiResult<List<ViewerEngagementDay>> =
+                    analyticsApi.viewerEngagement(channel, viewerUserId, from = from, to = to)
+            ) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> emptyList()
+            }
+
+        _viewerDetail.value =
+            ViewerDetailState(
+                viewerUserId = viewerUserId,
+                displayName = displayName,
+                loading = false,
+                profile = profile,
+                streak = streak,
+                engagement = engagement,
+                error = profile == null,
+            )
+    }
+
+    /** Close the per-viewer drill-down and return to the viewer list. */
+    fun closeViewer() {
+        _viewerDetail.value = null
+    }
+
+    /**
+     * Toggle the analytics opt-out for the open viewer (self or moderator), then re-read the profile so the flag
+     * reflects the backend. Returns the error message on failure, or null on success. Role-gated by the screen.
+     */
+    suspend fun setViewerOptOut(optedOut: Boolean): String? {
+        val detail: ViewerDetailState = _viewerDetail.value ?: return null
+        val channel: String = ensureChannel() ?: return NoChannelError
+        _viewerDetail.value = detail.copy(optOutBusy = true)
+        val error: String? =
+            when (
+                val result: ApiResult<Unit> =
+                    analyticsApi.setAnalyticsOptOut(channel, detail.viewerUserId, optedOut)
+            ) {
+                is ApiResult.Ok -> null
+                is ApiResult.Failure -> result.error.message
+            }
+        val refreshed: ViewerAnalyticsProfile? =
+            if (error == null) {
+                when (
+                    val result: ApiResult<ViewerAnalyticsProfile> =
+                        analyticsApi.viewerProfile(channel, detail.viewerUserId)
+                ) {
+                    is ApiResult.Ok -> result.value
+                    is ApiResult.Failure -> detail.profile
+                }
+            } else {
+                detail.profile
+            }
+        _viewerDetail.value = detail.copy(profile = refreshed, optOutBusy = false)
+        return error
+    }
+
+    // Resolve (and cache) the active channel id, reused by the viewer drill-down. Null when none resolves.
+    private suspend fun ensureChannel(): String? {
+        channelId?.let { return it }
+        return when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
+            is ApiResult.Ok -> result.value.id.also { channelId = it }
+            is ApiResult.Failure -> null
+        }
+    }
+
     private companion object {
         // The trailing window the page summarizes — well within the backend's 366-day cap.
         const val WINDOW_DAYS: Int = 30
+        const val VIEWER_PAGE_SIZE: Int = 25
+        const val NoChannelError: String = "No active channel — reconnect and try again."
     }
 }
+
+/** The viewer-list sort keys the backend `sort` query accepts. The screen shows role/metric names, not these. */
+object ViewerSort {
+    const val Watch: String = "Watch"
+    const val Messages: String = "Messages"
+    const val Commands: String = "Commands"
+    const val Redemptions: String = "Redemptions"
+    const val LastSeen: String = "LastSeen"
+
+    /** Ordered for the sort selector. */
+    val all: List<String> = listOf(Watch, Messages, Commands, Redemptions, LastSeen)
+}
+
+/** The viewer drill-down list render state. */
+sealed interface ViewerListState {
+    /** Not yet requested — the section shows a "load viewers" affordance rather than auto-fetching. */
+    data object Idle : ViewerListState
+
+    data object Loading : ViewerListState
+
+    data class Ready(
+        val viewers: List<ViewerProfileListEntry>,
+        val search: String = "",
+        val sort: String = ViewerSort.Watch,
+        val page: Int = 1,
+        val hasPrev: Boolean = false,
+        val hasMore: Boolean = false,
+        val total: Int? = null,
+    ) : ViewerListState
+
+    data class Error(val detail: String) : ViewerListState
+}
+
+/**
+ * The open per-viewer drill-down. [loading] is true while the profile is being fetched; [error] is true when the
+ * required profile failed to load. [streak] and [engagement] are supplementary and may be null/empty even on a
+ * successful profile. [optOutBusy] guards the opt-out toggle while its write is in flight.
+ */
+data class ViewerDetailState(
+    val viewerUserId: String,
+    val displayName: String,
+    val loading: Boolean = false,
+    val profile: ViewerAnalyticsProfile? = null,
+    val streak: WatchStreak? = null,
+    val engagement: List<ViewerEngagementDay> = emptyList(),
+    val error: Boolean = false,
+    val optOutBusy: Boolean = false,
+)
 
 /** Today's UTC date as `yyyy-MM-dd` — the inclusive upper bound of the summary window. */
 @OptIn(ExperimentalTime::class)

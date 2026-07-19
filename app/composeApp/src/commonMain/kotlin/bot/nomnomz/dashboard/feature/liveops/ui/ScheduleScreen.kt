@@ -38,6 +38,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
+import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
+import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -53,9 +56,11 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.category_picker_empty
+import nomnomzbot.composeapp.generated.resources.category_picker_label
+import nomnomzbot.composeapp.generated.resources.category_picker_placeholder
 import nomnomzbot.composeapp.generated.resources.moderation_action_error
 import nomnomzbot.composeapp.generated.resources.schedule_add
-import nomnomzbot.composeapp.generated.resources.schedule_category_label
 import nomnomzbot.composeapp.generated.resources.schedule_delete
 import nomnomzbot.composeapp.generated.resources.schedule_delete_message
 import nomnomzbot.composeapp.generated.resources.schedule_delete_title
@@ -146,6 +151,7 @@ fun ScheduleScreen(
     if (showAdd) {
         SegmentDialog(
             existing = null,
+            onSearchCategories = controller::searchCategories,
             onDismiss = { showAdd = false },
             onSave = { start, tz, duration, title, category, recurring ->
                 showAdd = false
@@ -157,6 +163,7 @@ fun ScheduleScreen(
     editorTarget?.let { segment ->
         SegmentDialog(
             existing = segment,
+            onSearchCategories = controller::searchCategories,
             onDismiss = { editorTarget = null },
             onSave = { start, tz, duration, title, category, _ ->
                 editorTarget = null
@@ -403,6 +410,7 @@ private fun VacationCard(
 @Composable
 private fun SegmentDialog(
     existing: LiveOpsScheduleSegment?,
+    onSearchCategories: suspend (String) -> List<PickerOption>,
     onDismiss: () -> Unit,
     onSave: (start: String, timezone: String, duration: String, title: String?, categoryId: String?, recurring: Boolean) -> Unit,
 ) {
@@ -413,7 +421,11 @@ private fun SegmentDialog(
     var timezone: String by remember { mutableStateOf("") }
     var duration: String by remember { mutableStateOf("") }
     var title: String by remember { mutableStateOf(existing?.title ?: "") }
-    var categoryId: String by remember { mutableStateOf(existing?.category?.id ?: "") }
+    // The category picker owns a PickerRef selection; the segment WRITE consumes the Twitch category id, so the
+    // existing segment's category (id + name) seeds it. onClear reopens the search.
+    var selectedCategory: PickerRef? by remember {
+        mutableStateOf(existing?.category?.let { PickerRef(it.id, it.name) })
+    }
     var recurring: Boolean by remember { mutableStateOf(existing?.isRecurring ?: false) }
 
     val canSave: Boolean = start.isNotBlank() && timezone.isNotBlank() && duration.isNotBlank()
@@ -457,10 +469,14 @@ private fun SegmentDialog(
                     label = stringResource(Res.string.schedule_title_label),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                AppTextField(
-                    value = categoryId,
-                    onValueChange = { categoryId = it },
-                    label = stringResource(Res.string.schedule_category_label),
+                SearchPickerField(
+                    search = onSearchCategories,
+                    selected = selectedCategory,
+                    onSelect = { selectedCategory = it },
+                    onClear = { selectedCategory = null },
+                    label = stringResource(Res.string.category_picker_label),
+                    placeholder = stringResource(Res.string.category_picker_placeholder),
+                    emptyText = stringResource(Res.string.category_picker_empty),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (existing == null) {
@@ -477,7 +493,7 @@ private fun SegmentDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onSave(start.trim(), timezone.trim(), duration.trim(), title.ifBlank { null }, categoryId.ifBlank { null }, recurring) },
+                onClick = { onSave(start.trim(), timezone.trim(), duration.trim(), title.ifBlank { null }, selectedCategory?.id, recurring) },
                 enabled = canSave,
             ) {
                 Text(

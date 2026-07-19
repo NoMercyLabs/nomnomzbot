@@ -17,13 +17,16 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.CommandsApi
+import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.CreateCommandBody
+import bot.nomnomz.dashboard.core.network.Category
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.core.network.StreamInfoUpdate
+import bot.nomnomz.dashboard.core.network.ViewerOption
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.HubStreamInfoChanged
@@ -61,6 +64,7 @@ class HomeControllerTest {
                 ),
                 streamApi = FakeStreamApi(),
                 commandsApi = FakeCommandsApi(),
+                communityApi = FakeCommunityApi(),
             )
 
         controller.load()
@@ -83,6 +87,7 @@ class HomeControllerTest {
                 dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
                 streamApi = FakeStreamApi(),
                 commandsApi = FakeCommandsApi(),
+                communityApi = FakeCommunityApi(),
             )
 
         controller.load()
@@ -98,6 +103,7 @@ class HomeControllerTest {
                 dashboardApi = FakeDashboardApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
                 streamApi = FakeStreamApi(),
                 commandsApi = FakeCommandsApi(),
+                communityApi = FakeCommunityApi(),
             )
 
         controller.load()
@@ -121,6 +127,7 @@ class HomeControllerTest {
                 dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
                 streamApi = FakeStreamApi(),
                 commandsApi = FakeCommandsApi(ApiResult.Ok(commands)),
+                communityApi = FakeCommunityApi(),
             )
 
         controller.load()
@@ -150,6 +157,7 @@ class HomeControllerTest {
                     updateResult = ApiResult.Ok(StreamInfo(title = "New title", gameName = "New game"))
                 ),
                 commandsApi = FakeCommandsApi(),
+                communityApi = FakeCommunityApi(),
             )
         controller.load()
 
@@ -176,6 +184,7 @@ class HomeControllerTest {
                 ),
                 streamApi = FakeStreamApi(),
                 commandsApi = FakeCommandsApi(),
+                communityApi = FakeCommunityApi(),
             )
         controller.load()
 
@@ -210,6 +219,7 @@ class HomeControllerTest {
                 dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
                 streamApi = FakeStreamApi(),
                 commandsApi = FakeCommandsApi(ApiResult.Failure(ApiError(500, "ERR", "commands unavailable"))),
+                communityApi = FakeCommunityApi(),
             )
 
         controller.load()
@@ -252,6 +262,32 @@ private class FakeStreamApi(
     override suspend fun info(channelId: String): ApiResult<StreamInfo> = infoResult
     override suspend fun update(channelId: String, update: StreamInfoUpdate): ApiResult<StreamInfo> =
         updateResult
+    override suspend fun searchCategories(channelId: String, query: String): ApiResult<List<Category>> =
+        ApiResult.Ok(emptyList())
+}
+
+private class FakeCommunityApi : CommunityApi {
+    override suspend fun searchViewers(
+        channelId: String,
+        query: String,
+        limit: Int,
+    ): ApiResult<List<ViewerOption>> = ApiResult.Ok(emptyList())
+
+    override suspend fun members(channelId: String) = error("stub")
+    override suspend fun membersPage(
+        channelId: String,
+        role: String?,
+        page: Int,
+        pageSize: Int,
+        cursor: String?,
+    ) = error("stub")
+    override suspend fun topChatters(channelId: String) = error("stub")
+    override suspend fun setTrust(channelId: String, userId: String, level: String) = error("stub")
+    override suspend fun ban(channelId: String, userId: String, reason: String) = error("stub")
+    override suspend fun unban(channelId: String, userId: String) = error("stub")
+    override suspend fun addVip(channelId: String, userId: String) = error("stub")
+    override suspend fun removeVip(channelId: String, userId: String) = error("stub")
+    override suspend fun shoutout(channelId: String, targetTwitchUserId: String) = error("stub")
 }
 
 private class FakeCommandsApi(

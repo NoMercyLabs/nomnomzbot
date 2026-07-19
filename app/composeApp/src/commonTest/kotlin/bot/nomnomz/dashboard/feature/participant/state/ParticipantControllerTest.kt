@@ -65,6 +65,8 @@ import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
 import bot.nomnomz.dashboard.core.network.UserActivity
 import bot.nomnomz.dashboard.core.network.UserProfile
 import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
+import bot.nomnomz.dashboard.core.network.ViewerEngagementDay
+import bot.nomnomz.dashboard.core.network.ViewerProfilePage
 import bot.nomnomz.dashboard.core.network.WatchStreak
 import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 import kotlin.test.Test
@@ -784,10 +786,27 @@ private class FakeAnalyticsApi : AnalyticsApi {
         top: Int,
     ): ApiResult<List<TopViewerEntry>> = ApiResult.Ok(emptyList())
 
+    override suspend fun listViewers(
+        channelId: String,
+        search: String?,
+        sort: String,
+        followersOnly: Boolean?,
+        subscribersOnly: Boolean?,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<ViewerProfilePage> = ApiResult.Ok(ViewerProfilePage())
+
     override suspend fun viewerProfile(
         channelId: String,
         viewerUserId: String,
     ): ApiResult<ViewerAnalyticsProfile> = ApiResult.Ok(ViewerAnalyticsProfile())
+
+    override suspend fun viewerEngagement(
+        channelId: String,
+        viewerUserId: String,
+        from: String,
+        to: String,
+    ): ApiResult<List<ViewerEngagementDay>> = ApiResult.Ok(emptyList())
 
     override suspend fun viewerStreak(
         channelId: String,
