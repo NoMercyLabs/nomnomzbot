@@ -35,6 +35,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Tags("Custom Code")]
 public class CodeScriptsController(
     ICodeScriptService scripts,
+    IScriptTestRunService testRuns,
     IFeatureService featureService,
     ICurrentTenantService tenant
 ) : BaseController
@@ -148,6 +149,25 @@ public class CodeScriptsController(
         return gate.IsFailure
             ? ResultResponse(gate)
             : ResultResponse(await scripts.PublishVersionAsync(id, versionId, ct));
+    }
+
+    /// <summary>
+    /// DRY-RUN the script's current version with sample inputs (custom-code.md §6). The real sandbox runs the real
+    /// logic, but every outward/mutating effect (chat, TTS, widgets, storage writes, rewards, schedules, …) is
+    /// CAPTURED and returned instead of performed; reads run live. Leaves no trace — no state, no chat, no quota.
+    /// </summary>
+    [HttpPost("{id:guid}/test-run")]
+    [ProducesResponseType<StatusResponseDto<TestRunResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> TestRun(
+        Guid id,
+        [FromBody] ScriptTestRunRequest request,
+        CancellationToken ct
+    )
+    {
+        Result gate = await FeatureGateAsync(ct);
+        return gate.IsFailure
+            ? ResultResponse(gate)
+            : ResultResponse(await testRuns.RunAsync(id, request, ct));
     }
 
     /// <summary>Enable or disable a code script.</summary>

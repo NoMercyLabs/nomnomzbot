@@ -60,6 +60,7 @@ public sealed class PipelinesControllerCatalogueTests
         List<ICommandCondition> conditions = [new FakeCondition("user_role")];
         PipelinesController controller = new(
             Substitute.For<IPipelineService>(),
+            Substitute.For<IPipelineTestRunService>(),
             Substitute.For<ICommandConfigValidator>(),
             actions,
             conditions

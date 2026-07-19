@@ -11,18 +11,8 @@
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
-using NomNomzBot.Application.Contracts.Tts;
-using NomNomzBot.Application.Economy.Services;
-using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Application.Music.Services;
-using NomNomzBot.Application.Rewards.Services;
-using NomNomzBot.Application.Tts.Services;
-using NomNomzBot.Application.Widgets.Services;
-using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Enums;
 
@@ -40,19 +30,7 @@ public sealed class ScriptRunner(
     IScriptExecutor executor,
     IScriptCapabilityBroker broker,
     IScriptExecutionMeter meter,
-    IChatProvider chatProvider,
-    ICurrencyAccountService currencyService,
-    IMusicService musicService,
-    IUserService userService,
-    IHttpClientFactory httpClientFactory,
-    IScriptStorageService storageService,
-    ITtsDispatchService ttsDispatch,
-    IWidgetService widgetService,
-    IWidgetEventNotifier widgetNotifier,
-    IRewardService rewardService,
-    IViewerAnalyticsService viewerAnalytics,
-    ITtsConfigService ttsConfig,
-    IScheduledPipelineService scheduledPipelines,
+    IScriptHostBridgeFactory bridgeFactory,
     TimeProvider clock
 ) : IScriptRunner
 {
@@ -139,23 +117,9 @@ public sealed class ScriptRunner(
             );
         }
 
-        ScriptHostBridge bridge = new(
+        IScriptHostBridge bridge = bridgeFactory.Create(
             script.BroadcasterId,
-            invocation.TriggeredByUserId,
-            chatProvider,
-            currencyService,
-            musicService,
-            userService,
-            httpClientFactory,
-            storageService,
-            ttsDispatch,
-            widgetService,
-            widgetNotifier,
-            rewardService,
-            viewerAnalytics,
-            ttsConfig,
-            scheduledPipelines,
-            db
+            invocation.TriggeredByUserId
         );
         Result<ScriptExecutionOutcomeResult> executed = await executor.ExecuteAsync(
             request,

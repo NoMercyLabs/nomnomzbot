@@ -15122,6 +15122,126 @@
         }
       }
     },
+    "/api/v{version}/code-scripts/{id}/test-run": {
+      "post": {
+        "tags": [
+          "Custom Code"
+        ],
+        "summary": "DRY-RUN the script's current version with sample inputs (custom-code.md §6). The real sandbox runs the real\r\nlogic, but every outward/mutating effect (chat, TTS, widgets, storage writes, rewards, schedules, …) is\r\nCAPTURED and returned instead of performed; reads run live. Leaves no trace — no state, no chat, no quota.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScriptTestRunRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScriptTestRunRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScriptTestRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfTestRunResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/code-scripts/{id}/enabled": {
       "patch": {
         "tags": [
@@ -46453,6 +46573,134 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/pipelines/{id}/test-run": {
+      "post": {
+        "tags": [
+          "Pipelines"
+        ],
+        "summary": "DRY-RUN a saved pipeline with sample variables (commands-pipelines.md). The real engine runs the real steps —\r\nconditions, variable math, pick-list draws and balance reads execute live — but every side-effecting action\r\n(chat, TTS, widgets, moderation, economy writes, rewards, schedules, run_code) is CAPTURED and returned rather\r\nthan performed, and reports success so downstream branches are exercised. Nothing is dispatched or persisted.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineTestRunRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineTestRunRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineTestRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfTestRunResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/pipelines/validate": {
       "post": {
         "tags": [
@@ -66700,6 +66948,22 @@
         },
         "description": "Cancel the subscription (immediate or at period end)."
       },
+      "CapturedEffectDto": {
+        "required": [
+          "name",
+          "argsPreview"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "argsPreview": {
+            "type": "string"
+          }
+        },
+        "description": "One outward/mutating effect the real logic tried to perform during a dry-run, RECORDED instead of executed.\r\n`Name` is the capability key (scripts) or the action type (pipelines); `ArgsPreview` is a short,\r\nhuman-readable rendering of the arguments/config that would have been used."
+      },
       "CatalogItemDto": {
         "required": [
           "id",
@@ -77795,6 +78059,21 @@
           }
         }
       },
+      "PipelineTestRunRequest": {
+        "required": [
+          "variables"
+        ],
+        "type": "object",
+        "properties": {
+          "variables": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Seed variables for a pipeline dry-run (test-run) — no PII, author-supplied."
+      },
       "PipelineValidationResult": {
         "type": "object",
         "properties": {
@@ -78997,6 +79276,28 @@
             "format": "int32"
           }
         }
+      },
+      "ScriptTestRunRequest": {
+        "required": [
+          "variables",
+          "args"
+        ],
+        "type": "object",
+        "properties": {
+          "variables": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "The inputs to a script dry-run (test-run): the seed variables and positional args the author supplies to\r\nexercise the script's current version without causing real side effects."
       },
       "SeCommand": {
         "type": "object",
@@ -84746,6 +85047,36 @@
           }
         }
       },
+      "StatusResponseDtoOfTestRunResultDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TestRunResultDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfTimerDto": {
         "type": "object",
         "properties": {
@@ -86172,6 +86503,64 @@
             "type": "string"
           }
         }
+      },
+      "TestRunResultDto": {
+        "required": [
+          "success",
+          "error",
+          "durationMs",
+          "hostCallCount",
+          "capturedEffects",
+          "chatOutput",
+          "log"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "hostCallCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "capturedEffects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CapturedEffectDto"
+            }
+          },
+          "chatOutput": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "log": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "The uniform result of a script or pipeline test-run (custom-code.md / commands-pipelines.md). The logic ran for\r\nreal; every outward/mutating effect was CAPTURED (see IReadOnlyList&lt;CapturedEffectDto&gt; TestRunResultDto.CapturedEffects) rather than committed, while\r\nread-only calls (reads, conditions, template resolution, random draws) ran against the live services so the\r\ndry-run stays realistic."
       },
       "TierDto": {
         "required": [

@@ -17,6 +17,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -28,18 +29,21 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class PipelinesController : BaseController
 {
     private readonly IPipelineService _pipelineService;
+    private readonly IPipelineTestRunService _testRunService;
     private readonly ICommandConfigValidator _validator;
     private readonly IEnumerable<ICommandAction> _actions;
     private readonly IEnumerable<ICommandCondition> _conditions;
 
     public PipelinesController(
         IPipelineService pipelineService,
+        IPipelineTestRunService testRunService,
         ICommandConfigValidator validator,
         IEnumerable<ICommandAction> actions,
         IEnumerable<ICommandCondition> conditions
     )
     {
         _pipelineService = pipelineService;
+        _testRunService = testRunService;
         _validator = validator;
         _actions = actions;
         _conditions = conditions;
@@ -155,6 +159,26 @@ public class PipelinesController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return NoContent();
+    }
+
+    /// <summary>
+    /// DRY-RUN a saved pipeline with sample variables (commands-pipelines.md). The real engine runs the real steps —
+    /// conditions, variable math, pick-list draws and balance reads execute live — but every side-effecting action
+    /// (chat, TTS, widgets, moderation, economy writes, rewards, schedules, run_code) is CAPTURED and returned rather
+    /// than performed, and reports success so downstream branches are exercised. Nothing is dispatched or persisted.
+    /// </summary>
+    [RequireAction("pipelines:write")]
+    [HttpPost("{id:guid}/test-run")]
+    [ProducesResponseType<StatusResponseDto<TestRunResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> TestRunPipeline(
+        string channelId,
+        Guid id,
+        [FromBody] PipelineTestRunRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<TestRunResultDto> result = await _testRunService.RunAsync(id, request, ct);
+        return ResultResponse(result);
     }
 
     /// <summary>

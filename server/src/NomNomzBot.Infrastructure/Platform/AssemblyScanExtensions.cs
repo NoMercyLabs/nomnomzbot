@@ -24,16 +24,21 @@ public static class AssemblyScanExtensions
     /// Registers every concrete class in <paramref name="assembly"/> assignable to the
     /// closed marker interface <typeparamref name="TMarker"/>, bound to <typeparamref name="TMarker"/>
     /// itself. Multiple impls register as a multi-binding (resolvable as <c>IEnumerable&lt;TMarker&gt;</c>).
-    /// Use for collection contracts — pipeline actions/conditions, music providers.
+    /// Use for collection contracts — pipeline actions/conditions, music providers. Types in
+    /// <paramref name="excluded"/> are skipped — for a decorator that implements the marker but is
+    /// constructed by hand per use (e.g. the capture-mode pipeline action), never resolved from DI.
     /// </summary>
     public static IServiceCollection AddImplementationsOf<TMarker>(
         this IServiceCollection services,
         Assembly assembly,
-        ServiceLifetime lifetime
+        ServiceLifetime lifetime,
+        params Type[] excluded
     )
     {
         foreach (Type implementation in ConcreteTypesAssignableTo(assembly, typeof(TMarker)))
         {
+            if (excluded.Contains(implementation))
+                continue;
             services.Add(new ServiceDescriptor(typeof(TMarker), implementation, lifetime));
         }
 

@@ -54,25 +54,29 @@ public sealed class ScriptRunnerTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success());
+        ScriptHostBridgeFactory bridgeFactory = new(
+            Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>(),
+            Substitute.For<NomNomzBot.Application.Economy.Services.ICurrencyAccountService>(),
+            Substitute.For<NomNomzBot.Application.Music.Services.IMusicService>(),
+            Substitute.For<NomNomzBot.Application.Identity.Services.IUserService>(),
+            Substitute.For<System.Net.Http.IHttpClientFactory>(),
+            Substitute.For<IScriptStorageService>(),
+            Substitute.For<NomNomzBot.Application.Contracts.Tts.ITtsDispatchService>(),
+            Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetService>(),
+            Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier>(),
+            Substitute.For<NomNomzBot.Application.Rewards.Services.IRewardService>(),
+            Substitute.For<NomNomzBot.Application.Contracts.Analytics.IViewerAnalyticsService>(),
+            Substitute.For<NomNomzBot.Application.Tts.Services.ITtsConfigService>(),
+            Substitute.For<NomNomzBot.Application.Commands.Services.IScheduledPipelineService>(),
+            db
+        );
         return (
             new ScriptRunner(
                 db,
                 new JintScriptExecutor(),
                 broker,
                 meter,
-                Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>(),
-                Substitute.For<NomNomzBot.Application.Economy.Services.ICurrencyAccountService>(),
-                Substitute.For<NomNomzBot.Application.Music.Services.IMusicService>(),
-                Substitute.For<NomNomzBot.Application.Identity.Services.IUserService>(),
-                Substitute.For<System.Net.Http.IHttpClientFactory>(),
-                Substitute.For<IScriptStorageService>(),
-                Substitute.For<NomNomzBot.Application.Contracts.Tts.ITtsDispatchService>(),
-                Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetService>(),
-                Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier>(),
-                Substitute.For<NomNomzBot.Application.Rewards.Services.IRewardService>(),
-                Substitute.For<NomNomzBot.Application.Contracts.Analytics.IViewerAnalyticsService>(),
-                Substitute.For<NomNomzBot.Application.Tts.Services.ITtsConfigService>(),
-                Substitute.For<NomNomzBot.Application.Commands.Services.IScheduledPipelineService>(),
+                bridgeFactory,
                 new FakeTimeProvider(Now)
             ),
             db

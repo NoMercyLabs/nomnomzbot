@@ -71,13 +71,22 @@ public class AssemblyScanDiscoveryTests
     [Fact]
     public void Scan_discovers_every_ICommandAction_in_the_assembly()
     {
-        int expected = CountConcreteAssignableTo(typeof(ICommandAction));
+        // CapturingCommandAction is a capture-mode decorator built by hand per pipeline test-run — it implements
+        // ICommandAction but is intentionally excluded from the DI multi-binding (it needs a per-run CaptureSink).
+        int expected =
+            CountConcreteAssignableTo(typeof(ICommandAction))
+            - 1 /* CapturingCommandAction, excluded from DI on purpose */
+        ;
         expected.Should().BeGreaterThan(0, "the assembly defines pipeline actions to discover");
 
         using ServiceProvider provider = BuildProvider(validate: false);
         List<ICommandAction> actions = provider.GetServices<ICommandAction>().ToList();
 
         actions.Should().HaveCount(expected);
+        actions
+            .Select(a => a.GetType())
+            .Should()
+            .NotContain(typeof(NomNomzBot.Infrastructure.Platform.Pipeline.CapturingCommandAction));
         // Distinct concrete types — no action registered twice or dropped.
         actions.Select(a => a.GetType()).Should().OnlyHaveUniqueItems();
     }

@@ -223,7 +223,13 @@ public static class DependencyInjection
         );
 
         // Pipeline actions + conditions (transient — stateless strategies, multi-binding).
-        services.AddImplementationsOf<ICommandAction>(infrastructure, ServiceLifetime.Transient);
+        // CapturingCommandAction is a decorator built by hand per pipeline test-run, never resolved from DI —
+        // exclude it from the multi-binding so DI validation (it needs a per-run CaptureSink) never sees it.
+        services.AddImplementationsOf<ICommandAction>(
+            infrastructure,
+            ServiceLifetime.Transient,
+            typeof(Platform.Pipeline.CapturingCommandAction)
+        );
         services.AddImplementationsOf<ICommandCondition>(infrastructure, ServiceLifetime.Transient);
 
         // Music providers (scoped — multi-binding consumed as IEnumerable<IMusicProvider>).
@@ -596,6 +602,13 @@ public static class DependencyInjection
         services.AddScoped<
             Application.Contracts.CustomCode.IScriptRunner,
             CustomCode.ScriptRunner
+        >();
+        // The single construction site for the per-execution host bridge (shared by the live runner + test-run;
+        // non-"*Service", so registered explicitly). IScriptTestRunService / IPipelineTestRunService follow the
+        // I<X>Service convention and are bound by AddServicesByConvention above.
+        services.AddScoped<
+            Application.Contracts.CustomCode.IScriptHostBridgeFactory,
+            CustomCode.ScriptHostBridgeFactory
         >();
         services.AddScoped<
             Application.Contracts.CustomCode.IScriptCapabilityBroker,
