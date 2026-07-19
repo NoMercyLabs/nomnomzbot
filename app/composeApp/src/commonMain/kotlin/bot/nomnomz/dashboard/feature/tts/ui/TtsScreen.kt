@@ -548,7 +548,8 @@ private fun TtsQueueRow(
                 modifier = Modifier.weight(1f),
             )
             if (entry.wasCensored) {
-                Badge(selected = false, onClick = {}) {
+                // A pure label — no onClick, so it isn't a tappable chip that does nothing.
+                Badge(selected = false) {
                     Text(stringResource(Res.string.tts_queue_censored), style = typography.xs)
                 }
             }

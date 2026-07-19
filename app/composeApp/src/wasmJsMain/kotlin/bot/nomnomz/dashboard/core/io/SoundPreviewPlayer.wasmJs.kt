@@ -19,5 +19,7 @@ import kotlin.js.ExperimentalWasmJsInterop
 // Best-effort: any failure (autoplay policy, missing file, decode error) is swallowed so a Preview click never
 // throws back into Compose. `url` is the actual-fun parameter, marshalled into the js() scope by name.
 actual fun playSoundPreview(url: String) {
-    js("{ try { var a = new Audio(url); a.play(); } catch (e) {} }")
+    // a.play() returns a Promise; a synchronous try/catch does NOT trap an autoplay-policy / decode rejection,
+    // so .catch() is required to actually swallow it (otherwise it surfaces as an unhandled promise rejection).
+    js("{ try { var a = new Audio(url); a.play().catch(function () {}); } catch (e) {} }")
 }
