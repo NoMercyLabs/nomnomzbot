@@ -18,7 +18,9 @@ import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.ChannelSearchResult
 import bot.nomnomz.dashboard.core.network.CommunityApi
+import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.CreateModerationRuleBody
 import bot.nomnomz.dashboard.core.network.ModerationActionResult
@@ -60,6 +62,9 @@ class ModerationController(
     private val moderationApi: ModerationApi,
     private val communityApi: CommunityApi,
     private val feedback: Feedback = NoOpFeedback,
+    // Optional broadcaster-search source for the shared-ban trusted-channel picker. Nullable so the state-holder
+    // tests construct the controller without it.
+    private val streamApi: StreamApi? = null,
 ) {
     private val _state: MutableStateFlow<ModerationState> = MutableStateFlow(ModerationState.Loading)
 
@@ -88,6 +93,25 @@ class ModerationController(
         ) {
             is ApiResult.Ok ->
                 result.value.map { PickerOption(id = it.id, label = it.label, sublabel = it.subLabel) }
+            is ApiResult.Failure -> emptyList()
+        }
+    }
+
+    /**
+     * Autocomplete over Twitch broadcasters (for the shared-ban trusted-channel picker — an ARBITRARY channel,
+     * not one of this channel's viewers). Resolves against this page's channel; empty until [load] resolves it,
+     * on failure, or when the stream API is absent (tests).
+     */
+    suspend fun searchChannels(query: String): List<PickerOption> {
+        val channel: String = channelId ?: return emptyList()
+        val api: StreamApi = streamApi ?: return emptyList()
+        return when (
+            val result: ApiResult<List<ChannelSearchResult>> = api.searchChannels(channel, query)
+        ) {
+            is ApiResult.Ok ->
+                result.value.map {
+                    PickerOption(id = it.id, label = it.displayName.ifBlank { it.login }, sublabel = it.login)
+                }
             is ApiResult.Failure -> emptyList()
         }
     }

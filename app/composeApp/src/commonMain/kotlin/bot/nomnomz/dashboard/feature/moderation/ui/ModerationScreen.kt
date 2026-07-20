@@ -396,6 +396,7 @@ fun ModerationScreen(
                     },
                     onViewContext = { userId -> scope.launch { controller.openUserContext(userId) } },
                     searchViewers = { query -> controller.searchViewers(query) },
+                    searchChannels = { query -> controller.searchChannels(query) },
                     onPerformAction = { action, userId, duration, reason ->
                         scope.launch { controller.performAction(action, userId, duration, reason) }
                     },
@@ -494,6 +495,7 @@ private fun BansList(
     onNetworkUnban: (userId: String) -> Unit,
     onViewContext: (userId: String) -> Unit,
     searchViewers: suspend (query: String) -> List<PickerOption>,
+    searchChannels: suspend (query: String) -> List<PickerOption>,
     onPerformAction: (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> Unit,
     onToggleShield: (Boolean) -> Unit,
     onAddTerm: (String) -> Unit,
@@ -861,6 +863,7 @@ private fun BansList(
                     SharedBansCard(
                         settings = settings,
                         manage = superManage,
+                        searchChannels = searchChannels,
                         onSave = onSaveSharedBans,
                         onAddTrusted = onAddTrusted,
                         onRemoveTrusted = onRemoveTrusted,
@@ -3028,6 +3031,7 @@ private fun EscalationLadderDialog(
 private fun SharedBansCard(
     settings: SharedBanSettings,
     manage: ManageDecision,
+    searchChannels: suspend (query: String) -> List<PickerOption>,
     onSave: (accept: Boolean, share: Boolean) -> Unit,
     onAddTrusted: (String) -> Unit,
     onRemoveTrusted: (String) -> Unit,
@@ -3036,7 +3040,7 @@ private fun SharedBansCard(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    var newChannel: String by remember(settings) { mutableStateOf("") }
+    var picked: PickerRef? by remember(settings) { mutableStateOf(null) }
 
     Column(
         modifier = Modifier
@@ -3078,19 +3082,22 @@ private fun SharedBansCard(
         } else {
             settings.trustedChannels.forEach { channel -> TrustedChannelRow(channel, manage, onRemoveTrusted) }
         }
-        AppTextField(
-            value = newChannel,
-            onValueChange = { newChannel = it },
+        // Pick the trusted channel by broadcaster search, not a raw id/name.
+        SearchPickerField(
+            search = searchChannels,
+            selected = picked,
+            onSelect = { picked = it },
+            onClear = { picked = null },
             label = stringResource(Res.string.moderation_shared_trusted_add_label),
             modifier = Modifier.fillMaxWidth(),
         )
         ManageGate(decision = manage) { enabled ->
             Button(
                 onClick = {
-                    onAddTrusted(newChannel.trim())
-                    newChannel = ""
+                    picked?.let { onAddTrusted(it.id) }
+                    picked = null
                 },
-                enabled = enabled && newChannel.isNotBlank(),
+                enabled = enabled && picked != null,
             ) {
                 Text(stringResource(Res.string.moderation_shared_trusted_add))
             }

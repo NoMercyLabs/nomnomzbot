@@ -465,6 +465,7 @@ class AppGraph {
             moderationApi = moderationApi,
             communityApi = communityApi,
             feedback = feedbackController,
+            streamApi = streamApi,
         )
 
     val analyticsController: AnalyticsController =
@@ -538,7 +539,12 @@ class AppGraph {
         )
 
     val economyController: EconomyController =
-        EconomyController(channelsApi = channelsApi, economyApi = economyApi, usersApi = usersApi)
+        EconomyController(
+            channelsApi = channelsApi,
+            economyApi = economyApi,
+            usersApi = usersApi,
+            streamApi = streamApi,
+        )
 
     val alertsController: AlertsController =
         AlertsController(channelsApi = channelsApi, alertsApi = alertsApi)
