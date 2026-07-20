@@ -518,6 +518,8 @@ data class EarningRule(
     val perStreamCap: Long? = null,
     val minRoleLevel: Int? = null,
     val configSchemaVersion: Int = 0,
+    // Per-source bonus multipliers (backend BonusConfig, an arbitrary JSON object; e.g. 2x for subs).
+    val bonusConfig: kotlinx.serialization.json.JsonObject? = null,
 )
 
 /**
@@ -527,11 +529,18 @@ data class EarningRule(
 @Serializable
 data class CurrencyLedgerEntry(
     val id: Long = 0,
+    val tenantPosition: Long = 0,
+    val accountId: String = "",
+    val viewerUserId: String = "",
     val amount: Long = 0,
     val balanceAfter: Long = 0,
     val entryType: String = "",
     val sourceType: String? = null,
+    val sourceId: String? = null,
+    val relatedEntryId: Long? = null,
+    val eventId: String? = null,
     val reason: String? = null,
+    val actorUserId: String? = null,
     val createdAt: String = "",
 )
 

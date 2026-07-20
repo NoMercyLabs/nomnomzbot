@@ -653,11 +653,26 @@ data class ModerationRule(
     val action: String = "",
     val durationSeconds: Int? = null,
     val reason: String? = null,
+    // The rule's per-type config (backend Settings, an arbitrary JSON object) + exempt roles, plus audit stamps.
+    val settings: kotlinx.serialization.json.JsonObject? = null,
+    val exemptRoles: List<String> = emptyList(),
+    val createdAt: String = "",
+    val updatedAt: String = "",
 )
 
 /** A partial moderation-rule update (backend `UpdateModerationRuleRequest`) — a toggle sends just [isEnabled]. */
 @Serializable
-data class UpdateRuleBody(val isEnabled: Boolean? = null)
+data class UpdateRuleBody(
+    // Partial patch of a rule (backend UpdateModerationRuleRequest) -- null = unchanged. Was toggle-only, so a
+    // rule's name/action/duration/reason/settings/exempt-roles were uneditable after creation.
+    val name: String? = null,
+    val action: String? = null,
+    val durationSeconds: Int? = null,
+    val reason: String? = null,
+    val settings: kotlinx.serialization.json.JsonObject? = null,
+    val exemptRoles: List<String>? = null,
+    val isEnabled: Boolean? = null,
+)
 
 /**
  * Create-rule body (backend `CreateModerationRuleRequest`). [type] is one of: `"profanity"`, `"links"`,
@@ -671,6 +686,9 @@ data class CreateModerationRuleBody(
     val action: String,
     val durationSeconds: Int? = null,
     val reason: String? = null,
+    // The rule's per-type config (backend Settings, arbitrary JSON object) + exempt roles, settable at creation.
+    val settings: kotlinx.serialization.json.JsonObject? = null,
+    val exemptRoles: List<String>? = null,
 )
 
 // ModerationActionBody lives in ChatApi.kt (package-shared) — imported from there.
