@@ -466,6 +466,8 @@ data class UpsertCurrencyConfig(
 data class LeaderboardEntry(
     val rank: Int = 0,
     val userId: String = "",
+    // The viewer's internal platform-identity ULID (backend internalUserId) — addresses the analytics profile.
+    val internalUserId: String? = null,
     val displayName: String = "",
     val points: Long = 0,
 )

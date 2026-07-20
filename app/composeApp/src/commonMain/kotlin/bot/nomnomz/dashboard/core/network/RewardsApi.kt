@@ -194,6 +194,8 @@ data class CreateRewardBody(
     val title: String,
     val cost: Int,
     val prompt: String? = null,
+    // The on-redeem bot response text (backend CreateRewardRequest.response).
+    val response: String? = null,
     // Whether redeeming requires the viewer to type text (Twitch "require viewer input"). Maps to
     // CreateRewardRequest.isUserInputRequired.
     val isUserInputRequired: Boolean? = null,
@@ -285,6 +287,8 @@ data class RewardSummary(
     // arbitrary JSON object) — so the operator can read/configure a reward's action, not only a bound pipeline.
     val actionType: String? = null,
     val actionSettings: kotlinx.serialization.json.JsonObject? = null,
+    val createdAt: String = "",
+    val updatedAt: String = "",
 )
 
 /**
