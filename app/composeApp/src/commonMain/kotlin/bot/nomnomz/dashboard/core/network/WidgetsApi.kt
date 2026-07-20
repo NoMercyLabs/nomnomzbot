@@ -247,11 +247,19 @@ data class UpdateWidgetBody(
     val name: String? = null,
     val isEnabled: Boolean? = null,
     val settings: JsonObject? = null,
+    val description: String? = null,
+    val eventSubscriptions: List<String>? = null,
 )
 
 /** The create-widget request body (backend `CreateWidgetRequest`). [framework] ∈ `vanilla | vue | react | svelte`. */
 @Serializable
-data class CreateWidgetBody(val name: String, val framework: String)
+data class CreateWidgetBody(
+    val name: String,
+    val framework: String,
+    val description: String? = null,
+    val settings: JsonObject? = null,
+    val eventSubscriptions: List<String>? = null,
+)
 
 /** The compile-on-save request body (backend `CompileWidgetRequest`). */
 @Serializable
@@ -288,6 +296,13 @@ data class WidgetSummary(
     val activeVersionId: String? = null,
     val eventSubscriptions: List<String> = emptyList(),
     val settings: JsonObject? = null,
+    val galleryItemId: String? = null,
+    // Why a widget last failed + when it last ran (backend lastRuntimeError / lastRanAt), so a broken widget can
+    // show its reason instead of nothing. Plus audit stamps.
+    val lastRuntimeError: String? = null,
+    val lastRanAt: String? = null,
+    val createdAt: String = "",
+    val updatedAt: String = "",
 )
 
 /**
