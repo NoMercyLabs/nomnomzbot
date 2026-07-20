@@ -56281,6 +56281,111 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/stream/channels": {
+      "get": {
+        "tags": [
+          "Stream"
+        ],
+        "summary": "Search Twitch channels/broadcasters by name (for autocomplete — raid / shared-jar invite /\r\n    trusted-channel targets). App token; returns channels that have streamed within the past 6 months.",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfListOfChannelSearchDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/supporters/connections": {
       "get": {
         "tags": [
@@ -68810,6 +68915,33 @@
           }
         },
         "description": "A channel's built-in-command personality tone. string ChannelPersonalityDto.Personality is the canonical tone token\r\n(`PersonalityTone.*`); IReadOnlyList&lt;string&gt; ChannelPersonalityDto.Available lists every selectable tone so a picker needs no\r\nsecond call."
+      },
+      "ChannelSearchDto": {
+        "required": [
+          "id",
+          "displayName",
+          "login",
+          "thumbnailUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "login": {
+            "type": "string"
+          },
+          "thumbnailUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One channel that matched a broadcaster-name search (for autocomplete — raid / invite / trust targets)."
       },
       "ChannelSummaryDto": {
         "required": [
@@ -84735,6 +84867,35 @@
             ],
             "items": {
               "$ref": "#/components/schemas/CategoryDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfListOfChannelSearchDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ChannelSearchDto"
             }
           },
           "message": {

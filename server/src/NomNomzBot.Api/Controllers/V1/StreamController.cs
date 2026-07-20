@@ -83,6 +83,14 @@ public class StreamController : BaseController
 
     public record CategoryDto(string Id, string Name, string? BoxArtUrl);
 
+    /// <summary>One channel that matched a broadcaster-name search (for autocomplete — raid / invite / trust targets).</summary>
+    public record ChannelSearchDto(
+        string Id,
+        string DisplayName,
+        string Login,
+        string? ThumbnailUrl
+    );
+
     // ── Get current stream info ──────────────────────────────────────────────
 
     /// <summary>Retrieve current stream information (title, game, tags, live status, viewers).</summary>
@@ -388,5 +396,36 @@ public class StreamController : BaseController
             : [];
 
         return Ok(new StatusResponseDto<List<CategoryDto>> { Data = categories });
+    }
+
+    /// <summary>Search Twitch channels/broadcasters by name (for autocomplete — raid / shared-jar invite /
+    /// trusted-channel targets). App token; returns channels that have streamed within the past 6 months.</summary>
+    [RequireAction("stream:read")]
+    [HttpGet("channels")]
+    [ProducesResponseType<StatusResponseDto<List<ChannelSearchDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SearchChannels([FromQuery] string query, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return Ok(new StatusResponseDto<List<ChannelSearchDto>> { Data = [] });
+
+        Result<TwitchPage<TwitchSearchChannel>> search = await _search.SearchChannelsAsync(
+            query,
+            liveOnly: null,
+            new TwitchPageRequest(),
+            ct
+        );
+        List<ChannelSearchDto> channels = search.IsSuccess
+            ?
+            [
+                .. search.Value.Items.Select(c => new ChannelSearchDto(
+                    c.Id,
+                    c.DisplayName,
+                    c.BroadcasterLogin,
+                    c.ThumbnailUrl
+                )),
+            ]
+            : [];
+
+        return Ok(new StatusResponseDto<List<ChannelSearchDto>> { Data = channels });
     }
 }
