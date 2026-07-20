@@ -32,7 +32,9 @@ public sealed record QueueItemDto(
     string? RequestedBy
 );
 
-/// <summary>Current now-playing state.</summary>
+/// <summary>Current now-playing state. <paramref name="ShuffleState"/> and <paramref name="RepeatState"/>
+/// ("off" | "track" | "context") are the live player toggles the dashboard renders — false/"off" on providers
+/// that do not report them.</summary>
 public sealed record NowPlayingDto(
     string? TrackName,
     string? Artist,
@@ -43,7 +45,9 @@ public sealed record NowPlayingDto(
     bool IsPlaying,
     int Volume,
     string? RequestedBy,
-    string Provider
+    string Provider,
+    bool ShuffleState,
+    string RepeatState
 );
 
 /// <summary>Full music queue including now playing and upcoming tracks.</summary>

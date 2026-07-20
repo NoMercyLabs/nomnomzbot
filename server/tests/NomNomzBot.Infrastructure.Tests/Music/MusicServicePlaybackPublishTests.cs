@@ -202,12 +202,16 @@ public sealed class MusicServicePlaybackPublishTests
             CancellationToken cancellationToken
         )
         {
-            bool isCurrentlyPlayingRead = request.RequestUri!.AbsolutePath.EndsWith(
-                "/currently-playing",
-                StringComparison.Ordinal
-            );
+            // The now-playing read is GET /me/player (full playback state). The transport writes go to
+            // /me/player/play|pause|next, so a GET ending exactly in "/me/player" matches only the read.
+            bool isNowPlayingRead =
+                request.Method == HttpMethod.Get
+                && request.RequestUri!.AbsolutePath.EndsWith(
+                    "/me/player",
+                    StringComparison.Ordinal
+                );
 
-            if (isCurrentlyPlayingRead)
+            if (isNowPlayingRead)
             {
                 HttpResponseMessage response = CurrentTrackJson is null
                     ? new HttpResponseMessage(HttpStatusCode.NoContent)

@@ -202,4 +202,13 @@ public class TrackInfo
     // SearchAsync hit is not "playing" anything, so it is left at the default (false / 0) there.
     public bool IsPlaying { get; init; }
     public int ProgressMs { get; init; }
+
+    /// <summary>
+    /// The player's shuffle state, and its repeat mode — the two remote-control toggles the dashboard renders.
+    /// Only meaningful on a <c>GetCurrentTrackAsync</c> result (the provider's live playback state); a search or
+    /// resolve hit leaves them at the default (off), and providers without the Shuffle/Repeat capability never
+    /// set them. The provider populates these so the UI shows the REAL state instead of guessing.
+    /// </summary>
+    public bool ShuffleEnabled { get; init; }
+    public MusicRepeatMode RepeatMode { get; init; }
 }

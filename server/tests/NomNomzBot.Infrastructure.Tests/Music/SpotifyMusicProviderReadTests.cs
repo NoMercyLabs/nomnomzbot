@@ -275,9 +275,90 @@ public sealed class SpotifyMusicProviderReadTests
         result.ErrorCode.Should().Be("MISSING_SCOPE");
     }
 
+    [Fact]
+    public async Task Now_playing_reads_me_player_and_surfaces_the_real_shuffle_and_repeat_state()
+    {
+        (SpotifyMusicProvider spotify, RecordingHttpHandler handler) = BuildProvider();
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Get
+                && r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            """
+            {"is_playing":true,"progress_ms":42000,"shuffle_state":true,"repeat_state":"context",
+             "item":{"id":"t9","name":"Nightcall","uri":"spotify:track:t9","duration_ms":250000,
+              "explicit":false,"artists":[{"name":"Kavinsky"}],
+              "album":{"name":"OutRun","images":[{"url":"https://i.scdn.co/n.jpg"}]}}}
+            """
+        );
+
+        TrackInfo? track = await spotify.GetCurrentTrackAsync(ChannelId);
+
+        track.Should().NotBeNull();
+        track!.TrackName.Should().Be("Nightcall");
+        track.IsPlaying.Should().BeTrue();
+        track.ProgressMs.Should().Be(42_000);
+        // The real player toggles — the dashboard now shows the actual state instead of guessing "on".
+        track.ShuffleEnabled.Should().BeTrue();
+        track.RepeatMode.Should().Be(MusicRepeatMode.Context);
+        // Read the full playback-state endpoint (which carries shuffle/repeat), not /currently-playing.
+        handler.RequestUrls.Should().Contain(url => url.Contains("/me/player"));
+        handler.RequestUrls.Should().NotContain(url => url.Contains("/currently-playing"));
+    }
+
+    [Fact]
+    public async Task Now_playing_repeat_off_maps_to_Off_and_shuffle_false()
+    {
+        (SpotifyMusicProvider spotify, RecordingHttpHandler handler) = BuildProvider();
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Get
+                && r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            """
+            {"is_playing":true,"progress_ms":0,"shuffle_state":false,"repeat_state":"off",
+             "item":{"id":"t1","name":"Song","uri":"spotify:track:t1","duration_ms":180000,
+              "explicit":false,"artists":[{"name":"A"}],"album":{"name":"Al","images":[]}}}
+            """
+        );
+
+        TrackInfo? track = await spotify.GetCurrentTrackAsync(ChannelId);
+
+        track.Should().NotBeNull();
+        track!.ShuffleEnabled.Should().BeFalse();
+        track.RepeatMode.Should().Be(MusicRepeatMode.Off);
+    }
+
+    [Fact]
+    public async Task Now_playing_is_null_when_no_active_device_204()
+    {
+        // GET /me/player returns 204 when playback is on no device — nothing is playing, so now-playing is null.
+        (SpotifyMusicProvider spotify, RecordingHttpHandler handler) = BuildProvider();
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Get
+                && r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
+            HttpStatusCode.NoContent
+        );
+
+        TrackInfo? track = await spotify.GetCurrentTrackAsync(ChannelId);
+
+        track.Should().BeNull();
+    }
+
     // ─── Harness ──────────────────────────────────────────────────────────────
 
     private static (MusicProviderManageApi Api, RecordingHttpHandler Handler) Build(
+        bool connectSpotify = true
+    )
+    {
+        (SpotifyMusicProvider spotify, RecordingHttpHandler handler) = BuildProvider(
+            connectSpotify
+        );
+        return (new MusicProviderManageApi([spotify]), handler);
+    }
+
+    private static (SpotifyMusicProvider Provider, RecordingHttpHandler Handler) BuildProvider(
         bool connectSpotify = true
     )
     {
@@ -311,7 +392,6 @@ public sealed class SpotifyMusicProviderReadTests
             NullLogger<SpotifyMusicProvider>.Instance
         );
 
-        MusicProviderManageApi api = new([spotify]);
-        return (api, handler);
+        return (spotify, handler);
     }
 }

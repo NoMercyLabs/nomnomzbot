@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Music.Interfaces;
 
 namespace NomNomzBot.Application.Music.Services;
 
@@ -182,7 +183,9 @@ public sealed record NowPlaying(
     int Volume,
     string? RequestedBy,
     string Provider,
-    string? TrackUri = null
+    string? TrackUri = null,
+    bool ShuffleEnabled = false,
+    MusicRepeatMode RepeatMode = MusicRepeatMode.Off
 );
 
 /// <summary>The full playback queue including the current track.</summary>

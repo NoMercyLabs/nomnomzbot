@@ -124,7 +124,10 @@ public class MusicController : BaseController
                 queue.CurrentTrack.IsPlaying,
                 queue.CurrentTrack.Volume,
                 queue.CurrentTrack.RequestedBy,
-                queue.CurrentTrack.Provider
+                queue.CurrentTrack.Provider,
+                queue.CurrentTrack.ShuffleEnabled,
+                // MusicRepeatMode names (Off/Track/Context) are the wire values ("off"/"track"/"context").
+                queue.CurrentTrack.RepeatMode.ToString().ToLowerInvariant()
             );
 
         List<QueueItemDto> items = queue
@@ -429,7 +432,10 @@ public class MusicController : BaseController
             track.IsPlaying,
             track.Volume,
             track.RequestedBy,
-            track.Provider
+            track.Provider,
+            track.ShuffleEnabled,
+            // MusicRepeatMode names (Off/Track/Context) are the wire values ("off"/"track"/"context").
+            track.RepeatMode.ToString().ToLowerInvariant()
         );
 
         return Ok(new StatusResponseDto<NowPlayingDto> { Data = dto });

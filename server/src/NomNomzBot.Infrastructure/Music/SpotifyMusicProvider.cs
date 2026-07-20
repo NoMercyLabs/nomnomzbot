@@ -202,9 +202,11 @@ public sealed class SpotifyMusicProvider
         if (token is null)
             return null;
 
+        // Full playback state (not /currently-playing): it also carries shuffle_state + repeat_state, so the
+        // dashboard shows the REAL toggle state instead of guessing. 204 = no active device → nothing playing.
         HttpResponseMessage? response = await SendAsync(
             HttpMethod.Get,
-            $"{SpotifyApiBase}/me/player/currently-playing",
+            $"{SpotifyApiBase}/me/player",
             token,
             cancellationToken
         );
@@ -214,15 +216,29 @@ public sealed class SpotifyMusicProvider
         if (!response.IsSuccessStatusCode)
             return null;
 
-        SpotifyCurrentlyPlaying? json =
-            await response.Content.ReadFromJsonAsync<SpotifyCurrentlyPlaying>(
-                cancellationToken: cancellationToken
-            );
+        SpotifyPlaybackState? json = await response.Content.ReadFromJsonAsync<SpotifyPlaybackState>(
+            cancellationToken: cancellationToken
+        );
         if (json?.Item is null)
             return null;
 
-        return MapToTrackInfo(json.Item, json.IsPlaying, json.ProgressMs);
+        return MapToTrackInfo(
+            json.Item,
+            json.IsPlaying,
+            json.ProgressMs,
+            json.ShuffleState,
+            ParseRepeatState(json.RepeatState)
+        );
     }
+
+    /// <summary>Spotify repeat_state ("off" | "track" | "context") → <see cref="MusicRepeatMode"/>; unknown → Off.</summary>
+    private static MusicRepeatMode ParseRepeatState(string? repeatState) =>
+        repeatState switch
+        {
+            "track" => MusicRepeatMode.Track,
+            "context" => MusicRepeatMode.Context,
+            _ => MusicRepeatMode.Off,
+        };
 
     public async Task<IReadOnlyList<TrackInfo>> SearchAsync(
         Guid broadcasterId,
@@ -1480,7 +1496,9 @@ public sealed class SpotifyMusicProvider
     private static TrackInfo MapToTrackInfo(
         SpotifyTrack track,
         bool isPlaying = false,
-        int progressMs = 0
+        int progressMs = 0,
+        bool shuffleEnabled = false,
+        MusicRepeatMode repeatMode = MusicRepeatMode.Off
     ) =>
         new()
         {
@@ -1497,6 +1515,8 @@ public sealed class SpotifyMusicProvider
             IsEmbeddable = true, // No embed constraint applies to Spotify drip-feed playback.
             IsPlaying = isPlaying,
             ProgressMs = progressMs,
+            ShuffleEnabled = shuffleEnabled,
+            RepeatMode = repeatMode,
         };
 
     // ─── Spotify API response models ─────────────────────────────────────────
@@ -1513,7 +1533,9 @@ public sealed class SpotifyMusicProvider
         public List<T>? Items { get; set; }
     }
 
-    private sealed class SpotifyCurrentlyPlaying
+    // Shape of GET /me/player (full playback state) — a superset of /me/player/currently-playing that also
+    // carries shuffle_state + repeat_state. Extra fields (device, context, …) are ignored by the deserializer.
+    private sealed class SpotifyPlaybackState
     {
         [JsonPropertyName("item")]
         public SpotifyTrack? Item { get; set; }
@@ -1523,6 +1545,13 @@ public sealed class SpotifyMusicProvider
 
         [JsonPropertyName("progress_ms")]
         public int ProgressMs { get; set; }
+
+        [JsonPropertyName("shuffle_state")]
+        public bool ShuffleState { get; set; }
+
+        // "off" | "track" | "context" — null-tolerant; unknown/absent → Off.
+        [JsonPropertyName("repeat_state")]
+        public string? RepeatState { get; set; }
     }
 
     private sealed class SpotifyErrorEnvelope
