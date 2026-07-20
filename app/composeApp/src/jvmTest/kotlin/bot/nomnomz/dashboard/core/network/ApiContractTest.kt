@@ -257,6 +257,9 @@ class ApiContractTest {
             ObsRecordBody.serializer() to "ObsRecordRequest",
             ObsInputMuteBody.serializer() to "ObsInputMuteRequest",
             ObsInputVolumeBody.serializer() to "ObsInputVolumeRequest",
+            // NOTE: ObsProbe (backend ObsProbeDto, GET /obs/probe) is a NEW endpoint whose schema is not yet in
+            // the committed v1.json snapshot, so it is intentionally NOT guarded here. Register it (one line)
+            // once the snapshot is refreshed against the backend that added the endpoint.
             // VTube Studio (vtube-studio.md §4): connection config + inventory DTOs and the control request bodies.
             VtsConnection.serializer() to "VtsConnectionDto",
             UpsertVtsConnectionBody.serializer() to "UpsertVtsConnectionRequest",

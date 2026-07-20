@@ -26,6 +26,7 @@ import kotlinx.serialization.Serializable
 //   GET    /api/v1/channels/{channelId}/obs/bridge/setup          →  StatusResponseDto<ObsBridgeSetupDto>
 //   POST   /api/v1/channels/{channelId}/obs/bridge/rotate-token   →  StatusResponseDto<ObsBridgeSetupDto>
 //   GET    /api/v1/channels/{channelId}/obs/bridge/status         →  StatusResponseDto<ObsBridgeStatusDto>
+//   GET    /api/v1/channels/{channelId}/obs/probe                 →  StatusResponseDto<ObsProbeDto>
 //   GET    /api/v1/channels/{channelId}/obs/state                 →  StatusResponseDto<ObsStateDto>
 //   GET    /api/v1/channels/{channelId}/obs/scenes                →  StatusResponseDto<IReadOnlyList<ObsSceneDto>>
 //   GET    /api/v1/channels/{channelId}/obs/inputs                →  StatusResponseDto<IReadOnlyList<ObsInputDto>>
@@ -47,6 +48,13 @@ interface ObsApi {
 
     /** The live bridge registry — how many browser-source instances are connected and whether one leads. */
     suspend fun bridgeStatus(channelId: String): ApiResult<ObsBridgeStatus>
+
+    /**
+     * Actively probe whether OBS is reachable RIGHT NOW — the truthful connect signal. Unlike [state] (which
+     * returns a graceful empty 200 even when OBS is offline), a 200 here carries the real outcome: connected, or
+     * the failing code. This is the signal the page trusts for "reachable", for direct and bridge modes alike.
+     */
+    suspend fun probe(channelId: String): ApiResult<ObsProbe>
 
     /** The live OBS state (current scene, streaming / recording flags, record timecode). */
     suspend fun state(channelId: String): ApiResult<ObsState>
@@ -90,6 +98,9 @@ class RestObsApi(private val client: ApiClient) : ObsApi {
 
     override suspend fun bridgeStatus(channelId: String): ApiResult<ObsBridgeStatus> =
         client.getEnvelope("api/v1/channels/$channelId/obs/bridge/status")
+
+    override suspend fun probe(channelId: String): ApiResult<ObsProbe> =
+        client.getEnvelope("api/v1/channels/$channelId/obs/probe")
 
     override suspend fun state(channelId: String): ApiResult<ObsState> =
         client.getEnvelope("api/v1/channels/$channelId/obs/state")
@@ -194,6 +205,20 @@ data class ObsBridgeStatus(
     val instanceCount: Int = 0,
     val hasLeader: Boolean = false,
     val leaderSince: String? = null,
+)
+
+/**
+ * The truthful OBS reachability probe (backend `ObsProbeDto`). Unlike a passive [state] read — which returns a
+ * graceful empty 200 when OBS is offline, so a 200 there is NOT proof of connectivity — this reflects a real
+ * transport attempt: [connected], plus the failing [errorCode] / [error] (e.g. `OBS_NOT_CONNECTED`,
+ * `OBS_DISABLED`, `OBS_BRIDGE_OFFLINE`) when it could not reach OBS. Covers the direct socket and the bridge
+ * leader alike.
+ */
+@Serializable
+data class ObsProbe(
+    val connected: Boolean = false,
+    val errorCode: String? = null,
+    val error: String? = null,
 )
 
 /** The live OBS state (backend `ObsStateDto`). */

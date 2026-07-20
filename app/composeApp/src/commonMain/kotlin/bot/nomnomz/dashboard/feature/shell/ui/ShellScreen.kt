@@ -599,7 +599,13 @@ private fun ShellContent(
             ShellRoute.CustomEvents -> CustomEventsScreen(controller = graph.customEventsController, role = role)
             ShellRoute.Supporters ->
                 SupportersScreen(controller = graph.supportersController, heldActionKeys = heldActionKeys)
-            ShellRoute.Obs -> ObsScreen(controller = graph.obsController, role = role)
+            ShellRoute.Obs ->
+                ObsScreen(
+                    controller = graph.obsController,
+                    role = role,
+                    hubEvents = graph.dashboardHubClient.events,
+                    backendOrigin = graph.sessionStore.baseUrl(),
+                )
             ShellRoute.Vts -> VtsScreen(controller = graph.vtsController, role = role)
             ShellRoute.Automation -> AutomationScreen(controller = graph.automationController, role = role)
             ShellRoute.MediaShare -> MediaShareScreen(controller = graph.mediaShareController, role = role)

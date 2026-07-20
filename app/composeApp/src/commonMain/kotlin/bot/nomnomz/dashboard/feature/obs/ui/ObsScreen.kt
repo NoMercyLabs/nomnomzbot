@@ -60,6 +60,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ObsConnection
 import bot.nomnomz.dashboard.core.network.ObsInput
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.obs.state.ObsController
 import bot.nomnomz.dashboard.feature.obs.state.ObsLive
 import bot.nomnomz.dashboard.feature.obs.state.ObsUiState
@@ -67,6 +68,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.obs_action_error
@@ -84,6 +86,7 @@ import nomnomzbot.composeapp.generated.resources.obs_connection_title
 import nomnomzbot.composeapp.generated.resources.obs_control_desc
 import nomnomzbot.composeapp.generated.resources.obs_control_title
 import nomnomzbot.composeapp.generated.resources.obs_current_scene
+import nomnomzbot.composeapp.generated.resources.obs_direct_remote_warning
 import nomnomzbot.composeapp.generated.resources.obs_enabled_label
 import nomnomzbot.composeapp.generated.resources.obs_error
 import nomnomzbot.composeapp.generated.resources.obs_host_label
@@ -123,7 +126,12 @@ import org.jetbrains.compose.resources.stringResource
 // (obs:control); streaming/recording at Broadcaster (obs:control:broadcast). The `/obs-bridge` browser-source
 // page itself is a server-served static asset (see the for-backend handoff entry) — not built here.
 @Composable
-fun ObsScreen(controller: ObsController, role: ManagementRole?) {
+fun ObsScreen(
+    controller: ObsController,
+    role: ManagementRole?,
+    hubEvents: SharedFlow<HubEvent>? = null,
+    backendOrigin: String? = null,
+) {
     val state: ObsUiState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -134,7 +142,15 @@ fun ObsScreen(controller: ObsController, role: ManagementRole?) {
     val controlManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Moderator)
     val broadcastManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Broadcaster)
 
+    // Direct mode dials the bot SERVER's own machine — so it only works when OBS runs beside the bot (self-host).
+    // If this dashboard is talking to a remote/public server (hosted / SaaS), direct can never reach the user's
+    // OBS, and they must use the browser-source bridge instead. Detect that from the backend origin.
+    val isRemoteDeployment: Boolean = remember(backendOrigin) { !isLocalOrigin(backendOrigin) }
+
     LaunchedEffect(Unit) { controller.load() }
+    if (hubEvents != null) {
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: ObsUiState = state) {
@@ -156,6 +172,7 @@ fun ObsScreen(controller: ObsController, role: ManagementRole?) {
                     ConnectionCard(
                         connection = current.connection,
                         manage = configManage,
+                        isRemoteDeployment = isRemoteDeployment,
                         onSave = { mode, host, port, password, enabled ->
                             scope.launch { controller.saveConnection(mode, host, port, password, enabled) }
                         },
@@ -185,7 +202,9 @@ fun ObsScreen(controller: ObsController, role: ManagementRole?) {
                         onSwitchScene = { scene -> scope.launch { controller.switchScene(scene) } },
                         onToggleStreaming = { scope.launch { controller.toggleStreaming() } },
                         onToggleRecording = { scope.launch { controller.toggleRecording() } },
-                        onRefresh = { scope.launch { controller.refreshLive() } },
+                        // The retry re-reads EVERYTHING (bridge status + setup + probe + live), not just live — a
+                        // bridge that just came online is reflected here, not only after a full page reload.
+                        onRefresh = { scope.launch { controller.refresh() } },
                     )
                     if (current.live.reachable) {
                         MixerCard(
@@ -208,6 +227,7 @@ fun ObsScreen(controller: ObsController, role: ManagementRole?) {
 private fun ConnectionCard(
     connection: ObsConnection,
     manage: ManageDecision,
+    isRemoteDeployment: Boolean,
     onSave: (mode: String, host: String?, port: Int?, password: String?, enabled: Boolean) -> Unit,
     onClearPassword: () -> Unit,
 ) {
@@ -237,6 +257,17 @@ private fun ConnectionCard(
             FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                 ModeChip(label = stringResource(Res.string.obs_mode_direct), selected = mode == "direct", onClick = { mode = "direct" })
                 ModeChip(label = stringResource(Res.string.obs_mode_bridge), selected = mode == "bridge", onClick = { mode = "bridge" })
+            }
+
+            // Direct mode opens the socket from the BOT SERVER, so it only reaches OBS when OBS runs on that same
+            // machine. When this dashboard talks to a remote/hosted server, direct can never reach the user's PC —
+            // steer them to the browser-source bridge instead of leaving them to wonder why it never connects.
+            if (mode == "direct" && isRemoteDeployment) {
+                Text(
+                    text = stringResource(Res.string.obs_direct_remote_warning),
+                    style = typography.sm,
+                    color = tokens.destructiveForeground,
+                )
             }
 
             // Host + port are the SERVER's dial target — direct mode only (in bridge mode the browser source
@@ -668,4 +699,26 @@ private fun CenteredMessage(text: String) {
     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Text(text = text, style = typography.base, color = tokens.mutedForeground)
     }
+}
+
+// A backend origin counts as "local" (a self-host deployment where direct mode can reach a co-located OBS) when
+// it targets loopback, a private LAN range (RFC 1918), or an .local host. A null/blank origin is treated as local
+// (desktop dev / not yet resolved) so the direct-mode remote warning only fires when we actually KNOW the server
+// is remote/public — anything else (a public domain) is remote.
+private fun isLocalOrigin(origin: String?): Boolean {
+    if (origin.isNullOrBlank()) return true
+    val authority: String =
+        origin.substringAfter("://", origin).substringBefore('/').trim().lowercase()
+    // IPv6 loopback appears bracketed in a URL, e.g. http://[::1]:5080.
+    if (authority.startsWith("[")) return authority.startsWith("[::1]") || authority.startsWith("[::]")
+    val host: String = authority.substringBefore(':')
+    if (host.isEmpty()) return true
+    if (host == "localhost" || host == "127.0.0.1" || host == "0.0.0.0") return true
+    if (host.endsWith(".local") || host.endsWith(".localhost")) return true
+    if (host.startsWith("10.") || host.startsWith("192.168.")) return true
+    if (host.startsWith("172.")) {
+        val second: Int? = host.split('.').getOrNull(1)?.toIntOrNull()
+        return second != null && second in 16..31
+    }
+    return false
 }

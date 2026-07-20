@@ -18,12 +18,15 @@ import bot.nomnomz.dashboard.core.network.ObsBridgeSetup
 import bot.nomnomz.dashboard.core.network.ObsBridgeStatus
 import bot.nomnomz.dashboard.core.network.ObsConnection
 import bot.nomnomz.dashboard.core.network.ObsInput
+import bot.nomnomz.dashboard.core.network.ObsProbe
 import bot.nomnomz.dashboard.core.network.ObsRecordAction
 import bot.nomnomz.dashboard.core.network.ObsScene
 import bot.nomnomz.dashboard.core.network.ObsState
 import bot.nomnomz.dashboard.core.network.ObsToggle
 import bot.nomnomz.dashboard.core.network.UpsertObsConnectionBody
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -63,16 +66,23 @@ class ObsController(
     suspend fun refresh() {
         val id: String = channelId ?: return
 
+        // The connection/config read is Broadcaster-gated (obs:config:read). A control-only MODERATOR gets a 403
+        // here yet can still control scenes (obs:control), so a FORBIDDEN read is non-fatal: fall back to defaults
+        // and keep the page (scene control still works off the probe + live reads). Any other failure (server
+        // down, etc.) is a real error and takes the page to its error state as before.
         val connection: ObsConnection =
             when (val result: ApiResult<ObsConnection> = obsApi.connection(id)) {
-                is ApiResult.Failure -> {
-                    _state.value = ObsUiState.Error(result.error.message)
-                    return
-                }
                 is ApiResult.Ok -> result.value
+                is ApiResult.Failure ->
+                    if (result.error.status == HTTP_FORBIDDEN) {
+                        ObsConnection()
+                    } else {
+                        _state.value = ObsUiState.Error(result.error.message)
+                        return
+                    }
             }
 
-        // Bridge setup + registry — best-effort (bridge mode only meaningfully populates these).
+        // Bridge setup + registry — best-effort (bridge mode only meaningfully populates these; a mod is forbidden).
         val bridgeSetup: ObsBridgeSetup? =
             when (val result: ApiResult<ObsBridgeSetup> = obsApi.bridgeSetup(id)) {
                 is ApiResult.Ok -> result.value
@@ -84,19 +94,7 @@ class ObsController(
                 is ApiResult.Failure -> null
             }
 
-        // A read of OBS state returns a graceful 200-with-empty-state even when OBS is offline (disabled / no
-        // bridge leader / not connected all come back 200 so the page shows its connect prompt, not a 500). So a
-        // 200 alone is NOT "reachable" — trusting it lit up Start Streaming + the mixer while the bridge card said
-        // offline. Gate on the real transport signal: bridge mode needs a registered bridge; direct mode keeps its
-        // own server-local signal (no relay to mask it).
-        val probed: ObsLive = readLive(id)
-        val reachable: Boolean =
-            when {
-                !connection.isEnabled -> false
-                connection.mode == "bridge" -> (bridgeStatus?.instanceCount ?: 0) > 0
-                else -> probed.reachable
-            }
-        val live: ObsLive = probed.copy(reachable = reachable)
+        val live: ObsLive = readLiveWithProbe(id)
 
         val previous: ObsUiState.Ready? = _state.value as? ObsUiState.Ready
         _state.value =
@@ -109,11 +107,25 @@ class ObsController(
             )
     }
 
-    /** Re-read only the live OBS state (scene/output) after a control action, keeping the config in place. */
+    /** Re-read only the live OBS state (probe + scene/output) after a control action, keeping the config in place. */
     suspend fun refreshLive() {
         val id: String = channelId ?: return
         val ready: ObsUiState.Ready = _state.value as? ObsUiState.Ready ?: return
-        _state.value = ready.copy(live = readLive(id))
+        _state.value = ready.copy(live = readLiveWithProbe(id))
+    }
+
+    /**
+     * Subscribe to hub events so the bridge indicator + live control reflect a browser-source connect/disconnect
+     * the instant it happens, not only on a manual refresh. On an [HubEvent.ObsBridgeStateChanged] for the active
+     * channel, re-read the page (bridge status + probe + live). The full-refresh-on-retry path stays as a fallback
+     * for surfaces without a live hub connection.
+     */
+    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
+        hubEvents.collect { evt ->
+            if (evt is HubEvent.ObsBridgeStateChanged && evt.state.broadcasterId == channelId) {
+                refresh()
+            }
+        }
     }
 
     /**
@@ -185,6 +197,23 @@ class ObsController(
 
     // ── internals ────────────────────────────────────────────────────────────
 
+    // The truthful reachability read: PROBE first. The passive state read returns a graceful empty 200 even when
+    // OBS is offline (so it can't tell reachable from the connect prompt) — trusting it lit up Start Streaming +
+    // the mixer while the bridge card said offline. The probe is a real transport attempt, so its `connected`
+    // flag is the single signal the page trusts, for direct and bridge modes alike. Only when connected do we
+    // pull the live scene/output surface; otherwise the page shows "not reachable" with the probe's reason.
+    private suspend fun readLiveWithProbe(id: String): ObsLive {
+        val probe: ObsProbe? =
+            when (val result: ApiResult<ObsProbe> = obsApi.probe(id)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> null
+            }
+        if (probe?.connected != true) {
+            return ObsLive(reachable = false, error = probe?.error ?: probe?.errorCode)
+        }
+        return readLive(id)
+    }
+
     // The live OBS read (state + scenes + inputs) is best-effort — OBS may not be running / connected. A failure
     // becomes an [ObsLive] carrying an error, so the page shows "OBS not reachable" rather than a dead page.
     private suspend fun readLive(id: String): ObsLive {
@@ -229,6 +258,9 @@ class ObsController(
 
     private companion object {
         const val NoChannelError: String = "No active channel — reconnect and try again."
+
+        /** A forbidden connection/config read (obs:config:read) is non-fatal for a control-only moderator. */
+        const val HTTP_FORBIDDEN: Int = 403
     }
 }
 

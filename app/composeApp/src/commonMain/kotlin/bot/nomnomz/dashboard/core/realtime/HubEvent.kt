@@ -42,6 +42,8 @@ sealed interface HubEvent {
 
     data class PermissionChanged(val change: HubPermissionChanged) : HubEvent
 
+    data class ObsBridgeStateChanged(val state: HubObsBridgeState) : HubEvent
+
     /** A hub target not yet modelled — carry the raw argument so callers can inspect it. */
     data class Unknown(val target: String, val rawArgs: String) : HubEvent
 
@@ -63,6 +65,7 @@ sealed interface HubEvent {
                     "MusicStateChanged" -> MusicStateChanged(json.decodeFromString(first))
                     "ChannelEvent" -> ChannelEvent(json.decodeFromString(first))
                     "PermissionChanged" -> PermissionChanged(json.decodeFromString(first))
+                    "ObsBridgeStateChanged" -> ObsBridgeStateChanged(json.decodeFromString(first))
                     else -> Unknown(target, first)
                 }
             }.getOrNull()
@@ -243,5 +246,14 @@ data class HubChannelEvent(
     val broadcasterId: String = "",
     val userId: String? = null,
     val userDisplayName: String? = null,
+    val timestamp: String = "",
+)
+
+/** Pushed when the channel's OBS browser-source bridge fleet changes (backend `ObsBridgeStateDto`). */
+@Serializable
+data class HubObsBridgeState(
+    val broadcasterId: String = "",
+    val instanceCount: Int = 0,
+    val hasLeader: Boolean = false,
     val timestamp: String = "",
 )

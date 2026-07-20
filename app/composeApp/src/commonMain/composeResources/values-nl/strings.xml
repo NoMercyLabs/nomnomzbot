@@ -3019,6 +3019,7 @@
     <string name="obs_mode_label">Modus</string>
     <string name="obs_mode_direct">Direct</string>
     <string name="obs_mode_bridge">Bridge</string>
+    <string name="obs_direct_remote_warning">Directe modus bereikt OBS alleen als OBS op dezelfde machine draait als de bot. Dit dashboard is verbonden met een externe server, gebruik dus de Bridge-modus en voeg de onderstaande browserbron-URL toe aan OBS.</string>
     <string name="obs_host_label">Host</string>
     <string name="obs_port_label">Poort</string>
     <string name="obs_password_label">WebSocket-wachtwoord</string>
