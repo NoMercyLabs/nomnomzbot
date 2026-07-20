@@ -330,6 +330,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -943,6 +956,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -1077,6 +1103,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -1830,6 +1869,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -2090,6 +2142,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -2651,6 +2716,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -6185,6 +6263,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -7157,6 +7248,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -8997,6 +9101,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -9698,6 +9815,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -10605,6 +10735,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -12955,6 +13098,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -14416,6 +14572,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -14934,6 +15103,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -15595,6 +15777,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -16302,6 +16497,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -16556,6 +16764,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -17554,6 +17775,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -18202,6 +18436,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -18550,6 +18797,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -19029,6 +19289,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -22592,6 +22865,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -23720,6 +24006,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -24693,6 +24992,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -25746,6 +26058,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -26830,6 +27155,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -27386,6 +27724,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -28134,6 +28485,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -28673,6 +29037,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -29351,6 +29728,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -30330,6 +30720,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -33944,6 +34347,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -34813,6 +35229,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -36001,6 +36430,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -36907,6 +37349,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -38591,6 +39046,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -40525,6 +40993,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -41625,6 +42106,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -45697,6 +46191,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -46363,6 +46870,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -47316,6 +47836,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -48028,6 +48561,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -49727,6 +50273,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -50482,6 +51041,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -50747,6 +51319,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -53813,6 +54398,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -54144,6 +54742,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -55988,6 +56599,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -57124,6 +57748,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -60381,6 +61018,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -62000,6 +62650,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -62769,6 +63432,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -63348,6 +64024,19 @@
           {
             "name": "Take",
             "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -63806,6 +64495,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -64377,6 +65079,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -65758,6 +66473,19 @@
           },
           {
             "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
             "in": "query",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -75666,7 +76394,9 @@
           "isPlaying",
           "volume",
           "requestedBy",
-          "provider"
+          "provider",
+          "shuffleState",
+          "repeatState"
         ],
         "type": "object",
         "properties": {
@@ -75729,9 +76459,15 @@
           },
           "provider": {
             "type": "string"
+          },
+          "shuffleState": {
+            "type": "boolean"
+          },
+          "repeatState": {
+            "type": "string"
           }
         },
-        "description": "Current now-playing state."
+        "description": "Current now-playing state. ShuffleState and RepeatState\r\n            (\"off\" | \"track\" | \"context\") are the live player toggles the dashboard renders — false/\"off\" on providers\r\n            that do not report them."
       },
       "OAuthCallbackDto": {
         "required": [
