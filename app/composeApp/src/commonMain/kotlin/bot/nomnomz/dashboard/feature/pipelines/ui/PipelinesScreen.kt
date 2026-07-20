@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
@@ -896,37 +897,45 @@ private fun TypedParamFields(block: PaletteBlock, params: MutableMap<String, Str
                         selected = params[field.key].orEmpty(),
                         onSelect = { params[field.key] = it },
                     )
-                // send_webhook → pick one of the channel's outbound endpoints (falls back to free text if none).
+                // send_webhook → search one of the channel's outbound endpoints.
                 field.key == "endpoint" ->
-                    OptionPicker(
+                    EntityPickerField(
+                        items = options.outboundEndpoints,
+                        selectedId = params[field.key].orEmpty().ifBlank { null },
+                        onSelect = { params[field.key] = it.orEmpty() },
+                        idOf = { it.value },
+                        labelOf = { it.label },
                         label = fieldLabelWithRequired(field),
-                        options = options.outboundEndpoints,
-                        selected = params[field.key].orEmpty(),
-                        onSelect = { params[field.key] = it },
                     )
-                // pick_from_list → pick one of the channel's pick-lists by name (falls back to free text).
+                // pick_from_list → search one of the channel's pick-lists by name.
                 field.key == "list" ->
-                    OptionPicker(
+                    EntityPickerField(
+                        items = options.pickLists,
+                        selectedId = params[field.key].orEmpty().ifBlank { null },
+                        onSelect = { params[field.key] = it.orEmpty() },
+                        idOf = { it.value },
+                        labelOf = { it.label },
                         label = fieldLabelWithRequired(field),
-                        options = options.pickLists,
-                        selected = params[field.key].orEmpty(),
-                        onSelect = { params[field.key] = it },
                     )
-                // widget_event → pick one of the channel's overlay widgets by id (falls back to free text).
+                // widget_event → search one of the channel's overlay widgets.
                 field.key == "widget_id" ->
-                    OptionPicker(
+                    EntityPickerField(
+                        items = options.widgets,
+                        selectedId = params[field.key].orEmpty().ifBlank { null },
+                        onSelect = { params[field.key] = it.orEmpty() },
+                        idOf = { it.value },
+                        labelOf = { it.label },
                         label = fieldLabelWithRequired(field),
-                        options = options.widgets,
-                        selected = params[field.key].orEmpty(),
-                        onSelect = { params[field.key] = it },
                     )
-                // schedule_pipeline → pick one of the channel's pipelines by name (falls back to free text).
+                // schedule_pipeline → search one of the channel's pipelines by name.
                 field.key == "pipeline" ->
-                    OptionPicker(
+                    EntityPickerField(
+                        items = options.pipelines,
+                        selectedId = params[field.key].orEmpty().ifBlank { null },
+                        onSelect = { params[field.key] = it.orEmpty() },
+                        idOf = { it.value },
+                        labelOf = { it.label },
                         label = fieldLabelWithRequired(field),
-                        options = options.pipelines,
-                        selected = params[field.key].orEmpty(),
-                        onSelect = { params[field.key] = it },
                     )
                 else ->
                     AppTextField(
