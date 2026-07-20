@@ -354,6 +354,7 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
                         scope.launch { controller.transfer(request) }
                     },
                     searchViewers = { query -> controller.searchViewers(query) },
+                    searchChannels = { query -> controller.searchChannels(query) },
                     onRefundPurchase = { purchaseId ->
                         scope.launch { controller.refundPurchase(purchaseId) }
                     },
@@ -391,6 +392,7 @@ private fun ReadyContent(
     loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
     onTransfer: (TransferBody) -> Unit,
     searchViewers: suspend (query: String) -> List<PickerOption>,
+    searchChannels: suspend (query: String) -> List<PickerOption>,
     onRefundPurchase: (purchaseId: Long) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -542,6 +544,7 @@ private fun ReadyContent(
             onWithdraw = onJarWithdraw,
             loadHistory = loadJarHistory,
             searchViewers = searchViewers,
+            searchChannels = searchChannels,
         )
 
         CatalogPurchasesSection(
@@ -2146,6 +2149,7 @@ private fun SavingsJarsSection(
     onWithdraw: suspend (jarId: String, AdminJarWithdrawBody) -> Unit,
     loadHistory: suspend (jarId: String) -> List<JarMovement>?,
     searchViewers: suspend (query: String) -> List<PickerOption>,
+    searchChannels: suspend (query: String) -> List<PickerOption>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -2223,6 +2227,7 @@ private fun SavingsJarsSection(
             onWithdraw = { request -> onWithdraw(jar.id, request) },
             loadHistory = loadHistory,
             searchViewers = searchViewers,
+            searchChannels = searchChannels,
             onDismiss = { managingJar = null },
         )
     }
@@ -2300,6 +2305,7 @@ private fun JarManageDialog(
     onWithdraw: suspend (AdminJarWithdrawBody) -> Unit,
     loadHistory: suspend (jarId: String) -> List<JarMovement>?,
     searchViewers: suspend (query: String) -> List<PickerOption>,
+    searchChannels: suspend (query: String) -> List<PickerOption>,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -2428,6 +2434,7 @@ private fun JarManageDialog(
 
     if (showInvite) {
         JarInviteDialog(
+            searchChannels = searchChannels,
             onConfirm = { request ->
                 mutateThenReload { onInvite(request) }
                 showInvite = false
@@ -2465,22 +2472,28 @@ private fun JarManageDialog(
 }
 
 @Composable
-private fun JarInviteDialog(onConfirm: (InviteChannelBody) -> Unit, onDismiss: () -> Unit) {
+private fun JarInviteDialog(
+    searchChannels: suspend (query: String) -> List<PickerOption>,
+    onConfirm: (InviteChannelBody) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
-    var broadcasterId: String by remember { mutableStateOf("") }
+    var picked: PickerRef? by remember { mutableStateOf(null) }
     var role: String by remember { mutableStateOf("member") }
-    val isValid: Boolean = broadcasterId.isNotBlank() && role.isNotBlank()
+    val isValid: Boolean = picked != null && role.isNotBlank()
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.economy_jars_invite_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                AppTextField(
-                    value = broadcasterId,
-                    onValueChange = { broadcasterId = it },
+                SearchPickerField(
+                    search = searchChannels,
+                    selected = picked,
+                    onSelect = { picked = it },
+                    onClear = { picked = null },
                     label = stringResource(Res.string.economy_jars_invite_broadcaster),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -2494,7 +2507,7 @@ private fun JarInviteDialog(onConfirm: (InviteChannelBody) -> Unit, onDismiss: (
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(InviteChannelBody(invitedBroadcasterId = broadcasterId, role = role)) },
+                onClick = { picked?.let { p -> onConfirm(InviteChannelBody(invitedBroadcasterId = p.id, role = role)) } },
                 enabled = isValid,
             ) {
                 Text(stringResource(Res.string.economy_jars_invite_confirm), color = if (isValid) tokens.primary else tokens.mutedForeground)

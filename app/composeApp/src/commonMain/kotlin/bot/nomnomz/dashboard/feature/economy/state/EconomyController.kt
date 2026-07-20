@@ -36,6 +36,8 @@ import bot.nomnomz.dashboard.core.network.TransferBody
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
 import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
 import bot.nomnomz.dashboard.core.network.UserSearchResult
+import bot.nomnomz.dashboard.core.network.ChannelSearchResult
+import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.UsersApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,6 +52,9 @@ class EconomyController(
     private val channelsApi: ChannelsApi,
     private val economyApi: EconomyApi,
     private val usersApi: UsersApi,
+    // Optional broadcaster-search source for the shared-jar invite picker. Nullable so the state-holder tests
+    // construct the controller without it.
+    private val streamApi: StreamApi? = null,
 ) {
     private val _state: MutableStateFlow<EconomyState> = MutableStateFlow(EconomyState.Loading)
 
@@ -447,6 +452,23 @@ class EconomyController(
                 }
             is ApiResult.Failure -> emptyList()
         }
+
+    /**
+     * Autocomplete over Twitch broadcasters (for the shared-jar INVITE picker — an arbitrary channel, not one of
+     * this channel's viewers). Resolves against this page's channel; empty until [load] resolves it, on failure,
+     * or when the stream API is absent (tests).
+     */
+    suspend fun searchChannels(query: String): List<PickerOption> {
+        val channel: String = channelId ?: return emptyList()
+        val api: StreamApi = streamApi ?: return emptyList()
+        return when (val result: ApiResult<List<ChannelSearchResult>> = api.searchChannels(channel, query)) {
+            is ApiResult.Ok ->
+                result.value.map {
+                    PickerOption(id = it.id, label = it.displayName.ifBlank { it.login }, sublabel = it.login)
+                }
+            is ApiResult.Failure -> emptyList()
+        }
+    }
 
     /** Transfer [amount] from one viewer to another. Reloads on success. */
     suspend fun transfer(request: TransferBody) {
