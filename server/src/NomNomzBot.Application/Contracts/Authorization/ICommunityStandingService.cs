@@ -38,4 +38,18 @@ public interface ICommunityStandingService
         Guid userId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Reconciles a channel's Plane-A standings against a freshly-read Twitch subscriber + VIP
+    /// <paramref name="snapshot"/> (roles-permissions §3.5): raises every reported sub/VIP to their Twitch standing
+    /// and, on a FULLY authoritative read (both signals complete), downgrades a Helix-seeded sub/VIP who no longer
+    /// appears. Prune-safe — a partial/failed read only raises, never lowers — and it only manages Helix-seeded
+    /// Subscriber/Vip rows, so a manually-set Artist or a Moderator standing is never clobbered. The sibling of
+    /// <c>IMembershipService.SyncManagementFromTwitchAsync</c> for Plane A.
+    /// </summary>
+    Task<Result> ReconcileTwitchStandingsAsync(
+        Guid broadcasterId,
+        CommunityStandingSnapshot snapshot,
+        CancellationToken cancellationToken = default
+    );
 }

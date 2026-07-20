@@ -1260,6 +1260,13 @@ public static class DependencyInjection
             Identity.TwitchManagementSnapshotBuilder
         >();
 
+        // Twitch standing snapshot builder (subscribers + VIPs) — the Plane-A sibling, consumed by the periodic
+        // CommunityStandingReconcileService. Not an I<X>Service; scoped (composes IUserService + Helix).
+        services.AddScoped<
+            Application.Contracts.Authorization.ITwitchStandingSnapshotBuilder,
+            Identity.TwitchStandingSnapshotBuilder
+        >();
+
         // Twitch identity resolver — the single seam translating tenant/user Guids ↔ Twitch string ids
         // (the invariant: Twitch never receives a Guid). Scoped: reads the per-request DbContext.
         services.AddScoped<ITwitchIdentityResolver, TwitchIdentityResolver>();
