@@ -136,9 +136,11 @@ class ShellNavTest {
     @Test
     fun moderator_can_manage_only_the_moderator_floored_pages() {
         // A Mod sees the shell (minus Broadcaster pages) but may only MUTATE pages whose manage floor is
-        // Moderator — Chat, Moderation, Community, Giveaways (giveaways:write floors at Moderator; the code-pool
-        // tools inside it are Broadcaster-only, gated per-control). Commands/Quotes/Timers etc. (Editor manage
-        // floor) are read-only to a Mod (the write button disables with "Requires Editor").
+        // Moderator — Chat, Commands, Moderation, Community, Giveaways (giveaways:write floors at Moderator; the
+        // code-pool tools inside it are Broadcaster-only, gated per-control). Command management floors at
+        // Moderator to match StreamElements/Nightbot/Cloudbot/Fossabot (mods manage commands out of the box).
+        // Quotes/Timers/EventResponses etc. (Editor manage floor) stay read-only to a Mod (the write button
+        // disables with "Requires Editor").
         val manageable: Set<ShellRoute> =
             ShellNav.pages
                 .filter { ShellNav.canManage(ManagementRole.Moderator, it.route) }
@@ -148,6 +150,7 @@ class ShellNavTest {
         assertEquals(
             setOf(
                 ShellRoute.Chat,
+                ShellRoute.Commands,
                 ShellRoute.Moderation,
                 ShellRoute.Community,
                 ShellRoute.Giveaways,
