@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreatePipelineBody
+import bot.nomnomz.dashboard.core.network.EMPTY_PIPELINE_ID
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.EventResponse
 import bot.nomnomz.dashboard.core.network.EventResponsePreset
@@ -188,7 +189,9 @@ class EventResponsesControllerTest {
         assertEquals("channel.cheer", api.lastUpsertedEventType)
         assertEquals("chat_message", api.lastUpsertedBody?.responseType)
         assertEquals("Thanks for the cheer!", api.lastUpsertedBody?.message)
-        assertNull(api.lastUpsertedBody?.pipelineId)
+        // A chat_message save carries the empty-pipeline sentinel so any prior pipeline binding is CLEARED —
+        // a null pipelineId is dropped by the serializer and would leave a stale pipeline bound.
+        assertEquals(EMPTY_PIPELINE_ID, api.lastUpsertedBody?.pipelineId)
     }
 
     @Test

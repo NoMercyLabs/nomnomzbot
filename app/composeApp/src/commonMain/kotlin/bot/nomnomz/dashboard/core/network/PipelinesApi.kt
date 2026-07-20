@@ -18,6 +18,14 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 
+/**
+ * The nil-UUID sentinel that CLEARS a pipeline binding on an update. A client `pipelineId = null` is dropped by
+ * the shared Json (explicitNulls = false), so the backend cannot tell "unbind" from "leave unchanged"; sending
+ * this empty id is how an update explicitly removes the binding (the backend maps Guid.Empty -> null). Used by
+ * the timers / chat-triggers / event-responses / rewards update flows.
+ */
+const val EMPTY_PIPELINE_ID: String = "00000000-0000-0000-0000-000000000000"
+
 // The typed pipelines facade — a channel's visual automation pipelines (the action-chain engine the
 // Pipelines page edits). Real data only: the backend lists/stores the channel's pipelines; the editor's
 // action chain round-trips through the pipeline's `graph` JSON exactly as the PipelineEngine reads it.

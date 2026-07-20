@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreatePipelineBody
+import bot.nomnomz.dashboard.core.network.EMPTY_PIPELINE_ID
 import bot.nomnomz.dashboard.core.network.EventResponse
 import bot.nomnomz.dashboard.core.network.EventResponsePreset
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
@@ -183,7 +184,9 @@ class EventResponsesController(
                 UpdateEventResponseBody(
                     responseType = responseType,
                     message = message?.takeIf { it.isNotBlank() },
-                    pipelineId = pipelineId?.takeIf { it.isNotBlank() },
+                    // Empty sentinel when there's no pipeline (chat_message / overlay), so switching a response
+                    // AWAY from pipeline actually clears the old binding — a null would be dropped and kept.
+                    pipelineId = pipelineId?.takeIf { it.isNotBlank() } ?: EMPTY_PIPELINE_ID,
                     metadata = metadata,
                 ),
             )

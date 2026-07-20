@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateTimerRequest
+import bot.nomnomz.dashboard.core.network.EMPTY_PIPELINE_ID
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineSummary
@@ -156,7 +157,9 @@ class TimersController(
                 minChatActivity = minChatActivity,
                 isEnabled = enabled,
                 fireOnce = fireOnce,
-                pipelineId = pipelineId,
+                // A null pipelineId is dropped by the serializer (explicitNulls=false), so "None" on a bound
+                // timer needs the empty sentinel to actually unbind — the backend maps it to null.
+                pipelineId = pipelineId ?: EMPTY_PIPELINE_ID,
             )
         runWrite { timersApi.update(channelId, id, request) }
     }

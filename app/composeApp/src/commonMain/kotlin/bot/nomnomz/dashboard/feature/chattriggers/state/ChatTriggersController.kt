@@ -16,6 +16,7 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChatTrigger
 import bot.nomnomz.dashboard.core.network.ChatTriggersApi
 import bot.nomnomz.dashboard.core.network.CreateChatTriggerBody
+import bot.nomnomz.dashboard.core.network.EMPTY_PIPELINE_ID
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.UpdateChatTriggerBody
@@ -135,10 +136,11 @@ class ChatTriggersController(
                     matchType = matchType,
                     caseSensitive = caseSensitive,
                     isEnabled = isEnabled,
-                    // Pipeline mode clears the template (empty string) so only the pipeline fires; response mode sends
-                    // the template and leaves the pipeline field null (unchanged) — the common single-mode edit path.
+                    // Pipeline mode clears the template (empty string) so only the pipeline fires; response mode
+                    // sends the template and CLEARS the pipeline (empty sentinel — a null is dropped by the
+                    // serializer and would leave the old binding, so the stale pipeline would keep firing).
                     response = if (usePipeline) "" else response.trim(),
-                    pipelineId = if (usePipeline) pipelineId else null,
+                    pipelineId = if (usePipeline) pipelineId else EMPTY_PIPELINE_ID,
                     cooldownSeconds = cooldownSeconds,
                     minPermissionLevel = minPermissionLevel,
                 ),

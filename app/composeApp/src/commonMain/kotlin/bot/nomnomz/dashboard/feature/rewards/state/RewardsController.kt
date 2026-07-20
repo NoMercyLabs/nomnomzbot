@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateRewardBody
+import bot.nomnomz.dashboard.core.network.EMPTY_PIPELINE_ID
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.RedemptionSummary
@@ -186,7 +187,8 @@ class RewardsController(
                     maxPerUserPerStream = maxPerUserPerStream,
                     globalCooldownSeconds = globalCooldownSeconds,
                     timerDurationSeconds = timerDurationSeconds,
-                    pipelineId = pipelineId,
+                    // Empty sentinel unbinds on "None" (a null is dropped by the serializer and left unchanged).
+                    pipelineId = pipelineId ?: EMPTY_PIPELINE_ID,
                 ),
             )
         )
