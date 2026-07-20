@@ -28,6 +28,8 @@ import bot.nomnomz.dashboard.core.network.ViewerOption
 import bot.nomnomz.dashboard.core.realtime.DashboardHubClient
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -246,6 +248,9 @@ class HomeController(
                             type = "channel.channel_points_custom_reward_redemption.add",
                             userId = evt.event.userId,
                             username = evt.event.userDisplayName,
+                            // Carry the reward name in `data` as the SAME {"rewardTitle":…} JSON the REST activity
+                            // feed emits, so the row shows WHICH reward was redeemed — live and on reload alike.
+                            data = buildJsonObject { put("rewardTitle", evt.event.rewardTitle) }.toString(),
                             timestamp = evt.event.timestamp,
                         )
                         _state.value = current.copy(

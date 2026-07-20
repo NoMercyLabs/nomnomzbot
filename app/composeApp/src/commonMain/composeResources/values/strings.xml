@@ -257,6 +257,7 @@
     <string name="home_activity_cheer">%1$s cheered</string>
     <string name="home_activity_raid">Raided by %1$s</string>
     <string name="home_activity_redemption">%1$s redeemed a reward</string>
+    <string name="home_activity_redemption_named">%1$s redeemed %2$s</string>
     <string name="home_activity_ban">%1$s was banned</string>
     <string name="home_activity_timeout">%1$s was timed out</string>
     <string name="home_activity_mod_add">%1$s added as moderator</string>

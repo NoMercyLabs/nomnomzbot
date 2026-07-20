@@ -254,6 +254,7 @@
     <string name="home_activity_cheer">%1$s gaf bits</string>
     <string name="home_activity_raid">Geraaid door %1$s</string>
     <string name="home_activity_redemption">%1$s loste een beloning in</string>
+    <string name="home_activity_redemption_named">%1$s loste %2$s in</string>
     <string name="home_activity_ban">%1$s is verbannen</string>
     <string name="home_activity_timeout">%1$s kreeg een time-out</string>
     <string name="home_activity_mod_add">%1$s toegevoegd als moderator</string>

@@ -114,6 +114,7 @@ import nomnomzbot.composeapp.generated.resources.home_activity_mod_add
 import nomnomzbot.composeapp.generated.resources.home_activity_mod_remove
 import nomnomzbot.composeapp.generated.resources.home_activity_raid
 import nomnomzbot.composeapp.generated.resources.home_activity_redemption
+import nomnomzbot.composeapp.generated.resources.home_activity_redemption_named
 import nomnomzbot.composeapp.generated.resources.home_activity_resub
 import nomnomzbot.composeapp.generated.resources.home_activity_section
 import nomnomzbot.composeapp.generated.resources.home_activity_subscribe
@@ -186,6 +187,10 @@ import nomnomzbot.composeapp.generated.resources.home_top_commands_uses
 import nomnomzbot.composeapp.generated.resources.home_uptime_format
 import nomnomzbot.composeapp.generated.resources.home_uptime_offline
 import nomnomzbot.composeapp.generated.resources.shell_nav_dashboard
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.compose.resources.stringResource
 
 // The Home page (frontend-ia.md §3): the live channel landing — current stream state, headline counters,
@@ -672,6 +677,17 @@ private fun ActivityFeedCard(events: List<ActivityEvent>, modifier: Modifier = M
     }
 }
 
+// Pull the reward name out of a redemption event's {"rewardTitle":…} JSON data payload. Tolerant: any parse
+// failure or absent field yields null and the row falls back to the generic "redeemed a reward" wording.
+private fun rewardTitleFromData(data: String?): String? =
+    data
+        ?.takeIf { it.isNotBlank() }
+        ?.let {
+            runCatching { Json.parseToJsonElement(it).jsonObject["rewardTitle"]?.jsonPrimitive?.contentOrNull }
+                .getOrNull()
+        }
+        ?.takeIf { it.isNotBlank() }
+
 @Composable
 private fun ActivityRow(event: ActivityEvent) {
     val tokens = LocalTokens.current
@@ -679,6 +695,9 @@ private fun ActivityRow(event: ActivityEvent) {
     val typography = LocalTypography.current
 
     val who: String = event.username ?: "—"
+    // A redemption carries its reward name in the {"rewardTitle":…} data payload — show WHICH reward, not just
+    // that one was redeemed. Absent/unparseable → the generic wording.
+    val rewardTitle: String? = rewardTitleFromData(event.data)
     val label: String = when (event.type) {
         "channel.follow" -> stringResource(Res.string.home_activity_follow, who)
         "channel.subscribe" -> stringResource(Res.string.home_activity_subscribe, who)
@@ -686,7 +705,12 @@ private fun ActivityRow(event: ActivityEvent) {
         "channel.subscription.gift" -> stringResource(Res.string.home_activity_subscription_gift, who)
         "channel.cheer" -> stringResource(Res.string.home_activity_cheer, who)
         "channel.raid" -> stringResource(Res.string.home_activity_raid, who)
-        "channel.channel_points_custom_reward_redemption.add" -> stringResource(Res.string.home_activity_redemption, who)
+        "channel.channel_points_custom_reward_redemption.add" ->
+            if (rewardTitle != null) {
+                stringResource(Res.string.home_activity_redemption_named, who, rewardTitle)
+            } else {
+                stringResource(Res.string.home_activity_redemption, who)
+            }
         "channel.ban" -> stringResource(Res.string.home_activity_ban, who)
         "channel.timeout" -> stringResource(Res.string.home_activity_timeout, who)
         "channel.moderator.add" -> stringResource(Res.string.home_activity_mod_add, who)
