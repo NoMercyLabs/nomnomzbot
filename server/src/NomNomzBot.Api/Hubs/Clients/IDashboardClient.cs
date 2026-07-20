@@ -26,4 +26,5 @@ public interface IDashboardClient
     Task StreamInfoChanged(StreamInfoChangedDto evt);
     Task RewardChanged(RewardChangedDto evt);
     Task ConfigChanged(ConfigChangedDto evt);
+    Task ObsBridgeStateChanged(ObsBridgeStateDto evt);
 }

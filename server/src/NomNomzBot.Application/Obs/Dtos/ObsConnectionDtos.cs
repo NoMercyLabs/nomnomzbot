@@ -54,3 +54,14 @@ public sealed record UpsertObsConnectionRequest
 
 /// <summary>Everything the operator needs to install the browser-source bridge in OBS.</summary>
 public sealed record ObsBridgeSetupDto(string BridgeUrl);
+
+/// <summary>
+/// The truthful result of actively probing OBS reachability (obs-control.md §3.2). The passive
+/// state/scenes/inputs reads mask a "not connected yet" as an empty 200 so the dashboard shows its connect
+/// prompt instead of a scary 500 — which means a 200 there is NOT proof OBS is reachable. This probe instead
+/// ATTEMPTS the transport and reports the real outcome: <see cref="Connected"/>, plus the failing
+/// <see cref="ErrorCode"/> (<c>OBS_NOT_CONNECTED</c>, <c>OBS_DISABLED</c>, <c>OBS_BRIDGE_OFFLINE</c>,
+/// <c>OBS_WRONG_MODE</c>) when it could not reach OBS. It is what lets the dashboard tell "connected" from the
+/// masked empty state — for the direct socket and the bridge leader alike.
+/// </summary>
+public sealed record ObsProbeDto(bool Connected, string? ErrorCode, string? Error);

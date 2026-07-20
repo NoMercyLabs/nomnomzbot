@@ -76,6 +76,11 @@ public interface IDashboardNotifier
         ConfigChangedDto dto,
         CancellationToken ct = default
     );
+    Task SendObsBridgeStateAsync(
+        string broadcasterId,
+        ObsBridgeStateDto dto,
+        CancellationToken ct = default
+    );
 }
 
 public class DashboardNotifier : IDashboardNotifier
@@ -187,6 +192,12 @@ public class DashboardNotifier : IDashboardNotifier
         ConfigChangedDto dto,
         CancellationToken ct = default
     ) => BaseGroup(broadcasterId).ConfigChanged(dto);
+
+    public Task SendObsBridgeStateAsync(
+        string broadcasterId,
+        ObsBridgeStateDto dto,
+        CancellationToken ct = default
+    ) => BaseGroup(broadcasterId).ObsBridgeStateChanged(dto);
 
     private IDashboardClient BaseGroup(string broadcasterId) =>
         _hub.Clients.Group(DashboardEventClasses.BaseGroup(broadcasterId));

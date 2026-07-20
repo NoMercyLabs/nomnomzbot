@@ -124,6 +124,19 @@ public record ConfigChangedDto(
 
 // ─── Overlay / widget / OBS ──────────────────────────────────────────────────
 
+/// <summary>
+/// Pushed to the channel's dashboards when its browser-source bridge fleet changes — a bridge joined/left or the
+/// leader moved (obs-control.md §2/§3.3). Lets the OBS page's bridge indicator go live instead of only updating
+/// on a manual page reload. <paramref name="InstanceCount"/> is the connected browser-source count;
+/// <paramref name="HasLeader"/> is whether one of them executes commands.
+/// </summary>
+public record ObsBridgeStateDto(
+    string BroadcasterId,
+    int InstanceCount,
+    bool HasLeader,
+    string Timestamp
+);
+
 public record WidgetEventDto(string WidgetId, string EventType, object? Data);
 
 /// <summary>

@@ -73,6 +73,34 @@ public class ObsController(
     public async Task<IActionResult> GetInputs(Guid channelId, CancellationToken ct) =>
         ObsReadResponse(await control.GetInputsAsync(channelId, ct), []);
 
+    /// <summary>
+    /// Actively probe whether OBS is reachable RIGHT NOW. Unlike the passive state/scenes/inputs reads — which
+    /// mask a "not connected yet" as an empty 200 so the page shows its connect prompt, not a 500 (so a 200 there
+    /// is not proof of connectivity) — this ATTEMPTS the transport with a harmless <c>GetVersion</c> and reports
+    /// the TRUTH: connected, or the real failing code, for the direct socket and the bridge leader alike. Gated at
+    /// the Moderator control floor (not the Broadcaster config floor) so a control-only moderator can still tell
+    /// whether OBS is live.
+    /// </summary>
+    [HttpGet("probe")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<ObsProbeDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Probe(Guid channelId, CancellationToken ct)
+    {
+        Result<ObsResponse> result = await control.RequestAsync(
+            channelId,
+            new ObsRequest("GetVersion", null),
+            ct
+        );
+        ObsProbeDto probe = result.IsSuccess
+            ? new ObsProbeDto(Connected: true, ErrorCode: null, Error: null)
+            : new ObsProbeDto(
+                Connected: false,
+                ErrorCode: result.ErrorCode,
+                Error: result.ErrorMessage
+            );
+        return Ok(new StatusResponseDto<ObsProbeDto> { Data = probe });
+    }
+
     // A read of OBS state when OBS simply is not reachable (disabled, no socket, no bridge leader) is not a
     // server error — it is the normal "not connected yet" state. Return an empty/disconnected payload at 200 so
     // the dashboard renders its connect prompt cleanly instead of a scary "Internal Server Error"; the
