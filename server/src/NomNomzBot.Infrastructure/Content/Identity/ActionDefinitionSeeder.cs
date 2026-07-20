@@ -284,7 +284,9 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("channel:extensions:write", Editor);
         M("chat:whisper:send", Editor);
         M("live-ops:polls:read", Mod);
-        M("live-ops:polls:write", Editor);
+        // Owner policy: moderators may run polls (a broadcaster-delegated action on the broadcaster's token) by
+        // default, matching the platform's expectation — a broadcaster can still raise it via a channel override.
+        M("live-ops:polls:write", Mod);
         M("live-ops:predictions:read", Mod);
         M("live-ops:predictions:write", Editor);
         M("live-ops:raids:write", Editor);
