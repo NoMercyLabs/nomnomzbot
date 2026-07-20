@@ -362,6 +362,13 @@ private class FakeTtsApi(
     private val updateResult: ApiResult<TtsConfig> = ApiResult.Ok(TtsConfig()),
     private val voicesResult: ApiResult<List<TtsVoice>> = ApiResult.Ok(emptyList()),
 ) : TtsApi {
+    override suspend fun myVoice(channelId: String): ApiResult<UserTtsVoice?> = ApiResult.Ok(null)
+
+    override suspend fun setMyVoice(channelId: String, voiceId: String): ApiResult<UserTtsVoice> =
+        error("stub")
+
+    override suspend fun clearMyVoice(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
     var lastUpdate: TtsConfigUpdate? = null
         private set
 

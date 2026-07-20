@@ -18,6 +18,7 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CommunityApi
+import bot.nomnomz.dashboard.core.network.CommunityStats
 import bot.nomnomz.dashboard.core.network.CreateCommandBody
 import bot.nomnomz.dashboard.core.network.Category
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
@@ -288,6 +289,7 @@ private class FakeCommunityApi : CommunityApi {
     override suspend fun addVip(channelId: String, userId: String) = error("stub")
     override suspend fun removeVip(channelId: String, userId: String) = error("stub")
     override suspend fun shoutout(channelId: String, targetTwitchUserId: String) = error("stub")
+    override suspend fun stats(channelId: String) = ApiResult.Ok(CommunityStats())
 }
 
 private class FakeCommandsApi(

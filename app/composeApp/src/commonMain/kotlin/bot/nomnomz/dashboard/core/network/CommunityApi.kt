@@ -81,6 +81,9 @@ interface CommunityApi {
 
     /** Send a /shoutout to [targetTwitchUserId] in the channel. Requires `moderator:manage:shoutouts`. */
     suspend fun shoutout(channelId: String, targetTwitchUserId: String): ApiResult<Unit>
+
+    /** Channel community counts (followers / subscribers / VIPs / moderators). */
+    suspend fun stats(channelId: String): ApiResult<CommunityStats>
 }
 
 class RestCommunityApi(private val client: ApiClient) : CommunityApi {
@@ -145,7 +148,19 @@ class RestCommunityApi(private val client: ApiClient) : CommunityApi {
             "api/v1/channels/$channelId/moderation/shoutout",
             ShoutoutBody(targetTwitchUserId),
         )
+
+    override suspend fun stats(channelId: String): ApiResult<CommunityStats> =
+        client.getEnvelope("api/v1/channels/$channelId/community/stats")
 }
+
+/** Channel community counts (backend `CommunityStatsDto`) — the followers / subscribers / VIPs / moderators panel. */
+@Serializable
+data class CommunityStats(
+    val followers: Int = 0,
+    val subscribers: Int = 0,
+    val vips: Int = 0,
+    val moderators: Int = 0,
+)
 
 /** The trust levels the backend `SetTrustLevelRequest` accepts — the closed set the row's picker offers. */
 object CommunityTrustLevel {

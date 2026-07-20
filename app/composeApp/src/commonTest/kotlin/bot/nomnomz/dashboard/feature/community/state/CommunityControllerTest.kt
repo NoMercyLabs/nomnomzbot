@@ -21,6 +21,7 @@ import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.CommunityMember
+import bot.nomnomz.dashboard.core.network.CommunityStats
 import bot.nomnomz.dashboard.core.network.CommunityPage
 import bot.nomnomz.dashboard.core.network.CommunityTrustLevel
 import bot.nomnomz.dashboard.core.network.DailyMetricRow
@@ -470,6 +471,9 @@ private class FakeCommunityApi(
     private val unbanResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val searchResults: List<ViewerOption> = emptyList(),
 ) : CommunityApi {
+    override suspend fun stats(channelId: String): ApiResult<CommunityStats> =
+        ApiResult.Ok(CommunityStats())
+
     // Single-result convenience for the read-only tests (one members() result, default-OK writes).
     constructor(result: ApiResult<List<CommunityMember>>) : this(membersResults = listOf(result))
 

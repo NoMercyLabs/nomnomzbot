@@ -164,6 +164,13 @@ private class FakeQueueTtsApi(
     initial: ApiResult<List<TtsQueueEntry>>,
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : TtsApi {
+    override suspend fun myVoice(channelId: String): ApiResult<UserTtsVoice?> = ApiResult.Ok(null)
+
+    override suspend fun setMyVoice(channelId: String, voiceId: String): ApiResult<UserTtsVoice> =
+        error("stub")
+
+    override suspend fun clearMyVoice(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
     private val queueFailure: ApiError? = (initial as? ApiResult.Failure)?.error
     private val store: MutableList<TtsQueueEntry> =
         (initial as? ApiResult.Ok)?.value?.toMutableList() ?: mutableListOf()

@@ -17,6 +17,10 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AutomodCapsFilter
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
+import bot.nomnomz.dashboard.core.network.ChatFilter
+import bot.nomnomz.dashboard.core.network.CommunityStats
+import bot.nomnomz.dashboard.core.network.CreateChatFilterBody
+import bot.nomnomz.dashboard.core.network.UpdateChatFilterBody
 import bot.nomnomz.dashboard.core.network.CreateModerationRuleBody
 import bot.nomnomz.dashboard.core.network.EscalationLadderStep
 import bot.nomnomz.dashboard.core.network.EscalationPolicy
@@ -837,6 +841,9 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 private class FakeCommunityApi(
     private val searchResult: ApiResult<List<ViewerOption>> = ApiResult.Ok(emptyList()),
 ) : CommunityApi {
+    override suspend fun stats(channelId: String): ApiResult<CommunityStats> =
+        ApiResult.Ok(CommunityStats())
+
     override suspend fun searchViewers(
         channelId: String,
         query: String,
@@ -869,6 +876,23 @@ private class FakeModerationApi(
     private val automodResult: ApiResult<AutomodConfig> = ApiResult.Ok(AutomodConfig()),
     private val rulesResult: ApiResult<List<ModerationRule>> = ApiResult.Ok(emptyList()),
 ) : ModerationApi {
+    override suspend fun chatFilters(channelId: String): ApiResult<List<ChatFilter>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun createChatFilter(
+        channelId: String,
+        body: CreateChatFilterBody,
+    ): ApiResult<ChatFilter> = ApiResult.Ok(ChatFilter())
+
+    override suspend fun updateChatFilter(
+        channelId: String,
+        filterId: String,
+        body: UpdateChatFilterBody,
+    ): ApiResult<ChatFilter> = ApiResult.Ok(ChatFilter())
+
+    override suspend fun deleteChatFilter(channelId: String, filterId: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
     // Single-result convenience for the read-only tests (one bans() result, default-OK unban).
     constructor(
         result: ApiResult<List<BannedUser>>
