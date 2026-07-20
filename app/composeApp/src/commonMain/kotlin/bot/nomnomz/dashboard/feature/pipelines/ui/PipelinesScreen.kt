@@ -937,6 +937,25 @@ private fun TypedParamFields(block: PaletteBlock, params: MutableMap<String, Str
                         labelOf = { it.label },
                         label = fieldLabelWithRequired(field),
                     )
+                // The remaining entity references (play_sound clip, play_tts voice, jar_contribute jar, run_code
+                // script, giveaway_*, post_quote number) — each a search dropdown over its channel-loaded list.
+                field.key in setOf("clip", "voice", "jar_id", "code_script_id", "giveaway_id", "quote_number") ->
+                    EntityPickerField(
+                        items =
+                            when (field.key) {
+                                "clip" -> options.soundClips
+                                "voice" -> options.ttsVoices
+                                "jar_id" -> options.jars
+                                "code_script_id" -> options.codeScripts
+                                "giveaway_id" -> options.giveaways
+                                else -> options.quotes
+                            },
+                        selectedId = params[field.key].orEmpty().ifBlank { null },
+                        onSelect = { params[field.key] = it.orEmpty() },
+                        idOf = { it.value },
+                        labelOf = { it.label },
+                        label = fieldLabelWithRequired(field),
+                    )
                 else ->
                     AppTextField(
                         value = params[field.key].orEmpty(),

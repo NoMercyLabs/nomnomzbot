@@ -663,6 +663,12 @@ class AppGraph {
             webhooksApi = webhooksApi,
             pickListsApi = pickListsApi,
             widgetsApi = widgetsApi,
+            soundApi = soundApi,
+            ttsApi = ttsApi,
+            economyApi = economyApi,
+            codeScriptsApi = codeScriptsApi,
+            giveawaysApi = giveawaysApi,
+            quotesApi = quotesApi,
             feedback = feedbackController,
         )
 

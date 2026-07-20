@@ -14,6 +14,18 @@ import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.CodeScriptSummary
+import bot.nomnomz.dashboard.core.network.CodeScriptsApi
+import bot.nomnomz.dashboard.core.network.EconomyApi
+import bot.nomnomz.dashboard.core.network.Giveaway
+import bot.nomnomz.dashboard.core.network.GiveawaysApi
+import bot.nomnomz.dashboard.core.network.Quote
+import bot.nomnomz.dashboard.core.network.QuotesApi
+import bot.nomnomz.dashboard.core.network.SavingsJar
+import bot.nomnomz.dashboard.core.network.SoundApi
+import bot.nomnomz.dashboard.core.network.SoundClip
+import bot.nomnomz.dashboard.core.network.TtsApi
+import bot.nomnomz.dashboard.core.network.TtsVoice
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.OutboundWebhook
@@ -55,6 +67,14 @@ class PipelinesController(
     // The widget list source for the `widget_event` block's widget picker. Optional (best-effort like every editor
     // picker source): when absent the widget field degrades to free-text id entry, exactly as an empty list does.
     private val widgetsApi: WidgetsApi? = null,
+    // Optional (best-effort like every editor picker source): when absent the corresponding raw entity-id field
+    // simply gets an empty picker list. Each feeds one `TypedParamFields` reference picker in the step editor.
+    private val soundApi: SoundApi? = null,
+    private val ttsApi: TtsApi? = null,
+    private val economyApi: EconomyApi? = null,
+    private val codeScriptsApi: CodeScriptsApi? = null,
+    private val giveawaysApi: GiveawaysApi? = null,
+    private val quotesApi: QuotesApi? = null,
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<PipelinesState> = MutableStateFlow(PipelinesState.Loading)
@@ -191,11 +211,51 @@ class PipelinesController(
                 is ApiResult.Ok -> result.value.map { PickerOption(value = it.name, label = it.name) }
                 is ApiResult.Failure -> emptyList()
             }
+        // The remaining cross-feature entity references the step editor can pick (play_sound, play_tts,
+        // jar_contribute, run_code, giveaway_*, post_quote). Each is best-effort: a null API or a failed fetch
+        // yields an empty list and that field simply shows an empty picker.
+        val soundClips: List<PickerOption> =
+            when (val result: ApiResult<List<SoundClip>>? = soundApi?.list()) {
+                is ApiResult.Ok -> result.value.map { PickerOption(value = it.id, label = it.name) }
+                else -> emptyList()
+            }
+        val ttsVoices: List<PickerOption> =
+            when (val result: ApiResult<List<TtsVoice>>? = ttsApi?.voices(channel)) {
+                is ApiResult.Ok -> result.value.map { PickerOption(value = it.id, label = it.name) }
+                else -> emptyList()
+            }
+        val jars: List<PickerOption> =
+            when (val result: ApiResult<List<SavingsJar>>? = economyApi?.savingsJars(channel)) {
+                is ApiResult.Ok -> result.value.map { PickerOption(value = it.id, label = it.name) }
+                else -> emptyList()
+            }
+        val codeScripts: List<PickerOption> =
+            when (val result: ApiResult<List<CodeScriptSummary>>? = codeScriptsApi?.list()) {
+                is ApiResult.Ok -> result.value.map { PickerOption(value = it.id, label = it.name) }
+                else -> emptyList()
+            }
+        val giveaways: List<PickerOption> =
+            when (val result: ApiResult<List<Giveaway>>? = giveawaysApi?.list()) {
+                is ApiResult.Ok -> result.value.map { PickerOption(value = it.id, label = it.title) }
+                else -> emptyList()
+            }
+        val quotes: List<PickerOption> =
+            when (val result: ApiResult<List<Quote>>? = quotesApi?.list()) {
+                is ApiResult.Ok ->
+                    result.value.map { PickerOption(value = it.number.toString(), label = "#${it.number} ${it.text}") }
+                else -> emptyList()
+            }
         return EditorOptions(
             outboundEndpoints = endpoints,
             pickLists = pickLists,
             widgets = widgets,
             pipelines = pipelines,
+            soundClips = soundClips,
+            ttsVoices = ttsVoices,
+            jars = jars,
+            codeScripts = codeScripts,
+            giveaways = giveaways,
+            quotes = quotes,
         )
     }
 
@@ -363,4 +423,16 @@ data class EditorOptions(
     val widgets: List<PickerOption> = emptyList(),
     /** The channel's pipelines by NAME — the `schedule_pipeline` block's `pipeline` picker (value = name). */
     val pipelines: List<PickerOption> = emptyList(),
+    /** The channel's sound clips — the `play_sound` block's `clip` picker (value = clip id). */
+    val soundClips: List<PickerOption> = emptyList(),
+    /** The channel's TTS voices — the `play_tts` block's `voice` picker (value = voice id). */
+    val ttsVoices: List<PickerOption> = emptyList(),
+    /** The channel's savings jars — the `jar_contribute` block's `jar_id` picker (value = jar id). */
+    val jars: List<PickerOption> = emptyList(),
+    /** The channel's code scripts — the `run_code` block's `code_script_id` picker (value = script id). */
+    val codeScripts: List<PickerOption> = emptyList(),
+    /** The channel's giveaways — the giveaway blocks' `giveaway_id` picker (value = giveaway id). */
+    val giveaways: List<PickerOption> = emptyList(),
+    /** The channel's quotes by NUMBER — the `post_quote` block's `quote_number` picker (value = number). */
+    val quotes: List<PickerOption> = emptyList(),
 )
