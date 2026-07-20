@@ -53,6 +53,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -551,7 +552,6 @@ private fun CommandFormDialog(
     var permMenuOpen: Boolean by remember { mutableStateOf(false) }
     var prefixMenuOpen: Boolean by remember { mutableStateOf(false) }
     var matchMenuOpen: Boolean by remember { mutableStateOf(false) }
-    var pipelineMenuOpen: Boolean by remember { mutableStateOf(false) }
 
     val cooldownValue: Int? = cooldown.ifBlank { "0" }.toIntOrNull()
     val userCooldownValue: Int? = userCooldown.ifBlank { "0" }.toIntOrNull()
@@ -585,9 +585,6 @@ private fun CommandFormDialog(
     val enabledLabel: String = stringResource(Res.string.commands_dialog_enabled_label)
     val randomModeLabel: String = stringResource(Res.string.commands_dialog_random_mode_label)
     val perUserLabel: String = stringResource(Res.string.commands_dialog_cooldown_per_user_label)
-    val pipelineNoneLabel: String = stringResource(Res.string.commands_dialog_pipeline_none)
-    val selectedPipelineName: String =
-        selectedPipelineId?.let { id -> pipelines.firstOrNull { it.id == id }?.name } ?: pipelineNoneLabel
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -632,29 +629,16 @@ private fun CommandFormDialog(
                 // Reaction editor per tier.
                 when (tier) {
                     "pipeline" ->
-                        PickerField(
+                        // A reference to another table (the channel's pipelines) → the shared search dropdown,
+                        // filtering as you type; clearing the selection is the old "None" option.
+                        EntityPickerField(
+                            items = pipelines,
+                            selectedId = selectedPipelineId,
+                            onSelect = { selectedPipelineId = it },
+                            idOf = { it.id },
+                            labelOf = { it.name },
                             label = stringResource(Res.string.commands_dialog_pipeline_label),
-                            value = selectedPipelineName,
-                            expanded = pipelineMenuOpen,
-                            onExpandedChange = { pipelineMenuOpen = it },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(pipelineNoneLabel, color = tokens.mutedForeground) },
-                                onClick = {
-                                    selectedPipelineId = null
-                                    pipelineMenuOpen = false
-                                },
-                            )
-                            pipelines.forEach { pipeline ->
-                                DropdownMenuItem(
-                                    text = { Text(pipeline.name, color = tokens.cardForeground) },
-                                    onClick = {
-                                        selectedPipelineId = pipeline.id
-                                        pipelineMenuOpen = false
-                                    },
-                                )
-                            }
-                        }
+                        )
                     "code" ->
                         Text(
                             text = stringResource(Res.string.commands_tier_code_hint),

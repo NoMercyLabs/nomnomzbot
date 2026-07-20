@@ -81,6 +81,7 @@ fun SearchPickerField(
     placeholder: String? = null,
     emptyText: String? = null,
     enabled: Boolean = true,
+    showAllWhenEmpty: Boolean = false,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -120,9 +121,11 @@ fun SearchPickerField(
 
     val trimmed: String = query.trim()
     // Re-run the search when the query changes; LaunchedEffect cancels the previous run, so the 300 ms delay
-    // debounces keystrokes and only the latest query hits the backend.
+    // debounces keystrokes and only the latest query hits the backend. [showAllWhenEmpty] flips the min-length
+    // gate off so a local, already-loaded list (an entity picker) browses ALL rows on focus and filters as you
+    // type; the remote viewer/channel pickers keep the 2-char minimum so they never enumerate on an empty query.
     LaunchedEffect(trimmed) {
-        if (trimmed.length < 2) {
+        if (!showAllWhenEmpty && trimmed.length < 2) {
             results = emptyList()
             searching = false
             return@LaunchedEffect
@@ -141,7 +144,11 @@ fun SearchPickerField(
             placeholder = placeholder ?: stringResource(Res.string.viewer_picker_placeholder),
             enabled = enabled,
             supportingText =
-                if (trimmed.length < 2) stringResource(Res.string.search_picker_hint) else null,
+                if (!showAllWhenEmpty && trimmed.length < 2) {
+                    stringResource(Res.string.search_picker_hint)
+                } else {
+                    null
+                },
         )
         when {
             searching ->
@@ -150,7 +157,7 @@ fun SearchPickerField(
                     style = typography.xs,
                     color = tokens.mutedForeground,
                 )
-            trimmed.length >= 2 && results.isEmpty() ->
+            (showAllWhenEmpty || trimmed.length >= 2) && results.isEmpty() ->
                 Text(
                     text = emptyText ?: stringResource(Res.string.viewer_picker_empty),
                     style = typography.xs,
