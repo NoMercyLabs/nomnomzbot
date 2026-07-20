@@ -84,7 +84,7 @@ fun NomNomzTheme(
         LocalTokens provides tokens,
         LocalScheme provides scheme,
         LocalSpacing provides DefaultSpacing,
-        LocalTypography provides DefaultTypography,
+        LocalTypography provides appTypography(),
     ) {
         MaterialTheme(colorScheme = colorScheme, content = content)
     }
