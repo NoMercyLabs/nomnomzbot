@@ -199,6 +199,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_timers
 import nomnomzbot.composeapp.generated.resources.shell_nav_tts
 import nomnomzbot.composeapp.generated.resources.shell_profile_logout
 import nomnomzbot.composeapp.generated.resources.shell_profile_open
+import nomnomzbot.composeapp.generated.resources.shell_profile_view_as_viewer
 import nomnomzbot.composeapp.generated.resources.shell_reconnect_menu
 import nomnomzbot.composeapp.generated.resources.shell_role_broadcaster
 import nomnomzbot.composeapp.generated.resources.shell_role_editor
@@ -285,13 +286,20 @@ fun ShellScreen(
     // unchanged. [role] stays NULLABLE through the management shell: a VIP who entered via a held key has no
     // management role, so every write gate defaults closed (read-only) except where a held key opens it.
     val role: ManagementRole? = access.role
-    if (!ShellNav.hasManagementAccess(role, access.heldActionKeys)) {
+    val hasManagement: Boolean = ShellNav.hasManagementAccess(role, access.heldActionKeys)
+    // Preview-as-viewer (support/QA): a manager can drop into the participant surface for the ACTIVE channel to see
+    // exactly what a viewer sees — no impersonation, no token needed. Off by default and offered ONLY to a caller who
+    // has management access (a real viewer has no toggle); reset on a channel switch so a preview never carries across
+    // channels. Toggled on from the profile menu below; the participant surface shows an Exit-preview banner.
+    var previewAsViewer: Boolean by remember(access.channelId) { mutableStateOf(false) }
+    if (!hasManagement || previewAsViewer) {
         ParticipantShell(
             graph = graph,
             languageController = languageController,
             user = user,
             access = access,
             onLogout = onLogout,
+            onExitPreview = if (hasManagement) ({ previewAsViewer = false }) else null,
         )
         return
     }
@@ -424,6 +432,7 @@ fun ShellScreen(
                     languageController = languageController,
                     onLogout = onLogout,
                     onReconnect = triggerReconnect,
+                    onPreviewAsViewer = { previewAsViewer = true },
                 )
             }
         } else {
@@ -443,6 +452,7 @@ fun ShellScreen(
                     languageController = languageController,
                     onLogout = onLogout,
                     onReconnect = triggerReconnect,
+                    onPreviewAsViewer = { previewAsViewer = true },
                 )
                 Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                     // No top bar on desktop: each screen renders its own PageHeader, so a shell-level
@@ -647,6 +657,7 @@ private fun Sidebar(
     languageController: LanguageController,
     onLogout: () -> Unit,
     onReconnect: () -> Unit,
+    onPreviewAsViewer: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -721,6 +732,7 @@ private fun Sidebar(
             languageController = languageController,
             onLogout = onLogout,
             onReconnect = onReconnect,
+            onPreviewAsViewer = onPreviewAsViewer,
         )
     }
 }
@@ -996,6 +1008,7 @@ private fun ProfileBlock(
     languageController: LanguageController,
     onLogout: () -> Unit,
     onReconnect: () -> Unit,
+    onPreviewAsViewer: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1062,6 +1075,23 @@ private fun ProfileBlock(
                     },
                 )
             }
+            Separator()
+            // View as viewer (support/QA) — drop into the participant surface for the ACTIVE channel to see exactly
+            // what a viewer sees, without impersonating anyone or needing their token. The participant surface shows
+            // an Exit-preview banner to return here.
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = stringResource(Res.string.shell_profile_view_as_viewer),
+                        style = typography.sm,
+                        color = tokens.popoverForeground,
+                    )
+                },
+                onClick = {
+                    open = false
+                    onPreviewAsViewer()
+                },
+            )
             Separator()
             // Reconnect Twitch — the no-logout dead-token recovery. Runs the redirect re-auth for the broadcaster
             // (device-code only on the secret-less fallback); re-vaults a fresh token in place, session kept.

@@ -212,6 +212,9 @@
     <string name="shell_reconnect_close">Dismiss</string>
     <string name="shell_impersonation_banner">Acting as %1$s</string>
     <string name="shell_impersonation_exit">Exit</string>
+    <string name="shell_profile_view_as_viewer">View as viewer</string>
+    <string name="shell_preview_banner">Previewing the viewer experience</string>
+    <string name="shell_preview_exit">Exit preview</string>
     <string name="shell_role_viewer">Viewer</string>
     <string name="viewer_surface_title">You're signed in as a viewer</string>
     <string name="viewer_surface_body">This account has no management role on this channel, so there's no dashboard to show. You can still take part from chat and the channel's public pages. If you should have access, ask the streamer to add you.</string>
@@ -2781,6 +2784,7 @@
     <string name="admin_tenant_reason">Reason</string>
     <string name="admin_tenant_justification">Justification</string>
     <string name="admin_tenant_close">Close</string>
+    <string name="admin_tenant_impersonate">Impersonate owner</string>
     <string name="admin_tenant_empty">No tenants match.</string>
     <!-- Audit -->
     <string name="admin_audit_title">Audit log</string>

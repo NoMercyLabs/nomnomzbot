@@ -66,6 +66,7 @@ import nomnomzbot.composeapp.generated.resources.admin_tenant_filter_active
 import nomnomzbot.composeapp.generated.resources.admin_tenant_filter_all
 import nomnomzbot.composeapp.generated.resources.admin_tenant_filter_banned
 import nomnomzbot.composeapp.generated.resources.admin_tenant_filter_suspended
+import nomnomzbot.composeapp.generated.resources.admin_tenant_impersonate
 import nomnomzbot.composeapp.generated.resources.admin_tenant_justification
 import nomnomzbot.composeapp.generated.resources.admin_tenant_members
 import nomnomzbot.composeapp.generated.resources.admin_tenant_owner
@@ -158,6 +159,10 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
         TenantDetailDrawer(
             detail = detail,
             onDismiss = { controller.closeTenant() },
+            onImpersonate = {
+                controller.closeTenant()
+                scope.launch { controller.impersonate(detail.ownerUserId) }
+            },
             onSuspend = { controller.clearActionError(); suspendFor = state.tenants.firstOrNull { it.id == detail.id } ?: AdminTenant(detail.id, detail.name, detail.twitchChannelId, detail.status, detail.billingTierKey, false, detail.createdAt, detail.suspendedAt) },
             onReinstate = { controller.clearActionError(); reinstateFor = state.tenants.firstOrNull { it.id == detail.id } ?: AdminTenant(detail.id, detail.name, detail.twitchChannelId, detail.status, detail.billingTierKey, false, detail.createdAt, detail.suspendedAt) },
         )
@@ -233,6 +238,7 @@ private fun TenantRow(
 private fun TenantDetailDrawer(
     detail: AdminTenantDetail,
     onDismiss: () -> Unit,
+    onImpersonate: () -> Unit,
     onSuspend: () -> Unit,
     onReinstate: () -> Unit,
 ) {
@@ -258,10 +264,16 @@ private fun TenantDetailDrawer(
 
             Spacer(modifier = Modifier.height(spacing.s1))
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                // Act-as the tenant OWNER — the reliable support handle (a channel owner always has an account + a
+                // live token). Offered only for an active tenant: a suspended tenant 403s at Gate 1, so acting as its
+                // owner would land on a walled session — reinstate first.
+                if (!isSuspended) {
+                    Button(onClick = onImpersonate) { Text(text = stringResource(Res.string.admin_tenant_impersonate)) }
+                }
                 if (isSuspended) {
                     Button(onClick = onReinstate) { Text(text = stringResource(Res.string.admin_tenant_reinstate)) }
                 } else {
-                    Button(onClick = onSuspend) { Text(text = stringResource(Res.string.admin_tenant_suspend)) }
+                    OutlinedButton(onClick = onSuspend) { Text(text = stringResource(Res.string.admin_tenant_suspend)) }
                 }
                 OutlinedButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_tenant_close)) }
             }

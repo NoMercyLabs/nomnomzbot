@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -64,6 +66,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 import bot.nomnomz.dashboard.feature.shell.nav.ShellNav
 import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
+import bot.nomnomz.dashboard.feature.shell.ui.ImpersonationBanner
 import bot.nomnomz.dashboard.feature.shell.ui.SidebarHeader
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.app_name
@@ -81,9 +84,13 @@ import nomnomzbot.composeapp.generated.resources.participant_standing_moderator
 import nomnomzbot.composeapp.generated.resources.participant_standing_subscriber
 import nomnomzbot.composeapp.generated.resources.participant_standing_vip
 import nomnomzbot.composeapp.generated.resources.shell_nav_menu_open
+import nomnomzbot.composeapp.generated.resources.shell_preview_banner
+import nomnomzbot.composeapp.generated.resources.shell_preview_exit
 import nomnomzbot.composeapp.generated.resources.shell_profile_logout
 import nomnomzbot.composeapp.generated.resources.shell_profile_open
 import nomnomzbot.composeapp.generated.resources.shell_topbar_channel_label
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -101,6 +108,7 @@ fun ParticipantShell(
     user: SessionUser?,
     access: ShellAccess.Resolved,
     onLogout: () -> Unit,
+    onExitPreview: (() -> Unit)? = null,
 ) {
     val tokens = LocalTokens.current
 
@@ -118,7 +126,18 @@ fun ParticipantShell(
     var selected: ParticipantPage by remember { mutableStateOf(ParticipantPage.MyChannel) }
     val visible: List<ParticipantPage> = ShellNav.participantPagesFor(access.standing)
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize().background(tokens.background)) {
+    // Exit affordances that ride ABOVE the participant surface: the admin act-as banner (an operator who
+    // impersonates a role-less viewer lands here, so the Exit control must live on THIS surface too, not only the
+    // management shell) and the manager's preview banner. Both are hidden for an ordinary viewer.
+    val exitScope: CoroutineScope = rememberCoroutineScope()
+    Column(modifier = Modifier.fillMaxSize()) {
+        ImpersonationBanner(
+            sessionStore = graph.sessionStore,
+            onExit = { exitScope.launch { graph.adminController.exitImpersonation() } },
+        )
+        onExitPreview?.let { PreviewBanner(onExit = it) }
+
+    BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth().background(tokens.background)) {
         val compact: Boolean = maxWidth < CompactBreakpoint
 
         if (compact) {
@@ -178,6 +197,43 @@ fun ParticipantShell(
                 }
             }
         }
+    }
+    }
+}
+
+// A thin banner above the participant surface telling a manager they are PREVIEWING the viewer experience, with an
+// Exit back to their dashboard. Mirrors the act-as [ImpersonationBanner] styling; only rendered in preview mode.
+@Composable
+private fun PreviewBanner(onExit: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(tokens.accent)
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = stringResource(Res.string.shell_preview_banner),
+            style = typography.sm,
+            fontWeight = FontWeight.Medium,
+            color = tokens.accentForeground,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = stringResource(Res.string.shell_preview_exit),
+            style = typography.sm,
+            fontWeight = FontWeight.SemiBold,
+            color = tokens.accentForeground,
+            modifier = Modifier
+                .clip(RoundedCornerShape(tokens.radius.sm))
+                .clickable(onClick = onExit)
+                .padding(horizontal = spacing.s2, vertical = spacing.s1),
+        )
     }
 }
 

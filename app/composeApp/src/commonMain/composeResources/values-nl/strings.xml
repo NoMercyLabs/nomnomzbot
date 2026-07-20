@@ -209,6 +209,9 @@
     <string name="shell_reconnect_close">Sluiten</string>
     <string name="shell_impersonation_banner">Handelt als %1$s</string>
     <string name="shell_impersonation_exit">Stoppen</string>
+    <string name="shell_profile_view_as_viewer">Bekijk als kijker</string>
+    <string name="shell_preview_banner">Voorbeeld van de kijkerservaring</string>
+    <string name="shell_preview_exit">Voorbeeld sluiten</string>
     <string name="shell_role_viewer">Kijker</string>
     <string name="viewer_surface_title">Je bent aangemeld als kijker</string>
     <string name="viewer_surface_body">Dit account heeft geen beheerrol op dit kanaal, dus er is geen dashboard om te tonen. Je kunt nog steeds meedoen vanuit de chat en de openbare pagina's van het kanaal. Vraag de streamer om je toe te voegen als je wel toegang zou moeten hebben.</string>
@@ -2767,6 +2770,7 @@
     <string name="admin_tenant_reason">Reden</string>
     <string name="admin_tenant_justification">Motivering</string>
     <string name="admin_tenant_close">Sluiten</string>
+    <string name="admin_tenant_impersonate">Handel als eigenaar</string>
     <string name="admin_tenant_empty">Geen tenants gevonden.</string>
     <!-- Audit -->
     <string name="admin_audit_title">Auditlog</string>
