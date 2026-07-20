@@ -63,7 +63,6 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import coil3.compose.AsyncImage
 import androidx.compose.ui.unit.dp
@@ -444,68 +443,10 @@ private fun MessageInlineBody(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        // Fragment body — falls back to the flat [message] string when fragments are empty (REST history).
-        if (message.fragments.isNotEmpty()) {
-            message.fragments.forEach { fragment ->
-                when (fragment.type) {
-                    "emote" -> {
-                        val url: String? = fragment.emote?.urls?.let {
-                            it["2"] ?: it["1"] ?: it.values.firstOrNull()
-                        }
-                        if (url != null) {
-                            AnimatedNetworkImage(
-                                url = url,
-                                contentDescription = fragment.text,
-                                modifier = Modifier.size(24.dp).align(Alignment.CenterVertically),
-                            )
-                        } else {
-                            Text(text = fragment.text, style = typography.sm, color = tokens.cardForeground)
-                        }
-                    }
-                    "cheermote" -> {
-                        val url: String? = fragment.cheermote?.urls?.let {
-                            it["2"] ?: it["1"] ?: it.values.firstOrNull()
-                        }
-                        if (url != null) {
-                            AnimatedNetworkImage(
-                                url = url,
-                                contentDescription = fragment.text,
-                                modifier = Modifier.size(24.dp).align(Alignment.CenterVertically),
-                            )
-                        } else {
-                            val tierColor: Color =
-                                fragment.cheermote?.colorHex?.toComposeColor() ?: tokens.cardForeground
-                            Text(text = fragment.text, style = typography.sm, color = tierColor)
-                        }
-                    }
-                    "mention" -> {
-                        val mentionColor: Color =
-                            fragment.mention?.color?.toComposeColor() ?: tokens.primary
-                        Text(
-                            text = "@${fragment.mention?.displayName?.takeIf { it.isNotBlank() } ?: fragment.text.removePrefix("@")}",
-                            style = typography.sm,
-                            color = mentionColor,
-                        )
-                    }
-                    "link" -> {
-                        Text(
-                            text = fragment.text,
-                            style = typography.sm.copy(textDecoration = TextDecoration.Underline),
-                            color = tokens.primary,
-                        )
-                    }
-                    else -> {
-                        // Plain text run — may carry Unicode emoji, so render through [EmojiText] (inline
-                        // Twemoji images) rather than raw `Text`, which draws □ tofu on the web build.
-                        EmojiText(text = fragment.text, style = typography.sm, color = tokens.cardForeground)
-                    }
-                }
-            }
-        } else {
-            // REST history has no fragments — render the flat message string, which is where typed Unicode
-            // emoji land, through [EmojiText] so they show as images instead of □ tofu on the web build.
-            EmojiText(text = message.message, style = typography.sm, color = tokens.cardForeground)
-        }
+        // Fragment body — Twitch emotes/cheermotes as inline images, mentions/links coloured, plain runs (and
+        // the flat-string fallback for fragment-less REST history) through [EmojiText]. Shared with the
+        // multi-channel feed via [ChatMessageFragments].
+        ChatMessageFragments(fragments = message.fragments, fallbackText = message.message)
     }
 }
 

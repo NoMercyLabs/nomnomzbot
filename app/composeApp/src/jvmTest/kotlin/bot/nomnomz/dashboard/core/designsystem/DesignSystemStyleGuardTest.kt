@@ -28,7 +28,8 @@ class DesignSystemStyleGuardTest {
     // Pre-existing raw hex/dp counts per feature file (path relative to feature/), captured 2026-07-20.
     private val rawStyleBaseline: Map<String, Int> =
         mapOf(
-            "chat/ui/ChatScreen.kt" to 17,
+            "chat/ui/ChatScreen.kt" to 15,
+            "chat/ui/ChatMessageFragments.kt" to 1, // emote-image size (24.dp) — moved here from ChatScreen's inline loop
             "connect/ui/ProviderBrand.kt" to 9, // provider brand colors (Twitch/Spotify/…) — likely permanent
             "connect/ui/ConnectModal.kt" to 8,
             "connect/ui/ConnectModalGlyphs.kt" to 6,

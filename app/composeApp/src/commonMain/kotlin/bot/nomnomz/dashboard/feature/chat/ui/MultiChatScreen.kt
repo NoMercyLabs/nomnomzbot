@@ -29,7 +29,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
@@ -39,7 +38,6 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
-import bot.nomnomz.dashboard.core.media.EmojiText
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChatMessage
@@ -195,6 +193,7 @@ private fun MergedFeed(messages: List<ChatMessage>, nameByChannel: Map<String, S
 // One compact monitoring line: time · channel tag · provider tag · colored name · message text. Deliberately
 // lighter than the single-channel MessageRow (no per-line moderation actions) — this surface is for WATCHING
 // many channels at once; a mod acts on a specific channel from its own Chat page.
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MultiChatRow(message: ChatMessage, channelName: String?) {
     val tokens = LocalTokens.current
@@ -226,17 +225,16 @@ private fun MultiChatRow(message: ChatMessage, channelName: String?) {
             color = nameColor,
             maxLines = 1,
         )
-        // Render unicode emoji as images (not tofu), matching the rest of the app. NOTE: this multi-channel
-        // feed still shows Twitch EMOTE codes as text rather than emote images — the primary chat feed renders
-        // emote fragments; sharing that fragment renderer here is a separate follow-up.
-        EmojiText(
-            text = message.message,
-            style = typography.sm,
-            color = tokens.cardForeground,
+        // Decorated body — the SAME renderer as the primary chat feed, so Twitch emotes/cheermotes show as
+        // inline images and plain runs (Unicode emoji) as Twemoji, not tofu. Hosted in a FlowRow so the mixed
+        // image/text fragments wrap across the row's remaining width.
+        FlowRow(
             modifier = Modifier.weight(1f),
-            overflow = TextOverflow.Ellipsis,
-            maxLines = 3,
-        )
+            horizontalArrangement = Arrangement.spacedBy(spacing.s1),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            ChatMessageFragments(fragments = message.fragments, fallbackText = message.message)
+        }
     }
 }
 
