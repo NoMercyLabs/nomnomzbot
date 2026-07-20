@@ -230,6 +230,22 @@ interface ModerationApi {
 
     /** Restore [userId] to normal standing on [provider] (204). */
     suspend fun clearStanding(channelId: String, userId: String, provider: String): ApiResult<Unit>
+
+    /** List the channel's custom chat filters (regex / blocklist / link-policy with per-action responses). */
+    suspend fun chatFilters(channelId: String): ApiResult<List<ChatFilter>>
+
+    /** Create a chat filter; returns the created filter. */
+    suspend fun createChatFilter(channelId: String, body: CreateChatFilterBody): ApiResult<ChatFilter>
+
+    /** Patch a chat filter (only supplied fields change); returns the updated filter. */
+    suspend fun updateChatFilter(
+        channelId: String,
+        filterId: String,
+        body: UpdateChatFilterBody,
+    ): ApiResult<ChatFilter>
+
+    /** Delete a chat filter (204). */
+    suspend fun deleteChatFilter(channelId: String, filterId: String): ApiResult<Unit>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -511,6 +527,25 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
             "api/v1/channels/$channelId/moderation/users/$userId/standing" +
                 "?provider=${provider.encodeURLQueryComponent()}"
         )
+
+    override suspend fun chatFilters(channelId: String): ApiResult<List<ChatFilter>> =
+        client.getEnvelope("api/v1/channels/$channelId/moderation/chat-filters")
+
+    override suspend fun createChatFilter(
+        channelId: String,
+        body: CreateChatFilterBody,
+    ): ApiResult<ChatFilter> =
+        client.postEnvelope("api/v1/channels/$channelId/moderation/chat-filters", body)
+
+    override suspend fun updateChatFilter(
+        channelId: String,
+        filterId: String,
+        body: UpdateChatFilterBody,
+    ): ApiResult<ChatFilter> =
+        client.putEnvelope("api/v1/channels/$channelId/moderation/chat-filters/$filterId", body)
+
+    override suspend fun deleteChatFilter(channelId: String, filterId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/moderation/chat-filters/$filterId")
 }
 
 /** Today's moderation counters (backend `GET /moderation/stats` anonymous object). */
@@ -689,6 +724,56 @@ data class CreateModerationRuleBody(
     // The rule's per-type config (backend Settings, arbitrary JSON object) + exempt roles, settable at creation.
     val settings: kotlinx.serialization.json.JsonObject? = null,
     val exemptRoles: List<String>? = null,
+)
+
+/**
+ * A custom chat filter (backend `ChatFilterDto`): a regex / blocklist / link-policy rule with a per-match
+ * [action] and optional [timeoutSeconds]. [filterType] and [action] are backend enum tokens (serialized strings).
+ */
+@Serializable
+data class ChatFilter(
+    val id: String = "",
+    val filterType: String = "",
+    val name: String = "",
+    val pattern: String? = null,
+    val terms: List<String> = emptyList(),
+    val action: String = "",
+    val timeoutSeconds: Int? = null,
+    val exemptMinRoleLevel: Int = 10,
+    val isEnabled: Boolean = false,
+    val isCaseSensitive: Boolean = false,
+    val matchCount: Long = 0,
+    val createdAt: String = "",
+    val updatedAt: String = "",
+)
+
+/** Create-chat-filter body (backend `CreateChatFilterRequest`). A regex filter validates [pattern] compiles. */
+@Serializable
+data class CreateChatFilterBody(
+    val filterType: String,
+    val name: String,
+    val action: String,
+    val pattern: String? = null,
+    val terms: List<String>? = null,
+    val linkPolicyJson: String? = null,
+    val timeoutSeconds: Int? = null,
+    val exemptMinRoleLevel: Int = 10,
+    val isEnabled: Boolean = true,
+    val isCaseSensitive: Boolean = false,
+)
+
+/** Partial patch of a chat filter (backend `UpdateChatFilterRequest`) — null = unchanged. */
+@Serializable
+data class UpdateChatFilterBody(
+    val name: String? = null,
+    val action: String? = null,
+    val pattern: String? = null,
+    val terms: List<String>? = null,
+    val linkPolicyJson: String? = null,
+    val timeoutSeconds: Int? = null,
+    val exemptMinRoleLevel: Int? = null,
+    val isEnabled: Boolean? = null,
+    val isCaseSensitive: Boolean? = null,
 )
 
 // ModerationActionBody lives in ChatApi.kt (package-shared) — imported from there.
