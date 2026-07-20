@@ -17,6 +17,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity.Entities;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -104,10 +105,24 @@ public sealed class AdminService : IAdminService
         CancellationToken ct = default
     )
     {
-        int total = await _db.Users.CountAsync(ct);
+        // Only real bot USERS — operators/streamers/mods who authenticate and use the dashboard (they have an
+        // AuthSession) or own a channel, plus platform staff — never the flood of auto-created chatter rows, the
+        // bot accounts themselves, or anonymized users. This list backs the admin console AND the "act as" support
+        // impersonation, which exists to reproduce/control what a real bot user experiences, not a random chatter.
+        IQueryable<User> users = _db.Users.Where(u =>
+            !u.IsBot
+            && !u.IsAnonymized
+            && (
+                u.IsPlatformPrincipal
+                || _db.Channels.Any(c => c.OwnerUserId == u.Id)
+                || _db.AuthSessions.Any(s => s.UserId == u.Id)
+            )
+        );
 
-        List<AdminUserDto> items = await _db
-            .Users.OrderByDescending(u => u.CreatedAt)
+        int total = await users.CountAsync(ct);
+
+        List<AdminUserDto> items = await users
+            .OrderByDescending(u => u.CreatedAt)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
             .Select(u => new AdminUserDto(

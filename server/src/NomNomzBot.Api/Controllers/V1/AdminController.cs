@@ -76,7 +76,11 @@ public class AdminController : BaseController
         return GetPaginatedResponse(result.Value, request);
     }
 
-    /// <summary>Returns all registered users.</summary>
+    /// <summary>
+    /// Returns real bot USERS — operators/streamers/mods who authenticate and use the dashboard, or own a
+    /// channel, plus platform staff. Auto-created chatter rows, bot accounts, and anonymized users are excluded,
+    /// so this list (and the "act as" support impersonation built on it) targets people who actually use the bot.
+    /// </summary>
     [HttpGet("users")]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
     [ProducesResponseType<PaginatedResponse<AdminUserDto>>(StatusCodes.Status200OK)]
