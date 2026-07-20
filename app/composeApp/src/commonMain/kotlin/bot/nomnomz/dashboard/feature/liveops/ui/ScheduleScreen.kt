@@ -428,7 +428,15 @@ private fun SegmentDialog(
     }
     var recurring: Boolean by remember { mutableStateOf(existing?.isRecurring ?: false) }
 
-    val canSave: Boolean = start.isNotBlank() && timezone.isNotBlank() && duration.isNotBlank()
+    // A NEW segment needs all three (start + timezone + duration). On EDIT, timezone/duration aren't on the
+    // segment read so they can't prefill, and the Update body leaves any blank field unchanged — so requiring
+    // them here made a title/category-only edit impossible. An edit only needs the (prefilled) start.
+    val canSave: Boolean =
+        if (existing == null) {
+            start.isNotBlank() && timezone.isNotBlank() && duration.isNotBlank()
+        } else {
+            start.isNotBlank()
+        }
 
     AlertDialog(
         onDismissRequest = onDismiss,

@@ -28,6 +28,7 @@ import bot.nomnomz.dashboard.core.network.UpdateScheduleSegmentBody
 import bot.nomnomz.dashboard.core.network.UpdateScheduleSettingsBody
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
@@ -88,6 +89,47 @@ class ScheduleControllerTest {
         assertEquals(
             listOf("s9"),
             (controller.state.value as? ScheduleState.Ready)?.schedule?.segments?.map { it.id },
+        )
+    }
+
+    @Test
+    fun edit_segment_can_change_only_the_title_leaving_timezone_and_duration_unchanged() = runTest {
+        // The dialog can't prefill timezone/duration (not on the segment read), so a title-only edit sends
+        // them blank. editSegment must forward blanks as null so the backend leaves those fields unchanged
+        // instead of wiping them — this is the write the relaxed canSave (edit needs only the start) reaches.
+        val api =
+            FakeScheduleLiveOpsApi(
+                schedule =
+                    ApiResult.Ok(
+                        LiveOpsSchedule(segments = listOf(LiveOpsScheduleSegment(id = "s1", title = "Old")))
+                    ),
+                scheduleAfterWrite =
+                    ApiResult.Ok(
+                        LiveOpsSchedule(segments = listOf(LiveOpsScheduleSegment(id = "s1", title = "New")))
+                    ),
+            )
+        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleStreamApi(), FakeScheduleFileIO())
+        controller.load()
+
+        controller.editSegment(
+            segmentId = "s1",
+            startTime = "2026-07-20T19:00:00Z",
+            duration = "",
+            timezone = "",
+            title = "New",
+            categoryId = null,
+        )
+
+        val (id, body) = api.updated.single()
+        assertEquals("s1", id)
+        assertEquals("New", body.title)
+        // Blank timezone/duration → null → the backend keeps them (the segment is not reset to defaults).
+        assertNull(body.timezone)
+        assertNull(body.duration)
+        assertEquals("2026-07-20T19:00:00Z", body.startTime)
+        assertEquals(
+            listOf("New"),
+            (controller.state.value as? ScheduleState.Ready)?.schedule?.segments?.map { it.title },
         )
     }
 
@@ -206,6 +248,7 @@ private class FakeScheduleLiveOpsApi(
 ) : LiveOpsApi {
     val created: MutableList<CreateScheduleSegmentBody> = mutableListOf()
     val deleted: MutableList<String> = mutableListOf()
+    val updated: MutableList<Pair<String, UpdateScheduleSegmentBody>> = mutableListOf()
     private var reads: Int = 0
 
     override suspend fun getSchedule(channelId: String): ApiResult<LiveOpsSchedule> {
@@ -229,7 +272,10 @@ private class FakeScheduleLiveOpsApi(
         channelId: String,
         segmentId: String,
         body: UpdateScheduleSegmentBody,
-    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+    ): ApiResult<Unit> {
+        updated.add(segmentId to body)
+        return ApiResult.Ok(Unit)
+    }
 
     override suspend fun deleteScheduleSegment(channelId: String, segmentId: String): ApiResult<Unit> {
         deleted.add(segmentId)
