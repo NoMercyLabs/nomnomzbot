@@ -501,7 +501,7 @@ private fun ShellContent(
                 controller = graph.homeController,
                 liveOpsController = graph.liveOpsController,
                 chatPollsController = graph.chatPollsController,
-                role = role,
+                heldActionKeys = heldActionKeys,
                 hubEvents = graph.dashboardHubClient.events,
             )
             ShellRoute.Chat -> ChatScreen(

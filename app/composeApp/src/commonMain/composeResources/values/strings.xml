@@ -2305,6 +2305,7 @@
     <!-- Write-gate (frontend-ia.md §7): the reason a control is disabled for a caller below its manage floor.
          %1$s is the minimum role, filled from the shell_role_* labels above. -->
     <string name="manage_gate_requires">Requires %1$s</string>
+    <string name="manage_gate_no_permission">You do not have permission for this action</string>
 
     <!-- ── Participant rung (Rung 0) — the user-first surface for viewers / subs / VIPs. ───────────────────── -->
     <!-- Sidebar page labels. -->

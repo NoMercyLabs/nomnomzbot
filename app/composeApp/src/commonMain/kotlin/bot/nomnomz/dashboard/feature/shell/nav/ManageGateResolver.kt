@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.manage_gate_no_permission
 import nomnomzbot.composeapp.generated.resources.manage_gate_requires
 import nomnomzbot.composeapp.generated.resources.shell_role_broadcaster
 import nomnomzbot.composeapp.generated.resources.shell_role_editor
@@ -61,6 +62,21 @@ fun rememberManageDecisionAtFloor(role: ManagementRole?, floor: ManagementRole):
     if (role != null && role.level >= floor.level) return ManageDecision.Allowed
     val reason: String = stringResource(Res.string.manage_gate_requires, stringResource(floor.labelResource()))
     return ManageDecision.Denied(reason = reason)
+}
+
+/**
+ * Resolve a [ManageDecision] for a specific backend ACTION KEY against the caller's resolved [heldActionKeys]
+ * (`ResolvedAccess.heldActionKeys`). That set is the AUTHORITATIVE per-action authorization the backend already
+ * computed — it folds in the action's channel-effective floor, any broadcaster per-action override, AND per-user
+ * PERMIT grants. Gating a control on membership here is therefore correct where a coarse role-vs-floor guess is
+ * not: a moderator who holds a Mod-floored action (e.g. clip/marker) is Allowed, and a caller granted a per-user
+ * permit for an otherwise-higher action (e.g. a title permit) is Allowed too. Denied carries a generic reason —
+ * the exact floor/permit math lives on the backend, not something the client should re-derive or name.
+ */
+@Composable
+fun rememberManageDecisionForAction(heldActionKeys: Set<String>, actionKey: String): ManageDecision {
+    if (actionKey in heldActionKeys) return ManageDecision.Allowed
+    return ManageDecision.Denied(reason = stringResource(Res.string.manage_gate_no_permission))
 }
 
 /** The localized display label for a [ManagementRole], shared with the profile badge (single source). */

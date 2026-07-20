@@ -68,7 +68,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
 import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Tooltip
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
-import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionForAction
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.ArrowUpGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
@@ -195,7 +195,7 @@ fun HomeScreen(
     controller: HomeController,
     liveOpsController: LiveOpsController,
     chatPollsController: ChatPollsController,
-    role: ManagementRole? = null,
+    heldActionKeys: Set<String> = emptySet(),
     hubEvents: SharedFlow<HubEvent>? = null,
 ) {
     val state: HomeState by controller.state.collectAsStateWithLifecycle()
@@ -230,7 +230,7 @@ fun HomeScreen(
                     streamError = current.streamError,
                     liveOpsController = liveOpsController,
                     chatPollsController = chatPollsController,
-                    role = role,
+                    heldActionKeys = heldActionKeys,
                     onUpdateStream = { title, game, tags ->
                         scope.launch { controller.updateStreamInfo(title, game, tags) }
                     },
@@ -252,7 +252,7 @@ private fun ReadyContent(
     streamError: String?,
     liveOpsController: LiveOpsController,
     chatPollsController: ChatPollsController,
-    role: ManagementRole?,
+    heldActionKeys: Set<String>,
     onUpdateStream: (title: String?, game: String?, tags: List<String>?) -> Unit,
     onSearchCategories: suspend (String) -> List<PickerOption>,
     onSearchRaidTargets: suspend (String) -> List<PickerOption>,
@@ -262,11 +262,11 @@ private fun ReadyContent(
     val liveOpsState: LiveOpsState by liveOpsController.state.collectAsStateWithLifecycle()
     val ready: LiveOpsState.Ready? = liveOpsState as? LiveOpsState.Ready
 
-    // The live-ops quick actions (raid / poll / prediction / commercial / clip / marker) are broadcaster-delegable
-    // operator actions; they gate at the Editor floor — matching the Schedule / live-ops:schedule floor — so a
-    // caller below it sees them DISABLED with a "Requires Editor" reason rather than a tap that 403s. The Dashboard
-    // page itself is read-only (null nav manage floor), so this uses an explicit floor rather than the page's.
-    val manage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Editor)
+    // The live-ops quick actions each gate on their OWN backend action key against the caller's resolved
+    // heldActionKeys (which folds in each action's channel-effective floor, per-channel overrides, AND per-user
+    // permits) — NOT a blanket Editor floor. So a moderator holding a Mod-floored action (clip/marker), a
+    // per-channel-lowered floor (polls), or a per-user title permit sees exactly those enabled, the rest disabled
+    // with a reason. QuickActionsCard resolves the per-action decision from [heldActionKeys].
 
     // A raid has a short pending window before it goes live during which it can be cancelled. The backend does not
     // surface a "raid pending" flag, so the panel tracks it locally: set when a start returns a raid, cleared on a
@@ -317,7 +317,7 @@ private fun ReadyContent(
                 QuickActionsCard(
                     ready = ready,
                     isLive = stats.isLive,
-                    manage = manage,
+                    heldActionKeys = heldActionKeys,
                     raidPending = raidPending,
                     onChangeTitle = { showChangeTitleDialog = true },
                     onCreateClip = {
@@ -744,7 +744,7 @@ private fun ActivityRow(event: ActivityEvent) {
 private fun QuickActionsCard(
     ready: LiveOpsState.Ready?,
     isLive: Boolean,
-    manage: ManageDecision,
+    heldActionKeys: Set<String>,
     raidPending: Boolean,
     onChangeTitle: () -> Unit,
     onCreateClip: () -> Unit,
@@ -802,7 +802,7 @@ private fun QuickActionsCard(
             verticalArrangement = Arrangement.spacedBy(spacing.s2),
             maxItemsInEachRow = 2,
         ) {
-            GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+            GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "channel:title:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                 QuickActionButton(
                     icon = EditGlyph,
                     label = stringResource(Res.string.home_change_title),
@@ -813,7 +813,7 @@ private fun QuickActionsCard(
             }
 
             if (activePoll == null) {
-                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:polls:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                     QuickActionButton(
                         icon = CheckGlyph,
                         label = stringResource(Res.string.home_live_ops_create_poll),
@@ -823,7 +823,7 @@ private fun QuickActionsCard(
                     )
                 }
             } else {
-                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:polls:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                     QuickActionButton(
                         icon = CheckCircleGlyph,
                         label = stringResource(Res.string.home_live_ops_end_poll),
@@ -836,7 +836,7 @@ private fun QuickActionsCard(
             }
 
             if (activePrediction == null) {
-                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:predictions:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                     QuickActionButton(
                         icon = ArrowUpGlyph,
                         label = stringResource(Res.string.home_live_ops_create_prediction),
@@ -846,7 +846,7 @@ private fun QuickActionsCard(
                     )
                 }
             } else {
-                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:predictions:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                     QuickActionButton(
                         icon = CheckCircleGlyph,
                         label = stringResource(Res.string.home_live_ops_resolve_prediction),
@@ -855,7 +855,7 @@ private fun QuickActionsCard(
                         modifier = mod,
                     )
                 }
-                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:predictions:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                     QuickActionButton(
                         icon = RemoveGlyph,
                         label = stringResource(Res.string.home_live_ops_cancel_prediction),
@@ -867,7 +867,7 @@ private fun QuickActionsCard(
                 }
             }
 
-            GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+            GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:clips:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                 QuickActionButton(
                     icon = CopyGlyph,
                     label = stringResource(Res.string.home_live_ops_create_clip),
@@ -880,7 +880,7 @@ private fun QuickActionsCard(
             // "Mark this moment" — a VOD bookmark. Twitch only accepts markers while LIVE, so the button is
             // shown only when the channel is live (rather than offering a tap that would always fail offline).
             if (isLive) {
-                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:marker:create", modifier = Modifier.weight(1f)) { enabled, mod ->
                     QuickActionButton(
                         icon = AddGlyph,
                         label = stringResource(Res.string.home_live_ops_mark_moment),
@@ -893,7 +893,7 @@ private fun QuickActionsCard(
 
             // A raid in its pending window can be cancelled before it sends; otherwise offer Start raid.
             if (raidPending) {
-                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:raids:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                     QuickActionButton(
                         icon = RemoveGlyph,
                         label = stringResource(Res.string.home_live_ops_cancel_raid),
@@ -904,7 +904,7 @@ private fun QuickActionsCard(
                     )
                 }
             } else {
-                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:raids:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                     QuickActionButton(
                         icon = ArrowUpGlyph,
                         label = stringResource(Res.string.home_live_ops_start_raid),
@@ -915,7 +915,7 @@ private fun QuickActionsCard(
                 }
             }
 
-            GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+            GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:ads:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                 QuickActionButton(
                     icon = PlayCircleGlyph,
                     label = stringResource(Res.string.home_live_ops_start_commercial),
@@ -926,7 +926,7 @@ private fun QuickActionsCard(
             }
 
             if (ready?.adSchedule != null && (ready.adSchedule?.snoozeCount ?: 0) > 0) {
-                GatedQuickAction(manage = manage, modifier = Modifier.weight(1f)) { enabled, mod ->
+                GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:ads:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                     QuickActionButton(
                         icon = RefreshGlyph,
                         label = stringResource(Res.string.home_live_ops_snooze_ad),
@@ -947,10 +947,15 @@ private fun QuickActionsCard(
 // modifier to apply. One helper, every action — the disable-with-reason rule stays identical across the panel.
 @Composable
 private fun GatedQuickAction(
-    manage: ManageDecision,
+    heldActionKeys: Set<String>,
+    actionKey: String,
     modifier: Modifier = Modifier,
     button: @Composable (enabled: Boolean, modifier: Modifier) -> Unit,
 ) {
+    // Gate on the backend's authoritative per-action authorization (heldActionKeys), NOT a client role guess —
+    // so a Mod-floored action (clip/marker), a per-channel-lowered floor (polls), and a per-user permit (title)
+    // all light up correctly instead of a blanket "Requires Editor".
+    val manage: ManageDecision = rememberManageDecisionForAction(heldActionKeys, actionKey)
     val reason: String? = manage.deniedReason?.takeIf { it.isNotBlank() }
     ManageGate(decision = manage, modifier = modifier) { enabled ->
         if (reason != null) {

@@ -2302,6 +2302,7 @@
     <!-- Schrijfvergrendeling (frontend-ia.md §7): de reden dat een knop is uitgeschakeld voor een gebruiker
          onder de beheerdrempel. %1$s is de minimale rol, uit de shell_role_*-labels hierboven. -->
     <string name="manage_gate_requires">Vereist %1$s</string>
+    <string name="manage_gate_no_permission">Je hebt geen rechten voor deze actie</string>
 
     <!-- ── Deelnemerstrede (Trede 0) — het gebruikersgerichte scherm voor kijkers / subs / VIP's. ──────────── -->
     <string name="participant_nav_my_channel">Mijn kanaal</string>
