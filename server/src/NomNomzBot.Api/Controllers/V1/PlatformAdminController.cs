@@ -130,6 +130,27 @@ public class PlatformAdminController(
             await admin.EndTenantAccessAsync(await ActingPrincipalIdAsync(ct), accessGrantId, ct)
         );
 
+    /// <summary>
+    /// Begins an act-as impersonation of a registered user — mints an access-only token carrying that
+    /// user's identity and roles (never the operator's). Justification is mandatory and audited.
+    /// </summary>
+    [HttpPost("users/{userId:guid}/impersonate")]
+    [Authorize(Policy = IamPermissionKeys.UserImpersonate)]
+    [ProducesResponseType<StatusResponseDto<ImpersonationTokenDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Impersonate(
+        Guid userId,
+        [FromBody] ImpersonateUserRequest req,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await admin.StartImpersonationAsync(
+                await ActingPrincipalIdAsync(ct),
+                userId,
+                req.Justification,
+                ct
+            )
+        );
+
     /// <summary>Paged Plane-C audit search by principal/tenant/permission/outcome/time.</summary>
     [HttpGet("audit")]
     [Authorize(Policy = IamPermissionKeys.AuditRead)]

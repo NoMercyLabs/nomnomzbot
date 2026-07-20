@@ -22,7 +22,9 @@ public interface IPlatformIamService
     /// <summary>
     /// Does the principal hold <paramref name="permissionKey"/> (optionally scoped to a tenant)? Self-host
     /// (no principals) → true, no audit. SaaS → checks effective permissions, writes <c>IamAuditLog</c>
-    /// (Allowed|Denied), and emits <c>IamAccessEvaluatedEvent</c>.
+    /// (Allowed|Denied), and emits <c>IamAccessEvaluatedEvent</c>. <paramref name="targetResource"/> is an
+    /// optional free-form identifier of the acted-upon resource (e.g. the impersonated user id) recorded on
+    /// the audit row when the target is not a tenant.
     /// </summary>
     Task<Result<bool>> AuthorizePlatformAsync(
         Guid principalId,
@@ -30,7 +32,8 @@ public interface IPlatformIamService
         Guid? targetBroadcasterId,
         bool breakGlass,
         string? justification,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        string? targetResource = null
     );
 
     /// <summary>The IAM principal for an authenticated platform user, or null if the user is not a principal.</summary>

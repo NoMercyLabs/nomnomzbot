@@ -53,6 +53,8 @@ public sealed class IamCatalogSeeder : ISeeder
         (IamPermissionKeys.GalleryReview, IamCategory.Iam, true),
         // IPC dev-mode keys open a tokenless local control surface — sensitive, owner-only.
         (IamPermissionKeys.SystemIpcManage, IamCategory.FeatureFlag, true),
+        // Act-as impersonation mints a token carrying another user's full identity — sensitive.
+        (IamPermissionKeys.UserImpersonate, IamCategory.Iam, true),
     ];
 
     /// <summary>C.2 + C.3 rows: system role → its bundled permission keys, verbatim from §C.2.</summary>
@@ -73,6 +75,7 @@ public sealed class IamCatalogSeeder : ISeeder
                 IamPermissionKeys.PlatformAnalyticsRead,
                 IamPermissionKeys.GalleryReview,
                 IamPermissionKeys.SystemIpcManage,
+                IamPermissionKeys.UserImpersonate,
             ]
         ),
         (
@@ -82,6 +85,7 @@ public sealed class IamCatalogSeeder : ISeeder
                 IamPermissionKeys.TenantAccess,
                 IamPermissionKeys.AuditRead,
                 IamPermissionKeys.PlatformAnalyticsRead,
+                IamPermissionKeys.UserImpersonate,
             ]
         ),
         (

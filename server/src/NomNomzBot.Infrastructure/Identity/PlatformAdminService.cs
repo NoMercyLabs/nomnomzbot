@@ -8,7 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -30,6 +32,7 @@ namespace NomNomzBot.Infrastructure.Identity;
 public sealed class PlatformAdminService(
     IApplicationDbContext db,
     IPlatformIamService iam,
+    IJwtTokenService jwt,
     IEventBus eventBus,
     TimeProvider clock
 ) : IPlatformAdminService
@@ -298,6 +301,68 @@ public sealed class PlatformAdminService(
         return Result.Success();
     }
 
+    public async Task<Result<ImpersonationTokenDto>> StartImpersonationAsync(
+        Guid actingPrincipalId,
+        Guid targetUserId,
+        string justification,
+        CancellationToken ct = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(justification))
+            return Result.Failure<ImpersonationTokenDto>(
+                "A justification is required to impersonate a user.",
+                "VALIDATION_FAILED"
+            );
+
+        // Gate + audit FIRST — the target user id rides the audit row (TargetResource) so the append-only log
+        // names WHO was impersonated. A denial short-circuits before any token is minted.
+        Result authorized = await RequireAsync(
+            actingPrincipalId,
+            "user:impersonate",
+            null,
+            justification,
+            ct,
+            targetResource: targetUserId.ToString()
+        );
+        if (authorized.IsFailure)
+            return authorized.WithValue<ImpersonationTokenDto>(null!);
+
+        User? target = await db.Users.FirstOrDefaultAsync(u => u.Id == targetUserId, ct);
+        if (target is null)
+            return Result.Failure<ImpersonationTokenDto>("Unknown user.", "NOT_FOUND");
+
+        // The target's own broadcaster channel scopes the `tenant` claim, exactly like the target's own login
+        // — null when the target owns no channel (a plain viewer).
+        Guid? tenantId = await db
+            .Channels.Where(c => c.OwnerUserId == targetUserId)
+            .Select(c => (Guid?)c.Id)
+            .FirstOrDefaultAsync(ct);
+
+        // The acting operator is named ONLY on the non-authoritative `act` claim, never as a role.
+        IamPrincipal? actor = await db.IamPrincipals.FirstOrDefaultAsync(
+            p => p.Id == actingPrincipalId,
+            ct
+        );
+        string actorUserId = (actor?.UserId ?? actingPrincipalId).ToString();
+
+        // CRITICAL INVARIANT: roles + identity are the TARGET's, computed the same way SessionService.RolesFor
+        // does for a normal login. The operator's `admin` role is NEVER carried onto an impersonation token —
+        // an access-only token (no refresh) that grants exactly the impersonated user's access.
+        string accessToken = jwt.GenerateAccessToken(
+            target.Id,
+            target.Username,
+            tenantId,
+            Guid.NewGuid(),
+            RolesFor(target),
+            idp: target.Platform,
+            actorUserId: actorUserId,
+            actorUsername: actor?.Name
+        );
+
+        DateTime expiresAt = new JwtSecurityTokenHandler().ReadJwtToken(accessToken).ValidTo;
+        return Result.Success(new ImpersonationTokenDto(accessToken, expiresAt, ToDto(target)));
+    }
+
     public async Task<Result<PagedList<IamAuditEntryDto>>> SearchAuditAsync(
         Guid principalId,
         AuditSearchQuery query,
@@ -359,7 +424,8 @@ public sealed class PlatformAdminService(
         Guid? targetBroadcasterId,
         string? justification,
         CancellationToken ct,
-        bool breakGlass = false
+        bool breakGlass = false,
+        string? targetResource = null
     )
     {
         Result<bool> allowed = await iam.AuthorizePlatformAsync(
@@ -368,7 +434,8 @@ public sealed class PlatformAdminService(
             targetBroadcasterId,
             breakGlass,
             justification,
-            ct
+            ct,
+            targetResource
         );
         if (allowed.IsFailure)
             return allowed;
@@ -376,6 +443,26 @@ public sealed class PlatformAdminService(
             ? Result.Success()
             : Result.Failure($"Requires {permissionKey}.", "FORBIDDEN");
     }
+
+    /// <summary>
+    /// The role set an access token carries for <paramref name="user"/> — identical to
+    /// <c>SessionService.RolesFor</c>, the normal-login source of truth. Reused verbatim for the TARGET of an
+    /// impersonation so the minted token grants exactly the impersonated user's access, never the operator's.
+    /// </summary>
+    private static IEnumerable<string> RolesFor(User user) =>
+        user.IsPlatformPrincipal ? ["user", "admin"] : ["user"];
+
+    /// <summary>The impersonated user's profile, mirroring <c>UserService.ToDto</c> (LastLoginAt = UpdatedAt).</summary>
+    private static UserDto ToDto(User u) =>
+        new(
+            u.Id.ToString(),
+            u.Username,
+            u.DisplayName,
+            u.ProfileImageUrl,
+            null,
+            u.CreatedAt,
+            u.UpdatedAt
+        );
 
     private Task PublishSuspensionChangedAsync(
         Guid principalId,

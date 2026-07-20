@@ -23,6 +23,9 @@ public interface IJwtTokenService
     /// <summary>
     /// Mints a short-lived access JWT: <c>sub=userId</c>, <c>tenant=broadcasterId</c>, <c>sid=sessionId</c>,
     /// plus any roles and the login-provider <c>idp</c> claim (platform-identity §3.3). Pure — no persistence.
+    /// When <paramref name="actorUserId"/> is supplied the token is an act-as (impersonation) token: the
+    /// non-authoritative <c>act</c>/<c>act_name</c> claims name the operator ACTING AS the subject, while
+    /// <c>sub</c> and the roles remain the impersonated user's — no authorization path reads <c>act</c>.
     /// </summary>
     string GenerateAccessToken(
         Guid userId,
@@ -30,7 +33,9 @@ public interface IJwtTokenService
         Guid? broadcasterId,
         Guid sessionId,
         IEnumerable<string>? roles = null,
-        string? idp = null
+        string? idp = null,
+        string? actorUserId = null,
+        string? actorUsername = null
     );
 
     /// <summary>

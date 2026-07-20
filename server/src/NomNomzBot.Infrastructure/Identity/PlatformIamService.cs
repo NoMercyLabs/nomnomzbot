@@ -42,7 +42,8 @@ public sealed class PlatformIamService(
         Guid? targetBroadcasterId,
         bool breakGlass,
         string? justification,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        string? targetResource = null
     )
     {
         if (!await IsSaasAsync(cancellationToken))
@@ -66,6 +67,7 @@ public sealed class PlatformIamService(
                 PrincipalType = principal?.PrincipalType ?? IamPrincipalType.Employee,
                 Permission = permissionKey,
                 TargetBroadcasterId = targetBroadcasterId,
+                TargetResource = targetResource,
                 BreakGlass = breakGlass,
                 Justification = justification,
                 Outcome = outcome,

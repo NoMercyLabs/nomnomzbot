@@ -33,6 +33,16 @@ public sealed class JwtTokenService : IJwtTokenService
     /// <summary>The auth-session id the access token belongs to.</summary>
     public const string SessionClaim = "sid";
 
+    /// <summary>
+    /// The operator ACTING AS the subject on an impersonation token (RFC 8693 <c>act</c>). Purely
+    /// informational — NO authorization path may read it, so an impersonation token grants exactly the
+    /// impersonated user's access, never the operator's.
+    /// </summary>
+    public const string ActorClaim = "act";
+
+    /// <summary>The acting operator's display name, alongside <see cref="ActorClaim"/>. Non-authoritative.</summary>
+    public const string ActorNameClaim = "act_name";
+
     private readonly string _issuer;
     private readonly string _audience;
     private readonly TimeSpan _expiration;
@@ -76,7 +86,9 @@ public sealed class JwtTokenService : IJwtTokenService
         Guid? broadcasterId,
         Guid sessionId,
         IEnumerable<string>? roles = null,
-        string? idp = null
+        string? idp = null,
+        string? actorUserId = null,
+        string? actorUsername = null
     )
     {
         List<Claim> claims =
@@ -102,6 +114,15 @@ public sealed class JwtTokenService : IJwtTokenService
         // The login provider this session authenticated with (platform-identity §3.3).
         if (!string.IsNullOrEmpty(idp))
             claims.Add(new("idp", idp));
+
+        // Act-as (impersonation): the operator behind the token. Non-authoritative — recorded for audit
+        // and UI banners only. The roles/sub above stay the impersonated user's, never the operator's.
+        if (!string.IsNullOrEmpty(actorUserId))
+        {
+            claims.Add(new(ActorClaim, actorUserId));
+            if (!string.IsNullOrEmpty(actorUsername))
+                claims.Add(new(ActorNameClaim, actorUsername));
+        }
 
         JwtSecurityToken token = new(
             issuer: _issuer,

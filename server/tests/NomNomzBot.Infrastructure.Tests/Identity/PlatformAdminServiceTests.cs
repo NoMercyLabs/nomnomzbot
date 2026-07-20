@@ -8,8 +8,11 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
@@ -17,6 +20,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.Identity;
+using NomNomzBot.Infrastructure.Platform.Auth;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -37,8 +41,98 @@ public sealed class PlatformAdminServiceTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         RecordingEventBus bus = new();
         FakeTimeProvider clock = new(Now);
-        PlatformAdminService sut = new(db, new PlatformIamService(db, bus, clock), bus, clock);
+        PlatformAdminService sut = new(
+            db,
+            new PlatformIamService(db, bus, clock),
+            Jwt(),
+            bus,
+            clock
+        );
         return (sut, db, bus);
+    }
+
+    /// <summary>
+    /// A real HS256 token service on the system clock (so a minted token is valid "now" for
+    /// <c>ValidateAccessToken</c>). A second instance from this same fixed config verifies tokens the service
+    /// under test minted — identical secret/issuer/audience is all validation needs.
+    /// </summary>
+    private static JwtTokenService Jwt() =>
+        new(
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(
+                    new Dictionary<string, string?>
+                    {
+                        { "Jwt:Secret", "super-secret-key-that-is-at-least-32-bytes-long!" },
+                        { "Jwt:Issuer", "TestIssuer" },
+                        { "Jwt:Audience", "TestAudience" },
+                        { "Jwt:ExpiryMinutes", "60" },
+                    }
+                )
+                .Build(),
+            TimeProvider.System
+        );
+
+    /// <summary>An operator IAM principal bound to <paramref name="userId"/>, holding <paramref name="keys"/> via one role (SaaS on).</summary>
+    private static Guid SeedPrincipalFor(
+        AuthDbContext db,
+        Guid userId,
+        string name,
+        params string[] keys
+    )
+    {
+        Guid principalId = Guid.NewGuid();
+        Guid roleId = Guid.NewGuid();
+        db.IamPrincipals.Add(
+            new IamPrincipal
+            {
+                Id = principalId,
+                PrincipalType = IamPrincipalType.Employee,
+                UserId = userId,
+                Name = name,
+                IsActive = true,
+            }
+        );
+        db.IamRoles.Add(new IamRole { Id = roleId, Name = $"role-{roleId}" });
+        foreach (string key in keys)
+        {
+            Guid permissionId = Guid.NewGuid();
+            db.IamPermissions.Add(
+                new IamPermission
+                {
+                    Id = permissionId,
+                    Key = key,
+                    Category = IamCategory.Iam,
+                }
+            );
+            db.IamRolePermissions.Add(
+                new IamRolePermission { RoleId = roleId, PermissionId = permissionId }
+            );
+        }
+        db.IamRoleAssignments.Add(
+            new IamRoleAssignment
+            {
+                PrincipalId = principalId,
+                RoleId = roleId,
+                AssignedByPrincipalId = principalId,
+            }
+        );
+        return principalId;
+    }
+
+    private static Guid SeedUser(AuthDbContext db, string name, bool isPlatformPrincipal)
+    {
+        Guid userId = Guid.NewGuid();
+        db.Users.Add(
+            new User
+            {
+                Id = userId,
+                Username = name,
+                UsernameNormalized = name,
+                DisplayName = name,
+                IsPlatformPrincipal = isPlatformPrincipal,
+            }
+        );
+        return userId;
     }
 
     /// <summary>An IAM principal holding <paramref name="permissionKeys"/> via one role — SaaS mode on.</summary>
@@ -333,5 +427,121 @@ public sealed class PlatformAdminServiceTests
         result.Value.Items[0].Permission.Should().Be("tenant:suspend");
         result.Value.Items[0].TargetBroadcasterId.Should().Be(tenant);
         result.Value.Items[0].Outcome.Should().Be("Allowed");
+    }
+
+    [Fact]
+    public async Task StartImpersonation_mints_a_target_scoped_token_that_never_leaks_the_operators_admin_role()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _) = Build();
+
+        // A platform-marked admin (whose OWN login would carry the `admin` role) acting as a plain viewer.
+        Guid adminUserId = SeedUser(db, "operator", isPlatformPrincipal: true);
+        Guid principal = SeedPrincipalFor(db, adminUserId, "operator", "user:impersonate");
+        Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
+        await db.SaveChangesAsync();
+
+        Result<ImpersonationTokenDto> result = await sut.StartImpersonationAsync(
+            principal,
+            targetUserId,
+            "repro ticket 42"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.User.Id.Should().Be(targetUserId.ToString());
+
+        // Decode: identity + roles are the TARGET's.
+        JwtTokenService verifier = Jwt();
+        ClaimsPrincipal token = verifier.ValidateAccessToken(result.Value.AccessToken)!;
+        token.FindFirstValue(ClaimTypes.NameIdentifier).Should().Be(targetUserId.ToString());
+        List<string> roles = token.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        roles.Should().ContainSingle().Which.Should().Be("user");
+        roles
+            .Should()
+            .NotContain(
+                "admin",
+                "the operator's admin role must never ride an impersonation token"
+            );
+
+        // The operator is named ONLY on the non-authoritative `act` claim (read raw — no auth path reads it).
+        JwtSecurityToken raw = new JwtSecurityTokenHandler().ReadJwtToken(result.Value.AccessToken);
+        raw.Claims.Should()
+            .ContainSingle(c => c.Type == JwtTokenService.ActorClaim)
+            .Which.Value.Should()
+            .Be(adminUserId.ToString());
+
+        // The returned expiry is the token's own `exp` — an access-only token (no refresh minted).
+        result.Value.ExpiresAt.Should().Be(raw.ValidTo);
+
+        // The audited authorize named WHO was impersonated on the append-only log.
+        IamAuditLog audit = await db.IamAuditLogs.SingleAsync(a =>
+            a.Permission == "user:impersonate"
+        );
+        audit.TargetResource.Should().Be(targetUserId.ToString());
+        audit.Justification.Should().Be("repro ticket 42");
+        audit.Outcome.Should().Be(IamOutcome.Allowed);
+    }
+
+    [Fact]
+    public async Task StartImpersonation_carries_the_targets_admin_role_when_the_target_is_itself_an_admin()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _) = Build();
+        Guid adminUserId = SeedUser(db, "operator", isPlatformPrincipal: true);
+        Guid principal = SeedPrincipalFor(db, adminUserId, "operator", "user:impersonate");
+        // The TARGET is itself a platform principal — the token must reflect the TARGET's roles, so `admin` IS present.
+        Guid targetAdminId = SeedUser(db, "coadmin", isPlatformPrincipal: true);
+        await db.SaveChangesAsync();
+
+        Result<ImpersonationTokenDto> result = await sut.StartImpersonationAsync(
+            principal,
+            targetAdminId,
+            "audit the co-admin"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        JwtTokenService verifier = Jwt();
+        ClaimsPrincipal token = verifier.ValidateAccessToken(result.Value.AccessToken)!;
+        token
+            .FindAll(ClaimTypes.Role)
+            .Select(c => c.Value)
+            .Should()
+            .BeEquivalentTo(["user", "admin"]);
+    }
+
+    [Fact]
+    public async Task StartImpersonation_without_the_permission_is_forbidden_audited_and_mints_no_token()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _) = Build();
+        Guid unpermitted = SeedPrincipal(db, "tenant:read"); // holds a key, but not user:impersonate
+        Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
+        await db.SaveChangesAsync();
+
+        Result<ImpersonationTokenDto> denied = await sut.StartImpersonationAsync(
+            unpermitted,
+            targetUserId,
+            "no key"
+        );
+
+        denied.IsFailure.Should().BeTrue();
+        denied.ErrorCode.Should().Be("FORBIDDEN");
+        (await db.IamAuditLogs.SingleAsync(a => a.Permission == "user:impersonate"))
+            .Outcome.Should()
+            .Be(IamOutcome.Denied);
+    }
+
+    [Fact]
+    public async Task StartImpersonation_requires_a_justification_and_a_known_target()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _) = Build();
+        Guid principal = SeedPrincipal(db, "user:impersonate");
+        Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
+        await db.SaveChangesAsync();
+
+        (await sut.StartImpersonationAsync(principal, targetUserId, "   "))
+            .ErrorCode.Should()
+            .Be("VALIDATION_FAILED");
+
+        (await sut.StartImpersonationAsync(principal, Guid.NewGuid(), "unknown target"))
+            .ErrorCode.Should()
+            .Be("NOT_FOUND");
     }
 }

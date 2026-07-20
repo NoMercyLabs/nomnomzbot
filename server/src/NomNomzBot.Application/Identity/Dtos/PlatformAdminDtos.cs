@@ -63,6 +63,15 @@ public sealed record TenantAccessGrantDto(
     DateTime? RevokedAt
 );
 
+/// <summary>Request to begin an act-as impersonation of a registered user — justification is mandatory (stream-admin.md §4).</summary>
+public sealed record ImpersonateUserRequest(string Justification);
+
+/// <summary>
+/// The minted act-as token for an impersonation session: an access-only JWT carrying the TARGET user's
+/// identity + roles (never the operator's), its expiry, and the impersonated user's profile (stream-admin.md §4).
+/// </summary>
+public sealed record ImpersonationTokenDto(string AccessToken, DateTime ExpiresAt, UserDto User);
+
 /// <summary>Plane-C audit-log search filters (stream-admin.md §4).</summary>
 public sealed record AuditSearchQuery(
     Guid? PrincipalId,

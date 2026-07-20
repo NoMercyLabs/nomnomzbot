@@ -38,6 +38,11 @@ public static class IamPermissionKeys
     // (self-host short-circuits AuthorizePlatformAsync to allow; the routes 503 on SaaS regardless).
     public const string SystemIpcManage = "system:ipc:manage";
 
+    // Full act-as impersonation of a registered user (stream-admin support): mints an access-only token
+    // carrying the TARGET user's identity + roles so an operator can reproduce a support issue as that
+    // user. Highly sensitive — the acting admin surfaces only in the non-authoritative `act` claim.
+    public const string UserImpersonate = "user:impersonate";
+
     /// <summary>Every seeded Plane-C key (§C.1). The legacy alias <c>iam:audit:read</c> collapses to <c>audit:read</c>.</summary>
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -53,5 +58,6 @@ public static class IamPermissionKeys
         PlatformAnalyticsRead,
         GalleryReview,
         SystemIpcManage,
+        UserImpersonate,
     };
 }

@@ -76,6 +76,20 @@ public interface IPlatformAdminService
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Begins an act-as impersonation of a registered user: mints an ACCESS-ONLY JWT (no refresh) carrying the
+    /// TARGET user's identity, tenant and roles — computed exactly as a normal login for the target, NEVER the
+    /// operator's — with the acting operator recorded only in the non-authoritative <c>act</c>/<c>act_name</c>
+    /// claims. Justification is mandatory and the target user id lands on the audit row. Requires
+    /// <c>user:impersonate</c>.
+    /// </summary>
+    Task<Result<ImpersonationTokenDto>> StartImpersonationAsync(
+        Guid actingPrincipalId,
+        Guid targetUserId,
+        string justification,
+        CancellationToken ct = default
+    );
+
     /// <summary>Paged Plane-C audit search by principal/tenant/permission/outcome/time. Requires <c>audit:read</c>.</summary>
     Task<Result<PagedList<IamAuditEntryDto>>> SearchAuditAsync(
         Guid principalId,

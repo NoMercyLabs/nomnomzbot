@@ -133,6 +133,54 @@ public class JwtTokenServiceTests
     }
 
     [Fact]
+    public void GenerateAccessToken_ForImpersonation_EmbedsActClaims_AndKeepsTheTargetsRoles()
+    {
+        JwtTokenService svc = Create();
+
+        // Minted for a NON-admin TARGET (roles = ["user"]) while an admin operator acts as them.
+        string token = svc.GenerateAccessToken(
+            UserId,
+            "target-user",
+            TenantId,
+            SessionId,
+            roles: ["user"],
+            idp: "twitch",
+            actorUserId: "admin-operator-id",
+            actorUsername: "operator"
+        );
+
+        // Read the raw wire claims (ValidateAccessToken may remap short names for role/sub).
+        System.IdentityModel.Tokens.Jwt.JwtSecurityToken jwt =
+            new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().ReadJwtToken(token);
+        jwt.Claims.Should()
+            .ContainSingle(c => c.Type == JwtTokenService.ActorClaim)
+            .Which.Value.Should()
+            .Be("admin-operator-id");
+        jwt.Claims.Should()
+            .ContainSingle(c => c.Type == JwtTokenService.ActorNameClaim)
+            .Which.Value.Should()
+            .Be("operator");
+
+        // The role claims are the TARGET's — the operator's `admin` role never leaks onto the token.
+        ClaimsPrincipal principal = svc.ValidateAccessToken(token)!;
+        List<string> roles = principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        roles.Should().ContainSingle().Which.Should().Be("user");
+        roles.Should().NotContain("admin");
+    }
+
+    [Fact]
+    public void GenerateAccessToken_NoActor_OmitsActClaims()
+    {
+        JwtTokenService svc = Create();
+        string token = svc.GenerateAccessToken(UserId, "alice", TenantId, SessionId);
+
+        System.IdentityModel.Tokens.Jwt.JwtSecurityToken jwt =
+            new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().ReadJwtToken(token);
+        jwt.Claims.Should().NotContain(c => c.Type == JwtTokenService.ActorClaim);
+        jwt.Claims.Should().NotContain(c => c.Type == JwtTokenService.ActorNameClaim);
+    }
+
+    [Fact]
     public void GenerateAccessToken_DistinctCalls_DifferByJti()
     {
         JwtTokenService svc = Create();

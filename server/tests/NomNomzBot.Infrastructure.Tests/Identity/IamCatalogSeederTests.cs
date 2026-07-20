@@ -18,7 +18,7 @@ using NomNomzBot.Infrastructure.Content.Identity;
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
 /// <summary>
-/// Proves the Plane-C IAM catalog seed (roles-permissions.md §C): all ten §C.1 permissions land with their
+/// Proves the Plane-C IAM catalog seed (roles-permissions.md §C): every §C.1 permission lands with its
 /// specced category/sensitivity, the six §C.2 system roles land with their §C.3 bundles (super-admin = ALL),
 /// re-running adds nothing, and — the self-host safety property — the seeder creates NO principals, so
 /// <c>PlatformIamService</c> still short-circuits to owner-is-full after seeding.
