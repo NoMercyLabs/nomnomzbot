@@ -110,6 +110,14 @@
     <PackageVersion Include="AngleSharp" Version="1.5.2" />
     <PackageVersion Include="AngleSharp.Css" Version="1.0.0-beta.216" />
   </ItemGroup>
+  <!-- Playwright .NET end-to-end harness (NomNomzBot.E2E.Tests): browser automation of the running
+       instance. Microsoft.Playwright.Xunit depends on xunit.extensibility.core (>= 2.8.0) — the xUnit v2
+       line this repo already uses — so it composes with the Testing group's xunit 2.9.x. Both packages are
+       versioned in lockstep by the Playwright release train. -->
+  <ItemGroup Label="E2E (Playwright)">
+    <PackageVersion Include="Microsoft.Playwright" Version="1.61.0" />
+    <PackageVersion Include="Microsoft.Playwright.Xunit" Version="1.61.0" />
+  </ItemGroup>
   <ItemGroup Label="Testing">
     <PackageVersion Include="coverlet.collector" Version="10.0.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.8" />

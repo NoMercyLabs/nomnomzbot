@@ -11,5 +11,6 @@
     <Project Path="tests/NomNomzBot.Application.Tests/NomNomzBot.Application.Tests.csproj" />
     <Project Path="tests/NomNomzBot.Infrastructure.Tests/NomNomzBot.Infrastructure.Tests.csproj" />
     <Project Path="tests/NomNomzBot.Api.Tests/NomNomzBot.Api.Tests.csproj" />
+    <Project Path="tests/NomNomzBot.E2E.Tests/NomNomzBot.E2E.Tests.csproj" />
   </Folder>
 </Solution>
