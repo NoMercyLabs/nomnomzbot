@@ -189,6 +189,9 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
     var pendingRoleDelete: PendingRoleDelete? by remember { mutableStateOf(null) }
     var pendingPostButton: PendingPostButton? by remember { mutableStateOf(null) }  // roleId + its guild connection
     var preview: DiscordConfigPreview? by remember { mutableStateOf(null) }
+    // Bumped after a role create/edit/delete completes so each guild card re-fetches its self-assign roles — the
+    // roles are loaded per card on connection.id, which a role write never changes, leaving the card stale.
+    var rolesVersion: Int by remember { mutableStateOf(0) }
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -204,6 +207,7 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
                     actionError = current.actionError,
                     manage = manage,
                     controller = controller,
+                    rolesVersion = rolesVersion,
                     onNewRule = { connectionId -> editor = RuleEditor.create(connectionId) },
                     onEditRule = { rule ->
                         editor =
@@ -305,6 +309,7 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
                 pendingRoleCreate = null
                 scope.launch {
                     controller.createRole(connectionId, discordRoleId, roleName, selfAssign, dmEnabled)
+                    rolesVersion++
                 }
             },
         )
@@ -316,7 +321,10 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
             onDismiss = { pendingRoleEdit = null },
             onSave = { roleName, selfAssign, dmEnabled ->
                 pendingRoleEdit = null
-                scope.launch { controller.updateRole(role.id, roleName, selfAssign, dmEnabled) }
+                scope.launch {
+                    controller.updateRole(role.id, roleName, selfAssign, dmEnabled)
+                    rolesVersion++
+                }
             },
         )
     }
@@ -330,7 +338,10 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
             destructive = true,
             onConfirm = {
                 pendingRoleDelete = null
-                scope.launch { controller.deleteRole(target.roleId) }
+                scope.launch {
+                    controller.deleteRole(target.roleId)
+                    rolesVersion++
+                }
             },
             onDismiss = { pendingRoleDelete = null },
         )
@@ -361,6 +372,7 @@ private fun ReadyContent(
     actionError: String?,
     manage: ManageDecision,
     controller: DiscordController,
+    rolesVersion: Int,
     onNewRule: (connectionId: String) -> Unit,
     onEditRule: (DiscordNotificationConfig) -> Unit,
     onToggleRule: (DiscordNotificationConfig, Boolean) -> Unit,
@@ -393,6 +405,7 @@ private fun ReadyContent(
                     guild = guild,
                     manage = manage,
                     controller = controller,
+                    rolesVersion = rolesVersion,
                     onNewRule = { onNewRule(guild.connection.id) },
                     onEditRule = onEditRule,
                     onToggleRule = onToggleRule,
@@ -416,6 +429,8 @@ private fun GuildCard(
     guild: GuildNotifications,
     manage: ManageDecision,
     controller: DiscordController,
+    // Bumped by the parent after a role create/edit/delete so this card re-fetches its self-assign roles.
+    rolesVersion: Int,
     onNewRule: () -> Unit,
     onEditRule: (DiscordNotificationConfig) -> Unit,
     onToggleRule: (DiscordNotificationConfig, Boolean) -> Unit,
@@ -439,8 +454,9 @@ private fun GuildCard(
     var logEntries: List<DiscordDispatchLogEntry>? by remember { mutableStateOf(null) }
     var logLoading: Boolean by remember { mutableStateOf(false) }
 
-    // Load roles once, automatically, when the card first composes.
-    LaunchedEffect(guild.connection.id) {
+    // Load roles when the card first composes, and re-load whenever a role create/edit/delete bumps
+    // [rolesVersion] — otherwise the card, keyed only on the (unchanging) connection id, stayed stale after a write.
+    LaunchedEffect(guild.connection.id, rolesVersion) {
         rolesLoading = true
         when (val result = controller.roles(guild.connection.id)) {
             is bot.nomnomz.dashboard.core.network.ApiResult.Ok -> roles = result.value
