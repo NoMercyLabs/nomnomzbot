@@ -23,14 +23,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
-import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ColorField
 import bot.nomnomz.dashboard.core.designsystem.component.parseHexColor
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
-import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import androidx.compose.material3.Text
@@ -54,6 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -128,7 +127,6 @@ import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharedFlow
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_pipeline_label
-import nomnomzbot.composeapp.generated.resources.rewards_dialog_pipeline_none
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_timer_label
 import nomnomzbot.composeapp.generated.resources.rewards_timer_cancel
 import nomnomzbot.composeapp.generated.resources.rewards_timer_complete
@@ -869,7 +867,6 @@ private fun RewardFormDialog(
     var globalCooldown: String by remember { mutableStateOf(editor.globalCooldownSeconds) }
     var timerSeconds: String by remember { mutableStateOf(editor.timerDurationSeconds) }
     var selectedPipelineId: String? by remember { mutableStateOf(editor.pipelineId) }
-    var pipelineMenuOpen: Boolean by remember { mutableStateOf(false) }
 
     val parsedCost: Int? = cost.toIntOrNull()
     // A blank timer field means "no timer" (send 0 to clear); a non-blank one must parse to a non-negative int.
@@ -883,9 +880,6 @@ private fun RewardFormDialog(
     val colorValid: Boolean = backgroundColor.isBlank() || parseHexColor(backgroundColor) != null
     val canSubmit: Boolean =
         title.isNotBlank() && parsedCost != null && parsedCost > 0 && timerValid && colorValid
-    val pipelineNoneLabel: String = stringResource(Res.string.rewards_dialog_pipeline_none)
-    val selectedPipelineName: String =
-        selectedPipelineId?.let { id -> pipelines.firstOrNull { it.id == id }?.name } ?: pipelineNoneLabel
     val dialogTitle: String =
         stringResource(
             if (editor.isEdit) Res.string.rewards_dialog_edit_title
@@ -969,30 +963,16 @@ private fun RewardFormDialog(
                 )
                 // Optional pipeline to run on redemption. Only shown when the channel has pipelines to bind.
                 if (pipelines.isNotEmpty()) {
-                    AppSelectField(
-                        value = selectedPipelineName,
+                    // A reference to another table (the channel's pipelines) → the shared search dropdown,
+                    // filtering as you type; clearing the selection is the old "None" option.
+                    EntityPickerField(
+                        items = pipelines,
+                        selectedId = selectedPipelineId,
+                        onSelect = { selectedPipelineId = it },
+                        idOf = { it.id },
+                        labelOf = { it.name },
                         label = stringResource(Res.string.rewards_dialog_pipeline_label),
-                        expanded = pipelineMenuOpen,
-                        onExpandedChange = { pipelineMenuOpen = it },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(pipelineNoneLabel, color = tokens.mutedForeground) },
-                            onClick = {
-                                selectedPipelineId = null
-                                pipelineMenuOpen = false
-                            },
-                        )
-                        pipelines.forEach { pipeline ->
-                            DropdownMenuItem(
-                                text = { Text(pipeline.name, color = tokens.cardForeground) },
-                                onClick = {
-                                    selectedPipelineId = pipeline.id
-                                    pipelineMenuOpen = false
-                                },
-                            )
-                        }
-                    }
+                    )
                 }
                 ToggleRow(
                     label = requireInputLabel,

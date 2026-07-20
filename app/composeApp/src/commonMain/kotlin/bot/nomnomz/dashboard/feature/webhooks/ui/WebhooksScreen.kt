@@ -44,6 +44,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -75,6 +76,7 @@ import bot.nomnomz.dashboard.feature.webhooks.state.WebhooksController
 import bot.nomnomz.dashboard.feature.webhooks.state.WebhooksState
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.pipelines_empty
 import nomnomzbot.composeapp.generated.resources.setup_copy_action
 import nomnomzbot.composeapp.generated.resources.setup_copy_done
 import nomnomzbot.composeapp.generated.resources.shell_nav_webhooks
@@ -876,11 +878,17 @@ private fun InboundDialog(
                 RoutingPicker(selected = routing, onSelect = { routing = it })
                 when (routing) {
                     InboundRouting.Pipeline ->
-                        PipelinePicker(
-                            pipelines = pipelines,
-                            selectedId = pipelineId,
-                            onSelect = { pipelineId = it },
-                            onManualEntry = { pipelineId = it },
+                        // A reference to another table (the channel's pipelines) → the shared search dropdown;
+                        // its own empty state replaces the old paste-an-id fallback.
+                        EntityPickerField(
+                            items = pipelines,
+                            selectedId = pipelineId.ifBlank { null },
+                            onSelect = { pipelineId = it ?: "" },
+                            idOf = { it.id },
+                            labelOf = { it.name },
+                            label = stringResource(Res.string.webhooks_inbound_routing_pipeline_label),
+                            placeholder = stringResource(Res.string.webhooks_inbound_routing_choose_pipeline),
+                            emptyText = stringResource(Res.string.pipelines_empty),
                         )
                     InboundRouting.Event ->
                         AppTextField(
@@ -990,54 +998,6 @@ private fun routingLabel(routing: InboundRouting): String =
         InboundRouting.Pipeline -> stringResource(Res.string.webhooks_inbound_routing_pipeline)
         InboundRouting.Event -> stringResource(Res.string.webhooks_inbound_routing_event)
     }
-
-// Picks a pipeline from the channel's list; when there are none it degrades to a free-text pipeline-id field so
-// the routing can still be set (the id can be pasted from the Pipelines page).
-@Composable
-private fun PipelinePicker(
-    pipelines: List<PipelineSummary>,
-    selectedId: String,
-    onSelect: (String) -> Unit,
-    onManualEntry: (String) -> Unit,
-) {
-    if (pipelines.isEmpty()) {
-        AppTextField(
-            value = selectedId,
-            onValueChange = onManualEntry,
-            label = stringResource(Res.string.webhooks_inbound_routing_pipeline_label),
-        )
-        return
-    }
-
-    var expanded: Boolean by remember { mutableStateOf(false) }
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-    val current: PipelineSummary? = pipelines.firstOrNull { it.id == selectedId }
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
-        Text(text = stringResource(Res.string.webhooks_inbound_routing_pipeline_label), style = typography.sm, color = tokens.foreground)
-        Box(modifier = Modifier.fillMaxWidth()) {
-            TextButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = current?.name ?: stringResource(Res.string.webhooks_inbound_routing_choose_pipeline),
-                    color = if (current == null) tokens.mutedForeground else tokens.foreground,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                pipelines.forEach { pipeline ->
-                    DropdownMenuItem(
-                        text = { Text(text = pipeline.name, color = tokens.popoverForeground) },
-                        onClick = { onSelect(pipeline.id); expanded = false },
-                    )
-                }
-            }
-        }
-    }
-}
 
 // Create + edit for an outbound endpoint. The event subscription is a CHECKLIST built from the backend
 // catalogue (grouped by category) plus a "subscribe to all" wildcard — never a typo-prone free-text box. The

@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,11 +41,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
-import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -92,7 +91,6 @@ import nomnomzbot.composeapp.generated.resources.timers_dialog_min_chat_activity
 import nomnomzbot.composeapp.generated.resources.timers_dialog_min_chat_activity_hint
 import nomnomzbot.composeapp.generated.resources.timers_dialog_messages
 import nomnomzbot.composeapp.generated.resources.timers_dialog_pipeline
-import nomnomzbot.composeapp.generated.resources.timers_dialog_pipeline_none
 import nomnomzbot.composeapp.generated.resources.timers_dialog_name
 import nomnomzbot.composeapp.generated.resources.timers_dialog_save
 import nomnomzbot.composeapp.generated.resources.timers_disabled
@@ -440,7 +438,6 @@ private fun TimerEditDialog(
     var enabled: Boolean by remember(detail) { mutableStateOf(detail?.isEnabled ?: existing?.isEnabled ?: true) }
     var fireOnce: Boolean by remember(detail) { mutableStateOf(detail?.fireOnce ?: existing?.fireOnce ?: false) }
     var pipelineId: String? by remember(detail) { mutableStateOf(detail?.pipelineId) }
-    var pipelineMenuOpen: Boolean by remember { mutableStateOf(false) }
 
     val intervalMinutes: Int? = interval.toIntOrNull()?.takeIf { it in 1..MAX_INTERVAL_MINUTES }
     // Blank rows are dropped; at least one real message is required.
@@ -451,9 +448,6 @@ private fun TimerEditDialog(
     val titleRes =
         if (isCreate) Res.string.timers_dialog_create_title else Res.string.timers_dialog_edit_title
     val confirmRes = if (isCreate) Res.string.timers_dialog_create else Res.string.timers_dialog_save
-    val pipelineNoneLabel: String = stringResource(Res.string.timers_dialog_pipeline_none)
-    val selectedPipelineName: String =
-        pipelineId?.let { id -> pipelines.firstOrNull { it.id == id }?.name } ?: pipelineNoneLabel
     val messageLabel: String = stringResource(Res.string.timers_dialog_message)
     val removeLabel: String = stringResource(Res.string.timers_dialog_message_remove)
 
@@ -522,30 +516,16 @@ private fun TimerEditDialog(
                 // Optional pipeline to run every interval (e.g. a shoutout using {timer.message}). Reuses the
                 // Commands dialog's picker shape. Only shown when the channel has pipelines to bind.
                 if (pipelines.isNotEmpty()) {
-                    AppSelectField(
-                        value = selectedPipelineName,
+                    // A reference to another table (the channel's pipelines) → the shared search dropdown,
+                    // filtering as you type; clearing the selection is the old "None" option.
+                    EntityPickerField(
+                        items = pipelines,
+                        selectedId = pipelineId,
+                        onSelect = { pipelineId = it },
+                        idOf = { it.id },
+                        labelOf = { it.name },
                         label = stringResource(Res.string.timers_dialog_pipeline),
-                        expanded = pipelineMenuOpen,
-                        onExpandedChange = { pipelineMenuOpen = it },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(pipelineNoneLabel, color = tokens.mutedForeground) },
-                            onClick = {
-                                pipelineId = null
-                                pipelineMenuOpen = false
-                            },
-                        )
-                        pipelines.forEach { pipeline ->
-                            DropdownMenuItem(
-                                text = { Text(pipeline.name, color = tokens.cardForeground) },
-                                onClick = {
-                                    pipelineId = pipeline.id
-                                    pipelineMenuOpen = false
-                                },
-                            )
-                        }
-                    }
+                    )
                 }
 
                 AppTextField(

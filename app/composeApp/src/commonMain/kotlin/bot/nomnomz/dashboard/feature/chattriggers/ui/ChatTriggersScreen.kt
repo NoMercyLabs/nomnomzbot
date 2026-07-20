@@ -48,6 +48,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -87,7 +88,6 @@ import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_match_type_
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_pattern_label
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_permission_label
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_pipeline_label
-import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_pipeline_none
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_response_label
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_save
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_use_pipeline_label
@@ -410,7 +410,6 @@ private fun TriggerFormDialog(
 
     var matchMenuOpen: Boolean by remember { mutableStateOf(false) }
     var permMenuOpen: Boolean by remember { mutableStateOf(false) }
-    var pipelineMenuOpen: Boolean by remember { mutableStateOf(false) }
 
     val cooldownValue: Int? = cooldown.ifBlank { "0" }.toIntOrNull()
     val cooldownValid: Boolean = cooldownValue != null && cooldownValue >= 0
@@ -430,9 +429,6 @@ private fun TriggerFormDialog(
     val caseLabel: String = stringResource(Res.string.chattriggers_dialog_case_sensitive_label)
     val enabledLabel: String = stringResource(Res.string.chattriggers_dialog_enabled_label)
     val usePipelineLabel: String = stringResource(Res.string.chattriggers_dialog_use_pipeline_label)
-    val pipelineNoneLabel: String = stringResource(Res.string.chattriggers_dialog_pipeline_none)
-    val selectedPipelineName: String =
-        selectedPipelineId?.let { id -> pipelines.firstOrNull { it.id == id }?.name } ?: pipelineNoneLabel
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -514,22 +510,16 @@ private fun TriggerFormDialog(
                     )
                 }
                 if (usePipeline && pipelines.isNotEmpty()) {
-                    PickerField(
+                    // A reference to another table (the channel's pipelines) → the shared search dropdown,
+                    // filtering as you type.
+                    EntityPickerField(
+                        items = pipelines,
+                        selectedId = selectedPipelineId,
+                        onSelect = { selectedPipelineId = it },
+                        idOf = { it.id },
+                        labelOf = { it.name },
                         label = stringResource(Res.string.chattriggers_dialog_pipeline_label),
-                        value = selectedPipelineName,
-                        expanded = pipelineMenuOpen,
-                        onExpandedChange = { pipelineMenuOpen = it },
-                    ) {
-                        pipelines.forEach { pipeline ->
-                            DropdownMenuItem(
-                                text = { Text(pipeline.name, color = tokens.cardForeground) },
-                                onClick = {
-                                    selectedPipelineId = pipeline.id
-                                    pipelineMenuOpen = false
-                                },
-                            )
-                        }
-                    }
+                    )
                 } else {
                     AppTextField(
                         value = response,

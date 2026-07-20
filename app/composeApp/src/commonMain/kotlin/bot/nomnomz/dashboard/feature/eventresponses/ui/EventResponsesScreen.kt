@@ -43,6 +43,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -415,10 +416,17 @@ private fun EditDialog(
                 // Overlay target — which widget this event fires. Persisted in the response's MetadataJson so the
                 // overlay dispatch can render the chosen widget.
                 if (selectedType == "overlay") {
-                    WidgetTargetPicker(
-                        widgets = widgets,
-                        selected = widgetChoice,
-                        onSelect = { widgetChoice = it },
+                    // The overlay target is a reference to another table (the channel's widgets) → the shared
+                    // search dropdown; clearing it selects no widget.
+                    EntityPickerField(
+                        items = widgets,
+                        selectedId = widgetChoice.ifBlank { null },
+                        onSelect = { widgetChoice = it ?: "" },
+                        idOf = { it.id },
+                        labelOf = { it.name },
+                        label = stringResource(Res.string.event_responses_dialog_widget_pick),
+                        placeholder = stringResource(Res.string.event_responses_dialog_widget_choose),
+                        emptyText = stringResource(Res.string.event_responses_dialog_widget_empty),
                     )
                 }
 
@@ -555,54 +563,6 @@ private fun PipelineBindPicker(pipelines: List<PipelineSummary>, selected: Strin
                     },
                     onClick = { onSelect(CreateNewPipeline); expanded = false },
                 )
-            }
-        }
-    }
-}
-
-// The overlay target picker: the channel's widgets. The selected value is a widget id, or blank (none chosen).
-// Renders an empty-state hint when the channel has no widgets yet (the response type can still be saved).
-@Composable
-private fun WidgetTargetPicker(widgets: List<WidgetSummary>, selected: String, onSelect: (String) -> Unit) {
-    var expanded: Boolean by remember { mutableStateOf(false) }
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
-        Text(
-            text = stringResource(Res.string.event_responses_dialog_widget_pick),
-            style = typography.sm,
-            color = tokens.foreground,
-        )
-        if (widgets.isEmpty()) {
-            Text(
-                text = stringResource(Res.string.event_responses_dialog_widget_empty),
-                style = typography.xs,
-                color = tokens.mutedForeground,
-            )
-            return@Column
-        }
-        val currentLabel: String =
-            widgets.firstOrNull { it.id == selected }?.name
-                ?: stringResource(Res.string.event_responses_dialog_widget_choose)
-        Box(modifier = Modifier.fillMaxWidth()) {
-            TextButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = currentLabel,
-                    color = if (selected.isBlank()) tokens.mutedForeground else tokens.foreground,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                widgets.forEach { widget ->
-                    DropdownMenuItem(
-                        text = { Text(text = widget.name, color = tokens.popoverForeground) },
-                        onClick = { onSelect(widget.id); expanded = false },
-                    )
-                }
             }
         }
     }
