@@ -121,12 +121,20 @@ public sealed class ActionDefinitionSeeder : ISeeder
             s.Add(new ActionSeed(key, defaultLevel, floorLevel, tier, grant, AuthPlane.Management));
 
         // Commands / pipelines / responses / timers — reads (and non-mutating pipeline validation) default to
-        // the Moderator base but the broadcaster may lower them to Vip; the writes bundle create/edit/DELETE
-        // (real data loss) so they stay at Editor.
+        // the Moderator base but the broadcaster may lower them to Vip.
+        //
+        // CUSTOM COMMAND management (add/edit/DELETE) defaults to MODERATOR to match the dominant incumbent
+        // convention (StreamElements, Nightbot, Streamlabs Cloudbot and Fossabot all let a Twitch mod manage
+        // commands out of the box). It uses the Default==Floor form: the write bundles DELETE, so like
+        // quotes:delete / timers:write it stays a "protected" action that CANNOT be lowered to Vip — a deleted
+        // command is recoverable content, but wiping the command set is not something to hand a VIP by override.
+        // The broadcaster may still RAISE the requirement via a ChannelActionOverride. The heavier automation
+        // writes below (pipelines / event responses / chat triggers / timers) stay at Editor — those skew
+        // owner/editor across the same incumbents and are not mod-default anywhere.
         MFloor("commands:read", Mod, Vip);
-        M("commands:write", Editor);
+        M("commands:write", Mod);
         MFloor("commands:builtin:read", Mod, Vip);
-        M("commands:builtin:write", Editor);
+        M("commands:builtin:write", Mod);
         MFloor("pipelines:read", Mod, Vip);
         M("pipelines:write", Editor);
         MFloor("pipelines:validate", Mod, Vip);
