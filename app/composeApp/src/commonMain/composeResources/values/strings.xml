@@ -158,7 +158,7 @@
     <string name="shell_nav_analytics">Analytics</string>
     <string name="shell_nav_schedule">Schedule</string>
     <string name="schedule_loading">Loading your stream schedule…</string>
-    <string name="schedule_error">Couldn\'t load the schedule: %1$s</string>
+    <string name="schedule_error">Couldn't load the schedule: %1$s</string>
     <string name="schedule_empty">No streams scheduled yet.</string>
     <string name="schedule_add">Add a stream</string>
     <string name="schedule_download_ics">Download .ics</string>
@@ -179,7 +179,7 @@
     <string name="schedule_dialog_save">Save</string>
     <string name="schedule_dialog_cancel">Cancel</string>
     <string name="schedule_delete_title">Delete this stream?</string>
-    <string name="schedule_delete_message">Remove \"%1$s\" from your schedule?</string>
+    <string name="schedule_delete_message">Remove "%1$s" from your schedule?</string>
     <string name="schedule_vacation_title">Vacation mode</string>
     <string name="schedule_vacation_start">Vacation start</string>
     <string name="schedule_vacation_end">Vacation end</string>
@@ -278,8 +278,8 @@
     <string name="home_live_ops_create_clip">Create Clip</string>
     <string name="home_live_ops_clip_done">Clip created — trim and publish it at</string>
     <string name="home_live_ops_mark_moment">Mark moment</string>
-    <string name="home_live_ops_mark_moment_done">Moment marked — it\'s bookmarked in your VOD.</string>
-    <string name="home_live_ops_mark_moment_failed">Couldn\'t add the marker.</string>
+    <string name="home_live_ops_mark_moment_done">Moment marked — it's bookmarked in your VOD.</string>
+    <string name="home_live_ops_mark_moment_failed">Couldn't add the marker.</string>
     <string name="home_live_ops_snooze_ad">Snooze Ad</string>
     <string name="home_live_ops_start_commercial">Run Ad</string>
     <string name="home_live_ops_poll_title_label">Question</string>
@@ -351,7 +351,7 @@
     <string name="moderation_loading">Loading bans…</string>
     <string name="moderation_empty">No active bans</string>
     <string name="moderation_bans_title">Banned viewers</string>
-    <string name="moderation_bans_unavailable">The live ban list isn\'t available here. Re-grant the moderation permissions, or check the bot is installed on this channel.</string>
+    <string name="moderation_bans_unavailable">The live ban list isn't available here. Re-grant the moderation permissions, or check the bot is installed on this channel.</string>
     <string name="moderation_log_title">Recent actions</string>
     <string name="moderation_log_by">by %1$s</string>
     <string name="moderation_log_row_description">%1$s %2$s, by %3$s</string>
@@ -360,9 +360,9 @@
     <string name="moderation_shield_disable">Disable</string>
     <string name="moderation_shield_enable_action">Enable Shield Mode</string>
     <string name="moderation_shield_disable_action">Disable Shield Mode</string>
-    <string name="moderation_shield_unavailable">Shield Mode isn\'t available here. Re-grant the moderation permissions, or check the bot is installed on this channel.</string>
+    <string name="moderation_shield_unavailable">Shield Mode isn't available here. Re-grant the moderation permissions, or check the bot is installed on this channel.</string>
     <string name="moderation_terms_title">Blocked terms</string>
-    <string name="moderation_terms_unavailable">Blocked terms aren\'t available here. Re-grant the moderation permissions, or check the bot is installed on this channel.</string>
+    <string name="moderation_terms_unavailable">Blocked terms aren't available here. Re-grant the moderation permissions, or check the bot is installed on this channel.</string>
     <string name="moderation_terms_remove">Remove</string>
     <string name="moderation_terms_remove_action">Remove %1$s</string>
     <string name="moderation_terms_add_label">Add a term</string>
@@ -411,11 +411,11 @@
     <string name="moderation_rules_create_dismiss">Cancel</string>
     <string name="moderation_no_reason">No reason given</string>
     <string name="moderation_context_action_short">History</string>
-    <string name="moderation_context_view">View %1$s\'s moderation history</string>
+    <string name="moderation_context_view">View %1$s's moderation history</string>
     <string name="moderation_context_title">Moderation history</string>
-    <string name="moderation_context_disclaimer">This bot\'s own record — not the viewer\'s full Twitch history.</string>
+    <string name="moderation_context_disclaimer">This bot's own record — not the viewer's full Twitch history.</string>
     <string name="moderation_context_loading">Loading…</string>
-    <string name="moderation_context_error">Couldn\'t load: %1$s</string>
+    <string name="moderation_context_error">Couldn't load: %1$s</string>
     <string name="moderation_context_bans">Bans</string>
     <string name="moderation_context_timeouts">Timeouts</string>
     <string name="moderation_context_warns">Warnings</string>
@@ -502,7 +502,7 @@
     <string name="analytics_streams_all_time">All-time</string>
     <string name="analytics_streams_live">Live now</string>
     <string name="analytics_streams_picker">Select stream, currently %1$s</string>
-    <string name="analytics_stream_error">Couldn\'t load this stream: %1$s</string>
+    <string name="analytics_stream_error">Couldn't load this stream: %1$s</string>
     <string name="analytics_charts_title">Trends</string>
     <string name="analytics_chart_messages">Messages per day</string>
     <string name="analytics_chart_followers">New followers per day</string>
@@ -1794,9 +1794,9 @@
     <string name="supporters_connections_retry">Retry</string>
     <string name="supporters_provider_kofi">Ko-fi</string>
     <string name="supporters_kofi_description">Tips, memberships and shop orders, received by webhook.</string>
-    <string name="supporters_kofi_webhook_hint">Paste your Ko-fi verification token below and connect — we\'ll give you the webhook URL to paste back into Ko-fi.</string>
+    <string name="supporters_kofi_webhook_hint">Paste your Ko-fi verification token below and connect — we'll give you the webhook URL to paste back into Ko-fi.</string>
     <string name="supporters_secret_label">Verification token</string>
-    <string name="supporters_ingest_url_label">Webhook URL — paste this into the provider\'s settings</string>
+    <string name="supporters_ingest_url_label">Webhook URL — paste this into the provider's settings</string>
     <string name="supporters_copy">Copy</string>
     <string name="supporters_copied">Copied</string>
     <string name="supporters_status_active">Active</string>
@@ -2493,7 +2493,7 @@
     <string name="webhooks_adapter_patreon">Patreon</string>
     <string name="webhooks_adapter_buymeacoffee">Buy Me a Coffee</string>
     <string name="webhooks_generic_section">Custom adapter signing</string>
-    <string name="webhooks_generic_help">How this sender\'s requests are verified. The event-kind and event-id JSON paths are required; the signature fields are optional (fill them only if the sender signs its requests).</string>
+    <string name="webhooks_generic_help">How this sender's requests are verified. The event-kind and event-id JSON paths are required; the signature fields are optional (fill them only if the sender signs its requests).</string>
     <string name="webhooks_generic_signature_header">Signature header name</string>
     <string name="webhooks_generic_signature_prefix">Signature prefix</string>
     <string name="webhooks_generic_signing_template">Signing string template</string>
@@ -2641,8 +2641,8 @@
     <string name="settings_billing_plan_price">%1$s / month</string>
     <string name="settings_billing_plan_current">Current plan</string>
     <string name="settings_billing_plan_select">Choose plan</string>
-    <string name="settings_billing_not_configured">Billing isn\'t set up yet</string>
-    <string name="settings_billing_not_configured_detail">Hosted billing isn\'t configured on this server yet. Plans become purchasable the moment the operator finishes Stripe setup — nothing else changes here.</string>
+    <string name="settings_billing_not_configured">Billing isn't set up yet</string>
+    <string name="settings_billing_not_configured_detail">Hosted billing isn't configured on this server yet. Plans become purchasable the moment the operator finishes Stripe setup — nothing else changes here.</string>
     <string name="settings_billing_usage_title">Usage this period</string>
     <string name="settings_billing_usage_of">%1$d / %2$d</string>
     <string name="settings_billing_invoices_title">Invoices</string>
@@ -2656,7 +2656,7 @@
     <string name="settings_billing_invite_redeem">Redeem</string>
     <string name="settings_billing_invite_valid">Valid — grants %1$s</string>
     <string name="settings_billing_invite_invalid">Invalid or expired code</string>
-    <string name="settings_billing_founders_badge">Founder\'s Badge</string>
+    <string name="settings_billing_founders_badge">Founder's Badge</string>
     <string name="settings_billing_founders_badge_granted">Granted %1$s</string>
     <string name="settings_billing_cancel_title">Cancel subscription?</string>
     <string name="settings_billing_cancel_message">Your subscription stays active until the end of the current billing period.</string>
@@ -2761,7 +2761,7 @@
     <string name="admin_tenant_members">Members: %1$d</string>
     <string name="admin_tenant_deployment">Deployment: %1$s</string>
     <string name="admin_tenant_suspend_title">Suspend tenant</string>
-    <string name="admin_tenant_suspend_desc">A suspended tenant\'s dashboard and API go dark. A reason is required.</string>
+    <string name="admin_tenant_suspend_desc">A suspended tenant's dashboard and API go dark. A reason is required.</string>
     <string name="admin_tenant_reinstate_title">Reinstate tenant</string>
     <string name="admin_tenant_reinstate_desc">Restore the tenant to active. A justification is required.</string>
     <string name="admin_tenant_reason">Reason</string>
@@ -2864,7 +2864,7 @@
     <string name="custom_events_field_endpoint_url">Endpoint URL</string>
     <string name="custom_events_field_auth_secret">Auth token / secret</string>
     <string name="custom_events_secret_placeholder">Auth token (leave blank to keep existing)</string>
-    <string name="custom_events_field_field_map_json">Field map (JSON, e.g. {\"bpm\":\"$.data.heartRate\"})</string>
+    <string name="custom_events_field_field_map_json">Field map (JSON, e.g. {"bpm":"$.data.heartRate"})</string>
     <string name="custom_events_field_poll_interval">Poll interval (seconds, min 10)</string>
     <string name="custom_events_field_enabled">Enabled</string>
     <string name="custom_events_save">Save</string>
@@ -2890,7 +2890,7 @@
     <string name="custom_events_status_waiting">waiting for first payload</string>
     <!-- Bot basics (Settings → Bot basics card): command prefix, default language, auto-join, timezone. -->
     <string name="settings_basics_section">Bot basics</string>
-    <string name="settings_basics_subtitle">The essentials: the prefix that marks a chat command, the bot\'s default language, whether it auto-joins your chat, and your timezone.</string>
+    <string name="settings_basics_subtitle">The essentials: the prefix that marks a chat command, the bot's default language, whether it auto-joins your chat, and your timezone.</string>
     <string name="settings_basics_load_error">Could not load basics: %1$s</string>
     <string name="settings_basics_prefix">Command prefix</string>
     <string name="settings_basics_prefix_hint">The character(s) that mark a command, e.g. ! in !uptime.</string>
@@ -2900,7 +2900,7 @@
     <string name="settings_basics_timezone">Timezone</string>
     <string name="settings_basics_timezone_hint">IANA name, e.g. Europe/Amsterdam. Leave blank to keep the current value.</string>
     <string name="settings_basics_autojoin">Auto-join chat</string>
-    <string name="settings_basics_autojoin_desc">Let the bot join this channel\'s chat automatically.</string>
+    <string name="settings_basics_autojoin_desc">Let the bot join this channel's chat automatically.</string>
     <!-- Bot personality (Settings → Bot personality card). Tone tokens mirror PersonalityTone.* on the backend. -->
     <string name="personality_section_title">Bot personality</string>
     <string name="personality_section_subtitle">The voice the built-in commands answer in — it applies everywhere. You can still override any single command.</string>
@@ -2998,7 +2998,7 @@
     <!-- Moderation — shared-ban trust web (J.9 / J.9a) -->
     <string name="moderation_shared_title">Shared-chat bans</string>
     <string name="moderation_shared_desc">Trust web for shared-chat sessions.</string>
-    <string name="moderation_shared_accept">Apply trusted partners\' bans here</string>
+    <string name="moderation_shared_accept">Apply trusted partners' bans here</string>
     <string name="moderation_shared_accept_hint">Bans from a trusted partner during a shared-chat session also apply in your channel.</string>
     <string name="moderation_shared_share">Share our bans with partners</string>
     <string name="moderation_shared_share_hint">Offer your bans to trusted partners during a shared-chat session.</string>
@@ -3120,11 +3120,11 @@
     <string name="automation_rotate">Rotate</string>
     <string name="automation_revoke">Revoke</string>
     <string name="automation_rotate_title">Rotate token?</string>
-    <string name="automation_rotate_message">Rotating \"%1$s\" invalidates the current secret immediately. Any tool using it stops working until you paste the new secret.</string>
+    <string name="automation_rotate_message">Rotating "%1$s" invalidates the current secret immediately. Any tool using it stops working until you paste the new secret.</string>
     <string name="automation_rotate_confirm">Rotate</string>
     <string name="automation_cancel">Cancel</string>
     <string name="automation_revoke_title">Revoke token?</string>
-    <string name="automation_revoke_message">Revoking \"%1$s\" disables it permanently. This can't be undone.</string>
+    <string name="automation_revoke_message">Revoking "%1$s" disables it permanently. This can't be undone.</string>
     <string name="automation_revoke_confirm">Revoke</string>
     <string name="automation_create_title">New API token</string>
     <string name="automation_name_label">Name</string>

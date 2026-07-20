@@ -176,7 +176,7 @@
     <string name="schedule_dialog_save">Opslaan</string>
     <string name="schedule_dialog_cancel">Annuleren</string>
     <string name="schedule_delete_title">Deze stream verwijderen?</string>
-    <string name="schedule_delete_message">\"%1$s\" uit je schema verwijderen?</string>
+    <string name="schedule_delete_message">"%1$s" uit je schema verwijderen?</string>
     <string name="schedule_vacation_title">Vakantiemodus</string>
     <string name="schedule_vacation_start">Vakantie begin</string>
     <string name="schedule_vacation_end">Vakantie einde</string>
@@ -259,8 +259,8 @@
     <string name="home_activity_event">Kanaalgebeurtenis</string>
 
     <!-- Top-commando's paneel op Home -->
-    <string name="home_top_commands">Top-commando\'s</string>
-    <string name="home_top_commands_empty">Nog geen commando\'s gebruikt</string>
+    <string name="home_top_commands">Top-commando's</string>
+    <string name="home_top_commands_empty">Nog geen commando's gebruikt</string>
     <string name="home_top_commands_uses">%1$d keer</string>
     <string name="home_change_title">Titel wijzigen</string>
 
@@ -662,7 +662,7 @@
     <string name="commands_delete_message">%1$s verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="commands_delete_confirm">Verwijderen</string>
     <string name="commands_delete_cancel">Annuleren</string>
-    <string name="commands_search_placeholder">Commando\'s zoeken…</string>
+    <string name="commands_search_placeholder">Commando's zoeken…</string>
     <string name="commands_filter_all">Alle</string>
     <string name="commands_filter_custom">Aangepast</string>
     <string name="commands_filter_builtin">Ingebouwd</string>
@@ -998,14 +998,14 @@
     <string name="settings_reset_config">Configuratie herstellen</string>
     <string name="settings_reset_config_desc">Alle botinstellingen terugzetten naar standaard</string>
     <string name="settings_reset_confirm_title">Alle instellingen herstellen?</string>
-    <string name="settings_reset_confirm_message">Dit wist al je botconfiguratie (TTS, automod, geblokkeerde termen, schildmodus, enz.) terug naar standaard. Commando\'s, pipelines en timers worden NIET verwijderd.</string>
+    <string name="settings_reset_confirm_message">Dit wist al je botconfiguratie (TTS, automod, geblokkeerde termen, schildmodus, enz.) terug naar standaard. Commando's, pipelines en timers worden NIET verwijderd.</string>
     <string name="settings_reset_confirm_ok">Herstellen</string>
     <string name="settings_reset_confirm_cancel">Annuleren</string>
     <string name="settings_channel_action_error">Actie mislukt: %1$s</string>
     <string name="settings_delete_channel">Kanaal verwijderen</string>
     <string name="settings_delete_channel_desc">Verwijder dit kanaal en alle bijbehorende data permanent. Je moet opnieuw de installatiewizard doorlopen.</string>
     <string name="settings_delete_confirm_title">Kanaal verwijderen?</string>
-    <string name="settings_delete_confirm_message">Dit verwijdert alle kanaaldata permanent — commando\'s, pijplijnen, timers, economie, gebeurtenissen en elke opgeslagen instelling. Dit kan niet ongedaan worden gemaakt. Je keert terug naar de installatiewizard.</string>
+    <string name="settings_delete_confirm_message">Dit verwijdert alle kanaaldata permanent — commando's, pijplijnen, timers, economie, gebeurtenissen en elke opgeslagen instelling. Dit kan niet ongedaan worden gemaakt. Je keert terug naar de installatiewizard.</string>
     <string name="settings_delete_confirm_ok">Permanent verwijderen</string>
     <string name="settings_delete_confirm_cancel">Annuleren</string>
     <string name="settings_channel_bot_title">White-label bot</string>
@@ -2534,7 +2534,7 @@
     <string name="community_stats_title">Kijker statistieken — %1$s</string>
     <string name="community_stats_messages">Berichten</string>
     <string name="community_stats_watch_hours">Kijkuren</string>
-    <string name="community_stats_commands_used">Commando\'s gebruikt</string>
+    <string name="community_stats_commands_used">Commando's gebruikt</string>
     <string name="community_stats_redemptions">Inwisselingen</string>
     <string name="community_stats_follower">Volger</string>
     <string name="community_stats_subscriber">Abonnee</string>
@@ -2833,7 +2833,7 @@
 
     <!-- Custom Events -->
     <string name="shell_nav_custom_events">Aangepaste Databronnen</string>
-    <string name="custom_events_subtitle">Verbind externe datafeeds (hartslag, sensoren, API\'s) met pipeline-triggers en sjabloonvariabelen.</string>
+    <string name="custom_events_subtitle">Verbind externe datafeeds (hartslag, sensoren, API's) met pipeline-triggers en sjabloonvariabelen.</string>
     <string name="custom_events_loading">Databronnen laden…</string>
     <string name="custom_events_empty">Geen aangepaste databronnen geconfigureerd. Gebruik een voorinstelling of maak er handmatig één aan.</string>
     <string name="custom_events_error">Databronnen konden niet worden geladen: %1$s</string>
@@ -2850,7 +2850,7 @@
     <string name="custom_events_field_endpoint_url">Endpoint-URL</string>
     <string name="custom_events_field_auth_secret">Auth-token / geheim</string>
     <string name="custom_events_secret_placeholder">Auth-token (leeg laten om bestaande te behouden)</string>
-    <string name="custom_events_field_field_map_json">Veldtoewijzing (JSON, bijv. {\"bpm\":\"$.data.heartRate\"})</string>
+    <string name="custom_events_field_field_map_json">Veldtoewijzing (JSON, bijv. {"bpm":"$.data.heartRate"})</string>
     <string name="custom_events_field_poll_interval">Pollinterval (seconden, min. 10)</string>
     <string name="custom_events_field_enabled">Ingeschakeld</string>
     <string name="custom_events_save">Opslaan</string>
@@ -2939,7 +2939,7 @@
     <string name="moderation_standing_restore">Herstellen</string>
     <string name="moderation_standing_reason">Reden (optioneel)</string>
     <string name="moderation_standing_badge">%1$s · %2$s</string>
-    <string name="moderation_standing_hint">Gedempt: de bot negeert ze (geen commando\'s, triggers, stemmen, giveaways, verdienen). Schaduwverbannen: ook verborgen in overlays. Op zwarte lijst: hun chat wordt volledig genegeerd.</string>
+    <string name="moderation_standing_hint">Gedempt: de bot negeert ze (geen commando's, triggers, stemmen, giveaways, verdienen). Schaduwverbannen: ook verborgen in overlays. Op zwarte lijst: hun chat wordt volledig genegeerd.</string>
 
     <!-- Moderatie — escalatieladder (J.10 / J.11) + hittedrempel -->
     <string name="moderation_escalation_title">Escalatieladder</string>
@@ -3106,11 +3106,11 @@
     <string name="automation_rotate">Roteren</string>
     <string name="automation_revoke">Intrekken</string>
     <string name="automation_rotate_title">Token roteren?</string>
-    <string name="automation_rotate_message">Het roteren van \"%1$s\" maakt de huidige sleutel direct ongeldig. Elke tool die hem gebruikt stopt totdat je de nieuwe sleutel plakt.</string>
+    <string name="automation_rotate_message">Het roteren van "%1$s" maakt de huidige sleutel direct ongeldig. Elke tool die hem gebruikt stopt totdat je de nieuwe sleutel plakt.</string>
     <string name="automation_rotate_confirm">Roteren</string>
     <string name="automation_cancel">Annuleren</string>
     <string name="automation_revoke_title">Token intrekken?</string>
-    <string name="automation_revoke_message">Het intrekken van \"%1$s\" schakelt het permanent uit. Dit kan niet ongedaan worden gemaakt.</string>
+    <string name="automation_revoke_message">Het intrekken van "%1$s" schakelt het permanent uit. Dit kan niet ongedaan worden gemaakt.</string>
     <string name="automation_revoke_confirm">Intrekken</string>
     <string name="automation_create_title">Nieuw API-token</string>
     <string name="automation_name_label">Naam</string>
