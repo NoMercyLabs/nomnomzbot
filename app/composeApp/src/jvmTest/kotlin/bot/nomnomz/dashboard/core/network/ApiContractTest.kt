@@ -50,6 +50,7 @@ class ApiContractTest {
             SystemChecks.serializer() to "SystemChecks",
             SystemStatus.serializer() to "SystemStatusDto",
             SetupStep.serializer() to "SetupStepDto",
+            NowPlaying.serializer() to "NowPlayingDto",
             SetupField.serializer() to "SetupFieldDto",
             SetupWizard.serializer() to "SetupWizardDto",
             SetupAction.serializer() to "SetupActionDto",

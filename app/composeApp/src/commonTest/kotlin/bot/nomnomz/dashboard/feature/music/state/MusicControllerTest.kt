@@ -292,6 +292,81 @@ class MusicControllerTest {
     }
 
     @Test
+    fun load_carries_the_real_shuffle_and_repeat_state_to_the_ready_state() = runTest {
+        // The remote controls render the player's actual shuffle/repeat — so the snapshot must carry them
+        // through to Ready verbatim (not a fabricated default). This is what lets the Switch show the truth.
+        val controller =
+            MusicController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeMusicApi(
+                    ApiResult.Ok(
+                        MusicSnapshot(
+                            nowPlaying =
+                                NowPlaying(
+                                    trackName = "A",
+                                    isPlaying = true,
+                                    provider = "spotify",
+                                    shuffleState = true,
+                                    repeatState = "track",
+                                )
+                        )
+                    )
+                ),
+            )
+
+        controller.load()
+
+        val nowPlaying: NowPlaying =
+            assertNotNull((controller.state.value as MusicState.Ready).nowPlaying)
+        assertTrue(nowPlaying.shuffleState)
+        assertEquals("track", nowPlaying.repeatState)
+    }
+
+    @Test
+    fun set_shuffle_can_turn_it_off_and_reloads() = runTest {
+        // The bug: the button could only ever send shuffle=true. Prove the control can send FALSE (turn it
+        // off) and that a successful toggle reloads so the Switch settles on the real post-write state.
+        val on =
+            MusicSnapshot(
+                nowPlaying = NowPlaying(trackName = "A", provider = "spotify", shuffleState = true)
+            )
+        val off =
+            MusicSnapshot(
+                nowPlaying = NowPlaying(trackName = "A", provider = "spotify", shuffleState = false)
+            )
+        val musicApi = FakeMusicApi(snapshots = listOf(ApiResult.Ok(on), ApiResult.Ok(off)))
+        val controller = MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
+        controller.load()
+
+        controller.setShuffle(false)
+
+        // It sent the OFF value (not a hardcoded true) for the resolved channel, then reloaded.
+        assertEquals(listOf("ch1" to false), musicApi.shuffleCalls)
+        assertEquals(2, musicApi.queueCalls)
+        assertFalse((controller.state.value as MusicState.Ready).nowPlaying?.shuffleState ?: true)
+    }
+
+    @Test
+    fun set_repeat_sends_the_chosen_mode_and_reloads() = runTest {
+        val musicApi =
+            FakeMusicApi(
+                snapshots =
+                    listOf(
+                        ApiResult.Ok(
+                            MusicSnapshot(nowPlaying = NowPlaying(trackName = "A", provider = "spotify"))
+                        )
+                    )
+            )
+        val controller = MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
+        controller.load()
+
+        controller.setRepeat("context")
+
+        assertEquals(listOf("ch1" to "context"), musicApi.repeatCalls)
+        assertEquals(2, musicApi.queueCalls)
+    }
+
+    @Test
     fun load_surfaces_the_blocked_track_page_on_the_ready_state() = runTest {
         val blocked =
             BlockedTrackPage(
@@ -452,6 +527,8 @@ private class FakeMusicApi(
     val blockedReads: MutableList<Int> = mutableListOf()
     val blockCalls: MutableList<BlockTrackBody> = mutableListOf()
     val unblockCalls: MutableList<String> = mutableListOf()
+    val shuffleCalls: MutableList<Pair<String, Boolean>> = mutableListOf()
+    val repeatCalls: MutableList<Pair<String, String>> = mutableListOf()
 
     override suspend fun queue(channelId: String): ApiResult<MusicSnapshot> {
         // Walk through the configured sequence; the last entry repeats once the script runs out.
@@ -493,9 +570,15 @@ private class FakeMusicApi(
 
     override suspend fun seek(channelId: String, positionMs: Int): ApiResult<Unit> = ApiResult.Ok(Unit)
 
-    override suspend fun setShuffle(channelId: String, enabled: Boolean): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun setShuffle(channelId: String, enabled: Boolean): ApiResult<Unit> {
+        shuffleCalls.add(channelId to enabled)
+        return controlResult
+    }
 
-    override suspend fun setRepeat(channelId: String, mode: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun setRepeat(channelId: String, mode: String): ApiResult<Unit> {
+        repeatCalls.add(channelId to mode)
+        return controlResult
+    }
 
     override suspend fun transferPlayback(channelId: String, deviceId: String, play: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)

@@ -192,6 +192,10 @@ data class NowPlaying(
     val volume: Int = 0,
     val requestedBy: String? = null,
     val provider: String = "",
+    // The live player toggles the remote controls render (backend NowPlayingDto): shuffle on/off, and the
+    // repeat mode ("off" | "track" | "context"). false/"off" on providers that do not report them.
+    val shuffleState: Boolean = false,
+    val repeatState: String = "off",
 )
 
 /**

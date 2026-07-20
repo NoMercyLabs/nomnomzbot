@@ -29,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Badge as DsBadge
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
+import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
@@ -351,6 +352,8 @@ private fun ReadyContent(
                 devices = devices,
                 playlists = playlists,
                 manage = manage,
+                shuffleOn = nowPlaying?.shuffleState ?: false,
+                repeatMode = nowPlaying?.repeatState ?: "off",
                 onSetShuffle = onSetShuffle,
                 onSetRepeat = onSetRepeat,
                 onTransfer = onTransfer,
@@ -1016,6 +1019,8 @@ private fun RemoteControlsSection(
     devices: List<MusicDevice>,
     playlists: List<MusicPlaylist>,
     manage: ManageDecision,
+    shuffleOn: Boolean,
+    repeatMode: String,
     onSetShuffle: (Boolean) -> Unit,
     onSetRepeat: (String) -> Unit,
     onTransfer: (deviceId: String) -> Unit,
@@ -1033,33 +1038,40 @@ private fun RemoteControlsSection(
             modifier = Modifier.padding(horizontal = spacing.s1),
         )
 
-        // Shuffle / repeat quick-actions
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            Button(
-                onClick = { if (manage.isAllowed) onSetShuffle(true) },
-                enabled = manage.isAllowed,
+        // Shuffle toggle — reflects the live player state and FLIPS it (not the old one-way "always on"):
+        // the Switch shows whether shuffle is on and a tap sends the opposite. control() reloads on success,
+        // so the Switch settles on the real post-write state.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.music_shuffle_label),
+                style = typography.sm,
+                color = tokens.cardForeground,
                 modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    text = stringResource(Res.string.music_shuffle_label),
-                    style = typography.sm,
-                    color = tokens.secondaryForeground,
-                )
-            }
+            )
+            Switch(
+                checked = shuffleOn,
+                onCheckedChange = { enabled -> if (manage.isAllowed) onSetShuffle(enabled) },
+                enabled = manage.isAllowed,
+            )
+        }
+        // Repeat mode — the ACTIVE mode is highlighted (off | track | context), so the operator can see and
+        // change what the player is doing instead of firing blind buttons.
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             listOf(
                 "off" to Res.string.music_repeat_off,
                 "track" to Res.string.music_repeat_track,
                 "context" to Res.string.music_repeat_context,
             ).forEach { (mode, labelRes) ->
-                Button(
-                    onClick = { if (manage.isAllowed) onSetRepeat(mode) },
+                Badge(
+                    selected = repeatMode == mode,
                     enabled = manage.isAllowed,
+                    onClick = { onSetRepeat(mode) },
                 ) {
-                    Text(
-                        text = stringResource(labelRes),
-                        style = typography.sm,
-                        color = tokens.secondaryForeground,
-                    )
+                    Text(text = stringResource(labelRes), maxLines = 1)
                 }
             }
         }
