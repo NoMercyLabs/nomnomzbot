@@ -476,7 +476,8 @@ class AppGraph {
     val songRequestsController: SongRequestsController =
         SongRequestsController(channelsApi = channelsApi, songRequestsApi = songRequestsApi)
 
-    val ttsController: TtsController = TtsController(channelsApi = channelsApi, ttsApi = ttsApi)
+    val ttsController: TtsController =
+        TtsController(channelsApi = channelsApi, ttsApi = ttsApi, communityApi = communityApi)
     val ttsQueueController: TtsQueueController =
         TtsQueueController(channelsApi = channelsApi, ttsApi = ttsApi)
 

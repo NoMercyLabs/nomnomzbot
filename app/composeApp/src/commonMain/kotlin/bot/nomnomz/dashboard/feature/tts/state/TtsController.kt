@@ -10,9 +10,11 @@
 
 package bot.nomnomz.dashboard.feature.tts.state
 
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
@@ -23,6 +25,7 @@ import bot.nomnomz.dashboard.core.network.TtsVoice
 import bot.nomnomz.dashboard.core.network.TtsVoicePage
 import bot.nomnomz.dashboard.core.network.UpsertTtsLexiconEntryBody
 import bot.nomnomz.dashboard.core.network.UserTtsVoice
+import bot.nomnomz.dashboard.core.network.ViewerOption
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +37,9 @@ import kotlinx.coroutines.flow.asStateFlow
 class TtsController(
     private val channelsApi: ChannelsApi,
     private val ttsApi: TtsApi,
+    // Optional viewer-search source for the per-viewer voice picker. Nullable so the state-holder tests construct
+    // the controller without it (they don't exercise the picker); production wires the real one.
+    private val communityApi: CommunityApi? = null,
 ) {
     private val _state: MutableStateFlow<TtsState> = MutableStateFlow(TtsState.Loading)
 
@@ -42,6 +48,20 @@ class TtsController(
 
     /** The channel resolved by the last successful [load]; [save] targets it without re-resolving. */
     private var channelId: String? = null
+
+    /**
+     * Autocomplete over the channel's viewers (for the per-viewer voice override picker) — resolves against this
+     * page's own channel so it works whether or not the Community page was visited. Empty until [load] resolves
+     * the channel, or on failure.
+     */
+    suspend fun searchViewers(query: String): List<PickerOption> {
+        val channel: String = channelId ?: return emptyList()
+        val api: CommunityApi = communityApi ?: return emptyList()
+        return when (val result: ApiResult<List<ViewerOption>> = api.searchViewers(channel, query)) {
+            is ApiResult.Ok -> result.value.map { PickerOption(id = it.id, label = it.label, sublabel = it.subLabel) }
+            is ApiResult.Failure -> emptyList()
+        }
+    }
 
     /** Resolve the active channel, then load its TTS configuration. */
     suspend fun load() {

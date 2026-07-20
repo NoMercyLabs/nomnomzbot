@@ -27,6 +27,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
+import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
+import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.RevealableSecretField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import androidx.compose.material3.Text
@@ -235,6 +238,7 @@ fun TtsScreen(
                     queueManage = queueManage,
                     onSave = { edited -> scope.launch { controller.save(edited) } },
                     onTestSpeak = { voiceId, text -> scope.launch { controller.testSpeak(voiceId, text) } },
+                    searchViewers = { query -> controller.searchViewers(query) },
                     onLookupViewerVoice = { userId -> scope.launch { controller.loadUserVoice(userId) } },
                     onAssignViewerVoice = { userId, voiceId ->
                         scope.launch { controller.setUserVoice(userId, voiceId) }
@@ -295,6 +299,7 @@ private fun ReadyContent(
     queueManage: ManageDecision,
     onSave: (TtsConfig) -> Unit,
     onTestSpeak: (voiceId: String, text: String) -> Unit,
+    searchViewers: suspend (query: String) -> List<PickerOption>,
     onLookupViewerVoice: (userId: String) -> Unit,
     onAssignViewerVoice: (userId: String, voiceId: String) -> Unit,
     onClearViewerVoice: (userId: String) -> Unit,
@@ -434,6 +439,7 @@ private fun ReadyContent(
             voices = state.voices,
             viewerVoice = state.viewerVoice,
             manage = manage,
+            searchViewers = searchViewers,
             onLookup = onLookupViewerVoice,
             onAssign = onAssignViewerVoice,
             onClear = onClearViewerVoice,
@@ -1066,6 +1072,7 @@ private fun ViewerVoiceSection(
     voices: List<TtsVoice>,
     viewerVoice: ViewerVoiceState?,
     manage: ManageDecision,
+    searchViewers: suspend (query: String) -> List<PickerOption>,
     onLookup: (userId: String) -> Unit,
     onAssign: (userId: String, voiceId: String) -> Unit,
     onClear: (userId: String) -> Unit,
@@ -1074,7 +1081,7 @@ private fun ViewerVoiceSection(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    var viewerId: String by remember { mutableStateOf("") }
+    var picked: PickerRef? by remember { mutableStateOf(null) }
     // The voice picked for this viewer — re-seeded from their current override each time a fresh lookup lands, so
     // the picker starts on the voice they already have (or blank when they use the default).
     var pickedVoiceId: String by remember(viewerVoice?.userId, viewerVoice?.currentVoiceId) {
@@ -1097,23 +1104,20 @@ private fun ViewerVoiceSection(
                 style = typography.sm,
                 color = tokens.mutedForeground,
             )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AppTextField(
-                    value = viewerId,
-                    onValueChange = { viewerId = it },
-                    label = stringResource(Res.string.tts_viewer_voice_id_label),
-                    modifier = Modifier.weight(1f),
-                )
-                Button(
-                    onClick = { onLookup(viewerId.trim()) },
-                    enabled = viewerId.isNotBlank() && viewerVoice?.busy != true,
-                ) {
-                    Text(stringResource(Res.string.tts_viewer_voice_lookup))
-                }
-            }
+            // Pick the viewer by search (autocomplete), not a raw Twitch id. Selecting one immediately looks up
+            // their current voice override — no separate lookup button.
+            SearchPickerField(
+                search = searchViewers,
+                selected = picked,
+                onSelect = { ref ->
+                    picked = ref
+                    onLookup(ref.id)
+                },
+                onClear = { picked = null },
+                label = stringResource(Res.string.tts_viewer_voice_id_label),
+                enabled = viewerVoice?.busy != true,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             viewerVoice?.let { vv ->
                 vv.error?.let { detail ->
