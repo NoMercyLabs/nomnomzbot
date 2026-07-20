@@ -39,6 +39,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
+import bot.nomnomz.dashboard.core.media.EmojiText
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChatMessage
@@ -225,7 +226,10 @@ private fun MultiChatRow(message: ChatMessage, channelName: String?) {
             color = nameColor,
             maxLines = 1,
         )
-        Text(
+        // Render unicode emoji as images (not tofu), matching the rest of the app. NOTE: this multi-channel
+        // feed still shows Twitch EMOTE codes as text rather than emote images — the primary chat feed renders
+        // emote fragments; sharing that fragment renderer here is a separate follow-up.
+        EmojiText(
             text = message.message,
             style = typography.sm,
             color = tokens.cardForeground,
