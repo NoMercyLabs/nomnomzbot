@@ -42,7 +42,11 @@ interface EconomyApi {
     suspend fun leaderboard(channelId: String, top: Int): ApiResult<List<LeaderboardEntry>>
 
     /** The channel's currency accounts — viewer balances + lifetime totals. First page only here. */
-    suspend fun accounts(channelId: String): ApiResult<List<CurrencyAccountSummary>>
+    suspend fun accounts(
+        channelId: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<PaginatedEnvelope<CurrencyAccountSummary>>
 
     /** The channel's earning rules — how viewers earn currency (per source). The full set, read-only here. */
     suspend fun earningRules(channelId: String): ApiResult<List<EarningRule>>
@@ -181,14 +185,14 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
     }
 
     // Flat PaginatedResponse like the other lists — read with getDirect. First page only; the pager layers later.
-    override suspend fun accounts(channelId: String): ApiResult<List<CurrencyAccountSummary>> =
-        when (
-            val page: ApiResult<PaginatedEnvelope<CurrencyAccountSummary>> =
-                client.getDirect("api/v1/channels/$channelId/economy/accounts?page=1&pageSize=25")
-        ) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+    override suspend fun accounts(
+        channelId: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<PaginatedEnvelope<CurrencyAccountSummary>> =
+        client.getDirect(
+            "api/v1/channels/$channelId/economy/accounts?page=$page&pageSize=$pageSize"
+        )
 
     // StatusResponseDto envelope wrapping the rule list (ResultResponse over a Result<list>) — getEnvelope reads
     // the `data` list directly, exactly like the leaderboard configs.

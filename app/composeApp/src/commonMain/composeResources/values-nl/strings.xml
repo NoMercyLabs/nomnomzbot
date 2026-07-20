@@ -1052,6 +1052,9 @@
     <string name="economy_leaderboard_row_description">#%1$d, %2$s, %3$s</string>
     <string name="economy_accounts_title">Accounts</string>
     <string name="economy_accounts_empty">Nog geen accounts</string>
+    <string name="economy_accounts_prev">Vorige</string>
+    <string name="economy_accounts_next">Volgende</string>
+    <string name="economy_accounts_page">Pagina %1$d</string>
     <string name="economy_accounts_row_description">%1$s, saldo %2$d</string>
     <string name="economy_account_frozen">Bevroren</string>
     <string name="economy_account_freeze">Bevriezen</string>

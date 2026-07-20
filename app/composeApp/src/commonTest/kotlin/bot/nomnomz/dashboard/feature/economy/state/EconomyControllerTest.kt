@@ -22,6 +22,7 @@ import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.AdminJarContributeBody
 import bot.nomnomz.dashboard.core.network.AdminJarWithdrawBody
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
+import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.CurrencyLedgerEntry
 import bot.nomnomz.dashboard.core.network.EarningRule
@@ -40,6 +41,7 @@ import bot.nomnomz.dashboard.core.network.UsersApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
@@ -100,14 +102,17 @@ class EconomyControllerTest {
                 leaderboardResult = ApiResult.Ok(leaderboard),
                 accountsResult =
                     ApiResult.Ok(
-                        listOf(
-                            CurrencyAccountSummary(
-                                id = "a1",
-                                viewerTwitchUserId = "39863651",
-                                balance = 1200,
-                                lifetimeEarned = 5000,
-                                isFrozen = false,
-                            )
+                        PaginatedEnvelope(
+                            data =
+                                listOf(
+                                    CurrencyAccountSummary(
+                                        id = "a1",
+                                        viewerTwitchUserId = "39863651",
+                                        balance = 1200,
+                                        lifetimeEarned = 5000,
+                                        isFrozen = false,
+                                    )
+                                )
                         )
                     ),
             )
@@ -214,14 +219,17 @@ class EconomyControllerTest {
                 leaderboardResult = ApiResult.Ok(leaderboard),
                 accountsResult =
                     ApiResult.Ok(
-                        listOf(
-                            CurrencyAccountSummary(
-                                id = "a1",
-                                viewerUserId = "v1",
-                                viewerTwitchUserId = "39863651",
-                                balance = 1200,
-                                isFrozen = false,
-                            )
+                        PaginatedEnvelope(
+                            data =
+                                listOf(
+                                    CurrencyAccountSummary(
+                                        id = "a1",
+                                        viewerUserId = "v1",
+                                        viewerTwitchUserId = "39863651",
+                                        balance = 1200,
+                                        isFrozen = false,
+                                    )
+                                )
                         )
                     ),
             )
@@ -233,6 +241,63 @@ class EconomyControllerTest {
 
         assertEquals("v1" to true, economyApi.lastFreeze) // addressed by the account's viewerUserId + the flag
         assertTrue(controller.state.value is EconomyState.Ready) // reloaded; page intact
+    }
+
+    @Test
+    fun accounts_paging_next_loads_the_following_page_and_prev_goes_back() = runTest {
+        // Accounts past the first page must be reachable — freeze / adjust / ledger live only on the loaded rows.
+        // Page 1 reports more; Next loads page 2's rows; Next at the end is a no-op; Prev returns to page 1.
+        val economyApi =
+            FakeEconomyApi(
+                configResult = ApiResult.Ok(loadedConfig),
+                leaderboardResult = ApiResult.Ok(emptyList()),
+                accountsByPage =
+                    mapOf(
+                        1 to
+                            ApiResult.Ok(
+                                PaginatedEnvelope(
+                                    data = listOf(CurrencyAccountSummary(id = "a1", viewerTwitchUserId = "1")),
+                                    hasMore = true,
+                                    nextPage = 2,
+                                )
+                            ),
+                        2 to
+                            ApiResult.Ok(
+                                PaginatedEnvelope(
+                                    data = listOf(CurrencyAccountSummary(id = "a26", viewerTwitchUserId = "26")),
+                                    hasMore = false,
+                                )
+                            ),
+                    ),
+            )
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
+        controller.load()
+
+        // Page 1 loaded, with more available.
+        var ready: EconomyState.Ready = controller.state.value as EconomyState.Ready
+        assertEquals(1, ready.accountsPage)
+        assertTrue(ready.accountsHasMore)
+        assertEquals(listOf("1"), ready.accounts.map { it.viewerTwitchUserId })
+
+        controller.nextAccountsPage()
+        ready = controller.state.value as EconomyState.Ready
+        assertEquals(2, ready.accountsPage)
+        assertFalse(ready.accountsHasMore)
+        assertEquals(listOf("26"), ready.accounts.map { it.viewerTwitchUserId })
+
+        // At the last page, Next is a no-op — no page 3 is requested.
+        controller.nextAccountsPage()
+        assertEquals(2, (controller.state.value as EconomyState.Ready).accountsPage)
+
+        // Prev returns to page 1's rows.
+        controller.prevAccountsPage()
+        ready = controller.state.value as EconomyState.Ready
+        assertEquals(1, ready.accountsPage)
+        assertEquals(listOf("1"), ready.accounts.map { it.viewerTwitchUserId })
+
+        // Exactly the pages walked: 1 (load), 2 (next), 1 (prev) — Next-at-end asked for nothing.
+        assertEquals(listOf(1, 2, 1), economyApi.accountsPagesRequested)
     }
 
     @Test
@@ -475,7 +540,10 @@ private class FakeEconomyApi(
     private val configResult: ApiResult<CurrencyConfig?>,
     private val leaderboardResult: ApiResult<List<LeaderboardEntry>>,
     private val updateResult: ApiResult<CurrencyConfig> = ApiResult.Ok(CurrencyConfig()),
-    private val accountsResult: ApiResult<List<CurrencyAccountSummary>> = ApiResult.Ok(emptyList()),
+    private val accountsResult: ApiResult<PaginatedEnvelope<CurrencyAccountSummary>> =
+        ApiResult.Ok(PaginatedEnvelope()),
+    // Per-page overrides for the pagination test; any page not listed falls back to [accountsResult].
+    private val accountsByPage: Map<Int, ApiResult<PaginatedEnvelope<CurrencyAccountSummary>>> = emptyMap(),
     private val earningRulesResult: ApiResult<List<EarningRule>> = ApiResult.Ok(emptyList()),
     private val catalogResult: ApiResult<List<CatalogItem>> = ApiResult.Ok(emptyList()),
 ) : EconomyApi {
@@ -507,8 +575,16 @@ private class FakeEconomyApi(
         return leaderboardResult
     }
 
-    override suspend fun accounts(channelId: String): ApiResult<List<CurrencyAccountSummary>> =
-        accountsResult
+    val accountsPagesRequested: MutableList<Int> = mutableListOf()
+
+    override suspend fun accounts(
+        channelId: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<PaginatedEnvelope<CurrencyAccountSummary>> {
+        accountsPagesRequested.add(page)
+        return accountsByPage[page] ?: accountsResult
+    }
 
     override suspend fun earningRules(channelId: String): ApiResult<List<EarningRule>> =
         earningRulesResult

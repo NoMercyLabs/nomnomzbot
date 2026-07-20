@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
+import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.AdminJarContributeBody
 import bot.nomnomz.dashboard.core.network.AdminJarWithdrawBody
 import bot.nomnomz.dashboard.core.network.InviteChannelBody
@@ -95,13 +96,18 @@ class EconomyController(
                 is ApiResult.Ok -> result.value
             }
 
-        // The account-admin list (viewer balances). A failure here must NOT blank the page — config + leaderboard
-        // loaded fine — so it degrades to an empty list rather than erroring the whole screen.
-        val accounts: List<CurrencyAccountSummary> =
-            when (val result: ApiResult<List<CurrencyAccountSummary>> = economyApi.accounts(channel.id)) {
-                is ApiResult.Failure -> emptyList()
+        // Page 1 of the account-admin list (viewer balances), paginated so accounts past the first page stay
+        // reachable (freeze/adjust/ledger only exist on the loaded rows). A failure here must NOT blank the page —
+        // config + leaderboard loaded fine — so it degrades to an empty page rather than erroring the screen.
+        val accountsEnvelope: PaginatedEnvelope<CurrencyAccountSummary> =
+            when (
+                val result: ApiResult<PaginatedEnvelope<CurrencyAccountSummary>> =
+                    economyApi.accounts(channel.id, 1, AccountsPageSize)
+            ) {
+                is ApiResult.Failure -> PaginatedEnvelope()
                 is ApiResult.Ok -> result.value
             }
+        val accounts: List<CurrencyAccountSummary> = accountsEnvelope.data
 
         // The earning rules (how viewers earn). Same resilience contract — a failure degrades to an empty list
         // rather than erroring the whole page.
@@ -140,11 +146,45 @@ class EconomyController(
                 configured = config != null,
                 leaderboard = leaderboard,
                 accounts = accounts,
+                accountsPage = 1,
+                accountsHasMore = accountsEnvelope.hasMore,
                 earningRules = earningRules,
                 catalog = catalog,
                 savingsJars = savingsJars,
                 catalogPurchases = catalogPurchases,
             )
+    }
+
+    /** Load an accounts page (viewer balances), replacing only the accounts slice of the Ready state so the
+     *  freeze/adjust/ledger actions on the loaded rows reach accounts beyond the first page. Clamped to page ≥ 1. */
+    suspend fun loadAccountsPage(page: Int) {
+        val channel: String = channelId ?: return
+        val current: EconomyState.Ready = _state.value as? EconomyState.Ready ?: return
+        val target: Int = page.coerceAtLeast(1)
+        when (
+            val result: ApiResult<PaginatedEnvelope<CurrencyAccountSummary>> =
+                economyApi.accounts(channel, target, AccountsPageSize)
+        ) {
+            is ApiResult.Ok ->
+                _state.value =
+                    current.copy(
+                        accounts = result.value.data,
+                        accountsPage = target,
+                        accountsHasMore = result.value.hasMore,
+                    )
+            is ApiResult.Failure -> _state.value = current.copy(saveError = result.error.message)
+        }
+    }
+
+    /** Next / previous accounts page. No-ops past the ends (next only when [Ready.accountsHasMore]). */
+    suspend fun nextAccountsPage() {
+        val current: EconomyState.Ready = _state.value as? EconomyState.Ready ?: return
+        if (current.accountsHasMore) loadAccountsPage(current.accountsPage + 1)
+    }
+
+    suspend fun prevAccountsPage() {
+        val current: EconomyState.Ready = _state.value as? EconomyState.Ready ?: return
+        if (current.accountsPage > 1) loadAccountsPage(current.accountsPage - 1)
     }
 
     /**
@@ -430,6 +470,9 @@ class EconomyController(
     private companion object {
         // The top-holders window the Economy page surfaces — a fixed, bounded read (the backend caps it too).
         const val LEADERBOARD_TOP: Int = 25
+
+        // Account-admin rows per page. Prev/Next walk the pages so viewer balances past the first stay reachable.
+        const val AccountsPageSize: Int = 25
     }
 }
 
@@ -448,6 +491,10 @@ sealed interface EconomyState {
         val configured: Boolean,
         val leaderboard: List<LeaderboardEntry>,
         val accounts: List<CurrencyAccountSummary> = emptyList(),
+        // The account-admin list is paginated (page ≥ 1); [accountsHasMore] gates the Next control so viewer
+        // balances past the first page — and their freeze/adjust/ledger actions — are reachable.
+        val accountsPage: Int = 1,
+        val accountsHasMore: Boolean = false,
         val earningRules: List<EarningRule> = emptyList(),
         val catalog: List<CatalogItem> = emptyList(),
         val savingsJars: List<SavingsJar> = emptyList(),

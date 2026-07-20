@@ -104,6 +104,9 @@ import nomnomzbot.composeapp.generated.resources.economy_account_frozen
 import nomnomzbot.composeapp.generated.resources.economy_account_unfreeze
 import nomnomzbot.composeapp.generated.resources.economy_account_unfreeze_action
 import nomnomzbot.composeapp.generated.resources.economy_accounts_empty
+import nomnomzbot.composeapp.generated.resources.economy_accounts_next
+import nomnomzbot.composeapp.generated.resources.economy_accounts_page
+import nomnomzbot.composeapp.generated.resources.economy_accounts_prev
 import nomnomzbot.composeapp.generated.resources.economy_accounts_row_description
 import nomnomzbot.composeapp.generated.resources.economy_accounts_title
 import nomnomzbot.composeapp.generated.resources.economy_catalog_disable
@@ -313,6 +316,8 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
                     onFreeze = { viewerUserId, frozen ->
                         scope.launch { controller.freezeAccount(viewerUserId, frozen) }
                     },
+                    onAccountsPrevPage = { scope.launch { controller.prevAccountsPage() } },
+                    onAccountsNextPage = { scope.launch { controller.nextAccountsPage() } },
                     onToggleCatalog = { itemId, enabled ->
                         scope.launch { controller.setCatalogItemEnabled(itemId, enabled) }
                     },
@@ -364,6 +369,8 @@ private fun ReadyContent(
     payoutRules: ManageDecision,
     onSave: (CurrencyConfig) -> Unit,
     onFreeze: (String, Boolean) -> Unit,
+    onAccountsPrevPage: () -> Unit,
+    onAccountsNextPage: () -> Unit,
     onToggleCatalog: (String, Boolean) -> Unit,
     onCreateCatalogItem: (CreateCatalogItemBody) -> Unit,
     onDeleteCatalogItem: (String) -> Unit,
@@ -495,6 +502,10 @@ private fun ReadyContent(
 
         AccountsSection(
             accounts = state.accounts,
+            page = state.accountsPage,
+            hasMore = state.accountsHasMore,
+            onPrevPage = onAccountsPrevPage,
+            onNextPage = onAccountsNextPage,
             manage = config,
             onFreeze = onFreeze,
             onAdjust = onAdjustAccount,
@@ -926,6 +937,10 @@ private fun LeaderboardRow(entry: LeaderboardEntry) {
 @Composable
 private fun AccountsSection(
     accounts: List<CurrencyAccountSummary>,
+    page: Int,
+    hasMore: Boolean,
+    onPrevPage: () -> Unit,
+    onNextPage: () -> Unit,
     manage: ManageDecision,
     onFreeze: (String, Boolean) -> Unit,
     onAdjust: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
@@ -981,6 +996,28 @@ private fun AccountsSection(
                         Separator()
                     }
                 }
+            }
+        }
+    }
+
+    // Pager — Prev/Next walk the account pages so viewer balances past the first page (and their freeze /
+    // adjust / ledger actions, which only exist on the loaded rows) are reachable.
+    if (page > 1 || hasMore) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            TextButton(onClick = onPrevPage, enabled = page > 1) {
+                Text(stringResource(Res.string.economy_accounts_prev))
+            }
+            Text(
+                text = stringResource(Res.string.economy_accounts_page, page),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+            TextButton(onClick = onNextPage, enabled = hasMore) {
+                Text(stringResource(Res.string.economy_accounts_next))
             }
         }
     }

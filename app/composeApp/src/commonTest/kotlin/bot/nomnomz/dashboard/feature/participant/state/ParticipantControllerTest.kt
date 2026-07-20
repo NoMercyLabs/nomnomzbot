@@ -21,6 +21,7 @@ import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.CurrencyAccount
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
+import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.AdminJarContributeBody
 import bot.nomnomz.dashboard.core.network.AdminJarWithdrawBody
 import bot.nomnomz.dashboard.core.network.CurrencyLedgerEntry
@@ -589,8 +590,11 @@ private class FakeEconomyApi(
         return ApiResult.Ok(leaderboard)
     }
 
-    override suspend fun accounts(channelId: String): ApiResult<List<CurrencyAccountSummary>> =
-        ApiResult.Ok(emptyList())
+    override suspend fun accounts(
+        channelId: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<PaginatedEnvelope<CurrencyAccountSummary>> = ApiResult.Ok(PaginatedEnvelope())
 
     override suspend fun earningRules(channelId: String): ApiResult<List<EarningRule>> =
         ApiResult.Ok(emptyList())
