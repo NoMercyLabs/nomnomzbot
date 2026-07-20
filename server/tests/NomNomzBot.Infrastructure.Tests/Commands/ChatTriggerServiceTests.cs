@@ -119,6 +119,33 @@ public sealed class ChatTriggerServiceTests
     }
 
     [Fact]
+    public async Task Update_clears_a_bound_pipeline_via_the_empty_guid_sentinel()
+    {
+        (ChatTriggerService service, _, _) = Build();
+        Guid id = (
+            await service.CreateAsync(
+                Tenant.ToString(),
+                new CreateChatTriggerRequest { Pattern = "combo", PipelineId = Guid.NewGuid() }
+            )
+        )
+            .Value
+            .Id;
+
+        // Switch the trigger back to a text response. The client sends Guid.Empty to CLEAR the pipeline — a null
+        // pipelineId is dropped by its explicitNulls=false serializer and would leave the old binding, so the
+        // pipeline would keep firing instead of the reply (PipelineId wins over Response on the domain entity).
+        Result<ChatTriggerDto> updated = await service.UpdateAsync(
+            Tenant.ToString(),
+            id,
+            new UpdateChatTriggerRequest { PipelineId = Guid.Empty, Response = "back to text" }
+        );
+
+        updated.IsSuccess.Should().BeTrue();
+        updated.Value.PipelineId.Should().BeNull("the empty sentinel unbinds the pipeline");
+        updated.Value.Response.Should().Be("back to text");
+    }
+
+    [Fact]
     public async Task Delete_removes_the_trigger_and_refreshes_the_cache()
     {
         (ChatTriggerService service, AuthDbContext db, IChannelRegistry registry) = Build();

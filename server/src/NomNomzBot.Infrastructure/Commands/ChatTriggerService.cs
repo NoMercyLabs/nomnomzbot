@@ -114,7 +114,13 @@ public sealed class ChatTriggerService : IChatTriggerService
         string pattern = request.Pattern?.Trim() ?? trigger.Pattern;
         string matchType = request.MatchType ?? trigger.MatchType;
         string? response = request.Response ?? trigger.Response;
-        Guid? pipelineId = request.PipelineId ?? trigger.PipelineId;
+        // Absent (null) leaves the binding unchanged; Guid.Empty clears it (switching back to a text response);
+        // a real id binds that pipeline. A null cannot mean "clear" — the client's explicitNulls=false serializer
+        // drops it — so the empty sentinel carries the unbind (matching RewardService's convention).
+        Guid? pipelineId =
+            !request.PipelineId.HasValue ? trigger.PipelineId
+            : request.PipelineId.Value == Guid.Empty ? null
+            : request.PipelineId.Value;
         Result invalid = Validate(pattern, matchType, response, pipelineId);
         if (invalid.IsFailure)
             return Result.Failure<ChatTriggerDto>(invalid.ErrorMessage!, invalid.ErrorCode);

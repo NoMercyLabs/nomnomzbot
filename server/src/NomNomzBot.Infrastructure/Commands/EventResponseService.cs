@@ -188,8 +188,12 @@ public class EventResponseService : IEventResponseService
                 entity.ResponseType = request.ResponseType;
             if (request.Message is not null)
                 entity.Message = request.Message;
+            // Absent leaves the binding unchanged; Guid.Empty clears it; a real id binds that pipeline (the
+            // sentinel convention RewardService uses — a null pipelineId is dropped by the client's
+            // explicitNulls=false serializer, so "clear" rides the empty sentinel, not a null).
             if (request.PipelineId.HasValue)
-                entity.PipelineId = request.PipelineId.Value;
+                entity.PipelineId =
+                    request.PipelineId.Value == Guid.Empty ? null : request.PipelineId.Value;
             if (request.Metadata is not null)
                 entity.MetadataJson = request.Metadata;
         }

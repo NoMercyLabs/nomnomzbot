@@ -194,8 +194,12 @@ public class TimerManagementService : ITimerManagementService
                 return variationsOk.ToTyped<TimerDto>();
             timer.Messages = request.Messages;
         }
+        // Absent leaves the binding unchanged; Guid.Empty clears it; a real id binds that pipeline (the same
+        // sentinel convention RewardService uses — a null pipelineId is dropped by the client's explicitNulls=false
+        // serializer, so "clear" cannot ride a null and needs the empty sentinel instead).
         if (request.PipelineId.HasValue)
-            timer.PipelineId = request.PipelineId.Value;
+            timer.PipelineId =
+                request.PipelineId.Value == Guid.Empty ? null : request.PipelineId.Value;
         if (request.IntervalMinutes.HasValue)
             timer.IntervalMinutes = request.IntervalMinutes.Value;
         if (request.MinChatActivity.HasValue)
