@@ -778,7 +778,7 @@ private fun QuickActionsCard(
         )
 
         activePoll?.let { poll ->
-            Text(
+            EmojiText(
                 text = stringResource(Res.string.home_live_ops_active_poll, poll.title),
                 style = typography.xs,
                 color = tokens.primary,
@@ -787,7 +787,7 @@ private fun QuickActionsCard(
             )
         }
         activePrediction?.let { prediction ->
-            Text(
+            EmojiText(
                 text = stringResource(Res.string.home_live_ops_active_prediction, prediction.title),
                 style = typography.xs,
                 color = tokens.ring,

@@ -52,6 +52,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
+import bot.nomnomz.dashboard.core.media.EmojiText
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
@@ -389,7 +390,7 @@ private fun QuoteRow(
                 color = tokens.mutedForeground,
                 maxLines = 1,
             )
-            Text(
+            EmojiText(
                 text = quote.text,
                 style = typography.base,
                 color = tokens.cardForeground,

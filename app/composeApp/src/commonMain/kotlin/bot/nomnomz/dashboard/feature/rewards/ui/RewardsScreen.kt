@@ -64,6 +64,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
+import bot.nomnomz.dashboard.core.media.EmojiText
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.RedemptionSummary
@@ -770,7 +771,7 @@ private fun RewardRow(
                 .clearAndSetSemantics { contentDescription = rowDescription },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
-            Text(
+            EmojiText(
                 text = reward.title,
                 style = typography.lg,
                 color = tokens.cardForeground,

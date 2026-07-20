@@ -34,6 +34,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
+import bot.nomnomz.dashboard.core.media.EmojiText
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ChatPoll
 import bot.nomnomz.dashboard.core.network.ChatPollOption
@@ -153,7 +154,7 @@ private fun OpenPollCard(poll: ChatPoll, onClose: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
+            EmojiText(
                 text = poll.question,
                 style = typography.base,
                 color = tokens.cardForeground,
@@ -186,7 +187,7 @@ private fun PollOptionBar(option: ChatPollOption, maxVotes: Int) {
             horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
+            EmojiText(
                 text = "${option.index}. ${option.label}",
                 style = typography.sm,
                 color = tokens.cardForeground,
@@ -242,7 +243,7 @@ private fun HistorySection(history: List<ChatPoll>) {
                     .padding(horizontal = spacing.s3, vertical = spacing.s2),
                 verticalArrangement = Arrangement.spacedBy(spacing.s1),
             ) {
-                Text(
+                EmojiText(
                     text = poll.question,
                     style = typography.sm,
                     color = tokens.cardForeground,
