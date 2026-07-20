@@ -109,12 +109,15 @@ class GamesController(
         val channel: String = channelId ?: return
         val current: GamesState = _state.value
         if (current !is GamesState.Ready) return
-        val active: GameSession? =
-            when (val r: ApiResult<GameSession> = gamesApi.activeSession(channel)) {
-                is ApiResult.Ok -> r.value
-                is ApiResult.Failure -> null
-            }
-        _state.value = current.copy(activeSession = active)
+        when (val r: ApiResult<GameSession> = gamesApi.activeSession(channel)) {
+            is ApiResult.Ok -> _state.value = current.copy(activeSession = r.value)
+            is ApiResult.Failure ->
+                // 404 = the round genuinely ended, so clear the card. Any OTHER failure (5xx / a network blip) is
+                // transient: keep the last known session. Nulling on a transient error would blank the live card
+                // AND — because the screen's poll loop is gated on the active status — stop polling until a full
+                // page reload, so a single dropped poll would freeze the active-round view mid-game.
+                if (r.error.status == 404) _state.value = current.copy(activeSession = null)
+        }
     }
 
     /** Start a round of [gameType]. Reloads on success (the active card appears); surfaces the error on failure. */

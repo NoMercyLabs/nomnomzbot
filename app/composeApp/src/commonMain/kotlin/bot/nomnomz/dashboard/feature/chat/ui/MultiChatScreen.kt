@@ -170,9 +170,11 @@ private fun ChannelPicker(
 @Composable
 private fun MergedFeed(messages: List<ChatMessage>, nameByChannel: Map<String, String>) {
     val spacing = LocalSpacing.current
-    // Auto-follow the tail as new lines arrive, like a live chat feed.
+    // Auto-follow the tail as new lines arrive, like a live chat feed. Key on the tail id as well as the size:
+    // the merged feed is capped (300), so a size-only key would freeze auto-follow once it fills — exactly on the
+    // busy multi-channel case this page exists for.
     val listState = rememberLazyListState()
-    LaunchedEffect(messages.size) {
+    LaunchedEffect(messages.size, messages.lastOrNull()?.id) {
         if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
     }
 

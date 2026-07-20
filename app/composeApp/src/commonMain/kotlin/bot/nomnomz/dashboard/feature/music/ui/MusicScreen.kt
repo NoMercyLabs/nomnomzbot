@@ -867,8 +867,10 @@ private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSa
         // Max queue / per-user fields
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
             AppTextField(
+                // Digits only: a stray non-digit makes Save send `toIntOrNull()` = null, which the partial-patch
+                // backend reads as "leave unchanged", so the edit silently vanishes on the next reload.
                 value = maxQueueSize,
-                onValueChange = { maxQueueSize = it },
+                onValueChange = { maxQueueSize = it.filter { c -> c.isDigit() } },
                 label = stringResource(Res.string.music_config_max_queue),
                 isError = false,
                 errorText = null,
@@ -876,7 +878,7 @@ private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSa
             )
             AppTextField(
                 value = maxPerUser,
-                onValueChange = { maxPerUser = it },
+                onValueChange = { maxPerUser = it.filter { c -> c.isDigit() } },
                 label = stringResource(Res.string.music_config_max_per_user),
                 isError = false,
                 errorText = null,

@@ -298,8 +298,10 @@ private fun MessageFeed(
     val typography = LocalTypography.current
 
     val listState = rememberLazyListState()
-    // Keep the newest line in view as chat arrives (the feed is oldest-first, so the bottom is newest).
-    LaunchedEffect(messages.size) {
+    // Keep the newest line in view as chat arrives (the feed is oldest-first, so the bottom is newest). Key on the
+    // tail id as well as the size: the buffer is capped (200), so once it fills `size` stops changing and a
+    // size-only key would freeze auto-follow — the mod would silently stop seeing new lines on a busy channel.
+    LaunchedEffect(messages.size, messages.lastOrNull()?.id) {
         if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
     }
 
