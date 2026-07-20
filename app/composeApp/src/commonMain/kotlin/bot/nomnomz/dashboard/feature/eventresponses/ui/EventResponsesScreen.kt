@@ -523,46 +523,43 @@ private fun VariableChips(variables: List<String>, onInsert: (String) -> Unit) {
 // is a pipeline id, the [CreateNewPipeline] sentinel, or blank (nothing chosen yet).
 @Composable
 private fun PipelineBindPicker(pipelines: List<PipelineSummary>, selected: String, onSelect: (String) -> Unit) {
-    var expanded: Boolean by remember { mutableStateOf(false) }
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val currentLabel: String =
-        when {
-            selected == CreateNewPipeline -> stringResource(Res.string.event_responses_dialog_pipeline_create_new)
-            else -> pipelines.firstOrNull { it.id == selected }?.name
-                ?: stringResource(Res.string.event_responses_dialog_pipeline_choose)
-        }
-
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
         Text(text = stringResource(Res.string.event_responses_dialog_pipeline_pick), style = typography.sm, color = tokens.foreground)
-        Box(modifier = Modifier.fillMaxWidth()) {
-            TextButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+        if (selected == CreateNewPipeline) {
+            // Create-new mode: the reference isn't an existing pipeline, so the search picker doesn't apply — show
+            // the mode is active with a way back to picking an existing pipeline.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+            ) {
                 Text(
-                    text = currentLabel,
-                    color = if (selected.isBlank()) tokens.mutedForeground else tokens.foreground,
+                    text = stringResource(Res.string.event_responses_dialog_pipeline_create_new),
+                    style = typography.sm,
+                    color = tokens.primary,
                     modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                pipelines.forEach { pipeline ->
-                    DropdownMenuItem(
-                        text = { Text(text = pipeline.name, color = tokens.popoverForeground) },
-                        onClick = { onSelect(pipeline.id); expanded = false },
-                    )
+                TextButton(onClick = { onSelect("") }) {
+                    Text(text = stringResource(Res.string.event_responses_dialog_pipeline_choose), color = tokens.primary)
                 }
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = stringResource(Res.string.event_responses_dialog_pipeline_create_new),
-                            color = tokens.primary,
-                        )
-                    },
-                    onClick = { onSelect(CreateNewPipeline); expanded = false },
-                )
+            }
+        } else {
+            // Pick an EXISTING pipeline through the shared search dropdown (a reference to another table)…
+            EntityPickerField(
+                items = pipelines,
+                selectedId = selected.ifBlank { null },
+                onSelect = { onSelect(it.orEmpty()) },
+                idOf = { it.id },
+                labelOf = { it.name },
+                placeholder = stringResource(Res.string.event_responses_dialog_pipeline_choose),
+            )
+            // …or switch to authoring a brand-new pipeline (the CreateNewPipeline sentinel drives the name field).
+            TextButton(onClick = { onSelect(CreateNewPipeline) }) {
+                Text(text = stringResource(Res.string.event_responses_dialog_pipeline_create_new), color = tokens.primary)
             }
         }
     }
