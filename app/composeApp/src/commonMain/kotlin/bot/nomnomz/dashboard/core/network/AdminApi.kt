@@ -131,6 +131,26 @@ data class AdminGrantTierRequest(
     val isInviteOnlyGrant: Boolean,
 )
 
+// ─── Impersonation (admin act-as) ────────────────────────────────────────────
+
+/**
+ * The minted act-as session — the server `ImpersonationTokenDto`: a short-lived [accessToken] for the target
+ * user, its [expiresAt], and the target [user]. The nested user is the backend `UserDto`; we reuse
+ * [UserSearchResult] (the contract-guarded `UserDto` map) rather than [AdminUser] — the latter's required
+ * `login`/`role`/`channelCount` are absent from `UserDto` and would fail deserialization. Only [displayName]
+ * is needed here (for the "Acting as …" banner).
+ */
+@Serializable
+data class ImpersonationPayload(
+    val accessToken: String,
+    val expiresAt: String,
+    val user: UserSearchResult,
+)
+
+/** Request body for [AdminApi.impersonate] — the audit justification the backend records for the act-as. */
+@Serializable
+data class ImpersonateBody(val justification: String)
+
 // ─── API interface + implementation ──────────────────────────────────────────
 
 interface AdminApi {
@@ -154,6 +174,9 @@ interface AdminApi {
     suspend fun revokeInviteCode(inviteCodeId: String): ApiResult<Unit>
     suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest): ApiResult<Unit>
     suspend fun grantFounderBadge(broadcasterId: String): ApiResult<Unit>
+
+    // Impersonation (admin act-as)
+    suspend fun impersonate(userId: String): ApiResult<ImpersonationPayload>
 }
 
 class AdminApiImpl(private val client: ApiClient) : AdminApi {
@@ -205,4 +228,15 @@ class AdminApiImpl(private val client: ApiClient) : AdminApi {
 
     override suspend fun grantFounderBadge(broadcasterId: String): ApiResult<Unit> =
         client.postUnit("api/v1/admin/billing/channels/$broadcasterId/grant-founder")
+
+    override suspend fun impersonate(userId: String): ApiResult<ImpersonationPayload> =
+        client.postEnvelope(
+            "api/v1/admin/users/$userId/impersonate",
+            ImpersonateBody(justification = IMPERSONATION_JUSTIFICATION),
+        )
+
+    private companion object {
+        // Recorded in the backend act-as audit trail (there is no per-call justification input in the panel).
+        const val IMPERSONATION_JUSTIFICATION: String = "Admin act-as from the platform dashboard."
+    }
 }

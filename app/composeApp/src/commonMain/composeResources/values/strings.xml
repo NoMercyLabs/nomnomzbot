@@ -210,6 +210,8 @@
     <string name="shell_reconnect_failed">Twitch reconnect failed. Try again.</string>
     <string name="shell_reconnect_retry">Try again</string>
     <string name="shell_reconnect_close">Dismiss</string>
+    <string name="shell_impersonation_banner">Acting as %1$s</string>
+    <string name="shell_impersonation_exit">Exit</string>
     <string name="shell_role_viewer">Viewer</string>
     <string name="viewer_surface_title">You're signed in as a viewer</string>
     <string name="viewer_surface_body">This account has no management role on this channel, so there's no dashboard to show. You can still take part from chat and the channel's public pages. If you should have access, ask the streamer to add you.</string>
@@ -2693,6 +2695,7 @@
     <string name="admin_channel_plan">Plan: %1$s</string>
     <string name="admin_user_role">Role: %1$s</string>
     <string name="admin_user_channels">Channels: %1$d</string>
+    <string name="admin_impersonate">Impersonate</string>
     <string name="admin_system_version">Version: %1$s</string>
     <string name="admin_system_memory">Memory: %1$d MB</string>
     <string name="admin_system_cpu">CPU: %1$.1f%%</string>

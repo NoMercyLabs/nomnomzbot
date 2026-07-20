@@ -243,6 +243,8 @@ class ApiContractTest {
             AdminTenantDetail.serializer() to "AdminTenantDetailDto",
             TenantAccessGrant.serializer() to "TenantAccessGrantDto",
             IamAuditEntry.serializer() to "IamAuditEntryDto",
+            // Admin act-as: the minted impersonation session (accessToken/expiresAt/user).
+            ImpersonationPayload.serializer() to "ImpersonationTokenDto",
             // OBS control (obs-control.md §4/§5): connection config + bridge + live state/scene/input DTOs and
             // the control request bodies.
             ObsConnection.serializer() to "ObsConnectionDto",

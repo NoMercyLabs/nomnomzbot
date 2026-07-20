@@ -371,6 +371,14 @@ fun ShellScreen(
         reconnectJob = reconnectScope.launch { graph.connectController.reconnect() }
     }
 
+    // Admin act-as exit: restore the operator's token and re-resolve identity/access/hubs back to them (the same
+    // re-resolve AdminController.impersonate runs, in reverse). Guarded by a job so a double-tap can't overlap.
+    var exitImpersonationJob: Job? by remember { mutableStateOf(null) }
+    val exitImpersonation: () -> Unit = {
+        exitImpersonationJob?.cancel()
+        exitImpersonationJob = reconnectScope.launch { graph.adminController.exitImpersonation() }
+    }
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(tokens.background)) {
         val compact: Boolean = maxWidth < CompactBreakpoint
 
@@ -464,6 +472,15 @@ fun ShellScreen(
                 graph.connectController.clearReconnectStatus()
             },
             onRetry = triggerReconnect,
+            modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
+        )
+
+        // Admin act-as banner — overlays the top of the shell while impersonating a user, on any page. It reads
+        // [SessionStore.impersonating] (NOT user.isAdmin, which is false while acting as a non-admin), so the Exit
+        // control is always reachable to return to the operator.
+        ImpersonationBanner(
+            sessionStore = graph.sessionStore,
+            onExit = exitImpersonation,
             modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
         )
 

@@ -25,6 +25,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
@@ -80,6 +82,7 @@ import nomnomzbot.composeapp.generated.resources.admin_grant_tier
 import nomnomzbot.composeapp.generated.resources.admin_health_degraded
 import nomnomzbot.composeapp.generated.resources.admin_health_down
 import nomnomzbot.composeapp.generated.resources.admin_health_ok
+import nomnomzbot.composeapp.generated.resources.admin_impersonate
 import nomnomzbot.composeapp.generated.resources.admin_invite_create
 import nomnomzbot.composeapp.generated.resources.admin_invite_grants_founder
 import nomnomzbot.composeapp.generated.resources.admin_invite_no_expiry
@@ -164,7 +167,7 @@ fun AdminScreen(controller: AdminController) {
         when (selectedTab) {
             0 -> OverviewTab(state = state)
             1 -> ChannelsTab(state = state)
-            2 -> UsersTab(state = state)
+            2 -> UsersTab(state = state, controller = controller)
             3 -> SystemTab(state = state)
             4 -> FeatureFlagsTab(state = state, controller = controller)
             5 -> BillingTab(state = state, controller = controller)
@@ -365,10 +368,13 @@ private fun ChannelsTab(state: AdminState) {
 }
 
 @Composable
-private fun UsersTab(state: AdminState) {
+private fun UsersTab(state: AdminState, controller: AdminController) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+    // The operator's own id — never offer "act as yourself".
+    val currentUserId: String? = controller.currentUserId
 
     Column(
         modifier = Modifier
@@ -394,11 +400,25 @@ private fun UsersTab(state: AdminState) {
                                 color = tokens.mutedForeground,
                             )
                         }
-                        Text(
-                            text = stringResource(Res.string.admin_user_channels, user.channelCount),
-                            style = typography.xs,
-                            color = tokens.mutedForeground,
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.admin_user_channels, user.channelCount),
+                                style = typography.xs,
+                                color = tokens.mutedForeground,
+                            )
+                            if (currentUserId == null || user.id != currentUserId) {
+                                Button(
+                                    onClick = { scope.launch { controller.impersonate(user.id) } },
+                                    variant = ButtonVariant.Outline,
+                                    size = ButtonSize.Sm,
+                                ) {
+                                    Text(text = stringResource(Res.string.admin_impersonate))
+                                }
+                            }
+                        }
                     }
                     if (index < state.users.lastIndex) {
                         Separator()

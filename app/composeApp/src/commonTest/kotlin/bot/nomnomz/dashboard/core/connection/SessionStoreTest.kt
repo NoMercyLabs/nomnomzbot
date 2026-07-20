@@ -90,6 +90,39 @@ class SessionStoreTest {
     }
 
     @Test
+    fun impersonation_swaps_the_active_token_then_restores_it_without_touching_custody() = runTest {
+        val vault = FakeTokenVault()
+        val store: SessionStore = SessionStore(vault, FakeProfileStore(), FakeChannelStore())
+        store.connect(profile, tokens)
+
+        // Enter act-as: the active bearer becomes the target's, the flag names them — and NOTHING persists
+        // (the vault still holds the operator's original token, so a relaunch never restores an act-as session).
+        store.beginImpersonation(targetAccessToken = "target-jwt", targetDisplayName = "Target User")
+
+        assertEquals("target-jwt", store.accessToken())
+        assertEquals("Target User", store.impersonating.value?.displayName)
+        assertEquals(tokens, vault.stored["profile-1"]) // custody untouched — only the in-memory token swapped
+
+        // Exit act-as: the operator's own token is restored and the flag clears.
+        store.endImpersonation()
+
+        assertEquals("jwt-access-token", store.accessToken())
+        assertNull(store.impersonating.value)
+    }
+
+    @Test
+    fun ending_impersonation_when_not_impersonating_is_a_no_op() = runTest {
+        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore(), FakeChannelStore())
+        store.connect(profile, tokens)
+
+        // A stray exit must never blank a real token (nothing was stashed to restore).
+        store.endImpersonation()
+
+        assertEquals("jwt-access-token", store.accessToken())
+        assertNull(store.impersonating.value)
+    }
+
+    @Test
     fun disconnect_clears_user_profile_and_vault_then_returns_to_connect() = runTest {
         val vault = FakeTokenVault()
         val profiles = FakeProfileStore()

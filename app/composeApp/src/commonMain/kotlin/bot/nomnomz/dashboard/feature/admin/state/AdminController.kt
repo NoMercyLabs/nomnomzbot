@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.admin.state
 
+import bot.nomnomz.dashboard.core.connection.SessionStore
+import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.network.AdminApi
 import bot.nomnomz.dashboard.core.network.AdminChannel
 import bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest
@@ -24,6 +26,9 @@ import bot.nomnomz.dashboard.core.network.AdminTenantDetail
 import bot.nomnomz.dashboard.core.network.AdminUser
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AssignRoleBody
+import bot.nomnomz.dashboard.core.network.AuthApi
+import bot.nomnomz.dashboard.core.network.CurrentUser
+import bot.nomnomz.dashboard.core.network.ImpersonationPayload
 import bot.nomnomz.dashboard.core.network.BeginTenantAccessBody
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
 import bot.nomnomz.dashboard.core.network.FeatureFlag
@@ -41,6 +46,8 @@ import bot.nomnomz.dashboard.core.realtime.AdminHubClient
 import bot.nomnomz.dashboard.core.realtime.AdminHubEvent
 import bot.nomnomz.dashboard.core.realtime.AdminLogEntry
 import bot.nomnomz.dashboard.core.realtime.AdminRegistryUpdate
+import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
+import bot.nomnomz.dashboard.feature.shell.state.ShellAccessController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -104,7 +111,17 @@ class AdminController(
     private val baseUrl: () -> String? = { null },
     private val accessToken: () -> String? = { null },
     private val refreshToken: (suspend () -> Boolean)? = null,
+    // Admin act-as (impersonation) collaborators. Nullable/defaulted so a bare test controller still builds; the
+    // AppGraph wires the real ones. [reconnectAll] re-opens the live hubs after the in-place token swap.
+    private val sessionStore: SessionStore? = null,
+    private val authApi: AuthApi? = null,
+    private val shellAccessController: ShellAccessController? = null,
+    private val channelSwitcherController: ChannelSwitcherController? = null,
+    private val reconnectAll: (suspend () -> Unit)? = null,
 ) {
+    /** The signed-in operator's own user id (for gating the Users tab so it never offers "act as yourself"). */
+    val currentUserId: String?
+        get() = sessionStore?.user?.value?.id
     private val _state: MutableStateFlow<AdminState> = MutableStateFlow(AdminState())
     val state: StateFlow<AdminState> = _state.asStateFlow()
 
@@ -392,8 +409,61 @@ class AdminController(
         }
     }
 
+    // ── Impersonation (admin act-as) ────────────────────────────────────────────
+
+    /**
+     * Act as [userId]: mint an impersonation token, swap the in-memory session onto it, and re-resolve the whole
+     * shell as that user — identity (`/me` → setUser), management access, the channel roster, and every live hub
+     * (via [reconnectAll], so the sockets re-handshake on the new token). The operator's own token is stashed in
+     * the [SessionStore] for [exitImpersonation] to restore. Failures surface on [AdminState.actionError].
+     */
+    suspend fun impersonate(userId: String) {
+        _state.value = _state.value.copy(actionError = null)
+        val payload: ImpersonationPayload =
+            when (val result: ApiResult<ImpersonationPayload> = api.impersonate(userId)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> {
+                    _state.value = _state.value.copy(actionError = result.error.message)
+                    return
+                }
+            }
+        sessionStore?.beginImpersonation(payload.accessToken, payload.user.displayName)
+        reResolveIdentity()
+    }
+
+    /** Leave act-as: restore the operator's token and re-resolve the shell back to the operator. */
+    suspend fun exitImpersonation() {
+        sessionStore?.endImpersonation()
+        reResolveIdentity()
+    }
+
+    // Re-read `/me` on the CURRENT (just-swapped) token → surface the new identity to the shell, re-resolve the
+    // caller's management access + channel roster for it, then re-open every live hub so realtime follows the new
+    // identity. Shared by [impersonate] (enter) and [exitImpersonation] (leave) — the same re-resolve, both ways.
+    private suspend fun reResolveIdentity() {
+        when (val me: ApiResult<CurrentUser>? = authApi?.me()) {
+            is ApiResult.Ok -> sessionStore?.setUser(me.value.toSessionUser())
+            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = me.error.message)
+            null -> Unit
+        }
+        shellAccessController?.load()
+        channelSwitcherController?.load()
+        reconnectAll?.invoke()
+    }
+
     private companion object {
         const val REGISTRY_CAP: Int = 50
         const val LOG_CAP: Int = 50
     }
 }
+
+// Mirrors ConnectController's CurrentUser→SessionUser projection (kept local to avoid coupling the admin panel to
+// the connect feature for a five-field copy). If a third caller appears, promote this to a shared mapper.
+private fun CurrentUser.toSessionUser(): SessionUser =
+    SessionUser(
+        id = id,
+        username = username,
+        displayName = displayName,
+        profileImageUrl = profileImageUrl,
+        isAdmin = isAdmin,
+    )

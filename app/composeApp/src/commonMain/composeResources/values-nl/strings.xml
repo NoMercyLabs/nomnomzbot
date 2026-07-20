@@ -207,6 +207,8 @@
     <string name="shell_reconnect_failed">Twitch opnieuw verbinden mislukt. Probeer opnieuw.</string>
     <string name="shell_reconnect_retry">Opnieuw</string>
     <string name="shell_reconnect_close">Sluiten</string>
+    <string name="shell_impersonation_banner">Handelt als %1$s</string>
+    <string name="shell_impersonation_exit">Stoppen</string>
     <string name="shell_role_viewer">Kijker</string>
     <string name="viewer_surface_title">Je bent aangemeld als kijker</string>
     <string name="viewer_surface_body">Dit account heeft geen beheerrol op dit kanaal, dus er is geen dashboard om te tonen. Je kunt nog steeds meedoen vanuit de chat en de openbare pagina's van het kanaal. Vraag de streamer om je toe te voegen als je wel toegang zou moeten hebben.</string>
@@ -2679,6 +2681,7 @@
     <string name="admin_channel_plan">Plan: %1$s</string>
     <string name="admin_user_role">Rol: %1$s</string>
     <string name="admin_user_channels">Kanalen: %1$d</string>
+    <string name="admin_impersonate">Overnemen</string>
     <string name="admin_system_version">Versie: %1$s</string>
     <string name="admin_system_memory">Geheugen: %1$d MB</string>
     <string name="admin_system_cpu">CPU: %1$.1f%%</string>

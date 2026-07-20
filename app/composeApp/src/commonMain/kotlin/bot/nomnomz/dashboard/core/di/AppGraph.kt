@@ -510,17 +510,6 @@ class AppGraph {
     val billingController: BillingController =
         BillingController(channelsApi = channelsApi, billingApi = billingApi)
 
-    val adminController: AdminController =
-        AdminController(
-            api = adminApi,
-            iamApi = platformIamApi,
-            platformAdminApi = platformAdminApi,
-            hubClient = adminHubClient,
-            baseUrl = sessionStore::baseUrl,
-            accessToken = sessionStore::accessToken,
-            refreshToken = tokenRefresher,
-        )
-
     val twitchAppCredentialsController: TwitchAppCredentialsController =
         TwitchAppCredentialsController(
             systemApi = systemApi,
@@ -649,6 +638,25 @@ class AppGraph {
     val shellAccessController: ShellAccessController =
         ShellAccessController(channelsApi = channelsApi, rolesApi = rolesApi)
 
+    // Declared AFTER shellAccessController + channelSwitcherController because it depends on both for the
+    // act-as re-resolve (property initializers run top-to-bottom; referencing a later one would read null).
+    val adminController: AdminController =
+        AdminController(
+            api = adminApi,
+            iamApi = platformIamApi,
+            platformAdminApi = platformAdminApi,
+            hubClient = adminHubClient,
+            baseUrl = sessionStore::baseUrl,
+            accessToken = sessionStore::accessToken,
+            refreshToken = tokenRefresher,
+            // Admin act-as (impersonation): swap the session token + re-resolve the whole shell as the target.
+            sessionStore = sessionStore,
+            authApi = authApi,
+            shellAccessController = shellAccessController,
+            channelSwitcherController = channelSwitcherController,
+            reconnectAll = ::reconnectAll,
+        )
+
     val musicController: MusicController =
         MusicController(
             channelsApi = channelsApi,
@@ -724,4 +732,25 @@ class AppGraph {
             analyticsApi = analyticsApi,
             pronounsApi = pronounsApi,
         )
+
+    /**
+     * Tear down and re-open every live SignalR hub against the CURRENT session token — used after an in-place
+     * token swap (admin act-as), so the sockets re-handshake on the new identity instead of stranding on the old
+     * token (their token getter is live, so a fresh connect picks up the swapped token). Mirrors how ShellScreen
+     * opens them: the dashboard hub rejoins the active channel; the multi-watch hub is only dropped (ShellScreen
+     * reopens it when that page is next shown); the admin hub reconnects only if it was live, so impersonating a
+     * non-admin doesn't spin a handshake that can never pass the operator-grant gate.
+     */
+    suspend fun reconnectAll() {
+        val adminHubWasLive: Boolean = adminHubClient.isConnected
+        dashboardHubClient.disconnect()
+        multiChatHubClient.disconnect()
+        adminHubClient.disconnect()
+
+        val url: String = sessionStore.baseUrl() ?: return
+        sessionStore.activeChannelId.value?.let { channelId ->
+            dashboardHubClient.connect(url, sessionStore::accessToken, channelId, tokenRefresher)
+        }
+        if (adminHubWasLive) adminHubClient.connect(url, sessionStore::accessToken, tokenRefresher)
+    }
 }
