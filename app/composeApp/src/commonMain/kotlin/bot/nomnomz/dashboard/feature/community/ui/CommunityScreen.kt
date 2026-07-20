@@ -242,6 +242,7 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
                     onPrevPage = { scope.launch { controller.prevPage() } },
                     onNextPage = { scope.launch { controller.nextPage() } },
                     onSearchViewers = { query -> controller.searchViewers(query) },
+                    onFetchMember = { userId -> controller.memberDetail(userId) },
                     onSetTrust = { userId, level -> scope.launch { controller.setTrust(userId, level) } },
                     onBan = { userId, reason -> scope.launch { controller.ban(userId, reason) } },
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
@@ -319,6 +320,7 @@ private fun MemberList(
     onPrevPage: () -> Unit,
     onNextPage: () -> Unit,
     onSearchViewers: suspend (String) -> List<PickerOption>,
+    onFetchMember: suspend (userId: String) -> CommunityMember?,
     onSetTrust: (userId: String, level: String) -> Unit,
     onBan: (userId: String, reason: String) -> Unit,
     onUnban: (userId: String) -> Unit,
@@ -361,18 +363,26 @@ private fun MemberList(
                     placeholder = stringResource(Res.string.community_search_placeholder),
                 )
                 pickedViewer?.let { picked ->
-                    val synthetic: CommunityMember =
-                        CommunityMember(id = picked.id, displayName = picked.name)
+                    // Fetch the viewer's REAL state (trust + ban) so the row shows the truth — Unban for an
+                    // already-banned viewer, Revoke-VIP for an existing VIP — instead of a synthesized "not
+                    // banned / not VIP" default that re-bans or re-grants. Fall back to a name-only row while the
+                    // fetch is in flight or if it fails.
+                    var pickedMember: CommunityMember? by remember(picked.id) { mutableStateOf(null) }
+                    LaunchedEffect(picked.id) { pickedMember = onFetchMember(picked.id) }
+                    val member: CommunityMember =
+                        pickedMember ?: CommunityMember(id = picked.id, displayName = picked.name)
                     Card(modifier = Modifier.fillMaxWidth()) {
                         MemberRow(
-                            member = synthetic,
+                            member = member,
                             manage = manage,
                             onSetTrust = { level -> onSetTrust(picked.id, level) },
-                            onBan = { pendingBan = synthetic },
-                            onUnban = { pendingUnban = synthetic },
+                            onBan = { pendingBan = member },
+                            onUnban = { pendingUnban = member },
                             onShoutout = { onShoutout(picked.id) },
-                            onVipToggle = { onVipToggle(picked.id, false) },
-                            onViewStats = { onViewStats(synthetic) },
+                            onVipToggle = {
+                                onVipToggle(picked.id, member.trustLevel == CommunityTrustLevel.Vip)
+                            },
+                            onViewStats = { onViewStats(member) },
                         )
                     }
                 }

@@ -244,6 +244,20 @@ class CommunityController(
         }
 
     /**
+     * Fetch [userId]'s REAL member state (trust level + ban status) so a searched-viewer row reflects the truth
+     * — Unban for an already-banned viewer, Revoke-VIP for an existing VIP — instead of a synthesized "not banned
+     * / not VIP" default that could re-ban or re-grant. Returns null on failure or before the channel resolves;
+     * the caller falls back to a name-only row while loading.
+     */
+    suspend fun memberDetail(userId: String): CommunityMember? {
+        val channel: String = channelId ?: return null
+        return when (val result: ApiResult<CommunityMember> = communityApi.member(channel, userId)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> null
+        }
+    }
+
+    /**
      * Load [member]'s channel-scoped analytics profile via their [CommunityMember.internalUserId] — the moderator-
      * accessible read that works for ANY viewer (unlike self-only [getUserStats]). Returns null when the member
      * has no resolved internal id, the analytics facade is absent, the channel hasn't resolved, or the call fails.

@@ -39,6 +39,7 @@ import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommunityApi
+import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationApi
@@ -843,6 +844,9 @@ private class FakeCommunityApi(
 ) : CommunityApi {
     override suspend fun stats(channelId: String): ApiResult<CommunityStats> =
         ApiResult.Ok(CommunityStats())
+
+    override suspend fun member(channelId: String, userId: String): ApiResult<CommunityMember> =
+        ApiResult.Ok(CommunityMember(id = userId))
 
     override suspend fun searchViewers(
         channelId: String,

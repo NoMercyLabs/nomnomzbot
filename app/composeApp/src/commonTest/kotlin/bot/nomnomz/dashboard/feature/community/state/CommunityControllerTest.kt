@@ -35,6 +35,7 @@ import bot.nomnomz.dashboard.core.network.ViewerProfilePage
 import bot.nomnomz.dashboard.core.network.WatchStreak
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -46,6 +47,39 @@ import kotlinx.coroutines.test.runTest
 // The screen is a pure projection of this, so testing it proves the page acts on real data and degrades
 // cleanly.
 class CommunityControllerTest {
+
+    @Test
+    fun member_detail_returns_the_real_ban_and_vip_state_for_a_searched_viewer() = runTest {
+        // A searched viewer's row must reflect the TRUTH, so memberDetail fetches the real member (already
+        // banned + already VIP) rather than the screen synthesizing a "not banned / not VIP" default that
+        // would offer Ban / Grant-VIP and re-ban or re-grant them.
+        val real =
+            CommunityMember(id = "42", displayName = "Naughty", trustLevel = CommunityTrustLevel.Vip, isBanned = true)
+        val api =
+            FakeCommunityApi(
+                membersResults = listOf(ApiResult.Ok(emptyList())),
+                memberResult = ApiResult.Ok(real),
+            )
+        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeUsersApi(), FakeViewerDataApi())
+        controller.load()
+
+        val member: CommunityMember? = controller.memberDetail("42")
+
+        assertEquals(listOf("42"), api.memberCalls)
+        assertNotNull(member)
+        assertTrue(member.isBanned)
+        assertEquals(CommunityTrustLevel.Vip, member.trustLevel)
+    }
+
+    @Test
+    fun member_detail_is_null_when_the_lookup_fails() = runTest {
+        // Default memberResult is a 404 failure — the row then falls back to the name-only placeholder.
+        val api = FakeCommunityApi(membersResults = listOf(ApiResult.Ok(emptyList())))
+        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeUsersApi(), FakeViewerDataApi())
+        controller.load()
+
+        assertNull(controller.memberDetail("99"))
+    }
 
     @Test
     fun load_surfaces_the_community_members_on_success() = runTest {
@@ -470,9 +504,18 @@ private class FakeCommunityApi(
     private val banResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val unbanResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val searchResults: List<ViewerOption> = emptyList(),
+    private val memberResult: ApiResult<CommunityMember> =
+        ApiResult.Failure(ApiError(404, "NOT_FOUND", "no member")),
 ) : CommunityApi {
     override suspend fun stats(channelId: String): ApiResult<CommunityStats> =
         ApiResult.Ok(CommunityStats())
+
+    val memberCalls: MutableList<String> = mutableListOf()
+
+    override suspend fun member(channelId: String, userId: String): ApiResult<CommunityMember> {
+        memberCalls.add(userId)
+        return memberResult
+    }
 
     // Single-result convenience for the read-only tests (one members() result, default-OK writes).
     constructor(result: ApiResult<List<CommunityMember>>) : this(membersResults = listOf(result))

@@ -58,6 +58,15 @@ interface CommunityApi {
     ): ApiResult<List<ViewerOption>>
 
     /**
+     * A single viewer's REAL member state (`GET /community/{userId}`, backend `UserDetailDto`) — the trust level
+     * and ban status a moderator acts on. The searched-viewer row fetches this so it shows the truth (Unban for an
+     * already-banned viewer, Revoke-VIP for an existing VIP) instead of a synthesized "not banned / not VIP"
+     * default. [userId] is the Twitch id from the picker; the detail payload is a field superset of
+     * [CommunityMember] (its extra recent-activity / ban-history fields are ignored).
+     */
+    suspend fun member(channelId: String, userId: String): ApiResult<CommunityMember>
+
+    /**
      * Top chatters by message volume — up to 50 rows ranked by message count (backend `RewardsController
      * .GetLeaderboard`, `GET /rewards/leaderboard`). The endpoint lives in `RewardsController` for historical
      * reasons but is community analytics: it surfaces who is most active in chat.
@@ -116,6 +125,11 @@ class RestCommunityApi(private val client: ApiClient) : CommunityApi {
         client.getEnvelope(
             "api/v1/channels/$channelId/community/search?q=${query.encodeQuery()}&limit=$limit"
         )
+
+    override suspend fun member(channelId: String, userId: String): ApiResult<CommunityMember> =
+        // Backend routing prefers the literal /community/search over the {userId} template, so a numeric Twitch
+        // id resolves to GetUserDetail (UserDetailDto), which deserializes straight into CommunityMember.
+        client.getEnvelope("api/v1/channels/$channelId/community/${userId.encodeQuery()}")
 
     override suspend fun topChatters(channelId: String): ApiResult<List<ChatActivityEntry>> =
         client.getEnvelope("api/v1/channels/$channelId/rewards/leaderboard")
