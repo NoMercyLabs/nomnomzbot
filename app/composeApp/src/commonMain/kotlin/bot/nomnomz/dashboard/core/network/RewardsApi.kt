@@ -209,6 +209,10 @@ data class CreateRewardBody(
     // A pipeline to run when this reward is redeemed (a ULID; null = none). `explicitNulls = false` omits it when
     // absent so an unset binding never clears the stored one.
     val pipelineId: String? = null,
+    // The reward's built-in typed action + its settings (backend actionType / actionSettings, an arbitrary JSON
+    // object) — so a reward can be created to run a typed action, not only a bound pipeline.
+    val actionType: String? = null,
+    val actionSettings: kotlinx.serialization.json.JsonObject? = null,
 )
 
 /**
@@ -239,6 +243,10 @@ data class UpdateRewardBody(
     val timerDurationSeconds: Int? = null,
     // The pipeline bound to this reward (a ULID). Null omits it from the patch (unchanged).
     val pipelineId: String? = null,
+    // The reward's built-in typed action + its settings (backend actionType / actionSettings). Null omits from
+    // the patch (unchanged).
+    val actionType: String? = null,
+    val actionSettings: kotlinx.serialization.json.JsonObject? = null,
 )
 
 /**
@@ -273,6 +281,10 @@ data class RewardSummary(
     // edit dialog pre-fills the timer field + pipeline picker.
     val timerDurationSeconds: Int? = null,
     val pipelineId: String? = null,
+    // The reward's built-in typed action + its settings (backend RewardDetail.actionType / actionSettings, an
+    // arbitrary JSON object) — so the operator can read/configure a reward's action, not only a bound pipeline.
+    val actionType: String? = null,
+    val actionSettings: kotlinx.serialization.json.JsonObject? = null,
 )
 
 /**
