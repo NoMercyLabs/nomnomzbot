@@ -232,11 +232,28 @@ public class DashboardController : BaseController
 
         // Chat messages (channel.chat.message) are excluded — they live in the Chat page.
         // Activity shows stream milestones only: follows, subs, raids, cheers, redemptions, etc.
-        List<ChannelEvent> events = await _db
+        // Pull a few extra rows so that after collapsing duplicate follows below the feed still fills ~20.
+        List<ChannelEvent> recent = await _db
             .ChannelEvents.Where(e => e.ChannelId == tenantId && e.Type != "channel.chat.message")
             .OrderByDescending(e => e.CreatedAt)
-            .Take(20)
+            .Take(40)
             .ToListAsync(ct);
+
+        // A viewer is either following or not, so a SECOND channel.follow for the same user is a Twitch
+        // at-least-once delivery artifact (EventSub redelivers), never a real second follow — collapse those to
+        // the most recent (already first by the descending order) so the feed never shows "X followed" twice.
+        // Other event types (cheers, subs, raids, redemptions) can legitimately repeat and are kept as-is.
+        HashSet<Guid> seenFollowers = [];
+        List<ChannelEvent> events = [];
+        foreach (ChannelEvent e in recent)
+        {
+            bool isFollow = e.Type is "channel.follow" or "follow";
+            if (isFollow && e.UserId is { } followerId && !seenFollowers.Add(followerId))
+                continue;
+            events.Add(e);
+            if (events.Count >= 20)
+                break;
+        }
 
         List<Guid> userIds = events
             .Where(e => e.UserId is not null)
