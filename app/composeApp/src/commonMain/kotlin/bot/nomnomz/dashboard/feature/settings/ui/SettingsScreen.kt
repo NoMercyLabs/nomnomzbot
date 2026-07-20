@@ -87,11 +87,17 @@ import bot.nomnomz.dashboard.feature.settings.state.PersonalityController
 import bot.nomnomz.dashboard.feature.settings.state.PersonalityState
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsState
+import bot.nomnomz.dashboard.feature.emoji.state.EmojiStyleController
+import bot.nomnomz.dashboard.feature.emoji.ui.EmojiStylePicker
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_settings
+import nomnomzbot.composeapp.generated.resources.settings_appearance_section
+import nomnomzbot.composeapp.generated.resources.settings_appearance_subtitle
+import nomnomzbot.composeapp.generated.resources.settings_emoji_style_label
+import nomnomzbot.composeapp.generated.resources.settings_emoji_style_desc
 import nomnomzbot.composeapp.generated.resources.journal_dismiss
 import nomnomzbot.composeapp.generated.resources.journal_error
 import nomnomzbot.composeapp.generated.resources.journal_export
@@ -258,6 +264,7 @@ fun SettingsScreen(
     personalityController: PersonalityController,
     basicsController: BasicsController,
     engagementController: EngagementController,
+    emojiStyleController: EmojiStyleController,
     role: ManagementRole?,
     onChannelDeleted: () -> Unit = {},
 ) {
@@ -310,6 +317,11 @@ fun SettingsScreen(
                     CenteredMessage(stringResource(Res.string.settings_loading))
             }
         }
+
+        // Appearance — a per-DEVICE display preference (emoji rendering style), stored locally on this
+        // install (not channel-scoped, not role-gated), so it needs no ManageGate. Sits beside the display
+        // language, which is the other per-install UI preference (it lives in the profile menu).
+        AppearanceSection(controller = emojiStyleController)
 
         // Bot basics — command prefix, default language, auto-join, timezone. Readable to all, changeable at
         // the Broadcaster floor (the backend gates the write at setup:write). This is where a streamer sets the
@@ -386,6 +398,59 @@ fun SettingsScreen(
             },
             onDismiss = { pendingDelete = false },
         )
+    }
+}
+
+// The Appearance card: a per-DEVICE display preference — the emoji rendering style — hosting the segmented
+// [EmojiStylePicker]. Unlike the channel-scoped sections around it this is local install state (file on
+// desktop / localStorage on web), so it carries NO ManageGate and persists + applies the moment a style is
+// picked (the whole type scale swaps its emoji font live). The label+description row mirrors the basics/
+// engagement toggle rows, with the segmented control trailing.
+@Composable
+private fun AppearanceSection(controller: EmojiStyleController) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Text(
+                text = stringResource(Res.string.settings_appearance_section),
+                style = typography.xl,
+                color = tokens.cardForeground,
+            )
+            Text(
+                text = stringResource(Res.string.settings_appearance_subtitle),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.settings_emoji_style_label),
+                        style = typography.base,
+                        color = tokens.cardForeground,
+                    )
+                    Text(
+                        text = stringResource(Res.string.settings_emoji_style_desc),
+                        style = typography.sm,
+                        color = tokens.mutedForeground,
+                    )
+                }
+                EmojiStylePicker(controller = controller)
+            }
+        }
     }
 }
 

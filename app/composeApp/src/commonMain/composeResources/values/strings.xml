@@ -2914,6 +2914,12 @@
     <string name="settings_basics_timezone_hint">IANA name, e.g. Europe/Amsterdam. Leave blank to keep the current value.</string>
     <string name="settings_basics_autojoin">Auto-join chat</string>
     <string name="settings_basics_autojoin_desc">Let the bot join this channel's chat automatically.</string>
+    <string name="settings_appearance_section">Appearance</string>
+    <string name="settings_appearance_subtitle">Display preferences for this device — they apply to your dashboard here, not to the channel.</string>
+    <string name="settings_emoji_style_label">Emoji style</string>
+    <string name="settings_emoji_style_desc">How emoji render across the dashboard. Switch to Monochrome if colored emoji show as boxes.</string>
+    <string name="emoji_style_color">Color</string>
+    <string name="emoji_style_monochrome">Monochrome</string>
     <!-- Bot personality (Settings → Bot personality card). Tone tokens mirror PersonalityTone.* on the backend. -->
     <string name="personality_section_title">Bot personality</string>
     <string name="personality_section_subtitle">The voice the built-in commands answer in — it applies everywhere. You can still override any single command.</string>

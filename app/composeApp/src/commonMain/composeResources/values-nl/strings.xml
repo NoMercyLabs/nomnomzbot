@@ -2900,6 +2900,12 @@
     <string name="settings_basics_timezone_hint">IANA-naam, bijv. Europe/Amsterdam. Laat leeg om de huidige waarde te behouden.</string>
     <string name="settings_basics_autojoin">Automatisch deelnemen aan chat</string>
     <string name="settings_basics_autojoin_desc">Laat de bot automatisch de chat van dit kanaal binnenkomen.</string>
+    <string name="settings_appearance_section">Weergave</string>
+    <string name="settings_appearance_subtitle">Weergavevoorkeuren voor dit apparaat — ze gelden voor jouw dashboard hier, niet voor het kanaal.</string>
+    <string name="settings_emoji_style_label">Emoji-stijl</string>
+    <string name="settings_emoji_style_desc">Hoe emoji in het dashboard worden weergegeven. Kies Monochroom als gekleurde emoji als blokjes verschijnen.</string>
+    <string name="emoji_style_color">Kleur</string>
+    <string name="emoji_style_monochrome">Monochroom</string>
     <!-- Botpersoonlijkheid (Instellingen → Botpersoonlijkheid-kaart). -->
     <string name="personality_section_title">Botpersoonlijkheid</string>
     <string name="personality_section_subtitle">De toon waarin je bot antwoordt — dit geldt overal. Je kunt elk commando afzonderlijk aanpassen.</string>

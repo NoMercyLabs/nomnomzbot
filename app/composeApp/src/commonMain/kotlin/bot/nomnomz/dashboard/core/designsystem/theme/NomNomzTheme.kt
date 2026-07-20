@@ -45,6 +45,12 @@ fun NomNomzTheme(
     scheme: Scheme = Scheme.Dark,
     /** The streamer's Twitch chat color as `#RRGGBB`. When non-null, overrides the accent tokens. */
     accentHex: String? = null,
+    /**
+     * Whether the type scale uses the color (Twemoji COLR) emoji face. Driven by the operator's persisted
+     * EmojiStyle preference (App.kt); `false` selects the monochrome (Noto Emoji) fallback for a build that
+     * can't render COLR glyphs. Defaults to the color face.
+     */
+    emojiColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val base: Tokens = if (scheme == Scheme.Dark) DarkTokens else LightTokens
@@ -84,7 +90,7 @@ fun NomNomzTheme(
         LocalTokens provides tokens,
         LocalScheme provides scheme,
         LocalSpacing provides DefaultSpacing,
-        LocalTypography provides appTypography(),
+        LocalTypography provides appTypography(emojiColor),
     ) {
         MaterialTheme(colorScheme = colorScheme, content = content)
     }

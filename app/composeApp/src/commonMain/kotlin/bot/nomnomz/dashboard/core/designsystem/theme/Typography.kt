@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.inter
 import nomnomzbot.composeapp.generated.resources.noto_emoji
+import nomnomzbot.composeapp.generated.resources.twemoji_color
 import org.jetbrains.compose.resources.Font
 
 // The fixed type scale (frontend-design-system.md §1.3). Feature code reads
@@ -38,20 +39,24 @@ data class Typography(
 
 internal val DefaultTypography: Typography = Typography()
 
-// The bundled type face: Inter (the design-system's intended sans, §1.3) with Noto Emoji as a fallback so
+// The bundled type face: Inter (the design-system's intended sans, §1.3) with a bundled emoji fallback so
 // Unicode emoji render as glyphs instead of □ tofu — INCLUDING in editable text fields, where the inline-image
 // [EmojiText] path cannot reach. Every [Typography] style carries this family, so all app text (and the fields
 // that read `typography.*`) share one emoji-capable font. Skia/Wasm has no system fonts, so the fallback only
 // works because the emoji face is bundled here.
+//
+// [colorEmoji] picks the emoji face live from the operator's persisted EmojiStyle preference: the color
+// (Twemoji COLR) face by default, or the monochrome (Noto Emoji) face as the fallback for a browser/Skia
+// build that can't render COLR glyphs. Inter's weights are unchanged either way.
 @Composable
-fun appTypography(): Typography {
+fun appTypography(colorEmoji: Boolean): Typography {
     val family: FontFamily =
         FontFamily(
             Font(Res.font.inter, FontWeight.Normal),
             Font(Res.font.inter, FontWeight.Medium),
             Font(Res.font.inter, FontWeight.SemiBold),
             Font(Res.font.inter, FontWeight.Bold),
-            Font(Res.font.noto_emoji),
+            Font(if (colorEmoji) Res.font.twemoji_color else Res.font.noto_emoji),
         )
     return Typography(
         xs = DefaultTypography.xs.copy(fontFamily = family),

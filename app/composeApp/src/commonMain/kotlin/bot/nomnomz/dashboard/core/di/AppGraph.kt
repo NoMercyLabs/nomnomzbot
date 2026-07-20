@@ -18,6 +18,8 @@ import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.connection.lanDiscovery
 import bot.nomnomz.dashboard.core.connection.servedOriginProfile
 import bot.nomnomz.dashboard.core.feedback.FeedbackController
+import bot.nomnomz.dashboard.core.emoji.EmojiStylePreferenceStore
+import bot.nomnomz.dashboard.core.emoji.EmojiStyleStore
 import bot.nomnomz.dashboard.core.i18n.LanguagePreferenceStore
 import bot.nomnomz.dashboard.core.i18n.LanguageStore
 import bot.nomnomz.dashboard.core.network.ApiClient
@@ -208,6 +210,7 @@ import bot.nomnomz.dashboard.core.network.RestChatPollsApi
 import bot.nomnomz.dashboard.core.network.RestLiveOpsApi
 import bot.nomnomz.dashboard.core.realtime.AdminHubClient
 import bot.nomnomz.dashboard.core.realtime.DashboardHubClient
+import bot.nomnomz.dashboard.feature.emoji.state.EmojiStyleController
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -235,6 +238,13 @@ class AppGraph {
     private val languageStore: LanguageStore = LanguagePreferenceStore()
 
     val languageController: LanguageController = LanguageController(languageStore)
+
+    // The emoji-rendering-style override — a per-install preference (EmojiStylePreferenceStore: file on desktop,
+    // localStorage on web) driving the EmojiStyleController, which App.kt maps to NomNomzTheme's `emojiColor` to
+    // swap the type scale's bundled emoji font (color Twemoji vs monochrome Noto) live, independent of the OS.
+    private val emojiStyleStore: EmojiStyleStore = EmojiStylePreferenceStore()
+
+    val emojiStyleController: EmojiStyleController = EmojiStyleController(emojiStyleStore)
 
     // The SignalR hub client for real-time server push (DashboardHub). Shared across controllers
     // that need live updates (ChatController → subscribeToHub). Connected once when a session is

@@ -35,6 +35,7 @@ import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.navigation.Destination
 import bot.nomnomz.dashboard.core.navigation.RouteStore
 import bot.nomnomz.dashboard.feature.connect.ui.ConnectScreen
+import bot.nomnomz.dashboard.feature.emoji.state.EmojiStyle
 import bot.nomnomz.dashboard.feature.landing.ui.LandingScreen
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
 import bot.nomnomz.dashboard.feature.language.ui.LanguagePicker
@@ -72,7 +73,16 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
     // (and GC-churning) the whole subtree on every locale flip while still re-rendering every visible
     // string live. `LocalSpacing` (from NomNomzTheme) stays in scope for the content beneath it.
     val chatAccentColor: String? by graph.chatAccentColor.collectAsStateWithLifecycle()
-    NomNomzTheme(scheme = Scheme.Dark, accentHex = chatAccentColor) {
+
+    // The emoji-rendering-style override — a per-install preference resolved reactively so a switch swaps the
+    // whole type scale's emoji font live (color Twemoji vs monochrome Noto). Read here at the theme root so the
+    // change flows through NomNomzTheme's `appTypography(emojiColor)` to every text style at once.
+    val emojiStyle: EmojiStyle by graph.emojiStyleController.current.collectAsStateWithLifecycle()
+    NomNomzTheme(
+        scheme = Scheme.Dark,
+        accentHex = chatAccentColor,
+        emojiColor = emojiStyle == EmojiStyle.Color,
+    ) {
         val phase: SessionPhase by graph.sessionStore.phase.collectAsStateWithLifecycle()
         val spacing = LocalSpacing.current
         val scope = rememberCoroutineScope()

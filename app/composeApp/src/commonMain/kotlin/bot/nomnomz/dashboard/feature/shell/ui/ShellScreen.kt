@@ -602,6 +602,7 @@ private fun ShellContent(
                     personalityController = graph.personalityController,
                     basicsController = graph.basicsController,
                     engagementController = graph.engagementController,
+                    emojiStyleController = graph.emojiStyleController,
                     role = role,
                     onChannelDeleted = onChannelDeleted,
                 )
