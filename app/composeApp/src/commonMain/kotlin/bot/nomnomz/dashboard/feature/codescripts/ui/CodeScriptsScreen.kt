@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.codescripts.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -83,6 +84,7 @@ import nomnomzbot.composeapp.generated.resources.scripts_delete_message
 import nomnomzbot.composeapp.generated.resources.scripts_delete_title
 import nomnomzbot.composeapp.generated.resources.scripts_editor_compiled
 import nomnomzbot.composeapp.generated.resources.scripts_editor_edit_code
+import nomnomzbot.composeapp.generated.resources.scripts_editor_open_hint
 import nomnomzbot.composeapp.generated.resources.scripts_editor_source_label
 import nomnomzbot.composeapp.generated.resources.scripts_empty
 import nomnomzbot.composeapp.generated.resources.scripts_error
@@ -373,16 +375,34 @@ private fun ProjectView(
                     )
                 },
                 right = {
-                    // A read-only preview of the selected file — the full editor is where changes are made.
-                    Textarea(
-                        value = project.files[selectedPath] ?: "",
-                        onValueChange = {},
-                        label = selectedPath,
-                        modifier = Modifier.fillMaxSize().padding(spacing.s3),
-                        enabled = false,
-                        monospace = true,
-                        fillHeight = true,
-                    )
+                    // Read-only preview of the selected file. Editing happens in the shared CodeMirror project
+                    // editor — the very same overlay Widgets uses — so clicking the preview (or the hint above it)
+                    // opens it, making this pane a gateway into the real editor rather than a dead read-only box.
+                    Column(
+                        modifier =
+                            Modifier.fillMaxSize().let {
+                                if (manage.isAllowed) it.clickable(onClick = onEditCode) else it
+                            },
+                        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+                    ) {
+                        if (manage.isAllowed) {
+                            Text(
+                                text = stringResource(Res.string.scripts_editor_open_hint),
+                                style = typography.xs,
+                                color = tokens.primary,
+                                modifier = Modifier.padding(horizontal = spacing.s3, vertical = spacing.s2),
+                            )
+                        }
+                        Textarea(
+                            value = project.files[selectedPath] ?: "",
+                            onValueChange = {},
+                            label = selectedPath,
+                            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = spacing.s3),
+                            enabled = false,
+                            monospace = true,
+                            fillHeight = true,
+                        )
+                    }
                 },
             )
         }

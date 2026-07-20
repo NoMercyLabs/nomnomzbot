@@ -1397,6 +1397,7 @@
     <string name="scripts_close_editor">Editor sluiten</string>
     <string name="scripts_editor_source_label">Broncode</string>
     <string name="scripts_editor_edit_code">Bewerken en compileren</string>
+    <string name="scripts_editor_open_hint">Klik om de code-editor te openen</string>
     <string name="scripts_editor_compiled">Gecompileerd en gepubliceerd</string>
     <string name="scripts_testrun_title">Testrun</string>
     <string name="scripts_testrun_subtitle">Voer dit script uit met voorbeeldinvoer. Effecten worden vastgelegd, nooit uitgevoerd.</string>

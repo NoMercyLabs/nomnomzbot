@@ -1400,6 +1400,7 @@
     <string name="scripts_close_editor">Close editor</string>
     <string name="scripts_editor_source_label">Source</string>
     <string name="scripts_editor_edit_code">Edit &amp; compile</string>
+    <string name="scripts_editor_open_hint">Click to open the code editor</string>
     <string name="scripts_editor_compiled">Compiled and published</string>
     <string name="scripts_testrun_title">Test run</string>
     <string name="scripts_testrun_subtitle">Run this script with sample inputs. Effects are captured, never performed.</string>
