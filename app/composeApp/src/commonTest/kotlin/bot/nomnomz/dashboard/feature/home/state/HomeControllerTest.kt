@@ -31,6 +31,7 @@ import bot.nomnomz.dashboard.core.network.StreamInfoUpdate
 import bot.nomnomz.dashboard.core.network.ViewerOption
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.HubRewardRedeemed
 import bot.nomnomz.dashboard.core.realtime.HubStreamInfoChanged
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -211,6 +212,42 @@ class HomeControllerTest {
         assertEquals("Pushed title", ready.stats.streamTitle)
         assertEquals("Pushed game", ready.stats.gameName)
         assertEquals("Pushed title", ready.streamInfo?.title)
+    }
+
+    @Test
+    fun a_redemption_push_appears_live_at_the_top_of_the_activity_feed() = runTest {
+        // The reported bug: redeeming a channel-point reward did nothing until a manual reload. A redemption is
+        // pushed as its OWN hub event (not a generic ChannelEvent), so it must be handled and prepended live.
+        val controller =
+            HomeController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
+                streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(),
+                communityApi = FakeCommunityApi(),
+            )
+        controller.load()
+
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        events.emit(
+            HubEvent.RewardRedeemed(
+                HubRewardRedeemed(
+                    redemptionId = "r1",
+                    rewardTitle = "Baguette",
+                    userId = "u1",
+                    userDisplayName = "Stoney_Eagle",
+                    timestamp = "2026-07-20T15:18:00Z",
+                )
+            )
+        )
+
+        val ready: HomeState.Ready = controller.state.value as HomeState.Ready
+        val first: ActivityEvent = ready.activity.first()
+        assertEquals("r1", first.id)
+        assertEquals("channel.channel_points_custom_reward_redemption.add", first.type)
+        assertEquals("Stoney_Eagle", first.username)
     }
 
     @Test

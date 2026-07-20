@@ -237,6 +237,21 @@ class HomeController(
                             )
                         }
                     }
+                    is HubEvent.RewardRedeemed -> {
+                        // A channel-point redemption is pushed as its OWN hub event, NOT a generic ChannelEvent —
+                        // so without this branch it fell through and only appeared on a manual reload. Prepend it
+                        // live to the activity feed (its type is already in ACTIVITY_EVENT_TYPES and rendered).
+                        val newEvent: ActivityEvent = ActivityEvent(
+                            id = evt.event.redemptionId,
+                            type = "channel.channel_points_custom_reward_redemption.add",
+                            userId = evt.event.userId,
+                            username = evt.event.userDisplayName,
+                            timestamp = evt.event.timestamp,
+                        )
+                        _state.value = current.copy(
+                            activity = (listOf(newEvent) + current.activity).take(20)
+                        )
+                    }
                     else -> Unit
                 }
             }
