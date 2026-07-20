@@ -261,4 +261,6 @@ private class FakeStreamApi(
 
     // Not exercised by the settings tests (the category picker is a home/schedule surface, UI-tested there).
     override suspend fun searchCategories(channelId: String, query: String) = error("stub")
+
+    override suspend fun searchChannels(channelId: String, query: String) = error("stub")
 }

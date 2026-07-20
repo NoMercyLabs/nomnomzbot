@@ -69,6 +69,7 @@ class ApiContractTest {
             ScopeRegrantStart.serializer() to "ScopeRegrantStartDto",
             StreamInfo.serializer() to "StreamInfoDto",
             Category.serializer() to "CategoryDto",
+            ChannelSearchResult.serializer() to "ChannelSearchDto",
             LeaderboardEntry.serializer() to "LeaderboardEntryDto",
             AlertSummary.serializer() to "EventResponseListItem",
             AlertDetail.serializer() to "EventResponseDto",

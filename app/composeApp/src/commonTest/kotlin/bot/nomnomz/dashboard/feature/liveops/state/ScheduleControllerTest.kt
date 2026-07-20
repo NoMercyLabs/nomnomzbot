@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.io.PickedFile
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.Category
+import bot.nomnomz.dashboard.core.network.ChannelSearchResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateScheduleSegmentBody
@@ -216,6 +217,9 @@ private class FakeScheduleStreamApi : StreamApi {
     override suspend fun info(channelId: String) = error("unused")
     override suspend fun update(channelId: String, update: StreamInfoUpdate) = error("unused")
     override suspend fun searchCategories(channelId: String, query: String): ApiResult<List<Category>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun searchChannels(channelId: String, query: String): ApiResult<List<ChannelSearchResult>> =
         ApiResult.Ok(emptyList())
 }
 

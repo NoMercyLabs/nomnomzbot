@@ -39,6 +39,14 @@ interface StreamApi {
      * the stream update writes and the [Category.id] the schedule segment writes. A blank query yields no rows.
      */
     suspend fun searchCategories(channelId: String, query: String): ApiResult<List<Category>>
+
+    /**
+     * Twitch channel/broadcaster autocomplete (`GET /stream/channels?query=…`, backend `SearchChannels`). Powers
+     * pickers that need an ARBITRARY broadcaster (beyond the channel's own viewers): a shared-jar invite target,
+     * a shared-ban trusted channel, a raid target. A match's [ChannelSearchResult.id] is the broadcaster Twitch
+     * user id the write consumes. A blank query yields no rows.
+     */
+    suspend fun searchChannels(channelId: String, query: String): ApiResult<List<ChannelSearchResult>>
 }
 
 class RestStreamApi(private val client: ApiClient) : StreamApi {
@@ -58,6 +66,14 @@ class RestStreamApi(private val client: ApiClient) : StreamApi {
         client.getEnvelope(
             "api/v1/channels/$channelId/stream/categories?query=${query.encodeQuery()}"
         )
+
+    override suspend fun searchChannels(
+        channelId: String,
+        query: String,
+    ): ApiResult<List<ChannelSearchResult>> =
+        client.getEnvelope(
+            "api/v1/channels/$channelId/stream/channels?query=${query.encodeQuery()}"
+        )
 }
 
 /**
@@ -70,6 +86,19 @@ data class Category(
     val id: String = "",
     val name: String = "",
     val boxArtUrl: String? = null,
+)
+
+/**
+ * One Twitch channel/broadcaster match (backend `ChannelSearchDto`): [id] is the broadcaster's Twitch user id
+ * (what an invite / trust / raid write consumes), [displayName] labels the picker row, [login] is the lowercase
+ * handle, and [thumbnailUrl] is their avatar.
+ */
+@Serializable
+data class ChannelSearchResult(
+    val id: String = "",
+    val displayName: String = "",
+    val login: String = "",
+    val thumbnailUrl: String? = null,
 )
 
 /**

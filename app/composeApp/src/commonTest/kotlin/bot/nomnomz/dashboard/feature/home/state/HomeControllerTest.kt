@@ -22,6 +22,7 @@ import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.CommunityStats
 import bot.nomnomz.dashboard.core.network.CreateCommandBody
 import bot.nomnomz.dashboard.core.network.Category
+import bot.nomnomz.dashboard.core.network.ChannelSearchResult
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
@@ -302,6 +303,9 @@ private class FakeStreamApi(
     override suspend fun update(channelId: String, update: StreamInfoUpdate): ApiResult<StreamInfo> =
         updateResult
     override suspend fun searchCategories(channelId: String, query: String): ApiResult<List<Category>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun searchChannels(channelId: String, query: String): ApiResult<List<ChannelSearchResult>> =
         ApiResult.Ok(emptyList())
 }
 
