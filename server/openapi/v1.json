@@ -44067,6 +44067,106 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/obs/probe": {
+      "get": {
+        "tags": [
+          "OBS"
+        ],
+        "summary": "Actively probe whether OBS is reachable RIGHT NOW. Unlike the passive state/scenes/inputs reads — which\r\nmask a \"not connected yet\" as an empty 200 so the page shows its connect prompt, not a 500 (so a 200 there\r\nis not proof of connectivity) — this ATTEMPTS the transport with a harmless `GetVersion` and reports\r\nthe TRUTH: connected, or the real failing code, for the direct socket and the bridge leader alike. Gated at\r\nthe Moderator control floor (not the Broadcaster config floor) so a control-only moderator can still tell\r\nwhether OBS is live.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObsProbeDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/obs/scene": {
       "post": {
         "tags": [
@@ -76970,6 +77070,32 @@
         },
         "description": "REST body for the audio-mixer volume route: set an input's volume in decibels (OBS's dB scale)."
       },
+      "ObsProbeDto": {
+        "required": [
+          "connected",
+          "errorCode",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "connected": {
+            "type": "boolean"
+          },
+          "errorCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "The truthful result of actively probing OBS reachability (obs-control.md §3.2). The passive\r\nstate/scenes/inputs reads mask a \"not connected yet\" as an empty 200 so the dashboard shows its connect\r\nprompt instead of a scary 500 — which means a 200 there is NOT proof OBS is reachable. This probe instead\r\nATTEMPTS the transport and reports the real outcome: bool ObsProbeDto.Connected, plus the failing\r\nstring? ObsProbeDto.ErrorCode (`OBS_NOT_CONNECTED`, `OBS_DISABLED`, `OBS_BRIDGE_OFFLINE`,\r\n`OBS_WRONG_MODE`) when it could not reach OBS. It is what lets the dashboard tell \"connected\" from the\r\nmasked empty state — for the direct socket and the bridge leader alike."
+      },
       "ObsRecordRequest": {
         "required": [
           "action"
@@ -86014,6 +86140,36 @@
               },
               {
                 "$ref": "#/components/schemas/ObsConnectionDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfObsProbeDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ObsProbeDto"
               }
             ]
           },
