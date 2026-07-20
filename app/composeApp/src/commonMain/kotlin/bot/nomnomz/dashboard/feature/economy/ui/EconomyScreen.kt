@@ -541,6 +541,7 @@ private fun ReadyContent(
             onContribute = onJarContribute,
             onWithdraw = onJarWithdraw,
             loadHistory = loadJarHistory,
+            searchViewers = searchViewers,
         )
 
         CatalogPurchasesSection(
@@ -2144,6 +2145,7 @@ private fun SavingsJarsSection(
     onContribute: suspend (jarId: String, AdminJarContributeBody) -> Unit,
     onWithdraw: suspend (jarId: String, AdminJarWithdrawBody) -> Unit,
     loadHistory: suspend (jarId: String) -> List<JarMovement>?,
+    searchViewers: suspend (query: String) -> List<PickerOption>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -2220,6 +2222,7 @@ private fun SavingsJarsSection(
             onContribute = { request -> onContribute(jar.id, request) },
             onWithdraw = { request -> onWithdraw(jar.id, request) },
             loadHistory = loadHistory,
+            searchViewers = searchViewers,
             onDismiss = { managingJar = null },
         )
     }
@@ -2296,6 +2299,7 @@ private fun JarManageDialog(
     onContribute: suspend (AdminJarContributeBody) -> Unit,
     onWithdraw: suspend (AdminJarWithdrawBody) -> Unit,
     loadHistory: suspend (jarId: String) -> List<JarMovement>?,
+    searchViewers: suspend (query: String) -> List<PickerOption>,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -2433,6 +2437,7 @@ private fun JarManageDialog(
     }
     if (showContribute) {
         JarContributeDialog(
+            searchViewers = searchViewers,
             onConfirm = { request ->
                 mutateThenReload { onContribute(request) }
                 showContribute = false
@@ -2442,6 +2447,7 @@ private fun JarManageDialog(
     }
     if (showWithdraw) {
         JarWithdrawDialog(
+            searchViewers = searchViewers,
             onConfirm = { request ->
                 mutateThenReload { onWithdraw(request) }
                 showWithdraw = false
@@ -2503,21 +2509,32 @@ private fun JarInviteDialog(onConfirm: (InviteChannelBody) -> Unit, onDismiss: (
 }
 
 @Composable
-private fun JarContributeDialog(onConfirm: (AdminJarContributeBody) -> Unit, onDismiss: () -> Unit) {
+private fun JarContributeDialog(
+    searchViewers: suspend (query: String) -> List<PickerOption>,
+    onConfirm: (AdminJarContributeBody) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
-    var viewerId: String by remember { mutableStateOf("") }
+    var picked: PickerRef? by remember { mutableStateOf(null) }
     var amountText: String by remember { mutableStateOf("") }
     val amount: Long? = amountText.toLongOrNull()?.takeIf { it > 0 }
-    val isValid: Boolean = viewerId.isNotBlank() && amount != null
+    val isValid: Boolean = picked != null && amount != null
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.economy_jars_contribute_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                AppTextField(value = viewerId, onValueChange = { viewerId = it }, label = stringResource(Res.string.economy_jars_contribute_viewer), modifier = Modifier.fillMaxWidth())
+                SearchPickerField(
+                    search = searchViewers,
+                    selected = picked,
+                    onSelect = { picked = it },
+                    onClear = { picked = null },
+                    label = stringResource(Res.string.economy_jars_contribute_viewer),
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 AppTextField(
                     value = amountText,
                     onValueChange = { amountText = it },
@@ -2530,7 +2547,7 @@ private fun JarContributeDialog(onConfirm: (AdminJarContributeBody) -> Unit, onD
         },
         confirmButton = {
             TextButton(
-                onClick = { amount?.let { onConfirm(AdminJarContributeBody(contributorUserId = viewerId, amount = it)) } },
+                onClick = { picked?.let { p -> amount?.let { onConfirm(AdminJarContributeBody(contributorUserId = p.id, amount = it)) } } },
                 enabled = isValid,
             ) {
                 Text(stringResource(Res.string.economy_jars_contribute_confirm), color = if (isValid) tokens.primary else tokens.mutedForeground)
@@ -2545,21 +2562,32 @@ private fun JarContributeDialog(onConfirm: (AdminJarContributeBody) -> Unit, onD
 }
 
 @Composable
-private fun JarWithdrawDialog(onConfirm: (AdminJarWithdrawBody) -> Unit, onDismiss: () -> Unit) {
+private fun JarWithdrawDialog(
+    searchViewers: suspend (query: String) -> List<PickerOption>,
+    onConfirm: (AdminJarWithdrawBody) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
-    var viewerId: String by remember { mutableStateOf("") }
+    var picked: PickerRef? by remember { mutableStateOf(null) }
     var amountText: String by remember { mutableStateOf("") }
     val amount: Long? = amountText.toLongOrNull()?.takeIf { it > 0 }
-    val isValid: Boolean = viewerId.isNotBlank() && amount != null
+    val isValid: Boolean = picked != null && amount != null
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.economy_jars_withdraw_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                AppTextField(value = viewerId, onValueChange = { viewerId = it }, label = stringResource(Res.string.economy_jars_withdraw_viewer), modifier = Modifier.fillMaxWidth())
+                SearchPickerField(
+                    search = searchViewers,
+                    selected = picked,
+                    onSelect = { picked = it },
+                    onClear = { picked = null },
+                    label = stringResource(Res.string.economy_jars_withdraw_viewer),
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 AppTextField(
                     value = amountText,
                     onValueChange = { amountText = it },
@@ -2572,7 +2600,7 @@ private fun JarWithdrawDialog(onConfirm: (AdminJarWithdrawBody) -> Unit, onDismi
         },
         confirmButton = {
             TextButton(
-                onClick = { amount?.let { onConfirm(AdminJarWithdrawBody(targetViewerUserId = viewerId, amount = it)) } },
+                onClick = { picked?.let { p -> amount?.let { onConfirm(AdminJarWithdrawBody(targetViewerUserId = p.id, amount = it)) } } },
                 enabled = isValid,
             ) {
                 Text(stringResource(Res.string.economy_jars_withdraw_confirm), color = if (isValid) tokens.primary else tokens.mutedForeground)
