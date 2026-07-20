@@ -357,7 +357,22 @@ data class CatalogPurchase(
  * ones apply. A toggle sends just [isEnabled]; `explicitNulls = false` on the shared Json omits the rest.
  */
 @Serializable
-data class UpdateCatalogItemBody(val isEnabled: Boolean? = null)
+data class UpdateCatalogItemBody(
+    // Partial patch of a store catalog item (backend UpdateCatalogItemRequest) — every field nullable, null =
+    // unchanged. Was toggle-only (isEnabled), so a store item could never be edited from the dashboard.
+    val name: String? = null,
+    val description: String? = null,
+    val cost: Long? = null,
+    val iconUrl: String? = null,
+    val isEnabled: Boolean? = null,
+    val permission: String? = null,
+    val pipelineId: String? = null,
+    val cooldownSeconds: Int? = null,
+    val cooldownPerUser: Boolean? = null,
+    val stockLimit: Int? = null,
+    val maxPerViewerPerStream: Int? = null,
+    val sortOrder: Int? = null,
+)
 
 /**
  * A new catalog-item request (backend `CreateCatalogItemRequest`). Required: [name], [sinkType], [cost];

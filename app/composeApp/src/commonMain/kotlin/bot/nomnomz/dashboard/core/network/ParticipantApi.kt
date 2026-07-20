@@ -242,8 +242,15 @@ data class CatalogItem(
     val isEnabled: Boolean = false,
     val permission: String = "",
     val cooldownSeconds: Int = 0,
+    val cooldownPerUser: Boolean = false,
     val stockLimit: Int? = null,
     val stockRemaining: Int? = null,
+    val maxPerViewerPerStream: Int? = null,
+    // Operator/store-management fields (backend CatalogItemDto): bound pipeline, sort order, and audit stamps.
+    val pipelineId: String? = null,
+    val sortOrder: Int = 0,
+    val createdAt: String = "",
+    val updatedAt: String = "",
 )
 
 /**
