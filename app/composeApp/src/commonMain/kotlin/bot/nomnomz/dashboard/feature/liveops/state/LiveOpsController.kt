@@ -74,12 +74,20 @@ class LiveOpsController(
         }
     }
 
-    suspend fun createPoll(title: String, choices: List<String>, durationSeconds: Int) {
-        val ch: String = channelId ?: return
+    /** Start a Twitch-native poll. Returns true when it was created (so a modal can close on success and keep
+     *  the operator's typed input on a failure), false with the error surfaced on Ready otherwise. */
+    suspend fun createPoll(title: String, choices: List<String>, durationSeconds: Int): Boolean {
+        val ch: String = channelId ?: return false
         val body: CreatePollBody = CreatePollBody(title, choices, durationSeconds)
-        when (val r: ApiResult<LiveOpsPoll> = liveOpsApi.createPoll(ch, body)) {
-            is ApiResult.Ok -> updateActivePoll(r.value)
-            is ApiResult.Failure -> setActionError(r.error.message)
+        return when (val r: ApiResult<LiveOpsPoll> = liveOpsApi.createPoll(ch, body)) {
+            is ApiResult.Ok -> {
+                updateActivePoll(r.value)
+                true
+            }
+            is ApiResult.Failure -> {
+                setActionError(r.error.message)
+                false
+            }
         }
     }
 

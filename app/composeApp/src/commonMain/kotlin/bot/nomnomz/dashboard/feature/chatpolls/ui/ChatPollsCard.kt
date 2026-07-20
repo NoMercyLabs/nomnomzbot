@@ -24,21 +24,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.Button
-import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
-import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -49,16 +42,10 @@ import bot.nomnomz.dashboard.feature.chatpolls.state.ChatPollsState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.chat_poll_add_option
-import nomnomzbot.composeapp.generated.resources.chat_poll_announce
 import nomnomzbot.composeapp.generated.resources.chat_poll_close
-import nomnomzbot.composeapp.generated.resources.chat_poll_duration_label
 import nomnomzbot.composeapp.generated.resources.chat_poll_history_title
-import nomnomzbot.composeapp.generated.resources.chat_poll_new_title
-import nomnomzbot.composeapp.generated.resources.chat_poll_open
+import nomnomzbot.composeapp.generated.resources.chat_poll_idle_hint
 import nomnomzbot.composeapp.generated.resources.chat_poll_open_tag
-import nomnomzbot.composeapp.generated.resources.chat_poll_option_label
-import nomnomzbot.composeapp.generated.resources.chat_poll_question_label
 import nomnomzbot.composeapp.generated.resources.chat_poll_subtitle
 import nomnomzbot.composeapp.generated.resources.chat_poll_title
 import nomnomzbot.composeapp.generated.resources.chat_poll_total_votes
@@ -122,16 +109,18 @@ fun ChatPollsCard(controller: ChatPollsController, modifier: Modifier = Modifier
                 current.actionError?.let { detail ->
                     Text(text = detail, style = typography.sm, color = tokens.destructive)
                 }
+                // Starting a poll lives in the single "Start poll" modal on Home — this card is the live view of
+                // the running chat poll (tallies + close) and the recent history, not a second start form.
                 if (current.openPoll != null) {
                     OpenPollCard(
                         poll = current.openPoll,
                         onClose = { scope.launch { controller.close(current.openPoll.id) } },
                     )
                 } else {
-                    NewPollForm(
-                        onOpen = { question, options, duration, announce ->
-                            controller.open(question, options, duration, announce)
-                        },
+                    Text(
+                        text = stringResource(Res.string.chat_poll_idle_hint),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
                     )
                 }
                 if (current.history.isNotEmpty()) {
@@ -226,107 +215,6 @@ private fun PollOptionBar(option: ChatPollOption, maxVotes: Int) {
                     .clip(RoundedCornerShape(tokens.radius.sm))
                     .background(tokens.primary),
             )
-        }
-    }
-}
-
-// The new-poll form: question, a dynamic 2–10 option list, an optional auto-close duration, an announce toggle.
-@Composable
-private fun NewPollForm(
-    onOpen: suspend (question: String, options: List<String>, durationSeconds: Int?, announce: Boolean) -> Boolean,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-    val scope = rememberCoroutineScope()
-
-    var question: String by remember { mutableStateOf("") }
-    var options: List<String> by remember { mutableStateOf(listOf("", "")) }
-    var durationText: String by remember { mutableStateOf("") }
-    var announce: Boolean by remember { mutableStateOf(true) }
-
-    val nonBlank: Int = options.count { it.isNotBlank() }
-    val canOpen: Boolean = question.isNotBlank() && nonBlank >= 2
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(tokens.card)
-            .padding(spacing.s4),
-        verticalArrangement = Arrangement.spacedBy(spacing.s2),
-    ) {
-        Text(
-            text = stringResource(Res.string.chat_poll_new_title),
-            style = typography.sm,
-            color = tokens.cardForeground,
-        )
-        AppTextField(
-            value = question,
-            onValueChange = { question = it },
-            label = stringResource(Res.string.chat_poll_question_label),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        options.forEachIndexed { index, value ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AppTextField(
-                    value = value,
-                    onValueChange = { updated ->
-                        options = options.toMutableList().also { it[index] = updated }
-                    },
-                    label = stringResource(Res.string.chat_poll_option_label, index + 1),
-                    modifier = Modifier.weight(1f),
-                )
-                // Removing is allowed only while more than the required two options remain.
-                if (options.size > 2) {
-                    GlyphButton(
-                        imageVector = TrashGlyph,
-                        label = stringResource(Res.string.chat_poll_option_label, index + 1),
-                        onClick = { options = options.toMutableList().also { it.removeAt(index) } },
-                        tint = tokens.destructive,
-                    )
-                }
-            }
-        }
-        if (options.size < 10) {
-            GlyphButton(
-                imageVector = AddGlyph,
-                label = stringResource(Res.string.chat_poll_add_option),
-                onClick = { options = options + "" },
-                tint = tokens.primary,
-            )
-        }
-        AppTextField(
-            value = durationText,
-            onValueChange = { durationText = it.filter { c -> c.isDigit() } },
-            label = stringResource(Res.string.chat_poll_duration_label),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Badge(selected = announce, onClick = { announce = !announce }) {
-            Text(stringResource(Res.string.chat_poll_announce), maxLines = 1)
-        }
-        Button(
-            onClick = {
-                scope.launch {
-                    // Reset the form only after a successful open — a failed open (e.g. 409 "a poll is already
-                    // open") keeps the typed question/options so the operator doesn't lose their work.
-                    val opened: Boolean =
-                        onOpen(question, options, durationText.toIntOrNull()?.takeIf { it > 0 }, announce)
-                    if (opened) {
-                        question = ""
-                        options = listOf("", "")
-                        durationText = ""
-                        announce = true
-                    }
-                }
-            },
-            enabled = canOpen,
-        ) {
-            Text(stringResource(Res.string.chat_poll_open))
         }
     }
 }

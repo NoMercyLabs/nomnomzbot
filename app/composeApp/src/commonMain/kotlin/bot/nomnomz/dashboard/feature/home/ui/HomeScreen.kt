@@ -139,7 +139,14 @@ import nomnomzbot.composeapp.generated.resources.home_live_ops_mark_moment_done
 import nomnomzbot.composeapp.generated.resources.home_live_ops_mark_moment_failed
 import nomnomzbot.composeapp.generated.resources.home_live_ops_outcome_pick
 import nomnomzbot.composeapp.generated.resources.chat_poll_add_option
+import nomnomzbot.composeapp.generated.resources.chat_poll_announce
+import nomnomzbot.composeapp.generated.resources.chat_poll_duration_label
 import nomnomzbot.composeapp.generated.resources.chat_poll_option_label
+import nomnomzbot.composeapp.generated.resources.chat_poll_subtitle
+import nomnomzbot.composeapp.generated.resources.home_poll_target_chat
+import nomnomzbot.composeapp.generated.resources.home_poll_target_label
+import nomnomzbot.composeapp.generated.resources.home_poll_target_twitch
+import nomnomzbot.composeapp.generated.resources.home_poll_twitch_hint
 import nomnomzbot.composeapp.generated.resources.home_live_ops_poll_confirm
 import nomnomzbot.composeapp.generated.resources.home_live_ops_poll_duration_label
 import nomnomzbot.composeapp.generated.resources.home_live_ops_poll_title_label
@@ -390,10 +397,15 @@ private fun ReadyContent(
     }
 
     if (showPollDialog) {
-        PollDialog(
-            onConfirm = { title, choices, duration ->
-                showPollDialog = false
-                scope.launch { liveOpsController.createPoll(title, choices, duration) }
+        // One "Start poll" entry point. The pretty modal picks the target: a bot chat poll (viewers type a
+        // number, any platform) or Twitch's native poll. Both mechanisms are kept — the dialog closes itself
+        // only on a successful start, so a failed start keeps the operator's typed question/options.
+        StartPollDialog(
+            onStartChatPoll = { question, options, duration, announce ->
+                chatPollsController.open(question, options, duration, announce)
+            },
+            onStartTwitchPoll = { title, choices, duration ->
+                liveOpsController.createPoll(title, choices, duration)
             },
             onDismiss = { showPollDialog = false },
         )
@@ -1143,32 +1155,77 @@ private fun ChangeTitleDialog(
     )
 }
 
+// Where a poll runs: a bot chat poll (viewers type an option number, works on every platform) or Twitch's
+// native channel poll. One dialog, one entry point — the toggle keeps both mechanisms without a second form.
+private enum class PollTarget {
+    Chat,
+    Twitch,
+}
+
+// The single "Start poll" modal. Picks the target, then shows one pretty form: question, a dynamic option list
+// (2–10 for chat, 2–5 for Twitch), and the per-target extras (chat: optional auto-close + announce; Twitch: a
+// required duration). It closes itself only when the start succeeds, so a failed start (e.g. 409 "a poll is
+// already open", or a non-affiliate 403 on Twitch) keeps the typed input for a retry.
 @Composable
-private fun PollDialog(
-    onConfirm: (title: String, choices: List<String>, durationSeconds: Int) -> Unit,
+private fun StartPollDialog(
+    onStartChatPoll: suspend (
+        question: String,
+        options: List<String>,
+        durationSeconds: Int?,
+        announce: Boolean,
+    ) -> Boolean,
+    onStartTwitchPoll: suspend (title: String, choices: List<String>, durationSeconds: Int) -> Boolean,
     onDismiss: () -> Unit,
 ) {
-    var title: String by remember { mutableStateOf("") }
-    // A Twitch poll needs 2–5 real choices — one field per choice (add/remove), NOT a single "one per line"
-    // input a single-line field can never satisfy (which left the confirm button permanently disabled).
-    var choices: List<String> by remember { mutableStateOf(listOf("", "")) }
-    var duration: Float by remember { mutableStateOf(60f) }
     val spacing = LocalSpacing.current
     val tokens = LocalTokens.current
-    val nonBlank: Int = choices.count { it.isNotBlank() }
+    val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+
+    var target: PollTarget by remember { mutableStateOf(PollTarget.Chat) }
+    var question: String by remember { mutableStateOf("") }
+    var options: List<String> by remember { mutableStateOf(listOf("", "")) }
+    var chatDurationText: String by remember { mutableStateOf("") }
+    var twitchDuration: Float by remember { mutableStateOf(60f) }
+    var announce: Boolean by remember { mutableStateOf(true) }
+
+    val maxOptions: Int = if (target == PollTarget.Twitch) 5 else 10
+    val nonBlank: Int = options.count { it.isNotBlank() }
+    val canStart: Boolean = question.isNotBlank() && nonBlank >= 2
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.home_live_ops_create_poll)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                Text(
+                    text = stringResource(Res.string.home_poll_target_label),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    Badge(selected = target == PollTarget.Chat, onClick = { target = PollTarget.Chat }) {
+                        Text(stringResource(Res.string.home_poll_target_chat), maxLines = 1)
+                    }
+                    Badge(selected = target == PollTarget.Twitch, onClick = { target = PollTarget.Twitch }) {
+                        Text(stringResource(Res.string.home_poll_target_twitch), maxLines = 1)
+                    }
+                }
+                Text(
+                    text =
+                        if (target == PollTarget.Chat) stringResource(Res.string.chat_poll_subtitle)
+                        else stringResource(Res.string.home_poll_twitch_hint),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+
                 AppTextField(
-                    value = title,
-                    onValueChange = { title = it },
+                    value = question,
+                    onValueChange = { question = it },
                     label = stringResource(Res.string.home_live_ops_poll_title_label),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                choices.forEachIndexed { index, value ->
+                options.forEachIndexed { index, value ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
@@ -1177,42 +1234,78 @@ private fun PollDialog(
                         AppTextField(
                             value = value,
                             onValueChange = { updated ->
-                                choices = choices.toMutableList().also { it[index] = updated }
+                                options = options.toMutableList().also { it[index] = updated }
                             },
                             label = stringResource(Res.string.chat_poll_option_label, index + 1),
                             modifier = Modifier.weight(1f),
                         )
-                        if (choices.size > 2) {
+                        if (options.size > 2) {
                             GlyphButton(
                                 imageVector = RemoveGlyph,
                                 label = stringResource(Res.string.chat_poll_option_label, index + 1),
-                                onClick = { choices = choices.toMutableList().also { it.removeAt(index) } },
+                                onClick = { options = options.toMutableList().also { it.removeAt(index) } },
                                 tint = tokens.destructive,
                             )
                         }
                     }
                 }
-                if (choices.size < 5) {
+                if (options.size < maxOptions) {
                     GlyphButton(
                         imageVector = AddGlyph,
                         label = stringResource(Res.string.chat_poll_add_option),
-                        onClick = { choices = choices + "" },
+                        onClick = { options = options + "" },
                         tint = tokens.primary,
                     )
                 }
-                Text(
-                    text = stringResource(Res.string.home_live_ops_poll_duration_label, duration.toInt()),
-                    style = LocalTypography.current.sm,
-                )
-                Slider(value = duration, onValueChange = { duration = it }, valueRange = 15f..1800f)
+
+                if (target == PollTarget.Twitch) {
+                    Text(
+                        text =
+                            stringResource(
+                                Res.string.home_live_ops_poll_duration_label,
+                                twitchDuration.toInt(),
+                            ),
+                        style = typography.sm,
+                    )
+                    Slider(
+                        value = twitchDuration,
+                        onValueChange = { twitchDuration = it },
+                        valueRange = 15f..1800f,
+                    )
+                } else {
+                    AppTextField(
+                        value = chatDurationText,
+                        onValueChange = { chatDurationText = it.filter { c -> c.isDigit() } },
+                        label = stringResource(Res.string.chat_poll_duration_label),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Badge(selected = announce, onClick = { announce = !announce }) {
+                        Text(stringResource(Res.string.chat_poll_announce), maxLines = 1)
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    onConfirm(title, choices.map { it.trim() }.filter { it.isNotEmpty() }, duration.toInt())
+                    scope.launch {
+                        val cleaned: List<String> =
+                            options.map { it.trim() }.filter { it.isNotEmpty() }
+                        val started: Boolean =
+                            if (target == PollTarget.Twitch) {
+                                onStartTwitchPoll(question.trim(), cleaned.take(5), twitchDuration.toInt())
+                            } else {
+                                onStartChatPoll(
+                                    question.trim(),
+                                    cleaned,
+                                    chatDurationText.toIntOrNull()?.takeIf { it > 0 },
+                                    announce,
+                                )
+                            }
+                        if (started) onDismiss()
+                    }
                 },
-                enabled = title.isNotBlank() && nonBlank >= 2,
+                enabled = canStart,
             ) { Text(stringResource(Res.string.home_live_ops_poll_confirm)) }
         },
         dismissButton = {

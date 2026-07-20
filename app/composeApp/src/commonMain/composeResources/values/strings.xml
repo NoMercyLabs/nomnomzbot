@@ -310,6 +310,11 @@
     <string name="chat_poll_announce">Announce in chat</string>
     <string name="chat_poll_open">Open poll</string>
     <string name="chat_poll_history_title">Recent polls</string>
+    <string name="chat_poll_idle_hint">No chat poll is running. Start one from Start Poll above.</string>
+    <string name="home_poll_target_label">Run poll on</string>
+    <string name="home_poll_target_chat">Chat</string>
+    <string name="home_poll_target_twitch">Twitch</string>
+    <string name="home_poll_twitch_hint">Twitch's native channel poll (2–5 options).</string>
     <string name="community_loading">Loading your community…</string>
     <string name="community_empty">No community members yet</string>
     <string name="community_error">Could not load the community: %1$s</string>

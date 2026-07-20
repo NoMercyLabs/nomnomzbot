@@ -30,8 +30,10 @@ import bot.nomnomz.dashboard.core.network.LiveOpsPoll
 import bot.nomnomz.dashboard.core.network.LiveOpsPrediction
 import bot.nomnomz.dashboard.core.network.LiveOpsRaid
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
+import bot.nomnomz.dashboard.core.network.LiveOpsPollChoice
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -68,6 +70,53 @@ class LiveOpsControllerTest {
         assertNull(marker)
         assertEquals("Channel is not live.", (controller.state.value as? LiveOpsState.Ready)?.actionError)
     }
+
+    @Test
+    fun start_twitch_poll_sends_the_body_and_makes_it_the_active_poll() = runTest {
+        val created =
+            LiveOpsPoll(
+                id = "p1",
+                title = "Best map?",
+                choices =
+                    listOf(
+                        LiveOpsPollChoice(id = "c1", title = "Dust", votes = 0),
+                        LiveOpsPollChoice(id = "c2", title = "Nuke", votes = 0),
+                    ),
+                status = "ACTIVE",
+                duration = 90,
+                startedAt = "2026-07-20T00:00:00Z",
+            )
+        val api = FakeLiveOpsApi(pollResult = ApiResult.Ok(created))
+        val controller = LiveOpsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        val started: Boolean = controller.createPoll("Best map?", listOf("Dust", "Nuke"), 90)
+
+        // The start reports success, sent the exact body, and the created poll is now the ACTIVE one on the panel.
+        assertTrue(started)
+        assertEquals(listOf("Best map?"), api.pollBodies.map { it.title })
+        assertEquals(listOf("Dust", "Nuke"), api.pollBodies.single().choices)
+        assertEquals(90, api.pollBodies.single().durationSeconds)
+        assertEquals("p1", (controller.state.value as? LiveOpsState.Ready)?.activePoll?.id)
+    }
+
+    @Test
+    fun start_twitch_poll_returns_false_and_surfaces_error_when_twitch_rejects() = runTest {
+        val api =
+            FakeLiveOpsApi(
+                pollResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Affiliate required.")),
+            )
+        val controller = LiveOpsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        controller.load()
+
+        val started: Boolean = controller.createPoll("Best map?", listOf("Dust", "Nuke"), 90)
+
+        // A rejected poll returns false (so the modal keeps the operator's input) and shows the reason — no
+        // active poll is invented on the panel.
+        assertFalse(started)
+        assertEquals("Affiliate required.", (controller.state.value as? LiveOpsState.Ready)?.actionError)
+        assertNull((controller.state.value as? LiveOpsState.Ready)?.activePoll)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -92,9 +141,11 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 // Records the marker calls; every other action is unused by these tests and degrades to an empty/failed result
 // (load() reads polls/predictions/ad-schedule resiliently, so a failing ad-schedule is fine).
 private class FakeLiveOpsApi(
-    private val markerResult: ApiResult<LiveOpsMarker>,
+    private val markerResult: ApiResult<LiveOpsMarker> = ApiResult.Failure(ApiError(0, null, "unused")),
+    private val pollResult: ApiResult<LiveOpsPoll> = ApiResult.Failure(ApiError(0, null, "unused")),
 ) : LiveOpsApi {
     val markerCalls: MutableList<Pair<String, String?>> = mutableListOf()
+    val pollBodies: MutableList<CreatePollBody> = mutableListOf()
 
     override suspend fun createMarker(channelId: String, description: String?): ApiResult<LiveOpsMarker> {
         markerCalls.add(channelId to description)
@@ -103,8 +154,10 @@ private class FakeLiveOpsApi(
 
     override suspend fun getPolls(channelId: String): ApiResult<List<LiveOpsPoll>> = ApiResult.Ok(emptyList())
 
-    override suspend fun createPoll(channelId: String, body: CreatePollBody): ApiResult<LiveOpsPoll> =
-        ApiResult.Failure(ApiError(0, null, "unused"))
+    override suspend fun createPoll(channelId: String, body: CreatePollBody): ApiResult<LiveOpsPoll> {
+        pollBodies.add(body)
+        return pollResult
+    }
 
     override suspend fun endPoll(channelId: String, pollId: String, status: String): ApiResult<LiveOpsPoll> =
         ApiResult.Failure(ApiError(0, null, "unused"))

@@ -77,6 +77,9 @@ class ChatPollsController(
         durationSeconds: Int?,
         announce: Boolean,
     ): Boolean {
+        // The start modal can fire before the card's first load resolved the channel — resolve it here so a
+        // poll started from the modal is never a silent no-op.
+        if (channelId == null) load()
         val channel: String = channelId ?: return false
         val cleanOptions: List<String> = options.map { it.trim() }.filter { it.isNotEmpty() }
         val request = OpenChatPollRequest(

@@ -307,6 +307,11 @@
     <string name="chat_poll_announce">Aankondigen in chat</string>
     <string name="chat_poll_open">Poll openen</string>
     <string name="chat_poll_history_title">Recente polls</string>
+    <string name="chat_poll_idle_hint">Er loopt geen chatpoll. Start er een via Start Poll hierboven.</string>
+    <string name="home_poll_target_label">Poll uitvoeren op</string>
+    <string name="home_poll_target_chat">Chat</string>
+    <string name="home_poll_target_twitch">Twitch</string>
+    <string name="home_poll_twitch_hint">Twitch's eigen kanaalpoll (2–5 opties).</string>
     <string name="community_loading">Je community laden…</string>
     <string name="community_empty">Nog geen communityleden</string>
     <string name="community_error">Kon de community niet laden: %1$s</string>
