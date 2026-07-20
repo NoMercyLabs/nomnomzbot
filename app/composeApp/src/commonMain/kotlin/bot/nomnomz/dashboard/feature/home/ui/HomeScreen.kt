@@ -159,6 +159,7 @@ import nomnomzbot.composeapp.generated.resources.home_stat_chatters
 import nomnomzbot.composeapp.generated.resources.home_stat_commands
 import nomnomzbot.composeapp.generated.resources.home_stat_donations
 import nomnomzbot.composeapp.generated.resources.home_stat_followers
+import nomnomzbot.composeapp.generated.resources.home_stat_messages
 import nomnomzbot.composeapp.generated.resources.home_stat_subscribers
 import nomnomzbot.composeapp.generated.resources.home_stat_uptime
 import nomnomzbot.composeapp.generated.resources.home_stat_viewers
@@ -541,6 +542,7 @@ private fun StatTilesRow(stats: DashboardStats) {
             stringResource(Res.string.home_stat_chatters) to stats.chattersToday.toString(),
             stringResource(Res.string.home_stat_donations) to donationsLabel(stats),
             stringResource(Res.string.home_stat_commands) to stats.commandsUsed.toString(),
+            stringResource(Res.string.home_stat_messages) to stats.messagesCount.toString(),
             stringResource(Res.string.home_stat_uptime) to uptimeLabel(stats.uptime),
         )
     val columns = 4
