@@ -21,19 +21,21 @@ import kotlin.test.assertTrue
 // the wrong control state on that page.
 class ScreenWriteGateTest {
 
-    // ── Commands (Chat group, Editor manage floor) — the brief's worked example ──────────────────────────────
+    // ── Commands (Chat group, Moderator manage floor) — mods manage commands, matching incumbents ─────────────
 
     @Test
-    fun a_moderator_on_commands_sees_every_write_control_disabled() {
-        // A Mod can READ Commands (it floors at Moderator) but the page manages at Editor — so New / Edit /
-        // Delete / toggle are all below the floor and must render disabled-with-reason.
+    fun a_moderator_on_commands_can_use_every_write_control() {
+        // Command management (add/edit/delete) floors at Moderator — mirrors the backend commands:write floor, so
+        // a Twitch mod manages commands out of the box like StreamElements/Nightbot/Cloudbot/Fossabot. New / Edit /
+        // Delete / toggle are all at or above the floor for a Mod and must render enabled.
         assertTrue(ShellNav.visiblePagesFor(ManagementRole.Moderator).any { it.route == ShellRoute.Commands })
-        assertFalse(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Commands))
+        assertTrue(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Commands))
     }
 
     @Test
-    fun an_editor_on_commands_can_use_every_write_control() {
-        assertTrue(ShellNav.canManage(ManagementRole.Editor, ShellRoute.Commands))
+    fun a_caller_with_no_management_role_cannot_manage_commands() {
+        // Below the Moderator floor: a role-less caller (no membership) still cannot mutate the command set.
+        assertFalse(ShellNav.canManage(null, ShellRoute.Commands))
     }
 
     // ── Rewards (Loyalty group) — edit at Editor, create/delete at Broadcaster (sub-page floor) ──────────────

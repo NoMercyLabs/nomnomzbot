@@ -115,7 +115,9 @@ object ShellNav {
             // (null manage floor — nothing to mutate here; a mod acts from a channel's own Chat page); it reuses
             // the Chat read floor (chat:read) since it reads chat history.
             NavPage(ShellRoute.MultiChat, NavGroup.Chat, ManagementRole.Moderator, null, readActionKey = "chat:read"),
-            NavPage(ShellRoute.Commands, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "commands:read"),
+            // Command management (add/edit/delete) is Moderator, mirroring the backend commands:write floor —
+            // Twitch mods manage commands out of the box, matching StreamElements/Nightbot/Cloudbot/Fossabot.
+            NavPage(ShellRoute.Commands, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "commands:read"),
             // Chat triggers (keyword auto-replies) sit beside Commands in the Chat group; read at Moderator, write
             // at Editor, governed by the `chattriggers:read` action key so a broadcaster can delegate reading.
             NavPage(ShellRoute.ChatTriggers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "chattriggers:read"),
