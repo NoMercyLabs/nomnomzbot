@@ -335,21 +335,11 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
                         scope.launch { controller.createSavingsJar(request) }
                     },
                     loadJarDetail = controller::getJar,
-                    onJarInvite = { jarId, request ->
-                        scope.launch { controller.inviteChannel(jarId, request) }
-                    },
-                    onJarAcceptMembership = { membershipId ->
-                        scope.launch { controller.acceptMembership(membershipId) }
-                    },
-                    onJarRemoveMembership = { membershipId ->
-                        scope.launch { controller.removeMembership(membershipId) }
-                    },
-                    onJarContribute = { jarId, request ->
-                        scope.launch { controller.contribute(jarId, request) }
-                    },
-                    onJarWithdraw = { jarId, request ->
-                        scope.launch { controller.withdraw(jarId, request) }
-                    },
+                    onJarInvite = { jarId, request -> controller.inviteChannel(jarId, request) },
+                    onJarAcceptMembership = { membershipId -> controller.acceptMembership(membershipId) },
+                    onJarRemoveMembership = { membershipId -> controller.removeMembership(membershipId) },
+                    onJarContribute = { jarId, request -> controller.contribute(jarId, request) },
+                    onJarWithdraw = { jarId, request -> controller.withdraw(jarId, request) },
                     loadJarHistory = controller::jarHistory,
                     onAdjustAccount = { viewerUserId, amount, reason ->
                         scope.launch { controller.adjustAccount(viewerUserId, amount, reason) }
@@ -382,11 +372,13 @@ private fun ReadyContent(
     onDeleteEarningRule: (ruleId: String) -> Unit,
     onCreateSavingsJar: (CreateSavingsJarBody) -> Unit,
     loadJarDetail: suspend (jarId: String) -> SavingsJarDetail?,
-    onJarInvite: (jarId: String, InviteChannelBody) -> Unit,
-    onJarAcceptMembership: (membershipId: String) -> Unit,
-    onJarRemoveMembership: (membershipId: String) -> Unit,
-    onJarContribute: (jarId: String, AdminJarContributeBody) -> Unit,
-    onJarWithdraw: (jarId: String, AdminJarWithdrawBody) -> Unit,
+    // The jar-detail mutations are suspend so the manage dialog can await them and reload its own detail — a
+    // fire-and-forget write left the dialog's membership list / balance stale until it was reopened.
+    onJarInvite: suspend (jarId: String, InviteChannelBody) -> Unit,
+    onJarAcceptMembership: suspend (membershipId: String) -> Unit,
+    onJarRemoveMembership: suspend (membershipId: String) -> Unit,
+    onJarContribute: suspend (jarId: String, AdminJarContributeBody) -> Unit,
+    onJarWithdraw: suspend (jarId: String, AdminJarWithdrawBody) -> Unit,
     loadJarHistory: suspend (jarId: String) -> List<JarMovement>?,
     onAdjustAccount: (viewerUserId: String, amount: Long, reason: String?) -> Unit,
     loadLedger: suspend (viewerUserId: String) -> List<CurrencyLedgerEntry>?,
@@ -2109,11 +2101,11 @@ private fun SavingsJarsSection(
     manage: ManageDecision,
     onCreate: (CreateSavingsJarBody) -> Unit,
     loadJarDetail: suspend (jarId: String) -> SavingsJarDetail?,
-    onInvite: (jarId: String, InviteChannelBody) -> Unit,
-    onAcceptMembership: (membershipId: String) -> Unit,
-    onRemoveMembership: (membershipId: String) -> Unit,
-    onContribute: (jarId: String, AdminJarContributeBody) -> Unit,
-    onWithdraw: (jarId: String, AdminJarWithdrawBody) -> Unit,
+    onInvite: suspend (jarId: String, InviteChannelBody) -> Unit,
+    onAcceptMembership: suspend (membershipId: String) -> Unit,
+    onRemoveMembership: suspend (membershipId: String) -> Unit,
+    onContribute: suspend (jarId: String, AdminJarContributeBody) -> Unit,
+    onWithdraw: suspend (jarId: String, AdminJarWithdrawBody) -> Unit,
     loadHistory: suspend (jarId: String) -> List<JarMovement>?,
 ) {
     val tokens = LocalTokens.current
@@ -2261,17 +2253,18 @@ private fun JarManageDialog(
     jar: SavingsJar,
     manage: ManageDecision,
     loadDetail: suspend (jarId: String) -> SavingsJarDetail?,
-    onInvite: (InviteChannelBody) -> Unit,
-    onAcceptMembership: (membershipId: String) -> Unit,
-    onRemoveMembership: (membershipId: String) -> Unit,
-    onContribute: (AdminJarContributeBody) -> Unit,
-    onWithdraw: (AdminJarWithdrawBody) -> Unit,
+    onInvite: suspend (InviteChannelBody) -> Unit,
+    onAcceptMembership: suspend (membershipId: String) -> Unit,
+    onRemoveMembership: suspend (membershipId: String) -> Unit,
+    onContribute: suspend (AdminJarContributeBody) -> Unit,
+    onWithdraw: suspend (AdminJarWithdrawBody) -> Unit,
     loadHistory: suspend (jarId: String) -> List<JarMovement>?,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
 
     var detail: SavingsJarDetail? by remember { mutableStateOf(null) }
     var showInvite: Boolean by remember { mutableStateOf(false) }
@@ -2280,6 +2273,15 @@ private fun JarManageDialog(
     var showHistory: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(jar.id) { detail = loadDetail(jar.id) }
+
+    // Run a jar mutation, then reload THIS dialog's detail so the memberships + balance reflect the write
+    // immediately — the fire-and-forget page reload never touched the dialog's own fetched detail.
+    fun mutateThenReload(action: suspend () -> Unit) {
+        scope.launch {
+            action()
+            detail = loadDetail(jar.id)
+        }
+    }
 
     val title: String = stringResource(Res.string.economy_jars_detail_title, jar.name)
 
@@ -2354,7 +2356,7 @@ private fun JarManageDialog(
                                             GlyphButton(
                                                 imageVector = CheckCircleGlyph,
                                                 label = stringResource(Res.string.economy_jars_membership_accept),
-                                                onClick = { onAcceptMembership(m.id) },
+                                                onClick = { mutateThenReload { onAcceptMembership(m.id) } },
                                                 enabled = enabled,
                                                 tint = tokens.primary,
                                             )
@@ -2364,7 +2366,7 @@ private fun JarManageDialog(
                                         GlyphButton(
                                             imageVector = TrashGlyph,
                                             label = stringResource(Res.string.economy_jars_membership_revoke),
-                                            onClick = { onRemoveMembership(m.id) },
+                                            onClick = { mutateThenReload { onRemoveMembership(m.id) } },
                                             enabled = enabled,
                                             tint = tokens.destructive,
                                         )
@@ -2386,7 +2388,7 @@ private fun JarManageDialog(
     if (showInvite) {
         JarInviteDialog(
             onConfirm = { request ->
-                onInvite(request)
+                mutateThenReload { onInvite(request) }
                 showInvite = false
             },
             onDismiss = { showInvite = false },
@@ -2395,7 +2397,7 @@ private fun JarManageDialog(
     if (showContribute) {
         JarContributeDialog(
             onConfirm = { request ->
-                onContribute(request)
+                mutateThenReload { onContribute(request) }
                 showContribute = false
             },
             onDismiss = { showContribute = false },
@@ -2404,7 +2406,7 @@ private fun JarManageDialog(
     if (showWithdraw) {
         JarWithdrawDialog(
             onConfirm = { request ->
-                onWithdraw(request)
+                mutateThenReload { onWithdraw(request) }
                 showWithdraw = false
             },
             onDismiss = { showWithdraw = false },
