@@ -106,6 +106,15 @@ interface TtsApi {
 
     /** Remove the rule [entryId]. */
     suspend fun deleteLexiconEntry(channelId: String, entryId: String): ApiResult<Unit>
+
+    /** The signed-in viewer's OWN voice for this channel, or null when they use the channel default (404→null). */
+    suspend fun myVoice(channelId: String): ApiResult<UserTtsVoice?>
+
+    /** Pick the signed-in viewer's OWN voice (must be one the channel can synthesise). */
+    suspend fun setMyVoice(channelId: String, voiceId: String): ApiResult<UserTtsVoice>
+
+    /** Reset the signed-in viewer's OWN voice back to the channel default (404 = nothing set = success). */
+    suspend fun clearMyVoice(channelId: String): ApiResult<Unit>
 }
 
 class RestTtsApi(private val client: ApiClient) : TtsApi {
@@ -229,6 +238,30 @@ class RestTtsApi(private val client: ApiClient) : TtsApi {
 
     override suspend fun deleteLexiconEntry(channelId: String, entryId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/tts/lexicon/$entryId")
+
+    override suspend fun myVoice(channelId: String): ApiResult<UserTtsVoice?> =
+        when (
+            val result: ApiResult<UserTtsVoice> =
+                client.getEnvelope("api/v1/channels/$channelId/tts/me/voice")
+        ) {
+            is ApiResult.Ok -> ApiResult.Ok(result.value)
+            is ApiResult.Failure ->
+                if (result.error.status == 404) ApiResult.Ok(null) else ApiResult.Failure(result.error)
+        }
+
+    override suspend fun setMyVoice(channelId: String, voiceId: String): ApiResult<UserTtsVoice> =
+        client.putEnvelope(
+            "api/v1/channels/$channelId/tts/me/voice",
+            SetUserVoiceBody(voiceId = voiceId),
+        )
+
+    // A 404 on clear means nothing was set — the asked-for end state (channel default) already holds, so OK.
+    override suspend fun clearMyVoice(channelId: String): ApiResult<Unit> =
+        when (val result: ApiResult<Unit> = client.deleteUnit("api/v1/channels/$channelId/tts/me/voice")) {
+            is ApiResult.Ok -> ApiResult.Ok(Unit)
+            is ApiResult.Failure ->
+                if (result.error.status == 404) ApiResult.Ok(Unit) else ApiResult.Failure(result.error)
+        }
 }
 
 /** The channel's TTS configuration (backend `TtsConfigDto`). Field names mirror the DTO camelCase exactly. */
