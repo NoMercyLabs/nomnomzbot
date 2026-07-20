@@ -51,16 +51,46 @@ for ($i = 0; $i -lt 12 -and -not $runId; $i++) {
 if (-not $runId) { Fail "no CI run appeared for $Sha" }
 Write-Host "SHIP: watching CI run $runId for $($Sha.Substring(0,8))..."
 
-# ── 2. Block on CI ────────────────────────────────────────────────────────────
-gh run watch $runId --exit-status | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    Fail "CI run $runId is RED for $($Sha.Substring(0,8)) - nothing deployed. Fix master now."
+# ── 2. Block on CI — poll status, tolerating transient GitHub API 5xx/network blips ──
+# `gh run watch --exit-status` aborts on ANY transient error, and during a GitHub API wobble a 503 looks
+# identical to a red run — which is exactly the false "CI RED, nothing deployed" this pipeline hit
+# repeatedly during the 2026-07-20 API outage. Poll the run's own status/conclusion instead: a failed API
+# call is a transient blip to be retried, and ONLY an actual non-success conclusion is red.
+function Get-RunState([string]$id) {
+    # "status|conclusion" on success, or $null when the API call itself failed (a blip to retry, not red).
+    $json = gh run view $id --json status, conclusion 2>$null
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($json)) { return $null }
+    try { $o = $json | ConvertFrom-Json } catch { return $null }
+    return "$($o.status)|$($o.conclusion)"
 }
-# The image job's own conclusion is the deploy gate detail: 'success' may still yield an UNCHANGED
-# image (a fully-cached build reproduces the identical digest — Created stays old), so freshness is
-# judged by digest identity after the pull, never by the Created timestamp.
-$imageJob = gh run view $runId --json jobs --jq '[.jobs[] | select(.name | test("image"; "i"))][0].conclusion'
-if ($imageJob -eq "failure") { Fail "the image build job failed in run $runId" }
+
+$deadlineMin = 45          # CI image build is ~25 min; this is generous headroom.
+$pollSec = 15
+$maxTransient = 40         # ~10 min of consecutive API failures before we give up (never as "red").
+$status = ""; $conclusion = ""; $transient = 0
+for ($elapsed = 0; $elapsed -lt ($deadlineMin * 60); $elapsed += $pollSec) {
+    $state = Get-RunState $runId
+    if (-not $state) {
+        $transient++
+        if ($transient -ge $maxTransient) {
+            Fail "GitHub API unreachable for ~$([math]::Round($maxTransient * $pollSec / 60)) min while watching run $runId (transient 5xx); CI status NOT confirmed - nothing deployed"
+        }
+        Start-Sleep -Seconds $pollSec
+        continue
+    }
+    $transient = 0
+    $parts = $state -split '\|', 2
+    $status = $parts[0]; $conclusion = $parts[1]
+    if ($status -eq "completed") { break }
+    Start-Sleep -Seconds $pollSec
+}
+if ($status -ne "completed") { Fail "CI run $runId did not complete within $deadlineMin min - nothing deployed" }
+if ($conclusion -ne "success") {
+    Fail "CI run $runId concluded '$conclusion' for $($Sha.Substring(0,8)) - nothing deployed. Fix master now."
+}
+# The run concluded success, so every job (incl. the image build) passed. Label the image job best-effort.
+$imageJob = gh run view $runId --json jobs --jq '[.jobs[] | select(.name | test("image"; "i"))][0].conclusion' 2>$null
+if ([string]::IsNullOrWhiteSpace($imageJob)) { $imageJob = "success" }
 Write-Host "SHIP: CI green (image job: $imageJob)."
 
 # ── 3. Deploy: pull + restart the API, poll readiness, verify image freshness ─
@@ -89,8 +119,11 @@ if ($health -ne "200") { Fail "API did not become ready (health=$health) after d
 # `docker compose pull` succeeded, so the host now runs EXACTLY the registry's :latest — which the
 # green image job just (re)published for this commit. An old Created timestamp only means the cached
 # build reproduced an identical image (no code change in the image), which is fine and reported as such.
-$runStarted = gh api "repos/NoMercyLabs/nomnomzbot/actions/runs/$runId" --jq '.run_started_at'
-$freshness = if ([datetime]$imageCreated -ge [datetime]$runStarted) { "rebuilt" } else { "unchanged (cache-identical build)" }
+$runStarted = gh api "repos/NoMercyLabs/nomnomzbot/actions/runs/$runId" --jq '.run_started_at' 2>$null
+$freshness =
+    if ([string]::IsNullOrWhiteSpace($runStarted)) { "unknown (could not read run start time)" }
+    elseif ([datetime]$imageCreated -ge [datetime]$runStarted) { "rebuilt" }
+    else { "unchanged (cache-identical build)" }
 
 # ── 4. Report ─────────────────────────────────────────────────────────────────
 Write-Host ""
