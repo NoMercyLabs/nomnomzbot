@@ -48,6 +48,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
+import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
+import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
@@ -69,7 +72,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import nomnomzbot.composeapp.generated.resources.Res
@@ -138,13 +140,9 @@ import nomnomzbot.composeapp.generated.resources.roles_role_lead_moderator
 import nomnomzbot.composeapp.generated.resources.roles_role_moderator
 import nomnomzbot.composeapp.generated.resources.roles_role_subscriber
 import nomnomzbot.composeapp.generated.resources.roles_role_vip
-import nomnomzbot.composeapp.generated.resources.roles_viewer_search_change
 import nomnomzbot.composeapp.generated.resources.roles_viewer_search_empty
-import nomnomzbot.composeapp.generated.resources.roles_viewer_search_hint
 import nomnomzbot.composeapp.generated.resources.roles_viewer_search_label
 import nomnomzbot.composeapp.generated.resources.roles_viewer_search_placeholder
-import nomnomzbot.composeapp.generated.resources.roles_viewer_search_searching
-import nomnomzbot.composeapp.generated.resources.roles_viewer_selected
 import nomnomzbot.composeapp.generated.resources.shell_nav_roles
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -669,101 +667,27 @@ private fun ViewerSearchField(
     onSelect: (ViewerRef) -> Unit,
     onClear: () -> Unit,
 ) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    if (selected != null) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            Text(
-                text = stringResource(Res.string.roles_viewer_selected, selected.name),
-                style = typography.sm,
-                color = tokens.cardForeground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onClear) {
-                Text(
-                    text = stringResource(Res.string.roles_viewer_search_change),
-                    style = typography.sm,
-                    color = tokens.primary,
-                    maxLines = 1,
+    // Delegates to the shared [SearchPickerField] (which was itself extracted from this very search) so the
+    // assign-role and grant-permit flows reach a non-member viewer through the exact same debounced picker as
+    // economy/tts/moderation — one implementation, not a fourth hand-rolled copy. Maps the platform user shape
+    // to the picker's [PickerOption]/[PickerRef] and back to the caller's [ViewerRef].
+    SearchPickerField(
+        search = { query ->
+            searchViewers(query).map { user ->
+                PickerOption(
+                    id = user.id,
+                    label = user.displayName.ifBlank { user.username }.ifBlank { user.id },
+                    sublabel = user.username,
                 )
             }
-        }
-        return
-    }
-
-    var query: String by remember { mutableStateOf("") }
-    var results: List<UserSearchResult> by remember { mutableStateOf(emptyList()) }
-    var searching: Boolean by remember { mutableStateOf(false) }
-
-    val trimmed: String = query.trim()
-    // Re-run the search when the query changes; LaunchedEffect cancels the previous run, so the 300ms delay
-    // debounces keystrokes and only the latest query hits the backend.
-    LaunchedEffect(trimmed) {
-        if (trimmed.length < 2) {
-            results = emptyList()
-            searching = false
-            return@LaunchedEffect
-        }
-        searching = true
-        delay(300)
-        results = searchViewers(trimmed)
-        searching = false
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-        AppTextField(
-            value = query,
-            onValueChange = { query = it },
-            label = stringResource(Res.string.roles_viewer_search_label),
-            placeholder = stringResource(Res.string.roles_viewer_search_placeholder),
-            supportingText =
-                if (trimmed.length < 2) stringResource(Res.string.roles_viewer_search_hint) else null,
-        )
-        when {
-            searching ->
-                Text(
-                    text = stringResource(Res.string.roles_viewer_search_searching),
-                    style = typography.xs,
-                    color = tokens.mutedForeground,
-                )
-            trimmed.length >= 2 && results.isEmpty() ->
-                Text(
-                    text = stringResource(Res.string.roles_viewer_search_empty),
-                    style = typography.xs,
-                    color = tokens.mutedForeground,
-                )
-        }
-        results.take(5).forEach { user ->
-            val name: String =
-                user.displayName.ifBlank { user.username }.ifBlank { user.id }
-            TextButton(
-                onClick = { onSelect(ViewerRef(user.id, name)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics {
-                        role = Role.Button
-                        contentDescription = name
-                    },
-            ) {
-                Text(
-                    text = name,
-                    style = typography.sm,
-                    color = tokens.popoverForeground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-    }
+        },
+        selected = selected?.let { PickerRef(it.userId, it.name) },
+        onSelect = { ref -> onSelect(ViewerRef(ref.id, ref.name)) },
+        onClear = onClear,
+        label = stringResource(Res.string.roles_viewer_search_label),
+        placeholder = stringResource(Res.string.roles_viewer_search_placeholder),
+        emptyText = stringResource(Res.string.roles_viewer_search_empty),
+    )
 }
 
 // Assign a PERMANENT management role to any viewer (B6 — the make-a-mod flow). Pick a viewer via search, pick a
