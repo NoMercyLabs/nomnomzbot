@@ -394,22 +394,38 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        List<CachedCommand> commands = await db
+        // Anonymous projection (the one place house style allows `var`) carries BOTH response fields out of SQL;
+        // the array is then normalised in memory because EF cannot build a conditional array in SQL.
+        var rows = await db
             .Commands.Where(c =>
                 c.BroadcasterId == ctx.BroadcasterId && c.IsEnabled && c.DeletedAt == null
             )
-            .Select(c => new CachedCommand
+            .Select(c => new
+            {
+                c.Name,
+                c.TemplateResponses,
+                c.TemplateResponse,
+                c.CooldownPerUser,
+                c.CooldownSeconds,
+                c.MinPermissionLevel,
+                c.Tier,
+                PipelineGraphJson = c.Pipeline != null ? c.Pipeline.GraphJsonCache : null,
+                c.Aliases,
+            })
+            .ToListAsync(ct);
+
+        List<CachedCommand> commands = rows.Select(c => new CachedCommand
             {
                 Name = c.Name,
-                TemplateResponses = (c.TemplateResponses ?? new List<string>()).ToArray(),
+                TemplateResponses = NormalizeResponses(c.TemplateResponses, c.TemplateResponse),
                 GlobalCooldown = c.CooldownPerUser ? 0 : c.CooldownSeconds,
                 UserCooldown = c.CooldownPerUser ? c.CooldownSeconds : 0,
                 MinPermissionLevel = c.MinPermissionLevel,
                 Tier = c.Tier,
-                PipelineGraphJson = c.Pipeline != null ? c.Pipeline.GraphJsonCache : null,
+                PipelineGraphJson = c.PipelineGraphJson,
                 Aliases = c.Aliases.ToArray(),
             })
-            .ToListAsync(ct);
+            .ToList();
 
         foreach (CachedCommand cmd in commands)
         {
@@ -427,6 +443,18 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             ctx.BroadcasterId
         );
     }
+
+    // A command authored as a single response persists it in the singular TemplateResponse (the plural array stays
+    // empty); promote it into the array the chat path reads so a single-response command — e.g. one whose only
+    // response carries a {list.pick.<name>} token — actually fires in chat instead of resolving to an empty message.
+    // Mirrors the API execute path's singular fallback. Pure so it is unit-tested without a database.
+    internal static string[] NormalizeResponses(
+        IReadOnlyList<string>? responses,
+        string? singular
+    ) =>
+        responses is { Count: > 0 } ? responses.ToArray()
+        : string.IsNullOrEmpty(singular) ? []
+        : [singular];
 
     private async Task LoadBuiltinTogglesAsync(ChannelContext ctx, CancellationToken ct)
     {
