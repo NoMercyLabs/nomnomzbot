@@ -200,9 +200,17 @@ public sealed class StreamStatusPollingService : BackgroundService
 
     /// <summary>
     /// Reconciles one channel's live state from a Helix Get Streams result into both the in-memory
-    /// <paramref name="ctx"/> (what the dashboard reads) and the persisted <paramref name="dbChannel"/>. An empty
-    /// Helix result (<c>IsFailure</c>) means offline — a stream appears in <c>data[]</c> only while live. Returns
+    /// <paramref name="ctx"/> (what the dashboard reads) and the persisted <paramref name="dbChannel"/>. Returns
     /// true when a persisted field (IsLive / Title / GameName) changed, so the caller saves once per cycle.
+    /// <para>
+    /// A Get Streams read has THREE outcomes, and only two are conclusive: success ⇒ LIVE (the stream was in
+    /// <c>data[]</c>); a <see cref="TwitchErrorCodes.NotFound"/> failure ⇒ genuinely OFFLINE (Twitch returned an
+    /// empty <c>data[]</c>); any OTHER failure (rate-limit / 401 / 5xx / transport / malformed JSON) is
+    /// INCONCLUSIVE — the read broke, so IsLive is left exactly as EventSub last set it and NOTHING is written.
+    /// Treating every <c>IsFailure</c> as "offline" (the old behaviour) is the recurring "a live channel shows
+    /// offline" bug: this poll runs every ~2 minutes, so a single transient Helix hiccup flipped a live channel
+    /// offline and it stuck until the next successful poll.
+    /// </para>
     /// </summary>
     internal static bool ApplyStreamState(
         ChannelContext ctx,
@@ -210,6 +218,11 @@ public sealed class StreamStatusPollingService : BackgroundService
         Result<TwitchStream> result
     )
     {
+        // Inconclusive read (a failure that is NOT the empty-data NotFound) — never downgrade a live channel on a
+        // broken call. Leave live state untouched; EventSub stream.online/offline remains the source of truth.
+        if (result.IsFailure && result.ErrorCode != TwitchErrorCodes.NotFound)
+            return false;
+
         bool wasLive = ctx.IsLive;
         bool isLive = result.IsSuccess;
         bool changed = dbChannel.IsLive != isLive;

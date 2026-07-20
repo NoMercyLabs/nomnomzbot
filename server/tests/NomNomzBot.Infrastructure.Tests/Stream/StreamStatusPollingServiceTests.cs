@@ -50,8 +50,17 @@ public sealed class StreamStatusPollingServiceTests
             )
         );
 
+    // Genuinely offline = Helix returned an EMPTY data[] → the transport surfaces it as a NotFound failure.
     private static Result<TwitchStream> Offline() =>
-        Result.Failure<TwitchStream>("channel is offline", "STREAM_OFFLINE");
+        Result.Failure<TwitchStream>("Twitch returned no data.", TwitchErrorCodes.NotFound);
+
+    // A BROKEN read (rate-limit / 401 / 5xx / transport) — a failure that is NOT the empty-data NotFound. This is
+    // NOT an offline signal and must never downgrade a live channel.
+    private static Result<TwitchStream> Inconclusive() =>
+        Result.Failure<TwitchStream>(
+            "Twitch rate-limited the request.",
+            TwitchErrorCodes.RateLimited
+        );
 
     private static ChannelContext Ctx(bool isLive) =>
         new()
@@ -101,6 +110,31 @@ public sealed class StreamStatusPollingServiceTests
         ctx.WentLiveAt.Should().BeNull("uptime is meaningless once offline");
         ctx.ViewerCount.Should().Be(0, "viewer count resets to 0 once offline");
         dbChannel.IsLive.Should().BeFalse();
+    }
+
+    [Fact]
+    public void An_inconclusive_read_leaves_a_live_channel_live()
+    {
+        // THE recurring "a live channel shows offline" bug, proven: a transient Helix failure (rate-limit / 401 /
+        // 5xx) is NOT a real offline, so ApplyStreamState must leave a LIVE channel exactly as EventSub set it and
+        // persist nothing. Before the fix, `isLive = result.IsSuccess` flipped it offline on every failing poll —
+        // every ~2 minutes — which is why the bug kept coming back.
+        ChannelContext ctx = Ctx(isLive: true);
+        ctx.WentLiveAt = StartedAt;
+        ctx.CurrentTitle = "Speedrun night";
+        ctx.ViewerCount = 42;
+        Channel dbChannel = new() { IsLive = true, Title = "Speedrun night" };
+
+        bool changed = StreamStatusPollingService.ApplyStreamState(ctx, dbChannel, Inconclusive());
+
+        changed
+            .Should()
+            .BeFalse("an inconclusive read persists nothing — the caller must not save");
+        ctx.IsLive.Should().BeTrue("a broken Helix read must never flip a live channel offline");
+        dbChannel.IsLive.Should().BeTrue();
+        ctx.WentLiveAt.Should()
+            .Be(StartedAt, "the uptime anchor is preserved on an inconclusive read");
+        ctx.ViewerCount.Should().Be(42, "the viewer count is untouched on an inconclusive read");
     }
 
     [Fact]

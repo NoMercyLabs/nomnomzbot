@@ -346,6 +346,12 @@ public sealed class BotLifecycleService : BackgroundService
 
             Result<TwitchStream> result = await streams.GetStreamAsync(broadcasterId, ct);
 
+            // Same tri-state rule as the poll (StreamStatusPollingService.ApplyStreamState): only an empty-data
+            // NotFound is a real "offline". Any other failure (rate-limit / 401 / 5xx / transport) is an
+            // inconclusive read — leave the last-known IsLive rather than flip a live channel offline at startup.
+            if (result.IsFailure && result.ErrorCode != TwitchErrorCodes.NotFound)
+                return;
+
             bool wasLive = channel.IsLive;
             channel.IsLive = result.IsSuccess;
             if (result.IsSuccess)
