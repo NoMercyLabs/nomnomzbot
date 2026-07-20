@@ -173,7 +173,7 @@ data class ShoutoutBody(val targetTwitchUserId: String)
 /**
  * A community member (backend `CommunityUserDto`): the viewer's identity plus the standing badges the row
  * shows. The field names are the serialized (camelCase) names of `CommunityUserDto`; the client deliberately
- * reads a subset (ApiClient's Json ignores unknown keys), so the heavier stats fields are omitted here.
+ * reads it (ApiClient's Json ignores unknown keys), including the per-viewer activity stats surfaced in rows.
  */
 @Serializable
 data class CommunityMember(
@@ -189,6 +189,13 @@ data class CommunityMember(
     val profileImageUrl: String? = null,
     val trustLevel: String = "viewer",
     val isBanned: Boolean = false,
+    /** Per-viewer channel-scoped activity (backend CommunityUserDto): messages sent, watch hours, commands run. */
+    val messageCount: Int = 0,
+    val watchHours: Double = 0.0,
+    val commandsUsed: Int = 0,
+    /** ISO-8601 first-/last-seen timestamps (backend DateTime). */
+    val firstSeen: String = "",
+    val lastSeen: String = "",
 )
 
 /**
