@@ -111,9 +111,10 @@ public sealed class ViewerProfileProjection(IApplicationDbContext db, ViewerReso
         ).ToListAsync(cancellationToken);
 
         // Zero the folded aggregates in place (the row is the soft-delete anchor — never hard-removed on rebuild).
+        // TotalWatchSeconds is deliberately NOT reset here: it is owned end to end by WatchSessionProjection (folded
+        // there, zeroed by its ResetAsync), so a rebuild of either projection stays consistent.
         foreach (ViewerProfile profile in rows)
         {
-            profile.TotalWatchSeconds = 0;
             profile.TotalMessages = 0;
             profile.TotalCommandsUsed = 0;
             profile.TotalRedemptions = 0;

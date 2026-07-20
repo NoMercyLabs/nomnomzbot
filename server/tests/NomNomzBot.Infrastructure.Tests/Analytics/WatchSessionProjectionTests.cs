@@ -103,6 +103,48 @@ public sealed class WatchSessionProjectionTests
     }
 
     [Fact]
+    public async Task Folds_the_session_watch_time_into_the_viewer_profile_total()
+    {
+        (WatchSessionProjection sut, AuthDbContext db) = Build("stream1");
+
+        await sut.ApplyAsync(Chat("t1", T0));
+        await sut.ApplyAsync(Chat("t1", T0.AddSeconds(90)));
+
+        // The per-viewer profile total — what !stats, {user.watchtime}, and the community hours-watched read — must
+        // equal the session span. This is the fold that was missing, so watch time always read 0.
+        ViewerProfile profile = db.ViewerProfiles.Single();
+        profile.TotalWatchSeconds.Should().Be(90);
+    }
+
+    [Fact]
+    public async Task Watch_time_accumulates_across_multiple_events_in_the_session()
+    {
+        (WatchSessionProjection sut, AuthDbContext db) = Build("stream1");
+
+        await sut.ApplyAsync(Chat("t1", T0));
+        await sut.ApplyAsync(Chat("t1", T0.AddSeconds(30)));
+        await sut.ApplyAsync(Chat("t1", T0.AddSeconds(300)));
+
+        // The running deltas telescope to the final first→last span, so the profile total matches the session.
+        db.ViewerProfiles.Single().TotalWatchSeconds.Should().Be(300);
+        db.WatchSessions.Single().DurationSeconds.Should().Be(300);
+    }
+
+    [Fact]
+    public async Task Reset_zeroes_the_folded_watch_time_on_the_profile()
+    {
+        (WatchSessionProjection sut, AuthDbContext db) = Build("stream1");
+        await sut.ApplyAsync(Chat("t1", T0));
+        await sut.ApplyAsync(Chat("t1", T0.AddSeconds(120)));
+        db.ViewerProfiles.Single().TotalWatchSeconds.Should().Be(120);
+
+        await sut.ResetAsync(Channel);
+
+        // WatchSessionProjection owns the field end to end, so its reset must zero it (for a clean rebuild refold).
+        db.ViewerProfiles.Single().TotalWatchSeconds.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Does_not_confirm_presence_for_a_quick_burst()
     {
         (WatchSessionProjection sut, AuthDbContext db) = Build("stream1");

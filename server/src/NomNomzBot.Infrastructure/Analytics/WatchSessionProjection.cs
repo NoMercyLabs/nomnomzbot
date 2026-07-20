@@ -85,8 +85,17 @@ public sealed class WatchSessionProjection(
             cancellationToken
         );
 
+        long previousDuration = session.DurationSeconds;
         session.EndedAt = @event.OccurredAt;
         session.DurationSeconds = (long)(@event.OccurredAt - session.StartedAt).TotalSeconds;
+
+        // Fold the incremental watch time into the per-viewer profile total (analytics M.1) — the field !stats,
+        // {user.watchtime}, the community hours-watched, and the viewer-analytics sort all read (it was reset but
+        // never folded, so per-viewer watch time always read 0). The WatchSession is already per-(viewer, stream), so
+        // the running delta (never negative on a skewed/out-of-order event) sums to the correct cross-stream total.
+        // Owned end to end here (ResetAsync zeroes it), so ViewerProfileProjection must not touch it.
+        profile.TotalWatchSeconds += Math.Max(0, session.DurationSeconds - previousDuration);
+
         if (@event.EventType == "ChatMessageReceivedEvent")
             session.MessageCountInSession++;
         if (
@@ -110,6 +119,17 @@ public sealed class WatchSessionProjection(
                 : db.WatchSessions
         ).ToListAsync(cancellationToken);
         db.WatchSessions.RemoveRange(rows);
+
+        // This projection OWNS ViewerProfile.TotalWatchSeconds (it folds it in ApplyAsync), so it also zeroes it on a
+        // rebuild — ViewerProfileProjection must not, or a partial rebuild of either projection would desync the field.
+        List<ViewerProfile> profiles = await (
+            broadcasterId is Guid pid
+                ? db.ViewerProfiles.Where(p => p.BroadcasterId == pid)
+                : db.ViewerProfiles
+        ).ToListAsync(cancellationToken);
+        foreach (ViewerProfile profile in profiles)
+            profile.TotalWatchSeconds = 0;
+
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
