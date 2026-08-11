@@ -23,7 +23,7 @@ describe("initDevicePairing", () => {
   it("returns the parsed device-init payload on success", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse(200, {
-        success: true,
+        status: "ok",
         data: {
           deviceCode: "dc-123",
           userCode: "ABCD2345",
@@ -47,6 +47,29 @@ describe("initDevicePairing", () => {
     );
   });
 
+  it("strips a trailing slash from the host so the request path never doubles up", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(200, {
+        status: "ok",
+        data: {
+          deviceCode: "dc-123",
+          userCode: "ABCD2345",
+          verificationUri: "https://dev.nomnomz.bot/api/v1/automation/pair/device/approve?code=ABCD2345",
+          expiresAt: "2026-08-11T00:10:00Z",
+          pollIntervalSeconds: 3,
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await initDevicePairing("https://dev.nomnomz.bot/");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://dev.nomnomz.bot/automation/v1/pair/device/init",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("returns null when the backend is unreachable", async () => {
     vi.stubGlobal(
       "fetch",
@@ -58,8 +81,8 @@ describe("initDevicePairing", () => {
     expect(result).toBeNull();
   });
 
-  it("returns null when the backend answers success:false", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(429, { success: false })));
+  it("returns null when the backend answers status:error", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(429, { status: "error" })));
 
     const result = await initDevicePairing("http://localhost:5080");
 
@@ -71,7 +94,7 @@ describe("pollDevicePairing", () => {
   it("reports pending without ever exposing a token", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(jsonResponse(200, { success: true, data: { status: "pending" } })),
+      vi.fn().mockResolvedValue(jsonResponse(200, { status: "ok", data: { status: "pending" } })),
     );
 
     const result = await pollDevicePairing("http://localhost:5080", "dc-123");
@@ -84,7 +107,7 @@ describe("pollDevicePairing", () => {
       "fetch",
       vi.fn().mockResolvedValue(
         jsonResponse(200, {
-          success: true,
+          status: "ok",
           data: {
             status: "approved",
             backendUrl: "http://localhost:5080",
@@ -106,7 +129,7 @@ describe("pollDevicePairing", () => {
   it("returns null on an expired or unknown device code", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(jsonResponse(404, { success: false, message: "NOT_FOUND" })),
+      vi.fn().mockResolvedValue(jsonResponse(404, { status: "error", message: "NOT_FOUND" })),
     );
 
     const result = await pollDevicePairing("http://localhost:5080", "gone");

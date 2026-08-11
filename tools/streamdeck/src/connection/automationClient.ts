@@ -22,6 +22,7 @@ export interface NowPlayingPayload extends JsonObject {
   repeatMode: string;
   isSaved: boolean | null;
   serverTime: string;
+  volumePercent: number;
 }
 
 export interface DevicePayload extends JsonObject {
@@ -40,11 +41,13 @@ export interface PlaylistPayload extends JsonObject {
   imageUrl: string | null;
 }
 
+/** The project-wide response envelope (StatusResponseDto&lt;T&gt;): {@code status: "ok"|"error"} +
+ * {@code message} on failure. There is no {@code success} boolean or {@code errorCode} on the wire —
+ * error KIND (expired token vs. forbidden vs. not found, …) is conveyed purely via HTTP status. */
 interface StatusResponse<T> {
-  success: boolean;
+  status: string;
   data?: T;
   message?: string;
-  errorCode?: string;
 }
 
 export class AutomationApiError extends Error {
@@ -62,9 +65,14 @@ export class AutomationApiError extends Error {
  * by every action instance. Token lifecycle (D8) is handled transparently here — every REST call
  * refreshes proactively when needed and clears state on TOKEN_EXPIRED/TOKEN_REVOKED.
  */
+/** How often to re-fetch now-playing as a fallback, independent of the WS push — long enough to be
+ * cheap, short enough that a missed/dropped `song.changed` frame never leaves a key stale for long. */
+const RESYNC_INTERVAL_MS = 15_000;
+
 export class AutomationClient {
   private ws: WebSocket | null = null;
   private reconnectDelayMs = 1000;
+  private resyncTimer: ReturnType<typeof setInterval> | null = null;
   private nowPlayingListeners = new Set<(payload: NowPlayingPayload) => void>();
   private disconnectListeners = new Set<() => void>();
 
@@ -112,7 +120,13 @@ export class AutomationClient {
     );
   }
 
-  /** Connects (or reconnects) the WS subscription for `song.changed`. Idempotent. */
+  /** Connects (or reconnects) the WS subscription for `song.changed`. Idempotent.
+   *
+   * A key rendered before the first `song.changed` frame arrives (e.g. right after pairing, or a
+   * key that appears while nothing on Spotify happens to be changing) would otherwise sit on its
+   * default icon forever — nothing has "changed" yet from the WS's point of view. So every
+   * (re)connect seeds state with one real GET, and a periodic resync (independent of any single
+   * missed/dropped event) keeps it honest afterward. */
   async connectStream(): Promise<void> {
     const state = await getPairingState();
     if (!state || this.ws) return;
@@ -125,6 +139,8 @@ export class AutomationClient {
       this.reconnectDelayMs = 1000;
       socket.send(JSON.stringify({ op: "authenticate", token: state.token }));
       socket.send(JSON.stringify({ op: "subscribe", events: ["song.changed"] }));
+      void this.resyncNowPlaying();
+      this.startResyncTimer();
     });
     socket.on("message", (raw: WebSocket.RawData) => {
       try {
@@ -139,10 +155,29 @@ export class AutomationClient {
     });
     socket.on("close", () => {
       this.ws = null;
+      this.stopResyncTimer();
       setTimeout(() => void this.connectStream(), this.reconnectDelayMs);
       this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 2, 30_000);
     });
     socket.on("error", () => socket.close());
+  }
+
+  /** One-shot GET fallback for whenever a `song.changed` push can't be relied on. Silent on failure
+   * (not paired, transient network blip) — the next scheduled resync or the next real event covers it. */
+  private async resyncNowPlaying(): Promise<void> {
+    const payload = await this.getNowPlaying().catch(() => null);
+    if (!payload) return;
+    for (const listener of this.nowPlayingListeners) listener(payload);
+  }
+
+  private startResyncTimer(): void {
+    this.stopResyncTimer();
+    this.resyncTimer = setInterval(() => void this.resyncNowPlaying(), RESYNC_INTERVAL_MS);
+  }
+
+  private stopResyncTimer(): void {
+    if (this.resyncTimer) clearInterval(this.resyncTimer);
+    this.resyncTimer = null;
   }
 
   /** D7/D8 startup + daily check: proactively refresh under the threshold, react to hard expiry. */
@@ -169,7 +204,7 @@ export class AutomationClient {
         secret: string;
         token: { expiresAt: string };
       }>;
-      if (!response.ok || !body.success || !body.data) return;
+      if (!response.ok || body.status !== "ok" || !body.data) return;
       await setPairingState({
         ...state,
         token: body.data.secret,
@@ -194,13 +229,15 @@ export class AutomationClient {
     });
     const parsed = (await response.json().catch(() => null)) as StatusResponse<T> | null;
 
-    if (response.status === 401 || parsed?.errorCode === "TOKEN_EXPIRED" || parsed?.errorCode === "TOKEN_REVOKED") {
+    // Error KIND is conveyed by HTTP status alone (BaseController.ResultResponse) — 401 is the only
+    // one that means "this token is dead", whatever server-internal reason caused it.
+    if (response.status === 401) {
       await clearPairingState();
       for (const listener of this.disconnectListeners) listener();
-      throw new AutomationApiError(parsed?.message ?? "Token no longer valid.", parsed?.errorCode);
+      throw new AutomationApiError(parsed?.message ?? "Token no longer valid.", undefined);
     }
-    if (!response.ok || !parsed?.success) {
-      throw new AutomationApiError(parsed?.message ?? `Request failed (${response.status}).`, parsed?.errorCode);
+    if (!response.ok || parsed?.status !== "ok") {
+      throw new AutomationApiError(parsed?.message ?? `Request failed (${response.status}).`, undefined);
     }
     return parsed.data as T;
   }

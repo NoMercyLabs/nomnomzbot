@@ -11,8 +11,10 @@
 import open from "open";
 import type { PairingState } from "./tokenStore.js";
 
+/** The project-wide response envelope (StatusResponseDto&lt;T&gt;): {@code status: "ok"|"error"},
+ * never a {@code success} boolean — that field doesn't exist on the wire. */
 interface DeviceInitResponse {
-  success: boolean;
+  status: string;
   data?: {
     deviceCode: string;
     userCode: string;
@@ -23,7 +25,7 @@ interface DeviceInitResponse {
 }
 
 interface DevicePollResponse {
-  success: boolean;
+  status: string;
   data?: {
     status: "pending" | "approved";
     backendUrl?: string;
@@ -48,12 +50,20 @@ export function getLastDeviceFlowError(): string | null {
   return lastError;
 }
 
+/** Strips a trailing slash a user is bound to type ("https://dev.nomnomz.bot/") — left in place, it
+ * turns every request path into a double slash (".bot//automation/...") which the backend answers
+ * with a bare 405 instead of routing, a confusing failure for what's just a copy-pasted URL. */
+function normalizeHost(host: string): string {
+  return host.replace(/\/+$/, "");
+}
+
 /**
  * Device-initiated pairing, step 1 (stream-deck.md D9): the plugin calls the backend itself — no
  * dashboard interaction. Returns null on any network/backend failure (unreachable host, wrong port);
  * the caller retries on its own schedule rather than surfacing a raw exception.
  */
-export async function initDevicePairing(host: string): Promise<DeviceInitResult | null> {
+export async function initDevicePairing(hostInput: string): Promise<DeviceInitResult | null> {
+  const host = normalizeHost(hostInput);
   try {
     const res = await fetch(`${host}/automation/v1/pair/device/init`, {
       method: "POST",
@@ -61,7 +71,7 @@ export async function initDevicePairing(host: string): Promise<DeviceInitResult 
       body: JSON.stringify({ device: { kind: "streamdeck", name: null } }),
     });
     const body = (await res.json().catch(() => null)) as DeviceInitResponse | null;
-    if (!res.ok || !body?.success || !body.data) {
+    if (!res.ok || body?.status !== "ok" || !body.data) {
       lastError = `Backend at ${host} answered ${res.status} — is the host correct?`;
       return null;
     }
@@ -82,9 +92,10 @@ export async function initDevicePairing(host: string): Promise<DeviceInitResult 
 /** "pending" while unapproved, the minted pairing state once approved, or null on a hard failure
  * (expired/unknown device code) meaning the caller must start over with a fresh {@link initDevicePairing}. */
 export async function pollDevicePairing(
-  host: string,
+  hostInput: string,
   deviceCode: string,
 ): Promise<"pending" | PairingState | null> {
+  const host = normalizeHost(hostInput);
   try {
     const res = await fetch(`${host}/automation/v1/pair/device/poll`, {
       method: "POST",
@@ -92,7 +103,7 @@ export async function pollDevicePairing(
       body: JSON.stringify({ deviceCode }),
     });
     const body = (await res.json().catch(() => null)) as DevicePollResponse | null;
-    if (!body?.success || !body.data) {
+    if (body?.status !== "ok" || !body.data) {
       lastError = "The pairing request expired — starting a new one.";
       return null;
     }
