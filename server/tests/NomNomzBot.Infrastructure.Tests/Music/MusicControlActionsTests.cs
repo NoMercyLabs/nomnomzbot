@@ -475,4 +475,180 @@ public sealed class MusicControlActionsTests
                 Arg.Any<CancellationToken>()
             );
     }
+
+    // ─── music_volume_up / music_volume_down / music_volume_mute ──────────────
+
+    private static MusicDeviceDto ActiveDevice(int volumePercent) =>
+        new("dev-1", "Laptop", "Computer", true, volumePercent);
+
+    [Fact]
+    public async Task Volume_up_steps_from_the_devices_real_current_volume()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetDevicesAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns((IReadOnlyList<MusicDeviceDto>)[ActiveDevice(40)]);
+        music
+            .SetVolumeAsync(ChannelId.ToString(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        MusicVolumeUpAction action = new(music);
+
+        ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_volume_up"));
+
+        result.Succeeded.Should().BeTrue();
+        await music
+            .Received(1)
+            .SetVolumeAsync(ChannelId.ToString(), 50, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Volume_up_clamps_at_100()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetDevicesAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns((IReadOnlyList<MusicDeviceDto>)[ActiveDevice(95)]);
+        music
+            .SetVolumeAsync(ChannelId.ToString(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        MusicVolumeUpAction action = new(music);
+
+        await action.ExecuteAsync(Ctx(), Def("music_volume_up"));
+
+        await music
+            .Received(1)
+            .SetVolumeAsync(ChannelId.ToString(), 100, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Volume_up_respects_a_custom_step_param()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetDevicesAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns((IReadOnlyList<MusicDeviceDto>)[ActiveDevice(20)]);
+        music
+            .SetVolumeAsync(ChannelId.ToString(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        MusicVolumeUpAction action = new(music);
+
+        await action.ExecuteAsync(Ctx(), Def("music_volume_up", ("step", "25")));
+
+        await music
+            .Received(1)
+            .SetVolumeAsync(ChannelId.ToString(), 45, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Volume_down_steps_from_the_devices_real_current_volume()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetDevicesAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns((IReadOnlyList<MusicDeviceDto>)[ActiveDevice(40)]);
+        music
+            .SetVolumeAsync(ChannelId.ToString(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        MusicVolumeDownAction action = new(music);
+
+        await action.ExecuteAsync(Ctx(), Def("music_volume_down"));
+
+        await music
+            .Received(1)
+            .SetVolumeAsync(ChannelId.ToString(), 30, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Volume_down_clamps_at_0()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetDevicesAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns((IReadOnlyList<MusicDeviceDto>)[ActiveDevice(5)]);
+        music
+            .SetVolumeAsync(ChannelId.ToString(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        MusicVolumeDownAction action = new(music);
+
+        await action.ExecuteAsync(Ctx(), Def("music_volume_down"));
+
+        await music
+            .Received(1)
+            .SetVolumeAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Volume_mute_mutes_when_audible()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetDevicesAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns((IReadOnlyList<MusicDeviceDto>)[ActiveDevice(60)]);
+        music
+            .SetVolumeAsync(ChannelId.ToString(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        MusicVolumeMuteAction action = new(music);
+
+        ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_volume_mute"));
+
+        result.Succeeded.Should().BeTrue();
+        await music
+            .Received(1)
+            .SetVolumeAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Volume_mute_unmutes_to_the_default_level_when_already_muted()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetDevicesAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns((IReadOnlyList<MusicDeviceDto>)[ActiveDevice(0)]);
+        music
+            .SetVolumeAsync(ChannelId.ToString(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        MusicVolumeMuteAction action = new(music);
+
+        await action.ExecuteAsync(Ctx(), Def("music_volume_mute"));
+
+        await music
+            .Received(1)
+            .SetVolumeAsync(ChannelId.ToString(), 50, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Volume_mute_unmutes_to_a_custom_level_param()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetDevicesAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns((IReadOnlyList<MusicDeviceDto>)[ActiveDevice(0)]);
+        music
+            .SetVolumeAsync(ChannelId.ToString(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        MusicVolumeMuteAction action = new(music);
+
+        await action.ExecuteAsync(Ctx(), Def("music_volume_mute", ("unmuteVolume", "80")));
+
+        await music
+            .Received(1)
+            .SetVolumeAsync(ChannelId.ToString(), 80, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Volume_up_fails_CAPABILITY_UNSUPPORTED_when_no_device_is_connected()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetDevicesAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns((IReadOnlyList<MusicDeviceDto>)[]);
+        MusicVolumeUpAction action = new(music);
+
+        ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_volume_up"));
+
+        result.Succeeded.Should().BeFalse();
+        await music
+            .DidNotReceive()
+            .SetVolumeAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+    }
 }

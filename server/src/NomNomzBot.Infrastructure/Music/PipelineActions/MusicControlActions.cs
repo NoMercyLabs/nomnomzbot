@@ -215,6 +215,156 @@ public sealed class MusicSetVolumeAction : ICommandAction
     }
 }
 
+/// <summary>Shared step-volume helper for Up/Down — reads the active device's REAL current volume
+/// (not the NowPlaying.Volume placeholder, which the provider seam doesn't yet populate) so a step is
+/// relative to where the volume actually is, not a stale/default value.</summary>
+internal static class MusicVolumeStep
+{
+    public static async Task<Result<int>> CurrentVolumeAsync(
+        IMusicService music,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        IReadOnlyList<MusicDeviceDto> devices = await music.GetDevicesAsync(
+            broadcasterId.ToString(),
+            ct
+        );
+        MusicDeviceDto? active =
+            devices.FirstOrDefault(d => d.IsActive) ?? devices.FirstOrDefault();
+        return active is null
+            ? Result.Failure<int>("no active playback device", "CAPABILITY_UNSUPPORTED")
+            : Result.Success(active.VolumePercent);
+    }
+}
+
+public sealed class MusicVolumeUpAction : ICommandAction
+{
+    private readonly IMusicService _music;
+
+    public string ActionType => "music_volume_up";
+    public string Category => "Music Control";
+    public string Description => "Raises playback volume by a step (default 10).";
+
+    public MusicVolumeUpAction(IMusicService music) => _music = music;
+
+    public async Task<ActionResult> ExecuteAsync(
+        PipelineExecutionContext ctx,
+        ActionDefinition action
+    )
+    {
+        int step = MusicSetVolumeAction.ResolveIntParam(action, "step", ctx.Variables)
+            is int s
+                and not 0
+            ? s
+            : 10;
+        Result<int> current = await MusicVolumeStep.CurrentVolumeAsync(
+            _music,
+            ctx.BroadcasterId,
+            ctx.CancellationToken
+        );
+        if (current.IsFailure)
+            return ActionResult.Failure(current.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
+
+        int target = Math.Min(100, current.Value + step);
+        Result result = await _music.SetVolumeAsync(
+            ctx.BroadcasterId.ToString(),
+            target,
+            ctx.CancellationToken
+        );
+        return MusicControlResult.FromMusicResult(result, $"volume up to {target}");
+    }
+}
+
+public sealed class MusicVolumeDownAction : ICommandAction
+{
+    private readonly IMusicService _music;
+
+    public string ActionType => "music_volume_down";
+    public string Category => "Music Control";
+    public string Description => "Lowers playback volume by a step (default 10).";
+
+    public MusicVolumeDownAction(IMusicService music) => _music = music;
+
+    public async Task<ActionResult> ExecuteAsync(
+        PipelineExecutionContext ctx,
+        ActionDefinition action
+    )
+    {
+        int step = MusicSetVolumeAction.ResolveIntParam(action, "step", ctx.Variables)
+            is int s
+                and not 0
+            ? s
+            : 10;
+        Result<int> current = await MusicVolumeStep.CurrentVolumeAsync(
+            _music,
+            ctx.BroadcasterId,
+            ctx.CancellationToken
+        );
+        if (current.IsFailure)
+            return ActionResult.Failure(current.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
+
+        int target = Math.Max(0, current.Value - step);
+        Result result = await _music.SetVolumeAsync(
+            ctx.BroadcasterId.ToString(),
+            target,
+            ctx.CancellationToken
+        );
+        return MusicControlResult.FromMusicResult(result, $"volume down to {target}");
+    }
+}
+
+/// <summary>
+/// Toggles between 0 and a fixed unmute level (default 50, overridable via the `unmuteVolume` param).
+/// Neither Spotify nor this seam remembers "the volume before you muted" server-side, so — same as
+/// most third-party remotes — unmuting restores a configured level, not your exact prior one.
+/// </summary>
+public sealed class MusicVolumeMuteAction : ICommandAction
+{
+    private readonly IMusicService _music;
+
+    public string ActionType => "music_volume_mute";
+    public string Category => "Music Control";
+    public string Description =>
+        "Mutes if audible; unmutes to a fixed level (default 50) if muted.";
+
+    public MusicVolumeMuteAction(IMusicService music) => _music = music;
+
+    public async Task<ActionResult> ExecuteAsync(
+        PipelineExecutionContext ctx,
+        ActionDefinition action
+    )
+    {
+        int unmuteVolume = MusicSetVolumeAction.ResolveIntParam(
+            action,
+            "unmuteVolume",
+            ctx.Variables
+        )
+            is int v
+                and not 0
+            ? v
+            : 50;
+        Result<int> current = await MusicVolumeStep.CurrentVolumeAsync(
+            _music,
+            ctx.BroadcasterId,
+            ctx.CancellationToken
+        );
+        if (current.IsFailure)
+            return ActionResult.Failure(current.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
+
+        int target = current.Value > 0 ? 0 : unmuteVolume;
+        Result result = await _music.SetVolumeAsync(
+            ctx.BroadcasterId.ToString(),
+            target,
+            ctx.CancellationToken
+        );
+        return MusicControlResult.FromMusicResult(
+            result,
+            target == 0 ? "muted" : $"unmuted to {target}"
+        );
+    }
+}
+
 public sealed class MusicSeekAction : ICommandAction
 {
     private readonly IMusicService _music;
