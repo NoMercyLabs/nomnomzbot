@@ -120,6 +120,75 @@ public class InfraPipelineEngineTests
         result.StepLogs[0].Succeeded.Should().BeFalse();
     }
 
+    // ─── Automation auto-provisioned pipelines ───────────────────────────────
+
+    /// <summary>
+    /// Proves the exact GraphJsonCache shape AutomationPairingService.EnsureMusicActionPipelinesAsync
+    /// writes for each auto-provisioned Stream Deck pipeline — {"steps":[{"action":{"type":"music_..."}}]}
+    /// via JsonSerializer.Serialize(PipelineDefinition) — is not just valid JSON but actually reaches and
+    /// runs a real ICommandAction through the real engine. This is the layer the DTO-level pairing tests
+    /// and the isolated PipelineJson-wiring fix could never see: whether the auto-provisioned row a real
+    /// Stream Deck button invokes actually executes anything, as opposed to completing with zero steps
+    /// run (the exact silent-no-op failure mode this whole feature exists to close).
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_AutoProvisionedMusicActionShape_ActuallyInvokesTheAction()
+    {
+        RecordingAction recorded = new();
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);
+        NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext db =
+            Substitute.For<NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext>();
+
+        PipelineEngine engine = new(
+            db,
+            registry,
+            [recorded],
+            [],
+            NullLogger<PipelineEngine>.Instance,
+            TimeProvider.System
+        );
+
+        string graphJsonCache = System.Text.Json.JsonSerializer.Serialize(
+            new PipelineDefinition
+            {
+                Steps =
+                [
+                    new PipelineStepDefinition
+                    {
+                        Action = new ActionDefinition { Type = "music_play" },
+                    },
+                ],
+            }
+        );
+
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(graphJsonCache));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        result
+            .StepsExecuted.Should()
+            .Be(1, "a zero-step Completed result is the silent no-op bug this closes");
+        recorded
+            .Invoked.Should()
+            .BeTrue("the real music_play action must actually run, not just parse");
+    }
+
+    private sealed class RecordingAction : ICommandAction
+    {
+        public bool Invoked { get; private set; }
+        public string ActionType => "music_play";
+
+        public Task<ActionResult> ExecuteAsync(
+            PipelineExecutionContext ctx,
+            ActionDefinition action
+        )
+        {
+            Invoked = true;
+            return Task.FromResult(ActionResult.Success());
+        }
+    }
+
     // ─── Stop action ──────────────────────────────────────────────────────────
 
     [Fact]
