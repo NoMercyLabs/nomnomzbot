@@ -81,6 +81,7 @@ public sealed class SongChangedProjector : IEventHandler<PlaybackStateChangedEve
                 ShuffleEnabled = payload.ShuffleEnabled,
                 RepeatMode = payload.RepeatMode,
                 IsSaved = payload.IsSaved,
+                VolumePercent = payload.VolumePercent,
             },
             cancellationToken
         );

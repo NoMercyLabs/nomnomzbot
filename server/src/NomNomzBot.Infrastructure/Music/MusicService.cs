@@ -404,7 +404,10 @@ public sealed class MusicService : IMusicService
             track.DurationMs,
             track.ProgressMs,
             track.IsPlaying,
-            100,
+            // The real device volume when the provider reports one; 100 (full) is a documented fallback for
+            // providers/states that don't — never a stand-in for "we don't actually know".
+            track.VolumePercent
+                ?? 100,
             null,
             track.Provider,
             track.TrackUri,
@@ -740,6 +743,13 @@ public sealed class MusicService : IMusicService
                 BroadcasterId = tenantId,
                 IsPlaying = track?.IsPlaying ?? false,
                 TrackName = track?.TrackName,
+                Artist = track?.Artist,
+                Album = track?.Album,
+                AlbumArtUrl = track?.AlbumArtUrl,
+                DurationMs = track?.DurationMs ?? 0,
+                ProgressMs = track?.ProgressMs ?? 0,
+                Provider = track?.Provider,
+                ObservedAt = DateTimeOffset.UtcNow,
             },
             cancellationToken
         );

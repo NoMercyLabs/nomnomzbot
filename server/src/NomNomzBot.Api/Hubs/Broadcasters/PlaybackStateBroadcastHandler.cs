@@ -27,7 +27,16 @@ public sealed class PlaybackStateBroadcastHandler : IEventHandler<PlaybackStateC
             return Task.CompletedTask;
 
         MusicTrackDto? track = @event.TrackName is not null
-            ? new MusicTrackDto(@event.TrackName, string.Empty, string.Empty, null, 0, "unknown")
+            ? new MusicTrackDto(
+                @event.TrackName,
+                @event.Artist ?? string.Empty,
+                @event.Album ?? string.Empty,
+                @event.AlbumArtUrl,
+                @event.DurationMs,
+                @event.Provider ?? "unknown",
+                @event.ProgressMs,
+                @event.ObservedAt.ToString("O")
+            )
             : null;
 
         return _notifier.SendMusicStateAsync(

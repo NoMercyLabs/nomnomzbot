@@ -31,15 +31,18 @@ namespace NomNomzBot.Infrastructure.BackgroundServices;
 /// streamer's own phone/desktop app, a track ending naturally, or a manual seek.
 ///
 /// <para>
-/// <b>Cadence — flat 10s, not connection-aware.</b> The rails asked for a livelier ~5s cadence while a
+/// <b>Cadence — flat 1s, not connection-aware.</b> The rails asked for a livelier ~5s cadence while a
 /// dashboard/overlay client is plausibly connected, backing off to ~30-60s otherwise, IF connection-awareness is
 /// cheap to detect via the hub group registry. It is not cheap here: the only connection registry is
 /// <c>DashboardHub</c>'s connection→channel map, which lives in <c>NomNomzBot.Api</c> — a project this
 /// (Infrastructure-layer) poller must not reference without inverting Clean Architecture's inward-only
 /// dependency rule. Exposing that registry through a new Application-layer seam just for this cadence hint is a
-/// bigger seam than the poller warrants (YAGNI) versus a single safety-first flat cadence. 10s keeps Spotify Web
-/// API usage modest per channel (a "currently playing" read is a single lightweight per-user-token call, not
-/// app-wide-quota'd) while still feeling responsive; per-channel failures back off further below.
+/// bigger seam than the poller warrants (YAGNI) versus a single safety-first flat cadence. 1s is what "no more
+/// than 1 second of drift from the real Spotify state" (owner requirement) actually costs: a change the bot
+/// didn't cause (streamer pauses from their phone, a track ends, a manual seek) can only ever be as fresh as this
+/// tick, since it's the only thing that notices it. Spotify Web API cost stays trivial even at 1s — a "currently
+/// playing" read is a single lightweight per-user-token call, not app-wide-quota'd; per-channel failures back off
+/// further below so a struggling channel doesn't hammer a dead token every second.
 /// </para>
 ///
 /// <para>
@@ -58,14 +61,15 @@ namespace NomNomzBot.Infrastructure.BackgroundServices;
 /// </summary>
 public sealed class MusicStatePollingService : BackgroundService
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan BackoffBase = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan BackoffCap = TimeSpan.FromMinutes(5);
 
     // A "seek" is flagged when observed progress diverges from the time-elapsed-implied progress by more than
-    // this, while track + play state are otherwise unchanged. Half the poll interval's worth of slack absorbs
-    // ordinary tick jitter without masking a genuine seek (which is typically many seconds).
-    internal const int SeekDriftToleranceMs = 5_000;
+    // this, while track + play state are otherwise unchanged. At a 1s poll interval this only needs to absorb
+    // ordinary network/scheduling jitter between ticks, not multi-second slack — a genuine seek is still many
+    // times larger than this.
+    internal const int SeekDriftToleranceMs = 750;
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IEventBus _eventBus;
@@ -214,6 +218,13 @@ public sealed class MusicStatePollingService : BackgroundService
                 BroadcasterId = channelId,
                 IsPlaying = next.IsPlaying,
                 TrackName = next.TrackName,
+                Artist = nowPlaying?.Artist,
+                Album = nowPlaying?.Album,
+                AlbumArtUrl = nowPlaying?.ImageUrl,
+                DurationMs = nowPlaying?.DurationMs ?? 0,
+                ProgressMs = next.ProgressMs,
+                Provider = nowPlaying?.Provider,
+                ObservedAt = observedAt,
             },
             cancellationToken
         );

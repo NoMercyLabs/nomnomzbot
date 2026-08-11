@@ -12,8 +12,23 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Music.Events;
 
+/// <summary>
+/// Full playback-state snapshot, not just play/pause + name — <see cref="ProgressMs"/> +
+/// <see cref="ObservedAt"/> form a position anchor (widget-sdk.md §9: consumers extrapolate
+/// <c>positionMs + (now - observedAt)</c> client-side while playing, rather than expecting a per-second
+/// push), and <see cref="Artist"/>/<see cref="Album"/>/<see cref="AlbumArtUrl"/>/<see cref="DurationMs"/>
+/// let every subscriber (dashboard hub, automation <c>song.changed</c>) render the real track without
+/// re-reading it themselves.
+/// </summary>
 public sealed class PlaybackStateChangedEvent : DomainEventBase
 {
     public required bool IsPlaying { get; init; }
     public string? TrackName { get; init; }
+    public string? Artist { get; init; }
+    public string? Album { get; init; }
+    public string? AlbumArtUrl { get; init; }
+    public int DurationMs { get; init; }
+    public int ProgressMs { get; init; }
+    public string? Provider { get; init; }
+    public DateTimeOffset ObservedAt { get; init; }
 }

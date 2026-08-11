@@ -90,7 +90,8 @@ public sealed record AutomationNowPlayingDto(
     bool ShuffleEnabled,
     string RepeatMode,
     bool? IsSaved,
-    DateTimeOffset ServerTime
+    DateTimeOffset ServerTime,
+    int VolumePercent
 );
 
 /// <summary>One of the broadcaster's playback devices on the active music provider.</summary>

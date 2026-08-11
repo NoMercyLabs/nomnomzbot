@@ -207,6 +207,11 @@ public class TrackInfo
     public bool IsPlaying { get; init; }
     public int ProgressMs { get; init; }
 
+    /// <summary>The active playback device's real volume (0-100), when the provider's "currently playing"
+    /// read reports one. Null when unknown (no active device, or the provider doesn't report volume) — the
+    /// caller decides the fallback, never guesses a number here.</summary>
+    public int? VolumePercent { get; init; }
+
     /// <summary>
     /// The player's shuffle state, and its repeat mode — the two remote-control toggles the dashboard renders.
     /// Only meaningful on a <c>GetCurrentTrackAsync</c> result (the provider's live playback state); a search or

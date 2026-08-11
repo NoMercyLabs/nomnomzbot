@@ -307,6 +307,31 @@ public sealed class SpotifyMusicProviderReadTests
     }
 
     [Fact]
+    public async Task Now_playing_surfaces_the_active_devices_real_volume()
+    {
+        (SpotifyMusicProvider spotify, RecordingHttpHandler handler) = BuildProvider();
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Get
+                && r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            """
+            {"is_playing":true,"progress_ms":0,"shuffle_state":false,"repeat_state":"off",
+             "device":{"volume_percent":37},
+             "item":{"id":"t1","name":"Song","uri":"spotify:track:t1","duration_ms":180000,
+              "explicit":false,"artists":[{"name":"A"}],"album":{"name":"Al","images":[]}}}
+            """
+        );
+
+        TrackInfo? track = await spotify.GetCurrentTrackAsync(ChannelId);
+
+        // Not the old hardcoded 100 — the device's real reported volume, so a mute button can show and
+        // trust the actual state instead of a fake "always full" number.
+        track.Should().NotBeNull();
+        track!.VolumePercent.Should().Be(37);
+    }
+
+    [Fact]
     public async Task Now_playing_repeat_off_maps_to_Off_and_shuffle_false()
     {
         (SpotifyMusicProvider spotify, RecordingHttpHandler handler) = BuildProvider();

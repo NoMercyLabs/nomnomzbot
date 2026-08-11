@@ -50,6 +50,12 @@ public sealed class MusicServicePlaybackPublishTests
         published.BroadcasterId.Should().Be(ChannelId);
         published.IsPlaying.Should().BeTrue();
         published.TrackName.Should().Be("Song A");
+        published.Artist.Should().Be("Artist");
+        published.Album.Should().Be("Album");
+        published.DurationMs.Should().Be(200000);
+        published.ProgressMs.Should().Be(1000);
+        published.Provider.Should().Be("spotify");
+        published.ObservedAt.Should().NotBe(default);
     }
 
     [Fact]

@@ -53,7 +53,8 @@ public static class MusicAutomationProjection
             nowPlaying.ShuffleEnabled,
             nowPlaying.RepeatMode.ToString().ToLowerInvariant(),
             isSaved,
-            timeProvider.GetUtcNow()
+            timeProvider.GetUtcNow(),
+            nowPlaying.Volume
         );
     }
 }

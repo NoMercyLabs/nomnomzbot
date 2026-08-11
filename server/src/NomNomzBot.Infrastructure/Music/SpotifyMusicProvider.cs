@@ -227,7 +227,8 @@ public sealed class SpotifyMusicProvider
             json.IsPlaying,
             json.ProgressMs,
             json.ShuffleState,
-            ParseRepeatState(json.RepeatState)
+            ParseRepeatState(json.RepeatState),
+            json.Device?.VolumePercent
         );
     }
 
@@ -1498,7 +1499,8 @@ public sealed class SpotifyMusicProvider
         bool isPlaying = false,
         int progressMs = 0,
         bool shuffleEnabled = false,
-        MusicRepeatMode repeatMode = MusicRepeatMode.Off
+        MusicRepeatMode repeatMode = MusicRepeatMode.Off,
+        int? volumePercent = null
     ) =>
         new()
         {
@@ -1518,6 +1520,7 @@ public sealed class SpotifyMusicProvider
             ProgressMs = progressMs,
             ShuffleEnabled = shuffleEnabled,
             RepeatMode = repeatMode,
+            VolumePercent = volumePercent,
         };
 
     // ─── Spotify API response models ─────────────────────────────────────────
@@ -1553,6 +1556,15 @@ public sealed class SpotifyMusicProvider
         // "off" | "track" | "context" — null-tolerant; unknown/absent → Off.
         [JsonPropertyName("repeat_state")]
         public string? RepeatState { get; set; }
+
+        [JsonPropertyName("device")]
+        public SpotifyPlaybackDevice? Device { get; set; }
+    }
+
+    private sealed class SpotifyPlaybackDevice
+    {
+        [JsonPropertyName("volume_percent")]
+        public int? VolumePercent { get; set; }
     }
 
     private sealed class SpotifyErrorEnvelope

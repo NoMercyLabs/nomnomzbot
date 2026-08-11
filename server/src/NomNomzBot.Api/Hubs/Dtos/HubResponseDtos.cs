@@ -30,13 +30,20 @@ public record StreamInfoChangedDto(
 
 public record MusicStateDto(bool IsPlaying, MusicTrackDto? CurrentTrack);
 
+/// <summary>
+/// <paramref name="ProgressMs"/> + <paramref name="ObservedAt"/> are a position anchor (widget-sdk.md
+/// §9) — the client extrapolates <c>progressMs + (now - observedAt)</c> while playing instead of
+/// expecting a per-second push, so displayed position stays accurate between hub events.
+/// </summary>
 public record MusicTrackDto(
     string TrackName,
     string Artist,
     string Album,
     string? AlbumArtUrl,
     int DurationMs,
-    string Provider
+    string Provider,
+    int ProgressMs,
+    string ObservedAt
 );
 
 // ─── Action DTOs ─────────────────────────────────────────────────────────────

@@ -42,7 +42,8 @@ public sealed class SongChangedAutomationEventDescriptor : IAutomationEventDescr
             e.ShuffleEnabled,
             e.RepeatMode,
             e.IsSaved,
-            e.OccurredAt
+            e.OccurredAt,
+            e.VolumePercent
         );
     }
 }

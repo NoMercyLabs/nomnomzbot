@@ -30,4 +30,5 @@ public sealed class SongChangedEvent : DomainEventBase
     public bool ShuffleEnabled { get; init; }
     public required string RepeatMode { get; init; }
     public bool? IsSaved { get; init; }
+    public int VolumePercent { get; init; }
 }
