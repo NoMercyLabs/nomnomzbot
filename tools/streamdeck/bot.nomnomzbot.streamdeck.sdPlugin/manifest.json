@@ -39,7 +39,10 @@
       "Icon": "imgs/actions/play-pause.svg",
       "Tooltip": "Toggles playback and shows the elapsed time of the current track.",
       "PropertyInspectorPath": "ui/pairing-fallback.html",
-      "States": [{ "Image": "imgs/actions/play-pause.svg" }]
+      "States": [
+        { "Image": "imgs/actions/play.svg" },
+        { "Image": "imgs/actions/pause.svg" }
+      ]
     },
     {
       "Name": "Next Song",
