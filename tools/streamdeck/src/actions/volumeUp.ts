@@ -19,6 +19,7 @@ interface VolumeStepSettings extends JsonObject {
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-volume-up" })
 export class VolumeUpAction extends MusicAction<VolumeStepSettings> {
   protected readonly actionType = "music_volume_up";
+  protected readonly iconName = "volume-up";
 
   protected override resolveParams(settings: VolumeStepSettings): Record<string, unknown> {
     return { step: settings.step ?? 10 };

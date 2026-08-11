@@ -9,8 +9,10 @@
     <sdpi-item label="Device">
       <sdpi-select id="deviceId" placeholder="Loading devices…"></sdpi-select>
     </sdpi-item>
+    <div id="appearance"></div>
     <script>
       document.addEventListener("pi:ready", (ev) => {
+        initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
         requestFromPlugin({ type: "listDevices" });
         if (ev.detail.deviceId) document.getElementById("deviceId").value = ev.detail.deviceId;
       });

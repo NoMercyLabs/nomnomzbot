@@ -19,6 +19,7 @@ interface SetVolumeSettings extends JsonObject {
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-set-volume" })
 export class SetVolumeAction extends MusicAction<SetVolumeSettings> {
   protected readonly actionType = "music_set_volume";
+  protected readonly iconName = "volume";
 
   protected override resolveParams(settings: SetVolumeSettings): Record<string, unknown> {
     return { volume: settings.volume ?? 50 };

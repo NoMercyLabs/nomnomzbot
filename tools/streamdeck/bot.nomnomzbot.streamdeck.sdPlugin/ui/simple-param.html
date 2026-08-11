@@ -10,6 +10,7 @@
          Mode — each key's onWillAppear tells the plugin which field(s) it needs via getUIConfig,
          keeping this single file instead of four nearly-identical pages. -->
     <div id="fields"></div>
+    <div id="appearance"></div>
     <script>
       const FIELD_CONFIG = {
         "bot.nomnomzbot.streamdeck.music-set-volume": [
@@ -84,6 +85,7 @@
           item.appendChild(input);
           container.appendChild(item);
         }
+        initBackgroundColorPicker(document.getElementById("appearance"), settings);
       });
     </script>
   </body>

@@ -13,16 +13,20 @@ import type { JsonObject } from "@elgato/utils";
 import { MusicAction } from "./musicAction.js";
 import { nowPlayingState } from "../nowPlaying/state.js";
 
-/** Native 2-state key: shuffle-off/shuffle-on images, flipped on every song.changed (streamdeck-plugin.md P4).
+/** Live key: shuffle-off/shuffle-on icon, flipped on every song.changed (streamdeck-plugin.md P4).
  * Cast to KeyAction: this manifest entry has no Encoder controller, so it's never a DialAction at runtime. */
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-toggle-shuffle" })
 export class ToggleShuffleAction extends MusicAction {
   protected readonly actionType = "music_toggle_shuffle";
+  protected readonly iconName = "shuffle-off";
+
+  protected override getIconName(_settings: JsonObject): string {
+    return nowPlayingState.current?.shuffleEnabled ? "shuffle-on" : "shuffle-off";
+  }
 
   override async onWillAppear(ev: WillAppearEvent<JsonObject>): Promise<void> {
     await super.onWillAppear(ev);
     const key = ev.action as KeyAction<JsonObject>;
-    nowPlayingState.onChange(() => void key.setState(nowPlayingState.current?.shuffleEnabled ? 1 : 0));
-    await key.setState(nowPlayingState.current?.shuffleEnabled ? 1 : 0);
+    nowPlayingState.onChange(() => void this.render(key, ev.payload.settings));
   }
 }

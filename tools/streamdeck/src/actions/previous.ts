@@ -14,4 +14,5 @@ import { MusicAction } from "./musicAction.js";
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-previous" })
 export class PreviousAction extends MusicAction {
   protected readonly actionType = "music_previous";
+  protected readonly iconName = "previous";
 }

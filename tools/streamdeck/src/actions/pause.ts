@@ -14,4 +14,5 @@ import { MusicAction } from "./musicAction.js";
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-pause" })
 export class PauseAction extends MusicAction {
   protected readonly actionType = "music_pause";
+  protected readonly iconName = "pause";
 }

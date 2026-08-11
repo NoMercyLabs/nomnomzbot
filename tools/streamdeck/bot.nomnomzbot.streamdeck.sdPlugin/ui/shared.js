@@ -52,3 +52,14 @@ function requestFromPlugin(request) {
     }),
   );
 }
+
+/** Every action gets the same "Key color" background picker (keyRenderer.js's DEFAULT_BACKGROUND). */
+function initBackgroundColorPicker(container, settings) {
+  const item = document.createElement("sdpi-item");
+  item.setAttribute("label", "Key color");
+  const picker = document.createElement("sdpi-color");
+  picker.value = settings.backgroundColor || "#1a1a1a";
+  picker.addEventListener("change", (ev) => setSettings({ backgroundColor: ev.target.value }));
+  item.appendChild(picker);
+  container.appendChild(item);
+}

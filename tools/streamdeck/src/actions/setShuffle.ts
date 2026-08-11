@@ -19,6 +19,7 @@ interface SetShuffleSettings extends JsonObject {
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-set-shuffle" })
 export class SetShuffleAction extends MusicAction<SetShuffleSettings> {
   protected readonly actionType = "music_set_shuffle";
+  protected readonly iconName = "shuffle";
 
   protected override resolveParams(settings: SetShuffleSettings): Record<string, unknown> {
     return { enabled: settings.enabled ?? true };

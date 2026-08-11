@@ -14,4 +14,5 @@ import { MusicAction } from "./musicAction.js";
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-play" })
 export class PlayAction extends MusicAction {
   protected readonly actionType = "music_play";
+  protected readonly iconName = "play";
 }

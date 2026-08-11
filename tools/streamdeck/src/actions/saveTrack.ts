@@ -14,4 +14,5 @@ import { MusicAction } from "./musicAction.js";
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-save-track" })
 export class SaveTrackAction extends MusicAction {
   protected readonly actionType = "music_save_track";
+  protected readonly iconName = "favorite-outline";
 }

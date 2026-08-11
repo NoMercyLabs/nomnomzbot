@@ -19,6 +19,7 @@ interface SeekSettings extends JsonObject {
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-seek" })
 export class SeekAction extends MusicAction<SeekSettings> {
   protected readonly actionType = "music_seek";
+  protected readonly iconName = "seek";
 
   protected override resolveParams(settings: SeekSettings): Record<string, unknown> {
     return { positionSeconds: settings.positionSeconds ?? 0 };

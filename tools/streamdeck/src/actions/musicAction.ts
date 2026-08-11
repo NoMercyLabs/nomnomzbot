@@ -8,11 +8,18 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import streamDeck, { SingletonAction, type KeyDownEvent, type WillAppearEvent, type SendToPluginEvent} from "@elgato/streamdeck";
+import streamDeck, {
+  SingletonAction,
+  type KeyDownEvent,
+  type WillAppearEvent,
+  type DidReceiveSettingsEvent,
+  type SendToPluginEvent,
+} from "@elgato/streamdeck";
 import type { JsonObject, JsonValue } from "@elgato/utils";
 import { automationClient, AutomationApiError } from "../connection/automationClient.js";
 import { redeemCodeManually } from "../connection/pairing.js";
 import { getPairingState } from "../connection/tokenStore.js";
+import { renderIconKey, DEFAULT_BACKGROUND } from "../nowPlaying/keyRenderer.js";
 
 interface PiRequest extends JsonObject {
   type: "getPairingStatus" | "redeemCode" | "listDevices" | "listPlaylists";
@@ -20,6 +27,11 @@ interface PiRequest extends JsonObject {
   backendUrl?: string;
 }
 
+/** Every action's Settings may carry a per-key background color, picked in its property inspector. */
+function backgroundColorOf(settings: JsonObject): string {
+  const value = (settings as { backgroundColor?: unknown }).backgroundColor;
+  return typeof value === "string" && value.length > 0 ? value : DEFAULT_BACKGROUND;
+}
 
 /**
  * Shared base for every "NomNomzBot: Music" tray action (streamdeck-plugin.md §2). One backend
@@ -29,15 +41,29 @@ interface PiRequest extends JsonObject {
 export abstract class MusicAction<TSettings extends JsonObject = JsonObject> extends SingletonAction<TSettings> {
   protected abstract readonly actionType: string;
 
+  /** Manifest base name of this action's icon (streamdeck-plugin.md's icon pack, e.g. "play"). */
+  protected abstract readonly iconName: string;
+
+  /** Override for a key whose icon depends on live now-playing state (shuffle on/off, saved, …). */
+  protected getIconName(_settings: TSettings): string {
+    return this.iconName;
+  }
+
   /** Override to map this key's Settings (device/playlist id, volume, seek position, …) to invoke params. */
   protected resolveParams(_settings: TSettings): Record<string, unknown> {
     return {};
   }
 
   override async onWillAppear(ev: WillAppearEvent<TSettings>): Promise<void> {
-    if (!(await automationClient.isPaired())) {
-      await ev.action.setTitle("Connect in\ndashboard");
-    }
+    await this.render(ev.action, ev.payload.settings);
+  }
+
+  override async onDidReceiveSettings(ev: DidReceiveSettingsEvent<TSettings>): Promise<void> {
+    await this.render(ev.action, ev.payload.settings);
+  }
+
+  protected async render(action: WillAppearEvent<TSettings>["action"], settings: TSettings): Promise<void> {
+    await action.setImage(renderIconKey(this.getIconName(settings), backgroundColorOf(settings)));
   }
 
   override async onKeyDown(ev: KeyDownEvent<TSettings>): Promise<void> {

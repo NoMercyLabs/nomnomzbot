@@ -9,8 +9,10 @@
     <sdpi-item label="Playlist">
       <sdpi-select id="playlistId" placeholder="Loading playlists…"></sdpi-select>
     </sdpi-item>
+    <div id="appearance"></div>
     <script>
       document.addEventListener("pi:ready", (ev) => {
+        initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
         requestFromPlugin({ type: "listPlaylists" });
         if (ev.detail.playlistId) document.getElementById("playlistId").value = ev.detail.playlistId;
       });

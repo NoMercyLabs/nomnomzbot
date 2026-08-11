@@ -6,6 +6,7 @@
     <script src="shared.js"></script>
   </head>
   <body>
+    <div id="appearance"></div>
     <sdpi-item label="Status">
       <span id="status">Checking connection…</span>
     </sdpi-item>
@@ -51,7 +52,8 @@
         }
       }
 
-      document.addEventListener("pi:ready", () => {
+      document.addEventListener("pi:ready", (ev) => {
+        initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
         requestFromPlugin({ type: "getPairingStatus" });
         // The dashboard's automatic handoff pairs this device in the background (no PI interaction
         // required) — poll while the PI is open so "Not connected" flips to "Connected" on its own.

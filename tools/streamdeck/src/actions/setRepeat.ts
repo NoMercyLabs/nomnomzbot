@@ -19,6 +19,7 @@ interface SetRepeatSettings extends JsonObject {
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-set-repeat" })
 export class SetRepeatAction extends MusicAction<SetRepeatSettings> {
   protected readonly actionType = "music_set_repeat";
+  protected readonly iconName = "repeat";
 
   protected override resolveParams(settings: SetRepeatSettings): Record<string, unknown> {
     return { mode: settings.mode ?? "off" };

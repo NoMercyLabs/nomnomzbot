@@ -19,6 +19,7 @@ const TITLES: Record<string, string> = { off: "Repeat\nOff", track: "Repeat\nTra
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-cycle-repeat" })
 export class CycleRepeatAction extends MusicAction {
   protected readonly actionType = "music_cycle_repeat";
+  protected readonly iconName = "repeat";
 
   override async onWillAppear(ev: WillAppearEvent<JsonObject>): Promise<void> {
     await super.onWillAppear(ev);

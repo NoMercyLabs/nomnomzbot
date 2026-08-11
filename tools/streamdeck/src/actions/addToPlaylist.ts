@@ -19,6 +19,7 @@ interface PlaylistSettings extends JsonObject {
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-add-to-playlist" })
 export class AddToPlaylistAction extends MusicAction<PlaylistSettings> {
   protected readonly actionType = "music_add_to_playlist";
+  protected readonly iconName = "playlist-add";
 
   protected override resolveParams(settings: PlaylistSettings): Record<string, unknown> {
     return { playlistId: settings.playlistId ?? "" };

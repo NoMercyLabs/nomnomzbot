@@ -19,6 +19,7 @@ interface VolumeMuteSettings extends JsonObject {
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-volume-mute" })
 export class VolumeMuteAction extends MusicAction<VolumeMuteSettings> {
   protected readonly actionType = "music_volume_mute";
+  protected readonly iconName = "volume-mute";
 
   protected override resolveParams(settings: VolumeMuteSettings): Record<string, unknown> {
     return { unmuteVolume: settings.unmuteVolume ?? 50 };

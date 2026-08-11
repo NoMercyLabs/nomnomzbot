@@ -19,6 +19,7 @@ interface PlaylistSettings extends JsonObject {
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-remove-from-playlist" })
 export class RemoveFromPlaylistAction extends MusicAction<PlaylistSettings> {
   protected readonly actionType = "music_remove_from_playlist";
+  protected readonly iconName = "playlist-remove";
 
   protected override resolveParams(settings: PlaylistSettings): Record<string, unknown> {
     return { playlistId: settings.playlistId ?? "" };

@@ -19,6 +19,7 @@ interface TransferDeviceSettings extends JsonObject {
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-transfer-device" })
 export class TransferDeviceAction extends MusicAction<TransferDeviceSettings> {
   protected readonly actionType = "music_transfer_device";
+  protected readonly iconName = "device";
 
   protected override resolveParams(settings: TransferDeviceSettings): Record<string, unknown> {
     return { deviceId: settings.deviceId ?? "" };

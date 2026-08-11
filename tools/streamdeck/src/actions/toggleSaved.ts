@@ -13,16 +13,20 @@ import type { JsonObject } from "@elgato/utils";
 import { MusicAction } from "./musicAction.js";
 import { nowPlayingState } from "../nowPlaying/state.js";
 
-/** Native 2-state key: favorite-outline/favorite-filled, flipped on every song.changed's isSaved field.
+/** Live key: favorite-outline/favorite-filled icon, flipped on every song.changed's isSaved field.
  * Cast to KeyAction: this manifest entry has no Encoder controller, so it's never a DialAction at runtime. */
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-toggle-saved" })
 export class ToggleSavedAction extends MusicAction {
   protected readonly actionType = "music_toggle_saved";
+  protected readonly iconName = "favorite-outline";
+
+  protected override getIconName(_settings: JsonObject): string {
+    return nowPlayingState.current?.isSaved ? "favorite-filled" : "favorite-outline";
+  }
 
   override async onWillAppear(ev: WillAppearEvent<JsonObject>): Promise<void> {
     await super.onWillAppear(ev);
     const key = ev.action as KeyAction<JsonObject>;
-    nowPlayingState.onChange(() => void key.setState(nowPlayingState.current?.isSaved ? 1 : 0));
-    await key.setState(nowPlayingState.current?.isSaved ? 1 : 0);
+    nowPlayingState.onChange(() => void this.render(key, ev.payload.settings));
   }
 }

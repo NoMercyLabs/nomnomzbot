@@ -14,4 +14,5 @@ import { MusicAction } from "./musicAction.js";
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-unsave-track" })
 export class UnsaveTrackAction extends MusicAction {
   protected readonly actionType = "music_unsave_track";
+  protected readonly iconName = "favorite-filled";
 }
