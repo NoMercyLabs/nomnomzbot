@@ -409,7 +409,8 @@ public sealed class MusicService : IMusicService
             track.Provider,
             track.TrackUri,
             track.ShuffleEnabled,
-            track.RepeatMode
+            track.RepeatMode,
+            track.ArtistId
         );
     }
 

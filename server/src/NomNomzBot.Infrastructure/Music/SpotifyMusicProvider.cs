@@ -1510,6 +1510,7 @@ public sealed class SpotifyMusicProvider
             DurationMs = track.DurationMs,
             Provider = ProviderName,
             ProviderTrackId = track.Id ?? string.Empty,
+            ArtistId = track.Artists.FirstOrDefault()?.Id,
             IsExplicit = track.Explicit,
             IsAgeRestricted = false, // Spotify exposes no age-restriction flag; the gate is a YouTube knob.
             IsEmbeddable = true, // No embed constraint applies to Spotify drip-feed playback.
@@ -1598,6 +1599,9 @@ public sealed class SpotifyMusicProvider
 
     private sealed class SpotifyArtist
     {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
         [JsonPropertyName("name")]
         public string Name { get; set; } = null!;
     }

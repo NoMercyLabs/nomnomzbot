@@ -185,7 +185,8 @@ public sealed record NowPlaying(
     string Provider,
     string? TrackUri = null,
     bool ShuffleEnabled = false,
-    MusicRepeatMode RepeatMode = MusicRepeatMode.Off
+    MusicRepeatMode RepeatMode = MusicRepeatMode.Off,
+    string? ArtistId = null
 );
 
 /// <summary>The full playback queue including the current track.</summary>

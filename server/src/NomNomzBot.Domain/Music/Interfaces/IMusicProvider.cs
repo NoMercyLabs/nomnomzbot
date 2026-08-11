@@ -189,6 +189,10 @@ public class TrackInfo
     /// <summary>The provider's own track id (Spotify track id, YouTube video id). Empty when unknown.</summary>
     public string ProviderTrackId { get; init; } = string.Empty;
 
+    /// <summary>The primary artist's provider id (Spotify artist id, YouTube channel id). Null when unknown —
+    /// e.g. a provider that only reports the artist name. Backs follow/unfollow-artist automation actions.</summary>
+    public string? ArtistId { get; init; }
+
     /// <summary>Provider-flagged explicit content — enforces the <c>BlockExplicit</c> gate (music-sr.md §3.5).</summary>
     public bool IsExplicit { get; init; }
 

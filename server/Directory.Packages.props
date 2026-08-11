@@ -40,8 +40,13 @@
     <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.8" />
   </ItemGroup>
   <ItemGroup Label="DataProtection">
-    <PackageVersion Include="Microsoft.AspNetCore.DataProtection" Version="10.0.8" />
-    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.AspNetCore.DataProtection" Version="10.0.10" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.10" />
+    <!-- Explicit override: DataProtection 10.0.8 transitively pulled System.Security.Cryptography.Xml
+         10.0.8, which NuGet flagged with 5 high-severity advisories (GHSA-23rf-6693-g89p et al.) on
+         2026-08-11. 10.0.10 resolves them; pinned directly so the fix holds even if a future
+         DataProtection bump forgets to carry it. -->
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.10" />
   </ItemGroup>
   <ItemGroup Label="JWT">
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.18.0" />
