@@ -313,6 +313,11 @@ public static class DependencyInjection
         >();
         // Per-channel chat-colour memory backing the mention-colour step (cache-only). Stateless → singleton.
         services.AddSingleton<Application.Chat.Services.IChatColorMemory, ChatColorMemory>();
+        // Per-channel pre-mute volume memory so unmute restores the real prior level (cache-only). Stateless → singleton.
+        services.AddSingleton<
+            Application.Music.Services.IMuteVolumeMemory,
+            Music.MuteVolumeMemory
+        >();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
         services.AddScoped<Application.Chat.Services.IChatMessageDecorator, ChatMessageDecorator>();

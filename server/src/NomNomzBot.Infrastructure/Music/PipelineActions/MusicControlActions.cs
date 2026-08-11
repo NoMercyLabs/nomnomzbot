@@ -315,27 +315,35 @@ public sealed class MusicVolumeDownAction : ICommandAction
 }
 
 /// <summary>
-/// Toggles between 0 and a fixed unmute level (default 50, overridable via the `unmuteVolume` param).
-/// Neither Spotify nor this seam remembers "the volume before you muted" server-side, so — same as
-/// most third-party remotes — unmuting restores a configured level, not your exact prior one.
+/// Toggles between 0 and the level it was at right before muting, remembered via
+/// <see cref="IMuteVolumeMemory"/> (cache-backed, survives across calls but not indefinitely). Falls
+/// back to a fixed level (default 50, overridable via the `unmuteVolume` param) only when nothing is
+/// remembered — e.g. the very first unmute after a process restart. Revises an earlier decision to
+/// always reset to a fixed level "since neither Spotify nor this seam remembers the prior volume" —
+/// that constraint no longer holds now that this seam does.
 /// </summary>
 public sealed class MusicVolumeMuteAction : ICommandAction
 {
     private readonly IMusicService _music;
+    private readonly IMuteVolumeMemory _muteMemory;
 
     public string ActionType => "music_volume_mute";
     public string Category => "Music Control";
     public string Description =>
-        "Mutes if audible; unmutes to a fixed level (default 50) if muted.";
+        "Mutes if audible, remembering the current level; unmutes back to that level (or a fixed level, default 50, if none is remembered).";
 
-    public MusicVolumeMuteAction(IMusicService music) => _music = music;
+    public MusicVolumeMuteAction(IMusicService music, IMuteVolumeMemory muteMemory)
+    {
+        _music = music;
+        _muteMemory = muteMemory;
+    }
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
     )
     {
-        int unmuteVolume = MusicSetVolumeAction.ResolveIntParam(
+        int fallbackVolume = MusicSetVolumeAction.ResolveIntParam(
             action,
             "unmuteVolume",
             ctx.Variables
@@ -352,7 +360,23 @@ public sealed class MusicVolumeMuteAction : ICommandAction
         if (current.IsFailure)
             return ActionResult.Failure(current.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
 
-        int target = current.Value > 0 ? 0 : unmuteVolume;
+        int target;
+        if (current.Value > 0)
+        {
+            // Muting now — remember the real level so the next unmute can restore it exactly.
+            await _muteMemory.RememberAsync(
+                ctx.BroadcasterId,
+                current.Value,
+                ctx.CancellationToken
+            );
+            target = 0;
+        }
+        else
+        {
+            int? remembered = await _muteMemory.GetAsync(ctx.BroadcasterId, ctx.CancellationToken);
+            target = remembered ?? fallbackVolume;
+        }
+
         Result result = await _music.SetVolumeAsync(
             ctx.BroadcasterId.ToString(),
             target,

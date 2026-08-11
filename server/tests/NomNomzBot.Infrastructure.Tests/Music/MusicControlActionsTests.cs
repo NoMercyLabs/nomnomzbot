@@ -578,7 +578,7 @@ public sealed class MusicControlActionsTests
     }
 
     [Fact]
-    public async Task Volume_mute_mutes_when_audible()
+    public async Task Volume_mute_mutes_when_audible_and_remembers_the_real_level()
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
@@ -587,7 +587,8 @@ public sealed class MusicControlActionsTests
         music
             .SetVolumeAsync(ChannelId.ToString(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        MusicVolumeMuteAction action = new(music);
+        IMuteVolumeMemory memory = Substitute.For<IMuteVolumeMemory>();
+        MusicVolumeMuteAction action = new(music, memory);
 
         ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_volume_mute"));
 
@@ -595,10 +596,12 @@ public sealed class MusicControlActionsTests
         await music
             .Received(1)
             .SetVolumeAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>());
+        // The pre-mute level (60, not the fixed unmute default) is what gets remembered for later.
+        await memory.Received(1).RememberAsync(ChannelId, 60, Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Volume_mute_unmutes_to_the_default_level_when_already_muted()
+    public async Task Volume_unmute_restores_the_remembered_pre_mute_level()
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
@@ -607,7 +610,31 @@ public sealed class MusicControlActionsTests
         music
             .SetVolumeAsync(ChannelId.ToString(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        MusicVolumeMuteAction action = new(music);
+        IMuteVolumeMemory memory = Substitute.For<IMuteVolumeMemory>();
+        memory.GetAsync(ChannelId, Arg.Any<CancellationToken>()).Returns((int?)73);
+        MusicVolumeMuteAction action = new(music, memory);
+
+        await action.ExecuteAsync(Ctx(), Def("music_volume_mute"));
+
+        // Restores the real remembered level, NOT the fixed 50 default — the whole point of remembering it.
+        await music
+            .Received(1)
+            .SetVolumeAsync(ChannelId.ToString(), 73, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Volume_mute_unmutes_to_the_default_level_when_nothing_is_remembered()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetDevicesAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns((IReadOnlyList<MusicDeviceDto>)[ActiveDevice(0)]);
+        music
+            .SetVolumeAsync(ChannelId.ToString(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        IMuteVolumeMemory memory = Substitute.For<IMuteVolumeMemory>();
+        memory.GetAsync(ChannelId, Arg.Any<CancellationToken>()).Returns((int?)null);
+        MusicVolumeMuteAction action = new(music, memory);
 
         await action.ExecuteAsync(Ctx(), Def("music_volume_mute"));
 
@@ -617,7 +644,7 @@ public sealed class MusicControlActionsTests
     }
 
     [Fact]
-    public async Task Volume_mute_unmutes_to_a_custom_level_param()
+    public async Task Volume_mute_unmutes_to_a_custom_level_param_when_nothing_is_remembered()
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
@@ -626,7 +653,9 @@ public sealed class MusicControlActionsTests
         music
             .SetVolumeAsync(ChannelId.ToString(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        MusicVolumeMuteAction action = new(music);
+        IMuteVolumeMemory memory = Substitute.For<IMuteVolumeMemory>();
+        memory.GetAsync(ChannelId, Arg.Any<CancellationToken>()).Returns((int?)null);
+        MusicVolumeMuteAction action = new(music, memory);
 
         await action.ExecuteAsync(Ctx(), Def("music_volume_mute", ("unmuteVolume", "80")));
 
