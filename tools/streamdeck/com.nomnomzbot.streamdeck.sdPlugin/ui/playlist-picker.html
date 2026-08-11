@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://sdpi-components.dev/releases/v3/sdpi-components.js"></script>
+    <script src="shared.js"></script>
+  </head>
+  <body>
+    <sdpi-item label="Playlist">
+      <sdpi-select id="playlistId" placeholder="Loading playlists…"></sdpi-select>
+    </sdpi-item>
+    <script>
+      document.addEventListener("pi:ready", (ev) => {
+        requestFromPlugin({ type: "listPlaylists" });
+        if (ev.detail.playlistId) document.getElementById("playlistId").value = ev.detail.playlistId;
+      });
+      document.addEventListener("pi:message", (ev) => {
+        if (ev.detail?.type !== "playlists") return;
+        const select = document.getElementById("playlistId");
+        select.innerHTML = "";
+        for (const playlist of ev.detail.playlists) {
+          const option = document.createElement("option");
+          option.value = playlist.id;
+          option.textContent = `${playlist.name} (${playlist.trackCount})`;
+          select.appendChild(option);
+        }
+      });
+      document.getElementById("playlistId").addEventListener("change", (ev) => {
+        setSettings({ playlistId: ev.target.value });
+      });
+    </script>
+  </body>
+</html>

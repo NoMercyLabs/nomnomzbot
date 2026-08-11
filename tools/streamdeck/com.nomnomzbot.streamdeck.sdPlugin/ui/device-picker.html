@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://sdpi-components.dev/releases/v3/sdpi-components.js"></script>
+    <script src="shared.js"></script>
+  </head>
+  <body>
+    <sdpi-item label="Device">
+      <sdpi-select id="deviceId" placeholder="Loading devices…"></sdpi-select>
+    </sdpi-item>
+    <script>
+      document.addEventListener("pi:ready", (ev) => {
+        requestFromPlugin({ type: "listDevices" });
+        if (ev.detail.deviceId) document.getElementById("deviceId").value = ev.detail.deviceId;
+      });
+      document.addEventListener("pi:message", (ev) => {
+        if (ev.detail?.type !== "devices") return;
+        const select = document.getElementById("deviceId");
+        select.innerHTML = "";
+        for (const device of ev.detail.devices) {
+          const option = document.createElement("option");
+          option.value = device.id;
+          option.textContent = device.isActive ? `${device.name} (active)` : device.name;
+          select.appendChild(option);
+        }
+      });
+      document.getElementById("deviceId").addEventListener("change", (ev) => {
+        setSettings({ deviceId: ev.target.value });
+      });
+    </script>
+  </body>
+</html>

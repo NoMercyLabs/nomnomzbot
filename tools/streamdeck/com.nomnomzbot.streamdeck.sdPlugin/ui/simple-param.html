@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://sdpi-components.dev/releases/v3/sdpi-components.js"></script>
+    <script src="shared.js"></script>
+  </head>
+  <body>
+    <!-- One generic numeric/select editor, reused by Set Volume / Seek / Set Shuffle / Set Repeat
+         Mode — each key's onWillAppear tells the plugin which field(s) it needs via getUIConfig,
+         keeping this single file instead of four nearly-identical pages. -->
+    <div id="fields"></div>
+    <script>
+      const FIELD_CONFIG = {
+        "bot.nomnomzbot.streamdeck.music-set-volume": [
+          { key: "volume", label: "Volume (0-100)", type: "range", min: 0, max: 100, default: 50 },
+        ],
+        "bot.nomnomzbot.streamdeck.music-seek": [
+          { key: "positionSeconds", label: "Position (seconds)", type: "number", default: 0 },
+        ],
+        "bot.nomnomzbot.streamdeck.music-set-shuffle": [
+          {
+            key: "enabled",
+            label: "Shuffle",
+            type: "select",
+            options: [
+              { value: "true", label: "On" },
+              { value: "false", label: "Off" },
+            ],
+            default: "true",
+          },
+        ],
+        "bot.nomnomzbot.streamdeck.music-set-repeat": [
+          {
+            key: "mode",
+            label: "Repeat mode",
+            type: "select",
+            options: [
+              { value: "off", label: "Off" },
+              { value: "track", label: "Track" },
+              { value: "context", label: "Playlist/Album" },
+            ],
+            default: "off",
+          },
+        ],
+      };
+
+      document.addEventListener("pi:ready", (ev) => {
+        const settings = ev.detail;
+        const fields = FIELD_CONFIG[piActionInfo.action] ?? [];
+        const container = document.getElementById("fields");
+        for (const field of fields) {
+          const item = document.createElement("sdpi-item");
+          item.setAttribute("label", field.label);
+          const value = settings[field.key] ?? field.default;
+
+          let input;
+          if (field.type === "select") {
+            input = document.createElement("sdpi-select");
+            for (const opt of field.options) {
+              const option = document.createElement("option");
+              option.value = opt.value;
+              option.textContent = opt.label;
+              input.appendChild(option);
+            }
+            input.value = String(value);
+          } else {
+            input = document.createElement("sdpi-textfield");
+            input.setAttribute("type", field.type === "range" ? "number" : "number");
+            input.value = String(value);
+          }
+          input.addEventListener("change", (changeEv) => {
+            setSettings({ [field.key]: field.type === "number" || field.type === "range" ? Number(changeEv.target.value) : changeEv.target.value });
+          });
+          item.appendChild(input);
+          container.appendChild(item);
+        }
+      });
+    </script>
+  </body>
+</html>

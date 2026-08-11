@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://sdpi-components.dev/releases/v3/sdpi-components.js"></script>
+    <script src="shared.js"></script>
+  </head>
+  <body>
+    <sdpi-item label="Status">
+      <span id="status">Checking connection…</span>
+    </sdpi-item>
+    <sdpi-item label="Pairing code">
+      <sdpi-textfield id="code" placeholder="ABCD2345" maxlength="8"></sdpi-textfield>
+    </sdpi-item>
+    <sdpi-item label="Backend URL">
+      <sdpi-textfield id="backendUrl" placeholder="https://your-bot.example.com"></sdpi-textfield>
+    </sdpi-item>
+    <sdpi-item>
+      <button id="pair">Pair</button>
+    </sdpi-item>
+    <script>
+      document.addEventListener("pi:ready", () => {
+        requestFromPlugin({ type: "getPairingStatus" });
+      });
+      document.addEventListener("pi:message", (ev) => {
+        if (ev.detail?.type === "pairingStatus") {
+          document.getElementById("status").textContent = ev.detail.paired
+            ? `Connected (expires ${new Date(ev.detail.tokenExpiresAt).toLocaleDateString()})`
+            : "Not connected — use your dashboard's Connect a device, or enter a code below.";
+        }
+      });
+      document.getElementById("pair").addEventListener("click", () => {
+        requestFromPlugin({
+          type: "redeemCode",
+          code: document.getElementById("code").value,
+          backendUrl: document.getElementById("backendUrl").value,
+        });
+      });
+    </script>
+  </body>
+</html>

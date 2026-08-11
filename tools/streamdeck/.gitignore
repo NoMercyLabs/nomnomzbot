@@ -1,0 +1,3 @@
+node_modules/
+com.nomnomzbot.streamdeck.sdPlugin/bin/
+*.log
