@@ -42,6 +42,21 @@ describe("NowPlayingState", () => {
     expect(state.elapsedMs()).toBe(15_000);
   });
 
+  it("never extrapolates past the track's duration while waiting for the next song.changed push", () => {
+    vi.useFakeTimers();
+    const now = new Date("2026-08-11T12:00:00Z");
+    vi.setSystemTime(now);
+    const state = new NowPlayingState();
+
+    state.apply(payload({ positionMs: 195_000, durationMs: 200_000, isPlaying: true }));
+    // 10s of real time passes with no new push — naive extrapolation would read 205,000ms, past the
+    // 200,000ms duration.
+    vi.setSystemTime(new Date(now.getTime() + 10_000));
+
+    expect(state.elapsedMs()).toBe(200_000);
+    expect(state.formattedElapsed()).toBe("3:20");
+  });
+
   it("freezes the elapsed position while paused", () => {
     vi.useFakeTimers();
     const now = new Date("2026-08-11T12:00:00Z");

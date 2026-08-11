@@ -30,11 +30,16 @@ export class NowPlayingState {
     return this.anchor;
   }
 
-  /** Extrapolated elapsed position right now — frozen while paused, drifting forward while playing. */
+  /** Extrapolated elapsed position right now — frozen while paused, drifting forward while playing.
+   * Clamped to the track's duration: without this, a key can visibly count past the end of the song
+   * while waiting for the next `song.changed` push to land, which reads as broken rather than "about
+   * to switch tracks". */
   elapsedMs(): number {
     if (!this.anchor) return 0;
-    if (!this.anchor.isPlaying) return this.anchor.positionMs;
-    return this.anchor.positionMs + (Date.now() - this.receivedAtMs);
+    const raw = this.anchor.isPlaying
+      ? this.anchor.positionMs + (Date.now() - this.receivedAtMs)
+      : this.anchor.positionMs;
+    return this.anchor.durationMs > 0 ? Math.min(raw, this.anchor.durationMs) : raw;
   }
 
   formattedElapsed(): string {
