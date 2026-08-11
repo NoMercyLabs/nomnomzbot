@@ -6,17 +6,13 @@
     <script src="shared.js"></script>
   </head>
   <body>
-    <!-- Every action's PI leads with the connection gate: disconnected shows host+status instead of
-         this key's own settings, so setup triggers wherever a key already is — not a dedicated
-         key the operator has to remember to add (streamdeck-plugin.md P6). -->
-    <div id="gate"></div>
-    <div id="normal">
-      <div id="appearance"></div>
-    </div>
+    <!-- Every action except pairing/host setup (the plugin's own settings.html, reached from the
+         Stream Deck app's Plugins list — streamdeck-plugin.md P6) uses this PI: just the per-key
+         color picker. -->
+    <div id="appearance"></div>
     <script>
       document.addEventListener("pi:ready", (ev) => {
         initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
-        initConnectionGate(document.getElementById("gate"), document.getElementById("normal"));
       });
     </script>
   </body>

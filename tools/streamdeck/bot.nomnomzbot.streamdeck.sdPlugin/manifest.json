@@ -6,7 +6,7 @@
   "Description": "Control Spotify (and any other connected NomNomzBot music provider) through your bot's own Automation API — pairs itself, defaults to your self-hosted bot at localhost.",
   "Icon": "imgs/plugin/marketplace",
   "CodePath": "bin/plugin.js",
-  "PropertyInspectorPath": "ui/appearance-only.html",
+  "PropertyInspectorPath": "ui/settings.html",
   "SDKVersion": 2,
   "Software": { "MinimumVersion": "6.5" },
   "OS": [
