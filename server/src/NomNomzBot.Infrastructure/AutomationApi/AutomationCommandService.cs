@@ -127,6 +127,7 @@ public class AutomationCommandService : IAutomationCommandService
         {
             BroadcasterId = principal.BroadcasterId,
             PipelineId = pipeline.Id,
+            PipelineJson = pipeline.GraphJsonCache ?? "{}",
             TriggeredByUserId = principal.TokenId.ToString(),
             TriggeredByDisplayName = principal.TokenName,
             RawMessage = request.Args is { Count: > 0 } args ? string.Join(' ', args) : "",
@@ -406,6 +407,11 @@ public class AutomationCommandService : IAutomationCommandService
             s => s.PipelineId == pipeline.Id && s.ActionType.StartsWith("music_"),
             ct
         );
+        // DB step rows are the primary source, but no pipeline-creation path (dashboard builder or
+        // automation auto-provisioning) populates them today — GraphJsonCache is the actual truth.
+        // Same DB-then-JSON-fallback order PipelineEngine itself uses, so the gate never blind-spots.
+        if (!hasMusicStep && pipeline.GraphJsonCache is { Length: > 0 } graphJson)
+            hasMusicStep = graphJson.Contains("\"music_", StringComparison.Ordinal);
         if (!hasMusicStep)
             return true;
 

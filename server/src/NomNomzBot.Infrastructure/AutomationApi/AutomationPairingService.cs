@@ -9,11 +9,16 @@
 // -----------------------------------------------------------------------------
 
 using System.Security.Cryptography;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Caching;
+using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.AutomationApi;
 
@@ -45,21 +50,32 @@ public class AutomationPairingService : IAutomationPairingService
     /// before this, so a healthy device never re-pairs.</summary>
     private static readonly TimeSpan PairedTokenLifetime = TimeSpan.FromDays(30);
 
+    /// <summary>Device kind sent by the NomNomzBot Stream Deck plugin (streamdeck-plugin.md P6) — the
+    /// only device kind that auto-provisions pipelines today, since it's the only automation client
+    /// invoking by a fixed, well-known action-type-as-name convention.</summary>
+    private const string StreamDeckDeviceKind = "streamdeck";
+
     private readonly ICacheService _cache;
     private readonly IAutomationApiTokenService _tokens;
     private readonly IRateLimiterPartitionStore _rateLimiter;
+    private readonly IApplicationDbContext _db;
+    private readonly IEnumerable<ICommandAction> _actions;
     private readonly TimeProvider _clock;
 
     public AutomationPairingService(
         ICacheService cache,
         IAutomationApiTokenService tokens,
         IRateLimiterPartitionStore rateLimiter,
+        IApplicationDbContext db,
+        IEnumerable<ICommandAction> actions,
         TimeProvider clock
     )
     {
         _cache = cache;
         _tokens = tokens;
         _rateLimiter = rateLimiter;
+        _db = db;
+        _actions = actions;
         _clock = clock;
     }
 
@@ -194,9 +210,81 @@ public class AutomationPairingService : IAutomationPairingService
                 issued.ErrorDetail
             );
 
+        if (
+            string.Equals(
+                device.Kind.Trim(),
+                StreamDeckDeviceKind,
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+            await EnsureMusicActionPipelinesAsync(envelope.BroadcasterId, ct);
+
         return Result.Success(
             new PairingRedemptionDto(backendUrl, issued.Value.Secret, envelope.Scopes, expiresAt)
         );
+    }
+
+    /// <summary>
+    /// Auto-provisions D7's remaining gap: one single-step pipeline per registered <c>music_*</c> action,
+    /// named identically to its <see cref="ICommandAction.ActionType"/>. The Stream Deck plugin invokes
+    /// pipelines BY NAME (automation-api.md §3 <c>AutomationInvokeRequest.PipelineName</c>) assuming a
+    /// pipeline matching each of its 22 manifest actions already exists — this makes that true on first
+    /// pairing, with zero manual dashboard setup. Derives the action list from the live
+    /// <see cref="ICommandAction"/> registry rather than a hardcoded string list, so a future <c>music_*</c>
+    /// action is auto-provisioned too. Idempotent: skips any name that's already taken.
+    /// </summary>
+    private async Task EnsureMusicActionPipelinesAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        string[] musicActionTypes =
+        [
+            .. _actions
+                .Select(a => a.ActionType)
+                .Where(t => t.StartsWith("music_", StringComparison.Ordinal))
+                .Distinct(),
+        ];
+        if (musicActionTypes.Length == 0)
+            return;
+
+        HashSet<string> existingNames = (
+            await _db
+                .Pipelines.Where(p =>
+                    p.BroadcasterId == broadcasterId && musicActionTypes.Contains(p.Name)
+                )
+                .Select(p => p.Name)
+                .ToListAsync(ct)
+        ).ToHashSet(StringComparer.Ordinal);
+
+        foreach (string actionType in musicActionTypes)
+        {
+            if (existingNames.Contains(actionType))
+                continue;
+
+            _db.Pipelines.Add(
+                new PipelineEntity
+                {
+                    Id = Guid.CreateVersion7(),
+                    BroadcasterId = broadcasterId,
+                    Name = actionType,
+                    Description = "Auto-provisioned for the NomNomzBot Stream Deck plugin.",
+                    TriggerKind = "manual",
+                    IsEnabled = true,
+                    GraphJsonCache = JsonSerializer.Serialize(
+                        new PipelineDefinition
+                        {
+                            Steps =
+                            [
+                                new PipelineStepDefinition
+                                {
+                                    Action = new ActionDefinition { Type = actionType },
+                                },
+                            ],
+                        }
+                    ),
+                }
+            );
+        }
+
+        await _db.SaveChangesAsync(ct);
     }
 
     private static string MintCode()

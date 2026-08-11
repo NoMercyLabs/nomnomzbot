@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Caching;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
@@ -76,7 +77,10 @@ public sealed class AutomationPairingServiceTests
         public required IRateLimiterPartitionStore Limiter { get; init; }
     }
 
-    private static Harness Build(bool rateLimited = false)
+    private static Harness Build(
+        bool rateLimited = false,
+        IEnumerable<ICommandAction>? actions = null
+    )
     {
         AutomationTestDbContext db = AutomationTestDbContext.New();
         FakeCache cache = new();
@@ -105,7 +109,14 @@ public sealed class AutomationPairingServiceTests
 
         return new Harness
         {
-            Service = new AutomationPairingService(cache, tokens, limiter, clock),
+            Service = new AutomationPairingService(
+                cache,
+                tokens,
+                limiter,
+                db,
+                actions ?? [],
+                clock
+            ),
             Db = db,
             Cache = cache,
             Limiter = limiter,
@@ -114,6 +125,16 @@ public sealed class AutomationPairingServiceTests
 
     private static DeviceInfo Deck(string? name = "Office Deck") =>
         new() { Kind = "Stream Deck", Name = name };
+
+    private static DeviceInfo StreamDeckPlugin(string? name = "Office Deck") =>
+        new() { Kind = "streamdeck", Name = name };
+
+    private static ICommandAction FakeAction(string type)
+    {
+        ICommandAction action = Substitute.For<ICommandAction>();
+        action.ActionType.Returns(type);
+        return action;
+    }
 
     [Fact]
     public async Task A_minted_code_redeems_into_a_real_scoped_token_exactly_once()
@@ -248,5 +269,78 @@ public sealed class AutomationPairingServiceTests
         );
         blankLabel.IsFailure.Should().BeTrue();
         h.Cache.Ttls.Should().BeEmpty("nothing was cached for rejected mints");
+    }
+
+    [Fact]
+    public async Task Pairing_a_stream_deck_auto_provisions_one_pipeline_per_music_action()
+    {
+        Harness h = Build(
+            actions: [FakeAction("music_play"), FakeAction("music_pause"), FakeAction("chat_send")]
+        );
+        Result<PairingCodeDto> minted = await h.Service.MintCodeAsync(
+            Channel,
+            Operator,
+            new MintPairingCodeRequest { DeviceLabel = "Studio Deck" }
+        );
+
+        await h.Service.RedeemCodeAsync(
+            minted.Value.Code,
+            StreamDeckPlugin(),
+            "203.0.113.7",
+            Backend
+        );
+
+        List<Domain.Commands.Entities.Pipeline> pipelines = await h
+            .Db.Pipelines.Where(p => p.BroadcasterId == Channel)
+            .ToListAsync();
+        pipelines.Should().HaveCount(2, "only the music_* actions get a pipeline, not chat_send");
+        pipelines.Select(p => p.Name).Should().BeEquivalentTo(["music_play", "music_pause"]);
+        pipelines.Should().OnlyContain(p => p.GraphJsonCache!.Contains("\"type\":\"music_"));
+    }
+
+    [Fact]
+    public async Task Pairing_a_non_stream_deck_device_provisions_nothing()
+    {
+        Harness h = Build(actions: [FakeAction("music_play")]);
+        Result<PairingCodeDto> minted = await h.Service.MintCodeAsync(
+            Channel,
+            Operator,
+            new MintPairingCodeRequest { DeviceLabel = "Touch Portal" }
+        );
+
+        await h.Service.RedeemCodeAsync(minted.Value.Code, Deck(), "203.0.113.7", Backend);
+
+        (await h.Db.Pipelines.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Re_pairing_a_stream_deck_does_not_duplicate_pipelines()
+    {
+        Harness h = Build(actions: [FakeAction("music_play")]);
+        Result<PairingCodeDto> first = await h.Service.MintCodeAsync(
+            Channel,
+            Operator,
+            new MintPairingCodeRequest { DeviceLabel = "Studio Deck" }
+        );
+        await h.Service.RedeemCodeAsync(
+            first.Value.Code,
+            StreamDeckPlugin(),
+            "203.0.113.7",
+            Backend
+        );
+
+        Result<PairingCodeDto> second = await h.Service.MintCodeAsync(
+            Channel,
+            Operator,
+            new MintPairingCodeRequest { DeviceLabel = "Second Deck" }
+        );
+        await h.Service.RedeemCodeAsync(
+            second.Value.Code,
+            StreamDeckPlugin("Second Deck"),
+            "203.0.113.8",
+            Backend
+        );
+
+        (await h.Db.Pipelines.CountAsync()).Should().Be(1);
     }
 }

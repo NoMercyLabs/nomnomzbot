@@ -82,13 +82,13 @@ export class AutomationClient {
   }
 
   /**
-   * KNOWN GAP (flagged, not silently papered over): `POST /automation/v1/invoke` resolves a PIPELINE
-   * by id/name (automation-api.md §3 `AutomationInvokeRequest`), not a raw action type — there is no
-   * "run this one action directly" endpoint. This client invokes by NAME, assuming a pipeline named
-   * identically to `actionType` (e.g. "music_play_pause") exists on the broadcaster's channel with
-   * exactly that one music_* step. Today that pipeline must be created once via the dashboard pipeline
-   * editor; auto-provisioning one such pipeline per manifest action on first pairing is the natural
-   * follow-up (not yet built) so a fresh install needs zero manual pipeline setup.
+   * `POST /automation/v1/invoke` resolves a PIPELINE by id/name (automation-api.md §3
+   * `AutomationInvokeRequest`), not a raw action type — there is no "run this one action directly"
+   * endpoint. This client invokes by NAME, assuming a pipeline named identically to `actionType`
+   * (e.g. "music_play_pause") exists on the broadcaster's channel with exactly that one music_* step.
+   * The backend auto-provisions one such pipeline per registered music_* action the first time a
+   * device pairs with `Device.Kind === "streamdeck"` (AutomationPairingService), so a fresh install
+   * needs zero manual dashboard setup.
    */
   async invoke(actionType: string, params: Record<string, unknown> = {}): Promise<void> {
     await this.request("POST", "/automation/v1/invoke", {
