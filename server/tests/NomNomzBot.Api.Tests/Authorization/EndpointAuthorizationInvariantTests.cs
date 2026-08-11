@@ -128,6 +128,14 @@ public sealed class EndpointAuthorizationInvariantTests
             "API-token plane: token scheme + scope 'invoke' + pipeline allowlist enforced in AutomationCommandService (automation-api.md §4.1/D5)",
         ["AutomationDataController.SendChat"] =
             "API-token plane: token scheme + scope 'chat' enforced in AutomationCommandService (automation-api.md §4.1)",
+        ["AutomationDataController.Refresh"] =
+            "API-token plane: token scheme only, no scope requirement — the presented token IS the credential being self-refreshed (stream-deck.md D8; not a management operation)",
+        ["AutomationDataController.GetNowPlaying"] =
+            "API-token plane: token scheme + scope 'read' enforced in AutomationCommandService (music-automation-controls.md §4)",
+        ["AutomationDataController.GetMusicDevices"] =
+            "API-token plane: token scheme + scope 'read' enforced in AutomationCommandService (music-automation-controls.md §4)",
+        ["AutomationDataController.GetMusicPlaylists"] =
+            "API-token plane: token scheme + scope 'read' enforced in AutomationCommandService (music-automation-controls.md §4)",
         // ── Community-plane Everyone floor with NO seeded action key (spec-cited) ──
         ["MusicController.GetQueue"] =
             "community / Everyone with no action key (music-sr.md §5.1 'GET queue — community / Everyone'; 'No new action keys are introduced')",
