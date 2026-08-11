@@ -67,6 +67,66 @@ export function renderIconKey(iconName: string, backgroundColor: string = DEFAUL
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 }
 
+const MARQUEE_FONT_SIZE = 16;
+const MARQUEE_CHAR_WIDTH = MARQUEE_FONT_SIZE * 0.56;
+const MARQUEE_VIEW_X = 8;
+const MARQUEE_VIEW_Y = 126;
+const MARQUEE_VIEW_WIDTH = 128;
+const MARQUEE_GAP = "     ";
+const MARQUEE_PX_PER_TICK = 4;
+
+/**
+ * Renders the "Now Playing" key: real cover art (fetched/cached separately — see coverArt.ts, `image`
+ * needs a self-contained data URI since `setImage` can't reference an external URL), a bottom-of-key
+ * gradient for text legibility over any artwork, and a title/artist marquee that scrolls when it's too
+ * wide to fit — advanced by `tick` (the caller's own render-loop counter), not real time, so this stays
+ * a pure function.
+ */
+export function renderNowPlayingKey(
+  state: NowPlayingState,
+  coverArtDataUri: string | null,
+  tick: number,
+  backgroundColor: string = DEFAULT_BACKGROUND,
+): string {
+  const np = state.current;
+  const title = np?.title?.trim() || "Nothing playing";
+  const artist = np?.artist?.trim() || "";
+  const label = artist ? `${title} — ${artist}` : title;
+
+  const imageEl = coverArtDataUri
+    ? `<image href="${coverArtDataUri}" x="0" y="0" width="${SIZE}" height="${SIZE}" preserveAspectRatio="xMidYMid slice" clip-path="url(#roundedClip)"/>`
+    : "";
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}">
+    <defs>
+      <clipPath id="roundedClip"><rect width="${SIZE}" height="${SIZE}" rx="24"/></clipPath>
+      <clipPath id="marqueeClip"><rect x="${MARQUEE_VIEW_X}" y="104" width="${MARQUEE_VIEW_WIDTH}" height="32"/></clipPath>
+      <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#000" stop-opacity="0"/>
+        <stop offset="100%" stop-color="#000" stop-opacity="0.8"/>
+      </linearGradient>
+    </defs>
+    <rect width="${SIZE}" height="${SIZE}" rx="24" fill="${backgroundColor}"/>
+    ${imageEl}
+    <rect x="0" y="84" width="${SIZE}" height="60" fill="url(#fade)" clip-path="url(#roundedClip)"/>
+    <g clip-path="url(#marqueeClip)">${renderMarquee(label, tick)}</g>
+  </svg>`;
+
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+}
+
+function renderMarquee(label: string, tick: number): string {
+  const textWidth = label.length * MARQUEE_CHAR_WIDTH;
+  if (textWidth <= MARQUEE_VIEW_WIDTH) {
+    return `<text x="${MARQUEE_VIEW_X + MARQUEE_VIEW_WIDTH / 2}" y="${MARQUEE_VIEW_Y}" font-family="sans-serif" font-size="${MARQUEE_FONT_SIZE}" font-weight="600" fill="#fff" text-anchor="middle">${escapeXml(label)}</text>`;
+  }
+
+  const loopWidthPx = textWidth + MARQUEE_GAP.length * MARQUEE_CHAR_WIDTH;
+  const offset = -((tick * MARQUEE_PX_PER_TICK) % loopWidthPx);
+  const looped = `${label}${MARQUEE_GAP}${label}`;
+  return `<text x="${MARQUEE_VIEW_X + offset}" y="${MARQUEE_VIEW_Y}" font-family="sans-serif" font-size="${MARQUEE_FONT_SIZE}" font-weight="600" fill="#fff">${escapeXml(looped)}</text>`;
+}
+
 function escapeXml(value: string): string {
   return value.replace(/[<>&'"]/g, (char) => {
     switch (char) {

@@ -23,6 +23,8 @@ function payload(overrides: Partial<NowPlayingPayload> = {}): NowPlayingPayload 
     repeatMode: "off",
     isSaved: null,
     serverTime: new Date().toISOString(),
+    volumePercent: 100,
+    albumArtUrl: null,
     ...overrides,
   };
 }

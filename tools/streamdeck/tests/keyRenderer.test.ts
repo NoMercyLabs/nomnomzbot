@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from "vitest";
 import { NowPlayingState } from "../src/nowPlaying/state.js";
-import { renderPlayPauseKey } from "../src/nowPlaying/keyRenderer.js";
+import { renderPlayPauseKey, renderNowPlayingKey } from "../src/nowPlaying/keyRenderer.js";
 import type { NowPlayingPayload } from "../src/connection/automationClient.js";
 
 function decode(dataUri: string): string {
@@ -29,6 +29,8 @@ function payload(overrides: Partial<NowPlayingPayload> = {}): NowPlayingPayload 
     repeatMode: "off",
     isSaved: null,
     serverTime: new Date().toISOString(),
+    volumePercent: 100,
+    albumArtUrl: null,
     ...overrides,
   };
 }
@@ -62,5 +64,60 @@ describe("renderPlayPauseKey", () => {
     const svg = decode(renderPlayPauseKey(state));
 
     expect(svg).toContain("0:00");
+  });
+});
+
+describe("renderNowPlayingKey", () => {
+  it("embeds the given cover art data URI as the key's image", () => {
+    const state = new NowPlayingState();
+    state.apply(payload({ title: "Song", artist: "Artist" }));
+    const art = "data:image/jpeg;base64,ZmFrZQ==";
+
+    const svg = decode(renderNowPlayingKey(state, art, 0));
+
+    expect(svg).toContain(`href="${art}"`);
+  });
+
+  it("renders no image element when there is no cover art", () => {
+    const state = new NowPlayingState();
+    state.apply(payload({ title: "Song", artist: "Artist" }));
+
+    const svg = decode(renderNowPlayingKey(state, null, 0));
+
+    expect(svg).not.toContain("<image");
+  });
+
+  it("centers a short title/artist with no scroll offset", () => {
+    const state = new NowPlayingState();
+    state.apply(payload({ title: "Hi", artist: "Yo" }));
+
+    const svg = decode(renderNowPlayingKey(state, null, 5));
+
+    expect(svg).toContain("Hi — Yo");
+    expect(svg).toContain('text-anchor="middle"');
+  });
+
+  it("scrolls a long title/artist by advancing with tick, looping the label", () => {
+    const state = new NowPlayingState();
+    const longLabel = "A Very Long Track Title That Cannot Possibly Fit";
+    state.apply(payload({ title: longLabel, artist: "An Equally Long Artist Name" }));
+
+    const atZero = decode(renderNowPlayingKey(state, null, 0));
+    const atLater = decode(renderNowPlayingKey(state, null, 20));
+
+    // Looped (label appears twice) and NOT centered — a scrolling marquee, not a static label.
+    expect((atZero.match(new RegExp(longLabel, "g")) ?? []).length).toBe(2);
+    expect(atZero).not.toContain('text-anchor="middle"');
+    // Different ticks produce different x offsets — it's actually moving.
+    const xOf = (svg: string) => svg.match(/<text x="(-?[\d.]+)"/)?.[1];
+    expect(xOf(atZero)).not.toBe(xOf(atLater));
+  });
+
+  it("shows a placeholder when nothing is playing", () => {
+    const state = new NowPlayingState();
+
+    const svg = decode(renderNowPlayingKey(state, null, 0));
+
+    expect(svg).toContain("Nothing playing");
   });
 });

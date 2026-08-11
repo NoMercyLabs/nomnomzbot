@@ -23,6 +23,7 @@ export interface NowPlayingPayload extends JsonObject {
   isSaved: boolean | null;
   serverTime: string;
   volumePercent: number;
+  albumArtUrl: string | null;
 }
 
 export interface DevicePayload extends JsonObject {

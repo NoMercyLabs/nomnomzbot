@@ -16,6 +16,7 @@ import { nowPlayingState } from "./nowPlaying/state.js";
 import { PlayAction } from "./actions/play.js";
 import { PauseAction } from "./actions/pause.js";
 import { PlayPauseAction } from "./actions/playPause.js";
+import { NowPlayingAction } from "./actions/nowPlaying.js";
 import { NextAction } from "./actions/next.js";
 import { PreviousAction } from "./actions/previous.js";
 import { SetVolumeAction } from "./actions/setVolume.js";
@@ -43,6 +44,7 @@ for (const registration of [
   new PlayAction(),
   new PauseAction(),
   new PlayPauseAction(),
+  new NowPlayingAction(),
   new NextAction(),
   new PreviousAction(),
   new SetVolumeAction(),

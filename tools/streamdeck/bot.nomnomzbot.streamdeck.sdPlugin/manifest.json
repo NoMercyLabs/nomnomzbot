@@ -45,6 +45,14 @@
       ]
     },
     {
+      "Name": "Now Playing",
+      "UUID": "bot.nomnomzbot.streamdeck.music-now-playing",
+      "Icon": "imgs/actions/play-pause",
+      "Tooltip": "Real cover art with a scrolling title/artist marquee; taps toggle playback.",
+      "PropertyInspectorPath": "ui/appearance-only.html",
+      "States": [{ "Image": "imgs/actions/play-pause" }]
+    },
+    {
       "Name": "Next Song",
       "UUID": "bot.nomnomzbot.streamdeck.music-next",
       "Icon": "imgs/actions/next",
