@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { action, type WillAppearEvent } from "@elgato/streamdeck";
+import { action, type WillAppearEvent, type KeyAction } from "@elgato/streamdeck";
 import type { JsonObject } from "@elgato/utils";
 import { MusicAction } from "./musicAction.js";
 import { nowPlayingState } from "../nowPlaying/state.js";
@@ -17,26 +17,39 @@ interface VolumeMuteSettings extends JsonObject {
   unmuteVolume?: number;
 }
 
-/** Live key: the title shows the real current volume (or "Muted" at 0%), read from the same
- * position-anchor now-playing state every other live key uses — never a locally-guessed toggle. */
+/** Live key: volume/volume-mute icon actually flips on the real muted state (volumePercent <= 0),
+ * same pattern as Toggle Shuffle/Favorite Toggle — not just a static "mute" glyph with a text label
+ * layered on top. The title still shows the live percentage as supplementary detail. */
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-volume-mute" })
 export class VolumeMuteAction extends MusicAction<VolumeMuteSettings> {
   protected readonly actionType = "music_volume_mute";
-  protected readonly iconName = "volume-mute";
+  protected readonly iconName = "volume";
 
   protected override resolveParams(settings: VolumeMuteSettings): Record<string, unknown> {
     return { unmuteVolume: settings.unmuteVolume ?? 50 };
   }
 
+  protected override getIconName(_settings: VolumeMuteSettings): string {
+    return isMuted(nowPlayingState.current?.volumePercent) ? "volume-mute" : "volume";
+  }
+
   override async onWillAppear(ev: WillAppearEvent<VolumeMuteSettings>): Promise<void> {
     await super.onWillAppear(ev);
-    const paint = () => void ev.action.setTitle(volumeTitle(nowPlayingState.current?.volumePercent));
+    const key = ev.action as KeyAction<VolumeMuteSettings>;
+    const paint = () => {
+      void this.render(key, ev.payload.settings);
+      void key.setTitle(volumeTitle(nowPlayingState.current?.volumePercent));
+    };
     nowPlayingState.onChange(paint);
     paint();
   }
 }
 
+function isMuted(volumePercent: number | undefined): boolean {
+  return volumePercent !== undefined && volumePercent <= 0;
+}
+
 function volumeTitle(volumePercent: number | undefined): string {
-  if (volumePercent === undefined) return "Mute";
-  return volumePercent <= 0 ? "Muted" : `Mute\n${volumePercent}%`;
+  if (volumePercent === undefined) return "";
+  return volumePercent <= 0 ? "Muted" : `${volumePercent}%`;
 }

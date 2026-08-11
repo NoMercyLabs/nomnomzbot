@@ -96,9 +96,12 @@
       "Name": "Volume Mute/Unmute",
       "UUID": "bot.nomnomzbot.streamdeck.music-volume-mute",
       "Icon": "imgs/actions/volume-mute",
-      "Tooltip": "Mutes if audible, or unmutes to a configured level if muted.",
+      "Tooltip": "Mutes if audible, or unmutes to a configured level if muted. Icon reflects the real current volume.",
       "PropertyInspectorPath": "ui/simple-param.html",
-      "States": [{ "Image": "imgs/actions/volume-mute" }]
+      "States": [
+        { "Image": "imgs/actions/volume" },
+        { "Image": "imgs/actions/volume-mute" }
+      ]
     },
     {
       "Name": "Seek",
