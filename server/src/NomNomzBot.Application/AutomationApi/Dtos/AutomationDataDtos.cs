@@ -91,7 +91,8 @@ public sealed record AutomationNowPlayingDto(
     string RepeatMode,
     bool? IsSaved,
     DateTimeOffset ServerTime,
-    int VolumePercent
+    int VolumePercent,
+    string? AlbumArtUrl
 );
 
 /// <summary>One of the broadcaster's playback devices on the active music provider.</summary>

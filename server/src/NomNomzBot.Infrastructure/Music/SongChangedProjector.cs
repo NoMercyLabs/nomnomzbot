@@ -99,6 +99,7 @@ public sealed class SongChangedProjector : IEventHandler<PlaybackStateChangedEve
                 RepeatMode = payload.RepeatMode,
                 IsSaved = payload.IsSaved,
                 VolumePercent = payload.VolumePercent,
+                AlbumArtUrl = payload.AlbumArtUrl,
             },
             cancellationToken
         );

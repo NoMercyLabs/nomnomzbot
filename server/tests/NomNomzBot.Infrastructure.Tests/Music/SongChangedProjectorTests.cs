@@ -82,6 +82,7 @@ public sealed class SongChangedProjectorTests
         published.RepeatMode.Should().Be("context");
         published.IsSaved.Should().BeTrue();
         published.VolumePercent.Should().Be(62);
+        published.AlbumArtUrl.Should().Be("https://i.scdn.co/art.jpg");
 
         // The descriptor's projection is a pure passthrough of the already-projected event.
         SongChangedAutomationEventDescriptor descriptor = new();
@@ -89,6 +90,7 @@ public sealed class SongChangedProjectorTests
             descriptor.ProjectPayload(published);
         viaDescriptor.VolumePercent.Should().Be(62);
         viaDescriptor.Title.Should().Be("Track");
+        viaDescriptor.AlbumArtUrl.Should().Be("https://i.scdn.co/art.jpg");
     }
 
     [Fact]

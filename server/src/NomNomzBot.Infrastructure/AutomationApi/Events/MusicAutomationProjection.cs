@@ -54,7 +54,8 @@ public static class MusicAutomationProjection
             nowPlaying.RepeatMode.ToString().ToLowerInvariant(),
             isSaved,
             timeProvider.GetUtcNow(),
-            nowPlaying.Volume
+            nowPlaying.Volume,
+            nowPlaying.ImageUrl
         );
     }
 }

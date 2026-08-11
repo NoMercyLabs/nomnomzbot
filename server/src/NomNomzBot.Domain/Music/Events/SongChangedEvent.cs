@@ -31,4 +31,5 @@ public sealed class SongChangedEvent : DomainEventBase
     public required string RepeatMode { get; init; }
     public bool? IsSaved { get; init; }
     public int VolumePercent { get; init; }
+    public string? AlbumArtUrl { get; init; }
 }
