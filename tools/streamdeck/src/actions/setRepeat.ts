@@ -11,6 +11,7 @@
 import { action} from "@elgato/streamdeck";
 import type { JsonObject } from "@elgato/utils";
 import { MusicAction } from "./musicAction.js";
+import { nowPlayingState } from "../nowPlaying/state.js";
 
 interface SetRepeatSettings extends JsonObject {
   mode?: "off" | "track" | "context";
@@ -23,5 +24,9 @@ export class SetRepeatAction extends MusicAction<SetRepeatSettings> {
 
   protected override resolveParams(settings: SetRepeatSettings): Record<string, unknown> {
     return { mode: settings.mode ?? "off" };
+  }
+
+  protected override isBlockedByProvider(_settings: SetRepeatSettings): boolean {
+    return nowPlayingState.current?.canSetRepeat === false;
   }
 }

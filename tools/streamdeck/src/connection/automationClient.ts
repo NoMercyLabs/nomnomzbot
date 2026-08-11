@@ -24,6 +24,16 @@ export interface NowPlayingPayload extends JsonObject {
   serverTime: string;
   volumePercent: number;
   albumArtUrl: string | null;
+  // Live per-action permissions from the provider (Spotify's actions.disallows): an ad break, a
+  // restricted market, or a non-Premium account can block a control the provider generally supports.
+  // Optional — an older backend build simply omits them, and every key treats "missing" as permitted.
+  canSetShuffle?: boolean;
+  canSetRepeat?: boolean;
+  canSkipNext?: boolean;
+  canSkipPrevious?: boolean;
+  canSeek?: boolean;
+  canPause?: boolean;
+  canResume?: boolean;
 }
 
 export interface DevicePayload extends JsonObject {

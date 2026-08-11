@@ -20,6 +20,7 @@ import { automationClient, AutomationApiError } from "../connection/automationCl
 import { getPairingState, getHost, setHost } from "../connection/tokenStore.js";
 import { getDeviceFlowStatus, onDeviceFlowStatusChange } from "../connection/deviceFlowState.js";
 import { renderIconKey, DEFAULT_BACKGROUND } from "../nowPlaying/keyRenderer.js";
+import { nowPlayingState } from "../nowPlaying/state.js";
 
 interface PiRequest extends JsonObject {
   type: "getPairingStatus" | "getHost" | "setHost" | "listDevices" | "listPlaylists";
@@ -48,13 +49,25 @@ export abstract class MusicAction<TSettings extends JsonObject = JsonObject> ext
     return this.iconName;
   }
 
+  /** Override when this key's action is currently blocked by the provider (Spotify's live
+   * `actions.disallows` — an ad break, a restricted market, a non-Premium account) — dims the icon
+   * instead of letting the key silently fail on the next press. Undefined by default: most keys
+   * (volume, device transfer, playlist actions, …) have no corresponding disallows flag. */
+  protected isBlockedByProvider(_settings: TSettings): boolean {
+    return false;
+  }
+
   /** Override to map this key's Settings (device/playlist id, volume, seek position, …) to invoke params. */
   protected resolveParams(_settings: TSettings): Record<string, unknown> {
     return {};
   }
 
+  // Subscribes once per key here rather than in every subclass: any key whose icon or blocked-state
+  // depends on live now-playing data (getIconName/isBlockedByProvider overrides) redraws itself on
+  // every song.changed push automatically instead of each action re-wiring the same listener.
   override async onWillAppear(ev: WillAppearEvent<TSettings>): Promise<void> {
     await this.render(ev.action, ev.payload.settings);
+    nowPlayingState.onChange(() => void this.render(ev.action, ev.payload.settings));
   }
 
   override async onDidReceiveSettings(ev: DidReceiveSettingsEvent<TSettings>): Promise<void> {
@@ -62,7 +75,9 @@ export abstract class MusicAction<TSettings extends JsonObject = JsonObject> ext
   }
 
   protected async render(action: WillAppearEvent<TSettings>["action"], settings: TSettings): Promise<void> {
-    await action.setImage(renderIconKey(this.getIconName(settings), backgroundColorOf(settings)));
+    await action.setImage(
+      renderIconKey(this.getIconName(settings), backgroundColorOf(settings), this.isBlockedByProvider(settings)),
+    );
   }
 
   override async onKeyDown(ev: KeyDownEvent<TSettings>): Promise<void> {

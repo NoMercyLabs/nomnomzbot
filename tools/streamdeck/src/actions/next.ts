@@ -9,10 +9,16 @@
 // -----------------------------------------------------------------------------
 
 import { action } from "@elgato/streamdeck";
+import type { JsonObject } from "@elgato/utils";
 import { MusicAction } from "./musicAction.js";
+import { nowPlayingState } from "../nowPlaying/state.js";
 
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-next" })
 export class NextAction extends MusicAction {
   protected readonly actionType = "music_next";
   protected readonly iconName = "next";
+
+  protected override isBlockedByProvider(_settings: JsonObject): boolean {
+    return nowPlayingState.current?.canSkipNext === false;
+  }
 }

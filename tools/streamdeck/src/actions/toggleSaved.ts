@@ -8,13 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { action, type WillAppearEvent, type KeyAction } from "@elgato/streamdeck";
+import { action } from "@elgato/streamdeck";
 import type { JsonObject } from "@elgato/utils";
 import { MusicAction } from "./musicAction.js";
 import { nowPlayingState } from "../nowPlaying/state.js";
 
-/** Live key: favorite-outline/favorite-filled icon, flipped on every song.changed's isSaved field.
- * Cast to KeyAction: this manifest entry has no Encoder controller, so it's never a DialAction at runtime. */
+/** Live key: favorite-outline/favorite-filled icon, flipped on every song.changed's isSaved field —
+ * the base class redraws it on every live update automatically. */
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-toggle-saved" })
 export class ToggleSavedAction extends MusicAction {
   protected readonly actionType = "music_toggle_saved";
@@ -22,11 +22,5 @@ export class ToggleSavedAction extends MusicAction {
 
   protected override getIconName(_settings: JsonObject): string {
     return nowPlayingState.current?.isSaved ? "favorite-filled" : "favorite-outline";
-  }
-
-  override async onWillAppear(ev: WillAppearEvent<JsonObject>): Promise<void> {
-    await super.onWillAppear(ev);
-    const key = ev.action as KeyAction<JsonObject>;
-    nowPlayingState.onChange(() => void this.render(key, ev.payload.settings));
   }
 }

@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from "vitest";
 import { NowPlayingState } from "../src/nowPlaying/state.js";
-import { renderPlayPauseKey, renderNowPlayingKey } from "../src/nowPlaying/keyRenderer.js";
+import { renderPlayPauseKey, renderNowPlayingKey, renderIconKey } from "../src/nowPlaying/keyRenderer.js";
 import type { NowPlayingPayload } from "../src/connection/automationClient.js";
 
 function decode(dataUri: string): string {
@@ -64,6 +64,47 @@ describe("renderPlayPauseKey", () => {
     const svg = decode(renderPlayPauseKey(state));
 
     expect(svg).toContain("0:00");
+  });
+
+  it("dims the pause glyph when the provider currently blocks pausing", () => {
+    const state = new NowPlayingState();
+    state.apply(payload({ isPlaying: true, canPause: false }));
+
+    const svg = decode(renderPlayPauseKey(state));
+
+    expect(svg).toContain('opacity="0.35"');
+  });
+
+  it("does not dim the pause glyph when canResume is false while playing (irrelevant direction)", () => {
+    const state = new NowPlayingState();
+    state.apply(payload({ isPlaying: true, canPause: true, canResume: false }));
+
+    const svg = decode(renderPlayPauseKey(state));
+
+    expect(svg).not.toContain('opacity="0.35"');
+  });
+
+  it("dims the play glyph when the provider currently blocks resuming", () => {
+    const state = new NowPlayingState();
+    state.apply(payload({ isPlaying: false, canResume: false }));
+
+    const svg = decode(renderPlayPauseKey(state));
+
+    expect(svg).toContain('opacity="0.35"');
+  });
+});
+
+describe("renderIconKey", () => {
+  it("renders at full opacity by default", () => {
+    const svg = decode(renderIconKey("shuffle-off"));
+
+    expect(svg).not.toContain('opacity="0.35"');
+  });
+
+  it("dims the icon when marked as blocked by the provider", () => {
+    const svg = decode(renderIconKey("shuffle-off", "#1a1a1a", true));
+
+    expect(svg).toContain('opacity="0.35"');
   });
 });
 

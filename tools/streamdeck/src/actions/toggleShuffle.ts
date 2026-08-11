@@ -8,13 +8,14 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { action, type WillAppearEvent, type KeyAction } from "@elgato/streamdeck";
+import { action } from "@elgato/streamdeck";
 import type { JsonObject } from "@elgato/utils";
 import { MusicAction } from "./musicAction.js";
 import { nowPlayingState } from "../nowPlaying/state.js";
 
-/** Live key: shuffle-off/shuffle-on icon, flipped on every song.changed (streamdeck-plugin.md P4).
- * Cast to KeyAction: this manifest entry has no Encoder controller, so it's never a DialAction at runtime. */
+/** Live key: shuffle-off/shuffle-on icon, flipped on every song.changed (streamdeck-plugin.md P4);
+ * dims when Spotify's own actions.disallows currently blocks toggling shuffle (ad break, restricted
+ * market, non-Premium account) — the base class redraws it on every live update automatically. */
 @action({ UUID: "bot.nomnomzbot.streamdeck.music-toggle-shuffle" })
 export class ToggleShuffleAction extends MusicAction {
   protected readonly actionType = "music_toggle_shuffle";
@@ -24,9 +25,7 @@ export class ToggleShuffleAction extends MusicAction {
     return nowPlayingState.current?.shuffleEnabled ? "shuffle-on" : "shuffle-off";
   }
 
-  override async onWillAppear(ev: WillAppearEvent<JsonObject>): Promise<void> {
-    await super.onWillAppear(ev);
-    const key = ev.action as KeyAction<JsonObject>;
-    nowPlayingState.onChange(() => void this.render(key, ev.payload.settings));
+  protected override isBlockedByProvider(_settings: JsonObject): boolean {
+    return nowPlayingState.current?.canSetShuffle === false;
   }
 }

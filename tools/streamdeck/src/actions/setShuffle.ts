@@ -11,6 +11,7 @@
 import { action} from "@elgato/streamdeck";
 import type { JsonObject } from "@elgato/utils";
 import { MusicAction } from "./musicAction.js";
+import { nowPlayingState } from "../nowPlaying/state.js";
 
 interface SetShuffleSettings extends JsonObject {
   enabled?: boolean;
@@ -23,5 +24,9 @@ export class SetShuffleAction extends MusicAction<SetShuffleSettings> {
 
   protected override resolveParams(settings: SetShuffleSettings): Record<string, unknown> {
     return { enabled: settings.enabled ?? true };
+  }
+
+  protected override isBlockedByProvider(_settings: SetShuffleSettings): boolean {
+    return nowPlayingState.current?.canSetShuffle === false;
   }
 }

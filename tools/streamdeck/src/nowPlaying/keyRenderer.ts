@@ -40,10 +40,14 @@ export function renderPlayPauseKey(state: NowPlayingState, backgroundColor: stri
   const source = loadIconMarkup(isPlaying ? "pause" : "play");
   const inner = source.replace(/^<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
   const time = escapeXml(state.formattedElapsed());
+  // Whichever action the icon currently offers (pause while playing, resume while paused) is the one
+  // that matters for dimming — the other direction's flag is irrelevant right now.
+  const blocked = isPlaying ? state.current?.canPause === false : state.current?.canResume === false;
+  const opacity = blocked ? 0.35 : 1;
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}">
     <rect width="${SIZE}" height="${SIZE}" rx="24" fill="${backgroundColor}"/>
-    <g transform="translate(${PLAY_PAUSE_ICON_OFFSET_X},${PLAY_PAUSE_ICON_TOP}) scale(${PLAY_PAUSE_ICON_SCALE})">${inner}</g>
+    <g transform="translate(${PLAY_PAUSE_ICON_OFFSET_X},${PLAY_PAUSE_ICON_TOP}) scale(${PLAY_PAUSE_ICON_SCALE})" opacity="${opacity}">${inner}</g>
     <text x="${SIZE / 2}" y="126" font-family="sans-serif" font-size="34" font-weight="bold" fill="#fff" text-anchor="middle">${time}</text>
   </svg>`;
 
@@ -55,13 +59,21 @@ export function renderPlayPauseKey(state: NowPlayingState, backgroundColor: stri
  * configurable background — the generic renderer every non-live action goes through, so "padding"
  * and "background color" are one mechanism instead of a per-action special case.
  */
-export function renderIconKey(iconName: string, backgroundColor: string = DEFAULT_BACKGROUND): string {
+/** `dimmed` reflects a PROVIDER-side restriction (Spotify's `actions.disallows`, an ad break/restricted
+ * market/non-Premium account) rather than the icon's own on/off state — lowers opacity so a blocked
+ * control reads as unavailable at a glance instead of failing silently on the next press. */
+export function renderIconKey(
+  iconName: string,
+  backgroundColor: string = DEFAULT_BACKGROUND,
+  dimmed: boolean = false,
+): string {
   const source = loadIconMarkup(iconName);
   const inner = source.replace(/^<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
+  const opacity = dimmed ? 0.35 : 1;
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}">
     <rect width="${SIZE}" height="${SIZE}" rx="24" fill="${backgroundColor}"/>
-    <g transform="translate(${ICON_OFFSET},${ICON_OFFSET}) scale(${ICON_SCALE})">${inner}</g>
+    <g transform="translate(${ICON_OFFSET},${ICON_OFFSET}) scale(${ICON_SCALE})" opacity="${opacity}">${inner}</g>
   </svg>`;
 
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;

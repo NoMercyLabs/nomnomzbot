@@ -11,6 +11,7 @@
 import { action} from "@elgato/streamdeck";
 import type { JsonObject } from "@elgato/utils";
 import { MusicAction } from "./musicAction.js";
+import { nowPlayingState } from "../nowPlaying/state.js";
 
 interface SeekSettings extends JsonObject {
   positionSeconds?: number;
@@ -23,5 +24,9 @@ export class SeekAction extends MusicAction<SeekSettings> {
 
   protected override resolveParams(settings: SeekSettings): Record<string, unknown> {
     return { positionSeconds: settings.positionSeconds ?? 0 };
+  }
+
+  protected override isBlockedByProvider(_settings: SeekSettings): boolean {
+    return nowPlayingState.current?.canSeek === false;
   }
 }

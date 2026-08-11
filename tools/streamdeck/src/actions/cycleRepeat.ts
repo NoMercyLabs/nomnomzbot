@@ -21,6 +21,10 @@ export class CycleRepeatAction extends MusicAction {
   protected readonly actionType = "music_cycle_repeat";
   protected readonly iconName = "repeat";
 
+  protected override isBlockedByProvider(_settings: JsonObject): boolean {
+    return nowPlayingState.current?.canSetRepeat === false;
+  }
+
   override async onWillAppear(ev: WillAppearEvent<JsonObject>): Promise<void> {
     await super.onWillAppear(ev);
     const paint = () => void ev.action.setTitle(TITLES[nowPlayingState.current?.repeatMode ?? "off"] ?? "Repeat");
