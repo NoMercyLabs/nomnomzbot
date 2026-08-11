@@ -55,6 +55,12 @@ public class AutomationPairingService : IAutomationPairingService
     /// invoking by a fixed, well-known action-type-as-name convention.</summary>
     private const string StreamDeckDeviceKind = "streamdeck";
 
+    /// <summary>Device-initiated flow (RFC 8628-shaped): longer than the dashboard-mint code's 5
+    /// minutes since a human has to notice the prompt, open a browser, and log in — not just glance
+    /// at a code already on screen.</summary>
+    private static readonly TimeSpan DeviceCodeTtl = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan DevicePollInterval = TimeSpan.FromSeconds(3);
+
     private readonly ICacheService _cache;
     private readonly IAutomationApiTokenService _tokens;
     private readonly IRateLimiterPartitionStore _rateLimiter;
@@ -85,6 +91,20 @@ public class AutomationPairingService : IAutomationPairingService
         Guid ActorUserId,
         string DeviceLabel,
         IReadOnlyList<string> Scopes
+    );
+
+    /// <summary>
+    /// The cached envelope a device-initiated pairing resolves to. Unapproved (<see cref="BroadcasterId"/>
+    /// / <see cref="ActorUserId"/> both null) until an operator approves by <see cref="UserCode"/>.
+    /// </summary>
+    public sealed record DevicePairingEnvelope(
+        string DeviceCode,
+        string UserCode,
+        string BackendUrl,
+        DeviceInfo Device,
+        IReadOnlyList<string> Scopes,
+        Guid? BroadcasterId,
+        Guid? ActorUserId
     );
 
     public async Task<Result<PairingCodeDto>> MintCodeAsync(
@@ -171,38 +191,14 @@ public class AutomationPairingService : IAutomationPairingService
         // Consume BEFORE minting: a raced second redeem must fail, never receive a second secret.
         await _cache.RemoveAsync($"pair:{normalized}", ct);
 
-        string deviceName = string.IsNullOrWhiteSpace(device.Name)
-            ? envelope.DeviceLabel
-            : device.Name.Trim();
-        string tokenName = $"{device.Kind.Trim()}: {deviceName}";
-        DateTime expiresAt = _clock.GetUtcNow().UtcDateTime.Add(PairedTokenLifetime);
-        Result<IssuedAutomationTokenDto> issued = await _tokens.CreateAsync(
+        Result<IssuedAutomationTokenDto> issued = await MintDeviceTokenAsync(
             envelope.BroadcasterId,
             envelope.ActorUserId,
-            new CreateAutomationTokenRequest
-            {
-                Name = tokenName,
-                Scopes = envelope.Scopes,
-                ExpiresAt = expiresAt,
-            },
+            device,
+            envelope.Scopes,
+            normalized[^4..],
             ct
         );
-        if (issued is { IsFailure: true, ErrorCode: "ALREADY_EXISTS" })
-        {
-            // Same device paired again under the same label — disambiguate with the code's tail
-            // rather than failing a pairing the operator deliberately initiated.
-            issued = await _tokens.CreateAsync(
-                envelope.BroadcasterId,
-                envelope.ActorUserId,
-                new CreateAutomationTokenRequest
-                {
-                    Name = $"{tokenName} ({normalized[^4..]})",
-                    Scopes = envelope.Scopes,
-                    ExpiresAt = expiresAt,
-                },
-                ct
-            );
-        }
         if (issued.IsFailure)
             return Result.Failure<PairingRedemptionDto>(
                 issued.ErrorMessage!,
@@ -210,19 +206,215 @@ public class AutomationPairingService : IAutomationPairingService
                 issued.ErrorDetail
             );
 
-        if (
-            string.Equals(
-                device.Kind.Trim(),
-                StreamDeckDeviceKind,
-                StringComparison.OrdinalIgnoreCase
-            )
-        )
-            await EnsureMusicActionPipelinesAsync(envelope.BroadcasterId, ct);
-
+        DateTime expiresAt = _clock.GetUtcNow().UtcDateTime.Add(PairedTokenLifetime);
         return Result.Success(
             new PairingRedemptionDto(backendUrl, issued.Value.Secret, envelope.Scopes, expiresAt)
         );
     }
+
+    public async Task<Result<DeviceInitDto>> InitDeviceAsync(
+        DeviceInfo device,
+        string backendUrl,
+        IReadOnlyList<string>? scopes,
+        CancellationToken ct = default
+    )
+    {
+        IReadOnlyList<string> resolvedScopes = scopes is { Count: > 0 } ? scopes : DefaultScopes;
+        foreach (string scope in resolvedScopes)
+            if (!KnownScopes.Contains(scope))
+                return Errors
+                    .ValidationFailed(
+                        $"Unknown scope '{scope}' — valid scopes: {string.Join(", ", KnownScopes)}."
+                    )
+                    .ToTyped<DeviceInitDto>();
+
+        string deviceCode = Convert
+            .ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+        string userCode = MintCode();
+
+        DevicePairingEnvelope envelope = new(
+            deviceCode,
+            userCode,
+            backendUrl,
+            device,
+            [.. resolvedScopes.Distinct()],
+            BroadcasterId: null,
+            ActorUserId: null
+        );
+        await _cache.SetAsync($"devpair:{deviceCode}", envelope, DeviceCodeTtl, ct);
+        await _cache.SetAsync($"devpair:code:{userCode}", deviceCode, DeviceCodeTtl, ct);
+
+        DateTime expiresAt = _clock.GetUtcNow().UtcDateTime.Add(DeviceCodeTtl);
+        return Result.Success(
+            new DeviceInitDto(
+                deviceCode,
+                userCode,
+                $"{backendUrl}/api/v1/automation/pair/device/approve?code={userCode}",
+                expiresAt,
+                (int)DevicePollInterval.TotalSeconds
+            )
+        );
+    }
+
+    public async Task<Result> ApproveDeviceAsync(
+        Guid broadcasterId,
+        Guid actorUserId,
+        string userCode,
+        CancellationToken ct = default
+    )
+    {
+        // Authenticated, but the code is still an 8-char human alphabet another user's device chose —
+        // guard against a logged-in caller guessing at someone else's pending pairing.
+        RateLimitLease lease = await _rateLimiter.AcquireAsync(
+            $"automation:approve:{actorUserId}",
+            RedeemsPerClientPerMinute,
+            GuardWindow,
+            ct
+        );
+        if (!lease.IsAcquired)
+        {
+            int retryAfterSeconds = Math.Max(1, (int)Math.Ceiling(lease.RetryAfter.TotalSeconds));
+            return Result.Failure(
+                $"Too many attempts — retry in {retryAfterSeconds}s.",
+                "RATE_LIMITED",
+                retryAfterSeconds.ToString()
+            );
+        }
+
+        string normalized = userCode.Trim().ToUpperInvariant();
+        string? deviceCode = await _cache.GetAsync<string>($"devpair:code:{normalized}", ct);
+        if (deviceCode is null)
+            return Result.Failure("Invalid or expired pairing code.", "UNAUTHENTICATED");
+
+        DevicePairingEnvelope? envelope = await _cache.GetAsync<DevicePairingEnvelope>(
+            $"devpair:{deviceCode}",
+            ct
+        );
+        if (envelope is null)
+            return Result.Failure("Invalid or expired pairing code.", "UNAUTHENTICATED");
+
+        // Single-use: the userCode index is gone the moment it's approved, so a second approve attempt
+        // (or a raced concurrent one) can never rebind an already-approved device to a different caller.
+        await _cache.RemoveAsync($"devpair:code:{normalized}", ct);
+
+        DevicePairingEnvelope approved = envelope with
+        {
+            BroadcasterId = broadcasterId,
+            ActorUserId = actorUserId,
+        };
+        await _cache.SetAsync($"devpair:{deviceCode}", approved, DeviceCodeTtl, ct);
+        return Result.Success();
+    }
+
+    public async Task<Result<DevicePollDto>> PollDeviceAsync(
+        string deviceCode,
+        CancellationToken ct = default
+    )
+    {
+        DevicePairingEnvelope? envelope = await _cache.GetAsync<DevicePairingEnvelope>(
+            $"devpair:{deviceCode}",
+            ct
+        );
+        if (envelope is null)
+            return Result.Failure<DevicePollDto>(
+                "Unknown, expired, or already-claimed device code.",
+                "NOT_FOUND"
+            );
+        if (
+            envelope.BroadcasterId is not Guid broadcasterId
+            || envelope.ActorUserId is not Guid actorUserId
+        )
+            return Result.Success(new DevicePollDto("pending"));
+
+        // Consume BEFORE minting: a raced second poll after approval must never yield a second secret.
+        await _cache.RemoveAsync($"devpair:{deviceCode}", ct);
+
+        Result<IssuedAutomationTokenDto> issued = await MintDeviceTokenAsync(
+            broadcasterId,
+            actorUserId,
+            envelope.Device,
+            envelope.Scopes,
+            envelope.UserCode[^4..],
+            ct
+        );
+        if (issued.IsFailure)
+            return Result.Failure<DevicePollDto>(
+                issued.ErrorMessage!,
+                issued.ErrorCode!,
+                issued.ErrorDetail
+            );
+
+        DateTime expiresAt = _clock.GetUtcNow().UtcDateTime.Add(PairedTokenLifetime);
+        return Result.Success(
+            new DevicePollDto(
+                "approved",
+                envelope.BackendUrl,
+                issued.Value.Secret,
+                envelope.Scopes,
+                expiresAt
+            )
+        );
+    }
+
+    /// <summary>
+    /// Shared mint step for both pairing flows: names the token after the device, retries once with a
+    /// short disambiguator on a name collision (the same device re-pairing under the same label), and
+    /// auto-provisions the Stream Deck music pipelines on success. Does NOT compute the token's
+    /// expiry — callers stamp that themselves since the two flows read it back slightly differently.
+    /// </summary>
+    private async Task<Result<IssuedAutomationTokenDto>> MintDeviceTokenAsync(
+        Guid broadcasterId,
+        Guid actorUserId,
+        DeviceInfo device,
+        IReadOnlyList<string> scopes,
+        string disambiguator,
+        CancellationToken ct
+    )
+    {
+        string deviceName = string.IsNullOrWhiteSpace(device.Name)
+            ? device.Kind.Trim()
+            : device.Name.Trim();
+        string tokenName = $"{device.Kind.Trim()}: {deviceName}";
+        DateTime expiresAt = _clock.GetUtcNow().UtcDateTime.Add(PairedTokenLifetime);
+
+        Result<IssuedAutomationTokenDto> issued = await _tokens.CreateAsync(
+            broadcasterId,
+            actorUserId,
+            new CreateAutomationTokenRequest
+            {
+                Name = tokenName,
+                Scopes = scopes,
+                ExpiresAt = expiresAt,
+            },
+            ct
+        );
+        if (issued is { IsFailure: true, ErrorCode: "ALREADY_EXISTS" })
+        {
+            // Same device paired again under the same label — disambiguate rather than failing a
+            // pairing the operator deliberately approved.
+            issued = await _tokens.CreateAsync(
+                broadcasterId,
+                actorUserId,
+                new CreateAutomationTokenRequest
+                {
+                    Name = $"{tokenName} ({disambiguator})",
+                    Scopes = scopes,
+                    ExpiresAt = expiresAt,
+                },
+                ct
+            );
+        }
+        if (issued.IsSuccess && IsStreamDeck(device.Kind))
+            await EnsureMusicActionPipelinesAsync(broadcasterId, ct);
+
+        return issued;
+    }
+
+    private static bool IsStreamDeck(string deviceKind) =>
+        string.Equals(deviceKind.Trim(), StreamDeckDeviceKind, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Auto-provisions D7's remaining gap: one single-step pipeline per registered <c>music_*</c> action,

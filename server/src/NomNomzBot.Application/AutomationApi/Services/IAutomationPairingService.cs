@@ -40,4 +40,36 @@ public interface IAutomationPairingService
         string backendUrl,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Device-initiated pairing (RFC 8628-shaped, mirroring this project's own Twitch device-code
+    /// login): the DEVICE calls this anonymously, with no dashboard interaction, and gets back its own
+    /// opaque <c>DeviceCode</c> (for polling) plus a short human <c>UserCode</c> + a verification URL an
+    /// operator opens in any logged-in browser to approve. No pairing code is ever typed into the
+    /// device itself.
+    /// </summary>
+    Task<Result<DeviceInitDto>> InitDeviceAsync(
+        DeviceInfo device,
+        string backendUrl,
+        IReadOnlyList<string>? scopes,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The operator approves a pending device pairing by its short <c>UserCode</c> (dashboard JWT
+    /// auth) — binds the caller's channel + identity to the envelope so the next poll mints a token.
+    /// </summary>
+    Task<Result> ApproveDeviceAsync(
+        Guid broadcasterId,
+        Guid actorUserId,
+        string userCode,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The device polls by its <c>DeviceCode</c> (anonymous) until an operator approves — <c>Pending</c>
+    /// while waiting, then a one-time <see cref="PairingRedemptionDto"/>-shaped mint on approval; the
+    /// envelope is consumed the moment it's returned, exactly like <see cref="RedeemCodeAsync"/>.
+    /// </summary>
+    Task<Result<DevicePollDto>> PollDeviceAsync(string deviceCode, CancellationToken ct = default);
 }

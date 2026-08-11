@@ -343,4 +343,110 @@ public sealed class AutomationPairingServiceTests
 
         (await h.Db.Pipelines.CountAsync()).Should().Be(1);
     }
+
+    [Fact]
+    public async Task Device_init_then_approve_then_poll_yields_a_real_scoped_token()
+    {
+        Harness h = Build();
+
+        Result<DeviceInitDto> init = await h.Service.InitDeviceAsync(
+            StreamDeckPlugin(),
+            Backend,
+            scopes: null,
+            CancellationToken.None
+        );
+        init.IsSuccess.Should().BeTrue(init.ErrorMessage);
+        init.Value.UserCode.Should().HaveLength(8);
+        init.Value.VerificationUri.Should()
+            .Be($"{Backend}/api/v1/automation/pair/device/approve?code={init.Value.UserCode}");
+
+        // Not approved yet — poll must stay pending and mint nothing.
+        Result<DevicePollDto> pendingPoll = await h.Service.PollDeviceAsync(init.Value.DeviceCode);
+        pendingPoll.IsSuccess.Should().BeTrue();
+        pendingPoll.Value.Status.Should().Be("pending");
+        pendingPoll.Value.Token.Should().BeNull();
+
+        Result approved = await h.Service.ApproveDeviceAsync(
+            Channel,
+            Operator,
+            init.Value.UserCode
+        );
+        approved.IsSuccess.Should().BeTrue(approved.ErrorMessage);
+
+        Result<DevicePollDto> approvedPoll = await h.Service.PollDeviceAsync(init.Value.DeviceCode);
+        approvedPoll.IsSuccess.Should().BeTrue(approvedPoll.ErrorMessage);
+        approvedPoll.Value.Status.Should().Be("approved");
+        approvedPoll.Value.Token.Should().NotBeNullOrEmpty();
+        approvedPoll.Value.BackendUrl.Should().Be(Backend);
+
+        AutomationApiToken row = await h.Db.AutomationApiTokens.SingleAsync();
+        row.BroadcasterId.Should().Be(Channel);
+        row.CreatedByUserId.Should().Be(Operator);
+        row.TokenHash.Should().Be(AutomationApiTokenService.HashSecret(approvedPoll.Value.Token!));
+
+        // The mint is one-shot: polling again after a successful mint finds nothing left to give out.
+        Result<DevicePollDto> replay = await h.Service.PollDeviceAsync(init.Value.DeviceCode);
+        replay.IsFailure.Should().BeTrue();
+        replay.ErrorCode.Should().Be("NOT_FOUND");
+        (await h.Db.AutomationApiTokens.CountAsync())
+            .Should()
+            .Be(1, "the replayed poll must not mint a second token");
+    }
+
+    [Fact]
+    public async Task Approving_a_stream_deck_device_auto_provisions_pipelines_same_as_the_code_flow()
+    {
+        Harness h = Build(actions: [FakeAction("music_play")]);
+        Result<DeviceInitDto> init = await h.Service.InitDeviceAsync(
+            StreamDeckPlugin(),
+            Backend,
+            scopes: null,
+            CancellationToken.None
+        );
+        await h.Service.ApproveDeviceAsync(Channel, Operator, init.Value.UserCode);
+        await h.Service.PollDeviceAsync(init.Value.DeviceCode);
+
+        (await h.Db.Pipelines.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task An_unknown_or_expired_user_code_is_rejected_by_approve()
+    {
+        Harness h = Build();
+
+        Result approved = await h.Service.ApproveDeviceAsync(Channel, Operator, "WRONGCOD");
+
+        approved.IsFailure.Should().BeTrue();
+        approved.ErrorCode.Should().Be("UNAUTHENTICATED");
+    }
+
+    [Fact]
+    public async Task A_user_code_can_only_ever_be_approved_once()
+    {
+        Harness h = Build();
+        Result<DeviceInitDto> init = await h.Service.InitDeviceAsync(
+            StreamDeckPlugin(),
+            Backend,
+            scopes: null,
+            CancellationToken.None
+        );
+
+        Result first = await h.Service.ApproveDeviceAsync(Channel, Operator, init.Value.UserCode);
+        first.IsSuccess.Should().BeTrue();
+
+        Result second = await h.Service.ApproveDeviceAsync(Channel, Operator, init.Value.UserCode);
+        second.IsFailure.Should().BeTrue("the user-code index is consumed on first approval");
+    }
+
+    [Fact]
+    public async Task Polling_an_unknown_device_code_fails_without_minting()
+    {
+        Harness h = Build();
+
+        Result<DevicePollDto> poll = await h.Service.PollDeviceAsync("not-a-real-device-code");
+
+        poll.IsFailure.Should().BeTrue();
+        poll.ErrorCode.Should().Be("NOT_FOUND");
+        (await h.Db.AutomationApiTokens.CountAsync()).Should().Be(0);
+    }
 }

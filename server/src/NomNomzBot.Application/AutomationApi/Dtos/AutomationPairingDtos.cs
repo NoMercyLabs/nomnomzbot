@@ -64,3 +64,53 @@ public sealed record PairingRedemptionDto(
     IReadOnlyList<string> Scopes,
     DateTime TokenExpiresAt
 );
+
+/// <summary>Body of <c>POST /automation/v1/pair/device/init</c> — the device names itself, nothing else.</summary>
+public sealed record DeviceInitRequest
+{
+    [Required]
+    public DeviceInfo Device { get; init; } = null!;
+
+    /// <summary>Empty = the safe default (<c>invoke</c>, <c>events</c>, <c>read</c>).</summary>
+    public IReadOnlyList<string> Scopes { get; init; } = [];
+}
+
+/// <summary>
+/// What a device gets back immediately from <c>init</c> — enough to poll AND enough for a human to
+/// approve in a browser (<see cref="VerificationUri"/> already carries <see cref="UserCode"/>).
+/// </summary>
+public sealed record DeviceInitDto(
+    string DeviceCode,
+    string UserCode,
+    string VerificationUri,
+    DateTime ExpiresAt,
+    int PollIntervalSeconds
+);
+
+/// <summary>Body of the dashboard-authenticated approve action.</summary>
+public sealed record ApproveDeviceRequest
+{
+    [Required]
+    [MaxLength(16)]
+    public string UserCode { get; init; } = null!;
+}
+
+/// <summary>Body of the anonymous device-poll action.</summary>
+public sealed record DevicePollRequest
+{
+    [Required]
+    public string DeviceCode { get; init; } = null!;
+}
+
+/// <summary>
+/// Poll response: <c>Status</c> is <c>"pending"</c> until approved, then the mint fields are populated
+/// exactly once (the envelope is gone on the next poll — same one-shot contract as
+/// <see cref="PairingRedemptionDto"/>).
+/// </summary>
+public sealed record DevicePollDto(
+    string Status,
+    string? BackendUrl = null,
+    string? Token = null,
+    IReadOnlyList<string>? Scopes = null,
+    DateTime? TokenExpiresAt = null
+);

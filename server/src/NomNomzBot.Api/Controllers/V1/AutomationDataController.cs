@@ -63,6 +63,41 @@ public class AutomationDataController(
         return ResultResponse(result);
     }
 
+    /// <summary>
+    /// Device-initiated pairing, step 1 (stream-deck.md D9): the DEVICE calls this itself, no dashboard
+    /// interaction required — mirrors the Twitch device-code login this project already uses for bot
+    /// auth. Returns an opaque device code to poll plus a short user code + verification URL an
+    /// operator opens in any logged-in browser to approve.
+    /// </summary>
+    [HttpPost("pair/device/init")]
+    [AllowAnonymous]
+    [ProducesResponseType<StatusResponseDto<DeviceInitDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> InitDevicePairing(
+        [FromBody] DeviceInitRequest request,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await pairing.InitDeviceAsync(
+                request.Device,
+                Request.ResolvePublicOrigin(configuration),
+                request.Scopes,
+                ct
+            )
+        );
+
+    /// <summary>
+    /// Device-initiated pairing, step 3: the device polls by its own device code until an operator
+    /// approves it (step 2, <see cref="AutomationPairingController.ApproveDevice"/>). <c>deviceCode</c>
+    /// is 256 bits of entropy — no brute-force guard needed the way the short human user code has one.
+    /// </summary>
+    [HttpPost("pair/device/poll")]
+    [AllowAnonymous]
+    [ProducesResponseType<StatusResponseDto<DevicePollDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PollDevicePairing(
+        [FromBody] DevicePollRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await pairing.PollDeviceAsync(request.DeviceCode, ct));
+
     /// <summary>Broadcaster + instance summary (scope <c>read</c>).</summary>
     [HttpGet("info")]
     [ProducesResponseType<StatusResponseDto<AutomationInfo>>(StatusCodes.Status200OK)]
