@@ -46,6 +46,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
@@ -486,7 +488,7 @@ private fun NowPlayingCard(
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AlbumArt(title = title)
+            AlbumArt(title = title, imageUrl = nowPlaying.imageUrl)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(spacing.s1),
@@ -647,16 +649,15 @@ private fun ProgressBar(progressMs: Int, durationMs: Int) {
     }
 }
 
-// The album art slot. No remote-image loader is wired into the dashboard yet, so this renders the track's
-// initial as a placeholder tile (the same approach the profile Avatar uses for an unrendered image URL),
-// keeping the page on-token and dependency-free; the real artwork lands when an image loader is introduced.
+// The album art slot: the real cover art via Coil when the now-playing snapshot carries a URL (Spotify
+// always does for a track with artwork), falling back to the track's initial as a placeholder tile (the
+// same approach the profile Avatar uses for an unrendered image URL) when it doesn't.
 @Composable
-private fun AlbumArt(title: String) {
+private fun AlbumArt(title: String, imageUrl: String?) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val initial: String = title.trim().firstOrNull()?.uppercase() ?: "?"
     val description: String = stringResource(Res.string.music_art_placeholder)
 
     Box(
@@ -667,7 +668,17 @@ private fun AlbumArt(title: String) {
             .clearAndSetSemantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = initial, style = typography.base, color = tokens.mutedForeground)
+        if (!imageUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = description,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            val initial: String = title.trim().firstOrNull()?.uppercase() ?: "?"
+            Text(text = initial, style = typography.base, color = tokens.mutedForeground)
+        }
     }
 }
 

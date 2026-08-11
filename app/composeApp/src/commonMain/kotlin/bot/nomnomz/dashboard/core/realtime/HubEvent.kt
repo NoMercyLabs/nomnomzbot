@@ -221,6 +221,8 @@ data class HubMusicState(
     val currentTrack: HubMusicTrack? = null,
 )
 
+/** [progressMs] + [observedAt] are a position anchor (widget-sdk.md §9) — extrapolate
+ * `progressMs + (now - observedAt)` while playing rather than trusting a frozen value between pushes. */
 @Serializable
 data class HubMusicTrack(
     val trackName: String = "",
@@ -229,6 +231,8 @@ data class HubMusicTrack(
     val albumArtUrl: String? = null,
     val durationMs: Int = 0,
     val provider: String = "",
+    val progressMs: Int = 0,
+    val observedAt: String = "",
 )
 
 @Serializable

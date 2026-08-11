@@ -27,12 +27,18 @@ import bot.nomnomz.dashboard.core.network.MusicSongRequestBody
 import bot.nomnomz.dashboard.core.network.MusicTrack
 import bot.nomnomz.dashboard.core.network.NowPlaying
 import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.HubMusicState
+import bot.nomnomz.dashboard.core.realtime.HubMusicTrack
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 
 // Proves the Music page state machine the screen renders: resolve the active channel, surface the real
@@ -481,6 +487,54 @@ class MusicControllerTest {
         assertEquals(2, state.blockedPage)
         assertEquals(listOf("Song 26"), state.blockedTracks.map { it.title })
         assertEquals(26, state.blockedTotal)
+    }
+
+    @Test
+    fun a_same_track_hub_push_applies_the_fresh_position_anchor_and_cover_art() = runTest {
+        val controller =
+            MusicController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeMusicApi(
+                    ApiResult.Ok(
+                        MusicSnapshot(
+                            nowPlaying =
+                                NowPlaying(
+                                    trackName = "Song A",
+                                    artist = "Artist",
+                                    progressMs = 1_000,
+                                    isPlaying = false,
+                                    imageUrl = null,
+                                )
+                        )
+                    )
+                ),
+            )
+        controller.load()
+        val hub = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(hub) }
+
+        // Same track (name + artist match) — the hub push carries a fresh position anchor and cover art that
+        // the old thin payload never had; this must land on the existing NowPlaying, not get discarded.
+        hub.emit(
+            HubEvent.MusicStateChanged(
+                HubMusicState(
+                    isPlaying = true,
+                    currentTrack =
+                        HubMusicTrack(
+                            trackName = "Song A",
+                            artist = "Artist",
+                            progressMs = 45_000,
+                            albumArtUrl = "https://i.scdn.co/image/abc",
+                        ),
+                )
+            )
+        )
+
+        val ready: MusicState.Ready = controller.state.value as MusicState.Ready
+        val nowPlaying: NowPlaying = assertNotNull(ready.nowPlaying)
+        assertTrue(nowPlaying.isPlaying)
+        assertEquals(45_000, nowPlaying.progressMs)
+        assertEquals("https://i.scdn.co/image/abc", nowPlaying.imageUrl)
     }
 }
 

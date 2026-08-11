@@ -287,12 +287,21 @@ class MusicController(
                     existing.trackName == hubTrack.trackName &&
                     existing.artist == hubTrack.artist
             if (sameTrack) {
-                // Same track — just reflect the play/pause flip, keeping the known progress + requester (the hub
-                // payload carries neither, so rebuilding from it would blank the requester and zero the bar).
-                _state.value = current.copy(nowPlaying = existing.copy(isPlaying = evt.state.isPlaying))
+                // Same track — the hub payload now carries a real position anchor (progressMs + observedAt), so
+                // apply it directly instead of freezing progress at whatever it was on the last full load(). Only
+                // `requestedBy` has no hub equivalent — keep the known one rather than blank it.
+                _state.value =
+                    current.copy(
+                        nowPlaying =
+                            existing.copy(
+                                isPlaying = evt.state.isPlaying,
+                                progressMs = hubTrack.progressMs,
+                                imageUrl = hubTrack.albumArtUrl ?: existing.imageUrl,
+                            ),
+                    )
             } else {
-                // New track — pull the authoritative snapshot (which DOES carry progressMs + requestedBy) rather
-                // than patch with the hub payload's defaults.
+                // New track — pull the authoritative snapshot (which DOES carry requestedBy, which the hub
+                // payload doesn't) rather than patch with the hub payload's defaults.
                 load()
             }
         }
