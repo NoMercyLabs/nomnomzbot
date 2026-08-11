@@ -20,26 +20,27 @@ namespace NomNomzBot.Infrastructure.Music;
 /// <summary>
 /// Bridges the internal <see cref="PlaybackStateChangedEvent"/> (which the overlay now-playing widget
 /// already consumes, widget-sdk.md §9) into the public automation <see cref="SongChangedEvent"/>
-/// (music-automation-controls.md D4). Re-reads the FULL live state through the same
-/// <see cref="MusicAutomationProjection"/> the REST now-playing read uses, rather than forwarding the
-/// thin play/pause-only payload — so a Stream Deck key subscribed to <c>song.changed</c> gets the
-/// complete position-anchor shape, never a guess, and can never drift from <c>GetNowPlayingAsync</c>.
+/// (music-automation-controls.md D4). Builds the shared position-anchor shape straight from the
+/// INCOMING event — the same fully-enriched data <c>PlaybackStateBroadcastHandler</c> already pushes
+/// to the dashboard — rather than re-reading the provider a second time. An earlier version re-read
+/// via <c>IMusicService.GetActiveProviderKeyAsync</c>/<c>GetNowPlayingAsync</c> "for freshness", but
+/// that second live read could race the provider (e.g. right at a track boundary) and come back null,
+/// silently dropping the <c>song.changed</c> push for that tick with no log line — while the sibling
+/// dashboard handler, which has no such re-read, still fired. Building from the event removes the race
+/// entirely: whatever data was fresh enough to trigger this handler is fresh enough to publish.
 /// </summary>
 public sealed class SongChangedProjector : IEventHandler<PlaybackStateChangedEvent>
 {
-    private readonly IMusicService _music;
     private readonly IMusicProviderManageApi _musicManageApi;
     private readonly IEventBus _eventBus;
     private readonly TimeProvider _clock;
 
     public SongChangedProjector(
-        IMusicService music,
         IMusicProviderManageApi musicManageApi,
         IEventBus eventBus,
         TimeProvider clock
     )
     {
-        _music = music;
         _musicManageApi = musicManageApi;
         _eventBus = eventBus;
         _clock = clock;
@@ -52,16 +53,32 @@ public sealed class SongChangedProjector : IEventHandler<PlaybackStateChangedEve
     {
         if (@event.BroadcasterId == Guid.Empty)
             return;
-
-        string broadcasterId = @event.BroadcasterId.ToString();
-        string? provider = await _music.GetActiveProviderKeyAsync(broadcasterId, cancellationToken);
-        NowPlaying? nowPlaying = await _music.GetNowPlayingAsync(broadcasterId, cancellationToken);
-        if (provider is null || nowPlaying is null)
+        // Nothing playing / no active provider — the same "skip" the old re-read applied when
+        // GetNowPlayingAsync came back null, now decided from the event's own fields instead of a
+        // second live call.
+        if (@event.Provider is null || @event.TrackName is null)
             return;
+
+        NowPlaying nowPlaying = new(
+            @event.TrackName,
+            @event.Artist,
+            @event.Album,
+            @event.AlbumArtUrl,
+            @event.DurationMs,
+            @event.ProgressMs,
+            @event.IsPlaying,
+            @event.VolumePercent,
+            null,
+            @event.Provider,
+            @event.TrackUri,
+            @event.ShuffleEnabled,
+            @event.RepeatMode,
+            @event.ArtistId
+        );
 
         AutomationNowPlayingDto payload = await MusicAutomationProjection.ToNowPlayingAsync(
             nowPlaying,
-            provider,
+            @event.Provider,
             @event.BroadcasterId,
             _musicManageApi,
             _clock,

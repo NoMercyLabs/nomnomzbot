@@ -749,6 +749,11 @@ public sealed class MusicService : IMusicService
                 DurationMs = track?.DurationMs ?? 0,
                 ProgressMs = track?.ProgressMs ?? 0,
                 Provider = track?.Provider,
+                TrackUri = track?.TrackUri,
+                ArtistId = track?.ArtistId,
+                ShuffleEnabled = track?.ShuffleEnabled ?? false,
+                RepeatMode = track?.RepeatMode ?? MusicRepeatMode.Off,
+                VolumePercent = track?.VolumePercent ?? 100,
                 ObservedAt = DateTimeOffset.UtcNow,
             },
             cancellationToken

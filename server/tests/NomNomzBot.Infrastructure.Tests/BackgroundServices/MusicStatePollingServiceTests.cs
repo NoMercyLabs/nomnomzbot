@@ -135,6 +135,34 @@ public sealed class MusicStatePollingServiceTests
     }
 
     [Fact]
+    public async Task Volume_only_change_publishes_too()
+    {
+        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _) = Build([
+            ChannelA,
+        ]);
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Song A", isPlaying: true, progressMs: 1_000, volumePercent: 80)
+        );
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        // Nothing about track/play-state/seek changed — only the device volume did (streamer's phone,
+        // hardware knob, another app). This must still publish so a Stream Deck mute key can reflect it
+        // within one poll tick instead of waiting on its own separate fallback resync.
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Song A", isPlaying: true, progressMs: 1_000, volumePercent: 35)
+        );
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        List<PlaybackStateChangedEvent> published = bus
+            .Published.OfType<PlaybackStateChangedEvent>()
+            .ToList();
+        published.Should().HaveCount(2);
+        published[1].VolumePercent.Should().Be(35);
+    }
+
+    [Fact]
     public async Task One_channel_throwing_does_not_stop_the_others_in_the_same_tick()
     {
         (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _) = Build([
@@ -219,7 +247,12 @@ public sealed class MusicStatePollingServiceTests
         return (sut, bus, music, clock);
     }
 
-    private static NowPlaying NowPlayingState(string trackName, bool isPlaying, int progressMs) =>
+    private static NowPlaying NowPlayingState(
+        string trackName,
+        bool isPlaying,
+        int progressMs,
+        int volumePercent = 100
+    ) =>
         new(
             trackName,
             "Artist",
@@ -228,7 +261,7 @@ public sealed class MusicStatePollingServiceTests
             200_000,
             progressMs,
             isPlaying,
-            100,
+            volumePercent,
             null,
             "spotify"
         );

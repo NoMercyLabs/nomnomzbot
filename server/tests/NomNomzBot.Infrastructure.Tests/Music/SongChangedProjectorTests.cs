@@ -13,7 +13,6 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
-using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.AutomationApi.Events;
@@ -25,47 +24,43 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 
 /// <summary>
 /// Proves music-automation-controls.md D4's "never drift" claim end to end: <see cref="SongChangedProjector"/>
-/// republishes the internal <see cref="PlaybackStateChangedEvent"/> as the public
-/// <see cref="SongChangedEvent"/> using the SAME <see cref="MusicAutomationProjection"/> helper the
-/// REST now-playing read uses, and <see cref="SongChangedAutomationEventDescriptor"/>'s projection is a
-/// pure field passthrough — so the emitted <c>song.changed</c> payload is byte-identical to what
-/// <c>GetNowPlayingAsync</c> would render for the same state.
+/// republishes the internal <see cref="PlaybackStateChangedEvent"/> (already fully enriched at the source —
+/// MusicService/MusicStatePollingService, not re-read here) as the public <see cref="SongChangedEvent"/> using
+/// the SAME <see cref="MusicAutomationProjection"/> helper the REST now-playing read uses, and
+/// <see cref="SongChangedAutomationEventDescriptor"/>'s projection is a pure field passthrough — so the emitted
+/// <c>song.changed</c> payload matches what <c>GetNowPlayingAsync</c> would render for the same state, with no
+/// second live provider read (and therefore no race with a track boundary) in between.
 /// </summary>
 public sealed class SongChangedProjectorTests
 {
     private static readonly Guid ChannelId = Guid.Parse("0192a000-0000-7000-8000-0000000f9001");
     private static readonly DateTimeOffset Now = new(2026, 8, 11, 12, 0, 0, TimeSpan.Zero);
 
-    private static NowPlaying Track() =>
-        new(
-            "Track",
-            "Artist",
-            "Album",
-            null,
-            5000,
-            2500,
-            true,
-            80,
-            null,
-            "spotify",
-            "spotify:track:x",
-            true,
-            MusicRepeatMode.Context,
-            "spotify:artist:9"
-        );
+    private static PlaybackStateChangedEvent Event() =>
+        new()
+        {
+            BroadcasterId = ChannelId,
+            IsPlaying = true,
+            TrackName = "Track",
+            Artist = "Artist",
+            Album = "Album",
+            AlbumArtUrl = "https://i.scdn.co/art.jpg",
+            DurationMs = 5000,
+            ProgressMs = 2500,
+            Provider = "spotify",
+            TrackUri = "spotify:track:x",
+            ArtistId = "spotify:artist:9",
+            ShuffleEnabled = true,
+            RepeatMode = MusicRepeatMode.Context,
+            VolumePercent = 62,
+            ObservedAt = Now,
+        };
 
     [Fact]
-    public async Task Republishes_the_full_live_state_as_the_public_song_changed_event()
+    public async Task Republishes_the_full_event_state_as_the_public_song_changed_event()
     {
-        IMusicService music = Substitute.For<IMusicService>();
         IMusicProviderManageApi musicManage = Substitute.For<IMusicProviderManageApi>();
         RecordingEventBus bus = new();
-        NowPlaying track = Track();
-
-        music.GetNowPlayingAsync(ChannelId.ToString(), Arg.Any<CancellationToken>()).Returns(track);
-        music
-            .GetActiveProviderKeyAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
-            .Returns("spotify");
         musicManage
             .AreTracksSavedAsync(
                 ChannelId,
@@ -75,11 +70,9 @@ public sealed class SongChangedProjectorTests
             )
             .Returns(Result.Success<IReadOnlyList<bool>>([true]));
 
-        SongChangedProjector sut = new(music, musicManage, bus, new FakeTimeProvider(Now));
+        SongChangedProjector sut = new(musicManage, bus, new FakeTimeProvider(Now));
 
-        await sut.HandleAsync(
-            new PlaybackStateChangedEvent { BroadcasterId = ChannelId, IsPlaying = true }
-        );
+        await sut.HandleAsync(Event());
 
         SongChangedEvent published = bus.Published.OfType<SongChangedEvent>().Single();
         published.BroadcasterId.Should().Be(ChannelId);
@@ -88,56 +81,70 @@ public sealed class SongChangedProjectorTests
         published.ShuffleEnabled.Should().BeTrue();
         published.RepeatMode.Should().Be("context");
         published.IsSaved.Should().BeTrue();
+        published.VolumePercent.Should().Be(62);
 
-        // The descriptor's projection is a pure passthrough of the already-projected event — proves
-        // the automation stream payload can never diverge from the shared helper's output.
+        // The descriptor's projection is a pure passthrough of the already-projected event.
         SongChangedAutomationEventDescriptor descriptor = new();
         AutomationNowPlayingDto viaDescriptor = (AutomationNowPlayingDto)
             descriptor.ProjectPayload(published);
-        AutomationNowPlayingDto viaSharedHelper = await MusicAutomationProjection.ToNowPlayingAsync(
-            track,
-            "spotify",
-            ChannelId,
-            musicManage,
-            new FakeTimeProvider(Now),
-            CancellationToken.None
-        );
-        viaDescriptor.Should().Be(viaSharedHelper);
+        viaDescriptor.VolumePercent.Should().Be(62);
+        viaDescriptor.Title.Should().Be("Track");
     }
 
     [Fact]
     public async Task Skips_publishing_for_the_platform_sentinel_broadcaster()
     {
-        IMusicService music = Substitute.For<IMusicService>();
         IMusicProviderManageApi musicManage = Substitute.For<IMusicProviderManageApi>();
         RecordingEventBus bus = new();
-        SongChangedProjector sut = new(music, musicManage, bus, new FakeTimeProvider(Now));
+        SongChangedProjector sut = new(musicManage, bus, new FakeTimeProvider(Now));
 
         await sut.HandleAsync(
             new PlaybackStateChangedEvent { BroadcasterId = Guid.Empty, IsPlaying = false }
         );
 
         bus.Published.Should().BeEmpty();
-        await music
-            .DidNotReceive()
-            .GetNowPlayingAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Skips_publishing_when_no_provider_is_connected()
+    public async Task Skips_publishing_when_nothing_is_playing()
     {
-        IMusicService music = Substitute.For<IMusicService>();
         IMusicProviderManageApi musicManage = Substitute.For<IMusicProviderManageApi>();
         RecordingEventBus bus = new();
-        music
-            .GetActiveProviderKeyAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
-            .Returns((string?)null);
-        SongChangedProjector sut = new(music, musicManage, bus, new FakeTimeProvider(Now));
+        SongChangedProjector sut = new(musicManage, bus, new FakeTimeProvider(Now));
 
+        // No TrackName / no Provider — the same "nothing playing" state GetNowPlayingAsync used to
+        // signal by returning null, now read straight off the event.
         await sut.HandleAsync(
-            new PlaybackStateChangedEvent { BroadcasterId = ChannelId, IsPlaying = true }
+            new PlaybackStateChangedEvent { BroadcasterId = ChannelId, IsPlaying = false }
         );
 
         bus.Published.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Never_races_a_second_provider_read_a_track_boundary_change_still_publishes()
+    {
+        // The bug this class exists to prevent: an earlier version re-read GetNowPlayingAsync a second
+        // time and silently dropped the event if that read raced the provider and came back null — even
+        // though the event that triggered this handler already carried a complete, valid snapshot.
+        IMusicProviderManageApi musicManage = Substitute.For<IMusicProviderManageApi>();
+        musicManage
+            .AreTracksSavedAsync(
+                ChannelId,
+                "spotify",
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<IReadOnlyList<bool>>("boom", "SERVICE_UNAVAILABLE"));
+        RecordingEventBus bus = new();
+        SongChangedProjector sut = new(musicManage, bus, new FakeTimeProvider(Now));
+
+        await sut.HandleAsync(Event());
+
+        // Even a failed saved-check (a real, still-possible I/O failure) degrades to null rather than
+        // dropping the whole publish — the track/position/volume data is never gated on it.
+        SongChangedEvent published = bus.Published.OfType<SongChangedEvent>().Single();
+        published.IsSaved.Should().BeNull();
+        published.Title.Should().Be("Track");
     }
 }

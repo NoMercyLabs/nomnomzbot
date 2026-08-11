@@ -194,11 +194,12 @@ public sealed class MusicStatePollingService : BackgroundService
     )
     {
         ChannelPlaybackSnapshot next = nowPlaying is null
-            ? new ChannelPlaybackSnapshot(false, null, 0, observedAt)
+            ? new ChannelPlaybackSnapshot(false, null, 0, 100, observedAt)
             : new ChannelPlaybackSnapshot(
                 nowPlaying.IsPlaying,
                 nowPlaying.TrackName,
                 nowPlaying.ProgressMs,
+                nowPlaying.Volume,
                 observedAt
             );
 
@@ -224,6 +225,11 @@ public sealed class MusicStatePollingService : BackgroundService
                 DurationMs = nowPlaying?.DurationMs ?? 0,
                 ProgressMs = next.ProgressMs,
                 Provider = nowPlaying?.Provider,
+                TrackUri = nowPlaying?.TrackUri,
+                ArtistId = nowPlaying?.ArtistId,
+                ShuffleEnabled = nowPlaying?.ShuffleEnabled ?? false,
+                RepeatMode = nowPlaying?.RepeatMode ?? MusicRepeatMode.Off,
+                VolumePercent = next.VolumePercent,
                 ObservedAt = observedAt,
             },
             cancellationToken
@@ -236,6 +242,12 @@ public sealed class MusicStatePollingService : BackgroundService
             return true;
 
         if (previous.IsPlaying != next.IsPlaying)
+            return true;
+
+        // A volume change (streamer's phone, hardware knob, another app) is otherwise invisible to every
+        // push-driven consumer — nothing about track/play-state/seek reflects it — so it needs its own
+        // explicit check rather than falling out of the checks above.
+        if (previous.VolumePercent != next.VolumePercent)
             return true;
 
         // A seek only makes sense to check while the same track keeps playing across both observations —
@@ -280,6 +292,7 @@ public sealed class MusicStatePollingService : BackgroundService
         bool IsPlaying,
         string? TrackName,
         int ProgressMs,
+        int VolumePercent,
         DateTimeOffset ObservedAt
     );
 

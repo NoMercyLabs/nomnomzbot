@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Music.Events;
@@ -30,5 +31,10 @@ public sealed class PlaybackStateChangedEvent : DomainEventBase
     public int DurationMs { get; init; }
     public int ProgressMs { get; init; }
     public string? Provider { get; init; }
+    public string? TrackUri { get; init; }
+    public string? ArtistId { get; init; }
+    public bool ShuffleEnabled { get; init; }
+    public MusicRepeatMode RepeatMode { get; init; }
+    public int VolumePercent { get; init; }
     public DateTimeOffset ObservedAt { get; init; }
 }
