@@ -53,4 +53,18 @@ public interface IAutomationApiTokenService
     Task<Result<IReadOnlyList<AutomationEventCatalogItem>>> GetEventCatalogAsync(
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Data-plane self-refresh (stream-deck.md D8) — the token being presented rotates ITS OWN secret
+    /// in place: same <c>Id</c>/<c>Name</c>/<c>Scopes</c>/<c>AllowedPipelineIds</c>, a fresh
+    /// <c>TokenHash</c>/<c>TokenPrefix</c>, and <c>ExpiresAt</c> pushed out another 30 days. The old
+    /// secret stops authenticating the instant this returns. No Gate-2 — a valid token may always
+    /// refresh itself; a revoked or hard-expired token fails typed (<c>TOKEN_REVOKED</c> /
+    /// <c>TOKEN_EXPIRED</c>) rather than silently minting a fresh credential for a dead one.
+    /// </summary>
+    Task<Result<IssuedAutomationTokenDto>> RefreshSelfAsync(
+        Guid broadcasterId,
+        Guid tokenId,
+        CancellationToken ct = default
+    );
 }

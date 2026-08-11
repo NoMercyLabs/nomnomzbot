@@ -39,6 +39,12 @@ public class AutomationPairingService : IAutomationPairingService
     private const int RedeemsGlobalPerMinute = 30;
     private static readonly TimeSpan GuardWindow = TimeSpan.FromMinutes(1);
 
+    /// <summary>A paired device token expires 30 days out (stream-deck.md D8) — unlike a human-managed
+    /// dashboard-created token (no-expiry default via the management-plane CreateAsync), an unattended
+    /// device credential should die if abandoned. The plugin self-refreshes via RefreshSelfAsync well
+    /// before this, so a healthy device never re-pairs.</summary>
+    private static readonly TimeSpan PairedTokenLifetime = TimeSpan.FromDays(30);
+
     private readonly ICacheService _cache;
     private readonly IAutomationApiTokenService _tokens;
     private readonly IRateLimiterPartitionStore _rateLimiter;
@@ -153,10 +159,16 @@ public class AutomationPairingService : IAutomationPairingService
             ? envelope.DeviceLabel
             : device.Name.Trim();
         string tokenName = $"{device.Kind.Trim()}: {deviceName}";
+        DateTime expiresAt = _clock.GetUtcNow().UtcDateTime.Add(PairedTokenLifetime);
         Result<IssuedAutomationTokenDto> issued = await _tokens.CreateAsync(
             envelope.BroadcasterId,
             envelope.ActorUserId,
-            new CreateAutomationTokenRequest { Name = tokenName, Scopes = envelope.Scopes },
+            new CreateAutomationTokenRequest
+            {
+                Name = tokenName,
+                Scopes = envelope.Scopes,
+                ExpiresAt = expiresAt,
+            },
             ct
         );
         if (issued is { IsFailure: true, ErrorCode: "ALREADY_EXISTS" })
@@ -170,6 +182,7 @@ public class AutomationPairingService : IAutomationPairingService
                 {
                     Name = $"{tokenName} ({normalized[^4..]})",
                     Scopes = envelope.Scopes,
+                    ExpiresAt = expiresAt,
                 },
                 ct
             );
@@ -182,7 +195,7 @@ public class AutomationPairingService : IAutomationPairingService
             );
 
         return Result.Success(
-            new PairingRedemptionDto(backendUrl, issued.Value.Secret, envelope.Scopes)
+            new PairingRedemptionDto(backendUrl, issued.Value.Secret, envelope.Scopes, expiresAt)
         );
     }
 

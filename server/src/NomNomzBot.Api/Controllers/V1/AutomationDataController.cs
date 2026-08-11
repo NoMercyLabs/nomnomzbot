@@ -33,6 +33,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class AutomationDataController(
     IAutomationCommandService commands,
     IAutomationPairingService pairing,
+    IAutomationApiTokenService tokens,
     IConfiguration configuration
 ) : BaseController
 {
@@ -122,6 +123,22 @@ public class AutomationDataController(
         Result result = await commands.SendChatAsync(principal, request, ct);
         SetRetryAfter(result.ErrorCode, result.ErrorDetail);
         return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Self-refresh the presented token's secret (stream-deck.md D8) — no scope requirement, the
+    /// presented token IS the credential being refreshed. Called proactively by a paired device (a
+    /// Stream Deck plugin) before its 30-day <c>ExpiresAt</c> lapses.
+    /// </summary>
+    [HttpPost("refresh")]
+    [ProducesResponseType<StatusResponseDto<IssuedAutomationTokenDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Refresh(CancellationToken ct)
+    {
+        if (Principal is not AutomationPrincipal principal)
+            return UnauthenticatedResponse();
+        return ResultResponse(
+            await tokens.RefreshSelfAsync(principal.BroadcasterId, principal.TokenId, ct)
+        );
     }
 
     /// <summary>Current playback state (scope <c>read</c>) — music-automation-controls.md §4.</summary>

@@ -157,6 +157,44 @@ public class AutomationApiTokenService : IAutomationApiTokenService
         return Result.Success(new IssuedAutomationTokenDto(secret, ToDto(token)));
     }
 
+    private static readonly TimeSpan RefreshExtension = TimeSpan.FromDays(30);
+
+    public async Task<Result<IssuedAutomationTokenDto>> RefreshSelfAsync(
+        Guid broadcasterId,
+        Guid tokenId,
+        CancellationToken ct = default
+    )
+    {
+        AutomationApiToken? token = await _db.AutomationApiTokens.FirstOrDefaultAsync(
+            t => t.BroadcasterId == broadcasterId && t.Id == tokenId,
+            ct
+        );
+        if (token is null)
+            return Errors.NotFound<IssuedAutomationTokenDto>(
+                "Automation token",
+                tokenId.ToString()
+            );
+        if (token.RevokedAt is not null)
+            return Result.Failure<IssuedAutomationTokenDto>(
+                "This token has been revoked.",
+                "TOKEN_REVOKED"
+            );
+        if (token.ExpiresAt is DateTime expiresAt && expiresAt <= _clock.GetUtcNow().UtcDateTime)
+            return Result.Failure<IssuedAutomationTokenDto>(
+                "This token has expired — pair the device again.",
+                "TOKEN_EXPIRED"
+            );
+
+        (string secret, string hash, string prefix) = MintSecret();
+        token.TokenHash = hash;
+        token.TokenPrefix = prefix;
+        token.ExpiresAt = _clock.GetUtcNow().UtcDateTime.Add(RefreshExtension);
+        await _db.SaveChangesAsync(ct);
+
+        await PublishIssuedAsync(token, token.CreatedByUserId, wasRotation: true, ct);
+        return Result.Success(new IssuedAutomationTokenDto(secret, ToDto(token)));
+    }
+
     public async Task<Result<bool>> RevokeAsync(
         Guid broadcasterId,
         Guid tokenId,

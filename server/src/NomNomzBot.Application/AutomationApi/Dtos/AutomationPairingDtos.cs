@@ -61,5 +61,6 @@ public sealed record RedeemPairingCodeRequest
 public sealed record PairingRedemptionDto(
     string BackendUrl,
     string Token,
-    IReadOnlyList<string> Scopes
+    IReadOnlyList<string> Scopes,
+    DateTime TokenExpiresAt
 );

@@ -37,20 +37,22 @@ public sealed class AutomationApiTokenServiceTests
     private static (
         AutomationApiTokenService Sut,
         AutomationTestDbContext Db,
-        RecordingEventBus Bus
+        RecordingEventBus Bus,
+        FakeTimeProvider Clock
     ) Build()
     {
         AutomationTestDbContext db = AutomationTestDbContext.New();
         RecordingEventBus bus = new();
+        FakeTimeProvider clock = new(new DateTimeOffset(T0));
         AutomationApiTokenService sut = new(
             db,
             bus,
-            new FakeTimeProvider(new DateTimeOffset(T0)),
+            clock,
             new Infrastructure.AutomationApi.Events.AutomationEventRegistry([
                 new Infrastructure.AutomationApi.Events.SupporterReceivedEventDescriptor(),
             ])
         );
-        return (sut, db, bus);
+        return (sut, db, bus, clock);
     }
 
     private static CreateAutomationTokenRequest Request(
@@ -61,7 +63,7 @@ public sealed class AutomationApiTokenServiceTests
     [Fact]
     public async Task Create_returns_the_secret_once_and_persists_only_its_hash()
     {
-        (AutomationApiTokenService sut, AutomationTestDbContext db, RecordingEventBus bus) =
+        (AutomationApiTokenService sut, AutomationTestDbContext db, RecordingEventBus bus, _) =
             Build();
 
         Result<IssuedAutomationTokenDto> result = await sut.CreateAsync(
@@ -101,7 +103,7 @@ public sealed class AutomationApiTokenServiceTests
     [Fact]
     public async Task Create_rejects_a_duplicate_name_and_an_unknown_scope()
     {
-        (AutomationApiTokenService sut, AutomationTestDbContext db, _) = Build();
+        (AutomationApiTokenService sut, AutomationTestDbContext db, _, _) = Build();
         await sut.CreateAsync(Channel, Creator, Request("deck"), CancellationToken.None);
 
         Result<IssuedAutomationTokenDto> dup = await sut.CreateAsync(
@@ -130,7 +132,7 @@ public sealed class AutomationApiTokenServiceTests
     [Fact]
     public async Task Rotate_replaces_the_hash_so_the_old_secret_stops_matching()
     {
-        (AutomationApiTokenService sut, AutomationTestDbContext db, RecordingEventBus bus) =
+        (AutomationApiTokenService sut, AutomationTestDbContext db, RecordingEventBus bus, _) =
             Build();
         Result<IssuedAutomationTokenDto> created = await sut.CreateAsync(
             Channel,
@@ -167,7 +169,7 @@ public sealed class AutomationApiTokenServiceTests
     [Fact]
     public async Task Revoke_tombstones_audits_once_and_is_idempotent()
     {
-        (AutomationApiTokenService sut, AutomationTestDbContext db, RecordingEventBus bus) =
+        (AutomationApiTokenService sut, AutomationTestDbContext db, RecordingEventBus bus, _) =
             Build();
         Result<IssuedAutomationTokenDto> created = await sut.CreateAsync(
             Channel,
@@ -211,7 +213,7 @@ public sealed class AutomationApiTokenServiceTests
     [Fact]
     public async Task Tokens_are_channel_scoped_reads_and_writes()
     {
-        (AutomationApiTokenService sut, _, _) = Build();
+        (AutomationApiTokenService sut, _, _, _) = Build();
         Guid otherChannel = Guid.Parse("0192a000-0000-7000-8000-00000000f0ff");
         Result<IssuedAutomationTokenDto> created = await sut.CreateAsync(
             Channel,
@@ -234,5 +236,87 @@ public sealed class AutomationApiTokenServiceTests
         );
         foreignRevoke.IsFailure.Should().BeTrue();
         foreignRevoke.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    // ─── RefreshSelfAsync (stream-deck.md D8) ──────────────────────────────────
+
+    [Fact]
+    public async Task RefreshSelf_rotates_the_secret_and_pushes_ExpiresAt_out_30_days()
+    {
+        (AutomationApiTokenService sut, AutomationTestDbContext db, _, FakeTimeProvider clock) =
+            Build();
+        Result<IssuedAutomationTokenDto> created = await sut.CreateAsync(
+            Channel,
+            Creator,
+            Request() with
+            {
+                ExpiresAt = T0.AddDays(1),
+            },
+            CancellationToken.None
+        );
+        string oldSecret = created.Value.Secret;
+
+        clock.SetUtcNow(new DateTimeOffset(T0.AddHours(12)));
+        Result<IssuedAutomationTokenDto> refreshed = await sut.RefreshSelfAsync(
+            Channel,
+            created.Value.Token.Id,
+            CancellationToken.None
+        );
+
+        refreshed.IsSuccess.Should().BeTrue(refreshed.ErrorMessage);
+        refreshed.Value.Secret.Should().NotBe(oldSecret);
+        refreshed.Value.Token.ExpiresAt.Should().Be(T0.AddHours(12).AddDays(30));
+
+        AutomationApiToken row = await db.AutomationApiTokens.SingleAsync();
+        row.TokenHash.Should()
+            .NotBe(AutomationApiTokenService.HashSecret(oldSecret), "the old secret is dead");
+        row.TokenHash.Should().Be(AutomationApiTokenService.HashSecret(refreshed.Value.Secret));
+    }
+
+    [Fact]
+    public async Task RefreshSelf_fails_typed_on_a_revoked_token_without_minting_anything()
+    {
+        (AutomationApiTokenService sut, _, _, _) = Build();
+        Result<IssuedAutomationTokenDto> created = await sut.CreateAsync(
+            Channel,
+            Creator,
+            Request(),
+            CancellationToken.None
+        );
+        await sut.RevokeAsync(Channel, created.Value.Token.Id, Creator, CancellationToken.None);
+
+        Result<IssuedAutomationTokenDto> refreshed = await sut.RefreshSelfAsync(
+            Channel,
+            created.Value.Token.Id,
+            CancellationToken.None
+        );
+
+        refreshed.IsFailure.Should().BeTrue();
+        refreshed.ErrorCode.Should().Be("TOKEN_REVOKED");
+    }
+
+    [Fact]
+    public async Task RefreshSelf_fails_typed_on_a_hard_expired_token()
+    {
+        (AutomationApiTokenService sut, _, _, FakeTimeProvider clock) = Build();
+        Result<IssuedAutomationTokenDto> created = await sut.CreateAsync(
+            Channel,
+            Creator,
+            Request() with
+            {
+                ExpiresAt = T0.AddDays(1),
+            },
+            CancellationToken.None
+        );
+
+        clock.SetUtcNow(new DateTimeOffset(T0.AddDays(2)));
+        Result<IssuedAutomationTokenDto> refreshed = await sut.RefreshSelfAsync(
+            Channel,
+            created.Value.Token.Id,
+            CancellationToken.None
+        );
+
+        refreshed.IsFailure.Should().BeTrue();
+        refreshed.ErrorCode.Should().Be("TOKEN_EXPIRED");
     }
 }
