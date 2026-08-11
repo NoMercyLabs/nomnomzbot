@@ -101,3 +101,46 @@ describe("automation client now-playing resync (no WS event needed to reflect re
     expect(nowPlayingGetCount).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe("automation client WS push (real server frame shape)", () => {
+  it("applies a real {op:'event', type:'song.changed', data} push, not just the fallback resync", async () => {
+    // A fresh module graph: the automationClient singleton from the previous test already has an
+    // open `ws`, and connectStream() is intentionally idempotent (no-op) while one exists.
+    vi.resetModules();
+    const { automationClient } = await import("../src/connection/automationClient.js");
+    const { setPairingState } = await import("../src/connection/tokenStore.js");
+    const { nowPlayingState } = await import("../src/nowPlaying/state.js");
+
+    let connectedSocket: import("ws").WebSocket | null = null;
+    wss.once("connection", (socket) => {
+      connectedSocket = socket;
+    });
+
+    await setPairingState({
+      backendUrl: `http://127.0.0.1:${backendPort}`,
+      token: "nnzb_ak_test2",
+      tokenExpiresAt: new Date(Date.now() + 86400000).toISOString(),
+      deviceKind: "streamdeck",
+    });
+    automationClient.onNowPlaying((payload) => nowPlayingState.apply(payload));
+    await automationClient.connectStream();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    expect(connectedSocket).not.toBeNull();
+    // automation-api.md §4.2's real wire shape for a pushed event — {event, payload} (the shape this
+    // client used to check) would never match anything a real server actually sends.
+    connectedSocket!.send(
+      JSON.stringify({
+        op: "event",
+        type: "song.changed",
+        broadcasterId: "b1",
+        occurredAt: new Date().toISOString(),
+        data: nowPlaying({ title: "Pushed Live", positionMs: 77_000 }),
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    expect(nowPlayingState.current?.title).toBe("Pushed Live");
+    expect(nowPlayingState.current?.positionMs).toBe(77_000);
+  });
+});

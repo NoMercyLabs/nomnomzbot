@@ -138,16 +138,19 @@ export class AutomationClient {
 
     socket.on("open", () => {
       this.reconnectDelayMs = 1000;
-      socket.send(JSON.stringify({ op: "authenticate", token: state.token }));
-      socket.send(JSON.stringify({ op: "subscribe", events: ["song.changed"] }));
+      socket.send(JSON.stringify({ op: "authenticate", id: "auth", token: state.token }));
+      socket.send(JSON.stringify({ op: "subscribe", id: "sub", events: ["song.changed"] }));
       void this.resyncNowPlaying();
       this.startResyncTimer();
     });
     socket.on("message", (raw: WebSocket.RawData) => {
       try {
-        const msg = JSON.parse(raw.toString()) as { event?: string; payload?: unknown };
-        if (msg.event === "song.changed" && msg.payload) {
-          const payload = msg.payload as NowPlayingPayload;
+        // automation-api.md §4.2: a pushed event frame is {op:"event", type, data}, NOT the
+        // {event, payload} shape this used to check — which meant song.changed pushes were parsed
+        // but never matched, and every "live" update actually came from the periodic REST resync.
+        const msg = JSON.parse(raw.toString()) as { op?: string; type?: string; data?: unknown };
+        if (msg.op === "event" && msg.type === "song.changed" && msg.data) {
+          const payload = msg.data as NowPlayingPayload;
           for (const listener of this.nowPlayingListeners) listener(payload);
         }
       } catch {
