@@ -175,13 +175,24 @@ public static class FirstPartyWidgetCatalogue
                 ["showArt"] = true,
                 ["showProgressBar"] = true,
                 ["provider"] = "",
-                // Off by default: becoming the active Spotify Connect device is a real behavior change
-                // (it can steal playback from whatever the streamer already has open), not a passive display
-                // setting — an explicit opt-in, matching the streaming OAuth scope it also requires.
-                ["enableAudio"] = false,
                 ["accentColor"] = "#9146ff",
             },
             DefaultEventSubscriptions: ["now_playing"]
+        ),
+        new(
+            Key: "spotify_player",
+            Name: "Spotify Player",
+            Description: "Turns this OBS browser source into a real Spotify Connect device and streams audio "
+                + "through it — choose it as your active playback device in Spotify. Requires Spotify Premium "
+                + "and reconnecting Spotify with streaming permission (Integrations page).",
+            DefaultSettings: new()
+            {
+                // On by default: adding this widget IS the opt-in — its only purpose is to become the active
+                // device. Still overridable off (e.g. temporarily pause it without uninstalling).
+                ["enableAudio"] = true,
+                ["accentColor"] = "#9146ff",
+            },
+            DefaultEventSubscriptions: []
         ),
         new(
             Key: "sr_queue",
