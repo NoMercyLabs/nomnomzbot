@@ -275,6 +275,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("music:token:rotate", Broadcaster, DangerTier.Critical, grant: false);
         M("music:remote:control", Mod);
         M("music:library:write", Editor);
+        // music-automation-controls.md D5 — gates which AllowedPipelineIds an automation token mint may
+        // grant invoke rights over: every music_* pipeline action operates the broadcaster's own connected
+        // Spotify/YouTube account, so it is Critical, not permit-delegable below Moderator.
+        M("music:control:write", Mod, DangerTier.Critical, grant: false);
 
         // Stream / channel / live-ops
         // stream-admin.md §5 floors the stream-info/status/category reads at management entry (i.e. Moderator);

@@ -100,6 +100,12 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
             e.Ignore(p => p.Steps);
             e.Ignore(p => p.Channel);
         });
+        b.Entity<NomNomzBot.Domain.Commands.Entities.PipelineStep>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Ignore(s => s.Conditions);
+            e.Ignore(s => s.Pipeline);
+        });
         b.Entity<Command>(e =>
         {
             e.HasKey(c => c.Id);
@@ -121,6 +127,7 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
         typeof(NomNomzBot.Domain.Automation.Entities.AutomationApiToken),
         typeof(Channel),
         typeof(NomNomzBot.Domain.Commands.Entities.Pipeline),
+        typeof(NomNomzBot.Domain.Commands.Entities.PipelineStep),
         typeof(Command),
     ];
 
@@ -251,7 +258,7 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
         Set<NomNomzBot.Domain.Commands.Entities.Pipeline>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStep> PipelineSteps =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Commands.Entities.PipelineStep>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition> PipelineStepConditions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineExecution> PipelineExecutions =>

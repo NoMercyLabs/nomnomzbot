@@ -17,6 +17,7 @@ using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Music.Services;
@@ -49,6 +50,7 @@ public class AutomationCommandService : IAutomationCommandService
     private readonly ITwitchWhispersApi _whispers;
     private readonly IMusicService _music;
     private readonly IMusicProviderManageApi _musicManageApi;
+    private readonly IActionAuthorizationService _actionAuthz;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<AutomationCommandService> _logger;
 
@@ -60,6 +62,7 @@ public class AutomationCommandService : IAutomationCommandService
         ITwitchWhispersApi whispers,
         IMusicService music,
         IMusicProviderManageApi musicManageApi,
+        IActionAuthorizationService actionAuthz,
         TimeProvider timeProvider,
         ILogger<AutomationCommandService> logger
     )
@@ -71,6 +74,7 @@ public class AutomationCommandService : IAutomationCommandService
         _whispers = whispers;
         _music = music;
         _musicManageApi = musicManageApi;
+        _actionAuthz = actionAuthz;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -96,6 +100,11 @@ public class AutomationCommandService : IAutomationCommandService
         )
             return Result.Failure<AutomationInvokeResult>(
                 "This token is not allowed to invoke that pipeline.",
+                "FORBIDDEN"
+            );
+        if (!await ActorHoldsMusicControlAsync(pipeline, principal, ct))
+            return Result.Failure<AutomationInvokeResult>(
+                "This pipeline contains music-control steps and the token's creator no longer holds 'music:control:write'.",
                 "FORBIDDEN"
             );
 
@@ -382,6 +391,40 @@ public class AutomationCommandService : IAutomationCommandService
             )),
         ];
         return Result.Success(mapped);
+    }
+
+    /// <summary>music-automation-controls.md D5 — a pipeline with any <c>music_*</c> step needs the
+    /// token's CREATOR to still hold <c>music:control:write</c>, checked at invoke time (not mint time)
+    /// so a later demotion takes effect without having to revoke the token.</summary>
+    private async Task<bool> ActorHoldsMusicControlAsync(
+        PipelineEntity pipeline,
+        AutomationPrincipal principal,
+        CancellationToken ct
+    )
+    {
+        bool hasMusicStep = await _db.PipelineSteps.AnyAsync(
+            s => s.PipelineId == pipeline.Id && s.ActionType.StartsWith("music_"),
+            ct
+        );
+        if (!hasMusicStep)
+            return true;
+
+        Guid? createdByUserId = await _db
+            .AutomationApiTokens.Where(t =>
+                t.BroadcasterId == principal.BroadcasterId && t.Id == principal.TokenId
+            )
+            .Select(t => (Guid?)t.CreatedByUserId)
+            .FirstOrDefaultAsync(ct);
+        if (createdByUserId is null)
+            return false;
+
+        Result<bool> authorized = await _actionAuthz.AuthorizeActionAsync(
+            createdByUserId.Value,
+            principal.BroadcasterId,
+            "music:control:write",
+            ct
+        );
+        return authorized.IsSuccess && authorized.Value;
     }
 
     private async Task<PipelineEntity?> ResolvePipelineAsync(

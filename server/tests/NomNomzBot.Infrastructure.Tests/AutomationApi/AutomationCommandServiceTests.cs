@@ -15,10 +15,12 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.AutomationApi;
@@ -52,6 +54,7 @@ public sealed class AutomationCommandServiceTests
         public required ITwitchWhispersApi Whispers { get; init; }
         public required IMusicService Music { get; init; }
         public required IMusicProviderManageApi MusicManageApi { get; init; }
+        public required IActionAuthorizationService ActionAuthz { get; init; }
     }
 
     private static Harness Build(bool rateLimited = false)
@@ -111,6 +114,15 @@ public sealed class AutomationCommandServiceTests
 
         IMusicService music = Substitute.For<IMusicService>();
         IMusicProviderManageApi musicManageApi = Substitute.For<IMusicProviderManageApi>();
+        IActionAuthorizationService actionAuthz = Substitute.For<IActionAuthorizationService>();
+        actionAuthz
+            .AuthorizeActionAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(true));
 
         AutomationCommandService service = new(
             db,
@@ -120,6 +132,7 @@ public sealed class AutomationCommandServiceTests
             whispers,
             music,
             musicManageApi,
+            actionAuthz,
             TimeProvider.System,
             NullLogger<AutomationCommandService>.Instance
         );
@@ -134,6 +147,7 @@ public sealed class AutomationCommandServiceTests
             Whispers = whispers,
             Music = music,
             MusicManageApi = musicManageApi,
+            ActionAuthz = actionAuthz,
         };
     }
 
@@ -397,6 +411,75 @@ public sealed class AutomationCommandServiceTests
         result
             .Value.Should()
             .ContainSingle(d => d.Id == "dev-1" && d.Name == "Laptop" && d.IsActive);
+    }
+
+    // ─── music-automation-controls.md D5: music:control:write invoke gate ─────
+
+    [Fact]
+    public async Task Invoke_rejects_a_music_pipeline_when_the_tokens_creator_lost_music_control()
+    {
+        Harness h = Build();
+        SeedPipeline(h.Db);
+        Guid tokenId = Guid.NewGuid();
+        h.Db.PipelineSteps.Add(
+            new PipelineStep
+            {
+                Id = Guid.NewGuid(),
+                PipelineId = PipelineId,
+                BroadcasterId = Channel,
+                Order = 0,
+                ActionType = "music_play_pause",
+            }
+        );
+        h.Db.AutomationApiTokens.Add(
+            new NomNomzBot.Domain.Automation.Entities.AutomationApiToken
+            {
+                Id = tokenId,
+                BroadcasterId = Channel,
+                Name = "deck-token",
+                TokenHash = "hash",
+                TokenPrefix = "nnzb_ak_test",
+                ScopesJson = "[\"invoke\"]",
+                CreatedByUserId = Guid.NewGuid(),
+            }
+        );
+        h.Db.SaveChanges();
+        h.ActionAuthz.AuthorizeActionAsync(
+                Arg.Any<Guid>(),
+                Channel,
+                "music:control:write",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(false));
+
+        Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
+            new AutomationPrincipal(Channel, tokenId, "deck-token", ["invoke"], null),
+            new AutomationInvokeRequest { PipelineId = PipelineId }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+    }
+
+    [Fact]
+    public async Task Invoke_allows_a_non_music_pipeline_regardless_of_music_control()
+    {
+        Harness h = Build();
+        SeedPipeline(h.Db);
+        h.ActionAuthz.AuthorizeActionAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                "music:control:write",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(false));
+
+        Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
+            Principal(),
+            new AutomationInvokeRequest { PipelineId = PipelineId }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
     }
 
     [Fact]
