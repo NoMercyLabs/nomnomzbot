@@ -35,13 +35,11 @@ import { AddToPlaylistAction } from "./actions/addToPlaylist.js";
 import { RemoveFromPlaylistAction } from "./actions/removeFromPlaylist.js";
 import { FollowArtistAction } from "./actions/followArtist.js";
 import { UnfollowArtistAction } from "./actions/unfollowArtist.js";
-import { ConnectionAction } from "./actions/connection.js";
 
 streamDeck.logger.setLevel("info");
 
 // One shared connection + state for every key instance (streamdeck-plugin.md P2).
 for (const registration of [
-  new ConnectionAction(),
   new PlayAction(),
   new PauseAction(),
   new PlayPauseAction(),

@@ -74,3 +74,68 @@ function initBackgroundColorPicker(container, settings) {
   item.appendChild(picker);
   container.appendChild(item);
 }
+
+/**
+ * Every action's property inspector shows this FIRST, always — not a separate key the operator has
+ * to remember to add. While disconnected it's the whole page (host field + status + approval link);
+ * the moment the device flow reports paired, it collapses to one "Connected" line and reveals that
+ * key's own normal settings underneath. `normalContent` is the container the caller's own fields
+ * already live in — hidden until paired, shown once connected.
+ */
+function initConnectionGate(gateContainer, normalContent) {
+  gateContainer.innerHTML = `
+    <sdpi-item label="Host">
+      <sdpi-textfield id="gateHost" placeholder="http://localhost:5080"></sdpi-textfield>
+    </sdpi-item>
+    <sdpi-item label="Status">
+      <span id="gateStatus">Checking connection…</span>
+    </sdpi-item>
+    <sdpi-item id="gateLinkItem" style="display: none">
+      <a id="gateLink" href="#" target="_blank" rel="noopener">Open approval page</a>
+    </sdpi-item>
+  `;
+  normalContent.style.display = "none";
+
+  requestFromPlugin({ type: "getHost" });
+  requestFromPlugin({ type: "getPairingStatus" });
+
+  document.getElementById("gateHost").addEventListener("change", (change) => {
+    requestFromPlugin({ type: "setHost", host: change.target.value });
+    applyGateStatus({ paired: false, verificationUri: null, lastError: null });
+  });
+
+  function applyGateStatus(msg) {
+    const linkItem = document.getElementById("gateLinkItem");
+    const link = document.getElementById("gateLink");
+    const status = document.getElementById("gateStatus");
+    if (msg.paired) {
+      status.textContent = `Connected${msg.tokenExpiresAt ? ` (expires ${new Date(msg.tokenExpiresAt).toLocaleDateString()})` : ""}`;
+      linkItem.style.display = "none";
+      gateContainer.style.display = "none";
+      normalContent.style.display = "";
+    } else {
+      gateContainer.style.display = "";
+      normalContent.style.display = "none";
+      if (msg.verificationUri) {
+        status.textContent = "Waiting for approval…";
+        link.href = msg.verificationUri;
+        linkItem.style.display = "";
+      } else if (msg.lastError) {
+        status.textContent = `${msg.lastError} — retrying…`;
+        linkItem.style.display = "none";
+      } else {
+        status.textContent = "Starting pairing…";
+        linkItem.style.display = "none";
+      }
+    }
+  }
+
+  document.addEventListener("pi:message", (ev) => {
+    const msg = ev.detail;
+    if (msg?.type === "host") {
+      document.getElementById("gateHost").value = msg.host || "";
+    } else if (msg?.type === "pairingStatus") {
+      applyGateStatus(msg);
+    }
+  });
+}

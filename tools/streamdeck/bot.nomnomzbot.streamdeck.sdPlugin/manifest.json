@@ -6,7 +6,7 @@
   "Description": "Control Spotify (and any other connected NomNomzBot music provider) through your bot's own Automation API — pairs itself, defaults to your self-hosted bot at localhost.",
   "Icon": "imgs/plugin/marketplace",
   "CodePath": "bin/plugin.js",
-  "PropertyInspectorPath": "ui/pairing-fallback.html",
+  "PropertyInspectorPath": "ui/appearance-only.html",
   "SDKVersion": 2,
   "Software": { "MinimumVersion": "6.5" },
   "OS": [
@@ -17,14 +17,6 @@
   "Category": "NomNomzBot: Music",
   "CategoryIcon": "imgs/plugin/category",
   "Actions": [
-    {
-      "Name": "Connection",
-      "UUID": "bot.nomnomzbot.streamdeck.connection",
-      "Icon": "imgs/actions/connection",
-      "Tooltip": "Shows pairing status and lets you set the bot's host — place this once, not per key.",
-      "PropertyInspectorPath": "ui/pairing-fallback.html",
-      "States": [{ "Image": "imgs/actions/connection" }]
-    },
     {
       "Name": "Play",
       "UUID": "bot.nomnomzbot.streamdeck.music-play",

@@ -6,13 +6,17 @@
     <script src="shared.js"></script>
   </head>
   <body>
-    <!-- Every action except Connection uses this PI: just the per-key color picker. Pairing/host
-         setup lives on the Connection key only (streamdeck-plugin.md P6) — showing it on all 22
-         keys was redundant and confusing. -->
-    <div id="appearance"></div>
+    <!-- Every action's PI leads with the connection gate: disconnected shows host+status instead of
+         this key's own settings, so setup triggers wherever a key already is — not a dedicated
+         key the operator has to remember to add (streamdeck-plugin.md P6). -->
+    <div id="gate"></div>
+    <div id="normal">
+      <div id="appearance"></div>
+    </div>
     <script>
       document.addEventListener("pi:ready", (ev) => {
         initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
+        initConnectionGate(document.getElementById("gate"), document.getElementById("normal"));
       });
     </script>
   </body>

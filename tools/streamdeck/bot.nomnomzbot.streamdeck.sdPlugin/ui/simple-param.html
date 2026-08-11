@@ -9,8 +9,11 @@
     <!-- One generic numeric/select editor, reused by Set Volume / Seek / Set Shuffle / Set Repeat
          Mode — each key's onWillAppear tells the plugin which field(s) it needs via getUIConfig,
          keeping this single file instead of four nearly-identical pages. -->
-    <div id="fields"></div>
-    <div id="appearance"></div>
+    <div id="gate"></div>
+    <div id="normal">
+      <div id="fields"></div>
+      <div id="appearance"></div>
+    </div>
     <script>
       const FIELD_CONFIG = {
         "bot.nomnomzbot.streamdeck.music-set-volume": [
@@ -86,6 +89,7 @@
           container.appendChild(item);
         }
         initBackgroundColorPicker(document.getElementById("appearance"), settings);
+        initConnectionGate(document.getElementById("gate"), document.getElementById("normal"));
       });
     </script>
   </body>
