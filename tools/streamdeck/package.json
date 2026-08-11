@@ -1,5 +1,5 @@
 {
-  "name": "bot.nomnomz.streamdeck",
+  "name": "bot.nomnomzbot.streamdeck",
   "version": "1.0.0",
   "private": true,
   "description": "NomNomzBot Stream Deck plugin — Spotify/music control over the bot's own Automation API",

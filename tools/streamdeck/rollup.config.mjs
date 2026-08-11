@@ -15,7 +15,7 @@ import commonjs from "@rollup/plugin-commonjs";
 export default {
   input: "src/plugin.ts",
   output: {
-    file: "com.nomnomzbot.streamdeck.sdPlugin/bin/plugin.js",
+    file: "bot.nomnomzbot.streamdeck.sdPlugin/bin/plugin.js",
     format: "es",
     sourcemap: true,
   },

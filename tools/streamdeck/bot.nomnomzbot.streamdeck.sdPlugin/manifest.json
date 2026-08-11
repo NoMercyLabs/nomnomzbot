@@ -1,5 +1,6 @@
 {
   "Name": "NomNomzBot Music",
+  "UUID": "bot.nomnomzbot.streamdeck",
   "Version": "1.0.0",
   "Author": "NoMercy Labs",
   "Description": "Control Spotify (and any other connected NomNomzBot music provider) through your bot's own Automation API — no separate Spotify login, paired automatically from your dashboard.",
@@ -63,6 +64,30 @@
       "Tooltip": "Sets playback volume to a fixed level.",
       "PropertyInspectorPath": "ui/simple-param.html",
       "States": [{ "Image": "imgs/actions/volume.svg" }]
+    },
+    {
+      "Name": "Volume Up",
+      "UUID": "bot.nomnomzbot.streamdeck.music-volume-up",
+      "Icon": "imgs/actions/volume-up.svg",
+      "Tooltip": "Raises playback volume by a step.",
+      "PropertyInspectorPath": "ui/simple-param.html",
+      "States": [{ "Image": "imgs/actions/volume-up.svg" }]
+    },
+    {
+      "Name": "Volume Down",
+      "UUID": "bot.nomnomzbot.streamdeck.music-volume-down",
+      "Icon": "imgs/actions/volume-down.svg",
+      "Tooltip": "Lowers playback volume by a step.",
+      "PropertyInspectorPath": "ui/simple-param.html",
+      "States": [{ "Image": "imgs/actions/volume-down.svg" }]
+    },
+    {
+      "Name": "Volume Mute/Unmute",
+      "UUID": "bot.nomnomzbot.streamdeck.music-volume-mute",
+      "Icon": "imgs/actions/volume-mute.svg",
+      "Tooltip": "Mutes if audible, or unmutes to a configured level if muted.",
+      "PropertyInspectorPath": "ui/simple-param.html",
+      "States": [{ "Image": "imgs/actions/volume-mute.svg" }]
     },
     {
       "Name": "Seek",

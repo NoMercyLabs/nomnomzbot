@@ -19,6 +19,9 @@ import { PlayPauseAction } from "./actions/playPause.js";
 import { NextAction } from "./actions/next.js";
 import { PreviousAction } from "./actions/previous.js";
 import { SetVolumeAction } from "./actions/setVolume.js";
+import { VolumeUpAction } from "./actions/volumeUp.js";
+import { VolumeDownAction } from "./actions/volumeDown.js";
+import { VolumeMuteAction } from "./actions/volumeMute.js";
 import { SeekAction } from "./actions/seek.js";
 import { SetShuffleAction } from "./actions/setShuffle.js";
 import { ToggleShuffleAction } from "./actions/toggleShuffle.js";
@@ -43,6 +46,9 @@ for (const registration of [
   new NextAction(),
   new PreviousAction(),
   new SetVolumeAction(),
+  new VolumeUpAction(),
+  new VolumeDownAction(),
+  new VolumeMuteAction(),
   new SeekAction(),
   new SetShuffleAction(),
   new ToggleShuffleAction(),

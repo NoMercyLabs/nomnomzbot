@@ -10,7 +10,7 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "outDir": "com.nomnomzbot.streamdeck.sdPlugin/bin",
+    "outDir": "bot.nomnomzbot.streamdeck.sdPlugin/bin",
     "rootDir": "src"
   },
   "include": ["src/**/*.ts"],
