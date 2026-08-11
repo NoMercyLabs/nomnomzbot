@@ -1087,7 +1087,7 @@
         "tags": [
           "Admin"
         ],
-        "summary": "Returns all registered users.",
+        "summary": "Returns real bot USERS — operators/streamers/mods who authenticate and use the dashboard, or own a\r\nchannel, plus platform staff. Auto-created chatter rows, bot accounts, and anonymized users are excluded,\r\nso this list (and the \"act as\" support impersonation built on it) targets people who actually use the bot.",
         "parameters": [
           {
             "name": "Page",
@@ -5681,6 +5681,206 @@
         }
       }
     },
+    "/automation/v1/pair/device/init": {
+      "post": {
+        "tags": [
+          "Automation data plane"
+        ],
+        "summary": "Device-initiated pairing, step 1 (stream-deck.md D9): the DEVICE calls this itself, no dashboard\r\ninteraction required — mirrors the Twitch device-code login this project already uses for bot\r\nauth. Returns an opaque device code to poll plus a short user code + verification URL an\r\noperator opens in any logged-in browser to approve.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceInitRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceInitRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceInitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfDeviceInitDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/v1/pair/device/poll": {
+      "post": {
+        "tags": [
+          "Automation data plane"
+        ],
+        "summary": "Device-initiated pairing, step 3: the device polls by its own device code until an operator\r\napproves it (step 2, Task&lt;IActionResult&gt; AutomationPairingController.ApproveDevice(ApproveDeviceRequest request, CancellationToken ct)). `deviceCode`\r\nis 256 bits of entropy — no brute-force guard needed the way the short human user code has one.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevicePollRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevicePollRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevicePollRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfDevicePollDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/automation/v1/info": {
       "get": {
         "tags": [
@@ -6121,6 +6321,352 @@
         }
       }
     },
+    "/automation/v1/refresh": {
+      "post": {
+        "tags": [
+          "Automation data plane"
+        ],
+        "summary": "Self-refresh the presented token's secret (stream-deck.md D8) — no scope requirement, the\r\npresented token IS the credential being refreshed. Called proactively by a paired device (a\r\nStream Deck plugin) before its 30-day `ExpiresAt` lapses.",
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIssuedAutomationTokenDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/v1/music/now-playing": {
+      "get": {
+        "tags": [
+          "Automation data plane"
+        ],
+        "summary": "Current playback state (scope `read`) — music-automation-controls.md §4.",
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfAutomationNowPlayingDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/v1/music/devices": {
+      "get": {
+        "tags": [
+          "Automation data plane"
+        ],
+        "summary": "The broadcaster's playback devices on the active music provider (scope `read`).",
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfAutomationDeviceDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/automation/v1/music/playlists": {
+      "get": {
+        "tags": [
+          "Automation data plane"
+        ],
+        "summary": "The broadcaster's playlists on the active music provider (scope `read`), paged.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfAutomationPlaylistDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/automation/pair-codes": {
       "post": {
         "tags": [
@@ -6224,6 +6770,201 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfPairingCodeDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/automation/pair/device/approve": {
+      "get": {
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Device-initiated pairing, step 2 (stream-deck.md D9): the human-friendly landing page a device's\r\nverification URL points at. `[AllowAnonymous]` on the class-level JWT auth so a logged-out\r\nvisitor gets a friendly \"log in first\" page instead of a bare 401 — checks\r\n`User.Identity.IsAuthenticated` itself rather than relying on the automatic challenge.",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Device-initiated pairing, step 2b: the approval page's form POSTs here.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveDeviceRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveDeviceRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveDeviceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               }
             }
@@ -67813,6 +68554,19 @@
           }
         }
       },
+      "ApproveDeviceRequest": {
+        "required": [
+          "userCode"
+        ],
+        "type": "object",
+        "properties": {
+          "userCode": {
+            "maxLength": 16,
+            "type": "string"
+          }
+        },
+        "description": "Body of the dashboard-authenticated approve action."
+      },
       "AssignIamRoleRequest": {
         "required": [
           "principalId",
@@ -67928,6 +68682,40 @@
         },
         "description": "A chat command as the data plane lists it."
       },
+      "AutomationDeviceDto": {
+        "required": [
+          "id",
+          "name",
+          "type",
+          "isActive",
+          "volumePercent"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "volumePercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "One of the broadcaster's playback devices on the active music provider."
+      },
       "AutomationEventCatalogItem": {
         "required": [
           "publicName",
@@ -68033,6 +68821,114 @@
         },
         "description": "The invoke outcome. Execution is fire-and-forget (automation-api.md D5): bool AutomationInvokeResult.Accepted\r\nmeans enqueued, and Guid AutomationInvokeResult.ExecutionId is the correlation id minted at enqueue time (also\r\nvisible to the pipeline as `{{automation.correlation_id}}`) — not a promise of completion."
       },
+      "AutomationNowPlayingDto": {
+        "required": [
+          "title",
+          "artist",
+          "durationMs",
+          "positionMs",
+          "isPlaying",
+          "shuffleEnabled",
+          "repeatMode",
+          "isSaved",
+          "serverTime",
+          "volumePercent",
+          "albumArtUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "artist": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "positionMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isPlaying": {
+            "type": "boolean"
+          },
+          "shuffleEnabled": {
+            "type": "boolean"
+          },
+          "repeatMode": {
+            "type": "string"
+          },
+          "isSaved": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "serverTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "volumePercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "albumArtUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "canSetShuffle": {
+            "type": "boolean",
+            "default": true
+          },
+          "canSetRepeat": {
+            "type": "boolean",
+            "default": true
+          },
+          "canSkipNext": {
+            "type": "boolean",
+            "default": true
+          },
+          "canSkipPrevious": {
+            "type": "boolean",
+            "default": true
+          },
+          "canSeek": {
+            "type": "boolean",
+            "default": true
+          },
+          "canPause": {
+            "type": "boolean",
+            "default": true
+          },
+          "canResume": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "description": "Current playback state (music-automation-controls.md §3.2/§3.3) — the position-anchor shape a\r\nclient extrapolates locally (widget-sdk.md §9), shared verbatim between the `GET\r\n/automation/v1/music/now-playing` read and the `song.changed` event payload so they can\r\nnever drift (produced by the single Infrastructure-layer MusicAutomationProjection helper)."
+      },
       "AutomationPipelineRef": {
         "required": [
           "id",
@@ -68050,6 +68946,42 @@
           }
         },
         "description": "An invocable pipeline as the data plane lists it."
+      },
+      "AutomationPlaylistDto": {
+        "required": [
+          "id",
+          "name",
+          "uri",
+          "trackCount",
+          "imageUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "uri": {
+            "type": "string"
+          },
+          "trackCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "imageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One of the broadcaster's playlists on the active music provider."
       },
       "AutomationTokenDto": {
         "required": [
@@ -72427,6 +73359,59 @@
         },
         "description": "What the redeeming device says about itself (shown in the token list, e.g. \"Stream Deck: Office\")."
       },
+      "DeviceInitDto": {
+        "required": [
+          "deviceCode",
+          "userCode",
+          "verificationUri",
+          "expiresAt",
+          "pollIntervalSeconds"
+        ],
+        "type": "object",
+        "properties": {
+          "deviceCode": {
+            "type": "string"
+          },
+          "userCode": {
+            "type": "string"
+          },
+          "verificationUri": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pollIntervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What a device gets back immediately from `init` — enough to poll AND enough for a human to\r\napprove in a browser (string DeviceInitDto.VerificationUri already carries string DeviceInitDto.UserCode)."
+      },
+      "DeviceInitRequest": {
+        "required": [
+          "device"
+        ],
+        "type": "object",
+        "properties": {
+          "device": {
+            "$ref": "#/components/schemas/DeviceInfo"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Empty = the safe default (`invoke`, `events`, `read`)."
+          }
+        },
+        "description": "Body of `POST /automation/v1/pair/device/init` — the device names itself, nothing else."
+      },
       "DeviceLoginPollDto": {
         "required": [
           "status"
@@ -72448,6 +73433,46 @@
           }
         },
         "description": "One streamer device-login poll: the loop string DeviceLoginPollDto.Status, plus the issued auth on \"authorized\"."
+      },
+      "DevicePollDto": {
+        "required": [
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "backendUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "token": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "scopes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "tokenExpiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "Poll response: `Status` is `\"pending\"` until approved, then the mint fields are populated\r\nexactly once (the envelope is gone on the next poll — same one-shot contract as\r\nPairingRedemptionDto)."
       },
       "DevicePollRequest": {
         "required": [
@@ -76850,6 +77875,34 @@
           },
           "repeatState": {
             "type": "string"
+          },
+          "canSetShuffle": {
+            "type": "boolean",
+            "default": true
+          },
+          "canSetRepeat": {
+            "type": "boolean",
+            "default": true
+          },
+          "canSkipNext": {
+            "type": "boolean",
+            "default": true
+          },
+          "canSkipPrevious": {
+            "type": "boolean",
+            "default": true
+          },
+          "canSeek": {
+            "type": "boolean",
+            "default": true
+          },
+          "canPause": {
+            "type": "boolean",
+            "default": true
+          },
+          "canResume": {
+            "type": "boolean",
+            "default": true
           }
         },
         "description": "Current now-playing state. ShuffleState and RepeatState\r\n            (\"off\" | \"track\" | \"context\") are the live player toggles the dashboard renders — false/\"off\" on providers\r\n            that do not report them."
@@ -79602,7 +80655,8 @@
         "required": [
           "backendUrl",
           "token",
-          "scopes"
+          "scopes",
+          "tokenExpiresAt"
         ],
         "type": "object",
         "properties": {
@@ -79617,6 +80671,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "tokenExpiresAt": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "description": "Everything a freshly-paired device needs to talk to this instance: where (string PairingRedemptionDto.BackendUrl),\r\nas whom (string PairingRedemptionDto.Token — the one-time automation token secret, never retrievable again), and\r\nwhat it may do (IReadOnlyList&lt;string&gt; PairingRedemptionDto.Scopes)."
@@ -82296,6 +83354,36 @@
           }
         }
       },
+      "StatusResponseDtoOfAutomationNowPlayingDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AutomationNowPlayingDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfAutomodConfigDto": {
         "type": "object",
         "properties": {
@@ -83099,6 +84187,36 @@
           }
         }
       },
+      "StatusResponseDtoOfDeviceInitDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DeviceInitDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfDeviceLoginPollDto": {
         "type": "object",
         "properties": {
@@ -83112,6 +84230,36 @@
               },
               {
                 "$ref": "#/components/schemas/DeviceLoginPollDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfDevicePollDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DevicePollDto"
               }
             ]
           },
@@ -83969,6 +85117,35 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfAutomationDeviceDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AutomationDeviceDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfIReadOnlyListOfAutomationEventCatalogItem": {
         "type": "object",
         "properties": {
@@ -84011,6 +85188,35 @@
             ],
             "items": {
               "$ref": "#/components/schemas/AutomationPipelineRef"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfAutomationPlaylistDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AutomationPlaylistDto"
             }
           },
           "message": {

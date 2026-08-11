@@ -73,7 +73,14 @@ public sealed class SongChangedProjector : IEventHandler<PlaybackStateChangedEve
             @event.TrackUri,
             @event.ShuffleEnabled,
             @event.RepeatMode,
-            @event.ArtistId
+            @event.ArtistId,
+            @event.CanSetShuffle,
+            @event.CanSetRepeat,
+            @event.CanSkipNext,
+            @event.CanSkipPrevious,
+            @event.CanSeek,
+            @event.CanPause,
+            @event.CanResume
         );
 
         AutomationNowPlayingDto payload = await MusicAutomationProjection.ToNowPlayingAsync(
@@ -100,6 +107,13 @@ public sealed class SongChangedProjector : IEventHandler<PlaybackStateChangedEve
                 IsSaved = payload.IsSaved,
                 VolumePercent = payload.VolumePercent,
                 AlbumArtUrl = payload.AlbumArtUrl,
+                CanSetShuffle = payload.CanSetShuffle,
+                CanSetRepeat = payload.CanSetRepeat,
+                CanSkipNext = payload.CanSkipNext,
+                CanSkipPrevious = payload.CanSkipPrevious,
+                CanSeek = payload.CanSeek,
+                CanPause = payload.CanPause,
+                CanResume = payload.CanResume,
             },
             cancellationToken
         );

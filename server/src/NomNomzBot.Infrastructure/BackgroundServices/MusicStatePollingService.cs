@@ -194,13 +194,33 @@ public sealed class MusicStatePollingService : BackgroundService
     )
     {
         ChannelPlaybackSnapshot next = nowPlaying is null
-            ? new ChannelPlaybackSnapshot(false, null, 0, 100, observedAt)
+            ? new ChannelPlaybackSnapshot(
+                false,
+                null,
+                0,
+                100,
+                observedAt,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true
+            )
             : new ChannelPlaybackSnapshot(
                 nowPlaying.IsPlaying,
                 nowPlaying.TrackName,
                 nowPlaying.ProgressMs,
                 nowPlaying.Volume,
-                observedAt
+                observedAt,
+                nowPlaying.CanSetShuffle,
+                nowPlaying.CanSetRepeat,
+                nowPlaying.CanSkipNext,
+                nowPlaying.CanSkipPrevious,
+                nowPlaying.CanSeek,
+                nowPlaying.CanPause,
+                nowPlaying.CanResume
             );
 
         bool changed =
@@ -231,6 +251,13 @@ public sealed class MusicStatePollingService : BackgroundService
                 RepeatMode = nowPlaying?.RepeatMode ?? MusicRepeatMode.Off,
                 VolumePercent = next.VolumePercent,
                 ObservedAt = observedAt,
+                CanSetShuffle = next.CanSetShuffle,
+                CanSetRepeat = next.CanSetRepeat,
+                CanSkipNext = next.CanSkipNext,
+                CanSkipPrevious = next.CanSkipPrevious,
+                CanSeek = next.CanSeek,
+                CanPause = next.CanPause,
+                CanResume = next.CanResume,
             },
             cancellationToken
         );
@@ -248,6 +275,19 @@ public sealed class MusicStatePollingService : BackgroundService
         // push-driven consumer — nothing about track/play-state/seek reflects it — so it needs its own
         // explicit check rather than falling out of the checks above.
         if (previous.VolumePercent != next.VolumePercent)
+            return true;
+
+        // A control permission can flip mid-track with nothing else changing (an ad break blocks skip/seek,
+        // a restricted market blocks shuffle, …) — otherwise invisible to every check above.
+        if (
+            previous.CanSetShuffle != next.CanSetShuffle
+            || previous.CanSetRepeat != next.CanSetRepeat
+            || previous.CanSkipNext != next.CanSkipNext
+            || previous.CanSkipPrevious != next.CanSkipPrevious
+            || previous.CanSeek != next.CanSeek
+            || previous.CanPause != next.CanPause
+            || previous.CanResume != next.CanResume
+        )
             return true;
 
         // A seek only makes sense to check while the same track keeps playing across both observations —
@@ -293,7 +333,14 @@ public sealed class MusicStatePollingService : BackgroundService
         string? TrackName,
         int ProgressMs,
         int VolumePercent,
-        DateTimeOffset ObservedAt
+        DateTimeOffset ObservedAt,
+        bool CanSetShuffle,
+        bool CanSetRepeat,
+        bool CanSkipNext,
+        bool CanSkipPrevious,
+        bool CanSeek,
+        bool CanPause,
+        bool CanResume
     );
 
     /// <summary>Per-channel failure backoff state, kept in memory only.</summary>

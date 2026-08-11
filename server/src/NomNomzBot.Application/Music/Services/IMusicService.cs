@@ -186,7 +186,14 @@ public sealed record NowPlaying(
     string? TrackUri = null,
     bool ShuffleEnabled = false,
     MusicRepeatMode RepeatMode = MusicRepeatMode.Off,
-    string? ArtistId = null
+    string? ArtistId = null,
+    bool CanSetShuffle = true,
+    bool CanSetRepeat = true,
+    bool CanSkipNext = true,
+    bool CanSkipPrevious = true,
+    bool CanSeek = true,
+    bool CanPause = true,
+    bool CanResume = true
 );
 
 /// <summary>The full playback queue including the current track.</summary>

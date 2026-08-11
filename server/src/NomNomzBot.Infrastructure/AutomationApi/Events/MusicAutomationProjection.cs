@@ -55,7 +55,14 @@ public static class MusicAutomationProjection
             isSaved,
             timeProvider.GetUtcNow(),
             nowPlaying.Volume,
-            nowPlaying.ImageUrl
+            nowPlaying.ImageUrl,
+            nowPlaying.CanSetShuffle,
+            nowPlaying.CanSetRepeat,
+            nowPlaying.CanSkipNext,
+            nowPlaying.CanSkipPrevious,
+            nowPlaying.CanSeek,
+            nowPlaying.CanPause,
+            nowPlaying.CanResume
         );
     }
 }

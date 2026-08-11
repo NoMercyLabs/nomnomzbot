@@ -413,7 +413,14 @@ public sealed class MusicService : IMusicService
             track.TrackUri,
             track.ShuffleEnabled,
             track.RepeatMode,
-            track.ArtistId
+            track.ArtistId,
+            track.CanSetShuffle,
+            track.CanSetRepeat,
+            track.CanSkipNext,
+            track.CanSkipPrevious,
+            track.CanSeek,
+            track.CanPause,
+            track.CanResume
         );
     }
 
@@ -755,6 +762,13 @@ public sealed class MusicService : IMusicService
                 RepeatMode = track?.RepeatMode ?? MusicRepeatMode.Off,
                 VolumePercent = track?.VolumePercent ?? 100,
                 ObservedAt = DateTimeOffset.UtcNow,
+                CanSetShuffle = track?.CanSetShuffle ?? true,
+                CanSetRepeat = track?.CanSetRepeat ?? true,
+                CanSkipNext = track?.CanSkipNext ?? true,
+                CanSkipPrevious = track?.CanSkipPrevious ?? true,
+                CanSeek = track?.CanSeek ?? true,
+                CanPause = track?.CanPause ?? true,
+                CanResume = track?.CanResume ?? true,
             },
             cancellationToken
         );

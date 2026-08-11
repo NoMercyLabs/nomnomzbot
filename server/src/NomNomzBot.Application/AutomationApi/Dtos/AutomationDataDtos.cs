@@ -92,7 +92,14 @@ public sealed record AutomationNowPlayingDto(
     bool? IsSaved,
     DateTimeOffset ServerTime,
     int VolumePercent,
-    string? AlbumArtUrl
+    string? AlbumArtUrl,
+    bool CanSetShuffle = true,
+    bool CanSetRepeat = true,
+    bool CanSkipNext = true,
+    bool CanSkipPrevious = true,
+    bool CanSeek = true,
+    bool CanPause = true,
+    bool CanResume = true
 );
 
 /// <summary>One of the broadcaster's playback devices on the active music provider.</summary>

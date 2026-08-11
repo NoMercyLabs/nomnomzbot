@@ -163,6 +163,31 @@ public sealed class MusicStatePollingServiceTests
     }
 
     [Fact]
+    public async Task Permission_flip_with_nothing_else_changed_publishes_too()
+    {
+        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _) = Build([
+            ChannelA,
+        ]);
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        // An ad break starts mid-track: Spotify now disallows skipping next. Track/play-state/volume/seek
+        // are all otherwise identical — this must still publish so a Stream Deck skip key dims in real time
+        // instead of only failing silently on the next press.
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Song A", isPlaying: true, progressMs: 1_000, canSkipNext: false)
+        );
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        List<PlaybackStateChangedEvent> published = bus
+            .Published.OfType<PlaybackStateChangedEvent>()
+            .ToList();
+        published.Should().HaveCount(2);
+        published[1].CanSkipNext.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task One_channel_throwing_does_not_stop_the_others_in_the_same_tick()
     {
         (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _) = Build([
@@ -251,7 +276,8 @@ public sealed class MusicStatePollingServiceTests
         string trackName,
         bool isPlaying,
         int progressMs,
-        int volumePercent = 100
+        int volumePercent = 100,
+        bool canSkipNext = true
     ) =>
         new(
             trackName,
@@ -263,7 +289,8 @@ public sealed class MusicStatePollingServiceTests
             isPlaying,
             volumePercent,
             null,
-            "spotify"
+            "spotify",
+            CanSkipNext: canSkipNext
         );
 
     /// <summary>A scope factory whose every scope resolves the shared test <see cref="IApplicationDbContext"/>,

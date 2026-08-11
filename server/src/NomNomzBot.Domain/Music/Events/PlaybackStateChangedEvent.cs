@@ -37,4 +37,14 @@ public sealed class PlaybackStateChangedEvent : DomainEventBase
     public MusicRepeatMode RepeatMode { get; init; }
     public int VolumePercent { get; init; }
     public DateTimeOffset ObservedAt { get; init; }
+
+    /// <summary>Live per-action permissions (see <see cref="TrackInfo.CanSetShuffle"/>) — all default
+    /// permitted, so a provider that never reports them never falsely disables a control.</summary>
+    public bool CanSetShuffle { get; init; } = true;
+    public bool CanSetRepeat { get; init; } = true;
+    public bool CanSkipNext { get; init; } = true;
+    public bool CanSkipPrevious { get; init; } = true;
+    public bool CanSeek { get; init; } = true;
+    public bool CanPause { get; init; } = true;
+    public bool CanResume { get; init; } = true;
 }

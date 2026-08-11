@@ -355,6 +355,90 @@ public sealed class SpotifyMusicProviderReadTests
     }
 
     [Fact]
+    public async Task Now_playing_surfaces_disallowed_actions_as_false_permissions()
+    {
+        // A real ad-break/restricted-market shape: shuffle+repeat blocked, everything else open.
+        (SpotifyMusicProvider spotify, RecordingHttpHandler handler) = BuildProvider();
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Get
+                && r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            """
+            {"is_playing":true,"progress_ms":0,"shuffle_state":false,"repeat_state":"off",
+             "actions":{"disallows":{"toggling_shuffle":true,"toggling_repeat_track":true,
+              "toggling_repeat_context":true,"skipping_next":true}},
+             "item":{"id":"t1","name":"Song","uri":"spotify:track:t1","duration_ms":180000,
+              "explicit":false,"artists":[{"name":"A"}],"album":{"name":"Al","images":[]}}}
+            """
+        );
+
+        TrackInfo? track = await spotify.GetCurrentTrackAsync(ChannelId);
+
+        track.Should().NotBeNull();
+        track!.CanSetShuffle.Should().BeFalse();
+        track.CanSetRepeat.Should().BeFalse();
+        track.CanSkipNext.Should().BeFalse();
+        // Not disallowed by Spotify — must stay permitted rather than defaulting to blocked.
+        track.CanSkipPrevious.Should().BeTrue();
+        track.CanSeek.Should().BeTrue();
+        track.CanPause.Should().BeTrue();
+        track.CanResume.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Now_playing_repeat_stays_settable_when_only_one_repeat_target_is_disallowed()
+    {
+        // Cycling can still reach the still-open target, so the single toggle stays usable.
+        (SpotifyMusicProvider spotify, RecordingHttpHandler handler) = BuildProvider();
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Get
+                && r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            """
+            {"is_playing":true,"progress_ms":0,"shuffle_state":false,"repeat_state":"off",
+             "actions":{"disallows":{"toggling_repeat_track":true}},
+             "item":{"id":"t1","name":"Song","uri":"spotify:track:t1","duration_ms":180000,
+              "explicit":false,"artists":[{"name":"A"}],"album":{"name":"Al","images":[]}}}
+            """
+        );
+
+        TrackInfo? track = await spotify.GetCurrentTrackAsync(ChannelId);
+
+        track.Should().NotBeNull();
+        track!.CanSetRepeat.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Now_playing_with_no_actions_object_defaults_every_permission_to_true()
+    {
+        (SpotifyMusicProvider spotify, RecordingHttpHandler handler) = BuildProvider();
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Get
+                && r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            """
+            {"is_playing":true,"progress_ms":0,"shuffle_state":false,"repeat_state":"off",
+             "item":{"id":"t1","name":"Song","uri":"spotify:track:t1","duration_ms":180000,
+              "explicit":false,"artists":[{"name":"A"}],"album":{"name":"Al","images":[]}}}
+            """
+        );
+
+        TrackInfo? track = await spotify.GetCurrentTrackAsync(ChannelId);
+
+        track.Should().NotBeNull();
+        track!.CanSetShuffle.Should().BeTrue();
+        track.CanSetRepeat.Should().BeTrue();
+        track.CanSkipNext.Should().BeTrue();
+        track.CanSkipPrevious.Should().BeTrue();
+        track.CanSeek.Should().BeTrue();
+        track.CanPause.Should().BeTrue();
+        track.CanResume.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Now_playing_is_null_when_no_active_device_204()
     {
         // GET /me/player returns 204 when playback is on no device — nothing is playing, so now-playing is null.

@@ -32,4 +32,13 @@ public sealed class SongChangedEvent : DomainEventBase
     public bool? IsSaved { get; init; }
     public int VolumePercent { get; init; }
     public string? AlbumArtUrl { get; init; }
+
+    /// <summary>Live per-action permissions (see <see cref="NomNomzBot.Domain.Music.Interfaces.TrackInfo.CanSetShuffle"/>).</summary>
+    public bool CanSetShuffle { get; init; } = true;
+    public bool CanSetRepeat { get; init; } = true;
+    public bool CanSkipNext { get; init; } = true;
+    public bool CanSkipPrevious { get; init; } = true;
+    public bool CanSeek { get; init; } = true;
+    public bool CanPause { get; init; } = true;
+    public bool CanResume { get; init; } = true;
 }

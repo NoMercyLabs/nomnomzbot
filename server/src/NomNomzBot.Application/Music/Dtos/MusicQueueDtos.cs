@@ -47,7 +47,14 @@ public sealed record NowPlayingDto(
     string? RequestedBy,
     string Provider,
     bool ShuffleState,
-    string RepeatState
+    string RepeatState,
+    bool CanSetShuffle = true,
+    bool CanSetRepeat = true,
+    bool CanSkipNext = true,
+    bool CanSkipPrevious = true,
+    bool CanSeek = true,
+    bool CanPause = true,
+    bool CanResume = true
 );
 
 /// <summary>Full music queue including now playing and upcoming tracks.</summary>

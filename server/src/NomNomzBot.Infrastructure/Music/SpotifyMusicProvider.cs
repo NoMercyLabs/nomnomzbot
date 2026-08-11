@@ -222,13 +222,25 @@ public sealed class SpotifyMusicProvider
         if (json?.Item is null)
             return null;
 
+        SpotifyDisallows? disallows = json.Actions?.Disallows;
         return MapToTrackInfo(
             json.Item,
             json.IsPlaying,
             json.ProgressMs,
             json.ShuffleState,
             ParseRepeatState(json.RepeatState),
-            json.Device?.VolumePercent
+            json.Device?.VolumePercent,
+            canSetShuffle: disallows?.TogglingShuffle != true,
+            // Repeat is a single cycling toggle (Off→Track→Context→Off) here, so it's blocked only when
+            // Spotify disallows moving to BOTH repeat targets — one still-open target keeps cycling usable.
+            canSetRepeat: !(
+                disallows?.TogglingRepeatTrack == true && disallows?.TogglingRepeatContext == true
+            ),
+            canSkipNext: disallows?.SkippingNext != true,
+            canSkipPrevious: disallows?.SkippingPrev != true,
+            canSeek: disallows?.Seeking != true,
+            canPause: disallows?.Pausing != true,
+            canResume: disallows?.Resuming != true
         );
     }
 
@@ -1500,7 +1512,14 @@ public sealed class SpotifyMusicProvider
         int progressMs = 0,
         bool shuffleEnabled = false,
         MusicRepeatMode repeatMode = MusicRepeatMode.Off,
-        int? volumePercent = null
+        int? volumePercent = null,
+        bool canSetShuffle = true,
+        bool canSetRepeat = true,
+        bool canSkipNext = true,
+        bool canSkipPrevious = true,
+        bool canSeek = true,
+        bool canPause = true,
+        bool canResume = true
     ) =>
         new()
         {
@@ -1521,6 +1540,13 @@ public sealed class SpotifyMusicProvider
             ShuffleEnabled = shuffleEnabled,
             RepeatMode = repeatMode,
             VolumePercent = volumePercent,
+            CanSetShuffle = canSetShuffle,
+            CanSetRepeat = canSetRepeat,
+            CanSkipNext = canSkipNext,
+            CanSkipPrevious = canSkipPrevious,
+            CanSeek = canSeek,
+            CanPause = canPause,
+            CanResume = canResume,
         };
 
     // ─── Spotify API response models ─────────────────────────────────────────
@@ -1559,12 +1585,51 @@ public sealed class SpotifyMusicProvider
 
         [JsonPropertyName("device")]
         public SpotifyPlaybackDevice? Device { get; set; }
+
+        [JsonPropertyName("actions")]
+        public SpotifyPlaybackActions? Actions { get; set; }
     }
 
     private sealed class SpotifyPlaybackDevice
     {
         [JsonPropertyName("volume_percent")]
         public int? VolumePercent { get; set; }
+    }
+
+    // Spotify only sets a key to `true` when that action is currently BLOCKED; an absent/false key means
+    // allowed. Reflects real restrictions — ads, non-Premium accounts, restricted markets, single-track
+    // context — that generic capability flags can't see.
+    private sealed class SpotifyPlaybackActions
+    {
+        [JsonPropertyName("disallows")]
+        public SpotifyDisallows? Disallows { get; set; }
+    }
+
+    private sealed class SpotifyDisallows
+    {
+        [JsonPropertyName("resuming")]
+        public bool Resuming { get; set; }
+
+        [JsonPropertyName("pausing")]
+        public bool Pausing { get; set; }
+
+        [JsonPropertyName("seeking")]
+        public bool Seeking { get; set; }
+
+        [JsonPropertyName("skipping_next")]
+        public bool SkippingNext { get; set; }
+
+        [JsonPropertyName("skipping_prev")]
+        public bool SkippingPrev { get; set; }
+
+        [JsonPropertyName("toggling_shuffle")]
+        public bool TogglingShuffle { get; set; }
+
+        [JsonPropertyName("toggling_repeat_track")]
+        public bool TogglingRepeatTrack { get; set; }
+
+        [JsonPropertyName("toggling_repeat_context")]
+        public bool TogglingRepeatContext { get; set; }
     }
 
     private sealed class SpotifyErrorEnvelope

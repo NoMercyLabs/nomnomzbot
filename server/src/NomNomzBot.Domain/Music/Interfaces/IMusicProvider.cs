@@ -220,4 +220,19 @@ public class TrackInfo
     /// </summary>
     public bool ShuffleEnabled { get; init; }
     public MusicRepeatMode RepeatMode { get; init; }
+
+    /// <summary>
+    /// Live per-action permissions from the provider's own playback state (Spotify's <c>actions.disallows</c>
+    /// on <c>GET /me/player</c>) — e.g. an ad, a restricted market, or a non-Premium account can block shuffle,
+    /// repeat, seeking, or skipping even though the provider generally supports those capabilities. All default
+    /// to permitted (<c>true</c>); a provider that doesn't report per-action state (or a search/resolve hit)
+    /// leaves every flag at its permissive default rather than guessing a restriction.
+    /// </summary>
+    public bool CanSetShuffle { get; init; } = true;
+    public bool CanSetRepeat { get; init; } = true;
+    public bool CanSkipNext { get; init; } = true;
+    public bool CanSkipPrevious { get; init; } = true;
+    public bool CanSeek { get; init; } = true;
+    public bool CanPause { get; init; } = true;
+    public bool CanResume { get; init; } = true;
 }
