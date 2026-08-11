@@ -20,26 +20,31 @@ const ICON_OFFSET = (SIZE - 24 * ICON_SCALE) / 2;
 /** The default key background — every action's Property Inspector exposes a color picker to override it. */
 export const DEFAULT_BACKGROUND = "#1a1a1a";
 
+/** Play/Pause's icon sits in the top ~2/3 of the key (smaller than the other keys' icons) so the
+ * elapsed-time text has clear, non-overlapping room below it — both centered on x=72 independently
+ * of each other's height, not hand-placed. */
+const PLAY_PAUSE_ICON_SCALE = 2.5;
+const PLAY_PAUSE_ICON_TOP = 10;
+const PLAY_PAUSE_ICON_OFFSET_X = (SIZE - 24 * PLAY_PAUSE_ICON_SCALE) / 2;
+
 /**
  * Renders the Play/Pause key as an inline SVG data URI — icon + live elapsed time in one image
  * (streamdeck-plugin.md P4). SVG rather than a canvas-rasterized PNG: the Elgato SDK's `setImage`
  * accepts `data:image/svg+xml` directly, and SVG needs no native image library / build toolchain,
  * which a canvas rasterizer would (a real constraint on a fresh install — no bundled Cairo/Skia).
+ * Reuses the real play/pause icon files (loadIconMarkup) through the same centered-transform
+ * approach every other key uses, instead of hand-drawn shapes.
  */
 export function renderPlayPauseKey(state: NowPlayingState, backgroundColor: string = DEFAULT_BACKGROUND): string {
-  // Icon block (y 16-64, 48 tall) and the time text below it are centered as ONE unit within the
-  // 144px key, not independently — resizing either one means re-centering both together. Both glyphs'
-  // bounding boxes are centered on x=72 (SIZE/2), not eyeballed.
   const isPlaying = state.current?.isPlaying ?? false;
-  const glyph = isPlaying
-    ? `<rect x="48" y="16" width="16" height="48" fill="#fff"/><rect x="80" y="16" width="16" height="48" fill="#fff"/>`
-    : `<polygon points="50,12 50,68 96,40" fill="#fff"/>`;
+  const source = loadIconMarkup(isPlaying ? "pause" : "play");
+  const inner = source.replace(/^<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
   const time = escapeXml(state.formattedElapsed());
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}">
     <rect width="${SIZE}" height="${SIZE}" rx="24" fill="${backgroundColor}"/>
-    ${glyph}
-    <text x="${SIZE / 2}" y="126" font-family="sans-serif" font-size="42" font-weight="bold" fill="#fff" text-anchor="middle">${time}</text>
+    <g transform="translate(${PLAY_PAUSE_ICON_OFFSET_X},${PLAY_PAUSE_ICON_TOP}) scale(${PLAY_PAUSE_ICON_SCALE})">${inner}</g>
+    <text x="${SIZE / 2}" y="126" font-family="sans-serif" font-size="34" font-weight="bold" fill="#fff" text-anchor="middle">${time}</text>
   </svg>`;
 
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;

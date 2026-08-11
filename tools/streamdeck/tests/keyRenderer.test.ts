@@ -40,7 +40,8 @@ describe("renderPlayPauseKey", () => {
 
     const svg = decode(renderPlayPauseKey(state));
 
-    expect(svg).toContain("<rect"); // pause bars
+    expect(svg).toContain("M8 6V18M16 18"); // pause.svg's distinguishing path data
+    expect(svg).not.toContain("M11.2941"); // not play.svg's
     expect(svg).toContain("1:05");
   });
 
@@ -50,7 +51,8 @@ describe("renderPlayPauseKey", () => {
 
     const svg = decode(renderPlayPauseKey(state));
 
-    expect(svg).toContain("<polygon"); // play triangle
+    expect(svg).toContain("M11.2941"); // play.svg's distinguishing path data
+    expect(svg).not.toContain("M8 6V18M16 18"); // not pause.svg's
     expect(svg).toContain("0:05");
   });
 
