@@ -124,6 +124,51 @@ public class AutomationDataController(
         return ResultResponse(result);
     }
 
+    /// <summary>Current playback state (scope <c>read</c>) — music-automation-controls.md §4.</summary>
+    [HttpGet("music/now-playing")]
+    [ProducesResponseType<StatusResponseDto<AutomationNowPlayingDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetNowPlaying(CancellationToken ct)
+    {
+        if (Principal is not AutomationPrincipal principal)
+            return UnauthenticatedResponse();
+        return WithRetryAfter(await commands.GetNowPlayingAsync(principal, ct));
+    }
+
+    /// <summary>The broadcaster's playback devices on the active music provider (scope <c>read</c>).</summary>
+    [HttpGet("music/devices")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<AutomationDeviceDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetMusicDevices(CancellationToken ct)
+    {
+        if (Principal is not AutomationPrincipal principal)
+            return UnauthenticatedResponse();
+        return WithRetryAfter(await commands.GetDevicesAsync(principal, ct));
+    }
+
+    /// <summary>The broadcaster's playlists on the active music provider (scope <c>read</c>), paged.</summary>
+    [HttpGet("music/playlists")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<AutomationPlaylistDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetMusicPlaylists(
+        [FromQuery] int limit,
+        [FromQuery] int offset,
+        CancellationToken ct
+    )
+    {
+        if (Principal is not AutomationPrincipal principal)
+            return UnauthenticatedResponse();
+        return WithRetryAfter(
+            await commands.GetPlaylistsAsync(
+                principal,
+                limit is > 0 and <= 50 ? limit : 20,
+                Math.Max(0, offset),
+                ct
+            )
+        );
+    }
+
     /// <summary>The principal the authentication handler parked for this request.</summary>
     private AutomationPrincipal? Principal =>
         HttpContext.Items[typeof(AutomationPrincipal)] as AutomationPrincipal;

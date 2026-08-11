@@ -17,9 +17,13 @@ using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Infrastructure.AutomationApi.Events;
+using MusicPlaylistDto = NomNomzBot.Application.Music.Services.MusicPlaylistDto;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.AutomationApi;
@@ -43,6 +47,9 @@ public class AutomationCommandService : IAutomationCommandService
     private readonly IRateLimiterPartitionStore _rateLimiter;
     private readonly IChatProvider _chat;
     private readonly ITwitchWhispersApi _whispers;
+    private readonly IMusicService _music;
+    private readonly IMusicProviderManageApi _musicManageApi;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<AutomationCommandService> _logger;
 
     public AutomationCommandService(
@@ -51,6 +58,9 @@ public class AutomationCommandService : IAutomationCommandService
         IRateLimiterPartitionStore rateLimiter,
         IChatProvider chat,
         ITwitchWhispersApi whispers,
+        IMusicService music,
+        IMusicProviderManageApi musicManageApi,
+        TimeProvider timeProvider,
         ILogger<AutomationCommandService> logger
     )
     {
@@ -59,6 +69,9 @@ public class AutomationCommandService : IAutomationCommandService
         _rateLimiter = rateLimiter;
         _chat = chat;
         _whispers = whispers;
+        _music = music;
+        _musicManageApi = musicManageApi;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -255,6 +268,120 @@ public class AutomationCommandService : IAutomationCommandService
         return sent
             ? Result.Success()
             : Result.Failure("The chat message could not be sent.", "SERVICE_UNAVAILABLE");
+    }
+
+    public async Task<Result<AutomationNowPlayingDto>> GetNowPlayingAsync(
+        AutomationPrincipal principal,
+        CancellationToken ct = default
+    )
+    {
+        if (!principal.Scopes.Contains("read"))
+            return Forbidden<AutomationNowPlayingDto>("read");
+        Result limited = await AcquireAsync(principal, "read", ReadsPerMinute, ct);
+        if (limited.IsFailure)
+            return Result.Failure<AutomationNowPlayingDto>(
+                limited.ErrorMessage!,
+                limited.ErrorCode!,
+                limited.ErrorDetail
+            );
+
+        string? provider = await _music.GetActiveProviderKeyAsync(
+            principal.BroadcasterId.ToString(),
+            ct
+        );
+        if (provider is null)
+            return Result.Failure<AutomationNowPlayingDto>(
+                "no active music provider",
+                "CAPABILITY_UNSUPPORTED"
+            );
+
+        NowPlaying? nowPlaying = await _music.GetNowPlayingAsync(
+            principal.BroadcasterId.ToString(),
+            ct
+        );
+        if (nowPlaying is null)
+            return Result.Failure<AutomationNowPlayingDto>(
+                "nothing is currently playing",
+                "CAPABILITY_UNSUPPORTED"
+            );
+
+        AutomationNowPlayingDto dto = await MusicAutomationProjection.ToNowPlayingAsync(
+            nowPlaying,
+            provider,
+            principal.BroadcasterId,
+            _musicManageApi,
+            _timeProvider,
+            ct
+        );
+        return Result.Success(dto);
+    }
+
+    public async Task<Result<IReadOnlyList<AutomationDeviceDto>>> GetDevicesAsync(
+        AutomationPrincipal principal,
+        CancellationToken ct = default
+    )
+    {
+        if (!principal.Scopes.Contains("read"))
+            return Forbidden<IReadOnlyList<AutomationDeviceDto>>("read");
+        Result limited = await AcquireAsync(principal, "read", ReadsPerMinute, ct);
+        if (limited.IsFailure)
+            return Result.Failure<IReadOnlyList<AutomationDeviceDto>>(
+                limited.ErrorMessage!,
+                limited.ErrorCode!,
+                limited.ErrorDetail
+            );
+
+        IReadOnlyList<MusicDeviceDto> devices = await _music.GetDevicesAsync(
+            principal.BroadcasterId.ToString(),
+            ct
+        );
+        IReadOnlyList<AutomationDeviceDto> mapped =
+        [
+            .. devices.Select(d => new AutomationDeviceDto(
+                d.Id,
+                d.Name,
+                d.Type,
+                d.IsActive,
+                d.VolumePercent
+            )),
+        ];
+        return Result.Success(mapped);
+    }
+
+    public async Task<Result<IReadOnlyList<AutomationPlaylistDto>>> GetPlaylistsAsync(
+        AutomationPrincipal principal,
+        int limit = 20,
+        int offset = 0,
+        CancellationToken ct = default
+    )
+    {
+        if (!principal.Scopes.Contains("read"))
+            return Forbidden<IReadOnlyList<AutomationPlaylistDto>>("read");
+        Result limited = await AcquireAsync(principal, "read", ReadsPerMinute, ct);
+        if (limited.IsFailure)
+            return Result.Failure<IReadOnlyList<AutomationPlaylistDto>>(
+                limited.ErrorMessage!,
+                limited.ErrorCode!,
+                limited.ErrorDetail
+            );
+
+        IReadOnlyList<MusicPlaylistDto> playlists = await _music.GetPlaylistsAsync(
+            principal.BroadcasterId.ToString(),
+            offset,
+            limit,
+            ct
+        );
+        IReadOnlyList<AutomationPlaylistDto> mapped =
+        [
+            .. playlists.Select(p => new AutomationPlaylistDto(
+                p.Id,
+                p.Name,
+                p.Uri,
+                p.TrackCount,
+                p.ImageUrl
+            )),
+        ];
+        return Result.Success(mapped);
     }
 
     private async Task<PipelineEntity?> ResolvePipelineAsync(

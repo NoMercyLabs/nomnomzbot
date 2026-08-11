@@ -74,3 +74,39 @@ public sealed record AutomationInfo(
 
 /// <summary>One subscribable public event type (automation-api.md §3, for the events catalog).</summary>
 public sealed record AutomationEventCatalogItem(string PublicName, string Description);
+
+/// <summary>
+/// Current playback state (music-automation-controls.md §3.2/§3.3) — the position-anchor shape a
+/// client extrapolates locally (widget-sdk.md §9), shared verbatim between the <c>GET
+/// /automation/v1/music/now-playing</c> read and the <c>song.changed</c> event payload so they can
+/// never drift (produced by the single Infrastructure-layer MusicAutomationProjection helper).
+/// </summary>
+public sealed record AutomationNowPlayingDto(
+    string? Title,
+    string? Artist,
+    int DurationMs,
+    int PositionMs,
+    bool IsPlaying,
+    bool ShuffleEnabled,
+    string RepeatMode,
+    bool? IsSaved,
+    DateTimeOffset ServerTime
+);
+
+/// <summary>One of the broadcaster's playback devices on the active music provider.</summary>
+public sealed record AutomationDeviceDto(
+    string Id,
+    string Name,
+    string Type,
+    bool IsActive,
+    int? VolumePercent
+);
+
+/// <summary>One of the broadcaster's playlists on the active music provider.</summary>
+public sealed record AutomationPlaylistDto(
+    string Id,
+    string Name,
+    string Uri,
+    int TrackCount,
+    string? ImageUrl
+);

@@ -51,4 +51,25 @@ public interface IAutomationCommandService
         AutomationChatRequest request,
         CancellationToken ct = default
     );
+
+    /// <summary>Current playback state (scope <c>read</c>) — music-automation-controls.md §3.2. Shares
+    /// its projection with <c>song.changed</c> so the REST read and the event payload never drift.</summary>
+    Task<Result<AutomationNowPlayingDto>> GetNowPlayingAsync(
+        AutomationPrincipal principal,
+        CancellationToken ct = default
+    );
+
+    /// <summary>The broadcaster's playback devices on the active music provider (scope <c>read</c>).</summary>
+    Task<Result<IReadOnlyList<AutomationDeviceDto>>> GetDevicesAsync(
+        AutomationPrincipal principal,
+        CancellationToken ct = default
+    );
+
+    /// <summary>The broadcaster's playlists on the active music provider (scope <c>read</c>), paged.</summary>
+    Task<Result<IReadOnlyList<AutomationPlaylistDto>>> GetPlaylistsAsync(
+        AutomationPrincipal principal,
+        int limit = 20,
+        int offset = 0,
+        CancellationToken ct = default
+    );
 }

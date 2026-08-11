@@ -15,11 +15,15 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.AutomationApi;
 using NSubstitute;
+using MusicPlaylistDto = NomNomzBot.Application.Music.Services.MusicPlaylistDto;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Tests.AutomationApi;
@@ -46,6 +50,8 @@ public sealed class AutomationCommandServiceTests
         public required IRateLimiterPartitionStore Limiter { get; init; }
         public required IChatProvider Chat { get; init; }
         public required ITwitchWhispersApi Whispers { get; init; }
+        public required IMusicService Music { get; init; }
+        public required IMusicProviderManageApi MusicManageApi { get; init; }
     }
 
     private static Harness Build(bool rateLimited = false)
@@ -103,12 +109,18 @@ public sealed class AutomationCommandServiceTests
             )
             .Returns(Result.Success());
 
+        IMusicService music = Substitute.For<IMusicService>();
+        IMusicProviderManageApi musicManageApi = Substitute.For<IMusicProviderManageApi>();
+
         AutomationCommandService service = new(
             db,
             scopeFactory,
             limiter,
             chat,
             whispers,
+            music,
+            musicManageApi,
+            TimeProvider.System,
             NullLogger<AutomationCommandService>.Instance
         );
         return new Harness
@@ -120,6 +132,8 @@ public sealed class AutomationCommandServiceTests
             Limiter = limiter,
             Chat = chat,
             Whispers = whispers,
+            Music = music,
+            MusicManageApi = musicManageApi,
         };
     }
 
@@ -289,5 +303,119 @@ public sealed class AutomationCommandServiceTests
         );
         noScope.IsFailure.Should().BeTrue();
         noScope.ErrorCode.Should().Be("FORBIDDEN");
+    }
+
+    // ─── music-automation-controls.md §3.2: now-playing / devices / playlists reads ───
+
+    [Fact]
+    public async Task GetNowPlaying_maps_the_active_providers_current_track_and_saved_state()
+    {
+        Harness h = Build();
+        h.Music.GetActiveProviderKeyAsync(Channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns("spotify");
+        h.Music.GetNowPlayingAsync(Channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new NowPlaying(
+                    "Song",
+                    "Artist",
+                    "Album",
+                    null,
+                    200_000,
+                    10_000,
+                    true,
+                    100,
+                    null,
+                    "spotify",
+                    "spotify:track:1",
+                    true,
+                    MusicRepeatMode.Track,
+                    "spotify:artist:1"
+                )
+            );
+        h.MusicManageApi.AreTracksSavedAsync(
+                Channel,
+                "spotify",
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success<IReadOnlyList<bool>>([true]));
+
+        Result<AutomationNowPlayingDto> result = await h.Service.GetNowPlayingAsync(Principal());
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Title.Should().Be("Song");
+        result.Value.IsPlaying.Should().BeTrue();
+        result.Value.ShuffleEnabled.Should().BeTrue();
+        result.Value.RepeatMode.Should().Be("track");
+        result.Value.IsSaved.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetNowPlaying_fails_typed_when_no_provider_is_connected()
+    {
+        Harness h = Build();
+        h.Music.GetActiveProviderKeyAsync(Channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns((string?)null);
+
+        Result<AutomationNowPlayingDto> result = await h.Service.GetNowPlayingAsync(Principal());
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
+    }
+
+    [Fact]
+    public async Task GetNowPlaying_requires_the_read_scope()
+    {
+        Harness h = Build();
+
+        Result<AutomationNowPlayingDto> result = await h.Service.GetNowPlayingAsync(
+            Principal(scopes: ["invoke"])
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+        await h
+            .Music.DidNotReceive()
+            .GetActiveProviderKeyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetDevices_maps_the_music_services_device_list()
+    {
+        Harness h = Build();
+        h.Music.GetDevicesAsync(Channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                (IReadOnlyList<MusicDeviceDto>)
+                    [new MusicDeviceDto("dev-1", "Laptop", "Computer", true, 80)]
+            );
+
+        Result<IReadOnlyList<AutomationDeviceDto>> result = await h.Service.GetDevicesAsync(
+            Principal()
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result
+            .Value.Should()
+            .ContainSingle(d => d.Id == "dev-1" && d.Name == "Laptop" && d.IsActive);
+    }
+
+    [Fact]
+    public async Task GetPlaylists_maps_the_music_services_playlist_page()
+    {
+        Harness h = Build();
+        h.Music.GetPlaylistsAsync(Channel.ToString(), 0, 20, Arg.Any<CancellationToken>())
+            .Returns(
+                (IReadOnlyList<MusicPlaylistDto>)
+                    [new MusicPlaylistDto("pl-1", "Chill", "spotify:playlist:pl-1", 12, null)]
+            );
+
+        Result<IReadOnlyList<AutomationPlaylistDto>> result = await h.Service.GetPlaylistsAsync(
+            Principal(),
+            limit: 20,
+            offset: 0
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().ContainSingle(p => p.Id == "pl-1" && p.TrackCount == 12);
     }
 }
