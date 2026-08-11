@@ -27,16 +27,21 @@ export const DEFAULT_BACKGROUND = "#1a1a1a";
  * which a canvas rasterizer would (a real constraint on a fresh install — no bundled Cairo/Skia).
  */
 export function renderPlayPauseKey(state: NowPlayingState, backgroundColor: string = DEFAULT_BACKGROUND): string {
+  // Icon block (y 16-64, 48 tall) and the time text below it are centered as ONE unit within the
+  // 144px key, not independently — resizing either one means re-centering both together.
   const isPlaying = state.current?.isPlaying ?? false;
   const glyph = isPlaying
-    ? `<rect x="48" y="30" width="14" height="50" fill="#fff"/><rect x="82" y="30" width="14" height="50" fill="#fff"/>`
-    : `<polygon points="52,28 52,82 98,55" fill="#fff"/>`;
+    ? `<rect x="50" y="16" width="16" height="48" fill="#fff"/><rect x="80" y="16" width="16" height="48" fill="#fff"/>`
+    : `<polygon points="54,12 54,68 100,40" fill="#fff"/>`;
   const time = escapeXml(state.formattedElapsed());
 
+  // The background color is user-chosen (could be light), so the time needs guaranteed contrast on
+  // ANY of them — a dark outline drawn under the white fill via paint-order, not white-on-color alone.
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}">
     <rect width="${SIZE}" height="${SIZE}" rx="24" fill="${backgroundColor}"/>
     ${glyph}
-    <text x="${SIZE / 2}" y="122" font-family="sans-serif" font-size="20" font-weight="bold" fill="#fff" text-anchor="middle">${time}</text>
+    <text x="${SIZE / 2}" y="126" font-family="sans-serif" font-size="42" font-weight="bold" fill="#fff"
+      stroke="#000" stroke-width="6" stroke-linejoin="round" paint-order="stroke" text-anchor="middle">${time}</text>
   </svg>`;
 
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;

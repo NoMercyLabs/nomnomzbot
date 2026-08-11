@@ -53,13 +53,21 @@ function requestFromPlugin(request) {
   );
 }
 
-/** Every action gets the same "Key color" background picker (keyRenderer.js's DEFAULT_BACKGROUND). */
+/**
+ * Every action gets the same "Key color" background picker (keyRenderer.js's DEFAULT_BACKGROUND).
+ * sdpi-color is a custom element backed by a shadow-DOM <input type="color">: its value setter only
+ * takes effect once the element is connected (its shadow root exists), so append BEFORE assigning
+ * .value — assigning first silently drops the initial color. Listens on both "input" (live drag) and
+ * "change" (picker closed) so a color takes effect immediately, not just after the dialog closes.
+ */
 function initBackgroundColorPicker(container, settings) {
   const item = document.createElement("sdpi-item");
   item.setAttribute("label", "Key color");
   const picker = document.createElement("sdpi-color");
-  picker.value = settings.backgroundColor || "#1a1a1a";
-  picker.addEventListener("change", (ev) => setSettings({ backgroundColor: ev.target.value }));
   item.appendChild(picker);
   container.appendChild(item);
+  picker.value = settings.backgroundColor || "#1a1a1a";
+  const apply = (ev) => setSettings({ backgroundColor: ev.target.value });
+  picker.addEventListener("input", apply);
+  picker.addEventListener("change", apply);
 }
