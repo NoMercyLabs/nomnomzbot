@@ -196,6 +196,16 @@ data class NowPlaying(
     // repeat mode ("off" | "track" | "context"). false/"off" on providers that do not report them.
     val shuffleState: Boolean = false,
     val repeatState: String = "off",
+    // Live per-action permissions from the provider (backend NowPlayingDto): an ad break, restricted
+    // market, or non-Premium account can block a control the provider generally supports. All default
+    // permitted so a provider that never reports them never falsely disables a control.
+    val canSetShuffle: Boolean = true,
+    val canSetRepeat: Boolean = true,
+    val canSkipNext: Boolean = true,
+    val canSkipPrevious: Boolean = true,
+    val canSeek: Boolean = true,
+    val canPause: Boolean = true,
+    val canResume: Boolean = true,
 )
 
 /**

@@ -146,6 +146,7 @@ import nomnomzbot.composeapp.generated.resources.music_devices_title
 import nomnomzbot.composeapp.generated.resources.music_device_transfer
 import nomnomzbot.composeapp.generated.resources.music_playlists_title
 import nomnomzbot.composeapp.generated.resources.music_playlist_play
+import nomnomzbot.composeapp.generated.resources.music_blocked_by_provider
 import nomnomzbot.composeapp.generated.resources.music_blocked_title
 import nomnomzbot.composeapp.generated.resources.music_blocked_empty
 import nomnomzbot.composeapp.generated.resources.music_blocked_reason
@@ -356,6 +357,9 @@ private fun ReadyContent(
                 manage = manage,
                 shuffleOn = nowPlaying?.shuffleState ?: false,
                 repeatMode = nowPlaying?.repeatState ?: "off",
+                canSetShuffle = nowPlaying?.canSetShuffle ?: true,
+                canSetRepeat = nowPlaying?.canSetRepeat ?: true,
+                provider = nowPlaying?.provider,
                 onSetShuffle = onSetShuffle,
                 onSetRepeat = onSetRepeat,
                 onTransfer = onTransfer,
@@ -547,6 +551,10 @@ private fun NowPlayingCard(
             progressMs = tickedMs,
             durationMs = nowPlaying.durationMs,
             manage = manage,
+            canSeek = nowPlaying.canSeek,
+            canPause = nowPlaying.canPause,
+            canResume = nowPlaying.canResume,
+            canSkipNext = nowPlaying.canSkipNext,
             onPlay = onPlay,
             onPause = onPause,
             onSeek = onSeek,
@@ -561,6 +569,10 @@ private fun PlaybackControls(
     progressMs: Int,
     durationMs: Int,
     manage: ManageDecision,
+    canSeek: Boolean,
+    canPause: Boolean,
+    canResume: Boolean,
+    canSkipNext: Boolean,
     onPlay: () -> Unit,
     onPause: () -> Unit,
     onSeek: (positionMs: Int) -> Unit,
@@ -577,21 +589,38 @@ private fun PlaybackControls(
             label = stringResource(Res.string.music_seek_back),
             description = stringResource(Res.string.music_seek_back_description),
             manage = manage,
+            providerAllowed = canSeek,
             onClick = { onSeek((progressMs - 10_000).coerceAtLeast(0)) },
         )
         // Play and pause are the same backend toggle; the live isPlaying flag decides which one is offered.
         if (isPlaying) {
-            ControlButton(label = stringResource(Res.string.music_pause), manage = manage, onClick = onPause)
+            ControlButton(
+                label = stringResource(Res.string.music_pause),
+                manage = manage,
+                providerAllowed = canPause,
+                onClick = onPause,
+            )
         } else {
-            ControlButton(label = stringResource(Res.string.music_play), manage = manage, onClick = onPlay)
+            ControlButton(
+                label = stringResource(Res.string.music_play),
+                manage = manage,
+                providerAllowed = canResume,
+                onClick = onPlay,
+            )
         }
         ControlButton(
             label = stringResource(Res.string.music_seek_forward),
             description = stringResource(Res.string.music_seek_forward_description),
             manage = manage,
+            providerAllowed = canSeek,
             onClick = { onSeek((progressMs + 10_000).coerceAtMost(durationMs)) },
         )
-        ControlButton(label = stringResource(Res.string.music_skip), manage = manage, onClick = onSkip)
+        ControlButton(
+            label = stringResource(Res.string.music_skip),
+            manage = manage,
+            providerAllowed = canSkipNext,
+            onClick = onSkip,
+        )
     }
 }
 
@@ -601,10 +630,16 @@ private fun ControlButton(
     manage: ManageDecision,
     onClick: () -> Unit,
     description: String = label,
+    // False when the PROVIDER (not the caller's role) currently blocks this action — an ad break, a
+    // restricted market, a non-Premium account. Independent of the role gate: a fully-permitted Editor
+    // still can't skip while Spotify itself refuses it, so this ANDs into the same disabled affordance
+    // rather than a second gate the operator has to reason about separately.
+    providerAllowed: Boolean = true,
 ) {
     val tokens = LocalTokens.current
 
-    ManageGate(decision = manage) { enabled ->
+    ManageGate(decision = manage) { manageEnabled ->
+        val enabled: Boolean = manageEnabled && providerAllowed
         TextButton(
             onClick = onClick,
             enabled = enabled,
@@ -1032,6 +1067,9 @@ private fun RemoteControlsSection(
     manage: ManageDecision,
     shuffleOn: Boolean,
     repeatMode: String,
+    canSetShuffle: Boolean,
+    canSetRepeat: Boolean,
+    provider: String?,
     onSetShuffle: (Boolean) -> Unit,
     onSetRepeat: (String) -> Unit,
     onTransfer: (deviceId: String) -> Unit,
@@ -1051,7 +1089,8 @@ private fun RemoteControlsSection(
 
         // Shuffle toggle — reflects the live player state and FLIPS it (not the old one-way "always on"):
         // the Switch shows whether shuffle is on and a tap sends the opposite. control() reloads on success,
-        // so the Switch settles on the real post-write state.
+        // so the Switch settles on the real post-write state. `canSetShuffle` is the PROVIDER's own live
+        // restriction (an ad break, a restricted market) — independent of the role gate, so it ANDs in too.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(spacing.s2),
@@ -1065,8 +1104,8 @@ private fun RemoteControlsSection(
             )
             Switch(
                 checked = shuffleOn,
-                onCheckedChange = { enabled -> if (manage.isAllowed) onSetShuffle(enabled) },
-                enabled = manage.isAllowed,
+                onCheckedChange = { enabled -> if (manage.isAllowed && canSetShuffle) onSetShuffle(enabled) },
+                enabled = manage.isAllowed && canSetShuffle,
             )
         }
         // Repeat mode — the ACTIVE mode is highlighted (off | track | context), so the operator can see and
@@ -1079,12 +1118,20 @@ private fun RemoteControlsSection(
             ).forEach { (mode, labelRes) ->
                 Badge(
                     selected = repeatMode == mode,
-                    enabled = manage.isAllowed,
+                    enabled = manage.isAllowed && canSetRepeat,
                     onClick = { onSetRepeat(mode) },
                 ) {
                     Text(text = stringResource(labelRes), maxLines = 1)
                 }
             }
+        }
+        if (provider != null && (!canSetShuffle || !canSetRepeat)) {
+            Text(
+                text = stringResource(Res.string.music_blocked_by_provider, provider),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+                modifier = Modifier.padding(horizontal = spacing.s1),
+            )
         }
 
         // Devices

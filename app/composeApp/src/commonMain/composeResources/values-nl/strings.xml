@@ -2100,6 +2100,7 @@
     <string name="music_playlists_title">Afspeellijsten</string>
     <string name="music_playlists_empty">Geen afspeellijsten gevonden</string>
     <string name="music_playlist_play">Afspelen: %1$s</string>
+    <string name="music_blocked_by_provider">Op dit moment geblokkeerd door %1$s</string>
     <string name="music_blocked_title">Geblokkeerde nummers</string>
     <string name="music_blocked_empty">Geen geblokkeerde nummers.</string>
     <string name="music_blocked_reason">Reden: %1$s</string>

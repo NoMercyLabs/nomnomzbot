@@ -2103,6 +2103,7 @@
     <string name="music_playlists_title">Playlists</string>
     <string name="music_playlists_empty">No playlists found</string>
     <string name="music_playlist_play">Play %1$s</string>
+    <string name="music_blocked_by_provider">Blocked by %1$s right now</string>
     <string name="music_blocked_title">Blocked songs</string>
     <string name="music_blocked_empty">No blocked songs.</string>
     <string name="music_blocked_reason">Reason: %1$s</string>
