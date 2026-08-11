@@ -9,25 +9,56 @@
     <sdpi-item label="Status">
       <span id="status">Checking connection…</span>
     </sdpi-item>
-    <sdpi-item label="Pairing code">
-      <sdpi-textfield id="code" placeholder="ABCD2345" maxlength="8"></sdpi-textfield>
-    </sdpi-item>
-    <sdpi-item label="Backend URL">
-      <sdpi-textfield id="backendUrl" placeholder="https://your-bot.example.com"></sdpi-textfield>
-    </sdpi-item>
-    <sdpi-item>
-      <button id="pair">Pair</button>
-    </sdpi-item>
+    <div id="waiting">
+      <sdpi-item>
+        <span
+          >Open your NomNomzBot dashboard → Integrations → Stream Deck, then click
+          <strong>Connect a device</strong>. This key pairs automatically — nothing to type here.</span
+        >
+      </sdpi-item>
+    </div>
+    <details id="manualFallback">
+      <summary>Pairing from a different machine?</summary>
+      <sdpi-item label="Pairing code">
+        <sdpi-textfield id="code" placeholder="ABCD2345" maxlength="8"></sdpi-textfield>
+      </sdpi-item>
+      <sdpi-item label="Backend URL">
+        <sdpi-textfield id="backendUrl" placeholder="https://your-bot.example.com"></sdpi-textfield>
+      </sdpi-item>
+      <sdpi-item>
+        <button id="pair" type="button">Pair</button>
+      </sdpi-item>
+    </details>
     <script>
+      let pollTimer = null;
+
+      function applyStatus(detail) {
+        const waiting = document.getElementById("waiting");
+        const manual = document.getElementById("manualFallback");
+        if (detail.paired) {
+          document.getElementById("status").textContent =
+            `Connected (expires ${new Date(detail.tokenExpiresAt).toLocaleDateString()})`;
+          waiting.style.display = "none";
+          manual.style.display = "none";
+          if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+          }
+        } else {
+          document.getElementById("status").textContent = "Not connected — waiting for the dashboard…";
+          waiting.style.display = "";
+          manual.style.display = "";
+        }
+      }
+
       document.addEventListener("pi:ready", () => {
         requestFromPlugin({ type: "getPairingStatus" });
+        // The dashboard's automatic handoff pairs this device in the background (no PI interaction
+        // required) — poll while the PI is open so "Not connected" flips to "Connected" on its own.
+        pollTimer = setInterval(() => requestFromPlugin({ type: "getPairingStatus" }), 2000);
       });
       document.addEventListener("pi:message", (ev) => {
-        if (ev.detail?.type === "pairingStatus") {
-          document.getElementById("status").textContent = ev.detail.paired
-            ? `Connected (expires ${new Date(ev.detail.tokenExpiresAt).toLocaleDateString()})`
-            : "Not connected — use your dashboard's Connect a device, or enter a code below.";
-        }
+        if (ev.detail?.type === "pairingStatus") applyStatus(ev.detail);
       });
       document.getElementById("pair").addEventListener("click", () => {
         requestFromPlugin({

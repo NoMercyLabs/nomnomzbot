@@ -4,7 +4,7 @@
   "Version": "1.0.0",
   "Author": "NoMercy Labs",
   "Description": "Control Spotify (and any other connected NomNomzBot music provider) through your bot's own Automation API — no separate Spotify login, paired automatically from your dashboard.",
-  "Icon": "imgs/plugin/marketplace.svg",
+  "Icon": "imgs/plugin/marketplace",
   "CodePath": "bin/plugin.js",
   "PropertyInspectorPath": "ui/pairing-fallback.html",
   "SDKVersion": 2,
@@ -15,195 +15,195 @@
   ],
   "Nodejs": { "Version": "20", "Debug": "enabled" },
   "Category": "NomNomzBot: Music",
-  "CategoryIcon": "imgs/plugin/category.svg",
+  "CategoryIcon": "imgs/plugin/category",
   "Actions": [
     {
       "Name": "Play",
       "UUID": "bot.nomnomzbot.streamdeck.music-play",
-      "Icon": "imgs/actions/play.svg",
+      "Icon": "imgs/actions/play",
       "Tooltip": "Resumes playback.",
       "PropertyInspectorPath": "ui/pairing-fallback.html",
-      "States": [{ "Image": "imgs/actions/play.svg" }]
+      "States": [{ "Image": "imgs/actions/play" }]
     },
     {
       "Name": "Pause",
       "UUID": "bot.nomnomzbot.streamdeck.music-pause",
-      "Icon": "imgs/actions/pause.svg",
+      "Icon": "imgs/actions/pause",
       "Tooltip": "Pauses playback.",
       "PropertyInspectorPath": "ui/pairing-fallback.html",
-      "States": [{ "Image": "imgs/actions/pause.svg" }]
+      "States": [{ "Image": "imgs/actions/pause" }]
     },
     {
       "Name": "Play/Pause",
       "UUID": "bot.nomnomzbot.streamdeck.music-play-pause",
-      "Icon": "imgs/actions/play-pause.svg",
+      "Icon": "imgs/actions/play-pause",
       "Tooltip": "Toggles playback and shows the elapsed time of the current track.",
       "PropertyInspectorPath": "ui/pairing-fallback.html",
       "States": [
-        { "Image": "imgs/actions/play.svg" },
-        { "Image": "imgs/actions/pause.svg" }
+        { "Image": "imgs/actions/play" },
+        { "Image": "imgs/actions/pause" }
       ]
     },
     {
       "Name": "Next Song",
       "UUID": "bot.nomnomzbot.streamdeck.music-next",
-      "Icon": "imgs/actions/next.svg",
+      "Icon": "imgs/actions/next",
       "Tooltip": "Skips to the next track.",
       "PropertyInspectorPath": "ui/pairing-fallback.html",
-      "States": [{ "Image": "imgs/actions/next.svg" }]
+      "States": [{ "Image": "imgs/actions/next" }]
     },
     {
       "Name": "Previous Song",
       "UUID": "bot.nomnomzbot.streamdeck.music-previous",
-      "Icon": "imgs/actions/previous.svg",
+      "Icon": "imgs/actions/previous",
       "Tooltip": "Goes back to the previous track.",
       "PropertyInspectorPath": "ui/pairing-fallback.html",
-      "States": [{ "Image": "imgs/actions/previous.svg" }]
+      "States": [{ "Image": "imgs/actions/previous" }]
     },
     {
       "Name": "Set Volume",
       "UUID": "bot.nomnomzbot.streamdeck.music-set-volume",
-      "Icon": "imgs/actions/volume.svg",
+      "Icon": "imgs/actions/volume",
       "Tooltip": "Sets playback volume to a fixed level.",
       "PropertyInspectorPath": "ui/simple-param.html",
-      "States": [{ "Image": "imgs/actions/volume.svg" }]
+      "States": [{ "Image": "imgs/actions/volume" }]
     },
     {
       "Name": "Volume Up",
       "UUID": "bot.nomnomzbot.streamdeck.music-volume-up",
-      "Icon": "imgs/actions/volume-up.svg",
+      "Icon": "imgs/actions/volume-up",
       "Tooltip": "Raises playback volume by a step.",
       "PropertyInspectorPath": "ui/simple-param.html",
-      "States": [{ "Image": "imgs/actions/volume-up.svg" }]
+      "States": [{ "Image": "imgs/actions/volume-up" }]
     },
     {
       "Name": "Volume Down",
       "UUID": "bot.nomnomzbot.streamdeck.music-volume-down",
-      "Icon": "imgs/actions/volume-down.svg",
+      "Icon": "imgs/actions/volume-down",
       "Tooltip": "Lowers playback volume by a step.",
       "PropertyInspectorPath": "ui/simple-param.html",
-      "States": [{ "Image": "imgs/actions/volume-down.svg" }]
+      "States": [{ "Image": "imgs/actions/volume-down" }]
     },
     {
       "Name": "Volume Mute/Unmute",
       "UUID": "bot.nomnomzbot.streamdeck.music-volume-mute",
-      "Icon": "imgs/actions/volume-mute.svg",
+      "Icon": "imgs/actions/volume-mute",
       "Tooltip": "Mutes if audible, or unmutes to a configured level if muted.",
       "PropertyInspectorPath": "ui/simple-param.html",
-      "States": [{ "Image": "imgs/actions/volume-mute.svg" }]
+      "States": [{ "Image": "imgs/actions/volume-mute" }]
     },
     {
       "Name": "Seek",
       "UUID": "bot.nomnomzbot.streamdeck.music-seek",
-      "Icon": "imgs/actions/seek.svg",
+      "Icon": "imgs/actions/seek",
       "Tooltip": "Jumps to a specific point in the current track.",
       "PropertyInspectorPath": "ui/simple-param.html",
-      "States": [{ "Image": "imgs/actions/seek.svg" }]
+      "States": [{ "Image": "imgs/actions/seek" }]
     },
     {
       "Name": "Set Shuffle",
       "UUID": "bot.nomnomzbot.streamdeck.music-set-shuffle",
-      "Icon": "imgs/actions/shuffle.svg",
+      "Icon": "imgs/actions/shuffle",
       "Tooltip": "Turns shuffle on or off.",
       "PropertyInspectorPath": "ui/simple-param.html",
       "States": [
-        { "Image": "imgs/actions/shuffle-off.svg" },
-        { "Image": "imgs/actions/shuffle-on.svg" }
+        { "Image": "imgs/actions/shuffle-off" },
+        { "Image": "imgs/actions/shuffle-on" }
       ]
     },
     {
       "Name": "Toggle Shuffle",
       "UUID": "bot.nomnomzbot.streamdeck.music-toggle-shuffle",
-      "Icon": "imgs/actions/shuffle.svg",
+      "Icon": "imgs/actions/shuffle",
       "Tooltip": "Switches shuffle on/off and shows the current state.",
       "PropertyInspectorPath": "ui/pairing-fallback.html",
       "States": [
-        { "Image": "imgs/actions/shuffle-off.svg" },
-        { "Image": "imgs/actions/shuffle-on.svg" }
+        { "Image": "imgs/actions/shuffle-off" },
+        { "Image": "imgs/actions/shuffle-on" }
       ]
     },
     {
       "Name": "Set Repeat Mode",
       "UUID": "bot.nomnomzbot.streamdeck.music-set-repeat",
-      "Icon": "imgs/actions/repeat.svg",
+      "Icon": "imgs/actions/repeat",
       "Tooltip": "Sets repeat to Off, Track, or Playlist/Album.",
       "PropertyInspectorPath": "ui/simple-param.html",
-      "States": [{ "Image": "imgs/actions/repeat.svg" }]
+      "States": [{ "Image": "imgs/actions/repeat" }]
     },
     {
       "Name": "Cycle Repeat Mode",
       "UUID": "bot.nomnomzbot.streamdeck.music-cycle-repeat",
-      "Icon": "imgs/actions/repeat.svg",
+      "Icon": "imgs/actions/repeat",
       "Tooltip": "Cycles repeat Off → Track → Playlist/Album and shows the current mode.",
       "PropertyInspectorPath": "ui/pairing-fallback.html",
-      "States": [{ "Image": "imgs/actions/repeat.svg" }]
+      "States": [{ "Image": "imgs/actions/repeat" }]
     },
     {
       "Name": "Switch Playback Device",
       "UUID": "bot.nomnomzbot.streamdeck.music-transfer-device",
-      "Icon": "imgs/actions/device.svg",
+      "Icon": "imgs/actions/device",
       "Tooltip": "Moves playback to a chosen device.",
       "PropertyInspectorPath": "ui/device-picker.html",
-      "States": [{ "Image": "imgs/actions/device.svg" }]
+      "States": [{ "Image": "imgs/actions/device" }]
     },
     {
       "Name": "Save Track",
       "UUID": "bot.nomnomzbot.streamdeck.music-save-track",
-      "Icon": "imgs/actions/favorite-outline.svg",
+      "Icon": "imgs/actions/favorite-outline",
       "Tooltip": "Adds the currently playing track to your Liked Songs.",
       "PropertyInspectorPath": "ui/pairing-fallback.html",
-      "States": [{ "Image": "imgs/actions/favorite-outline.svg" }]
+      "States": [{ "Image": "imgs/actions/favorite-outline" }]
     },
     {
       "Name": "Remove Saved Track",
       "UUID": "bot.nomnomzbot.streamdeck.music-unsave-track",
-      "Icon": "imgs/actions/favorite-filled.svg",
+      "Icon": "imgs/actions/favorite-filled",
       "Tooltip": "Removes the currently playing track from your Liked Songs.",
       "PropertyInspectorPath": "ui/pairing-fallback.html",
-      "States": [{ "Image": "imgs/actions/favorite-filled.svg" }]
+      "States": [{ "Image": "imgs/actions/favorite-filled" }]
     },
     {
       "Name": "Favorite Toggle",
       "UUID": "bot.nomnomzbot.streamdeck.music-toggle-saved",
-      "Icon": "imgs/actions/favorite-outline.svg",
+      "Icon": "imgs/actions/favorite-outline",
       "Tooltip": "Adds/removes the current track from your Liked Songs and shows whether it's saved.",
       "PropertyInspectorPath": "ui/pairing-fallback.html",
       "States": [
-        { "Image": "imgs/actions/favorite-outline.svg" },
-        { "Image": "imgs/actions/favorite-filled.svg" }
+        { "Image": "imgs/actions/favorite-outline" },
+        { "Image": "imgs/actions/favorite-filled" }
       ]
     },
     {
       "Name": "Add to Playlist",
       "UUID": "bot.nomnomzbot.streamdeck.music-add-to-playlist",
-      "Icon": "imgs/actions/playlist-add.svg",
+      "Icon": "imgs/actions/playlist-add",
       "Tooltip": "Adds the currently playing track to a chosen playlist.",
       "PropertyInspectorPath": "ui/playlist-picker.html",
-      "States": [{ "Image": "imgs/actions/playlist-add.svg" }]
+      "States": [{ "Image": "imgs/actions/playlist-add" }]
     },
     {
       "Name": "Remove from Playlist",
       "UUID": "bot.nomnomzbot.streamdeck.music-remove-from-playlist",
-      "Icon": "imgs/actions/playlist-remove.svg",
+      "Icon": "imgs/actions/playlist-remove",
       "Tooltip": "Removes the currently playing track from a chosen playlist.",
       "PropertyInspectorPath": "ui/playlist-picker.html",
-      "States": [{ "Image": "imgs/actions/playlist-remove.svg" }]
+      "States": [{ "Image": "imgs/actions/playlist-remove" }]
     },
     {
       "Name": "Follow Artist",
       "UUID": "bot.nomnomzbot.streamdeck.music-follow-artist",
-      "Icon": "imgs/actions/follow.svg",
+      "Icon": "imgs/actions/follow",
       "Tooltip": "Follows the current track's artist.",
       "PropertyInspectorPath": "ui/pairing-fallback.html",
-      "States": [{ "Image": "imgs/actions/follow.svg" }]
+      "States": [{ "Image": "imgs/actions/follow" }]
     },
     {
       "Name": "Unfollow Artist",
       "UUID": "bot.nomnomzbot.streamdeck.music-unfollow-artist",
-      "Icon": "imgs/actions/unfollow.svg",
+      "Icon": "imgs/actions/unfollow",
       "Tooltip": "Unfollows the current track's artist.",
       "PropertyInspectorPath": "ui/pairing-fallback.html",
-      "States": [{ "Image": "imgs/actions/unfollow.svg" }]
+      "States": [{ "Image": "imgs/actions/unfollow" }]
     }
   ]
 }
