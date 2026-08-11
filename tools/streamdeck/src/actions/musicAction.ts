@@ -17,14 +17,13 @@ import streamDeck, {
 } from "@elgato/streamdeck";
 import type { JsonObject, JsonValue } from "@elgato/utils";
 import { automationClient, AutomationApiError } from "../connection/automationClient.js";
-import { redeemCodeManually } from "../connection/pairing.js";
-import { getPairingState } from "../connection/tokenStore.js";
+import { getPairingState, getHost, setHost } from "../connection/tokenStore.js";
+import { getDeviceFlowStatus, onDeviceFlowStatusChange } from "../connection/deviceFlowState.js";
 import { renderIconKey, DEFAULT_BACKGROUND } from "../nowPlaying/keyRenderer.js";
 
 interface PiRequest extends JsonObject {
-  type: "getPairingStatus" | "redeemCode" | "listDevices" | "listPlaylists";
-  code?: string;
-  backendUrl?: string;
+  type: "getPairingStatus" | "getHost" | "setHost" | "listDevices" | "listPlaylists";
+  host?: string;
 }
 
 /** Every action's Settings may carry a per-key background color, picked in its property inspector. */
@@ -81,21 +80,34 @@ export abstract class MusicAction<TSettings extends JsonObject = JsonObject> ext
   }
 
   /** Property-inspector requests (streamdeck-plugin.md P5) — the PI can't hold the bearer token
-   * itself, so device/playlist reads and manual-code redemption are relayed through here. Payload
-   * type is the base class's JsonValue (override signatures can't narrow it), cast once inside. */
+   * itself, so device/playlist reads are relayed through here. Pairing is entirely plugin-driven
+   * (device flow, D9): the PI only reads status and the one host setting, never redeems anything
+   * itself. Payload type is the base class's JsonValue (override signatures can't narrow it), cast
+   * once inside. */
   override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, TSettings>): Promise<void> {
     const request = ev.payload as PiRequest;
     if (request.type === "getPairingStatus") {
-      const state = await getPairingState();
+      const [state, flow] = await Promise.all([getPairingState(), Promise.resolve(getDeviceFlowStatus())]);
       await streamDeck.ui.sendToPropertyInspector({
         type: "pairingStatus",
         paired: state !== null,
         tokenExpiresAt: state?.tokenExpiresAt ?? null,
+        verificationUri: flow.verificationUri,
+        lastError: flow.lastError,
       });
-    } else if (request.type === "redeemCode" && request.code && request.backendUrl) {
-      await redeemCodeManually(request.backendUrl, request.code);
-      const state = await getPairingState();
-      await streamDeck.ui.sendToPropertyInspector({ type: "pairingStatus", paired: state !== null });
+      onDeviceFlowStatusChange((status) =>
+        void streamDeck.ui.sendToPropertyInspector({
+          type: "pairingStatus",
+          paired: status.paired,
+          tokenExpiresAt: status.tokenExpiresAt,
+          verificationUri: status.verificationUri,
+          lastError: status.lastError,
+        }),
+      );
+    } else if (request.type === "getHost") {
+      await streamDeck.ui.sendToPropertyInspector({ type: "host", host: await getHost() });
+    } else if (request.type === "setHost" && request.host) {
+      await setHost(request.host);
     } else if (request.type === "listDevices") {
       const devices = await automationClient.getDevices().catch(() => []);
       await streamDeck.ui.sendToPropertyInspector({ type: "devices", devices });

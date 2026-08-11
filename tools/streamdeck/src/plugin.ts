@@ -10,7 +10,7 @@
 
 import streamDeck from "@elgato/streamdeck";
 import { automationClient } from "./connection/automationClient.js";
-import { startPairingListener } from "./connection/pairing.js";
+import { runDeviceFlowLoop } from "./connection/pairing.js";
 import { nowPlayingState } from "./nowPlaying/state.js";
 
 import { PlayAction } from "./actions/play.js";
@@ -35,11 +35,13 @@ import { AddToPlaylistAction } from "./actions/addToPlaylist.js";
 import { RemoveFromPlaylistAction } from "./actions/removeFromPlaylist.js";
 import { FollowArtistAction } from "./actions/followArtist.js";
 import { UnfollowArtistAction } from "./actions/unfollowArtist.js";
+import { ConnectionAction } from "./actions/connection.js";
 
 streamDeck.logger.setLevel("info");
 
 // One shared connection + state for every key instance (streamdeck-plugin.md P2).
 for (const registration of [
+  new ConnectionAction(),
   new PlayAction(),
   new PauseAction(),
   new PlayPauseAction(),
@@ -67,13 +69,14 @@ for (const registration of [
 }
 
 automationClient.onNowPlaying((payload) => nowPlayingState.apply(payload));
-automationClient.onDisconnected(() => streamDeck.logger.warn("Automation token lost — re-pair from the dashboard."));
-
-// D7: the loopback listener runs from launch, paired or not — it's how the dashboard delivers a
-// freshly-minted pairing code automatically on the golden (same-machine) path.
-startPairingListener(() => {
-  void automationClient.connectStream();
+automationClient.onDisconnected(() => {
+  streamDeck.logger.warn("Automation token lost — restarting the device pairing flow.");
+  void runDeviceFlowLoop(() => void automationClient.connectStream());
 });
+
+// D9: the plugin drives pairing itself from launch — no dashboard interaction. Already-paired
+// installs return immediately; a fresh install starts polling right away.
+void runDeviceFlowLoop(() => void automationClient.connectStream());
 
 void automationClient.ensureFreshToken().then(() => automationClient.connectStream());
 setInterval(() => void automationClient.ensureFreshToken(), 24 * 60 * 60 * 1000);

@@ -55,19 +55,22 @@ function requestFromPlugin(request) {
 
 /**
  * Every action gets the same "Key color" background picker (keyRenderer.js's DEFAULT_BACKGROUND).
- * sdpi-color is a custom element backed by a shadow-DOM <input type="color">: its value setter only
- * takes effect once the element is connected (its shadow root exists), so append BEFORE assigning
- * .value — assigning first silently drops the initial color. Listens on both "input" (live drag) and
- * "change" (picker closed) so a color takes effect immediately, not just after the dialog closes.
+ * A plain native <input type="color">, not sdpi-color: sdpi-color is a Lit-based custom element
+ * whose shadow-DOM input binds `.defaultValue` (not `.value`) to its reactive property on render,
+ * so an externally-set `.value` can be silently dropped or overwritten by the component's own next
+ * render cycle — exactly the "picker shows blank / doesn't stick" symptom. The native input has none
+ * of that indirection: its `value` property is standard, synchronous, and always visible.
  */
 function initBackgroundColorPicker(container, settings) {
   const item = document.createElement("sdpi-item");
   item.setAttribute("label", "Key color");
-  const picker = document.createElement("sdpi-color");
-  item.appendChild(picker);
-  container.appendChild(item);
+  const picker = document.createElement("input");
+  picker.type = "color";
+  picker.style.cssText = "width:100%;height:28px;border:none;border-radius:4px;cursor:pointer;background:transparent;padding:0";
   picker.value = settings.backgroundColor || "#1a1a1a";
   const apply = (ev) => setSettings({ backgroundColor: ev.target.value });
   picker.addEventListener("input", apply);
   picker.addEventListener("change", apply);
+  item.appendChild(picker);
+  container.appendChild(item);
 }

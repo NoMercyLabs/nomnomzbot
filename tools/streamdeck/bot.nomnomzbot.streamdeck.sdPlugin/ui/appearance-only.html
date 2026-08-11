@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://sdpi-components.dev/releases/v3/sdpi-components.js"></script>
+    <script src="shared.js"></script>
+  </head>
+  <body>
+    <!-- Every action except Connection uses this PI: just the per-key color picker. Pairing/host
+         setup lives on the Connection key only (streamdeck-plugin.md P6) — showing it on all 22
+         keys was redundant and confusing. -->
+    <div id="appearance"></div>
+    <script>
+      document.addEventListener("pi:ready", (ev) => {
+        initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
+      });
+    </script>
+  </body>
+</html>

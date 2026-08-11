@@ -6,68 +6,52 @@
     <script src="shared.js"></script>
   </head>
   <body>
-    <div id="appearance"></div>
+    <!-- The ONLY key that shows pairing/host setup — every other action's PI is appearance-only.html. -->
+    <sdpi-item label="Host">
+      <sdpi-textfield id="host" placeholder="http://localhost:5080"></sdpi-textfield>
+    </sdpi-item>
     <sdpi-item label="Status">
       <span id="status">Checking connection…</span>
     </sdpi-item>
-    <div id="waiting">
-      <sdpi-item>
-        <span
-          >Open your NomNomzBot dashboard → Integrations → Stream Deck, then click
-          <strong>Connect a device</strong>. This key pairs automatically — nothing to type here.</span
-        >
-      </sdpi-item>
-    </div>
-    <details id="manualFallback">
-      <summary>Pairing from a different machine?</summary>
-      <sdpi-item label="Pairing code">
-        <sdpi-textfield id="code" placeholder="ABCD2345" maxlength="8"></sdpi-textfield>
-      </sdpi-item>
-      <sdpi-item label="Backend URL">
-        <sdpi-textfield id="backendUrl" placeholder="https://your-bot.example.com"></sdpi-textfield>
-      </sdpi-item>
-      <sdpi-item>
-        <button id="pair" type="button">Pair</button>
-      </sdpi-item>
-    </details>
+    <sdpi-item id="linkItem" style="display: none">
+      <a id="link" href="#" target="_blank" rel="noopener">Open approval page</a>
+    </sdpi-item>
     <script>
-      let pollTimer = null;
-
-      function applyStatus(detail) {
-        const waiting = document.getElementById("waiting");
-        const manual = document.getElementById("manualFallback");
-        if (detail.paired) {
-          document.getElementById("status").textContent =
-            `Connected (expires ${new Date(detail.tokenExpiresAt).toLocaleDateString()})`;
-          waiting.style.display = "none";
-          manual.style.display = "none";
-          if (pollTimer) {
-            clearInterval(pollTimer);
-            pollTimer = null;
-          }
-        } else {
-          document.getElementById("status").textContent = "Not connected — waiting for the dashboard…";
-          waiting.style.display = "";
-          manual.style.display = "";
-        }
-      }
-
-      document.addEventListener("pi:ready", (ev) => {
-        initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
+      document.addEventListener("pi:ready", () => {
+        requestFromPlugin({ type: "getHost" });
         requestFromPlugin({ type: "getPairingStatus" });
-        // The dashboard's automatic handoff pairs this device in the background (no PI interaction
-        // required) — poll while the PI is open so "Not connected" flips to "Connected" on its own.
-        pollTimer = setInterval(() => requestFromPlugin({ type: "getPairingStatus" }), 2000);
-      });
-      document.addEventListener("pi:message", (ev) => {
-        if (ev.detail?.type === "pairingStatus") applyStatus(ev.detail);
-      });
-      document.getElementById("pair").addEventListener("click", () => {
-        requestFromPlugin({
-          type: "redeemCode",
-          code: document.getElementById("code").value,
-          backendUrl: document.getElementById("backendUrl").value,
+
+        document.getElementById("host").addEventListener("change", (change) => {
+          requestFromPlugin({ type: "setHost", host: change.target.value });
+          // A host change restarts the flow against the new value — status goes back to "starting".
+          document.getElementById("status").textContent = "Starting pairing…";
+          document.getElementById("linkItem").style.display = "none";
         });
+      });
+
+      document.addEventListener("pi:message", (ev) => {
+        const msg = ev.detail;
+        if (msg?.type === "host") {
+          document.getElementById("host").value = msg.host || "";
+        } else if (msg?.type === "pairingStatus") {
+          const linkItem = document.getElementById("linkItem");
+          const link = document.getElementById("link");
+          if (msg.paired) {
+            document.getElementById("status").textContent =
+              `Connected (expires ${new Date(msg.tokenExpiresAt).toLocaleDateString()})`;
+            linkItem.style.display = "none";
+          } else if (msg.verificationUri) {
+            document.getElementById("status").textContent = "Waiting for approval…";
+            link.href = msg.verificationUri;
+            linkItem.style.display = "";
+          } else if (msg.lastError) {
+            document.getElementById("status").textContent = `${msg.lastError} — retrying…`;
+            linkItem.style.display = "none";
+          } else {
+            document.getElementById("status").textContent = "Starting pairing…";
+            linkItem.style.display = "none";
+          }
+        }
       });
     </script>
   </body>

@@ -26,14 +26,21 @@ if (Test-Path $dst) { Remove-Item -Recurse -Force $dst }
 Copy-Item -Recurse $src $dst
 
 Start-Process "C:\Program Files\Elgato\StreamDeck\StreamDeck.exe"
-Start-Sleep -Seconds 8
 
+# App boot + plugin spin-up is not instant (device attach alone can take 10-15s) — poll rather than
+# guess a fixed sleep, which has produced false "did not connect" failures on a slower boot.
 $log = "$env:APPDATA\Elgato\StreamDeck\logs\StreamDeck.log"
-$connected = Select-String -Path $log -Pattern "\[bot\.nomnomzbot\.streamdeck\] Plugin connected" |
-    Select-Object -Last 1
+$connected = $null
+for ($i = 0; $i -lt 15 -and -not $connected; $i++) {
+    Start-Sleep -Seconds 2
+    if (Test-Path $log) {
+        $connected = Select-String -Path $log -Pattern "\[bot\.nomnomzbot\.streamdeck\] Plugin connected" |
+            Select-Object -Last 1
+    }
+}
 if ($connected) {
     Write-Host "REINSTALL: OK — $($connected.Line)" -ForegroundColor Green
 } else {
-    Write-Host "REINSTALL: plugin did not report connected — check $log" -ForegroundColor Red
+    Write-Host "REINSTALL: plugin did not report connected within 30s — check $log" -ForegroundColor Red
     exit 1
 }

@@ -3,7 +3,7 @@
   "UUID": "bot.nomnomzbot.streamdeck",
   "Version": "1.0.0",
   "Author": "NoMercy Labs",
-  "Description": "Control Spotify (and any other connected NomNomzBot music provider) through your bot's own Automation API — no separate Spotify login, paired automatically from your dashboard.",
+  "Description": "Control Spotify (and any other connected NomNomzBot music provider) through your bot's own Automation API — pairs itself, defaults to your self-hosted bot at localhost.",
   "Icon": "imgs/plugin/marketplace",
   "CodePath": "bin/plugin.js",
   "PropertyInspectorPath": "ui/pairing-fallback.html",
@@ -18,11 +18,19 @@
   "CategoryIcon": "imgs/plugin/category",
   "Actions": [
     {
+      "Name": "Connection",
+      "UUID": "bot.nomnomzbot.streamdeck.connection",
+      "Icon": "imgs/actions/connection",
+      "Tooltip": "Shows pairing status and lets you set the bot's host — place this once, not per key.",
+      "PropertyInspectorPath": "ui/pairing-fallback.html",
+      "States": [{ "Image": "imgs/actions/connection" }]
+    },
+    {
       "Name": "Play",
       "UUID": "bot.nomnomzbot.streamdeck.music-play",
       "Icon": "imgs/actions/play",
       "Tooltip": "Resumes playback.",
-      "PropertyInspectorPath": "ui/pairing-fallback.html",
+      "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [{ "Image": "imgs/actions/play" }]
     },
     {
@@ -30,7 +38,7 @@
       "UUID": "bot.nomnomzbot.streamdeck.music-pause",
       "Icon": "imgs/actions/pause",
       "Tooltip": "Pauses playback.",
-      "PropertyInspectorPath": "ui/pairing-fallback.html",
+      "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [{ "Image": "imgs/actions/pause" }]
     },
     {
@@ -38,7 +46,7 @@
       "UUID": "bot.nomnomzbot.streamdeck.music-play-pause",
       "Icon": "imgs/actions/play-pause",
       "Tooltip": "Toggles playback and shows the elapsed time of the current track.",
-      "PropertyInspectorPath": "ui/pairing-fallback.html",
+      "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [
         { "Image": "imgs/actions/play" },
         { "Image": "imgs/actions/pause" }
@@ -49,7 +57,7 @@
       "UUID": "bot.nomnomzbot.streamdeck.music-next",
       "Icon": "imgs/actions/next",
       "Tooltip": "Skips to the next track.",
-      "PropertyInspectorPath": "ui/pairing-fallback.html",
+      "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [{ "Image": "imgs/actions/next" }]
     },
     {
@@ -57,7 +65,7 @@
       "UUID": "bot.nomnomzbot.streamdeck.music-previous",
       "Icon": "imgs/actions/previous",
       "Tooltip": "Goes back to the previous track.",
-      "PropertyInspectorPath": "ui/pairing-fallback.html",
+      "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [{ "Image": "imgs/actions/previous" }]
     },
     {
@@ -116,7 +124,7 @@
       "UUID": "bot.nomnomzbot.streamdeck.music-toggle-shuffle",
       "Icon": "imgs/actions/shuffle",
       "Tooltip": "Switches shuffle on/off and shows the current state.",
-      "PropertyInspectorPath": "ui/pairing-fallback.html",
+      "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [
         { "Image": "imgs/actions/shuffle-off" },
         { "Image": "imgs/actions/shuffle-on" }
@@ -135,7 +143,7 @@
       "UUID": "bot.nomnomzbot.streamdeck.music-cycle-repeat",
       "Icon": "imgs/actions/repeat",
       "Tooltip": "Cycles repeat Off → Track → Playlist/Album and shows the current mode.",
-      "PropertyInspectorPath": "ui/pairing-fallback.html",
+      "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [{ "Image": "imgs/actions/repeat" }]
     },
     {
@@ -151,7 +159,7 @@
       "UUID": "bot.nomnomzbot.streamdeck.music-save-track",
       "Icon": "imgs/actions/favorite-outline",
       "Tooltip": "Adds the currently playing track to your Liked Songs.",
-      "PropertyInspectorPath": "ui/pairing-fallback.html",
+      "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [{ "Image": "imgs/actions/favorite-outline" }]
     },
     {
@@ -159,7 +167,7 @@
       "UUID": "bot.nomnomzbot.streamdeck.music-unsave-track",
       "Icon": "imgs/actions/favorite-filled",
       "Tooltip": "Removes the currently playing track from your Liked Songs.",
-      "PropertyInspectorPath": "ui/pairing-fallback.html",
+      "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [{ "Image": "imgs/actions/favorite-filled" }]
     },
     {
@@ -167,7 +175,7 @@
       "UUID": "bot.nomnomzbot.streamdeck.music-toggle-saved",
       "Icon": "imgs/actions/favorite-outline",
       "Tooltip": "Adds/removes the current track from your Liked Songs and shows whether it's saved.",
-      "PropertyInspectorPath": "ui/pairing-fallback.html",
+      "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [
         { "Image": "imgs/actions/favorite-outline" },
         { "Image": "imgs/actions/favorite-filled" }
@@ -194,7 +202,7 @@
       "UUID": "bot.nomnomzbot.streamdeck.music-follow-artist",
       "Icon": "imgs/actions/follow",
       "Tooltip": "Follows the current track's artist.",
-      "PropertyInspectorPath": "ui/pairing-fallback.html",
+      "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [{ "Image": "imgs/actions/follow" }]
     },
     {
@@ -202,7 +210,7 @@
       "UUID": "bot.nomnomzbot.streamdeck.music-unfollow-artist",
       "Icon": "imgs/actions/unfollow",
       "Tooltip": "Unfollows the current track's artist.",
-      "PropertyInspectorPath": "ui/pairing-fallback.html",
+      "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [{ "Image": "imgs/actions/unfollow" }]
     }
   ]

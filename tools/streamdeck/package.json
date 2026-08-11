@@ -15,6 +15,7 @@
   "dependencies": {
     "@elgato/streamdeck": "^2.1.1",
     "@elgato/utils": "0.5.0",
+    "open": "^11.0.0",
     "tslib": "^2.6.3",
     "ws": "^8.19.0"
   },

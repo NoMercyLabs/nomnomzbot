@@ -24,7 +24,7 @@ export const DEFAULT_BACKGROUND = "#1a1a1a";
  * elapsed-time text has clear, non-overlapping room below it — both centered on x=72 independently
  * of each other's height, not hand-placed. */
 const PLAY_PAUSE_ICON_SCALE = 2.5;
-const PLAY_PAUSE_ICON_TOP = 10;
+const PLAY_PAUSE_ICON_TOP = 28;
 const PLAY_PAUSE_ICON_OFFSET_X = (SIZE - 24 * PLAY_PAUSE_ICON_SCALE) / 2;
 
 /**
