@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.DevPlatform.Projects;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
@@ -34,6 +35,7 @@ public class WidgetService : IWidgetService
     private readonly IWidgetBuildService _buildService;
     private readonly IWidgetSettingsSchemaProvider _settingsSchemas;
     private readonly TimeProvider _timeProvider;
+    private readonly IMusicService _musicService;
 
     public WidgetService(
         IApplicationDbContext db,
@@ -41,7 +43,8 @@ public class WidgetService : IWidgetService
         IEventBus eventBus,
         IWidgetBuildService buildService,
         IWidgetSettingsSchemaProvider settingsSchemas,
-        TimeProvider timeProvider
+        TimeProvider timeProvider,
+        IMusicService musicService
     )
     {
         _db = db;
@@ -55,6 +58,7 @@ public class WidgetService : IWidgetService
         _buildService = buildService;
         _settingsSchemas = settingsSchemas;
         _timeProvider = timeProvider;
+        _musicService = musicService;
     }
 
     public async Task<Result<WidgetDetail>> CreateAsync(
@@ -922,6 +926,27 @@ public class WidgetService : IWidgetService
         }
 
         return Result.Success(new OverlayManifest(channel.Id, GenerateCspNonce(), entries));
+    }
+
+    public async Task<Result<string>> GetSpotifyPlaybackTokenAsync(
+        string overlayToken,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.OverlayToken == overlayToken,
+            cancellationToken
+        );
+        if (channel is null)
+            return Result.Failure<string>(
+                "No channel found for the provided overlay token.",
+                "NOT_FOUND"
+            );
+
+        return await _musicService.GetEmbeddedPlaybackTokenAsync(
+            channel.Id.ToString(),
+            cancellationToken
+        );
     }
 
     public async Task<Result<OverlayBundle>> GetOverlayBundleAsync(

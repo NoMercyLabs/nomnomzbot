@@ -439,6 +439,88 @@ public sealed class SpotifyMusicProviderReadTests
     }
 
     [Fact]
+    public async Task Embedded_playback_token_is_null_when_the_streaming_scope_was_not_granted()
+    {
+        // A real pre-feature Spotify connection: playback scopes granted, "streaming" never requested.
+        MusicTestDbContext db = new(
+            new DbContextOptionsBuilder<MusicTestDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options
+        );
+        db.Services.Add(
+            new Service
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = "spotify",
+                BroadcasterId = ChannelId,
+                Enabled = true,
+                AccessToken = "test-access-token",
+                Scopes = ["user-read-playback-state", "user-modify-playback-state"],
+            }
+        );
+        db.SaveChanges();
+        SpotifyMusicProvider spotify = new(
+            db,
+            new PassthroughProtector(),
+            new InMemoryIntegrationCapabilityStore(),
+            new SingleHandlerClientFactory(new RecordingHttpHandler()),
+            TimeProvider.System,
+            NullLogger<SpotifyMusicProvider>.Instance
+        );
+
+        string? token = await spotify.GetEmbeddedPlaybackTokenAsync(ChannelId);
+
+        token.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Embedded_playback_token_is_null_when_not_connected_at_all()
+    {
+        (SpotifyMusicProvider spotify, RecordingHttpHandler _) = BuildProvider(
+            connectSpotify: false
+        );
+
+        string? token = await spotify.GetEmbeddedPlaybackTokenAsync(ChannelId);
+
+        token.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Embedded_playback_token_returns_the_live_access_token_when_streaming_is_granted()
+    {
+        MusicTestDbContext db = new(
+            new DbContextOptionsBuilder<MusicTestDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options
+        );
+        db.Services.Add(
+            new Service
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = "spotify",
+                BroadcasterId = ChannelId,
+                Enabled = true,
+                AccessToken = "test-access-token",
+                Scopes = ["user-read-playback-state", "streaming", "user-read-email"],
+            }
+        );
+        db.SaveChanges();
+        RecordingHttpHandler handler = new();
+        SpotifyMusicProvider spotify = new(
+            db,
+            new PassthroughProtector(),
+            new InMemoryIntegrationCapabilityStore(),
+            new SingleHandlerClientFactory(handler),
+            TimeProvider.System,
+            NullLogger<SpotifyMusicProvider>.Instance
+        );
+
+        string? token = await spotify.GetEmbeddedPlaybackTokenAsync(ChannelId);
+
+        token.Should().Be("test-access-token");
+    }
+
+    [Fact]
     public async Task Now_playing_is_null_when_no_active_device_204()
     {
         // GET /me/player returns 204 when playback is on no device — nothing is playing, so now-playing is null.

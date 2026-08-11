@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
@@ -44,7 +45,16 @@ public sealed class WidgetServiceCompileTests
         WidgetTestDbContext db,
         IEventBus eventBus,
         IWidgetBuildService buildService
-    ) => new(db, EmptyConfig, eventBus, buildService, new WidgetSettingsSchemaProvider(), Clock);
+    ) =>
+        new(
+            db,
+            EmptyConfig,
+            eventBus,
+            buildService,
+            new WidgetSettingsSchemaProvider(),
+            Clock,
+            Substitute.For<IMusicService>()
+        );
 
     private static Result<WidgetBuildOutput> Ok(
         string bundle = "BUNDLE",

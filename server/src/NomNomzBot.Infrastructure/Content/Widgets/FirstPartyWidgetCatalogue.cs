@@ -175,6 +175,10 @@ public static class FirstPartyWidgetCatalogue
                 ["showArt"] = true,
                 ["showProgressBar"] = true,
                 ["provider"] = "",
+                // Off by default: becoming the active Spotify Connect device is a real behavior change
+                // (it can steal playback from whatever the streamer already has open), not a passive display
+                // setting — an explicit opt-in, matching the streaming OAuth scope it also requires.
+                ["enableAudio"] = false,
                 ["accentColor"] = "#9146ff",
             },
             DefaultEventSubscriptions: ["now_playing"]

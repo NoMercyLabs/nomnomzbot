@@ -16,6 +16,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.DevPlatform.Projects;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -61,7 +62,15 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
         );
 
     private WidgetService NewService(WidgetTestDbContext db, IEventBus bus) =>
-        new(db, EmptyConfig, bus, RealBuild(), new WidgetSettingsSchemaProvider(), Clock);
+        new(
+            db,
+            EmptyConfig,
+            bus,
+            RealBuild(),
+            new WidgetSettingsSchemaProvider(),
+            Clock,
+            Substitute.For<IMusicService>()
+        );
 
     private static async Task<Guid> SeedChannelAsync(WidgetSqliteTestDatabase database)
     {

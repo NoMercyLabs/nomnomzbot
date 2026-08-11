@@ -495,11 +495,23 @@ public sealed class MusicService : IMusicService
     private static Result InvalidChannelId() =>
         Result.Failure("Invalid channel id.", "VALIDATION_FAILED");
 
+    private static Result<T> InvalidChannelId<T>() =>
+        Result.Failure<T>("Invalid channel id.", "VALIDATION_FAILED");
+
     private static Result NoProvider() =>
         Result.Failure("No active music provider.", "SERVICE_UNAVAILABLE");
 
+    private static Result<T> NoProvider<T>() =>
+        Result.Failure<T>("No active music provider.", "SERVICE_UNAVAILABLE");
+
     private static Result Unsupported(string operation) =>
         Result.Failure(
+            $"The active music provider does not support {operation}.",
+            "CAPABILITY_UNSUPPORTED"
+        );
+
+    private static Result<T> Unsupported<T>(string operation) =>
+        Result.Failure<T>(
             $"The active music provider does not support {operation}.",
             "CAPABILITY_UNSUPPORTED"
         );
@@ -698,6 +710,29 @@ public sealed class MusicService : IMusicService
             .Select(p => new MusicPlaylistDto(p.Id, p.Name, p.Uri, p.TrackCount, p.ImageUrl))
             .ToList()
             .AsReadOnly();
+    }
+
+    public async Task<Result<string>> GetEmbeddedPlaybackTokenAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return InvalidChannelId<string>();
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null)
+            return NoProvider<string>();
+        if (!HasCapability(provider, MusicProviderCapabilities.EmbeddedPlayback))
+            return Unsupported<string>("embedded playback");
+
+        string? token = await provider.GetEmbeddedPlaybackTokenAsync(tenantId, cancellationToken);
+        return token is null
+            ? Result.Failure<string>(
+                "This channel's Spotify connection hasn't granted the streaming scope yet — reconnect Spotify to enable it.",
+                "MISSING_SCOPE"
+            )
+            : Result.Success(token);
     }
 
     public async Task<bool> PlayContextAsync(

@@ -64,6 +64,10 @@ public enum MusicProviderCapabilities
 
     /// <summary>Follow/unfollow channels (YouTube subscriptions).</summary>
     Subscriptions = 1 << 14,
+
+    /// <summary>Can mint a short-lived playback access token for an in-browser SDK player (Spotify Web
+    /// Playback SDK) to become the active Connect device and stream real audio.</summary>
+    EmbeddedPlayback = 1 << 15,
 }
 
 /// <summary>Provider repeat mode. <c>Context</c> = playlist/album (Spotify "context").</summary>
@@ -172,6 +176,19 @@ public interface IMusicProvider
     Task<bool> AddToQueueAsync(
         Guid broadcasterId,
         string trackUri,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// A short-lived (provider-native lifetime, e.g. Spotify's ~1h) scoped access token an in-browser SDK
+    /// player can hold directly — never the refresh token. Requires
+    /// <see cref="MusicProviderCapabilities.EmbeddedPlayback"/>; null on any failure (not connected, missing
+    /// scope, unsupported) — matches <see cref="GetCurrentTrackAsync"/>'s nullable pattern rather than a
+    /// typed Result, since Domain carries no error-result type. The caller (Application layer) is
+    /// responsible for turning a null into a user-facing reason.
+    /// </summary>
+    Task<string?> GetEmbeddedPlaybackTokenAsync(
+        Guid broadcasterId,
         CancellationToken cancellationToken = default
     );
 }

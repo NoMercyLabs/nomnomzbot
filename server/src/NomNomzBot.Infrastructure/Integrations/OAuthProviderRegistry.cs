@@ -80,6 +80,11 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
                     "user-library-read",
                     "user-library-modify",
                 ],
+                // Progressive: only requested when the streamer enables the OBS playback widget's embedded
+                // audio, since it lets the SDK become a real Connect device and stream — a materially
+                // bigger consent than read/control. streaming + user-read-email/private are Spotify's own
+                // documented Web Playback SDK requirements.
+                ["spotify.streaming"] = ["streaming", "user-read-email", "user-read-private"],
             },
             IsByok: ResolveIsByok("Spotify")
         );

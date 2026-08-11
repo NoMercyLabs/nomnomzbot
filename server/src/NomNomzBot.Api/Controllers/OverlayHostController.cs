@@ -131,9 +131,14 @@ public sealed class OverlayHostController : ControllerBase
     /// styles); img/media/font load over https only; connect covers the SDK's same-origin hub socket. No eval — the
     /// widget bundles ship pre-compiled render functions.
     /// </summary>
-    private static string ContentSecurityPolicy(string nonce) =>
+    // Spotify's Web Playback SDK loads from here and creates its own hidden iframe here for EME/DRM audio
+    // decoding — an SDK requirement, not something this bot controls.
+    private const string SpotifySdkOrigin = "https://sdk.scdn.co";
+
+    private static string ContentSecurityPolicy(string nonce, bool allowSpotifyPlayback = false) =>
         "default-src 'none'; "
-        + $"script-src 'self' 'nonce-{nonce}'; "
+        + $"script-src 'self' 'nonce-{nonce}'"
+        + (allowSpotifyPlayback ? $" {SpotifySdkOrigin}; " : "; ")
         + "style-src 'self' 'unsafe-inline'; "
         // 'self' — same-origin at any scheme — matters on plain-http LAN/self-host origins where a
         // scheme-source of https: matches nothing; blob:/data: on media only, for client-synthesized
@@ -142,7 +147,16 @@ public sealed class OverlayHostController : ControllerBase
         + "media-src 'self' https: blob: data:; "
         + "font-src https: data:; "
         + "connect-src 'self' https: wss: ws:; "
-        + "base-uri 'none'; object-src 'none'; frame-src 'none'; form-action 'none'";
+        + "base-uri 'none'; object-src 'none'; "
+        + $"frame-src {(allowSpotifyPlayback ? SpotifySdkOrigin : "'none'")}; form-action 'none'";
+
+    /// <summary>Widget settings declare a truthy <c>enableAudio</c> flag (the OBS playback widget's opt-in) — the
+    /// only trigger for relaxing the CSP to admit Spotify's SDK, so every other widget keeps the strict default.
+    /// <c>Settings</c> values are plain CLR by the time they reach here (Widget.Settings' [VC:JSON] read side
+    /// normalizes Newtonsoft JTokens to plain bool/string/etc — see JsonValueConverter.PlainObjectConverter), so
+    /// this is a direct <c>bool</c> check, never a JToken/JsonElement one.</summary>
+    private static bool WantsSpotifyPlayback(OverlayWidgetEntry entry) =>
+        entry.Settings.TryGetValue("enableAudio", out object? value) && value is true;
 
     /// <summary>A framework (vue/react/…) widget: config + runtime + SDK, then the self-mounting bundle into #app.</summary>
     private static string RenderFrameworkPage(OverlayWidgetEntry entry, string token)
@@ -157,13 +171,14 @@ public sealed class OverlayHostController : ControllerBase
             : string.Empty;
         string bundleUrl =
             $"/api/v1/overlay/bundle/{entry.WidgetId}?token={Uri.EscapeDataString(token)}&v={entry.ContentHash}";
+        string csp = ContentSecurityPolicy(nonce, WantsSpotifyPlayback(entry));
 
         return $$"""
             <!DOCTYPE html>
             <html lang="en">
             <head>
             <meta charset="utf-8">
-            <meta http-equiv="Content-Security-Policy" content="{{ContentSecurityPolicy(nonce)}}">
+            <meta http-equiv="Content-Security-Policy" content="{{csp}}">
             <title>NomNomzBot Overlay</title>
             <style>html,body{margin:0;padding:0;background:transparent;overflow:hidden}#app{position:fixed;inset:0}</style>
             {{ConfigScript(entry, token, nonce)}}

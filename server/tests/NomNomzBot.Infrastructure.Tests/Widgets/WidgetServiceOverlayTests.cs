@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
@@ -37,14 +38,19 @@ public sealed class WidgetServiceOverlayTests
     );
     private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
 
-    private static WidgetService NewService(WidgetTestDbContext db, IWidgetBuildService build) =>
+    private static WidgetService NewService(
+        WidgetTestDbContext db,
+        IWidgetBuildService build,
+        IMusicService? musicService = null
+    ) =>
         new(
             db,
             EmptyConfig,
             Substitute.For<IEventBus>(),
             build,
             new WidgetSettingsSchemaProvider(),
-            Clock
+            Clock,
+            musicService ?? Substitute.For<IMusicService>()
         );
 
     private static IWidgetBuildService BuildReturning(string bundle, string hash)
@@ -324,5 +330,61 @@ public sealed class WidgetServiceOverlayTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task Spotify_playback_token_resolves_the_overlay_tokens_channel_and_delegates_to_music_service()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetEmbeddedPlaybackTokenAsync(channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success("live-access-token"));
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, Substitute.For<IWidgetBuildService>(), music);
+
+        Result<string> result = await service.GetSpotifyPlaybackTokenAsync("tok");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("live-access-token");
+    }
+
+    [Fact]
+    public async Task Spotify_playback_token_fails_NOT_FOUND_for_an_unknown_overlay_token()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, Substitute.For<IWidgetBuildService>());
+
+        Result<string> result = await service.GetSpotifyPlaybackTokenAsync("nope");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task Spotify_playback_token_surfaces_MISSING_SCOPE_from_the_music_service()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetEmbeddedPlaybackTokenAsync(channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<string>("missing scope", "MISSING_SCOPE"));
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, Substitute.For<IWidgetBuildService>(), music);
+
+        Result<string> result = await service.GetSpotifyPlaybackTokenAsync("tok");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("MISSING_SCOPE");
     }
 }

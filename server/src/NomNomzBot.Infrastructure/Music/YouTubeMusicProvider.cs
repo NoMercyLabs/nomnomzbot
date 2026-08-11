@@ -302,6 +302,16 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
         return Task.FromResult(true);
     }
 
+    public Task<string?> GetEmbeddedPlaybackTokenAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // No EmbeddedPlayback capability declared — YouTube already plays through our own browser-source
+        // IFrame player, so there is no separate SDK-device token to mint.
+        return Task.FromResult<string?>(null);
+    }
+
     // ─── IMusicProviderManageApi (§3.10 — per-user manage over the youtube.manage OAuth token) ─
 
     public async Task<Result<IReadOnlyList<MusicPlaylistDto>>> ListPlaylistsAsync(

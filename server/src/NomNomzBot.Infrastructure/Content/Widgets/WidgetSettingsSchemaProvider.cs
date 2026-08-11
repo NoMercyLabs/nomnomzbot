@@ -226,6 +226,12 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Bool(d, "showArt", "Show album art", Content),
                 Bool(d, "showProgressBar", "Show progress bar", Content),
                 Text(d, "provider", "Provider filter", Content, "Blank shows any; e.g. spotify."),
+                Bool(
+                    d,
+                    "enableAudio",
+                    "Play audio through this widget (Spotify Premium, requires reconnecting Spotify with streaming permission)",
+                    Behaviour
+                ),
                 Accent(d),
             ],
             "sr_queue" =>

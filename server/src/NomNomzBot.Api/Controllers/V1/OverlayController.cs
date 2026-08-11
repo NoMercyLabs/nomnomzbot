@@ -52,6 +52,27 @@ public class OverlayController : BaseController
     }
 
     /// <summary>
+    /// A short-lived scoped Spotify access token for the OBS playback widget's in-browser Web Playback SDK
+    /// player. Never the refresh token; the widget re-fetches this whenever the SDK's <c>getOAuthToken</c>
+    /// callback fires (roughly hourly, matching Spotify's own token lifetime).
+    /// </summary>
+    [HttpGet("spotify-token")]
+    [ProducesResponseType<StatusResponseDto<string>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSpotifyPlaybackToken(
+        [FromQuery] string? token,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return BadRequestResponse("An overlay token is required.");
+
+        Result<string> result = await _widgetService.GetSpotifyPlaybackTokenAsync(token, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<string> { Data = result.Value });
+    }
+
+    /// <summary>
     /// Serve a widget's active compiled bundle. The URL carries the content hash as <c>?v=</c>, so the response is
     /// safely long-cacheable (a new compile / rollback changes the hash → a fresh URL the host fetches instead).
     /// </summary>

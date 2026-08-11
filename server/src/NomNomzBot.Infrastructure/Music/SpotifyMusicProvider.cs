@@ -317,6 +317,44 @@ public sealed class SpotifyMusicProvider
         return track is null ? null : MapToTrackInfo(track);
     }
 
+    public async Task<string?> GetEmbeddedPlaybackTokenAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Service? service = await _db.Services.FirstOrDefaultAsync(
+            s =>
+                s.BroadcasterId == broadcasterId
+                && s.Name == ProviderName
+                && s.Enabled
+                && s.AccessToken != null,
+            cancellationToken
+        );
+        if (service is null)
+        {
+            _logger.LogDebug(
+                "GetEmbeddedPlaybackTokenAsync: no Spotify service for broadcaster {BroadcasterId}",
+                broadcasterId
+            );
+            return null;
+        }
+
+        // The SDK becomes a real Connect device and streams audio — deliberately gated on its own scope
+        // (never implied by the playback-control scopes already granted), so an existing connection made
+        // before this feature shipped is never silently handed a token wider than what the streamer actually
+        // consented to.
+        if (!service.Scopes.Contains("streaming"))
+        {
+            _logger.LogDebug(
+                "GetEmbeddedPlaybackTokenAsync: broadcaster {BroadcasterId} has not granted the streaming scope",
+                broadcasterId
+            );
+            return null;
+        }
+
+        return await GetTokenAsync(broadcasterId, cancellationToken);
+    }
+
     public async Task<bool> AddToQueueAsync(
         Guid broadcasterId,
         string trackUri,

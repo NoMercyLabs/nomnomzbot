@@ -141,6 +141,19 @@ public interface IMusicService
         string contextUri,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// A short-lived scoped access token an in-browser SDK player (the OBS playback widget's Spotify Web
+    /// Playback SDK) can hold directly, so it can become the active Connect device and stream real audio.
+    /// Fails <c>CAPABILITY_UNSUPPORTED</c> when the active provider doesn't declare
+    /// <see cref="MusicProviderCapabilities.EmbeddedPlayback"/>, and <c>MISSING_SCOPE</c> when the channel's
+    /// connection hasn't granted the streaming scope yet (a pre-feature Spotify connection, or provider
+    /// declines).
+    /// </summary>
+    Task<Result<string>> GetEmbeddedPlaybackTokenAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
 }
 
 public sealed record MusicDeviceDto(

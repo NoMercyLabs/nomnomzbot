@@ -387,6 +387,11 @@ public sealed class MusicStatePollingServiceTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
+        public Task<string?> GetEmbeddedPlaybackTokenAsync(
+            Guid broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
         public Task<IReadOnlyList<TrackInfo>> SearchAsync(
             Guid broadcasterId,
             string query,
@@ -533,6 +538,11 @@ public sealed class MusicStatePollingServiceTests
         public Task<bool> PlayContextAsync(
             string broadcasterId,
             string contextUri,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result<string>> GetEmbeddedPlaybackTokenAsync(
+            string broadcasterId,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
     }

@@ -167,6 +167,18 @@ public interface IWidgetService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// A short-lived scoped Spotify access token for the OBS playback widget's in-browser SDK player — never
+    /// the refresh token. Token-auth only (never the user JWT), same resolution as
+    /// <see cref="GetOverlayManifestAsync"/>. Fails <c>NOT_FOUND</c> for an unknown overlay token,
+    /// <c>CAPABILITY_UNSUPPORTED</c> when the channel's active provider isn't Spotify, and
+    /// <c>MISSING_SCOPE</c> when the connection hasn't granted the streaming scope yet.
+    /// </summary>
+    Task<Result<string>> GetSpotifyPlaybackTokenAsync(
+        string overlayToken,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The starter templates offered when creating a new custom widget (static reference data).</summary>
     IReadOnlyList<WidgetTemplate> GetTemplates();
 
