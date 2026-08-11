@@ -66,9 +66,15 @@ function Get-RunState([string]$id) {
 
 $deadlineMin = 45          # CI image build is ~25 min; this is generous headroom.
 $pollSec = 15
+$heartbeatSec = 120        # Silence during a normal ~25min wait is indistinguishable from a hang -
+                            # this is what actually got the script killed mid-run twice. Say something.
 $maxTransient = 40         # ~10 min of consecutive API failures before we give up (never as "red").
-$status = ""; $conclusion = ""; $transient = 0
+$status = ""; $conclusion = ""; $transient = 0; $lastHeartbeat = 0
 for ($elapsed = 0; $elapsed -lt ($deadlineMin * 60); $elapsed += $pollSec) {
+    if (($elapsed - $lastHeartbeat) -ge $heartbeatSec) {
+        Write-Host "SHIP: still watching run $runId ($([math]::Round($elapsed / 60, 1)) min elapsed)..."
+        $lastHeartbeat = $elapsed
+    }
     $state = Get-RunState $runId
     if (-not $state) {
         $transient++
