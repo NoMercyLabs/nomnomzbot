@@ -194,6 +194,20 @@ despite the check. **Fix:** replace the read-modify-write with an atomic
 (via `ExecuteUpdateAsync`/raw SQL, using affected-row-count as the success signal), or
 add a `RowVersion` concurrency token with retry-on-conflict.
 
+**Sibling check (repo-wide search for the same shape — "read a balance-like field into
+memory, mutate, `SaveChangesAsync`, no lock/concurrency token"):** confirmed via grep
+that **no entity in the entire domain model uses `RowVersion`/`[ConcurrencyCheck]`** —
+this isn't scoped to `CurrencyAccount`. A targeted search for in-memory
+increment/decrement on balance-shaped fields found one more live instance beyond
+`CurrencyAccount.Balance` (F11) and `ModerationEscalationState.OffenseCount` (F13):
+`SavingsJarService.cs:295,393` (`ContributeAsync`/`WithdrawAsync`) — `jar.Balance +=`/`-=`
+against a plain `FindJarAsync` read, with `WithdrawAsync`'s insufficient-balance check
+(`jar.Balance < request.Amount`, line 369) reading the same stale in-memory value. Two
+concurrent withdrawals from the same jar can both pass the check and jointly overdraw
+it — identical race shape to F11, different entity. Folded into the same fix as F11/F13
+below (F11b) rather than filed as a separate item, since it's the same root cause and
+the same fix pattern applies.
+
 ### MEDIUM
 
 **F12. Earning-rule dedup is check-then-act, not atomic (TOCTOU, narrow window).**
@@ -285,8 +299,11 @@ being treated as an already-satisfied success).
 
 Ordered by severity across both sweeps:
 
-1. **F11 (HIGH)** — atomic currency balance update. Real double-spend; highest-impact
-   correctness bug in the whole audit alongside F1.
+1. **F11 (HIGH), incl. F11b `SavingsJar.Balance`** — atomic balance update, applied to
+   both `CurrencyAccount.Balance` and `SavingsJar.Balance` (same race shape, same fix
+   pattern, confirmed via repo-wide sibling search — no entity anywhere uses a
+   concurrency token). Real double-spend/overdraw; highest-impact correctness bug in
+   the whole audit alongside F1.
 2. **F1 (CRITICAL, from §2)** — pipeline graph validation on save.
 3. **F3 (HIGH, from §2)** — timer/`GraphJsonCache` staleness.
 4. **F12, F13 (MEDIUM)** — earning-rule unique constraint; escalation-ladder atomic
