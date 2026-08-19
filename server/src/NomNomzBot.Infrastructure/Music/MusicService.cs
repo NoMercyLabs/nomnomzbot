@@ -259,10 +259,7 @@ public sealed class MusicService : IMusicService
         // an exact provider URI already), else the provider's best search hit (callers may pass a raw
         // query), else a display-only synthetic entry.
         TrackInfo trackInfo =
-            await provider.ResolveTrackAsync(tenantId, trackUri, cancellationToken)
-            ?? (
-                await provider.SearchAsync(tenantId, trackUri, 1, cancellationToken)
-            ).FirstOrDefault()
+            await ResolveOrSearchAsync(provider, tenantId, trackUri, cancellationToken)
             ?? new TrackInfo
             {
                 TrackName = trackUri,
@@ -296,22 +293,12 @@ public sealed class MusicService : IMusicService
         if (provider is null)
             return NoProvider<MusicTrack>();
 
-        // Authoritative link/id resolve first — a pasted Spotify/YouTube track link only ever finds its
-        // track this way (the providers' text search does not parse URLs). A plain search phrase fails the
-        // resolve cheaply (no network call for input that isn't a link/id shape — see each provider's
-        // ExtractId/ExtractVideoId) and falls through to search.
-        TrackInfo? trackInfo = await provider.ResolveTrackAsync(tenantId, query, cancellationToken);
-        if (trackInfo is null)
-        {
-            IReadOnlyList<TrackInfo> hits = await provider.SearchAsync(
-                tenantId,
-                query,
-                1,
-                cancellationToken
-            );
-            trackInfo = hits.FirstOrDefault();
-        }
-
+        TrackInfo? trackInfo = await ResolveOrSearchAsync(
+            provider,
+            tenantId,
+            query,
+            cancellationToken
+        );
         if (trackInfo is null)
             return Result.Failure<MusicTrack>($"No tracks found for \"{query}\".", "NOT_FOUND");
 
@@ -341,6 +328,36 @@ public sealed class MusicService : IMusicService
                 trackInfo.Provider
             )
         );
+    }
+
+    /// <summary>
+    /// Authoritative link/id resolve first — a pasted Spotify/YouTube track link only ever finds its track
+    /// this way (the providers' text search does not parse URLs). A plain search phrase fails the resolve
+    /// cheaply (no network call for input that isn't a link/id shape — see each provider's
+    /// ExtractId/ExtractVideoId) and falls through to search. Null when neither finds anything.
+    /// </summary>
+    private static async Task<TrackInfo?> ResolveOrSearchAsync(
+        IMusicProvider provider,
+        Guid tenantId,
+        string queryOrUri,
+        CancellationToken cancellationToken
+    )
+    {
+        TrackInfo? resolved = await provider.ResolveTrackAsync(
+            tenantId,
+            queryOrUri,
+            cancellationToken
+        );
+        if (resolved is not null)
+            return resolved;
+
+        IReadOnlyList<TrackInfo> hits = await provider.SearchAsync(
+            tenantId,
+            queryOrUri,
+            1,
+            cancellationToken
+        );
+        return hits.FirstOrDefault();
     }
 
     /// <summary>
