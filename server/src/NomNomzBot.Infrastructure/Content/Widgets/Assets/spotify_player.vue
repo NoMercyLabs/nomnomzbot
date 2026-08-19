@@ -110,16 +110,38 @@ async function connect(): Promise<void> {
         method: 'PUT',
         headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ device_ids: [device_id], play: true }),
-      }).catch(() => {})
+      }).catch((err) => console.error('[spotify_player] activate device failed', err))
     })
   })
   player.addListener('not_ready', () => { status.value = 'connecting' })
-  player.addListener('initialization_error', () => { status.value = 'error' })
-  player.addListener('authentication_error', () => { status.value = 'blocked' })
-  player.addListener('account_error', () => { status.value = 'blocked' }) // non-Premium account
+  // The SDK's error listeners hand back a { message } payload — log it verbatim. Collapsing every
+  // failure into one silent 'error' state left no way to tell "insecure context", "EME unavailable",
+  // and "network blocked" apart from a screenshot.
+  player.addListener('initialization_error', ({ message }: { message: string }) => {
+    console.error('[spotify_player] initialization_error:', message)
+    status.value = 'error'
+  })
+  player.addListener('authentication_error', ({ message }: { message: string }) => {
+    console.error('[spotify_player] authentication_error:', message)
+    status.value = 'blocked'
+  })
+  player.addListener('account_error', ({ message }: { message: string }) => {
+    console.error('[spotify_player] account_error (non-Premium?):', message)
+    status.value = 'blocked'
+  }) // non-Premium account
+  player.addListener('playback_error', ({ message }: { message: string }) => {
+    console.error('[spotify_player] playback_error:', message)
+  })
 
   const connected = await player.connect()
-  if (!connected) status.value = 'error'
+  if (!connected) {
+    console.error(
+      '[spotify_player] player.connect() returned false — the SDK refused without firing an error ' +
+      'listener. Common cause: this page is not a secure context (EME/DRM audio requires https:// or ' +
+      'localhost) — check the widget source URL scheme in OBS.'
+    )
+    status.value = 'error'
+  }
   spotifyPlayer = player
 }
 

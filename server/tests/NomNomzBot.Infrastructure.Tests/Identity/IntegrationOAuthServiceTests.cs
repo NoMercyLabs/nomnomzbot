@@ -440,6 +440,11 @@ public sealed class IntegrationOAuthServiceTests
         row.RefreshToken.Should().NotBeNullOrEmpty();
         row.ClientId.Should().NotBeNullOrEmpty();
         row.ClientSecret.Should().NotBeNullOrEmpty();
+        // The granted scopes must land in the mirrored Service row too — SpotifyMusicProvider's embedded
+        // -playback gate reads Service.Scopes, not the vault, so a mirror that dropped the scope list would
+        // leave that gate permanently unsatisfiable no matter how many times the streamer reconnects.
+        row.Scopes.Should()
+            .BeEquivalentTo("user-read-playback-state", "user-modify-playback-state");
 
         // The columns are sealed under the SAME TokenProtectionContext the provider unseals them with
         // ((broadcaster, "spotify", field)), so GetTokenAsync would open the vaulted access token and its

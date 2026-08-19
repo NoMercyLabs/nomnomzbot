@@ -103,7 +103,8 @@ public sealed class SpotifyMusicProvider
         | MusicProviderCapabilities.Repeat
         | MusicProviderCapabilities.TransferDevice
         | MusicProviderCapabilities.Library
-        | MusicProviderCapabilities.Playlists;
+        | MusicProviderCapabilities.Playlists
+        | MusicProviderCapabilities.EmbeddedPlayback;
 
     public async Task PlayAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {

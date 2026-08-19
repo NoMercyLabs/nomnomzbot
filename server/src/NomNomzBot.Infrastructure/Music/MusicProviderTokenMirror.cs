@@ -61,6 +61,7 @@ public sealed class MusicProviderTokenMirror : IMusicProviderTokenMirror
         DateTime? tokenExpiry,
         string clientId,
         string clientSecret,
+        IReadOnlyList<string>? grantedScopes = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -102,6 +103,8 @@ public sealed class MusicProviderTokenMirror : IMusicProviderTokenMirror
             new TokenProtectionContext(subjectId, name, "client_secret"),
             cancellationToken
         );
+        if (grantedScopes is not null)
+            service.Scopes = [.. grantedScopes];
 
         if (isNew)
             _db.Services.Add(service);

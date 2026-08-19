@@ -199,6 +199,28 @@ public sealed class MusicServiceCapabilityGatingTests
     }
 
     [Fact]
+    public async Task Embedded_playback_token_succeeds_for_a_connected_spotify_channel_with_the_streaming_scope()
+    {
+        // SpotifyMusicProvider.Capabilities must declare EmbeddedPlayback, or MusicService's own
+        // HasCapability gate rejects every request with CAPABILITY_UNSUPPORTED before the provider's
+        // streaming-scope check ever runs — regressed once already (the flag was missing entirely
+        // while GetEmbeddedPlaybackTokenAsync was fully implemented underneath it).
+        (MusicService sut, RecordingHttpHandler handler) = Build(
+            connectedService: "spotify",
+            scopes: ["streaming"]
+        );
+        handler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/api/token", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            """{"access_token":"refreshed-token","token_type":"Bearer","expires_in":3600}"""
+        );
+
+        Result<string> result = await sut.GetEmbeddedPlaybackTokenAsync(ChannelId.ToString());
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+    }
+
+    [Fact]
     public async Task A_channel_with_no_connected_integration_resolves_no_provider()
     {
         // Spotify + YouTube are registered, but this channel connected neither → every call fails
@@ -213,7 +235,10 @@ public sealed class MusicServiceCapabilityGatingTests
 
     // ─── Harness ──────────────────────────────────────────────────────────────
 
-    private static (MusicService Sut, RecordingHttpHandler Handler) Build(string? connectedService)
+    private static (MusicService Sut, RecordingHttpHandler Handler) Build(
+        string? connectedService,
+        string[]? scopes = null
+    )
     {
         MusicTestDbContext db = new(
             new DbContextOptionsBuilder<MusicTestDbContext>()
@@ -230,6 +255,7 @@ public sealed class MusicServiceCapabilityGatingTests
                     BroadcasterId = ChannelId,
                     Enabled = true,
                     AccessToken = "test-access-token",
+                    Scopes = scopes ?? [],
                 }
             );
             db.SaveChanges();

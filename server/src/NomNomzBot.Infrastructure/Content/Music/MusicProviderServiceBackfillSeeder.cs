@@ -185,6 +185,7 @@ public sealed class MusicProviderServiceBackfillSeeder : ISeeder
             access.Value.ExpiresAt,
             app.ClientId,
             app.ClientSecret,
+            connection.Scopes,
             ct
         );
         return true;

@@ -288,6 +288,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             tokens.ExpiresAt,
             app.ClientId,
             app.ClientSecret,
+            grantedScopes,
             cancellationToken
         );
 

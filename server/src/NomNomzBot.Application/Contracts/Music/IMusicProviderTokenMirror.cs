@@ -39,6 +39,7 @@ public interface IMusicProviderTokenMirror
         DateTime? tokenExpiry,
         string clientId,
         string clientSecret,
+        IReadOnlyList<string>? grantedScopes = null,
         CancellationToken cancellationToken = default
     );
 }
