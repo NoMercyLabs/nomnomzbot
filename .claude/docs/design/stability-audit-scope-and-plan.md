@@ -52,6 +52,17 @@ of real viewers, at execution time, inside `PipelineEngine`'s fail-closed step h
 `UpdateAsync` before save; reject with the existing validator's typed errors through the
 Result/RFC7807 path already used elsewhere in this service.
 
+**Sibling check (repo-wide grep for other `GraphJsonCache`/`PipelineJson` writers):**
+`AutomationPairingService.cs:463` (`EnsureMusicActionPipelinesAsync`) also writes
+`GraphJsonCache` directly, outside `PipelineService` — but it's server-generated from the
+live `ICommandAction` registry (`actionType`), not user input, so it carries no
+injection/credential-leak surface and does not need the validator. Named here so the F1
+fix's scope is deliberate (only `PipelineService`'s two user-facing write paths) rather
+than accidentally missing this one. `Reward.PipelineJson` is the only other inline-JSON
+pipeline field in the domain model; confirmed no code path writes to it (dead/vestigial —
+`commands-pipelines.md` §3.3 already calls for replacing it with `PipelineId`), so it is
+not a live sibling and needs no fix.
+
 ### HIGH
 
 **F2. No minimum-interval floor on timers.**
