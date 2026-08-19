@@ -1,105 +1,206 @@
-# Chat-reply mentions & enable/disable reliability — scope and plan
+# Command / event / timer input-output & state-reliability audit — scope and plan
 
-Status snapshot as of this audit. Two confirmed bugs are already fixed and committed
-(`85e7e3ee`, `de582e91`); everything else below is scoped but not started.
+Full audit against the original ask: "@username replies double-mentioning", plus "many
+commands, events and other things need investigation on how they behave for both input
+and output", plus "the bot must reliably enable, disable, and ignore events... state
+changes must be validated and propagated to the consuming side."
 
-## 1. Findings (what's actually wrong)
+Five investigation lanes ran: (1) reply-mention correctness, (2) `IsEnabled` state
+round-trip across every entity, (3) custom/builtin command input+output correctness,
+(4) EventSub event-response trigger/condition/variable correctness, (5) timers + config
+write-path validation. Two bugs were fixed and merged during the first pass
+(`85e7e3ee`, `de582e91`, `f707dce4`); everything below from lanes 3-5 is newly found and
+**not yet fixed**.
 
-### 1a. `@username` double-mention — FIXED (`85e7e3ee`)
-`ToneTemplateCatalog.cs`, the 4 flavored personality tones (Sassy/Hype/Friendly/Chill)
-for `!sr` Added/NotFound hardcoded `"@{user} ..."` even though those responses always go
-out as a Twitch-threaded reply (`reply_parent_message_id`), which already renders
-"Replying to @user". Informative tone and `SongRequestBuiltin`'s own neutral fallbacks
-were already correct — only the 8 flavored-tone strings had it. Fixed, mutation-tested,
-merged.
+## 1. Already fixed and merged
 
-**Not yet swept:** whether the same pattern exists anywhere outside
-`ToneTemplateCatalog.cs` — custom command templates, quote responses, mod-action
-messages, cooldown messages, or any other place a user composes free-text that later
-gets sent through `SendReplyAsync`. This needs a targeted grep across
-`Application/Commands/**` and `Infrastructure/**/PipelineActions/**` for `@{{user` /
-`@{user}` / string-built `"@" + user` patterns, cross-referenced against which of those
-call sites actually go through the reply-threading path vs. plain `SendMessageAsync`.
+### 1a. `@username` double-mention in `!sr` replies — FIXED (`85e7e3ee`)
+4 flavored personality tones hardcoded `@{user}` on top of Twitch's native reply
+threading. Mutation-tested. Full backend sweep afterward found no other instance of a
+bot-authored hardcoded mention going through the threaded-reply path — `SongRequestAction.cs`
+/ `SongWrongAction.cs` hardcode `@user` too but send via plain (non-threaded)
+`SendMessageAsync`, which is correct as-is.
 
 ### 1b. Dead `Reward.IsEnabled` flag — FIXED (`85e7e3ee`)
-`RewardRedeemedHandler` never checked `reward.IsEnabled` before running the bound
-pipeline / `Response` text / generic event-response fallback — disabling a reward in the
-dashboard did nothing at the bot-execution layer. Fixed, mutation-tested, merged.
+Disabling a reward in the dashboard didn't stop its pipeline/response from firing on
+redemption. Fixed, mutation-tested. Confirmed the only dead flag among 23 swept
+`IsEnabled` entities — the other 22 were already correctly live-gated end-to-end
+(write → persist → cache-invalidate-or-live-read → runtime-check), and the
+`ChannelRegistry` cache-invalidation write paths for commands/builtins/chat-triggers
+have no gaps.
 
-### 1c. `ConfigChanged` / `RewardChanged` SignalR events never wired on the frontend — FILED, not fixed
-`DashboardNotifier.SendConfigChangedAsync` / `SendRewardChangedAsync` are called by 9
-backend services (Commands, Timers, Pipelines, Webhooks in/out, Economy, Moderation,
-TTS, Widgets, Rewards) on every create/update/delete/toggle, but `HubEvent.kt` has no
-case for either method name — every one of those live-update pushes is silently dropped.
-Effect: toggling/editing any of those 9 surfaces in one open dashboard session does not
-live-update a second open session for the same channel; only a manual reload picks it
-up. This is `app/` scope (frontend track), filed as a full work order in
-`handoff/for-frontend.md` (2026-08-19 entry) with exact file/line targets and acceptance
-criteria — not something the backend track fixes directly.
+### 1c. `ConfigChanged`/`RewardChanged` SignalR never wired on frontend — FILED
+9 backend services publish live config-change events the dashboard never consumes
+(`HubEvent.kt` has no case for either method). Filed to `handoff/for-frontend.md` with
+exact fix location — `app/` is the frontend track's commit scope, not backend's.
 
-### 1d. `IsEnabled` sweep across the rest of the backend — DONE, 22/23 clean
-Every `IsEnabled`-bearing entity besides the ones already covered in a prior pass
-(Command, ChannelBuiltinCommand, ChatTrigger, EventResponse, Pipeline, PipelineStep,
-Timer, Widget — all confirmed live-gated) was swept:
+## 2. New findings — not yet fixed, ranked by severity
 
-| Entity | Verdict |
-|---|---|
-| CodeScript | live-gated (`ScriptRunner.cs:50`) |
-| ChannelFederationOptIn | live-gated (`FederationOptInService.cs:124-156`) |
-| CustomDataSource | live-gated (`CustomDataIngestService.cs:54`, `CustomDataPollService.cs:76,161`) |
-| CatalogItem | live-gated (`CatalogService.cs:236`) |
-| CurrencyConfig | live-gated (`CurrencyAccountService.cs:125,192`) |
-| GameConfig | live-gated (`LiveGameEngine.cs:80`, `GameService.cs:201,441`) |
-| EarningRule | live-gated (`CurrencyEarningService.cs:51`) |
-| MediaShareConfig | live-gated (`MediaShareService.cs:66`) |
-| ObsConnection | live-gated (`ObsTransportRouter.cs:81`) |
-| ChannelFeature | live-gated (`FeatureService.cs:166`) |
-| OutboundWebhookEndpoint | live-gated (`OutboundWebhookDispatcher.cs:59`) |
-| SupporterConnection | live-gated (`SupporterIngestService.cs:67`) |
-| InboundWebhookEndpoint | live-gated (`InboundWebhookDispatcher.cs:59`) |
-| SoundClip | live-gated (`SoundClipService.cs:273,277`) |
-| **Reward** | **was dead — fixed in `85e7e3ee`** |
-| FeatureFlag (IsEnabledGlobally) | live-gated (`FeatureFlagService.cs:95,150`) |
-| FeatureFlagOverride | live-gated (`FeatureFlagService.cs:85`) |
-| HttpEgressAllowlist | live-gated (`CustomDataPollService.cs:157-168`) |
-| VtsConnection | live-gated (`VtsTransportRouter.cs:56`) |
-| TtsConfig | live-gated (`TtsDispatchService.cs:101`) |
-| ModerationEscalationPolicy | live-gated (`ModerationEscalationService.cs:51`) |
-| ChatFilter | live-gated (`ChatFilterExecutionHandler.cs:70`) |
-| IpcDevModeKey | live-gated (`IpcDevModeService.cs:60,143`) |
+### CRITICAL
 
-No further dead flags found in the backend. Sweep complete — no open item here.
+**F1. Pipeline graphs are saved with zero structural/security validation.**
+`PipelineService.CreateAsync`/`UpdateAsync` (`Commands/PipelineService.cs:92-159`)
+writes `GraphJsonCache` straight to the DB with no check for unknown action/condition
+types, no step-count cap, no credential/secret-leakage guard. A validator that enforces
+exactly these things already exists (`CommandConfigValidator`,
+`Platform/Pipeline/CommandConfigValidator.cs`) but is wired only to the optional
+`POST pipelines/validate` endpoint the editor *may* call before save — Create/Update
+never call it. Any client that skips that call (or hits the API directly — automation,
+marketplace import) can persist a broken/dangerous graph that only fails live in front
+of real viewers, at execution time, inside `PipelineEngine`'s fail-closed step handling.
+**Fix:** call `CommandConfigValidator` synchronously inside `PipelineService.CreateAsync`/
+`UpdateAsync` before save; reject with the existing validator's typed errors through the
+Result/RFC7807 path already used elsewhere in this service.
 
-### 1e. Cache-invalidation write paths — DONE, no gaps found
-`ChannelRegistry` (in-memory `ConcurrentDictionary` cache for commands, builtin
-toggles, chat triggers, sound triggers) — every write path that flips these flags
-(`CommandService`, `BuiltinCommandService`, `ChatTriggerService`) calls the matching
-`Invalidate*Async` immediately after `SaveChangesAsync`, no gap. Timers and event
-responses read `IsEnabled` fresh from the DB on every tick/fire — no cache exists for
-them, so nothing to invalidate. No TOCTOU race found in the examined write paths (all
-mutation + save + invalidate happen synchronously, no interleaved await). No open item
-here.
+### HIGH
 
-## 2. Plan — remaining work, in order
+**F2. No minimum-interval floor on timers.**
+`TimerManagementService.CreateAsync`/`UpdateAsync` (`TimerManagementService.cs:99-216`)
+copies `IntervalMinutes` straight through — no floor, no ceiling, `int` not even
+checked for negative. A timer can be configured to fire every tick (chat-spam /
+rate-limit hazard). **Fix:** add a minimum-interval validation (tier-scaled per
+`limits-safety-baseline-then-tier` house convention) in both Create and Update.
 
-1. **`@mention`-in-reply sweep — DONE, no further bugs found.** Grepped
-   `server/src` for every `@{{`, `@{user}`, and string-built `"@" + name` pattern.
-   Results: `SongRequestAction.cs` / `SongWrongAction.cs` (pipeline actions) hardcode
-   `@{ctx.TriggeredByDisplayName}` but send via plain `SendMessageAsync` — no native
-   threading to double up against, correct as-is. `SendReplyAction.cs` (the
-   user-configurable "send reply" pipeline block) takes its message body from the
-   broadcaster's own template — not a code-owned string, so not an audit target; if a
-   streamer types `@user` into their own reply template that's their choice.
-   `chat_box.vue` renders a `@mention` span for an already-received chat message in an
-   overlay widget — display of incoming chat, not an outbound bot message. No other
-   `@{{user` occurrences exist anywhere in `server/src`. `ToneTemplateCatalog.cs` was
-   the only source of this bug; nothing else to fix.
-2. **Frontend fix for `ConfigChanged`/`RewardChanged`** — owned by the frontend track,
-   already filed with concrete acceptance criteria in `handoff/for-frontend.md`. No
-   backend action.
-3. **Nothing further identified** for the enable/disable round-trip (write → persist →
-   invalidate → runtime-read) across commands, event responses, and timers — the
-   mechanism is sound end-to-end for every surface checked.
+**F3. Timer-bound pipelines read a cache that can silently go stale.**
+`TimerService.FirePipelineAsync` reads `Pipeline.GraphJsonCache` directly and never
+queries `PipelineStep` rows — unlike `PipelineEngine.ExecuteAsync` (used by
+commands/rewards), which prefers `PipelineStep` rows and only falls back to the cache.
+No code path was found that regenerates `GraphJsonCache` automatically when
+`PipelineStep` rows are edited via the step-level editor; `PipelineService.UpdateAsync`
+only touches `GraphJsonCache` when the caller explicitly supplies it. A timer bound to a
+pipeline can keep firing a stale graph indefinitely after an edit that only touched
+step rows. **Fix:** either make `TimerService.FirePipelineAsync` resolve through the same
+`PipelineStep`-first path `PipelineEngine` uses, or regenerate `GraphJsonCache`
+synchronously on every `PipelineStep` write.
 
-No backend items remain open from the original ask. The only outstanding piece is the
-frontend fix in item 2, which is filed and out of this track's commit scope.
+### MEDIUM-HIGH
+
+**F4. Failed/oversized chat sends are silently swallowed and reported as "succeeded".**
+`ChatMessageHandler.SendResponseAsync` (`ChatMessageHandler.cs:492-502`) discards the
+`bool` returned by `SendMessageAsync`; `SendReplyAsync` returns plain `Task` with no
+success signal at all. `PublishExecutedAsync` is then called unconditionally with
+`succeeded: true` — an oversized (Twitch ~500 char / YouTube ~200 char) or
+provider-rejected message is recorded as a successful execution in analytics/the
+dashboard feed while the viewer sees nothing in chat; only a server log line has the
+truth. Confirmed on all three platforms (Twitch has no local length guard at all; Kick
+has a local guard but its result is discarded the same way; YouTube has no guard and a
+shorter real limit than Twitch, so a template that fits on Twitch/Kick can silently fail
+there). **Fix:** thread the real send outcome through to `PublishExecutedAsync`; give
+`SendReplyAsync` a `Task<bool>` return.
+
+**F5. Timer fire-time failures retry every 30s forever instead of respecting the
+configured interval.**
+`TimerService.FireMessageAsync`/`TickAsync` (`TimerService.cs:118-223`) updates
+`LastFiredAt` only *after* a successful send — if template resolution throws (not one of
+the internally-degraded lookup helpers, but `ResolveAsync` itself), the exception is
+caught by the per-timer try/catch, logged as a warning, and `LastFiredAt` is never
+advanced, so the same broken timer retries on **every 30-second poll tick forever**, not
+on its configured interval, with no operator-visible signal beyond a server log. (The
+pipeline-firing sibling path, `FirePipelineAsync`, already handles this correctly —
+advances `LastFiredAt` even on a missing graph, explicitly documented "never in a
+30-second error loop.") **Fix:** apply the same `LastFiredAt`-advances-regardless pattern
+to `FireMessageAsync`, and surface a dashboard-visible signal (e.g. an `IsEnabled`
+auto-pause + notification) after N consecutive failures.
+
+### MEDIUM
+
+**F6. Unresolved/mistyped template variables leak raw `{{var}}` syntax into live chat.**
+`TemplateResolver.Resolve`/`ResolveAsync` (`TemplateResolver.cs:91,149`) both fall back
+to returning the literal unresolved token when a variable name isn't found, rather than
+substituting empty string. A typo'd variable name or a variable valid only in one
+trigger context used in another renders raw template syntax directly into chat — visible
+to every viewer, no author-time validation of variable names against the known
+catalogue exists either. **Fix:** either validate variable names against the known
+catalogue at command/event-response/timer save time (preferred — matches this repo's
+"validate on write" convention), or degrade unresolved variables to empty string instead
+of leaking syntax (a worse but strictly-safer fallback).
+
+**F7. Custom commands can silently shadow reserved builtin command names.**
+`CommandService.CreateAsync` (`CommandService.cs:59-67`) only checks name collision
+against other custom commands, never against `IBuiltinCommandCatalog`. Since
+`ChatMessageHandler` resolves custom commands before builtins, a broadcaster can
+(accidentally or not) create `!uptime` as a custom command and permanently, silently
+override the builtin with no warning at create time and no indicator in the builtins
+list that it's shadowed. **Fix:** check builtin-name collision on create/update and
+either reject or surface a clear "this overrides the builtin `!uptime`" confirmation.
+
+**F8. Re-enabling a timer fires it immediately instead of respecting its interval from
+re-enable time.**
+`TimerManagementService.ToggleAsync`/`UpdateAsync` don't touch `LastFiredAt` when
+flipping `IsEnabled`; `ProcessTimerAsync`'s interval math
+(`nextFire = (LastFiredAt ?? MinValue).AddMinutes(IntervalMinutes)`) means a timer
+disabled for days fires on the very next 30-second tick after re-enable. **Fix:** stamp
+`LastFiredAt = now` (or `NextFireAt`) when flipping `IsEnabled` false→true.
+
+**F9. Cooldown check-then-set is non-atomic; race window not closed on every ingest
+path.**
+`CooldownManager` is a bare `ConcurrentDictionary` with separate `IsOnCooldown`/
+`SetCooldown` calls around command execution — a TOCTOU window. Structurally closed for
+Twitch today (`WebSocketEventSubTransport` + `EventBus.PublishAsync` serialize one
+broadcaster's message handling), but **not proven safe for Kick webhook ingest** or any
+future webhook-based provider, where concurrent deliveries could each independently
+reach the handler. Separately, `ICooldownManager` is in-memory only — resets on every
+restart/deploy and is incorrect across multiple instances if the bot is ever
+horizontally scaled (a known, still-unimplemented spec gap per `commands-pipelines.md`
+§3.11, which calls for DB write-through via `CommandCooldownStates`). **Fix:** atomic
+try-acquire (`ConcurrentDictionary.AddOrUpdate`/compare-and-swap) instead of
+check-then-set; separately, decide whether to implement the DB write-through now or
+formally defer it (owner call — this is a scaling investment, not a correctness bug at
+current single-instance deploy).
+
+**F10. Two enabled `EventResponse` rows can exist for the same (broadcaster, event
+type) with non-deterministic winner selection.**
+`EventResponseConfiguration.cs:52-54` has a non-unique index on
+`(BroadcasterId, EventType)`; `EventResponseExecutor.ExecuteAsync` picks via
+`FirstOrDefaultAsync` with no `ORDER BY` — if a duplicate ever exists (nothing at the
+service layer prevents it), which one fires is undefined and can shift after
+updates/vacuum. **Fix:** enforce a unique (or unique-partial-`WHERE IsEnabled`) index on
+`(BroadcasterId, EventType)`, or explicitly define and document ordering semantics if
+multiple concurrent responses per trigger are meant to be allowed.
+
+### LOW / informational (no fix needed, or owner-judgment call)
+
+- **In-flight permission de-escalation** (command lane): a demoted user's already-admitted,
+  long-running pipeline execution completes under the originally-resolved role — this is
+  standard gate-at-admission semantics, not a bug, but flagged since it determines
+  whether an in-flight mod-only action can complete after a demotion mid-flight.
+- **Argument overflow/underflow**: missing `{{args.N}}` leaks the raw token (same root
+  cause as F6, not a separate fix); extra args are uncapped but harmless.
+- **Error-surfacing pattern itself** (write-path validation lane): confirmed solid across
+  `TimerManagementService`/`CommandService`/`PipelineService` — typed `Result.Failure` →
+  RFC7807 problem details, no generic 500s. The gap is entirely in *what* gets
+  validated (F1, F2, F7), not in how failures are reported once caught.
+- **YouTube's `SendReplyAsync` degrading to a plain send** (no reply threading available
+  on that platform) — explicitly documented, intentional platform limitation, not a bug.
+
+## 3. Remediation plan, in order
+
+1. **F1 (CRITICAL)** — wire `CommandConfigValidator` into `PipelineService.CreateAsync`/
+   `UpdateAsync`. Highest priority: this is the one item where a broken/dangerous
+   config can currently reach production undetected.
+2. **F3** — fix `TimerService.FirePipelineAsync`'s stale-cache read (align it with
+   `PipelineEngine`'s `PipelineStep`-first resolution, or regenerate the cache on every
+   step write). Directly caused by the same root issue F1 touches (the graph/step
+   dual-representation), worth doing in the same pass.
+3. **F4** — thread real chat-send outcomes through to `PublishExecutedAsync` and give
+   `SendReplyAsync` a boolean return. User-facing correctness (analytics/dashboard
+   currently lie about delivery).
+4. **F5** — stop the 30-second retry-storm on a broken timer template; mirror the
+   already-correct pipeline-firing pattern.
+5. **F2, F8** — timer write-path hardening (interval floor; re-enable timestamp reset).
+   Small, mechanical, low-risk fixes.
+6. **F6** — decide validate-on-write vs. safe-degrade-on-render for unresolved template
+   variables (owner call on which approach fits the template-authoring UX), then
+   implement.
+7. **F7** — builtin-name collision check on custom command create/update.
+8. **F10** — unique index (or documented multi-response ordering) on
+   `EventResponse(BroadcasterId, EventType)`.
+9. **F9** — atomic cooldown check-and-set (mechanical fix, do anytime); DB write-through
+   for cross-instance/restart correctness is a scaling investment — recommend treating
+   as a separate, explicitly scoped follow-up rather than bundling into this pass, since
+   it's not a correctness bug at today's single-instance deploy.
+
+Everything in lane 2 (`IsEnabled` state round-trip) and the reply-mention sweep is
+closed — no remaining items there. F1 through F10 above are the full remaining scope
+from the original ask; nothing has been fixed yet in this second pass and nothing was
+found to be out of scope.
