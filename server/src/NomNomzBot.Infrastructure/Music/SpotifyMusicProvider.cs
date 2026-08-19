@@ -463,7 +463,7 @@ public sealed class SpotifyMusicProvider
             return;
 
         string url = $"{SpotifyApiBase}/me/player";
-        await SendPlayerCommandAsync(
+        HttpResponseMessage? response = await SendPlayerCommandAsync(
             HttpMethod.Put,
             url,
             token,
@@ -471,6 +471,14 @@ public sealed class SpotifyMusicProvider
             broadcasterId,
             cancellationToken
         );
+
+        // Unlike the fire-and-forget player commands (play/pause/skip/…), a transfer whose
+        // device_id Spotify rejects (most commonly 404 — Spotify Connect device ids rotate on
+        // every client reconnect) must NOT be reported as a success: the caller picked a device
+        // from a list that's gone stale, and swallowing the failure here made the plugin claim
+        // the switch happened while Spotify silently kept playing on the old device.
+        if (response is null || !response.IsSuccessStatusCode)
+            throw new DeviceTransferFailedException(ProviderName, (int?)response?.StatusCode);
     }
 
     public async Task<IReadOnlyList<MusicDeviceInfo>> GetDevicesAsync(

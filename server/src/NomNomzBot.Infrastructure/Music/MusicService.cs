@@ -656,6 +656,10 @@ public sealed class MusicService : IMusicService
         {
             return PremiumRequired(ex);
         }
+        catch (DeviceTransferFailedException ex)
+        {
+            return Result.Failure(ex.Message, "DEVICE_TRANSFER_FAILED");
+        }
 
         return Result.Success();
     }

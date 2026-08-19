@@ -162,6 +162,42 @@ public sealed class SpotifyMusicProviderTransportTests
             .NotContainKey("spotify.premium", "an unrelated 403 proves nothing about Premium");
     }
 
+    [Fact]
+    public async Task A_404_on_device_transfer_maps_to_DEVICE_TRANSFER_FAILED_not_a_false_success()
+    {
+        (MusicService sut, _, RecordingHttpHandler handler, _) = Build();
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Put
+                && r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
+            HttpStatusCode.NotFound,
+            """{"error":{"status":404,"message":"Device not found"}}"""
+        );
+
+        Func<Task<Result>> act = () =>
+            sut.TransferPlaybackAsync(ChannelId.ToString(), "stale-device-id");
+
+        Result result = (await act.Should().NotThrowAsync()).Subject;
+        result.IsFailure.Should().BeTrue("a rejected transfer must not be reported as a success");
+        result.ErrorCode.Should().Be("DEVICE_TRANSFER_FAILED");
+    }
+
+    [Fact]
+    public async Task A_successful_device_transfer_returns_success()
+    {
+        (MusicService sut, _, RecordingHttpHandler handler, _) = Build();
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Put
+                && r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
+            HttpStatusCode.NoContent
+        );
+
+        Result result = await sut.TransferPlaybackAsync(ChannelId.ToString(), "good-device-id");
+
+        result.IsSuccess.Should().BeTrue();
+    }
+
     // ─── Harness ──────────────────────────────────────────────────────────────
 
     private static (
