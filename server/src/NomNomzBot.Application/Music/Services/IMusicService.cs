@@ -58,6 +58,22 @@ public interface IMusicService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// The single !sr / song-request entry point: resolves <paramref name="query"/> — a provider track
+    /// link/URI/id OR a free-text search phrase — to one track and admits it into the queue. Tries an
+    /// authoritative link/id resolve first, so a pasted Spotify/YouTube link lands the exact track instead
+    /// of being run through text search (where it would find nothing); falls back to the provider's search
+    /// when the input isn't a resolvable link. Fails <c>NOT_FOUND</c> when nothing resolves, plus every
+    /// <see cref="AddToQueueAsync"/> failure mode (<c>SERVICE_UNAVAILABLE</c>, <c>TRACK_BLOCKED</c>,
+    /// <c>VALIDATION_FAILED</c>). On success, returns the resolved track for the caller's confirmation message.
+    /// </summary>
+    Task<Result<MusicTrack>> RequestTrackAsync(
+        string broadcasterId,
+        string query,
+        string? requestedBy = null,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Set the playback volume (0-100). Gated on <c>Volume</c>; fails <c>VALIDATION_FAILED</c> out of range,
     /// <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c> per music-sr.md §3.1.</summary>
     Task<Result> SetVolumeAsync(

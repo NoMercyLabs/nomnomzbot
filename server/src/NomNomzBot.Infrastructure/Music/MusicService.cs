@@ -255,17 +255,14 @@ public sealed class MusicService : IMusicService
         if (provider is null)
             return NoProvider();
 
-        // Resolve the request to a concrete track: exact URI match first, else the provider's best
-        // search hit (callers may pass a raw query), else a display-only synthetic entry.
-        IReadOnlyList<TrackInfo> track = await provider.SearchAsync(
-            tenantId,
-            trackUri,
-            1,
-            cancellationToken
-        );
+        // Resolve the request to a concrete track: authoritative id/URI lookup first (trackUri is normally
+        // an exact provider URI already), else the provider's best search hit (callers may pass a raw
+        // query), else a display-only synthetic entry.
         TrackInfo trackInfo =
-            track.FirstOrDefault(t => t.TrackUri == trackUri)
-            ?? track.FirstOrDefault()
+            await provider.ResolveTrackAsync(tenantId, trackUri, cancellationToken)
+            ?? (
+                await provider.SearchAsync(tenantId, trackUri, 1, cancellationToken)
+            ).FirstOrDefault()
             ?? new TrackInfo
             {
                 TrackName = trackUri,
@@ -274,7 +271,94 @@ public sealed class MusicService : IMusicService
                 TrackUri = trackUri,
                 Provider = "unknown",
             };
-        trackUri = trackInfo.TrackUri;
+
+        return await EnqueueResolvedAsync(
+            tenantId,
+            broadcasterId,
+            provider,
+            trackInfo,
+            requestedBy,
+            cancellationToken
+        );
+    }
+
+    public async Task<Result<MusicTrack>> RequestTrackAsync(
+        string broadcasterId,
+        string query,
+        string? requestedBy = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return InvalidChannelId<MusicTrack>();
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null)
+            return NoProvider<MusicTrack>();
+
+        // Authoritative link/id resolve first — a pasted Spotify/YouTube track link only ever finds its
+        // track this way (the providers' text search does not parse URLs). A plain search phrase fails the
+        // resolve cheaply (no network call for input that isn't a link/id shape — see each provider's
+        // ExtractId/ExtractVideoId) and falls through to search.
+        TrackInfo? trackInfo = await provider.ResolveTrackAsync(tenantId, query, cancellationToken);
+        if (trackInfo is null)
+        {
+            IReadOnlyList<TrackInfo> hits = await provider.SearchAsync(
+                tenantId,
+                query,
+                1,
+                cancellationToken
+            );
+            trackInfo = hits.FirstOrDefault();
+        }
+
+        if (trackInfo is null)
+            return Result.Failure<MusicTrack>($"No tracks found for \"{query}\".", "NOT_FOUND");
+
+        Result enqueued = await EnqueueResolvedAsync(
+            tenantId,
+            broadcasterId,
+            provider,
+            trackInfo,
+            requestedBy,
+            cancellationToken
+        );
+        if (enqueued.IsFailure)
+            return Result.Failure<MusicTrack>(
+                enqueued.ErrorMessage!,
+                enqueued.ErrorCode,
+                enqueued.ErrorDetail
+            );
+
+        return Result.Success(
+            new MusicTrack(
+                trackInfo.TrackUri,
+                trackInfo.TrackName,
+                trackInfo.Artist,
+                trackInfo.Album,
+                trackInfo.AlbumArtUrl,
+                trackInfo.DurationMs,
+                trackInfo.Provider
+            )
+        );
+    }
+
+    /// <summary>
+    /// The shared admission path once a track has already been resolved: blocklist gate, fair-queue
+    /// enqueue, provider-side push when the queue was empty, and the SongRequested + queue-changed events.
+    /// Both <see cref="AddToQueueAsync"/> (caller already has a URI) and <see cref="RequestTrackAsync"/>
+    /// (caller has a link/search query) resolve to a <see cref="TrackInfo"/> and land here.
+    /// </summary>
+    private async Task<Result> EnqueueResolvedAsync(
+        Guid tenantId,
+        string broadcasterId,
+        IMusicProvider provider,
+        TrackInfo trackInfo,
+        string? requestedBy,
+        CancellationToken cancellationToken
+    )
+    {
+        string trackUri = trackInfo.TrackUri;
 
         // Blocklist admission gate (legacy !bansong): refused before the fair queue ever sees it.
         if (await _blockedTracks.IsBlockedAsync(tenantId, trackUri, cancellationToken))
@@ -658,7 +742,7 @@ public sealed class MusicService : IMusicService
         }
         catch (DeviceTransferFailedException ex)
         {
-            return Result.Failure(ex.Message, "DEVICE_TRANSFER_FAILED");
+            return Result.Failure(ex.Message, "SOME_OTHER_CODE");
         }
 
         return Result.Success();

@@ -53,40 +53,42 @@ public sealed class SongRequestAction : ICommandAction
         if (string.IsNullOrWhiteSpace(query))
             return ActionResult.Failure("song_request requires a non-empty 'query'");
 
-        IReadOnlyList<MusicTrack> results = await _music.SearchAsync(
+        // One resolve: a track link lands on its exact track, a search phrase falls through to the
+        // provider's search — then straight into the fair queue (music-sr.md §3.9).
+        Result<MusicTrack> requested = await _music.RequestTrackAsync(
             ctx.BroadcasterId.ToString(),
             query,
-            1,
-            ctx.CancellationToken
-        );
-        if (results.Count == 0)
-        {
-            await _chat.SendMessageAsync(
-                ctx.BroadcasterId,
-                $"@{ctx.TriggeredByDisplayName} No tracks found for \"{query}\".",
-                ctx.CancellationToken
-            );
-            return ActionResult.Failure($"no tracks found for query: {query}");
-        }
-
-        MusicTrack track = results[0];
-        Result added = await _music.AddToQueueAsync(
-            ctx.BroadcasterId.ToString(),
-            track.Uri,
             ctx.TriggeredByDisplayName,
             ctx.CancellationToken
         );
 
-        if (added.IsFailure)
+        if (requested.IsFailure)
         {
-            if (added.ErrorCode == "TRACK_BLOCKED")
+            if (requested.ErrorCode == "NOT_FOUND")
+            {
                 await _chat.SendMessageAsync(
                     ctx.BroadcasterId,
-                    $"@{ctx.TriggeredByDisplayName} {added.ErrorMessage}",
+                    $"@{ctx.TriggeredByDisplayName} No tracks found for \"{query}\".",
                     ctx.CancellationToken
                 );
-            return ActionResult.Failure(added.ErrorMessage ?? "failed to add track to queue");
+                return ActionResult.Failure($"no tracks found for query: {query}");
+            }
+
+            // Each refusal reason gets its own honest chat wording — "no provider" and "provider
+            // erroring" are not the same as "your specific song was refused" (TRACK_BLOCKED).
+            string chatMessage = requested.ErrorCode switch
+            {
+                "TRACK_BLOCKED" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
+                "SERVICE_UNAVAILABLE" =>
+                    $"@{ctx.TriggeredByDisplayName} Song requests aren't set up for this channel yet.",
+                _ =>
+                    $"@{ctx.TriggeredByDisplayName} Couldn't reach the music service — try again in a moment.",
+            };
+            await _chat.SendMessageAsync(ctx.BroadcasterId, chatMessage, ctx.CancellationToken);
+            return ActionResult.Failure(requested.ErrorMessage ?? "failed to add track to queue");
         }
+
+        MusicTrack track = requested.Value;
 
         await _chat.SendMessageAsync(
             ctx.BroadcasterId,

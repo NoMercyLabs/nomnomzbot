@@ -202,10 +202,10 @@ public sealed class ScriptHostBridge(
 
         // The music service takes the raw query (title/artist/link) and resolves + enqueues it host-side,
         // attributing the request to the trigger user; the bot's provider token never reaches the guest.
-        // A refused admission (no provider, blocked track) surfaces as "false" — the guest sees the
-        // boolean contract, never the host's typed error.
-        Result queued = musicService
-            .AddToQueueAsync(broadcasterId.ToString(), args[0], triggeringUserId, ct)
+        // A refused admission (no provider, not found, blocked track) surfaces as "false" — the guest sees
+        // the boolean contract, never the host's typed error.
+        Result<MusicTrack> queued = musicService
+            .RequestTrackAsync(broadcasterId.ToString(), args[0], triggeringUserId, ct)
             .GetAwaiter()
             .GetResult();
         return queued.IsSuccess ? "true" : "false";

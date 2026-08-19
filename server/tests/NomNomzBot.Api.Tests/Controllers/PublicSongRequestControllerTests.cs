@@ -87,13 +87,25 @@ public sealed class PublicSongRequestControllerTests
             .ResolveAsync("tok", Arg.Any<CancellationToken>())
             .Returns(Result.Success(Page(accepting: true)));
         music
-            .AddToQueueAsync(
+            .RequestTrackAsync(
                 Channel.ToString(),
                 "never gonna give you up",
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Result.Success());
+            .Returns(
+                Result.Success(
+                    new MusicTrack(
+                        "spotify:track:abc",
+                        "Never Gonna Give You Up",
+                        "Rick Astley",
+                        null,
+                        null,
+                        0,
+                        "spotify"
+                    )
+                )
+            );
 
         IActionResult result = await controller.Submit(
             "tok",
@@ -104,7 +116,7 @@ public sealed class PublicSongRequestControllerTests
         result.Should().BeOfType<OkObjectResult>();
         await music
             .Received()
-            .AddToQueueAsync(
+            .RequestTrackAsync(
                 Channel.ToString(),
                 "never gonna give you up",
                 Arg.Any<string?>(),

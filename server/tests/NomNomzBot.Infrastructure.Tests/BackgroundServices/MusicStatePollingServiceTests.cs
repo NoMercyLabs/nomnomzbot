@@ -481,6 +481,13 @@ public sealed class MusicStatePollingServiceTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
+        public Task<Result<MusicTrack>> RequestTrackAsync(
+            string broadcasterId,
+            string query,
+            string? requestedBy = null,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
         public Task<string?> GetActiveProviderKeyAsync(
             string broadcasterId,
             CancellationToken cancellationToken = default

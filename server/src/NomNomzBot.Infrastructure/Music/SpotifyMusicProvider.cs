@@ -278,10 +278,11 @@ public sealed class SpotifyMusicProvider
         if (response is null || !response.IsSuccessStatusCode)
             return [];
 
-        SpotifySearchResponse? json =
-            await response.Content.ReadFromJsonAsync<SpotifySearchResponse>(
-                cancellationToken: cancellationToken
-            );
+        SpotifySearchResponse? json = await ReadJsonSafeAsync<SpotifySearchResponse>(
+            response,
+            "search",
+            cancellationToken
+        );
         if (json?.Tracks?.Items is null)
             return [];
 
@@ -311,10 +312,42 @@ public sealed class SpotifyMusicProvider
         if (response is null || !response.IsSuccessStatusCode)
             return null;
 
-        SpotifyTrack? track = await response.Content.ReadFromJsonAsync<SpotifyTrack>(
-            cancellationToken: cancellationToken
+        SpotifyTrack? track = await ReadJsonSafeAsync<SpotifyTrack>(
+            response,
+            "tracks/{id}",
+            cancellationToken
         );
         return track is null ? null : MapToTrackInfo(track);
+    }
+
+    /// <summary>
+    /// Deserializes a successful response's JSON body, failing to null (never throwing) on a malformed or
+    /// empty body — an erroring/misbehaving provider must degrade the SR request to "not found", not crash
+    /// the command pipeline. Mirrors <see cref="YouTubeMusicProvider"/>'s already-safe <c>GetJsonAsync</c>;
+    /// applied here to the two members on the !sr hot path (search, resolve-by-link).
+    /// </summary>
+    private async Task<T?> ReadJsonSafeAsync<T>(
+        HttpResponseMessage response,
+        string operation,
+        CancellationToken cancellationToken
+    )
+        where T : class
+    {
+        try
+        {
+            return await response.Content.ReadFromJsonAsync<T>(
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(
+                ex,
+                "Spotify Web API {Operation} returned an unparseable body",
+                operation
+            );
+            return null;
+        }
     }
 
     public async Task<string?> GetEmbeddedPlaybackTokenAsync(

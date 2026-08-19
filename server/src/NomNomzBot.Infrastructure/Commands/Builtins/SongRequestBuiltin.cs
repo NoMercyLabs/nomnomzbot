@@ -12,6 +12,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
@@ -45,50 +46,55 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
             // Pure usage string — functional, never personality. Sent as a reply, so no "@user" prefix.
             return Result.Success("Usage: !sr <song name or URL>");
 
-        IReadOnlyList<MusicTrack> results = await _music.SearchAsync(
+        // One resolve: a pasted track link lands on its exact track, a search phrase falls through to the
+        // provider's search — then straight into the fair queue (music-sr.md §3.9).
+        Result<MusicTrack> requested = await _music.RequestTrackAsync(
             context.BroadcasterId.ToString(),
             query,
-            1,
-            ct
-        );
-
-        if (results.Count == 0)
-        {
-            string notFound = await _composer.ComposeAsync(
-                new BuiltinResponseRequest
-                {
-                    BroadcasterId = context.BroadcasterId,
-                    Personality = context.Personality,
-                    BuiltinKey = BuiltinKey,
-                    Slot = BuiltinResponseSlots.SongRequest.NotFound,
-                    NeutralFallback = "No tracks found for \"{query}\".",
-                    Variables = new Dictionary<string, string>
-                    {
-                        ["user"] = context.TriggeringUserDisplayName,
-                        ["query"] = query,
-                    },
-                },
-                ct
-            );
-            return Result.Success(notFound);
-        }
-
-        MusicTrack track = results[0];
-        Result added = await _music.AddToQueueAsync(
-            context.BroadcasterId.ToString(),
-            track.Uri,
             context.TriggeringUserDisplayName,
             ct
         );
 
-        if (added.IsFailure)
-            // Functional failure — stays neutral. Sent as a reply, so no "@user" prefix. A blocked
-            // track carries its typed reason ("… is blocked in this channel.") straight through.
+        if (requested.IsFailure)
+        {
+            if (requested.ErrorCode == "NOT_FOUND")
+            {
+                string notFound = await _composer.ComposeAsync(
+                    new BuiltinResponseRequest
+                    {
+                        BroadcasterId = context.BroadcasterId,
+                        Personality = context.Personality,
+                        BuiltinKey = BuiltinKey,
+                        Slot = BuiltinResponseSlots.SongRequest.NotFound,
+                        NeutralFallback = "No tracks found for \"{query}\".",
+                        Variables = new Dictionary<string, string>
+                        {
+                            ["user"] = context.TriggeringUserDisplayName,
+                            ["query"] = query,
+                        },
+                    },
+                    ct
+                );
+                return Result.Success(notFound);
+            }
+
+            // Functional failures — stay neutral. Sent as a reply, so no "@user" prefix. Each refusal
+            // reason gets its own honest wording rather than one blanket "could not add": a blocked
+            // track carries its typed reason straight through, and anything else (a genuinely erroring
+            // provider — auth broken, API down) degrades to the same "try again" wording rather than a
+            // confusing internal error code.
             return Result.Success(
-                added.ErrorCode == "TRACK_BLOCKED"
-                    ? added.ErrorMessage!
-                    : $"Could not add \"{track.Name}\" to the queue."
+                requested.ErrorCode switch
+                {
+                    "TRACK_BLOCKED" => requested.ErrorMessage!,
+                    "SERVICE_UNAVAILABLE" => NoProviderMessage(context.RoleLevel),
+                    _ =>
+                        $"Couldn't reach the music service for \"{query}\" — try again in a moment.",
+                }
             );
+        }
+
+        MusicTrack track = requested.Value;
 
         string message = await _composer.ComposeAsync(
             new BuiltinResponseRequest
@@ -110,4 +116,19 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
         );
         return Result.Success(message);
     }
+
+    /// <summary>
+    /// "No active music provider" is a different problem for a different person: only the broadcaster
+    /// can authorize a Spotify/YouTube connection (dashboard OAuth), so a viewer or mod telling them to
+    /// "connect Spotify" is telling them to do something they cannot do. The broadcaster gets the
+    /// actionable instruction; a mod gets told to flag it upward. A viewer gets no internal detail at
+    /// all — to them the command simply reads as disabled, same as any other command they don't have
+    /// the reward/config for.
+    /// </summary>
+    private static string NoProviderMessage(int roleLevel) =>
+        roleLevel >= PermissionLevel.Broadcaster.ToLevelValue()
+            ? "Song requests aren't connected yet — connect Spotify or YouTube in the dashboard."
+        : roleLevel >= PermissionLevel.Moderator.ToLevelValue()
+            ? "Song requests aren't connected — let the broadcaster know to connect Spotify or YouTube in the dashboard."
+        : "This command is currently disabled.";
 }

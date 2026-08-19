@@ -159,13 +159,25 @@ public sealed class ScriptHostBridgeTests
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
-            .AddToQueueAsync(
+            .RequestTrackAsync(
                 Channel.ToString(),
                 "lofi beats",
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Result.Success());
+            .Returns(
+                Result.Success(
+                    new MusicTrack(
+                        "spotify:track:abc",
+                        "Lofi Beats",
+                        "Artist",
+                        null,
+                        null,
+                        0,
+                        "spotify"
+                    )
+                )
+            );
         ScriptHostBridge bridge = Build(music: music);
 
         bridge

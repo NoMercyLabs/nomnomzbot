@@ -165,14 +165,14 @@ public class MusicController : BaseController
         CancellationToken ct
     )
     {
-        Result added = await _musicService.AddToQueueAsync(
+        Result<MusicTrack> requested = await _musicService.RequestTrackAsync(
             channelId,
             request.Query,
             request.RequestedBy,
             ct
         );
-        if (added.IsFailure)
-            return ResultResponse(added);
+        if (requested.IsFailure)
+            return ResultResponse(requested);
 
         return Ok(new StatusResponseDto<object> { Message = "Song added to queue." });
     }
