@@ -169,6 +169,141 @@ updates/vacuum. **Fix:** enforce a unique (or unique-partial-`WHERE IsEnabled`) 
 `(BroadcasterId, EventType)`, or explicitly define and document ordering semantics if
 multiple concurrent responses per trigger are meant to be allowed.
 
+## 4. Second sweep — webhooks, moderation/TTS, sandbox, economy
+
+Covers everything not touched by lanes 1-5: inbound/outbound webhooks, scheduled
+pipelines, moderation/chat-filter execution, TTS dispatch, the CodeScript sandbox, and
+currency/economy atomicity.
+
+### HIGH
+
+**F11. Currency balance is a read-modify-write race — real double-spend.**
+`CurrencyAccountService.AppendAsync` (`Economy/CurrencyAccountService.cs:323-380`) reads
+`account.Balance` via a plain `FirstOrDefaultAsync` (no row lock, no concurrency token —
+`CurrencyAccount` has neither `RowVersion` nor `[ConcurrencyCheck]`), computes
+`newBalance` in memory, validates it, then saves. Two concurrent calls for the same
+account (two rapid earns, or an earn racing a purchase debit) can both read the same
+starting balance and the second `SaveChangesAsync` silently overwrites the first's
+update — one award is lost, or (in `CatalogService.PurchaseAsync`, which inherits the
+same unlocked check) a user with exactly enough currency for one item can complete two
+near-simultaneous purchases before either debit commits: a genuine double-spend, not
+just a stock-count race. The negative-balance guard is correct for a single call but
+inherits the same race, so concurrent calls can jointly drive the balance negative
+despite the check. **Fix:** replace the read-modify-write with an atomic
+`UPDATE ... SET balance = balance + @amount WHERE id = @id AND balance + @amount >= 0`
+(via `ExecuteUpdateAsync`/raw SQL, using affected-row-count as the success signal), or
+add a `RowVersion` concurrency token with retry-on-conflict.
+
+### MEDIUM
+
+**F12. Earning-rule dedup is check-then-act, not atomic (TOCTOU, narrow window).**
+`CurrencyEarningService.ApplyEarningAsync` does an `AnyAsync` existence check on
+`(BroadcasterId, ViewerUserId, EventId, EntryType)` *before* calling
+`PostLedgerEntryAsync`, which opens its own separate transaction to insert the row. No
+unique DB constraint enforces this at the database level — only the pre-check. Two
+concurrent deliveries of the same event (e.g. an EventSub redelivery landing before the
+first post commits) could both pass the check and both credit. **Fix:** add a unique
+index on `(BroadcasterId, ViewerUserId, EventId, EntryType)` on the ledger-entries
+table so the insert itself fails closed on a duplicate, rather than relying on the
+pre-check alone.
+
+**F13. Moderation escalation-ladder increment has the same lost-update shape as F11.**
+`ModerationEscalationService.ResolveAndRecordAsync` reads `OffenseCount`, increments in
+memory, saves — no concurrency token on `ModerationEscalationState`. Two near-simultaneous
+violations from the same user (two filters both configured to escalate, or two rapid
+messages) can both read the same starting count and the second write overwrites rather
+than compounds — two real offenses collapse into one escalation tier (under-escalation).
+**Fix:** same pattern as F11 — atomic increment or a concurrency token with retry.
+
+**F14. TTS `VoiceIdOverride` is interpolated unescaped into SSML.**
+`AzureTtsProvider.cs:60` escapes the spoken `text` correctly
+(`SecurityElement.Escape`) but interpolates `voiceId` raw:
+`<voice name='{voiceId}'>`. Normal flows validate voice IDs against the catalogue
+before persisting, but `TtsDispatchService.ResolveVoiceAsync` has a bypass:
+`request.VoiceIdOverride`, when set, is used immediately with no catalogue/format
+validation. It's populated from broadcaster/mod-authored surfaces only (a pipeline
+action config, and the custom-code/JS scripting bridge) — not raw viewer chat — but a
+buggy or malicious script could still inject SSML structure via this field. **Fix:**
+escape `voiceId` the same way `text` already is, at the point of interpolation (defense
+at the source, not reliant on every caller validating).
+
+**F15. TTS dispatch has no request-volume cap.**
+`TtsDispatchService.RequestSpeakAsync` synthesizes/dispatches inline per call with no
+bounded queue, no per-channel rate limit, no max-pending-requests guard. A cheap
+channel-point redemption or command bound to TTS, spammed by chat, fires concurrent
+synthesis+storage calls with nothing capping in-flight count — overlay flooding plus
+repeated paid-provider (Azure/ElevenLabs) API cost. Failure handling itself is solid
+(proper `Result<T>` failures, not the silent-swallow pattern found in F4) — this is
+purely a missing volume cap. **Fix:** bound concurrent/pending TTS requests per channel.
+
+**F16. Unbounded JSON-nesting recursion in inbound webhook flattening — stack-overflow DoS.**
+`WebhookAdapterHelpers.Flatten` recurses once per nesting level with no depth limit. The
+256 KiB body-size cap doesn't bound nesting depth — a payload like `[[[[[...]]]]]`
+reaches tens of thousands of nesting levels well under that byte cap, risking an
+uncatchable `StackOverflowException` that kills the process. **Fix:** add an explicit
+recursion-depth cap to `Flatten`, reject payloads that exceed it.
+
+### LOW
+
+**F17. ChatFilter regex has no ReDoS check at save time** (mitigated at match time by a
+100ms per-message timeout that fails the match rather than hanging — so this is a
+functional gap, not a stability one: a catastrophic-backtracking pattern just silently
+never matches its own target input, with no feedback to the broadcaster that their
+filter is effectively dead).
+
+**F18. Multiple matching ChatFilters — only the oldest (`CreatedAt`) ever enforces**,
+deterministic and not racy, but a newer, stricter filter can be silently shadowed by an
+older, looser one with no admin-facing warning about the conflict.
+
+**F19. No idempotency wrapper around moderation Helix calls** — if Twitch's own AutoMod
+and a NomNomzBot chat filter both act on the same message, a "already banned/timed out"
+error from Helix has no defined handling (would surface as an exception rather than
+being treated as an already-satisfied success).
+
+### Clean (checked, no issue)
+
+- Inbound webhook auth: constant-time secret compare, HMAC verification with a bounded
+  10-minute replay window.
+- Outbound webhook SSRF protection: allowlist enforced at both creation and delivery
+  time, DNS resolve-then-pin closes the rebind TOCTOU, redirects disabled — no bypass
+  found.
+- Outbound webhook retry: `WebhookDeliveryWorker` (registered as a hosted service,
+  `DependencyInjection.cs:597`) does drain the `NextRetryAt` queue — confirmed
+  independently after the audit lane flagged it as unverified; bounded exponential
+  backoff, auto-disable after 20 consecutive failures.
+- `ScheduledPipelineService`: live-reads on every fire (no `GraphJsonCache`-style
+  staleness), terminal-status-before-dispatch ordering prevents double-fire on a crash.
+- CodeScript sandbox (Jint/self-host profile): wall-clock timeout, memory/statement/
+  recursion caps, graceful degradation on unhandled script exceptions, capped stdout,
+  deny-by-default network access — all enforced. Sandbox output flowing into chat
+  templates cannot trigger recursive re-expansion (`Regex.Replace` is single-pass) — no
+  injection path found. (Wasmtime/SaaS executor is a documented stub that fails closed
+  when unconfigured — an incomplete feature, not a bug.)
+- Currency overflow: `long` balance fields, no realistic overflow risk.
+
+## 5. Updated remediation plan
+
+Ordered by severity across both sweeps:
+
+1. **F11 (HIGH)** — atomic currency balance update. Real double-spend; highest-impact
+   correctness bug in the whole audit alongside F1.
+2. **F1 (CRITICAL, from §2)** — pipeline graph validation on save.
+3. **F3 (HIGH, from §2)** — timer/`GraphJsonCache` staleness.
+4. **F12, F13 (MEDIUM)** — earning-rule unique constraint; escalation-ladder atomic
+   increment. Same root shape as F11, cheap to batch with it.
+5. **F4 (MEDIUM-HIGH, from §2)** — chat-send outcome threading.
+6. **F5 (MEDIUM-HIGH, from §2)** — timer retry-storm fix.
+7. **F14, F16 (MEDIUM)** — TTS SSML escaping; webhook recursion depth cap. Small,
+   isolated, mechanical fixes.
+8. **F15 (MEDIUM)** — TTS request-volume cap.
+9. **F2, F8 (HIGH/MEDIUM, from §2)** — timer interval floor; re-enable timestamp reset.
+10. **F6, F7, F10 (MEDIUM, from §2)** — unresolved-variable leakage; builtin-name
+    shadowing; duplicate event-response ordering.
+11. **F9 (MEDIUM, from §2)** — atomic cooldown check-and-set (DB write-through for
+    cross-instance correctness remains a separate scaling decision, not bundled here).
+12. **F17, F18, F19 (LOW)** — ReDoS save-time warning, filter-conflict warning,
+    Helix already-actioned handling. Lowest priority, no urgency.
+
 ### LOW / informational (no fix needed, or owner-judgment call)
 
 - **In-flight permission de-escalation** (command lane): a demoted user's already-admitted,
