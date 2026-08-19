@@ -83,7 +83,8 @@ public sealed class OverlayHostControllerTests
 
         // A real per-widget SPA: its own mount root, the runtime + SDK, and the widget's own bundle.
         html.Should()
-            .Contain("id=\"app\"", "the widget mounts into its own root, not a shared shell")
+            .Contain("<title>Chat Box", "the widget's name is in the document title for devtools")
+            .And.Contain("id=\"app\"", "the widget mounts into its own root, not a shared shell")
             .And.Contain("/overlay/vue.js", "the Vue runtime loads before the bundle")
             .And.Contain("/overlay/sdk.js", "the SDK opens the widget's own hub connection")
             .And.Contain(

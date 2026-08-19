@@ -15,7 +15,7 @@ interface SpotifyPlayerConfig {
 }
 
 const cfg = reactive<SpotifyPlayerConfig>({ enableAudio: true, accentColor: '#9146ff' })
-const status = ref<string>('') // '' | 'connecting' | 'active' | 'blocked' | 'error'
+const status = ref<string>('') // '' | 'connecting' | 'active' | 'muted' | 'blocked' | 'error'
 
 onMounted(() => {
   if (!nnz) return
@@ -112,6 +112,7 @@ async function connect(): Promise<void> {
         body: JSON.stringify({ device_ids: [device_id], play: true }),
       }).catch((err) => console.error('[spotify_player] activate device failed', err))
     })
+    checkAutoplayAllowed().then((allowed) => { if (!allowed) status.value = 'muted' })
   })
   player.addListener('not_ready', () => { status.value = 'connecting' })
   player.addListener('initialization_error', ({ message }: { message: string }) => {
@@ -146,12 +147,37 @@ function disconnect(): void {
   if (spotifyPlayer) { spotifyPlayer.disconnect(); spotifyPlayer = null }
   status.value = ''
 }
+
+// Chromium suspends a page's audio graph without a user gesture; the SDK still connects and streams
+// (network/DRM succeed) but nothing is audible. Probes via a throwaway AudioContext rather than the SDK's
+// own (sandboxed in a cross-origin iframe, unreadable).
+async function checkAutoplayAllowed(): Promise<boolean> {
+  const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext
+  if (!Ctx) return true
+  const ctx = new Ctx()
+  await ctx.resume().catch(() => {})
+  const allowed = ctx.state === 'running'
+  ctx.close().catch(() => {})
+  return allowed
+}
+
+function enableAudio(): void {
+  checkAutoplayAllowed().then((allowed) => { if (allowed) status.value = 'active' })
+}
 </script>
 
 <template>
   <!-- Deliberately quiet: 'connecting'/'active' render nothing (the point is invisible audio, not a
        visual element competing for scene space) — only a real problem needs the streamer's attention. -->
-  <div v-if="cfg.enableAudio && status === 'blocked'" class="nnz-spotify-status" :style="{ '--accent': cfg.accentColor }">
+  <button
+    v-if="cfg.enableAudio && status === 'muted'"
+    class="nnz-spotify-status nnz-spotify-enable"
+    :style="{ '--accent': cfg.accentColor }"
+    @click="enableAudio"
+  >
+    Click to enable audio playback
+  </button>
+  <div v-else-if="cfg.enableAudio && status === 'blocked'" class="nnz-spotify-status" :style="{ '--accent': cfg.accentColor }">
     Reconnect Spotify with streaming permission to enable this device (Integrations page).
   </div>
   <div v-else-if="cfg.enableAudio && status === 'error'" class="nnz-spotify-status" :style="{ '--accent': cfg.accentColor }">
@@ -172,5 +198,12 @@ function disconnect(): void {
   font-size: 12px;
   background: rgba(120, 20, 20, 0.85);
   border: 1px solid #d64545;
+}
+
+.nnz-spotify-enable {
+  cursor: pointer;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  font: inherit;
 }
 </style>

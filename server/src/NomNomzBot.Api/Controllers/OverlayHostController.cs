@@ -179,7 +179,7 @@ public sealed class OverlayHostController : ControllerBase
             <head>
             <meta charset="utf-8">
             <meta http-equiv="Content-Security-Policy" content="{{csp}}">
-            <title>NomNomzBot Overlay</title>
+            <title>{{System.Net.WebUtility.HtmlEncode(entry.Name)}} — NomNomzBot Overlay</title>
             <style>html,body{margin:0;padding:0;background:transparent;overflow:hidden}#app{position:fixed;inset:0}</style>
             {{ConfigScript(entry, token, nonce)}}
             {{runtimeTag}}
