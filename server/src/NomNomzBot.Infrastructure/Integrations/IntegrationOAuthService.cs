@@ -97,11 +97,10 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             return descriptorResult.WithValue<OAuthStartDto>(null!);
         OAuthProviderDescriptor descriptor = descriptorResult.Value;
 
-        if (!descriptor.ScopeSets.TryGetValue(scopeSetKey, out IReadOnlyList<string>? scopes))
-            return Result.Failure<OAuthStartDto>(
-                $"Unknown scope set '{scopeSetKey}' for provider '{provider}'.",
-                "UNKNOWN_SCOPE_SET"
-            );
+        Result<IReadOnlyList<string>> scopesResult = ResolveScopes(descriptor, scopeSetKey);
+        if (scopesResult.IsFailure)
+            return scopesResult.WithValue<OAuthStartDto>(null!);
+        IReadOnlyList<string> scopes = scopesResult.Value;
 
         // A shop-scoped provider (Shopify) parameterizes its endpoints with the shop name — required,
         // sanitized (never a full URL: the substitution must not become an SSRF vector).
@@ -393,6 +392,34 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
     }
 
     // ─── Helpers ───────────────────────────────────────────────────────────────
+
+    // A key may be a single declared set or a '+'-joined union of several, so a reconnect can request an
+    // already-granted set together with a newly-needed one in one consent screen.
+    private static Result<IReadOnlyList<string>> ResolveScopes(
+        OAuthProviderDescriptor descriptor,
+        string scopeSetKey
+    )
+    {
+        string[] keys = scopeSetKey.Split('+', StringSplitOptions.RemoveEmptyEntries);
+        if (keys.Length == 0)
+            return Result.Failure<IReadOnlyList<string>>(
+                $"Unknown scope set '{scopeSetKey}' for provider '{descriptor.Provider}'.",
+                "UNKNOWN_SCOPE_SET"
+            );
+
+        HashSet<string> union = new(StringComparer.Ordinal);
+        foreach (string key in keys)
+        {
+            if (!descriptor.ScopeSets.TryGetValue(key, out IReadOnlyList<string>? scopes))
+                return Result.Failure<IReadOnlyList<string>>(
+                    $"Unknown scope set '{key}' for provider '{descriptor.Provider}'.",
+                    "UNKNOWN_SCOPE_SET"
+                );
+            union.UnionWith(scopes);
+        }
+
+        return Result.Success<IReadOnlyList<string>>([.. union]);
+    }
 
     private static string RedirectUriFor(string publicOrigin, string provider) =>
         $"{publicOrigin.TrimEnd('/')}/api/v1/integrations/{provider}/callback";

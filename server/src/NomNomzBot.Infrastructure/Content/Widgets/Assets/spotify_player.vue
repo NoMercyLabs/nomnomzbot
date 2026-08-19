@@ -114,9 +114,6 @@ async function connect(): Promise<void> {
     })
   })
   player.addListener('not_ready', () => { status.value = 'connecting' })
-  // The SDK's error listeners hand back a { message } payload — log it verbatim. Collapsing every
-  // failure into one silent 'error' state left no way to tell "insecure context", "EME unavailable",
-  // and "network blocked" apart from a screenshot.
   player.addListener('initialization_error', ({ message }: { message: string }) => {
     console.error('[spotify_player] initialization_error:', message)
     status.value = 'error'

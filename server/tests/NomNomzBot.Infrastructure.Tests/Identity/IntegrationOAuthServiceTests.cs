@@ -247,6 +247,45 @@ public sealed class IntegrationOAuthServiceTests
         start.ErrorCode.Should().Be("UNKNOWN_SCOPE_SET");
     }
 
+    /// <summary>A '+'-joined scope-set key requests the union of every named set in one authorize call.</summary>
+    [Fact]
+    public async Task StartConnect_CompositeScopeSetKey_RequestsTheUnionOfBothSets()
+    {
+        (IntegrationOAuthService service, _, _, _) = Build(new StubHandler());
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Spotify,
+            "spotify.playback+spotify.streaming",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+
+        start.IsSuccess.Should().BeTrue(start.ErrorMessage);
+        string scope = Uri.UnescapeDataString(start.Value.AuthorizeUrl);
+        scope.Should().Contain("user-modify-playback-state");
+        scope.Should().Contain("streaming");
+        scope.Should().Contain("user-read-email");
+    }
+
+    [Fact]
+    public async Task StartConnect_CompositeScopeSetKey_WithOneUnknownMember_Fails()
+    {
+        (IntegrationOAuthService service, _, _, _) = Build(new StubHandler());
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Spotify,
+            "spotify.playback+spotify.bogus",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+
+        start.ErrorCode.Should().Be("UNKNOWN_SCOPE_SET");
+    }
+
     /// <summary>
     /// Proves the shop-scoped connect (Shopify, supporter-events.md OAuth-vault): the shop name is required
     /// and sanitized (a pasted <c>Name.myshopify.com</c> works; a URL is rejected), every endpoint resolves
