@@ -300,34 +300,34 @@ public static class ToneTemplateCatalog
             BuiltinResponseSlots.SongRequest.Added,
             informative:
             [
-                "@{user} Added {track.name} by {track.artist} to the queue.",
-                "@{user} Queued: {track.name} by {track.artist}.",
-                "@{user} {track.name} by {track.artist} is in the queue.",
+                "Added {track.name} by {track.artist} to the queue.",
+                "Queued: {track.name} by {track.artist}.",
+                "{track.name} by {track.artist} is in the queue.",
             ],
             friendly:
             [
-                "@{user} Added {track.name} by {track.artist} — great choice!",
-                "@{user} Got it! {track.name} by {track.artist} is queued.",
-                "@{user} {track.name} by {track.artist} coming up — thanks!",
+                "Added {track.name} by {track.artist} — great choice!",
+                "Got it! {track.name} by {track.artist} is queued.",
+                "{track.name} by {track.artist} coming up — thanks!",
             ],
             sassy:
             [
-                "@{user} Fine. {track.name} by {track.artist} is in the queue. I've queued worse. Barely.",
-                "@{user} Added {track.name} by {track.artist}. Bold. Noted. Logged forever.",
-                "@{user} {track.name} by {track.artist}? Sure. It's in. The queue doesn't judge. I do, but the queue doesn't.",
-                "@{user} {track.name} by {track.artist}, queued. Your taste has been entered into evidence.",
+                "Fine. {track.name} by {track.artist} is in the queue. I've queued worse. Barely.",
+                "Added {track.name} by {track.artist}. Bold. Noted. Logged forever.",
+                "{track.name} by {track.artist}? Sure. It's in. The queue doesn't judge. I do, but the queue doesn't.",
+                "{track.name} by {track.artist}, queued. Your taste has been entered into evidence.",
             ],
             hype:
             [
-                "@{user} {track.name} BY {track.artist} IS LOCKED IN. LET'S GO.",
-                "@{user} ADDED {track.name} BY {track.artist}. THE QUEUE JUST GOT BETTER.",
-                "@{user} {track.name} BY {track.artist} INCOMING. BRACE.",
+                "{track.name} BY {track.artist} IS LOCKED IN. LET'S GO.",
+                "ADDED {track.name} BY {track.artist}. THE QUEUE JUST GOT BETTER.",
+                "{track.name} BY {track.artist} INCOMING. BRACE.",
             ],
             chill:
             [
-                "@{user} added {track.name} by {track.artist}.",
-                "@{user} queued {track.name}. nice.",
-                "@{user} {track.name} by {track.artist}, in.",
+                "added {track.name} by {track.artist}.",
+                "queued {track.name}. nice.",
+                "{track.name} by {track.artist}, in.",
             ]
         );
 
@@ -338,34 +338,34 @@ public static class ToneTemplateCatalog
             BuiltinResponseSlots.SongRequest.NotFound,
             informative:
             [
-                "@{user} No tracks found for \"{query}\".",
-                "@{user} I couldn't find \"{query}\".",
-                "@{user} Nothing matched \"{query}\".",
+                "No tracks found for \"{query}\".",
+                "I couldn't find \"{query}\".",
+                "Nothing matched \"{query}\".",
             ],
             friendly:
             [
-                "@{user} Hmm, couldn't find \"{query}\" — try another spelling?",
-                "@{user} No luck with \"{query}\". Give it another go!",
-                "@{user} Couldn't find \"{query}\", but don't give up!",
+                "Hmm, couldn't find \"{query}\" — try another spelling?",
+                "No luck with \"{query}\". Give it another go!",
+                "Couldn't find \"{query}\", but don't give up!",
             ],
             sassy:
             [
-                "@{user} \"{query}\"? Searched everywhere. Even under the couch. Nothing.",
-                "@{user} Zero results for \"{query}\". Either it doesn't exist or you just invented a song. Impressive either way.",
-                "@{user} \"{query}\" returned nothing. Spelling is free, you know.",
-                "@{user} 404: \"{query}\" not found. Not on any platform. Possibly not in this reality.",
+                "\"{query}\"? Searched everywhere. Even under the couch. Nothing.",
+                "Zero results for \"{query}\". Either it doesn't exist or you just invented a song. Impressive either way.",
+                "\"{query}\" returned nothing. Spelling is free, you know.",
+                "404: \"{query}\" not found. Not on any platform. Possibly not in this reality.",
             ],
             hype:
             [
-                "@{user} NOTHING FOUND FOR \"{query}\". TRY AGAIN. WE BELIEVE IN YOU.",
-                "@{user} \"{query}\" CAME BACK EMPTY. RELOAD AND RETRY.",
-                "@{user} SWING AND A MISS ON \"{query}\". GO AGAIN.",
+                "NOTHING FOUND FOR \"{query}\". TRY AGAIN. WE BELIEVE IN YOU.",
+                "\"{query}\" CAME BACK EMPTY. RELOAD AND RETRY.",
+                "SWING AND A MISS ON \"{query}\". GO AGAIN.",
             ],
             chill:
             [
-                "@{user} nothing for \"{query}\".",
-                "@{user} couldn't find \"{query}\". oh well.",
-                "@{user} no match for \"{query}\".",
+                "nothing for \"{query}\".",
+                "couldn't find \"{query}\". oh well.",
+                "no match for \"{query}\".",
             ]
         );
 

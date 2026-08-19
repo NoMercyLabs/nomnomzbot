@@ -78,6 +78,20 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             cancellationToken
         );
 
+        // A managed reward the broadcaster disabled locally runs none of its bot-side behavior — no
+        // timer, no bound pipeline, no Response text, no generic event response — even though Twitch
+        // itself already granted the redemption (Twitch's own pause/enable state is IsPaused, separate
+        // from this local kill switch). An unmanaged/unrecognized reward (reward is null) is unaffected.
+        if (reward is { IsEnabled: false })
+        {
+            _logger.LogDebug(
+                "Reward {RewardId} in {Channel} is disabled — skipping redemption behavior",
+                @event.RewardId,
+                broadcasterId
+            );
+            return;
+        }
+
         // A time-limited reward starts its countdown the moment it's redeemed (idempotent per
         // redemption — an EventSub redelivery returns the existing timer). Orthogonal to the response.
         if (reward?.TimerDurationSeconds is int timerSeconds and > 0)

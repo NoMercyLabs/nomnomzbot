@@ -168,4 +168,46 @@ public sealed class RewardRedeemedHandlerTests
                 Arg.Any<CancellationToken>()
             );
     }
+
+    /// <summary>
+    /// A broadcaster disabling a reward locally (dashboard toggle) must stop ALL of its bot-side behavior —
+    /// the bound pipeline, the timer, and the generic event-response fallback — even though Twitch already
+    /// granted the redemption (Twitch's own pause state is the separate IsPaused mirror). This is the state
+    /// round-trip: a toggle that persists but nothing downstream reads is a dead flag.
+    /// </summary>
+    [Fact]
+    public async Task A_disabled_reward_runs_none_of_its_redemption_behavior()
+    {
+        Harness h = Build();
+        const string graph = """{"actions":[{"type":"play_sound","clip":"airhorn"}]}""";
+        h.Db.Pipelines.Add(
+            new Pipeline
+            {
+                Id = BoundPipelineId,
+                BroadcasterId = Channel,
+                Name = "airhorn",
+                TriggerKind = "reward",
+                GraphJsonCache = graph,
+            }
+        );
+        h.Db.Rewards.Add(
+            new Reward
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = Channel,
+                Title = "Play a sound",
+                TwitchRewardId = "tw-reward-3",
+                PipelineId = BoundPipelineId,
+                IsEnabled = false,
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        await h.Handler.HandleAsync(Redemption("tw-reward-3"));
+
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        await h
+            .Executor.DidNotReceiveWithAnyArgs()
+            .ExecuteAsync(default, default!, default, default, default!, default);
+    }
 }

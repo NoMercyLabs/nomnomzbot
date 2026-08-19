@@ -186,4 +186,67 @@ public sealed class BuiltinResponseComposerTests
         result.Should().NotBe("NEUTRAL");
         chill.Should().Contain(result);
     }
+
+    /// <summary>
+    /// !sr answers are always sent as a Twitch-threaded reply (<c>reply_parent_message_id</c>), which already
+    /// shows "Replying to @user" — so no tone variation may additionally hardcode an "@user" mention in the
+    /// body, or the viewer gets mentioned twice. Covers every flavored tone for both !sr slots, through the
+    /// real composer + real catalog (no mocked personality content).
+    /// </summary>
+    [Theory]
+    [InlineData(PersonalityTone.Friendly)]
+    [InlineData(PersonalityTone.Sassy)]
+    [InlineData(PersonalityTone.Hype)]
+    [InlineData(PersonalityTone.Chill)]
+    public async Task Song_request_added_reply_never_hardcodes_an_at_mention(string tone)
+    {
+        string result = await Sut()
+            .ComposeAsync(
+                new BuiltinResponseRequest
+                {
+                    BroadcasterId = Channel,
+                    Personality = tone,
+                    BuiltinKey = BuiltinResponseSlots.SongRequest.Key,
+                    Slot = BuiltinResponseSlots.SongRequest.Added,
+                    NeutralFallback = "Added {track.name} by {track.artist} to the queue.",
+                    Variables = new Dictionary<string, string>
+                    {
+                        ["user"] = "Viewer",
+                        ["track.name"] = "Song",
+                        ["track.artist"] = "Artist",
+                    },
+                }
+            );
+
+        result.Should().NotStartWith("@");
+        result.Should().NotContain("@Viewer");
+    }
+
+    [Theory]
+    [InlineData(PersonalityTone.Friendly)]
+    [InlineData(PersonalityTone.Sassy)]
+    [InlineData(PersonalityTone.Hype)]
+    [InlineData(PersonalityTone.Chill)]
+    public async Task Song_request_not_found_reply_never_hardcodes_an_at_mention(string tone)
+    {
+        string result = await Sut()
+            .ComposeAsync(
+                new BuiltinResponseRequest
+                {
+                    BroadcasterId = Channel,
+                    Personality = tone,
+                    BuiltinKey = BuiltinResponseSlots.SongRequest.Key,
+                    Slot = BuiltinResponseSlots.SongRequest.NotFound,
+                    NeutralFallback = "No tracks found for \"{query}\".",
+                    Variables = new Dictionary<string, string>
+                    {
+                        ["user"] = "Viewer",
+                        ["query"] = "some song",
+                    },
+                }
+            );
+
+        result.Should().NotStartWith("@");
+        result.Should().NotContain("@Viewer");
+    }
 }
