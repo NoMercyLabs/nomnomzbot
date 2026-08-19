@@ -122,4 +122,16 @@ public interface IChannelService
         string token,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>The channel's current overlay token — every widget/overlay browser-source URL's <c>?token=</c>.</summary>
+    Task<Result<string>> GetOverlayTokenAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Mints a new overlay token, invalidating every existing widget URL for this channel.</summary>
+    Task<Result<string>> RotateOverlayTokenAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
 }

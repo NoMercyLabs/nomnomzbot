@@ -470,6 +470,26 @@ public class ChannelsController : BaseController
         return Ok(new StatusResponseDto<ChannelBasicsDto> { Data = result.Value });
     }
 
+    /// <summary>The channel's overlay token — every widget/overlay browser-source URL's <c>?token=</c>.</summary>
+    [HttpGet("{channelId}/overlay-token")]
+    [RequireAction("widget:read")]
+    [ProducesResponseType<StatusResponseDto<string>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOverlayToken(string channelId, CancellationToken ct)
+    {
+        Result<string> result = await _channelService.GetOverlayTokenAsync(channelId, ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>Mints a new overlay token — every existing widget/overlay URL for this channel stops working.</summary>
+    [HttpPost("{channelId}/overlay-token/rotate")]
+    [RequireAction("widget:write")]
+    [ProducesResponseType<StatusResponseDto<string>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RotateOverlayToken(string channelId, CancellationToken ct)
+    {
+        Result<string> result = await _channelService.RotateOverlayTokenAsync(channelId, ct);
+        return ResultResponse(result);
+    }
+
     /// <summary>Bot joins the channel (subscribes to EventSub and starts listening).</summary>
     [HttpPost("{channelId}/join")]
     [RequireAction("setup:write")]

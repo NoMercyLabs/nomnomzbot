@@ -519,6 +519,45 @@ public class ChannelService : IChannelService
         return Result.Success();
     }
 
+    public async Task<Result<string>> GetOverlayTokenAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound<string>(broadcasterId);
+
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == broadcasterGuid,
+            cancellationToken
+        );
+        if (channel is null)
+            return Errors.ChannelNotFound<string>(broadcasterId);
+
+        return Result.Success(channel.OverlayToken);
+    }
+
+    public async Task<Result<string>> RotateOverlayTokenAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound<string>(broadcasterId);
+
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == broadcasterGuid,
+            cancellationToken
+        );
+        if (channel is null)
+            return Errors.ChannelNotFound<string>(broadcasterId);
+
+        channel.OverlayToken = Guid.NewGuid().ToString();
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(channel.OverlayToken);
+    }
+
     public async Task<ChannelOverlayInfo?> GetByOverlayTokenAsync(
         string token,
         CancellationToken cancellationToken = default
