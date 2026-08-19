@@ -119,6 +119,13 @@ interface WidgetsApi {
      * already-installed widget). Addressed by the source [galleryItemId].
      */
     suspend fun cloneFromGallery(channelId: String, galleryItemId: String): ApiResult<WidgetSummary>
+
+    /**
+     * Mint a new overlay token for the channel (backend `POST /channels/{channelId}/overlay-token/rotate`) —
+     * every existing widget's browser-source URL stops resolving; the returned [WidgetSummary.overlayUrl]s only
+     * update once [list] re-fetches with the new token baked in.
+     */
+    suspend fun rotateOverlayToken(channelId: String): ApiResult<String>
 }
 
 class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
@@ -234,6 +241,11 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
             "api/v1/channels/$channelId/widgets/clone",
             CloneWidgetBody(galleryItemId = galleryItemId),
         )
+
+    // Lives under /channels/{channelId}, not /channels/{channelId}/widgets — the token is a channel-level
+    // property shared by every overlay, not owned by any one widget.
+    override suspend fun rotateOverlayToken(channelId: String): ApiResult<String> =
+        client.postEnvelope("api/v1/channels/$channelId/overlay-token/rotate", Unit)
 }
 
 /**

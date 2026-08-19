@@ -103,6 +103,19 @@ class WidgetsController(
     }
 
     /**
+     * Mint a new overlay token for the channel. Every existing widget's browser-source URL stops resolving —
+     * the screen confirms before calling this. Reloads on success so the list's [WidgetSummary.overlayUrl]s
+     * reflect the new token.
+     */
+    suspend fun rotateOverlayToken() {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        when (val result: ApiResult<String> = widgetsApi.rotateOverlayToken(channel)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
+    /**
      * Create a new widget ({ [name], [framework] }), then open the multi-file project editor seeded with a one-file
      * project ({ entry → [seedSource] }, a chosen template's source or blank) so the operator authors + compiles
      * the first version right away. Reloads when the editor closes; surfaces the error if the create call fails.

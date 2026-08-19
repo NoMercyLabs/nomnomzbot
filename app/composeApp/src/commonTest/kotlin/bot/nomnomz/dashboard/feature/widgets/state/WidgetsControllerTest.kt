@@ -200,6 +200,22 @@ class WidgetsControllerTest {
     }
 
     @Test
+    fun rotateOverlayToken_calls_the_endpoint_then_reloads() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(listOf(WidgetSummary(id = "w-1", name = "Alerts", isEnabled = true)))
+            )
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+        controller.load()
+
+        controller.rotateOverlayToken()
+
+        assertTrue(widgetsApi.rotateCalled)
+        assertTrue(controller.state.value is WidgetsState.Ready)
+    }
+
+    @Test
     fun a_failed_write_surfaces_the_error_over_the_kept_list() = runTest {
         val widgetsApi =
             RecordingWidgetsApi(
@@ -702,6 +718,13 @@ private class RecordingWidgetsApi(
         return ApiResult.Ok(
             WidgetSummary(id = "gallery-clone", name = "clone", source = "custom", activeVersionId = "v-1")
         )
+    }
+
+    var rotateCalled: Boolean = false
+
+    override suspend fun rotateOverlayToken(channelId: String): ApiResult<String> {
+        rotateCalled = true
+        return ApiResult.Ok("new-overlay-token")
     }
 }
 

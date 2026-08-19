@@ -87,6 +87,10 @@ import nomnomzbot.composeapp.generated.resources.widgets_empty
 import nomnomzbot.composeapp.generated.resources.widgets_error
 import nomnomzbot.composeapp.generated.resources.widgets_loading
 import nomnomzbot.composeapp.generated.resources.widgets_retry
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_token_action
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_token_confirm
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_token_message
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_token_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_overlays
 import nomnomzbot.composeapp.generated.resources.widgets_submit_action
 import nomnomzbot.composeapp.generated.resources.widgets_review_action
@@ -185,6 +189,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
     var showGalleryDialog: Boolean by remember { mutableStateOf(false) }
     var showSubmitDialog: Boolean by remember { mutableStateOf(false) }
     var showReviewQueue: Boolean by remember { mutableStateOf(false) }
+    var showRotateTokenConfirm: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -224,6 +229,14 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
                         variant = ButtonVariant.Outline,
                     ) {
                         Text(stringResource(Res.string.widgets_review_action))
+                    }
+                }
+                ManageGate(manage) {
+                    Button(
+                        onClick = { showRotateTokenConfirm = true },
+                        variant = ButtonVariant.Outline,
+                    ) {
+                        Text(stringResource(Res.string.widgets_rotate_token_action))
                     }
                 }
                 ManageGate(manage) {
@@ -283,6 +296,21 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
                 scope.launch { controller.deleteWidget(target.id) }
             },
             onDismiss = { pendingDelete = null },
+        )
+    }
+
+    if (showRotateTokenConfirm) {
+        ConfirmDialog(
+            title = stringResource(Res.string.widgets_rotate_token_title),
+            message = stringResource(Res.string.widgets_rotate_token_message),
+            confirmLabel = stringResource(Res.string.widgets_rotate_token_confirm),
+            dismissLabel = stringResource(Res.string.widgets_delete_cancel),
+            destructive = true,
+            onConfirm = {
+                showRotateTokenConfirm = false
+                scope.launch { controller.rotateOverlayToken() }
+            },
+            onDismiss = { showRotateTokenConfirm = false },
         )
     }
 

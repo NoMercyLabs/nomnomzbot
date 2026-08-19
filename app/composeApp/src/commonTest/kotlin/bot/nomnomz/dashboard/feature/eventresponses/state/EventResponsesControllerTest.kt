@@ -348,6 +348,7 @@ private object StubWidgetsApi : bot.nomnomz.dashboard.core.network.WidgetsApi {
         channelId: String,
         galleryItemId: String,
     ): ApiResult<bot.nomnomz.dashboard.core.network.WidgetSummary> = error("stub")
+    override suspend fun rotateOverlayToken(channelId: String): ApiResult<String> = error("stub")
 }
 
 private object StubPickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi {
