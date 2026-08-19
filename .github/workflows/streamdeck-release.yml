@@ -1,0 +1,66 @@
+name: Stream Deck plugin release
+
+# Separate from ci.yml on purpose: the plugin is versioned independently of the
+# backend/frontend and must not fire on every master push. Tag push only.
+on:
+  push:
+    tags:
+      - 'streamdeck-v*'
+
+defaults:
+  run:
+    working-directory: tools/streamdeck
+
+jobs:
+  release:
+    name: Build & publish .streamDeckPlugin
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: tools/streamdeck/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Build plugin bundle
+        run: npm run build
+
+      # A .streamDeckPlugin file IS the .sdPlugin folder zipped with that
+      # extension — same package installs on both Windows and macOS by
+      # double-click; Elgato ships no Linux Stream Deck app to target.
+      - name: Package .streamDeckPlugin
+        run: |
+          set -e
+          PLUGIN_DIR="bot.nomnomzbot.streamdeck.sdPlugin"
+          OUT="bot.nomnomzbot.streamdeck.streamDeckPlugin"
+          cd "$(dirname "$PLUGIN_DIR")"
+          zip -r -X "$OUT" "$(basename "$PLUGIN_DIR")" -x '*.map'
+          mv "$OUT" "$GITHUB_WORKSPACE/tools/streamdeck/$OUT"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: tools/streamdeck/bot.nomnomzbot.streamdeck.streamDeckPlugin
+          name: Stream Deck plugin ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            NomNomzBot Stream Deck plugin — Spotify/music control over the bot's own Automation API.
+
+            **Install (Windows & macOS):** download `bot.nomnomzbot.streamdeck.streamDeckPlugin` below and double-click it — the Stream Deck app installs it directly. Requires Stream Deck software 6.5+.
+
+            **Linux:** Elgato does not ship an official Stream Deck app for Linux, so this plugin can't be installed there. Community projects (e.g. `streamdeck-linux-gui`) reimplement a Stream Deck client and may load third-party plugins, but they are unofficial, not built or tested by NoMercy Labs, and compatibility isn't guaranteed.
