@@ -134,7 +134,12 @@ jobs:
   deploy:
     name: Deploy to server
     needs: build
-    runs-on: ubuntu-latest
+    # DEPLOY_HOST is a private-LAN address (Proxmox) — a GitHub-hosted runner cannot reach it at all
+    # ("dial tcp ***:22: i/o timeout"), so this runs on the self-hosted runner living on that same LAN
+    # (registered with the nomnomzbot-deploy label). That runner container has no docker socket or
+    # /opt/nomnomzbot mounted into it, so it still deploys over SSH exactly as before — the only change
+    # is WHERE the SSH client runs, from a network that can actually reach the host.
+    runs-on: [self-hosted, nomnomzbot-deploy]
     # Only deploy on master pushes, and only when the DEPLOY_HOST secret is configured.
     # To enable: add DEPLOY_HOST (server IP/hostname) and DEPLOY_SSH_KEY (private key) as
     # repository secrets, and make sure the server can pull from ghcr.io/nomercylabs/nomnomzbot.
