@@ -742,7 +742,7 @@ public sealed class MusicService : IMusicService
         }
         catch (DeviceTransferFailedException ex)
         {
-            return Result.Failure(ex.Message, "SOME_OTHER_CODE");
+            return Result.Failure(ex.Message, "DEVICE_TRANSFER_FAILED");
         }
 
         return Result.Success();
