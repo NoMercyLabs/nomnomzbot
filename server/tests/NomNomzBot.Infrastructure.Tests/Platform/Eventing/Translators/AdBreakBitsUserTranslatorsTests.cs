@@ -125,6 +125,76 @@ public sealed class AdBreakBitsUserTranslatorsTests
     }
 
     [Fact]
+    public async Task AdBreakBegin_SuppressesASecondNotification_ForTheSameBroadcasterAndStartedAt()
+    {
+        // Twitch is known to deliver channel.ad_break.begin as two distinct messages (different message_id)
+        // for one physical ad break — the dispatcher's message-id dedupe does not catch this, so the
+        // translator itself must collapse same-broadcaster/same-started_at repeats.
+        Guid tenant = Guid.NewGuid();
+        CapturingEventBus bus = new();
+        ChannelAdBreakBeginTranslator translator = new(bus, Clock);
+        const string payload = """
+            {
+                "duration_seconds": 180,
+                "started_at": "2026-06-20T11:29:00Z",
+                "is_automatic": true
+            }
+            """;
+
+        await translator.TranslateAsync(Notification(tenant, "channel.ad_break.begin", payload));
+        await translator.TranslateAsync(
+            Notification(tenant, "channel.ad_break.begin", payload) with
+            {
+                MessageId = "msg-2",
+            }
+        );
+
+        bus.EventsOf<AdBreakBeganEvent>()
+            .Should()
+            .ContainSingle("the second delivery is the same ad break, not a new one");
+    }
+
+    [Fact]
+    public async Task AdBreakBegin_PublishesBoth_WhenStartedAtOrBroadcasterDiffer()
+    {
+        Guid tenant = Guid.NewGuid();
+        CapturingEventBus bus = new();
+        ChannelAdBreakBeginTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                tenant,
+                "channel.ad_break.begin",
+                """{"duration_seconds": 180, "started_at": "2026-06-20T11:29:00Z", "is_automatic": true}"""
+            )
+        );
+        await translator.TranslateAsync(
+            Notification(
+                tenant,
+                "channel.ad_break.begin",
+                """{"duration_seconds": 180, "started_at": "2026-06-20T11:50:00Z", "is_automatic": true}"""
+            ) with
+            {
+                MessageId = "msg-2",
+            }
+        );
+        await translator.TranslateAsync(
+            Notification(
+                Guid.NewGuid(),
+                "channel.ad_break.begin",
+                """{"duration_seconds": 180, "started_at": "2026-06-20T11:29:00Z", "is_automatic": true}"""
+            ) with
+            {
+                MessageId = "msg-3",
+            }
+        );
+
+        bus.EventsOf<AdBreakBeganEvent>()
+            .Should()
+            .HaveCount(3, "a later break and a different broadcaster are genuinely distinct");
+    }
+
+    [Fact]
     public async Task BitsUse_PublishesBitsUsedEvent_WithCheerTypeAndMessageText()
     {
         Guid tenant = Guid.NewGuid();

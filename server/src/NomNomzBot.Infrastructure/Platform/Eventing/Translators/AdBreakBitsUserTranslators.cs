@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.Json;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
@@ -24,10 +25,24 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing.Translators;
 /// <c>duration_seconds</c> and <c>is_automatic</c> as JSON strings ("180" / "true") while current payloads send a
 /// number / boolean — both shapes are accepted here so a representation change never faults the translator. The
 /// requester fields are absent for an automatic break.
+/// <para>
+/// Twitch is known to deliver <c>channel.ad_break.begin</c> as two distinct notifications (different
+/// <c>message_id</c>s) for a single ad break, so the dispatcher's message-id dedupe does not collapse them — both
+/// get journaled as genuinely separate deliveries. This translator additionally suppresses a second
+/// <see cref="AdBreakBeganEvent"/> (and therefore a second chat alert / dashboard broadcast) for the same
+/// broadcaster + <c>started_at</c> observed within a short window.
+/// </para>
 /// </summary>
 public sealed class ChannelAdBreakBeginTranslator(IEventBus bus, TimeProvider clock)
     : EventSubEventTranslator(bus, clock)
 {
+    private static readonly TimeSpan DedupeWindow = TimeSpan.FromMinutes(2);
+
+    // (BroadcasterId, started_at) -> when we last saw it. Singleton-lifetime translator, so this cache lives for
+    // the process — bounded by the periodic sweep below, never by a hard cap.
+    private readonly ConcurrentDictionary<(Guid, DateTimeOffset), DateTimeOffset> _recentStarts =
+        new();
+
     public override string SubscriptionType => "channel.ad_break.begin";
 
     public override Task TranslateAsync(
@@ -36,18 +51,34 @@ public sealed class ChannelAdBreakBeginTranslator(IEventBus bus, TimeProvider cl
     )
     {
         JsonElement payload = notification.Event;
+        DateTimeOffset startedAt = payload.GetDateTimeOffset("started_at") ?? Clock.GetUtcNow();
+        DateTimeOffset now = Clock.GetUtcNow();
+
+        SweepExpired(now);
+
+        (Guid, DateTimeOffset) key = (notification.BroadcasterId, startedAt);
+        if (!_recentStarts.TryAdd(key, now))
+            return Task.CompletedTask;
+
         AdBreakBeganEvent began = new()
         {
             BroadcasterId = notification.BroadcasterId,
             OccurredAt = Clock.GetUtcNow(),
             DurationSeconds = ReadFlexibleInt(payload, "duration_seconds"),
             IsAutomatic = ReadFlexibleBool(payload, "is_automatic"),
-            StartedAt = payload.GetDateTimeOffset("started_at") ?? Clock.GetUtcNow(),
+            StartedAt = startedAt,
             RequesterUserId = payload.GetString("requester_user_id"),
             RequesterDisplayName = payload.GetString("requester_user_name"),
         };
 
         return PublishAsync(began, ct);
+    }
+
+    private void SweepExpired(DateTimeOffset now)
+    {
+        foreach (KeyValuePair<(Guid, DateTimeOffset), DateTimeOffset> entry in _recentStarts)
+            if (now - entry.Value > DedupeWindow)
+                _recentStarts.TryRemove(entry.Key, out _);
     }
 
     /// <summary>Reads an int that Twitch may send as a JSON number or a numeric string; 0 when absent.</summary>
