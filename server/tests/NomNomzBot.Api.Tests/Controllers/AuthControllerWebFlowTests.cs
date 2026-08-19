@@ -66,6 +66,33 @@ public sealed class AuthControllerWebFlowTests
     }
 
     [Fact]
+    public async Task WebCallback_WithReturnRoute_EchoesItIntoTheFragment()
+    {
+        (AuthController controller, IAuthService auth, ITwitchOAuthStateService state) = Build();
+        state
+            .ConsumeAsync("nonce", Arg.Any<CancellationToken>())
+            .Returns(
+                new TwitchOAuthFlowState(
+                    "user",
+                    RedirectUri: null,
+                    Client: "web",
+                    ReturnRoute: "integrations"
+                )
+            );
+        auth.HandleTwitchCallbackAsync(
+                Arg.Any<OAuthCallbackDto>(),
+                Arg.Any<AuthContextDto>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(Auth("acc-tok", "ref-tok")));
+
+        IActionResult result = await controller.HandleTwitchCallback("code", "nonce", default);
+
+        RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
+        redirect.Url.Should().Contain("&return_route=integrations");
+    }
+
+    [Fact]
     public async Task NonWebCallback_StillReturnsJsonTokenShape()
     {
         (AuthController controller, IAuthService auth, ITwitchOAuthStateService state) = Build();

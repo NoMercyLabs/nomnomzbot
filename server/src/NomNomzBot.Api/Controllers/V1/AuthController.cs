@@ -335,6 +335,7 @@ public class AuthController : BaseController
         [FromQuery] string? redirect_uri,
         [FromQuery] string? client,
         [FromQuery] string? return_to,
+        [FromQuery] string? return_route,
         CancellationToken ct
     )
     {
@@ -350,7 +351,8 @@ public class AuthController : BaseController
                 "user",
                 redirect_uri,
                 Client: client,
-                ReturnTo: ReturnPathPolicy.Normalize(return_to)
+                ReturnTo: ReturnPathPolicy.Normalize(return_to),
+                ReturnRoute: NormalizeReturnRoute(return_route)
             ),
             ct
         );
@@ -507,8 +509,23 @@ public class AuthController : BaseController
             return ResultResponse(result);
         }
 
-        return BuildLoginResponse(result.Value, client, mobileRedirectUri, flowState.ReturnTo);
+        return BuildLoginResponse(
+            result.Value,
+            client,
+            mobileRedirectUri,
+            flowState.ReturnTo,
+            flowState.ReturnRoute
+        );
     }
+
+    // A closed set of ASCII lower-case letters/digits (ShellRouteSlug's format) — echoed unescaped into a
+    // redirect fragment, so anything else is dropped rather than validated further.
+    private static string? NormalizeReturnRoute(string? returnRoute) =>
+        !string.IsNullOrWhiteSpace(returnRoute)
+        && returnRoute.Length <= 64
+        && returnRoute.All(c => c is >= 'a' and <= 'z' or >= '0' and <= '9')
+            ? returnRoute
+            : null;
 
     /// <summary>
     /// Turns a successful login into the client-appropriate response — shared by the Twitch callback and the
@@ -521,7 +538,8 @@ public class AuthController : BaseController
         AuthResultDto auth,
         string? client,
         string? mobileRedirectUri,
-        string? returnTo = null
+        string? returnTo = null,
+        string? returnRoute = null
     )
     {
         int expiresIn = (int)(auth.ExpiresAt - _timeProvider.GetUtcNow().UtcDateTime).TotalSeconds;
@@ -540,9 +558,8 @@ public class AuthController : BaseController
         {
             SetRefreshTokenCookie(auth.RefreshToken);
             string fragment =
-                $"#access_token={Uri.EscapeDataString(auth.AccessToken)}&expires_in={expiresIn}";
-            // returnTo was validated at issue time (ReturnPathPolicy) and rides the server-side state —
-            // the dashboard lands back on the page that started the OAuth hop, not the home page.
+                $"#access_token={Uri.EscapeDataString(auth.AccessToken)}&expires_in={expiresIn}"
+                + (returnRoute is not null ? $"&return_route={returnRoute}" : string.Empty);
             return Redirect($"{GetPublicBaseUrl()}{returnTo ?? "/"}{fragment}");
         }
 

@@ -61,5 +61,6 @@ public sealed record TwitchOAuthFlowState(
     string? Provider = null,
     string? CodeVerifier = null,
     Guid? LinkUserId = null,
-    string? ReturnTo = null
+    string? ReturnTo = null,
+    string? ReturnRoute = null
 );

@@ -72,6 +72,7 @@ public sealed class OAuthForwardedOriginTests
             redirect_uri: null,
             client: "web",
             return_to: null,
+            return_route: null,
             default
         );
 
@@ -82,6 +83,61 @@ public sealed class OAuthForwardedOriginTests
                 "nonce",
                 TunnelOrigin,
                 Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Theory]
+    [InlineData("integrations", "integrations")]
+    [InlineData("song-requests", null)] // hyphen rejected — not in ShellRouteSlug's [a-z0-9] format
+    [InlineData("javascript:alert(1)", null)]
+    public async Task TwitchLogin_NormalizesReturnRouteToASafeSlugOrDrops(
+        string returnRoute,
+        string? expected
+    )
+    {
+        IAuthService auth = Substitute.For<IAuthService>();
+        ITwitchOAuthStateService state = Substitute.For<ITwitchOAuthStateService>();
+        state
+            .IssueAsync(Arg.Any<TwitchOAuthFlowState>(), Arg.Any<CancellationToken>())
+            .Returns("nonce");
+        auth.GetTwitchOAuthUrl(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success("https://id.twitch.tv/oauth2/authorize?x=1"));
+
+        AuthController controller = new(
+            Substitute.For<IUserService>(),
+            auth,
+            LoopbackConfig(),
+            TimeProvider.System,
+            state,
+            Substitute.For<ILoginProviderRegistry>(),
+            Substitute.For<IUserIdentityService>(),
+            Array.Empty<ILoginIdentityProvider>(),
+            Array.Empty<IAuthCodeLoginProvider>(),
+            Substitute.For<IExternalLoginService>(),
+            Substitute.For<ISessionService>()
+        )
+        {
+            ControllerContext = ForwardedContext(),
+        };
+
+        await controller.StartTwitchOAuth(
+            redirect_uri: null,
+            client: "web",
+            return_to: null,
+            return_route: returnRoute,
+            default
+        );
+
+        await state
+            .Received(1)
+            .IssueAsync(
+                Arg.Is<TwitchOAuthFlowState>(s => s.ReturnRoute == expected),
                 Arg.Any<CancellationToken>()
             );
     }
