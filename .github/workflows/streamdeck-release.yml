@@ -48,9 +48,7 @@ jobs:
           set -e
           PLUGIN_DIR="bot.nomnomzbot.streamdeck.sdPlugin"
           OUT="bot.nomnomzbot.streamdeck.streamDeckPlugin"
-          cd "$(dirname "$PLUGIN_DIR")"
-          zip -r -X "$OUT" "$(basename "$PLUGIN_DIR")" -x '*.map'
-          mv "$OUT" "$GITHUB_WORKSPACE/tools/streamdeck/$OUT"
+          zip -r -X "$OUT" "$PLUGIN_DIR" -x '*.map'
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
