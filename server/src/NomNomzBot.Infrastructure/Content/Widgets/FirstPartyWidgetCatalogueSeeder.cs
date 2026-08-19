@@ -49,6 +49,10 @@ public sealed class FirstPartyWidgetCatalogueSeeder : ISeeder
             .GroupBy(item => item.NaturalKey!, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
 
+        HashSet<string> currentKeys = FirstPartyWidgetCatalogue
+            .All.Select(widget => widget.Key)
+            .ToHashSet(StringComparer.Ordinal);
+
         foreach (FirstPartyWidgetDefinition widget in FirstPartyWidgetCatalogue.All)
         {
             string source = ReadAsset(widget.Key);
@@ -64,6 +68,19 @@ public sealed class FirstPartyWidgetCatalogueSeeder : ISeeder
                 Apply(created, widget, source);
                 _db.WidgetGalleryItems.Add(created);
             }
+        }
+
+        // Hard cut: a first-party row whose key was retired from the catalogue (e.g. merged into another
+        // widget) is soft-deleted so it no longer appears in the gallery — no deprecated rows linger as a
+        // pickable item. Never touches community-submitted items (trust_tier != first_party).
+        foreach (
+            WidgetGalleryItem row in existing.Where(item =>
+                item.TrustTier == "first_party" && item.DeletedAt is null
+            )
+        )
+        {
+            if (!currentKeys.Contains(row.NaturalKey!))
+                row.DeletedAt = DateTime.UtcNow;
         }
     }
 

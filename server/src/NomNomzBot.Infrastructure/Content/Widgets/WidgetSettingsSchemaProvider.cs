@@ -226,15 +226,18 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Bool(d, "showArt", "Show album art", Content),
                 Bool(d, "showProgressBar", "Show progress bar", Content),
                 Text(d, "provider", "Provider filter", Content, "Blank shows any; e.g. spotify."),
-                Accent(d),
-            ],
-            "spotify_player" =>
-            [
                 Bool(
                     d,
                     "enableAudio",
-                    "Audio enabled (turn off to temporarily stop this widget acting as a playback device)",
+                    "Spotify audio device (turn off to stop this widget acting as a Spotify Connect device)",
                     Behaviour
+                ),
+                SelectField(
+                    d,
+                    "youtubeMode",
+                    "YouTube tracks render as",
+                    Content,
+                    Opts(("card", "Compact card"), ("video", "Video"))
                 ),
                 Accent(d),
             ],

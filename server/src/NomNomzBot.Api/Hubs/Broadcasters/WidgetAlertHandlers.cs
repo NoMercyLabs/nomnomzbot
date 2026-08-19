@@ -72,7 +72,15 @@ public sealed class WidgetNowPlayingHandler(IApplicationDbContext db, IWidgetNot
             notifier,
             @event.BroadcasterId,
             "now_playing",
-            new { isPlaying = @event.IsPlaying, track = @event.TrackName },
+            new
+            {
+                isPlaying = @event.IsPlaying,
+                track = @event.TrackName,
+                artist = @event.Artist,
+                artUrl = @event.AlbumArtUrl,
+                provider = @event.Provider,
+                trackUri = @event.TrackUri,
+            },
             cancellationToken
         );
 }

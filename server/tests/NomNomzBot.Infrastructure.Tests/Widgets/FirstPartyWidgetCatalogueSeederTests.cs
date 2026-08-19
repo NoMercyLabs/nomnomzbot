@@ -18,7 +18,7 @@ namespace NomNomzBot.Infrastructure.Tests.Widgets;
 /// <summary>
 /// Proves the first-party widget catalogue seeder writes the first-party overlay widgets (the thirteen spec §1.1
 /// items, the four live-game overlays drop_game/raffle/heist/crash, the four extra event overlays
-/// recent_followers/sub_train/socials/top_cheerers, and spotify_player) as global gallery items — each a verified,
+/// recent_followers/sub_train/socials/top_cheerers) as global gallery items — each a verified,
 /// SaaS-available <c>vue</c> in-repo item carrying its real SFC source — and that a re-seed is idempotent: it
 /// refreshes source/metadata in place while preserving each row's <c>Id</c> and <c>InstallCount</c>, never
 /// duplicating. Runs on the real relational SQLite harness with the production
@@ -43,7 +43,6 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         "event_ticker",
         "chat_box",
         "now_playing",
-        "spotify_player",
         "sr_queue",
         "tts_caption",
         "poll_prediction",

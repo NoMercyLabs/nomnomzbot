@@ -168,7 +168,10 @@ public static class FirstPartyWidgetCatalogue
             Key: "now_playing",
             Name: "Now Playing",
             Description: "A standing display of the current track — pill or card layout, optional album art and an "
-                + "animated progress sweep — that hides itself while nothing plays.",
+                + "animated progress sweep — that hides itself while nothing plays. Adapts to whichever provider is "
+                + "playing: for Spotify it also becomes a real Spotify Connect device and streams audio through this "
+                + "OBS source (Premium + the streaming scope required, Integrations page); for YouTube it can "
+                + "optionally render the actual video instead of the compact card.",
             DefaultSettings: new()
             {
                 ["layout"] = "pill",
@@ -176,23 +179,12 @@ public static class FirstPartyWidgetCatalogue
                 ["showProgressBar"] = true,
                 ["provider"] = "",
                 ["accentColor"] = "#9146ff",
+                // On by default: adding this widget opts it into becoming the Spotify Connect device for
+                // Spotify tracks. Still overridable off (e.g. temporarily pause it without uninstalling).
+                ["enableAudio"] = true,
+                ["youtubeMode"] = "card",
             },
             DefaultEventSubscriptions: ["now_playing"]
-        ),
-        new(
-            Key: "spotify_player",
-            Name: "Spotify Player",
-            Description: "Turns this OBS browser source into a real Spotify Connect device and streams audio "
-                + "through it — choose it as your active playback device in Spotify. Requires Spotify Premium "
-                + "and reconnecting Spotify with streaming permission (Integrations page).",
-            DefaultSettings: new()
-            {
-                // On by default: adding this widget IS the opt-in — its only purpose is to become the active
-                // device. Still overridable off (e.g. temporarily pause it without uninstalling).
-                ["enableAudio"] = true,
-                ["accentColor"] = "#9146ff",
-            },
-            DefaultEventSubscriptions: []
         ),
         new(
             Key: "sr_queue",
