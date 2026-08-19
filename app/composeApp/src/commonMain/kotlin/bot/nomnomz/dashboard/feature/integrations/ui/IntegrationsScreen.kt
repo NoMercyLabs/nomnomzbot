@@ -122,7 +122,8 @@ private const val SPOTIFY: String = "spotify"
 private const val YOUTUBE: String = "youtube"
 private const val DISCORD: String = "discord"
 private const val KICK: String = "kick"
-private const val SPOTIFY_SCOPE_SET: String = "spotify.playback"
+// Union scope-set key: Spotify replaces rather than merges scopes across separate authorize calls.
+private const val SPOTIFY_SCOPE_SET: String = "spotify.playback+spotify.streaming"
 private const val YOUTUBE_SCOPE_SET: String = "youtube.manage"
 // Kick connects through the same generic vaulted OAuth flow as Spotify/YouTube against the platform-shared
 // client, requesting the chat scope-set so the bot can read + send + moderate Kick chat (no BYOC step).
@@ -493,6 +494,12 @@ private fun IntegrationCard(
                                     ),
                                 maxLines = 1,
                             )
+                        }
+                    }
+                } else if (connected) {
+                    ManageGate(decision = manage) { enabled ->
+                        OutlinedButton(onClick = onConnect, enabled = enabled) {
+                            Text(stringResource(Res.string.integrations_action_reauth), maxLines = 1)
                         }
                     }
                 }
