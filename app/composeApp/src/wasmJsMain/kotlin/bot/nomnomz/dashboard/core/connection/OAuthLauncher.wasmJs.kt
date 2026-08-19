@@ -41,8 +41,11 @@ actual class OAuthLauncher {
     actual suspend fun authorize(baseUrl: String, flow: OAuthFlow): ApiResult<SessionTokens> {
         val path: String = if (flow == OAuthFlow.Bot) "/api/v1/auth/twitch/bot" else "/api/v1/auth/twitch"
         // Web is single-origin: the backend already knows the served origin to return to, so no
-        // redirect param is sent (unlike the desktop loopback).
-        window.location.assign("${baseUrl.trimEnd('/')}$path?client=web")
+        // redirect param is sent (unlike the desktop loopback). return_route carries the current hash-router
+        // slug so the redirect lands back on the page the operator started from, not the shell default.
+        val returnRoute: String = currentRouteSlug()
+        val query: String = if (returnRoute.isNotEmpty()) "&return_route=$returnRoute" else ""
+        window.location.assign("${baseUrl.trimEnd('/')}$path?client=web$query")
         // The page is unloading; this never resolves. The session arrives via readReturnedSession.
         return CompletableDeferred<ApiResult<SessionTokens>>().await()
     }
@@ -98,8 +101,15 @@ fun readReturnedSession(): SessionTokens? {
             nowEpochMillis() + seconds * 1000L
         }
 
-    // Strip the token from the address bar so a copied URL / refresh can't replay it.
-    window.history.replaceState(null, "", window.location.pathname + window.location.search)
+    // Strip the token from the address bar so a copied URL / refresh can't replay it, replacing it with the
+    // return_route the backend echoed back (if any) so RouteStore.initialRoute() lands on it, not the default.
+    val returnRoute: String? = params["return_route"]?.takeIf { it.isNotBlank() }
+    val restoredHash: String = if (returnRoute != null) "#/$returnRoute" else ""
+    window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search + restoredHash,
+    )
 
     return SessionTokens(
         accessToken = accessToken,
@@ -139,6 +149,9 @@ fun readReturnedConnect(): ConnectReturn? {
 
 /** A connect outcome the backend handed back to the served origin after a bot/integration connect. */
 data class ConnectReturn(val provider: String?, val connected: Boolean, val errorCode: String?)
+
+/** The current `#/<slug>` hash route, without the leading `#/` — empty when there is none. */
+private fun currentRouteSlug(): String = window.location.hash.removePrefix("#/")
 
 private fun parsePairs(raw: String): Map<String, String> =
     raw
