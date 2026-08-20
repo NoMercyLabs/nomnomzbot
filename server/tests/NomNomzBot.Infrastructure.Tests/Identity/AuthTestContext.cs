@@ -233,6 +233,9 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<NomNomzBot.Domain.Platform.Entities.Configuration>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Platform.Entities.Configuration>().Ignore(e => e.Channel);
 
+        // Global pronoun catalog (scalar-only) — mapped so SetPronounAction tests can seed a catalog entry.
+        b.Entity<NomNomzBot.Domain.Identity.Entities.Pronoun>().HasKey(e => e.Id);
+
         // Mapped standalone (navs ignored, Channel.Moderators already ignored above) so the
         // ChannelAccessService tests can exercise the moderator-grant branch of tenant resolution.
         b.Entity<NomNomzBot.Domain.Identity.Entities.ChannelModerator>()
@@ -330,7 +333,6 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Tts.Entities.UserTtsVoice>();
         b.Ignore<NomNomzBot.Domain.Tts.Entities.TtsUsageRecord>();
         b.Ignore<NomNomzBot.Domain.Tts.Entities.TtsCacheEntry>();
-        b.Ignore<NomNomzBot.Domain.Identity.Entities.Pronoun>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog>();
 
         // Timer: mapped scalar-only (navs ignored; Messages is a primitive collection that materializes
@@ -468,7 +470,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsApprovalQueueEntry> TtsApprovalQueueEntries =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.Pronoun> Pronouns =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Identity.Entities.Pronoun>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog> DeletionAuditLogs =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ComplianceAuditLog> ComplianceAuditLogs =>
