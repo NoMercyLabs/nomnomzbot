@@ -297,7 +297,7 @@ public sealed class TtsDispatchServiceTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Disposition.Should().Be(TtsDispatchDisposition.Dispatched);
-        result.Value.PlaybackUrl.Should().Be("https://bot.local/sounds/tts.mp3");
+        result.Value.PlaybackUrl.Should().Be("data:audio/mpeg;base64,AQIDBA==");
         result.Value.CharacterCount.Should().Be("hello world".Length); // trimmed
 
         // Synthesized with the channel default voice, then played on the overlay via the sound bus.
@@ -309,7 +309,7 @@ public sealed class TtsDispatchServiceTests
             .PlaySoundAsync(
                 Tenant,
                 Arg.Is<SoundPlaybackDto>(p =>
-                    p.PlaybackUrl == "https://bot.local/sounds/tts.mp3" && p.DurationMs == 1200
+                    p.PlaybackUrl == "data:audio/mpeg;base64,AQIDBA==" && p.DurationMs == 1200
                 ),
                 Arg.Any<CancellationToken>()
             );

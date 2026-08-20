@@ -576,24 +576,23 @@ public sealed class TtsDispatchService : ITtsDispatchService
             );
 
         string fileName = $"tts-{Guid.CreateVersion7():n}.mp3";
-        using MemoryStream audio = new(synth.AudioData);
-        Result<string> stored = await _audioStore.PutAsync(
-            broadcasterId,
-            fileName,
-            audio,
-            "audio/mpeg",
-            ct
-        );
-        if (stored.IsFailure)
-            return Result.Failure<TtsDispatchOutcome>(stored.ErrorMessage!, stored.ErrorCode!);
+        using (MemoryStream audio = new(synth.AudioData))
+        {
+            // Stored for the usage/audit trail (moderation review of what was said) — playback itself does NOT
+            // depend on this or on any server-hosted URL (see below), so a store failure here never blocks speech.
+            await _audioStore.PutAsync(broadcasterId, fileName, audio, "audio/mpeg", ct);
+        }
 
-        Result<string> url = await _audioStore.GetPlaybackUrlAsync(stored.Value, ct);
-        if (url.IsFailure)
-            return Result.Failure<TtsDispatchOutcome>(url.ErrorMessage!, url.ErrorCode!);
-
+        // Play from an inline data: URI, not a fetched playback URL. The prior URL-based delivery resolved the
+        // playback host from the current request's scheme, which behind a reverse proxy/tunnel always reports
+        // http even though the site is served over https — the overlay page's CSP (media-src 'self' https: ...)
+        // then silently discarded every utterance. A data: URI needs no host/scheme resolution at all and is
+        // always CSP-allowed; this is also how the legacy bot delivered synthesized speech (NoMercyBot.TTSService
+        // audioBase64), never through a served URL.
+        string dataUri = $"data:audio/mpeg;base64,{Convert.ToBase64String(synth.AudioData)}";
         await _overlay.PlaySoundAsync(
             broadcasterId,
-            new SoundPlaybackDto(Guid.Empty, url.Value, DefaultVolume, synth.DurationMs),
+            new SoundPlaybackDto(Guid.Empty, dataUri, DefaultVolume, synth.DurationMs),
             ct
         );
 
@@ -636,7 +635,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 synth.Provider,
                 text.Length,
                 synth.DurationMs,
-                url.Value
+                dataUri
             )
         );
     }

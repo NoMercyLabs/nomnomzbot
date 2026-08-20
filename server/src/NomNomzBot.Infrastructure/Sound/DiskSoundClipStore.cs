@@ -10,6 +10,7 @@
 
 using System.IO;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Infrastructure.Platform;
@@ -25,10 +26,15 @@ internal sealed class DiskSoundClipStore : ISoundClipStore
 {
     private readonly string _root = SelfHostDataPaths.SoundClipsDirectory;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IConfiguration _configuration;
 
-    public DiskSoundClipStore(IHttpContextAccessor httpContextAccessor)
+    public DiskSoundClipStore(
+        IHttpContextAccessor httpContextAccessor,
+        IConfiguration configuration
+    )
     {
         _httpContextAccessor = httpContextAccessor;
+        _configuration = configuration;
     }
 
     public async Task<Result<string>> PutAsync(
@@ -80,12 +86,19 @@ internal sealed class DiskSoundClipStore : ISoundClipStore
         CancellationToken ct = default
     )
     {
-        // Build an absolute URL to the sound-clips serve endpoint using the current request's base URL.
-        // The endpoint validates the storage key and streams the file — no per-request token is issued
-        // on self-host (the overlay is always behind the broadcaster's own network).
+        // Build an absolute URL to the sound-clips serve endpoint. Prefer the configured public base URL
+        // (App:BaseUrl — the same setting the Twitch OAuth redirect URIs are computed from) over the current
+        // request's scheme/host: behind the Cloudflare tunnel/reverse proxy this request always arrives at
+        // Kestrel as plain http, so trusting ctx.Request.Scheme silently produced http:// playback URLs even
+        // though the site is served over https — the overlay page's CSP (media-src 'self' https: ...) then
+        // silently blocked every TTS/sound-clip playback in the browser. Only overlay/OBS pushes are affected
+        // (channels/{id}/sound-clips endpoints return relative previewUrl, unaffected); this widened fallback
+        // to the request scheme covers local dev where App:BaseUrl may be unset.
+        string? configuredBaseUrl = _configuration["App:BaseUrl"]?.TrimEnd('/');
         HttpContext? ctx = _httpContextAccessor.HttpContext;
-        string baseUrl = ctx is not null
-            ? $"{ctx.Request.Scheme}://{ctx.Request.Host}"
+        string baseUrl =
+            !string.IsNullOrWhiteSpace(configuredBaseUrl) ? configuredBaseUrl
+            : ctx is not null ? $"{ctx.Request.Scheme}://{ctx.Request.Host}"
             : "http://localhost:5080";
 
         string url = $"{baseUrl}/api/v1/sound-clips/stream/{Uri.EscapeDataString(storageKey)}";
