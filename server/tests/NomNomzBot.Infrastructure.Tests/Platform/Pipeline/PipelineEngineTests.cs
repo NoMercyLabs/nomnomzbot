@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
@@ -32,11 +33,21 @@ public class InfraPipelineEngineTests
         IChannelRegistry? registry = Substitute.For<IChannelRegistry>();
         registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);
 
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci => Task.FromResult((string)ci[0]));
+
         ICommandAction[] actions = new ICommandAction[]
         {
             new StopAction(),
             new SetVariableAction(),
-            new WaitAction(),
+            new WaitAction(resolver),
         };
 
         ICommandCondition[] conditions = new ICommandCondition[]
