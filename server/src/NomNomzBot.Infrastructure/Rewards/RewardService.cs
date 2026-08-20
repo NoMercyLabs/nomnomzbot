@@ -53,6 +53,29 @@ public class RewardService : IRewardService
         if (!channel)
             return Errors.ChannelNotFound<RewardDetail>(broadcasterId);
 
+        // Twitch has no server-side uniqueness on reward titles — creating a second "BSOD"-titled reward
+        // would just duplicate it (and burn the streamer's channel-point economy). Check the LIVE Twitch
+        // list (not just our local table, which can be stale/never-imported) before ever inserting. Fails
+        // closed: if we can't verify, we don't blindly create either.
+        Result<IReadOnlyList<TwitchCustomReward>> existingRewards =
+            await _channelPoints.GetCustomRewardsAsync(
+                broadcaster,
+                onlyManageableRewards: false,
+                ct: cancellationToken
+            );
+        if (existingRewards.IsFailure)
+            return existingRewards.WithValue<RewardDetail>(default!);
+
+        TwitchCustomReward? duplicate = existingRewards.Value.FirstOrDefault(r =>
+            string.Equals(r.Title, request.Title, StringComparison.OrdinalIgnoreCase)
+        );
+        if (duplicate is not null)
+            return Result.Failure<RewardDetail>(
+                $"A reward titled '{duplicate.Title}' already exists on this channel (id {duplicate.Id}). "
+                    + "Bind to the existing reward instead of creating a duplicate.",
+                "ALREADY_EXISTS"
+            );
+
         // A locally-created reward is a bot-owned DEFINITION: it persists the full requested shape and is
         // manageable by construction (it has no Twitch id yet — sync/recreate pushes it to Twitch later).
         Reward reward = new()

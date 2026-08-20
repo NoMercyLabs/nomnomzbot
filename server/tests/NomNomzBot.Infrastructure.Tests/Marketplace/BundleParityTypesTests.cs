@@ -116,11 +116,16 @@ public sealed class BundleParityTypesTests
             []
         );
         EventResponseService eventResponses = new(db, bus, Billing.TestTiers.Unlimited());
-        RewardService rewards = new(
-            db,
-            Substitute.For<ITwitchChannelPointsApi>(),
-            NullLogger<RewardService>.Instance
-        );
+        ITwitchChannelPointsApi channelPoints = Substitute.For<ITwitchChannelPointsApi>();
+        channelPoints
+            .GetCustomRewardsAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>?>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success<IReadOnlyList<TwitchCustomReward>>([]));
+        RewardService rewards = new(db, channelPoints, NullLogger<RewardService>.Instance);
         TimerManagementService timers = new(db, bus, Billing.TestTiers.Unlimited());
         ChatTriggerService chatTriggers = new(db, Substitute.For<IChannelRegistry>());
         PickListService pickLists = new(db, bus);
