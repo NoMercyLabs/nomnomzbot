@@ -132,7 +132,12 @@ public class RewardService : IRewardService
             || request.Cost.HasValue
             || request.Prompt is not null
             || request.IsEnabled.HasValue
-            || request.IsPaused.HasValue;
+            || request.IsPaused.HasValue
+            || request.IsUserInputRequired.HasValue
+            || request.BackgroundColor is not null
+            || request.MaxPerStream.HasValue
+            || request.MaxPerUserPerStream.HasValue
+            || request.GlobalCooldownSeconds.HasValue;
 
         // A reward that lives on Twitch but was created by another client_id is read-only to us (Twitch
         // refuses the PATCH) — fail closed instead of drifting the local copy away from the real reward.
@@ -154,7 +159,15 @@ public class RewardService : IRewardService
                     Title: request.Title,
                     Prompt: request.Prompt,
                     Cost: request.Cost,
+                    BackgroundColor: request.BackgroundColor,
                     IsEnabled: request.IsEnabled,
+                    IsUserInputRequired: request.IsUserInputRequired,
+                    IsMaxPerStreamEnabled: request.MaxPerStream.HasValue,
+                    MaxPerStream: request.MaxPerStream,
+                    IsMaxPerUserPerStreamEnabled: request.MaxPerUserPerStream.HasValue,
+                    MaxPerUserPerStream: request.MaxPerUserPerStream,
+                    IsGlobalCooldownEnabled: request.GlobalCooldownSeconds.HasValue,
+                    GlobalCooldownSeconds: request.GlobalCooldownSeconds,
                     IsPaused: request.IsPaused
                 ),
                 cancellationToken

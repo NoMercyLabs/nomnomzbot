@@ -128,6 +128,48 @@ public sealed class RewardServiceUpdateTests
     }
 
     [Fact]
+    public async Task Update_pushes_input_requirement_and_stream_limits_to_helix()
+    {
+        (RewardService sut, _, ITwitchChannelPointsApi points) = Build(
+            manageable: true,
+            twitchRewardId: "tw-reward-1"
+        );
+        UpdateCustomRewardRequest? pushed = null;
+        points
+            .UpdateCustomRewardAsync(
+                Channel,
+                "tw-reward-1",
+                Arg.Do<UpdateCustomRewardRequest>(r => pushed = r),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(TwitchReward()));
+
+        Result<RewardDetail> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            RewardId.ToString(),
+            new UpdateRewardRequest
+            {
+                IsUserInputRequired = true,
+                MaxPerStream = 5,
+                MaxPerUserPerStream = 1,
+                GlobalCooldownSeconds = 60,
+                BackgroundColor = "#772ce8",
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        pushed.Should().NotBeNull();
+        pushed!.IsUserInputRequired.Should().BeTrue();
+        pushed.MaxPerStream.Should().Be(5);
+        pushed.IsMaxPerStreamEnabled.Should().BeTrue();
+        pushed.MaxPerUserPerStream.Should().Be(1);
+        pushed.IsMaxPerUserPerStreamEnabled.Should().BeTrue();
+        pushed.GlobalCooldownSeconds.Should().Be(60);
+        pushed.IsGlobalCooldownEnabled.Should().BeTrue();
+        pushed.BackgroundColor.Should().Be("#772ce8");
+    }
+
+    [Fact]
     public async Task Update_does_not_persist_locally_when_helix_refuses()
     {
         (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build(
