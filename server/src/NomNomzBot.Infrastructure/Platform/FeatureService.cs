@@ -81,6 +81,13 @@ public class FeatureService : IFeatureService
             [],
             false
         ),
+        ["use_chat_html"] = (
+            "Chat HTML Fragments",
+            "Allow subscribers and above to post sanitized HTML fragments in chat, rendered in the overlay. "
+                + "Off by default.",
+            [],
+            false
+        ),
     };
 
     /// <summary>The key's resting state when no <see cref="ChannelFeature"/> row exists yet — false for an unrecognized key.</summary>

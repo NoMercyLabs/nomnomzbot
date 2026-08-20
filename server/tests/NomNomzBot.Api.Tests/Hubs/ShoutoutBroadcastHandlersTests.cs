@@ -19,9 +19,9 @@ namespace NomNomzBot.Api.Tests.Hubs;
 
 /// <summary>
 /// Proves the shoutout broadcasters forward the outgoing/incoming shoutout to dashboard clients over the generic
-/// <c>ChannelEvent</c> taxonomy, and that the incoming (received) shoutout — the enriched one — also fans its
-/// decorated <see cref="ShoutoutReceivedAlertDto"/> to the overlays. The outgoing (sent) shoutout stays
-/// dashboard-only (it carries no avatar/standing enrichment and no overlay convention).
+/// <c>ChannelEvent</c> taxonomy, and that BOTH directions also fan their alert DTO to the overlays — an outgoing
+/// <c>!so</c> is just as much an on-stream moment as an incoming one, so a custom alert widget must be able to
+/// react to either.
 /// </summary>
 public sealed class ShoutoutBroadcastHandlersTests
 {
@@ -29,7 +29,9 @@ public sealed class ShoutoutBroadcastHandlersTests
     public async Task ShoutoutSent_MapsRecipient_AsShoutoutSentChannelEvent()
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
-        ShoutoutSentBroadcastHandler handler = new(notifier);
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        ShoutoutSentBroadcastHandler handler = new(notifier, db, widgets);
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -54,6 +56,57 @@ public sealed class ShoutoutBroadcastHandlersTests
                 Arg.Any<CancellationToken>(),
                 userId: "target-1",
                 userDisplayName: "TargetStreamer"
+            );
+    }
+
+    [Fact]
+    public async Task ShoutoutSent_is_also_pushed_to_overlays_as_a_decorated_event()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        Widget widget = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = channel,
+            Name = "Shoutout alert",
+            IsEnabled = true,
+            EventSubscriptions = ["shoutout_sent"],
+        };
+        db.Widgets.Add(widget);
+        await db.SaveChangesAsync();
+
+        ShoutoutSentBroadcastHandler handler = new(notifier, db, widgets);
+
+        await handler.HandleAsync(
+            new ShoutoutSentEvent
+            {
+                BroadcasterId = channel,
+                ToUserId = "target-1",
+                ToDisplayName = "TargetStreamer",
+            }
+        );
+
+        await widgets
+            .Received(1)
+            .BroadcastOverlayEventAsync(
+                channel.ToString(),
+                Arg.Is<OverlayEventDto>(evt =>
+                    evt.Type == "shoutout_sent"
+                    && evt.Payload.Contains("\"toDisplayName\":\"TargetStreamer\"")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await widgets
+            .Received(1)
+            .SendWidgetEventAsync(
+                channel.ToString(),
+                widget.Id.ToString(),
+                Arg.Is<WidgetEventDto>(evt =>
+                    evt.EventType == "shoutout_sent" && evt.Data is ShoutoutSentAlertDto
+                ),
+                Arg.Any<CancellationToken>()
             );
     }
 
@@ -200,7 +253,9 @@ public sealed class ShoutoutBroadcastHandlersTests
     public async Task ShoutoutSent_PlatformSentinelChannel_DoesNotNotify()
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
-        ShoutoutSentBroadcastHandler handler = new(notifier);
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        ShoutoutSentBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
             new ShoutoutSentEvent

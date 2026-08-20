@@ -81,6 +81,7 @@ public sealed class AuthServiceStreamerScopesTests
             "moderator:read:moderators",
             "moderator:read:shield_mode",
             "moderator:read:shoutouts",
+            "moderator:manage:shoutouts",
             "moderator:read:suspicious_users",
             "moderator:read:unban_requests",
             "moderator:read:vips",

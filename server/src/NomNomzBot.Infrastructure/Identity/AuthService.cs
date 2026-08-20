@@ -137,6 +137,7 @@ public sealed class AuthService : IAuthService
         "moderator:read:shield_mode", // channel.shield_mode.begin / channel.shield_mode.end
         "moderator:manage:shield_mode", // dashboard Shield Mode toggle (Update Shield Mode Status)
         "moderator:read:shoutouts", // channel.shoutout.create / channel.shoutout.receive
+        "moderator:manage:shoutouts", // ShoutoutAction → Send Shoutout (the !so builtin/pipeline action)
         "moderator:read:suspicious_users", // channel.suspicious_user.message / channel.suspicious_user.update
         "moderator:manage:suspicious_users", // dashboard suspicious-user flag (Update Suspicious User)
         "moderator:read:unban_requests", // channel.unban_request.create / channel.unban_request.resolve, channel.moderate v2

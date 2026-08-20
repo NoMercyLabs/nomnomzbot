@@ -22,21 +22,45 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 public sealed class ShoutoutSentBroadcastHandler : IEventHandler<ShoutoutSentEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+    private readonly IWidgetNotifier _widgets;
 
-    public ShoutoutSentBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public ShoutoutSentBroadcastHandler(
+        IDashboardNotifier notifier,
+        IApplicationDbContext db,
+        IWidgetNotifier widgets
+    )
+    {
+        _notifier = notifier;
+        _db = db;
+        _widgets = widgets;
+    }
 
-    public Task HandleAsync(ShoutoutSentEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(ShoutoutSentEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
 
-        return _notifier.NotifyChannelAsync(
+        ShoutoutSentAlertDto dto = new(@event.ToUserId, @event.ToDisplayName);
+
+        await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
             "shoutout_sent",
-            new ShoutoutSentAlertDto(@event.ToUserId, @event.ToDisplayName),
+            dto,
             ct,
             userId: @event.ToUserId,
             userDisplayName: @event.ToDisplayName
+        );
+
+        // Mirrors ShoutoutReceivedBroadcastHandler below — an outgoing !so previously only reached the
+        // dashboard toast, never the overlay, so no on-stream visual/audio alert widget could react to it.
+        await OverlayAlertBroadcast.ToOverlaysAsync(
+            _db,
+            _widgets,
+            @event.BroadcasterId,
+            "shoutout_sent",
+            dto,
+            ct
         );
     }
 }
