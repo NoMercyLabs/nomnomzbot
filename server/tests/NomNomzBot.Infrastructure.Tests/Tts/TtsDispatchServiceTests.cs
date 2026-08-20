@@ -51,7 +51,6 @@ public sealed class TtsDispatchServiceTests
         public required ITtsService Tts { get; init; }
         public required IByokTtsProviderFactory ByokProviders { get; init; }
         public required ISoundClipStore Store { get; init; }
-        public required ISoundClipOverlayNotifier Overlay { get; init; }
         public required ITtsOverlayNotifier TtsOverlay { get; init; }
         public required IEventBus Bus { get; init; }
         public required ITtsLexiconService Lexicon { get; init; }
@@ -116,7 +115,6 @@ public sealed class TtsDispatchServiceTests
             .GetPlaybackUrlAsync("storage-key", Arg.Any<CancellationToken>())
             .Returns(Result.Success("https://bot.local/sounds/tts.mp3"));
 
-        ISoundClipOverlayNotifier overlay = Substitute.For<ISoundClipOverlayNotifier>();
         ITtsOverlayNotifier ttsOverlay = Substitute.For<ITtsOverlayNotifier>();
         IEventBus bus = Substitute.For<IEventBus>();
         IByokTtsProviderFactory byokProviders = Substitute.For<IByokTtsProviderFactory>();
@@ -137,7 +135,6 @@ public sealed class TtsDispatchServiceTests
             lexicon,
             new TtsProfanityCensor(),
             store,
-            overlay,
             ttsOverlay,
             db,
             bus,
@@ -152,7 +149,6 @@ public sealed class TtsDispatchServiceTests
             Tts = tts,
             ByokProviders = byokProviders,
             Store = store,
-            Overlay = overlay,
             TtsOverlay = ttsOverlay,
             Bus = bus,
             Lexicon = lexicon,
@@ -185,13 +181,6 @@ public sealed class TtsDispatchServiceTests
         await h
             .Tts.DidNotReceive()
             .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await h
-            .Overlay.DidNotReceive()
-            .PlaySoundAsync(
-                Arg.Any<Guid>(),
-                Arg.Any<SoundPlaybackDto>(),
-                Arg.Any<CancellationToken>()
-            );
         (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
         await h
             .Bus.Received(1)
@@ -300,19 +289,10 @@ public sealed class TtsDispatchServiceTests
         result.Value.PlaybackUrl.Should().Be("data:audio/mpeg;base64,AQIDBA==");
         result.Value.CharacterCount.Should().Be("hello world".Length); // trimmed
 
-        // Synthesized with the channel default voice, then played on the overlay via the sound bus.
+        // Synthesized with the channel default voice.
         await h
             .Tts.Received(1)
             .SynthesizeAsync("hello world", "default-voice", Arg.Any<CancellationToken>());
-        await h
-            .Overlay.Received(1)
-            .PlaySoundAsync(
-                Tenant,
-                Arg.Is<SoundPlaybackDto>(p =>
-                    p.PlaybackUrl == "data:audio/mpeg;base64,AQIDBA==" && p.DurationMs == 1200
-                ),
-                Arg.Any<CancellationToken>()
-            );
 
         // A truthful usage-ledger row, stamped with when/during-what it played.
         TtsUsageRecord usage = await h.Db.TtsUsageRecords.SingleAsync();
@@ -326,11 +306,15 @@ public sealed class TtsDispatchServiceTests
         usage.StreamId.Should().Be(liveStream);
         usage.OccurredAt.Should().Be(T0);
 
+        // The audio itself rides the dispatched event as a data: URI (not the generic/unqueued overlay sound
+        // bus) so the dedicated TTS widget can queue and play utterances strictly in order.
         await h
             .Bus.Received(1)
             .PublishAsync(
                 Arg.Is<TtsUtteranceDispatchedEvent>(e =>
-                    e.VoiceId == "default-voice" && e.CharacterCount == "hello world".Length
+                    e.VoiceId == "default-voice"
+                    && e.CharacterCount == "hello world".Length
+                    && e.AudioUrl == "data:audio/mpeg;base64,AQIDBA=="
                 ),
                 Arg.Any<CancellationToken>()
             );
@@ -413,13 +397,6 @@ public sealed class TtsDispatchServiceTests
         await h
             .Tts.DidNotReceive()
             .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await h
-            .Overlay.DidNotReceive()
-            .PlaySoundAsync(
-                Arg.Any<Guid>(),
-                Arg.Any<SoundPlaybackDto>(),
-                Arg.Any<CancellationToken>()
-            );
         (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
 
         TtsApprovalQueueEntry entry = await h.Db.TtsApprovalQueueEntries.SingleAsync();
@@ -473,9 +450,6 @@ public sealed class TtsDispatchServiceTests
         await h
             .Tts.Received(1)
             .SynthesizeAsync("raw m*****e", "queued-voice", Arg.Any<CancellationToken>());
-        await h
-            .Overlay.Received(1)
-            .PlaySoundAsync(Tenant, Arg.Any<SoundPlaybackDto>(), Arg.Any<CancellationToken>());
 
         // The ledger row carries the approval provenance from the queue entry.
         TtsUsageRecord usage = await h.Db.TtsUsageRecords.SingleAsync();
@@ -523,13 +497,6 @@ public sealed class TtsDispatchServiceTests
         await h
             .Tts.DidNotReceive()
             .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await h
-            .Overlay.DidNotReceive()
-            .PlaySoundAsync(
-                Arg.Any<Guid>(),
-                Arg.Any<SoundPlaybackDto>(),
-                Arg.Any<CancellationToken>()
-            );
 
         TtsApprovalQueueEntry updated = await h.Db.TtsApprovalQueueEntries.SingleAsync();
         updated.Status.Should().Be("rejected");
@@ -671,13 +638,6 @@ public sealed class TtsDispatchServiceTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("SERVICE_UNAVAILABLE");
-        await h
-            .Overlay.DidNotReceive()
-            .PlaySoundAsync(
-                Arg.Any<Guid>(),
-                Arg.Any<SoundPlaybackDto>(),
-                Arg.Any<CancellationToken>()
-            );
         (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
         await h
             .Bus.Received(1)
@@ -725,13 +685,6 @@ public sealed class TtsDispatchServiceTests
                 Arg.Any<string>(),
                 Arg.Any<System.IO.Stream>(),
                 Arg.Any<string>(),
-                Arg.Any<CancellationToken>()
-            );
-        await h
-            .Overlay.DidNotReceive()
-            .PlaySoundAsync(
-                Arg.Any<Guid>(),
-                Arg.Any<SoundPlaybackDto>(),
                 Arg.Any<CancellationToken>()
             );
 

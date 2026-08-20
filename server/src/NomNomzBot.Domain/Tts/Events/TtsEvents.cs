@@ -34,6 +34,13 @@ public sealed class TtsUtteranceDispatchedEvent : DomainEventBase
 
     /// <summary>Content-addressed hash of the server-synthesized audio; <c>null</c> on the client-edge plane (no server audio).</summary>
     public string? ContentHash { get; init; }
+
+    /// <summary>
+    /// The audio itself, as a <c>data:</c> URI, on the <c>self_host</c>/<c>byok</c> planes; <c>null</c> on
+    /// <c>client_edge</c> (the browser's own <c>speechSynthesis</c> has no server audio to carry). The dedicated
+    /// TTS overlay widget queues and plays this so back-to-back utterances speak in order instead of overlapping.
+    /// </summary>
+    public string? AudioUrl { get; init; }
 }
 
 /// <summary>

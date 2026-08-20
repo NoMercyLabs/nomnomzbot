@@ -55,10 +55,13 @@ public sealed class TtsSpeakBroadcastHandlerTests
                 DurationMs = 2500,
                 RequestedByTwitchUserId = "u1",
                 DispatchMode = "self_host",
+                AudioUrl = "data:audio/mpeg;base64,AQIDBA==",
             }
         );
 
-        // The anonymous payload carries exactly the fields the tts_caption SFC reads (text/voice/user/durationMs).
+        // The anonymous payload carries exactly the fields the TTS overlay widget reads
+        // (text/voice/user/durationMs/audioUrl) — audioUrl is what lets the widget's own queue play the
+        // utterance in order, instead of the generic unqueued overlay sound bus.
         await widgets
             .Received(1)
             .SendWidgetEventAsync(
@@ -117,6 +120,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
         return json.GetProperty("text").GetString() == "hello chat"
             && json.GetProperty("voice").GetString() == "en-US-AvaNeural"
             && json.GetProperty("user").GetString() == "u1"
-            && json.GetProperty("durationMs").GetInt32() == 2500;
+            && json.GetProperty("durationMs").GetInt32() == 2500
+            && json.GetProperty("audioUrl").GetString() == "data:audio/mpeg;base64,AQIDBA==";
     }
 }

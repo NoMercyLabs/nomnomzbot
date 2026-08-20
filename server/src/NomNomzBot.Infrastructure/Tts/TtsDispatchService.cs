@@ -37,7 +37,6 @@ namespace NomNomzBot.Infrastructure.Tts;
 /// </summary>
 public sealed class TtsDispatchService : ITtsDispatchService
 {
-    private const int DefaultVolume = 100;
     private const int QueueTtlMinutes = 10;
 
     private readonly ITtsService _tts;
@@ -46,7 +45,6 @@ public sealed class TtsDispatchService : ITtsDispatchService
     private readonly ITtsLexiconService _lexicon;
     private readonly ITtsProfanityCensor _censor;
     private readonly ISoundClipStore _audioStore;
-    private readonly ISoundClipOverlayNotifier _overlay;
     private readonly ITtsOverlayNotifier _ttsOverlay;
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
@@ -61,7 +59,6 @@ public sealed class TtsDispatchService : ITtsDispatchService
         ITtsLexiconService lexicon,
         ITtsProfanityCensor censor,
         ISoundClipStore audioStore,
-        ISoundClipOverlayNotifier overlay,
         ITtsOverlayNotifier ttsOverlay,
         IApplicationDbContext db,
         IEventBus eventBus,
@@ -76,7 +73,6 @@ public sealed class TtsDispatchService : ITtsDispatchService
         _lexicon = lexicon;
         _censor = censor;
         _audioStore = audioStore;
-        _overlay = overlay;
         _ttsOverlay = ttsOverlay;
         _db = db;
         _eventBus = eventBus;
@@ -583,18 +579,15 @@ public sealed class TtsDispatchService : ITtsDispatchService
             await _audioStore.PutAsync(broadcasterId, fileName, audio, "audio/mpeg", ct);
         }
 
-        // Play from an inline data: URI, not a fetched playback URL. The prior URL-based delivery resolved the
-        // playback host from the current request's scheme, which behind a reverse proxy/tunnel always reports
-        // http even though the site is served over https — the overlay page's CSP (media-src 'self' https: ...)
-        // then silently discarded every utterance. A data: URI needs no host/scheme resolution at all and is
-        // always CSP-allowed; this is also how the legacy bot delivered synthesized speech (NoMercyBot.TTSService
-        // audioBase64), never through a served URL.
+        // Carry the audio as an inline data: URI on the dispatched event, not a fetched playback URL and not the
+        // generic (unqueued) overlay sound bus. The prior URL-based delivery resolved the playback host from the
+        // current request's scheme, which behind a reverse proxy/tunnel always reports http even though the site
+        // is served over https — the overlay page's CSP (media-src 'self' https: ...) then silently discarded
+        // every utterance; a data: URI needs no host/scheme resolution at all and is always CSP-allowed (also how
+        // the legacy bot delivered speech — NoMercyBot.TTSService audioBase64). And unlike the generic sound bus
+        // (which plays every push immediately, so two utterances close together overlap), the dedicated TTS
+        // overlay widget queues this by <c>tts_speak</c> and plays entries strictly in order.
         string dataUri = $"data:audio/mpeg;base64,{Convert.ToBase64String(synth.AudioData)}";
-        await _overlay.PlaySoundAsync(
-            broadcasterId,
-            new SoundPlaybackDto(Guid.Empty, dataUri, DefaultVolume, synth.DurationMs),
-            ct
-        );
 
         _db.TtsUsageRecords.Add(
             new TtsUsageRecord
@@ -622,8 +615,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 CharacterCount = text.Length,
                 DurationMs = synth.DurationMs,
                 RequestedByTwitchUserId = requestedByTwitchUserId,
-                DispatchMode = "self_host",
+                DispatchMode = config.Mode == "byok" ? "byok" : "self_host",
                 ContentHash = null,
+                AudioUrl = dataUri,
             },
             ct
         );

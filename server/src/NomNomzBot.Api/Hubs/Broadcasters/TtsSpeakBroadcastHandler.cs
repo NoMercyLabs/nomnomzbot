@@ -15,11 +15,14 @@ using NomNomzBot.Domain.Tts.Events;
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
 /// <summary>
-/// Dispatched TTS utterance → the <c>tts_caption</c> overlay widget (tts.md). The audio itself rides the
-/// host page's audio bus (<c>PlaySound</c>); this pushes the caption leg — a <c>tts_speak</c> widget event
-/// carrying <c>{ text, voice, user, durationMs }</c> after the hub's camelCase serialization — through the
-/// shared subscription-matched dispatch, so a speaking indicator can render (and auto-hide on duration)
-/// only on widgets that declare <c>tts_speak</c>.
+/// Dispatched TTS utterance → the <c>tts_speak</c> overlay widget event (tts.md), carrying
+/// <c>{ text, voice, user, durationMs, audioUrl }</c> after the hub's camelCase serialization —
+/// <c>audioUrl</c> is a <c>data:</c> URI on the <c>self_host</c>/<c>byok</c> planes, <c>null</c> on
+/// <c>client_edge</c> (the browser's own <c>speechSynthesis</c> has no server audio). The dedicated TTS
+/// overlay widget queues entries by this event and plays them strictly in order — deliberately NOT the
+/// generic (unqueued) overlay sound bus, so two utterances close together never overlap. Routed through
+/// the shared subscription-matched dispatch so any widget declaring <c>tts_speak</c> can also react
+/// visually (a speaking indicator, auto-hide on duration) whether or not it plays the audio itself.
 /// </summary>
 public sealed class TtsSpeakBroadcastHandler(IApplicationDbContext db, IWidgetNotifier notifier)
     : IEventHandler<TtsUtteranceDispatchedEvent>
@@ -39,6 +42,7 @@ public sealed class TtsSpeakBroadcastHandler(IApplicationDbContext db, IWidgetNo
                 voice = @event.VoiceId,
                 user = @event.RequestedByTwitchUserId,
                 durationMs = @event.DurationMs,
+                audioUrl = @event.AudioUrl,
             },
             cancellationToken
         );
