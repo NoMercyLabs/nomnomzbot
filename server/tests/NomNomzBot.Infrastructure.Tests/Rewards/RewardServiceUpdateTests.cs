@@ -167,6 +167,8 @@ public sealed class RewardServiceUpdateTests
         pushed.GlobalCooldownSeconds.Should().Be(60);
         pushed.IsGlobalCooldownEnabled.Should().BeTrue();
         pushed.BackgroundColor.Should().Be("#772ce8");
+        // The read-side must reflect what was actually pushed to Twitch — not a hardcoded stale value.
+        result.Value.IsUserInputRequired.Should().BeTrue();
     }
 
     [Fact]

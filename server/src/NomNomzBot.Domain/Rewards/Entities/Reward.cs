@@ -38,6 +38,13 @@ public class Reward : SoftDeletableEntity, ITenantScoped
     /// </summary>
     public bool IsPaused { get; set; }
 
+    /// <summary>
+    /// Twitch's <c>is_user_input_required</c> flag: whether a redemption must carry viewer-typed text
+    /// (e.g. a song URL, a TTS message) before Twitch grants it. Kept in step with Helix on every update
+    /// so a read of this entity always reflects what Twitch actually enforces — never a stale guess.
+    /// </summary>
+    public bool IsUserInputRequired { get; set; }
+
     [MaxLength(500)]
     public string? Description { get; set; }
 

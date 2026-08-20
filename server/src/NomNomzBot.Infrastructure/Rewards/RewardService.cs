@@ -88,6 +88,7 @@ public class RewardService : IRewardService
             Response = request.Response,
             IsEnabled = true,
             IsManageable = true,
+            IsUserInputRequired = request.IsUserInputRequired,
             TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds),
             PipelineId = request.PipelineId,
         };
@@ -189,6 +190,8 @@ public class RewardService : IRewardService
             reward.IsEnabled = request.IsEnabled.Value;
         if (request.IsPaused.HasValue)
             reward.IsPaused = request.IsPaused.Value;
+        if (request.IsUserInputRequired.HasValue)
+            reward.IsUserInputRequired = request.IsUserInputRequired.Value;
         if (request.TimerDurationSeconds.HasValue)
             reward.TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds);
         // Absent leaves the binding unchanged; Guid.Empty clears it; a real id binds that pipeline.
@@ -658,6 +661,7 @@ public class RewardService : IRewardService
                 reward.IsPaused = tr.IsPaused;
                 reward.Description = tr.Prompt;
                 reward.IsManageable = manageable;
+                reward.IsUserInputRequired = tr.IsUserInputRequired;
                 upsertedCount++;
             }
             else if (existingByTitle.TryGetValue(tr.Title, out Reward? rewardByTitle))
@@ -669,6 +673,7 @@ public class RewardService : IRewardService
                 rewardByTitle.IsPaused = tr.IsPaused;
                 rewardByTitle.Description = tr.Prompt;
                 rewardByTitle.IsManageable = manageable;
+                rewardByTitle.IsUserInputRequired = tr.IsUserInputRequired;
                 upsertedCount++;
             }
             else
@@ -687,6 +692,7 @@ public class RewardService : IRewardService
                         Description = tr.Prompt,
                         IsPlatform = manageable,
                         IsManageable = manageable,
+                        IsUserInputRequired = tr.IsUserInputRequired,
                     }
                 );
                 upsertedCount++;
@@ -709,7 +715,7 @@ public class RewardService : IRewardService
             r.Cost ?? 0,
             r.IsEnabled,
             r.IsManageable,
-            false,
+            r.IsUserInputRequired,
             r.IsPaused,
             null,
             null,
