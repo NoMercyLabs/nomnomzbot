@@ -1205,4 +1205,56 @@ public class ModerationController : BaseController
         );
         return result.IsFailure ? TwitchResultResponse(result) : NoContent();
     }
+
+    public record ShoutoutTemplateDto(string? Template);
+
+    /// <summary>
+    /// The channel's custom shoutout announcement template (the <c>shoutout</c> pipeline action posts this,
+    /// resolved via the normal template-variable engine, alongside every native Twitch shoutout). Null/empty
+    /// means the built-in default is used.
+    /// </summary>
+    [RequireAction("moderation:read")]
+    [HttpGet("shoutout-template")]
+    [ProducesResponseType<StatusResponseDto<ShoutoutTemplateDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetShoutoutTemplate(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        string? template = await _db
+            .Channels.AsNoTracking()
+            .Where(c => c.Id == broadcasterId)
+            .Select(c => c.ShoutoutTemplate)
+            .FirstOrDefaultAsync(ct);
+        return Ok(
+            new StatusResponseDto<ShoutoutTemplateDto> { Data = new ShoutoutTemplateDto(template) }
+        );
+    }
+
+    /// <summary>Sets (or clears, with a null/empty template) the channel's custom shoutout announcement template.</summary>
+    [RequireAction("moderation:shoutout")]
+    [HttpPut("shoutout-template")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> SetShoutoutTemplate(
+        string channelId,
+        [FromBody] ShoutoutTemplateDto request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Domain.Identity.Entities.Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == broadcasterId,
+            ct
+        );
+        if (channel is null)
+            return NotFoundResponse("Channel not found.");
+
+        channel.ShoutoutTemplate = string.IsNullOrWhiteSpace(request.Template)
+            ? null
+            : request.Template.Trim();
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
 }

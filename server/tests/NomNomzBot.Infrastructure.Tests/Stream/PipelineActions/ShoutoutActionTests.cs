@@ -12,10 +12,13 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Stream.PipelineActions;
+using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Stream.PipelineActions;
@@ -49,6 +52,18 @@ public sealed class ShoutoutActionTests
             },
         };
 
+    /// <summary>Minimal stand-in for the real resolver's <c>{key}</c> substitution — enough to prove the
+    /// action actually threads its seeded target vars into the announcement, without pulling in the full
+    /// DB-backed resolver implementation.</summary>
+    private static string NaiveResolve(NSubstitute.Core.CallInfo callInfo)
+    {
+        string template = (string)callInfo[0];
+        IDictionary<string, string> vars = (IDictionary<string, string>)callInfo[1];
+        foreach (KeyValuePair<string, string> kv in vars)
+            template = template.Replace("{" + kv.Key + "}", kv.Value);
+        return template;
+    }
+
     private static TwitchUser User(string id, string login) =>
         new(
             Id: id,
@@ -68,13 +83,40 @@ public sealed class ShoutoutActionTests
         ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
         chat.SendShoutoutAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
+        chat.SendAnnouncementAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
 
         ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+                Result.Success<IReadOnlyList<TwitchUser>>([
+                    User(((IReadOnlyList<string>)callInfo[0])[0], "numerictarget"),
+                ])
+            );
+
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo => Task.FromResult(NaiveResolve(callInfo)));
 
         ShoutoutAction sut = new(
             chat,
             users,
             Substitute.For<IChannelRegistry>(),
+            AuthTestBuilder.NewContext(),
+            resolver,
+            Substitute.For<ITtsDispatchService>(),
             TimeProvider.System,
             NullLogger<ShoutoutAction>.Instance
         );
@@ -82,7 +124,7 @@ public sealed class ShoutoutActionTests
     }
 
     [Fact]
-    public async Task A_numeric_id_is_shouted_out_without_a_users_lookup()
+    public async Task A_numeric_id_is_shouted_out_without_a_login_lookup()
     {
         (ShoutoutAction sut, ITwitchChatApi chat, ITwitchUsersApi users) = Build();
 
@@ -144,5 +186,99 @@ public sealed class ShoutoutActionTests
 
         result.Succeeded.Should().BeTrue();
         await chat.Received(1).SendShoutoutAsync(Channel, "456", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Always_posts_a_templated_announcement_alongside_the_native_shoutout()
+    {
+        (ShoutoutAction sut, ITwitchChatApi chat, ITwitchUsersApi _) = Build();
+
+        ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
+
+        result.Succeeded.Should().BeTrue();
+        await chat.Received(1)
+            .SendAnnouncementAsync(
+                Channel,
+                Arg.Is<string>(text => text.Contains("numerictarget")),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Tts_true_speaks_the_announcement_but_tts_omitted_stays_silent()
+    {
+        ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
+        chat.SendShoutoutAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        chat.SendAnnouncementAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([User("123456", "numerictarget")]));
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo => Task.FromResult(NaiveResolve(callInfo)));
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(TtsDispatchDisposition.Dispatched, "v", "p", 0, 0, null)
+                )
+            );
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new NomNomzBot.Domain.Identity.Entities.Channel
+            {
+                Id = Channel,
+                Name = "stoney",
+                NameNormalized = "stoney",
+                OwnerUserId = Guid.NewGuid(),
+            }
+        );
+        await db.SaveChangesAsync();
+        ShoutoutAction sut = new(
+            chat,
+            users,
+            Substitute.For<IChannelRegistry>(),
+            db,
+            resolver,
+            tts,
+            TimeProvider.System,
+            NullLogger<ShoutoutAction>.Instance
+        );
+
+        // Manual invocation (e.g. chat-triggered !so): tts:true speaks the announcement.
+        await sut.ExecuteAsync(
+            Ctx(),
+            new ActionDefinition
+            {
+                Type = "shoutout",
+                Parameters = new Dictionary<string, JsonElement>
+                {
+                    ["user_id"] = JsonSerializer.SerializeToElement("123456"),
+                    ["tts"] = JsonSerializer.SerializeToElement(true),
+                },
+            }
+        );
+        await tts.Received(1)
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>());
+
+        // Automated invocation (e.g. presence-detection): tts omitted stays silent.
+        tts.ClearReceivedCalls();
+        await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
+        await tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!, default);
     }
 }

@@ -40,4 +40,19 @@ public sealed class ActionDefinition
             return defaultValue;
         return elem.ValueKind == JsonValueKind.Number ? elem.GetInt32() : defaultValue;
     }
+
+    /// <summary>Gets a bool parameter value by key.</summary>
+    public bool GetBool(string key, bool defaultValue = false)
+    {
+        if (Parameters is null)
+            return defaultValue;
+        if (!Parameters.TryGetValue(key, out JsonElement elem))
+            return defaultValue;
+        return elem.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => defaultValue,
+        };
+    }
 }
