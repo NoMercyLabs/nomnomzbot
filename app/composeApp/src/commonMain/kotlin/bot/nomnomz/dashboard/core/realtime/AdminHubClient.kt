@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -41,6 +42,11 @@ private const val TYPE_PING: Int = 6
 private const val TYPE_CLOSE: Int = 7
 
 private const val PingIntervalMillis: Long = 15_000
+
+// See DashboardHubClient.ReceiveTimeoutMillis — a dead connection often never surfaces as a close/error
+// (e.g. the origin container replaced during a deploy); without a read-timeout the reconnect loop never
+// runs again because hubSocket.receive() can suspend forever.
+private const val ReceiveTimeoutMillis: Long = PingIntervalMillis * 4
 
 /**
  * SignalR hub client for the platform-operator hub `AdminHub` at `/hubs/admin`. Unlike [DashboardHubClient]
@@ -160,7 +166,8 @@ class AdminHubClient {
 
                 try {
                     while (true) {
-                        val raw: String = hubSocket.receive() ?: break
+                        val raw: String =
+                            withTimeoutOrNull(ReceiveTimeoutMillis) { hubSocket.receive() } ?: break
                         for (segment: String in raw.split(RECORD_SEPARATOR)) {
                             if (segment.isBlank()) continue
                             dispatchSegment(segment)

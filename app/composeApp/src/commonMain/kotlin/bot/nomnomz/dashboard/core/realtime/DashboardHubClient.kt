@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -44,6 +45,13 @@ private const val TYPE_CLOSE: Int = 7
 // ClientTimeoutInterval (default 30 s) — and server→client frames do NOT reset that timer, only client→server
 // traffic does — so the client must send its own protocol ping well under the timeout to hold the socket open.
 private const val PingIntervalMillis: Long = 15_000
+
+// A dead connection often never surfaces as a close/error on the client — a container replaced during a
+// deploy, or a proxy that silently drops an idle socket, can leave hubSocket.receive() suspended forever
+// with no close frame ever arriving. Without a read-timeout the reconnect loop never runs again: the socket
+// looks "open" locally while the server side is long gone (the exact "no reconnect after a server reboot"
+// symptom). Generous multiple of the ping cadence so ordinary network jitter never trips it.
+private const val ReceiveTimeoutMillis: Long = PingIntervalMillis * 4
 
 /**
  * Thin SignalR hub client targeting the backend `DashboardHub` at `/hubs/dashboard`.
@@ -257,8 +265,11 @@ class DashboardHubClient {
                 // ── Event loop ────────────────────────────────────────────
                 try {
                     while (true) {
-                        // A single frame may carry multiple SignalR messages, each separated by \x1e.
-                        val raw: String = hubSocket.receive() ?: break
+                        // A single frame may carry multiple SignalR messages, each separated by \x1e. A null
+                        // timeout result means no frame arrived within ReceiveTimeoutMillis — the connection is
+                        // presumed dead (see ReceiveTimeoutMillis) — so break out and let the outer loop reconnect.
+                        val raw: String =
+                            withTimeoutOrNull(ReceiveTimeoutMillis) { hubSocket.receive() } ?: break
                         for (segment: String in raw.split(RECORD_SEPARATOR)) {
                             if (segment.isBlank()) continue
                             dispatchSegment(segment)
