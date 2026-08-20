@@ -189,6 +189,7 @@ public sealed class MusicProviderManageApiTests
             db,
             new PassthroughProtector(),
             new InMemoryIntegrationCapabilityStore(),
+            new NomNomzBot.Infrastructure.Music.LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance

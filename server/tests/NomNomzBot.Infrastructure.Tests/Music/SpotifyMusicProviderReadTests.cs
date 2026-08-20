@@ -463,6 +463,7 @@ public sealed class SpotifyMusicProviderReadTests
             db,
             new PassthroughProtector(),
             new InMemoryIntegrationCapabilityStore(),
+            new NomNomzBot.Infrastructure.Music.LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(new RecordingHttpHandler()),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance
@@ -510,6 +511,7 @@ public sealed class SpotifyMusicProviderReadTests
             db,
             new PassthroughProtector(),
             new InMemoryIntegrationCapabilityStore(),
+            new NomNomzBot.Infrastructure.Music.LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance
@@ -578,6 +580,7 @@ public sealed class SpotifyMusicProviderReadTests
             db,
             new PassthroughProtector(),
             new InMemoryIntegrationCapabilityStore(),
+            new NomNomzBot.Infrastructure.Music.LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance

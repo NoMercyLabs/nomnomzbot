@@ -235,6 +235,13 @@ public static class DependencyInjection
         // Music providers (scoped — multi-binding consumed as IEnumerable<IMusicProvider>).
         services.AddImplementationsOf<IMusicProvider>(infrastructure, ServiceLifetime.Scoped);
 
+        // Remembers each channel's last active Spotify device across the (scoped, per-request) provider
+        // instances that observe it — must outlive a single request to be useful.
+        services.AddSingleton<
+            Music.ILastActiveSpotifyDeviceTracker,
+            Music.LastActiveSpotifyDeviceTracker
+        >();
+
         // Federation inbound handlers (scoped — multi-binding consumed as IEnumerable<IFederationInboundHandler>).
         // The registered Types ARE the closed inbound accept-set (federation-oidc.md §3.7): moderation ships the
         // ban handler, economy the reserved trust/savings handlers. Drop a handler class → its type is accepted.

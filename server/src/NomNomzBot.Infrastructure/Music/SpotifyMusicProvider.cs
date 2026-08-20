@@ -61,6 +61,7 @@ public sealed class SpotifyMusicProvider
     private readonly IApplicationDbContext _db;
     private readonly ITokenProtector _tokenProtector;
     private readonly IIntegrationCapabilityStore _capabilities;
+    private readonly ILastActiveSpotifyDeviceTracker _lastActiveDevice;
     private readonly HttpClient _http;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<SpotifyMusicProvider> _logger;
@@ -69,6 +70,7 @@ public sealed class SpotifyMusicProvider
         IApplicationDbContext db,
         ITokenProtector tokenProtector,
         IIntegrationCapabilityStore capabilities,
+        ILastActiveSpotifyDeviceTracker lastActiveDevice,
         IHttpClientFactory httpClientFactory,
         TimeProvider timeProvider,
         ILogger<SpotifyMusicProvider> logger
@@ -77,6 +79,7 @@ public sealed class SpotifyMusicProvider
         _db = db;
         _tokenProtector = tokenProtector;
         _capabilities = capabilities;
+        _lastActiveDevice = lastActiveDevice;
         _http = httpClientFactory.CreateClient("spotify");
         _timeProvider = timeProvider;
         _logger = logger;
@@ -222,6 +225,9 @@ public sealed class SpotifyMusicProvider
         );
         if (json?.Item is null)
             return null;
+
+        if (!string.IsNullOrWhiteSpace(json.Device?.Id))
+            _lastActiveDevice.Remember(broadcasterId, json.Device.Id);
 
         SpotifyDisallows? disallows = json.Actions?.Disallows;
         return MapToTrackInfo(
@@ -1439,22 +1445,25 @@ public sealed class SpotifyMusicProvider
         CancellationToken cancellationToken
     )
     {
-        HttpRequestMessage request = new(method, url);
-        request.Headers.Authorization = new("Bearer", token);
-
-        if (body is not null)
-            request.Content = JsonContent.Create(body);
-        else if (method != HttpMethod.Get)
-            request.Content = new StringContent(
-                string.Empty,
-                System.Text.Encoding.UTF8,
-                "application/json"
-            );
+        HttpRequestMessage BuildRequest(HttpMethod m, string u, object? b)
+        {
+            HttpRequestMessage req = new(m, u);
+            req.Headers.Authorization = new("Bearer", token);
+            if (b is not null)
+                req.Content = JsonContent.Create(b);
+            else if (m != HttpMethod.Get)
+                req.Content = new StringContent(
+                    string.Empty,
+                    System.Text.Encoding.UTF8,
+                    "application/json"
+                );
+            return req;
+        }
 
         HttpResponseMessage response;
         try
         {
-            response = await _http.SendAsync(request, cancellationToken);
+            response = await _http.SendAsync(BuildRequest(method, url, body), cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -1471,10 +1480,67 @@ public sealed class SpotifyMusicProvider
             throw new PremiumRequiredException("Spotify");
         }
 
+        // Nothing is selected as the active Spotify device (e.g. the streamer closed every client) — retry
+        // once against the last device we ever saw active for this channel, rather than surfacing a failure
+        // for something the streamer never had to think about with a phone or desktop app.
+        if (
+            response.StatusCode == HttpStatusCode.NotFound
+            && await IsNoActiveDeviceAsync(response, cancellationToken)
+            && _lastActiveDevice.TryGet(broadcasterId, out string? rememberedDeviceId)
+        )
+        {
+            HttpResponseMessage transfer;
+            try
+            {
+                transfer = await _http.SendAsync(
+                    BuildRequest(
+                        HttpMethod.Put,
+                        $"{SpotifyApiBase}/me/player",
+                        new { device_ids = new[] { rememberedDeviceId }, play = false }
+                    ),
+                    cancellationToken
+                );
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Spotify auto-transfer to last device failed");
+                transfer = response; // fall through with the original NO_ACTIVE_DEVICE response
+            }
+
+            if (transfer.IsSuccessStatusCode)
+                response = await _http.SendAsync(
+                    BuildRequest(method, url, body),
+                    cancellationToken
+                );
+        }
+
         if (response.IsSuccessStatusCode)
             _capabilities.Report(broadcasterId, ProviderName, PremiumCapabilityKey, true);
 
         return response;
+    }
+
+    private static async Task<bool> IsNoActiveDeviceAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            SpotifyErrorEnvelope? envelope =
+                await response.Content.ReadFromJsonAsync<SpotifyErrorEnvelope>(
+                    cancellationToken: cancellationToken
+                );
+            return string.Equals(
+                envelope?.Error?.Reason,
+                "NO_ACTIVE_DEVICE",
+                StringComparison.OrdinalIgnoreCase
+            );
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     /// <summary>Manage-surface send (library/playlists/follows) — JSON body support, no premium
@@ -1672,6 +1738,9 @@ public sealed class SpotifyMusicProvider
 
     private sealed class SpotifyPlaybackDevice
     {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
         [JsonPropertyName("volume_percent")]
         public int? VolumePercent { get; set; }
     }

@@ -230,6 +230,7 @@ public sealed class SpotifyMusicProviderTransportTests
             db,
             new PassthroughProtector(),
             store,
+            new NomNomzBot.Infrastructure.Music.LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance

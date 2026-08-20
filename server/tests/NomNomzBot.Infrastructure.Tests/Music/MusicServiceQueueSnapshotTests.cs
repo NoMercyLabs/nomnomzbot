@@ -120,6 +120,7 @@ public sealed class MusicServiceQueueSnapshotTests
             db,
             new PassthroughProtector(),
             new InMemoryIntegrationCapabilityStore(),
+            new NomNomzBot.Infrastructure.Music.LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(new QueueFakeSpotifyHandler()),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance
