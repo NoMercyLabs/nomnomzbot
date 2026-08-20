@@ -118,11 +118,50 @@ public sealed class OverlaySdkController : ControllerBase
             ws.onerror = function () { try { ws.close(); } catch (_) {} };
           }
 
+          // ── Shared audio bus: every widget page gets working sound playback for free, without a
+          // single line of widget code. Sound clips and self-host/BYOK TTS both arrive as PlaySound
+          // (a server-rendered audio URL); client_edge TTS arrives as TtsSpeak (browser speechSynthesis,
+          // no audio bytes). Widgets that want to react visually still get the raw events via on(...).
+          var soundHandles = {}; // handle -> HTMLAudioElement, for StopSound(handle) / StopSound(all)
+
+          function playSound(payload) {
+            var el = document.createElement("audio");
+            el.src = payload.playbackUrl;
+            el.volume = Math.max(0, Math.min(100, Number(payload.volume) || 100)) / 100;
+            if (payload.handle) soundHandles[payload.handle] = el;
+            el.addEventListener("ended", function () { if (payload.handle) delete soundHandles[payload.handle]; });
+            el.play().catch(function (e) { report("audio playback blocked: " + ((e && e.message) || e)); });
+          }
+
+          function stopSound(payload) {
+            if (payload.all) {
+              Object.keys(soundHandles).forEach(function (h) { soundHandles[h].pause(); delete soundHandles[h]; });
+              return;
+            }
+            var el = payload.handle && soundHandles[payload.handle];
+            if (el) { el.pause(); delete soundHandles[payload.handle]; }
+          }
+
+          function speakTts(payload) {
+            var synth = window.speechSynthesis;
+            if (!synth) { report("speechSynthesis unavailable — cannot render client_edge TTS"); return; }
+            var utter = new SpeechSynthesisUtterance(payload.text);
+            var opts = payload.options || {};
+            if (opts.rate != null) utter.rate = opts.rate;
+            if (opts.pitch != null) utter.pitch = opts.pitch;
+            if (opts.volume != null) utter.volume = opts.volume;
+            synth.speak(utter);
+          }
+
           function dispatch(target, args) {
             switch (target) {
               case "WidgetEvent": { var e = args[0] || {}; emit(e.eventType, e.data || {}); break; }
               case "WidgetSettingsChanged": applySettings((args[0] || {}).settings || {}); break;
               case "WidgetReload": location.reload(); break;
+              case "Event": { var oe = args[0] || {}; emit(oe.type, oe.payload); break; }
+              case "PlaySound": { var ps = args[0] || {}; playSound(ps); emit("play_sound", ps); break; }
+              case "StopSound": { var ss = args[0] || {}; stopSound(ss); emit("stop_sound", ss); break; }
+              case "TtsSpeak": { var ts = args[0] || {}; speakTts(ts); emit("tts_speak", ts); break; }
               default: break;
             }
           }
