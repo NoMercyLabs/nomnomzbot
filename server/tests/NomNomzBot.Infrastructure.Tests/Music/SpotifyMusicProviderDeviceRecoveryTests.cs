@@ -14,10 +14,68 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
+
+/// <summary>Proves the tracker itself: remembers per channel, forgets on demand, and starts empty.</summary>
+public sealed class LastActiveSpotifyDeviceTrackerTests
+{
+    [Fact]
+    public void A_device_is_only_visible_after_it_was_remembered()
+    {
+        LastActiveSpotifyDeviceTracker tracker = new();
+        Guid channel = Guid.NewGuid();
+
+        tracker.TryGet(channel, out _).Should().BeFalse("nothing has been remembered yet");
+
+        tracker.Remember(channel, "device-1");
+
+        tracker.TryGet(channel, out string deviceId).Should().BeTrue();
+        deviceId.Should().Be("device-1");
+    }
+
+    [Fact]
+    public void Forget_removes_the_remembered_device()
+    {
+        LastActiveSpotifyDeviceTracker tracker = new();
+        Guid channel = Guid.NewGuid();
+        tracker.Remember(channel, "device-1");
+
+        tracker.Forget(channel);
+
+        tracker.TryGet(channel, out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Stream_offline_forgets_that_channels_remembered_device_only()
+    {
+        LastActiveSpotifyDeviceTracker tracker = new();
+        Guid endingChannel = Guid.NewGuid();
+        Guid stillLiveChannel = Guid.NewGuid();
+        tracker.Remember(endingChannel, "device-1");
+        tracker.Remember(stillLiveChannel, "device-2");
+        LastActiveSpotifyDeviceStreamOfflineHandler handler = new(tracker);
+
+        await handler.HandleAsync(
+            new ChannelOfflineEvent
+            {
+                BroadcasterId = endingChannel,
+                BroadcasterDisplayName = "Stoney_Eagle",
+                StreamDuration = TimeSpan.FromHours(2),
+            }
+        );
+
+        tracker.TryGet(endingChannel, out _).Should().BeFalse("this channel's stream just ended");
+        tracker
+            .TryGet(stillLiveChannel, out string other)
+            .Should()
+            .BeTrue("an unrelated channel's remembered device must survive");
+        other.Should().Be("device-2");
+    }
+}
 
 /// <summary>
 /// Proves the "remember the last device used while streaming" recovery (owner requirement): a player

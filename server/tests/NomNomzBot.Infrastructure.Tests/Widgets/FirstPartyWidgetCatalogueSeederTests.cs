@@ -147,6 +147,49 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
     }
 
     [Fact]
+    public async Task Retired_first_party_key_is_soft_deleted_out_of_the_gallery_on_reseed()
+    {
+        // A widget that was merged/retired (e.g. spotify_player folded into now_playing) must not linger
+        // as a pickable gallery item — the hard-cut contract: no deprecated first-party row survives a
+        // seed run once its key drops out of the catalogue.
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+
+        Guid staleId;
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            WidgetGalleryItem stale = new()
+            {
+                NaturalKey = "a_retired_first_party_widget_key",
+                Name = "Retired Widget",
+                Framework = "vue",
+                SourceKind = "in_repo",
+                TrustTier = "first_party",
+                ReviewStatus = "verified",
+                AvailableInSaaS = true,
+                SourceCode = "<script setup></script><template></template>",
+            };
+            db.WidgetGalleryItems.Add(stale);
+            await db.SaveChangesAsync();
+            staleId = stale.Id;
+        }
+
+        await SeedAsync(database);
+
+        await using WidgetTestDbContext read = database.NewContext();
+        WidgetGalleryItem? afterSeed = await read
+            .WidgetGalleryItems.IgnoreQueryFilters()
+            .SingleOrDefaultAsync(i => i.Id == staleId);
+
+        afterSeed.Should().NotBeNull("the row must still exist — soft-deleted, not hard-deleted");
+        afterSeed!
+            .DeletedAt.Should()
+            .NotBeNull("a retired first-party key is pruned from the gallery");
+        (await read.WidgetGalleryItems.AnyAsync(i => i.Id == staleId))
+            .Should()
+            .BeFalse("the default query filter must hide the soft-deleted row from normal reads");
+    }
+
+    [Fact]
     public async Task Gift_alerts_bind_the_canonical_gift_event_name_never_gift_sub()
     {
         // The GiftSubscriptionBroadcastHandler emits "gift" — the name the alerts/goal_bar/labels/event_ticker
