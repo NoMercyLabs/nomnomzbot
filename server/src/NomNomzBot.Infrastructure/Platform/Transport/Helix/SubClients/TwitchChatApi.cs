@@ -32,6 +32,7 @@ public sealed class TwitchChatApi(
     ITwitchTokenResolver tokens
 ) : ITwitchChatApi
 {
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageAnnouncements)]
     public async Task<Result> SendAnnouncementAsync(
         Guid broadcasterId,
         string message,
@@ -64,6 +65,7 @@ public sealed class TwitchChatApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageShoutouts)]
     public async Task<Result> SendShoutoutAsync(
         Guid broadcasterId,
         string toTwitchBroadcasterId,
@@ -119,6 +121,7 @@ public sealed class TwitchChatApi(
         return await transport.GetSingleAsync<TwitchChatSettings>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageChatSettings)]
     public async Task<Result<TwitchChatSettings>> UpdateChatSettingsAsync(
         Guid broadcasterId,
         UpdateChatSettingsRequest request,
@@ -170,6 +173,7 @@ public sealed class TwitchChatApi(
         return await transport.GetSingleAsync<TwitchUserChatColor>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.UserManageChatColor)]
     public async Task<Result> UpdateUserChatColorAsync(
         Guid broadcasterId,
         string color,
@@ -216,6 +220,7 @@ public sealed class TwitchChatApi(
         return await transport.GetSingleAsync<TwitchPinnedChatMessage>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageChatMessages)]
     public async Task<Result<TwitchPinnedChatMessage>> PinMessageAsync(
         Guid broadcasterId,
         string messageId,
@@ -248,6 +253,7 @@ public sealed class TwitchChatApi(
         return await transport.SendWithResultAsync<TwitchPinnedChatMessage>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageChatMessages)]
     public async Task<Result<TwitchPinnedChatMessage>> UpdatePinnedMessageAsync(
         Guid broadcasterId,
         int? durationSeconds,

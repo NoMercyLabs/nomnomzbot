@@ -28,6 +28,7 @@ public sealed class TwitchBitsApi(
     ITwitchTokenResolver tokens
 ) : ITwitchBitsApi
 {
+    [RequiresTwitchScope(TwitchScopes.BitsRead)]
     public async Task<Result<IReadOnlyList<TwitchBitsLeaderboardEntry>>> GetBitsLeaderboardAsync(
         Guid broadcasterId,
         int? count,
@@ -92,6 +93,7 @@ public sealed class TwitchBitsApi(
         return await transport.GetListAsync<TwitchCheermote>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.BitsRead)]
     public async Task<Result<IReadOnlyList<TwitchCustomPowerUp>>> GetCustomPowerUpsAsync(
         Guid broadcasterId,
         IReadOnlyList<string>? ids,

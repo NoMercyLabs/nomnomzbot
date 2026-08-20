@@ -191,6 +191,7 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
             config,
             new DeploymentContext(DeploymentMode.SelfHostFull),
             TimeProvider.System,
+            new TwitchScopeRegistry(),
             NullLogger<AuthService>.Instance
         );
     }

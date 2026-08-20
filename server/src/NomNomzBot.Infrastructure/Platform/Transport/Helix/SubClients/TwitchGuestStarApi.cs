@@ -32,6 +32,7 @@ public sealed class TwitchGuestStarApi(
     ITwitchTokenResolver tokens
 ) : ITwitchGuestStarApi
 {
+    [RequiresTwitchScope(TwitchScopes.ChannelReadGuestStar)]
     public async Task<Result<TwitchGuestStarChannelSettings>> GetChannelSettingsAsync(
         Guid broadcasterId,
         CancellationToken ct = default
@@ -60,6 +61,7 @@ public sealed class TwitchGuestStarApi(
         return await transport.GetSingleAsync<TwitchGuestStarChannelSettings>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageGuestStar)]
     public async Task<Result> UpdateChannelSettingsAsync(
         Guid broadcasterId,
         UpdateGuestStarSettingsRequest request,
@@ -91,6 +93,7 @@ public sealed class TwitchGuestStarApi(
         return await transport.SendAsync(helixRequest, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelReadGuestStar)]
     public async Task<Result<TwitchGuestStarSession>> GetSessionAsync(
         Guid broadcasterId,
         CancellationToken ct = default
@@ -119,6 +122,7 @@ public sealed class TwitchGuestStarApi(
         return await transport.GetSingleAsync<TwitchGuestStarSession>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageGuestStar)]
     public async Task<Result<TwitchGuestStarSession>> CreateSessionAsync(
         Guid broadcasterId,
         CancellationToken ct = default
@@ -148,6 +152,7 @@ public sealed class TwitchGuestStarApi(
         return await transport.SendWithResultAsync<TwitchGuestStarSession>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageGuestStar)]
     public async Task<Result<TwitchGuestStarSession>> EndSessionAsync(
         Guid broadcasterId,
         string sessionId,
@@ -178,6 +183,7 @@ public sealed class TwitchGuestStarApi(
         return await transport.SendWithResultAsync<TwitchGuestStarSession>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelReadGuestStar)]
     public async Task<Result<IReadOnlyList<TwitchGuestStarInvite>>> GetInvitesAsync(
         Guid broadcasterId,
         string sessionId,
@@ -212,6 +218,7 @@ public sealed class TwitchGuestStarApi(
         return await transport.GetListAsync<TwitchGuestStarInvite>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageGuestStar)]
     public async Task<Result> SendInviteAsync(
         Guid broadcasterId,
         string sessionId,
@@ -249,6 +256,7 @@ public sealed class TwitchGuestStarApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageGuestStar)]
     public async Task<Result> DeleteInviteAsync(
         Guid broadcasterId,
         string sessionId,
@@ -286,6 +294,7 @@ public sealed class TwitchGuestStarApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageGuestStar)]
     public async Task<Result> AssignSlotAsync(
         Guid broadcasterId,
         string sessionId,
@@ -325,6 +334,7 @@ public sealed class TwitchGuestStarApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageGuestStar)]
     public async Task<Result> UpdateSlotAsync(
         Guid broadcasterId,
         string sessionId,
@@ -367,6 +377,7 @@ public sealed class TwitchGuestStarApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageGuestStar)]
     public async Task<Result> DeleteSlotAsync(
         Guid broadcasterId,
         string sessionId,
@@ -411,6 +422,7 @@ public sealed class TwitchGuestStarApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageGuestStar)]
     public async Task<Result> UpdateSlotSettingsAsync(
         Guid broadcasterId,
         string sessionId,

@@ -28,6 +28,7 @@ public sealed class TwitchChannelPointsApi(
     ITwitchTokenResolver tokens
 ) : ITwitchChannelPointsApi
 {
+    [RequiresTwitchScope(TwitchScopes.ChannelManageRedemptions)]
     public async Task<Result<TwitchCustomReward>> CreateCustomRewardAsync(
         Guid broadcasterId,
         CreateCustomRewardRequest request,
@@ -59,6 +60,7 @@ public sealed class TwitchChannelPointsApi(
         return await transport.SendWithResultAsync<TwitchCustomReward>(helixRequest, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageRedemptions)]
     public async Task<Result<TwitchCustomReward>> UpdateCustomRewardAsync(
         Guid broadcasterId,
         string rewardId,
@@ -91,6 +93,7 @@ public sealed class TwitchChannelPointsApi(
         return await transport.SendWithResultAsync<TwitchCustomReward>(helixRequest, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageRedemptions)]
     public async Task<Result> DeleteCustomRewardAsync(
         Guid broadcasterId,
         string rewardId,
@@ -121,6 +124,8 @@ public sealed class TwitchChannelPointsApi(
         return await transport.SendAsync(helixRequest, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelReadRedemptions)]
+    [RequiresTwitchScope(TwitchScopes.ChannelManageRedemptions)]
     public async Task<Result<IReadOnlyList<TwitchCustomReward>>> GetCustomRewardsAsync(
         Guid broadcasterId,
         IReadOnlyList<string>? rewardIds = null,

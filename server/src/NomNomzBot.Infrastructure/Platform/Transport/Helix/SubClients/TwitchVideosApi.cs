@@ -84,6 +84,7 @@ public sealed class TwitchVideosApi(
         return await transport.GetListAsync<TwitchVideo>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageVideos)]
     public async Task<Result<IReadOnlyList<string>>> DeleteVideosAsync(
         Guid broadcasterId,
         IReadOnlyList<string> videoIds,

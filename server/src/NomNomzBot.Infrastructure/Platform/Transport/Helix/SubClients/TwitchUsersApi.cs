@@ -66,6 +66,7 @@ public sealed class TwitchUsersApi(
         return await transport.GetListAsync<TwitchUser>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.UserEdit)]
     public async Task<Result<TwitchUser>> UpdateDescriptionAsync(
         Guid broadcasterId,
         string description,
@@ -92,6 +93,7 @@ public sealed class TwitchUsersApi(
         return await transport.SendWithResultAsync<TwitchUser>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.UserReadBlockedUsers)]
     public async Task<Result<TwitchPage<TwitchBlockedUser>>> GetBlockListAsync(
         Guid broadcasterId,
         TwitchPageRequest page,
@@ -129,6 +131,7 @@ public sealed class TwitchUsersApi(
         return await transport.GetPageAsync<TwitchBlockedUser>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.UserManageBlockedUsers)]
     public async Task<Result> BlockUserAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
@@ -167,6 +170,7 @@ public sealed class TwitchUsersApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.UserManageBlockedUsers)]
     public async Task<Result> UnblockUserAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
@@ -247,6 +251,7 @@ public sealed class TwitchUsersApi(
         return await transport.GetSingleAsync<TwitchActiveExtensions>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.UserEditBroadcast)]
     public async Task<Result<TwitchActiveExtensions>> UpdateActiveExtensionsAsync(
         Guid broadcasterId,
         UpdateUserExtensionsRequest request,

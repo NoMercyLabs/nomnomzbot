@@ -80,6 +80,7 @@ public sealed class TwitchScheduleApi(
         return await transport.GetRawAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageSchedule)]
     public async Task<Result> UpdateScheduleSettingsAsync(
         Guid broadcasterId,
         bool? isVacationEnabled,
@@ -123,6 +124,7 @@ public sealed class TwitchScheduleApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageSchedule)]
     public async Task<Result<TwitchSchedule>> CreateSegmentAsync(
         Guid broadcasterId,
         CreateScheduleSegmentRequest request,
@@ -154,6 +156,7 @@ public sealed class TwitchScheduleApi(
         return await transport.SendWithResultAsync<TwitchSchedule>(helixRequest, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageSchedule)]
     public async Task<Result<TwitchSchedule>> UpdateSegmentAsync(
         Guid broadcasterId,
         string segmentId,
@@ -186,6 +189,7 @@ public sealed class TwitchScheduleApi(
         return await transport.SendWithResultAsync<TwitchSchedule>(helixRequest, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageSchedule)]
     public async Task<Result> DeleteSegmentAsync(
         Guid broadcasterId,
         string segmentId,

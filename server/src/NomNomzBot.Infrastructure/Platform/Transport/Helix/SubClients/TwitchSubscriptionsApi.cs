@@ -28,6 +28,7 @@ public sealed class TwitchSubscriptionsApi(
     ITwitchTokenResolver tokens
 ) : ITwitchSubscriptionsApi
 {
+    [RequiresTwitchScope(TwitchScopes.ChannelReadSubscriptions)]
     public async Task<
         Result<TwitchPage<TwitchBroadcasterSubscription>>
     > GetBroadcasterSubscriptionsAsync(
@@ -71,6 +72,7 @@ public sealed class TwitchSubscriptionsApi(
         return await transport.GetPageAsync<TwitchBroadcasterSubscription>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.UserReadSubscriptions)]
     public async Task<Result<TwitchUserSubscription>> CheckUserSubscriptionAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
@@ -100,6 +102,7 @@ public sealed class TwitchSubscriptionsApi(
         return await transport.GetSingleAsync<TwitchUserSubscription>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelReadSubscriptions)]
     public async Task<Result<int>> GetSubscriberCountAsync(
         Guid broadcasterId,
         CancellationToken ct = default

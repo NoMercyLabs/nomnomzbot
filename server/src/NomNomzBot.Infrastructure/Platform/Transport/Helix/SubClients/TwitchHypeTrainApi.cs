@@ -28,6 +28,7 @@ public sealed class TwitchHypeTrainApi(
     ITwitchTokenResolver tokens
 ) : ITwitchHypeTrainApi
 {
+    [RequiresTwitchScope(TwitchScopes.ChannelReadHypeTrain)]
     public async Task<Result<TwitchHypeTrainStatus>> GetHypeTrainStatusAsync(
         Guid broadcasterId,
         CancellationToken ct = default

@@ -47,6 +47,7 @@ public sealed class TwitchModerationApi(
         CancellationToken ct = default
     ) => BanInternalAsync(broadcasterId, targetTwitchUserId, durationSeconds, reason, ct);
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageBannedUsers)]
     private async Task<Result<TwitchBanResult>> BanInternalAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
@@ -186,6 +187,7 @@ public sealed class TwitchModerationApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageBannedUsers)]
     public async Task<Result> UnbanUserAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
@@ -221,6 +223,7 @@ public sealed class TwitchModerationApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModerationRead)]
     public async Task<Result<TwitchPage<TwitchBannedUser>>> GetBannedUsersAsync(
         Guid broadcasterId,
         TwitchPageRequest page,
@@ -254,6 +257,7 @@ public sealed class TwitchModerationApi(
         return await transport.GetPageAsync<TwitchBannedUser>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorReadUnbanRequests)]
     public async Task<Result<TwitchPage<TwitchUnbanRequest>>> GetUnbanRequestsAsync(
         Guid broadcasterId,
         string status,
@@ -334,6 +338,7 @@ public sealed class TwitchModerationApi(
         return await transport.GetPageAsync<TwitchUnbanRequest>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageUnbanRequests)]
     public async Task<Result<TwitchUnbanRequest>> ResolveUnbanRequestAsync(
         Guid broadcasterId,
         string unbanRequestId,
@@ -418,6 +423,7 @@ public sealed class TwitchModerationApi(
         return await transport.SendWithResultAsync<TwitchUnbanRequest>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorReadBlockedTerms)]
     public async Task<Result<TwitchPage<TwitchBlockedTerm>>> GetBlockedTermsAsync(
         Guid broadcasterId,
         TwitchPageRequest page,
@@ -494,6 +500,7 @@ public sealed class TwitchModerationApi(
         return await transport.GetPageAsync<TwitchBlockedTerm>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageBlockedTerms)]
     public async Task<Result<TwitchBlockedTerm>> AddBlockedTermAsync(
         Guid broadcasterId,
         string text,
@@ -560,6 +567,7 @@ public sealed class TwitchModerationApi(
         return await transport.SendWithResultAsync<TwitchBlockedTerm>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageBlockedTerms)]
     public async Task<Result> RemoveBlockedTermAsync(
         Guid broadcasterId,
         string blockedTermId,
@@ -641,6 +649,7 @@ public sealed class TwitchModerationApi(
         CancellationToken ct = default
     ) => DeleteChatInternalAsync(broadcasterId, null, ct);
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageChatMessages)]
     private async Task<Result> DeleteChatInternalAsync(
         Guid broadcasterId,
         string? messageId,
@@ -716,6 +725,7 @@ public sealed class TwitchModerationApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorReadShieldMode)]
     public async Task<Result<TwitchShieldModeStatus>> GetShieldModeStatusAsync(
         Guid broadcasterId,
         CancellationToken ct = default
@@ -776,6 +786,7 @@ public sealed class TwitchModerationApi(
         return await transport.GetSingleAsync<TwitchShieldModeStatus>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageShieldMode)]
     public async Task<Result<TwitchShieldModeStatus>> UpdateShieldModeStatusAsync(
         Guid broadcasterId,
         bool isActive,
@@ -842,6 +853,7 @@ public sealed class TwitchModerationApi(
         return await transport.SendWithResultAsync<TwitchShieldModeStatus>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageWarnings)]
     public async Task<Result<TwitchWarningResult>> WarnChatUserAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
@@ -917,6 +929,7 @@ public sealed class TwitchModerationApi(
         CancellationToken ct = default
     ) => SuspiciousAddInternalAsync(broadcasterId, targetTwitchUserId, status, ct);
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageSuspiciousUsers)]
     private async Task<Result<TwitchSuspiciousUserStatus>> SuspiciousAddInternalAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
@@ -985,6 +998,7 @@ public sealed class TwitchModerationApi(
         return await transport.SendWithResultAsync<TwitchSuspiciousUserStatus>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageSuspiciousUsers)]
     public async Task<Result<TwitchSuspiciousUserStatus>> RemoveSuspiciousStatusAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
@@ -1055,6 +1069,7 @@ public sealed class TwitchModerationApi(
         return await transport.SendWithResultAsync<TwitchSuspiciousUserStatus>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModerationRead)]
     public async Task<Result<IReadOnlyList<TwitchAutoModStatus>>> CheckAutoModStatusAsync(
         Guid broadcasterId,
         IReadOnlyList<(string MsgId, string MsgText)> messages,
@@ -1086,6 +1101,7 @@ public sealed class TwitchModerationApi(
         return await transport.GetListAsync<TwitchAutoModStatus>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageAutoMod)]
     public async Task<Result> ManageHeldAutoModMessageAsync(
         Guid broadcasterId,
         string messageId,
@@ -1117,6 +1133,7 @@ public sealed class TwitchModerationApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorReadAutoModSettings)]
     public async Task<Result<TwitchAutoModSettings>> GetAutoModSettingsAsync(
         Guid broadcasterId,
         CancellationToken ct = default
@@ -1145,6 +1162,7 @@ public sealed class TwitchModerationApi(
         return await transport.GetSingleAsync<TwitchAutoModSettings>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorManageAutoModSettings)]
     public async Task<Result<TwitchAutoModSettings>> UpdateAutoModSettingsAsync(
         Guid broadcasterId,
         UpdateAutoModSettingsRequest settings,

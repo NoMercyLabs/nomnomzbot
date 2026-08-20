@@ -29,6 +29,7 @@ public sealed class TwitchChatAssetsApi(
     ITwitchTokenResolver tokens
 ) : ITwitchChatAssetsApi
 {
+    [RequiresTwitchScope(TwitchScopes.ModeratorReadChatters)]
     public async Task<Result<TwitchPage<TwitchChatter>>> GetChattersAsync(
         Guid broadcasterId,
         TwitchPageRequest page,
@@ -132,6 +133,7 @@ public sealed class TwitchChatAssetsApi(
         return await transport.GetListAsync<TwitchEmoteSetEmote>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.UserReadEmotes)]
     public async Task<Result<TwitchPage<TwitchUserEmote>>> GetUserEmotesAsync(
         Guid broadcasterId,
         string? afterCursor,

@@ -28,6 +28,7 @@ public sealed class TwitchCharityApi(
     ITwitchTokenResolver tokens
 ) : ITwitchCharityApi
 {
+    [RequiresTwitchScope(TwitchScopes.ChannelReadCharity)]
     public async Task<Result<TwitchCharityCampaign>> GetCharityCampaignAsync(
         Guid broadcasterId,
         CancellationToken ct = default
@@ -52,6 +53,7 @@ public sealed class TwitchCharityApi(
         return await transport.GetSingleAsync<TwitchCharityCampaign>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelReadCharity)]
     public async Task<Result<TwitchPage<TwitchCharityDonation>>> GetCharityCampaignDonationsAsync(
         Guid broadcasterId,
         TwitchPageRequest page,

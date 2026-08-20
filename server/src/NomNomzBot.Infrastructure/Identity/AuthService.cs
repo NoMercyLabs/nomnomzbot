@@ -63,99 +63,54 @@ public sealed class AuthService : IAuthService
     // SelfHostLite is single-streamer: a second login attaches to the existing channel instead of creating one.
     private readonly DeploymentMode _deploymentMode;
 
-    private static readonly string[] RequiredScopes =
+    // Scopes NOT covered by any [RequiresTwitchScope]-decorated Helix sub-client method — i.e. not
+    // enforced by a runtime RequireScopeAsync pre-check, so TwitchScopeRegistry can't discover them by
+    // reflection. Each is here because it gates something other than a Helix sub-client call: an
+    // EventSub subscription topic, a non-Helix identity claim, or the app-token chat-badge path.
+    // RequiredScopes (built in the constructor) is the union of this array with
+    // TwitchScopeRegistry.AllDeclaredScopes — every Helix-gated scope is swept in automatically, so a
+    // new [RequiresTwitchScope] method can never go unrequested (the moderator:manage:shoutouts drift).
+    private static readonly string[] ResidualNonHelixGatedScopes =
     [
-        "user:read:email",
-        "user:read:chat",
+        "user:read:email", // account identity claim on login, not a Helix call
+        "user:read:chat", // EventSub channel.chat.message (bot's own read topic; also rides here for the
+        // single-account self-host fallback where the streamer's account IS the bot)
         // The streamer's own account is the bot's chat identity until a custom bot account is registered
         // (onboarding.md two-account model; deployment-profile.md "self-host always custom"), so the
         // streamer grant must carry the Helix chat-send scope — `HelixChatProvider` sends via
-        // `POST /helix/chat/messages` (`user:write:chat`) on every profile (scaling-qos.md §6).
+        // `POST /helix/chat/messages` (`user:write:chat`) on every profile (scaling-qos.md §6). The send
+        // itself goes through HelixChatProvider, not a [RequiresTwitchScope] sub-client method.
         "user:write:chat",
         // The chatbot badge: the broadcaster grants `channel:bot` to let the bot appear WITH THE BOT BADGE in
         // THEIR channel — the broadcaster-side half of the app-token send. The bot-side half (`user:bot`) rides
         // BotScopes. This is the proven recipe (the reference bot uses channel:bot on the broadcaster + user:bot
         // on the bot + an app-token send). `user:bot` deliberately does NOT ride this streamer grant: the
         // streamer's own account is not the chat sender on a dedicated-bot deployment, so requesting it here
-        // only adds a confusing "appear as a bot" consent for no gain.
+        // only adds a confusing "appear as a bot" consent for no gain. Neither rides a Helix scope pre-check.
         "channel:bot",
-        // The chat composer's emote picker shows the operator's own usable emotes across every channel they're
-        // subscribed to (Get User Emotes, chat-client.md §3.2). It's an always-on part of the chat page, not a
-        // feature toggle, so — like the rest of this full-set-at-login grant — its scope rides the base grant
-        // rather than a per-feature progressive card. Without it Get User Emotes 403s and the picker silently
-        // shows none of the operator's subscription emotes. (FeatureScopeMap still maps chat_emotes → this scope
-        // so a stale token gets a NAMED gap to re-grant.)
-        "user:read:emotes",
-        "channel:read:subscriptions",
-        "bits:read",
-        "channel:manage:redemptions",
-        "channel:read:redemptions",
-        "channel:moderate",
-        "moderator:manage:banned_users",
-        "moderator:manage:chat_messages",
-        "moderator:read:followers",
-        "channel:manage:broadcast",
-        "channel:read:polls",
-        "channel:manage:polls",
-        "channel:read:predictions",
-        "channel:manage:predictions",
-        "channel:read:hype_train",
-        // Charity/Goals EventSub ingest (ROADMAP "Small decided items"): requested upfront alongside the
-        // other per-topic read scopes above (channel:read:hype_train et al.) rather than gated behind a
-        // feature toggle — this codebase requests the full per-channel scope set at login, not per-feature.
-        // A streamer who never runs a charity campaign or creator goal simply never triggers these topics;
-        // Twitch 403s the subscribe attempt gracefully if the scope is somehow missing (see BotLifecycleService).
-        "channel:read:charity",
-        "channel:read:goals",
-        "channel:manage:schedule",
-        "user:read:moderated_channels",
+        "channel:moderate", // EventSub channel.moderate v2 topic (read-only stream of mod actions)
         // The remaining translator-backed EventSub surface (twitch-eventsub.md, BotLifecycleService
-        // ChannelEventTypes): requested upfront alongside the scopes above rather than gated behind a feature
-        // toggle, same rationale as the charity/goals block — a streamer who never triggers these Twitch
-        // features simply never triggers their topic, and a missing scope 403s that one subscribe attempt
-        // (TwitchEventSubHostedService.SubscribeAsync) without blocking any other topic.
-        "channel:read:ads", // channel.ad_break.begin
-        "channel:read:vips", // channel.vip.add / channel.vip.remove
-        "channel:manage:vips", // dashboard VIP add/remove (Add/Remove Channel VIP — FeatureScopeMap "vips")
-        "channel:manage:raids", // raid responses / Start Raid (FeatureScopeMap "raids")
-        "moderator:manage:announcements", // announce pipeline action (Send Chat Announcement)
-        "moderation:read", // channel.moderator.add / channel.moderator.remove
-        // Core proactive management jobs (roles-permissions §4) — these ride the base grant, not a feature toggle,
-        // because they run unconditionally for every onboarded channel: the 10-minute ManagementRoleReconcileService
-        // reads channel editors (Get Channel Editors) to map them to the dashboard Editor role, and
-        // BotJoinOnOnboardingHandler makes the bot a channel moderator on join (Add Channel Moderator). Omitting
-        // their scopes 403'd every reconcile/onboard cycle and nagged the streamer with a permission they could
-        // never satisfy from a feature — so they belong here alongside the rest of the full per-channel set.
-        "channel:read:editors", // ManagementRoleReconcileService → Get Channel Editors (Editor-role sync)
-        "channel:manage:moderators", // BotJoinOnOnboardingHandler → Add Channel Moderator (bot self-mod on join)
-        "moderator:manage:automod", // automod.message.hold/update, automod.terms.update
-        "moderator:read:automod_settings", // automod.settings.update
-        "moderator:read:blocked_terms", // channel.moderate v2
-        "moderator:manage:blocked_terms", // dashboard blocked-terms editor (Add/Remove Blocked Term)
+        // ChannelEventTypes): these gate an EventSub subscribe topic, not a Helix sub-client call, so they
+        // sit outside the reflected set alongside channel:moderate above.
         "moderator:read:chat_settings", // channel.moderate v2
         "moderator:read:moderators", // channel.moderate v2
-        "moderator:read:shield_mode", // channel.shield_mode.begin / channel.shield_mode.end
-        "moderator:manage:shield_mode", // dashboard Shield Mode toggle (Update Shield Mode Status)
-        "moderator:read:shoutouts", // channel.shoutout.create / channel.shoutout.receive
-        "moderator:manage:shoutouts", // ShoutoutAction → Send Shoutout (the !so builtin/pipeline action)
+        "moderator:read:shoutouts", // channel.shoutout.create / channel.shoutout.receive (EventSub only —
+        // the Send Shoutout Helix call itself requires moderator:manage:shoutouts, which IS reflected)
         "moderator:read:suspicious_users", // channel.suspicious_user.message / channel.suspicious_user.update
-        "moderator:manage:suspicious_users", // dashboard suspicious-user flag (Update Suspicious User)
-        "moderator:read:unban_requests", // channel.unban_request.create / channel.unban_request.resolve, channel.moderate v2
-        "moderator:manage:unban_requests", // dashboard unban-request queue (Resolve Unban Request)
-        "moderator:read:vips", // channel.moderate v2 (distinct from channel:read:vips above)
+        "moderator:read:vips", // channel.moderate v2 (distinct from channel:read:vips, which IS reflected)
         "moderator:read:warnings", // channel.warning.acknowledge / channel.warning.send, channel.moderate v2
-        "moderator:manage:warnings", // dashboard warn action (Warn Chat User)
         // user.whisper.message rides the BOT identity (BotScopes below) — this streamer-side grant is the
-        // single-account self-host leg, where the streamer's own account IS the bot.
+        // single-account self-host leg, where the streamer's own account IS the bot. Distinct from
+        // user:manage:whispers (Send Whisper), which IS reflected via TwitchWhispersApi.
         "user:read:whispers", // user.whisper.message (single-account fallback)
         // Guest Star ingest (ROADMAP "Small decided items" — restored 2026-07-04; Twitch has not deprecated
-        // the API, live docs still list all four beta topics). Read variants suffice for ingest-only —
-        // channel:read:guest_star covers the broadcaster's own sessions, moderator:read:guest_star covers
-        // sessions in channels where the bot moderates; both feed the same broadcaster+moderator condition
-        // (EventSubConditionBuilder.ModeratorPlaneEvents).
-        "channel:read:guest_star", // channel.guest_star_session.begin/.end, .guest.update, .settings.update
+        // the API, live docs still list all four beta topics). channel:read:guest_star is reflected (gates
+        // GetGuestStarSessionAsync); moderator:read:guest_star gates the EventSub condition for channels the
+        // bot moderates and is not itself a Helix method pre-check.
         "moderator:read:guest_star", // channel.guest_star_session.begin/.end, .guest.update, .settings.update
     ];
+
+    private readonly string[] _requiredScopes;
 
     private static readonly string[] BotScopes =
     [
@@ -185,6 +140,7 @@ public sealed class AuthService : IAuthService
         IConfiguration configuration,
         DeploymentContext deploymentContext,
         TimeProvider timeProvider,
+        TwitchScopeRegistry scopeRegistry,
         ILogger<AuthService> logger
     )
     {
@@ -202,6 +158,15 @@ public sealed class AuthService : IAuthService
         _initialAdminTwitchId = configuration["App:InitialAdminTwitchId"];
         _isSelfHost = deploymentContext.IsSelfHost;
         _deploymentMode = deploymentContext.Mode;
+
+        // The base streamer login grant = every Helix-gated scope the sub-clients actually enforce
+        // (reflected, so it can never drift) ∪ the residual EventSub-only / non-Helix-gated scopes above.
+        SortedSet<string> requiredScopes = new(
+            ResidualNonHelixGatedScopes,
+            StringComparer.OrdinalIgnoreCase
+        );
+        requiredScopes.UnionWith(scopeRegistry.AllDeclaredScopes);
+        _requiredScopes = [.. requiredScopes];
     }
 
     // ─── User OAuth ──────────────────────────────────────────────────────────
@@ -215,7 +180,7 @@ public sealed class AuthService : IAuthService
         await BuildAuthorizeUrlAsync(
             broadcasterHint is Guid channel
                 ? await WidenedStreamerScopesAsync(channel, cancellationToken)
-                : RequiredScopes,
+                : _requiredScopes,
             state,
             baseUrl,
             forceVerify: false,
@@ -234,7 +199,7 @@ public sealed class AuthService : IAuthService
         CancellationToken ct
     )
     {
-        SortedSet<string> union = new(RequiredScopes, StringComparer.OrdinalIgnoreCase);
+        SortedSet<string> union = new(_requiredScopes, StringComparer.OrdinalIgnoreCase);
 
         List<string>? granted = await _db
             .IntegrationConnections.IgnoreQueryFilters()
@@ -514,7 +479,7 @@ public sealed class AuthService : IAuthService
 
     public Task<Result<DeviceCodeStartDto>> StartTwitchDeviceLoginAsync(
         CancellationToken cancellationToken = default
-    ) => StartDeviceLoginAsync(RequiredScopes, cancellationToken);
+    ) => StartDeviceLoginAsync(_requiredScopes, cancellationToken);
 
     public Task<Result<DeviceCodeStartDto>> StartTwitchDeviceLoginForScopesAsync(
         IReadOnlyList<string> scopes,
@@ -567,7 +532,7 @@ public sealed class AuthService : IAuthService
     {
         DevicePollOutcome outcome = await _deviceCode.PollOnceAsync(
             deviceCode,
-            RequiredScopes,
+            _requiredScopes,
             cancellationToken
         );
         if (outcome.Status != DevicePollStatus.Authorized || outcome.Tokens is null)

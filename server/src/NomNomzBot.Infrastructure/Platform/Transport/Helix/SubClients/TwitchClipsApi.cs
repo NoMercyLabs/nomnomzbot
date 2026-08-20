@@ -29,6 +29,7 @@ public sealed class TwitchClipsApi(
     ITwitchTokenResolver tokens
 ) : ITwitchClipsApi
 {
+    [RequiresTwitchScope(TwitchScopes.ClipsEdit)]
     public async Task<Result<TwitchClipStub>> CreateClipAsync(
         Guid broadcasterId,
         bool? hasDelay,
@@ -59,6 +60,7 @@ public sealed class TwitchClipsApi(
         return await transport.SendWithResultAsync<TwitchClipStub>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.EditorManageClips)]
     public async Task<Result<TwitchClipStub>> CreateClipFromVodAsync(
         Guid broadcasterId,
         CreateClipFromVodRequest request,

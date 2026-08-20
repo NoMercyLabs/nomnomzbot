@@ -28,6 +28,7 @@ public sealed class TwitchRaidsApi(
     ITwitchTokenResolver tokens
 ) : ITwitchRaidsApi
 {
+    [RequiresTwitchScope(TwitchScopes.ChannelManageRaids)]
     public async Task<Result<TwitchRaid>> StartRaidAsync(
         Guid broadcasterId,
         string toTwitchBroadcasterId,

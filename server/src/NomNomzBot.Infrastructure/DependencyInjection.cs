@@ -1170,6 +1170,10 @@ public static class DependencyInjection
         // Token resolver (scoped — reads Services via the scoped DbContext, refreshes via the auth layer).
         services.AddScoped<ITwitchTokenResolver, TwitchTokenResolver>();
 
+        // Reflects the Helix sub-clients' [RequiresTwitchScope] attributes into the authoritative
+        // declared-scope set AuthService.RequiredScopes unions with (singleton — reflected once).
+        services.AddSingleton<Identity.TwitchScopeRegistry>();
+
         // Platform-bot readiness gate (scoped — rides the resolver's DbContext + vault). The single fact the
         // Twitch-dependent background work (EventSub transport, IRC, Helix warmers) checks so it stays dormant
         // on a fresh, un-onboarded install and activates the moment a bot account is authorized — no restart.

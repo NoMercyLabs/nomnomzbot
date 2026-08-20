@@ -28,6 +28,7 @@ public sealed class TwitchGoalsApi(
     ITwitchTokenResolver tokens
 ) : ITwitchGoalsApi
 {
+    [RequiresTwitchScope(TwitchScopes.ChannelReadGoals)]
     public async Task<Result<IReadOnlyList<TwitchCreatorGoal>>> GetCreatorGoalsAsync(
         Guid broadcasterId,
         CancellationToken ct = default

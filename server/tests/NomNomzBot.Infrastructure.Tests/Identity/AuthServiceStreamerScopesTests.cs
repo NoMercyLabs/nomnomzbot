@@ -249,7 +249,10 @@ public sealed class AuthServiceStreamerScopesTests
             new ChannelMissingScope
             {
                 BroadcasterId = channel,
-                Scope = "channel:edit:commercial", // runtime-detected, outside the base set
+                // `channel:manage:extensions` is a real Twitch scope this codebase has no Helix method for
+                // (unlike `channel:edit:commercial`, which the [RequiresTwitchScope]-reflected base set now
+                // covers), so it's still a genuine runtime-detected gap OUTSIDE the reflected ∪ residual base set.
+                Scope = "channel:manage:extensions",
                 DetectedAt = new DateTime(2026, 7, 16, 0, 0, 0, DateTimeKind.Utc),
             }
         );
@@ -268,10 +271,10 @@ public sealed class AuthServiceStreamerScopesTests
 
         withHint.IsSuccess.Should().BeTrue();
         withHint.Value.Should().Contain(Uri.EscapeDataString("user:bot"));
-        withHint.Value.Should().Contain(Uri.EscapeDataString("channel:edit:commercial"));
+        withHint.Value.Should().Contain(Uri.EscapeDataString("channel:manage:extensions"));
         withHint.Value.Should().Contain(Uri.EscapeDataString("user:read:chat")); // base still rides
         without.Value.Should().NotContain(Uri.EscapeDataString("user:bot"));
-        without.Value.Should().NotContain(Uri.EscapeDataString("channel:edit:commercial"));
+        without.Value.Should().NotContain(Uri.EscapeDataString("channel:manage:extensions"));
     }
 
     // ─── scaffolding (mirrors AuthServiceBotDeviceTests.Build/ConfigWith) ──────────────────────────────
@@ -298,6 +301,7 @@ public sealed class AuthServiceStreamerScopesTests
             config,
             new DeploymentContext(DeploymentMode.SelfHostLite),
             TimeProvider.System,
+            new TwitchScopeRegistry(),
             NullLogger<AuthService>.Instance
         );
     }

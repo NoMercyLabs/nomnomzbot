@@ -74,6 +74,7 @@ public sealed class TwitchStreamsApi(
         return await transport.GetSingleAsync<TwitchStream>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelReadStreamKey)]
     public async Task<Result<string>> GetStreamKeyAsync(
         Guid broadcasterId,
         CancellationToken ct = default
@@ -108,6 +109,7 @@ public sealed class TwitchStreamsApi(
             : result.WithValue<string>(default!);
     }
 
+    [RequiresTwitchScope(TwitchScopes.UserReadFollows)]
     public async Task<Result<TwitchPage<TwitchStream>>> GetFollowedStreamsAsync(
         Guid broadcasterId,
         TwitchPageRequest page,
@@ -141,6 +143,7 @@ public sealed class TwitchStreamsApi(
         return await transport.GetPageAsync<TwitchStream>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageBroadcast)]
     public async Task<Result<TwitchStreamMarker>> CreateStreamMarkerAsync(
         Guid broadcasterId,
         string? description = null,
@@ -171,6 +174,7 @@ public sealed class TwitchStreamsApi(
         return await transport.SendWithResultAsync<TwitchStreamMarker>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.UserReadBroadcast)]
     public async Task<Result<TwitchPage<TwitchStreamMarkerGroup>>> GetStreamMarkersAsync(
         Guid broadcasterId,
         string? videoId,

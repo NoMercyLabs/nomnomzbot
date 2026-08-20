@@ -146,6 +146,7 @@ public sealed class AuthServiceBotDeviceTests
             config,
             new DeploymentContext(DeploymentMode.SelfHostLite),
             TimeProvider.System,
+            new TwitchScopeRegistry(),
             NullLogger<AuthService>.Instance
         );
     }

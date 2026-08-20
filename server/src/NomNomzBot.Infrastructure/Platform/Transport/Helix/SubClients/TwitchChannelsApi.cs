@@ -64,6 +64,7 @@ public sealed class TwitchChannelsApi(
         return await transport.GetSingleAsync<TwitchChannelInformation>(userRequest, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageBroadcast)]
     public async Task<Result> ModifyChannelInformationAsync(
         Guid broadcasterId,
         ModifyChannelInformationRequest request,
@@ -95,6 +96,7 @@ public sealed class TwitchChannelsApi(
         return await transport.SendAsync(helixRequest, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelReadEditors)]
     public async Task<Result<IReadOnlyList<TwitchChannelEditor>>> GetChannelEditorsAsync(
         Guid broadcasterId,
         CancellationToken ct = default
@@ -119,6 +121,7 @@ public sealed class TwitchChannelsApi(
         return await transport.GetListAsync<TwitchChannelEditor>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.UserReadFollows)]
     public async Task<Result<TwitchPage<TwitchFollowedChannel>>> GetFollowedChannelsAsync(
         Guid broadcasterId,
         string? filterTwitchBroadcasterId,
@@ -155,6 +158,7 @@ public sealed class TwitchChannelsApi(
         return await transport.GetPageAsync<TwitchFollowedChannel>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorReadFollowers)]
     public async Task<Result<TwitchPage<TwitchChannelFollower>>> GetChannelFollowersAsync(
         Guid broadcasterId,
         TwitchPageRequest page,
@@ -192,6 +196,7 @@ public sealed class TwitchChannelsApi(
         return await transport.GetPageAsync<TwitchChannelFollower>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorReadFollowers)]
     public async Task<Result<TwitchChannelFollower?>> GetChannelFollowerAsync(
         Guid broadcasterId,
         string userTwitchId,
@@ -233,6 +238,7 @@ public sealed class TwitchChannelsApi(
         return Result.Success<TwitchChannelFollower?>(page.Value.Items.FirstOrDefault());
     }
 
+    [RequiresTwitchScope(TwitchScopes.ModeratorReadFollowers)]
     public async Task<Result<int>> GetChannelFollowerCountAsync(
         Guid broadcasterId,
         CancellationToken ct = default

@@ -28,6 +28,7 @@ public sealed class TwitchAdsApi(
     ITwitchTokenResolver tokens
 ) : ITwitchAdsApi
 {
+    [RequiresTwitchScope(TwitchScopes.ChannelEditCommercial)]
     public async Task<Result<TwitchCommercial>> StartCommercialAsync(
         Guid broadcasterId,
         int lengthSeconds,
@@ -60,6 +61,7 @@ public sealed class TwitchAdsApi(
         return await transport.SendWithResultAsync<TwitchCommercial>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelReadAds)]
     public async Task<Result<TwitchAdSchedule>> GetAdScheduleAsync(
         Guid broadcasterId,
         CancellationToken ct = default
@@ -84,6 +86,7 @@ public sealed class TwitchAdsApi(
         return await transport.GetSingleAsync<TwitchAdSchedule>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageAds)]
     public async Task<Result<TwitchAdSnooze>> SnoozeNextAdAsync(
         Guid broadcasterId,
         CancellationToken ct = default

@@ -28,6 +28,7 @@ public sealed class TwitchWhispersApi(
     ITwitchTokenResolver tokens
 ) : ITwitchWhispersApi
 {
+    [RequiresTwitchScope(TwitchScopes.UserManageWhispers)]
     public async Task<Result> SendWhisperAsync(
         Guid fromUserId,
         string toTwitchUserId,

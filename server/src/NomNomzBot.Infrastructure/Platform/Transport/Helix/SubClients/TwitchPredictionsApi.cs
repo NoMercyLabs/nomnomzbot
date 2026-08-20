@@ -32,6 +32,7 @@ public sealed class TwitchPredictionsApi(
     ITwitchTokenResolver tokens
 ) : ITwitchPredictionsApi
 {
+    [RequiresTwitchScope(TwitchScopes.ChannelReadPredictions)]
     public async Task<Result<TwitchPage<TwitchPrediction>>> GetPredictionsAsync(
         Guid broadcasterId,
         IReadOnlyList<string>? predictionIds,
@@ -73,6 +74,7 @@ public sealed class TwitchPredictionsApi(
         return await transport.GetPageAsync<TwitchPrediction>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManagePredictions)]
     public async Task<Result<TwitchPrediction>> CreatePredictionAsync(
         Guid broadcasterId,
         CreatePredictionRequest request,
@@ -110,6 +112,7 @@ public sealed class TwitchPredictionsApi(
         return await transport.SendWithResultAsync<TwitchPrediction>(helixRequest, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManagePredictions)]
     public async Task<Result<TwitchPrediction>> EndPredictionAsync(
         Guid broadcasterId,
         string predictionId,

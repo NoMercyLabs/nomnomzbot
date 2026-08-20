@@ -28,6 +28,7 @@ public sealed class TwitchPollsApi(
     ITwitchTokenResolver tokens
 ) : ITwitchPollsApi
 {
+    [RequiresTwitchScope(TwitchScopes.ChannelReadPolls)]
     public async Task<Result<TwitchPage<TwitchPoll>>> GetPollsAsync(
         Guid broadcasterId,
         IReadOnlyList<string>? pollIds,
@@ -65,6 +66,7 @@ public sealed class TwitchPollsApi(
         return await transport.GetPageAsync<TwitchPoll>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManagePolls)]
     public async Task<Result<TwitchPoll>> CreatePollAsync(
         Guid broadcasterId,
         CreatePollRequest request,
@@ -93,6 +95,7 @@ public sealed class TwitchPollsApi(
         return await transport.SendWithResultAsync<TwitchPoll>(helixRequest, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManagePolls)]
     public async Task<Result<TwitchPoll>> EndPollAsync(
         Guid broadcasterId,
         string pollId,

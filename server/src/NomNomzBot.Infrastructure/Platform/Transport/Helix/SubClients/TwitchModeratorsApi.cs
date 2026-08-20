@@ -28,6 +28,7 @@ public sealed class TwitchModeratorsApi(
     ITwitchTokenResolver tokens
 ) : ITwitchModeratorsApi
 {
+    [RequiresTwitchScope(TwitchScopes.ModerationRead)]
     public async Task<Result<TwitchPage<TwitchModerator>>> GetModeratorsAsync(
         Guid broadcasterId,
         TwitchPageRequest page,
@@ -61,6 +62,7 @@ public sealed class TwitchModeratorsApi(
         return await transport.GetPageAsync<TwitchModerator>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageModerators)]
     public async Task<Result> AddModeratorAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
@@ -91,6 +93,7 @@ public sealed class TwitchModeratorsApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageModerators)]
     public async Task<Result> RemoveModeratorAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
@@ -121,6 +124,7 @@ public sealed class TwitchModeratorsApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelReadVips)]
     public async Task<Result<TwitchPage<TwitchVip>>> GetVipsAsync(
         Guid broadcasterId,
         TwitchPageRequest page,
@@ -154,6 +158,7 @@ public sealed class TwitchModeratorsApi(
         return await transport.GetPageAsync<TwitchVip>(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageVips)]
     public async Task<Result> AddVipAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
@@ -180,6 +185,7 @@ public sealed class TwitchModeratorsApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.ChannelManageVips)]
     public async Task<Result> RemoveVipAsync(
         Guid broadcasterId,
         string targetTwitchUserId,
@@ -206,6 +212,7 @@ public sealed class TwitchModeratorsApi(
         return await transport.SendAsync(request, ct);
     }
 
+    [RequiresTwitchScope(TwitchScopes.UserReadModeratedChannels)]
     public async Task<Result<TwitchPage<TwitchModeratedChannel>>> GetModeratedChannelsAsync(
         Guid userId,
         TwitchPageRequest page,
