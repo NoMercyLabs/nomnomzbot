@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
@@ -53,7 +54,8 @@ public sealed class WidgetServiceCompileTests
             buildService,
             new WidgetSettingsSchemaProvider(),
             Clock,
-            Substitute.For<IMusicService>()
+            Substitute.For<IMusicService>(),
+            Substitute.For<IScriptStorageService>()
         );
 
     private static Result<WidgetBuildOutput> Ok(

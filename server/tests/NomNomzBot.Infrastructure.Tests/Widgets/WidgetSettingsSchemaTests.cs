@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
@@ -277,6 +278,7 @@ public sealed class WidgetSettingsSchemaTests
             Substitute.For<IWidgetBuildService>(),
             new WidgetSettingsSchemaProvider(),
             new FakeTimeProvider(new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)),
-            Substitute.For<IMusicService>()
+            Substitute.For<IMusicService>(),
+            Substitute.For<IScriptStorageService>()
         );
 }

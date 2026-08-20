@@ -97,6 +97,28 @@ public class OverlayController : BaseController
         return Ok(new StatusResponseDto<OverlayNowPlayingSnapshot?> { Data = result.Value });
     }
 
+    /// <summary>
+    /// A single script-storage value for this channel, so a widget can bootstrap durable game/session state
+    /// (e.g. the current holder of a hot-potato reward) the instant it mounts instead of waiting for the next
+    /// live event.
+    /// </summary>
+    [HttpGet("storage/{key}")]
+    [ProducesResponseType<StatusResponseDto<string>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetScriptStorageValue(
+        string key,
+        [FromQuery] string? token,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return BadRequestResponse("An overlay token is required.");
+
+        Result<string?> result = await _widgetService.GetScriptStorageValueAsync(token, key, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<string?> { Data = result.Value });
+    }
+
     /// <summary>The channel's current playback queue (excluding the now-playing track).</summary>
     [HttpGet("queue")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<MusicQueueItem>>>(

@@ -14,7 +14,8 @@ namespace NomNomzBot.Domain.Rewards.Events;
 
 /// <summary>
 /// Published when a viewer reaches a watch streak milestone.
-/// Sourced from IRC USERNOTICE with msg-id=viewermilestone.
+/// Sourced from EventSub <c>channel.chat.notification</c> (notice_type=watch_streak), translated by
+/// <c>ChatTranslators</c> — not IRC, which is fully retired.
 /// </summary>
 public sealed class WatchStreakReceivedEvent : DomainEventBase
 {

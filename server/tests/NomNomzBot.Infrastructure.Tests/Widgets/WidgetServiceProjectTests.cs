@@ -14,6 +14,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.DevPlatform.Projects;
 using NomNomzBot.Application.Music.Services;
@@ -69,7 +70,8 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
             RealBuild(),
             new WidgetSettingsSchemaProvider(),
             Clock,
-            Substitute.For<IMusicService>()
+            Substitute.For<IMusicService>(),
+            Substitute.For<IScriptStorageService>()
         );
 
     private static async Task<Guid> SeedChannelAsync(WidgetSqliteTestDatabase database)

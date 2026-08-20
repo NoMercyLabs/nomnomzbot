@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
@@ -41,7 +42,8 @@ public sealed class WidgetServiceOverlayTests
     private static WidgetService NewService(
         WidgetTestDbContext db,
         IWidgetBuildService build,
-        IMusicService? musicService = null
+        IMusicService? musicService = null,
+        IScriptStorageService? scriptStorage = null
     ) =>
         new(
             db,
@@ -50,7 +52,8 @@ public sealed class WidgetServiceOverlayTests
             build,
             new WidgetSettingsSchemaProvider(),
             Clock,
-            musicService ?? Substitute.For<IMusicService>()
+            musicService ?? Substitute.For<IMusicService>(),
+            scriptStorage ?? Substitute.For<IScriptStorageService>()
         );
 
     private static IWidgetBuildService BuildReturning(string bundle, string hash)
@@ -157,6 +160,44 @@ public sealed class WidgetServiceOverlayTests
             .And.Contain("v=hash123");
         entry.EventSubscriptions.Should().Contain("follow");
         entry.Settings.Should().ContainKey("accent");
+    }
+
+    [Fact]
+    public async Task Script_storage_value_resolves_the_channel_by_overlay_token_and_reads_the_key()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+
+        IScriptStorageService storage = Substitute.For<IScriptStorageService>();
+        storage
+            .GetAsync(channel, "feather:holder", Arg.Any<CancellationToken>())
+            .Returns("CoffeeThenCode");
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, BuildReturning("x", "y"), scriptStorage: storage);
+        Result<string?> result = await service.GetScriptStorageValueAsync("tok", "feather:holder");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().Be("CoffeeThenCode");
+    }
+
+    [Fact]
+    public async Task Script_storage_value_fails_for_an_unknown_overlay_token()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, BuildReturning("x", "y"));
+        Result<string?> result = await service.GetScriptStorageValueAsync(
+            "not-a-real-token",
+            "feather:holder"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
     }
 
     [Fact]

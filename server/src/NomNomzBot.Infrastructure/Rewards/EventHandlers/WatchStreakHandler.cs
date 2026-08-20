@@ -21,15 +21,19 @@ using NomNomzBot.Infrastructure.Platform.Eventing;
 namespace NomNomzBot.Infrastructure.Rewards.EventHandlers;
 
 /// <summary>
-/// Handles IRC viewermilestone events (watch streaks).
-/// Upserts the WatchStreak entity and executes the event_response:watch_streak pipeline.
+/// Handles Twitch's native watch-streak chat notification (EventSub <c>channel.chat.notification</c>,
+/// translated by <c>ChatTranslators</c>). Upserts the WatchStreak entity and executes the
+/// event_response:engagement.watch_streak pipeline — the SAME key the preset catalog and dashboard
+/// expose, so a streamer's configured response actually reaches this real Twitch event (the parallel
+/// <c>engagement.watch_streak</c> handler in Engagement/EventHandlers listens for a bot-computed
+/// milestone event that nothing in this codebase ever publishes — dead on its own).
 /// Variables exposed: user.id, user.name, streak.months, streak.points
 /// </summary>
 public sealed class WatchStreakHandler
     : TwitchAlertHandlerBase<WatchStreakReceivedEvent>,
         IEventHandler<WatchStreakReceivedEvent>
 {
-    protected override string EventTypeKey => "watch_streak";
+    protected override string EventTypeKey => "engagement.watch_streak";
 
     private readonly TimeProvider _timeProvider;
 

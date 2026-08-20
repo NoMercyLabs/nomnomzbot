@@ -192,6 +192,18 @@ public interface IWidgetService
     );
 
     /// <summary>
+    /// A single script-storage value (custom-code.md §6.2 <c>storage.*</c>) for THIS channel, token-resolved the
+    /// same way as every other public overlay read — lets an overlay widget bootstrap durable game/session state
+    /// (e.g. the current holder of a hot-potato reward) the instant it mounts, instead of waiting for the next
+    /// live event to arrive. Null when the key has never been set.
+    /// </summary>
+    Task<Result<string?>> GetScriptStorageValueAsync(
+        string overlayToken,
+        string key,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// The channel's current playback queue (excluding the now-playing track), for a "next up" overlay widget to
     /// fetch on mount or on track change — token-resolved the same way as every other public overlay read.
     /// </summary>

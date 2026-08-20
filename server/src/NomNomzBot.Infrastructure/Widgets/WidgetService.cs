@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.DevPlatform.Projects;
 using NomNomzBot.Application.Music.Services;
@@ -36,6 +37,7 @@ public class WidgetService : IWidgetService
     private readonly IWidgetSettingsSchemaProvider _settingsSchemas;
     private readonly TimeProvider _timeProvider;
     private readonly IMusicService _musicService;
+    private readonly IScriptStorageService _scriptStorage;
 
     public WidgetService(
         IApplicationDbContext db,
@@ -44,7 +46,8 @@ public class WidgetService : IWidgetService
         IWidgetBuildService buildService,
         IWidgetSettingsSchemaProvider settingsSchemas,
         TimeProvider timeProvider,
-        IMusicService musicService
+        IMusicService musicService,
+        IScriptStorageService scriptStorage
     )
     {
         _db = db;
@@ -59,6 +62,7 @@ public class WidgetService : IWidgetService
         _settingsSchemas = settingsSchemas;
         _timeProvider = timeProvider;
         _musicService = musicService;
+        _scriptStorage = scriptStorage;
     }
 
     public async Task<Result<WidgetDetail>> CreateAsync(
@@ -984,6 +988,26 @@ public class WidgetService : IWidgetService
                 _timeProvider.GetUtcNow()
             )
         );
+    }
+
+    public async Task<Result<string?>> GetScriptStorageValueAsync(
+        string overlayToken,
+        string key,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.OverlayToken == overlayToken,
+            cancellationToken
+        );
+        if (channel is null)
+            return Result.Failure<string?>(
+                "No channel found for the provided overlay token.",
+                "NOT_FOUND"
+            );
+
+        string? value = await _scriptStorage.GetAsync(channel.Id, key, cancellationToken);
+        return Result.Success(value);
     }
 
     public async Task<Result<IReadOnlyList<MusicQueueItem>>> GetQueueSnapshotAsync(
