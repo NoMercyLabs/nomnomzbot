@@ -37,14 +37,19 @@ namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
 ///   tts — When true, also reads the resolved announcement aloud via the channel's configured TTS pipeline
 ///         (default: false — silent). Set true on a manual/chat-triggered shoutout; leave false/omitted on
 ///         an automated one.
+///   template — Per-invocation template override (e.g. a value drawn from a pick_from_list step for a
+///              varied/snarky rotation). Takes priority over the channel's stored ShoutoutTemplate, which
+///              in turn takes priority over the built-in default.
 ///
 /// The announcement template supports the full 90+ variable set (commands-pipelines.md §6.3), seeded with
 /// {target}/{target.name}/{target.link} resolved from the shoutout's own target (not the DB {target.*}
 /// lookup, since a shouted-out channel is rarely a known viewer). No template configured on the channel
 /// falls back to "Go check out {target.name} — {target.link}".
 ///
-/// Usage example:
+/// Usage example (static template):
 ///   { "type": "shoutout", "user_id": "{user.id}", "cooldown_minutes": 60, "tts": true }
+/// Usage example (varied pool — pair with a preceding pick_from_list step writing into {line}):
+///   { "type": "shoutout", "user_id": "{args.0}", "template": "{line}", "tts": true }
 /// </summary>
 public sealed class ShoutoutAction : ICommandAction
 {
@@ -90,16 +95,11 @@ public sealed class ShoutoutAction : ICommandAction
         ActionDefinition action
     )
     {
-        string? rawUserId = action.GetString("user_id") ?? string.Empty;
-
-        // Resolve {variable} references inside the user_id param
-        if (rawUserId.StartsWith('{') && rawUserId.EndsWith('}'))
-        {
-            string key = rawUserId[1..^1];
-            ctx.Variables.TryGetValue(key, out rawUserId!);
-        }
-
-        rawUserId = rawUserId?.Trim().TrimStart('@') ?? string.Empty;
+        string rawUserId = ResolveVariable(
+            action.GetString("user_id") ?? string.Empty,
+            ctx.Variables
+        );
+        rawUserId = rawUserId.Trim().TrimStart('@');
         if (string.IsNullOrWhiteSpace(rawUserId))
             return ActionResult.Failure("shoutout action requires a non-empty 'user_id'");
 
@@ -188,10 +188,15 @@ public sealed class ShoutoutAction : ICommandAction
         Channel? channel = await _db
             .Channels.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == ctx.BroadcasterId, ctx.CancellationToken);
+        string templateOverride = ResolveVariable(
+            action.GetString("template") ?? string.Empty,
+            ctx.Variables
+        );
         string template =
-            channel is null || string.IsNullOrWhiteSpace(channel.ShoutoutTemplate)
+            !string.IsNullOrWhiteSpace(templateOverride) ? templateOverride
+            : channel is null || string.IsNullOrWhiteSpace(channel.ShoutoutTemplate)
                 ? DefaultTemplate
-                : channel.ShoutoutTemplate;
+            : channel.ShoutoutTemplate;
 
         Dictionary<string, string> seed = new(ctx.Variables, StringComparer.OrdinalIgnoreCase)
         {
@@ -250,5 +255,15 @@ public sealed class ShoutoutAction : ICommandAction
         return success
             ? ActionResult.Success($"shoutout sent to {rawUserId}")
             : ActionResult.Failure($"Twitch shoutout API failed for {rawUserId}");
+    }
+
+    /// <summary>Resolves a whole-value <c>{key}</c> reference against the pipeline's variable bag; a value
+    /// that isn't wholly wrapped in braces passes through unchanged.</summary>
+    private static string ResolveVariable(string value, IDictionary<string, string> variables)
+    {
+        if (!value.StartsWith('{') || !value.EndsWith('}'))
+            return value;
+        variables.TryGetValue(value[1..^1], out string? resolved);
+        return resolved ?? string.Empty;
     }
 }

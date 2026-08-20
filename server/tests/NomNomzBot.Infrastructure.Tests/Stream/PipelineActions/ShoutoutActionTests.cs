@@ -281,4 +281,35 @@ public sealed class ShoutoutActionTests
         await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
         await tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!, default);
     }
+
+    [Fact]
+    public async Task A_template_override_wins_over_the_channels_stored_template_and_resolves_variables()
+    {
+        (ShoutoutAction sut, ITwitchChatApi chat, ITwitchUsersApi _) = Build();
+
+        PipelineExecutionContext ctx = Ctx();
+        ctx.Variables["line"] = "Certified banger alert: {target}!";
+
+        ActionResult result = await sut.ExecuteAsync(
+            ctx,
+            new ActionDefinition
+            {
+                Type = "shoutout",
+                Parameters = new Dictionary<string, JsonElement>
+                {
+                    ["user_id"] = JsonSerializer.SerializeToElement("123456"),
+                    ["template"] = JsonSerializer.SerializeToElement("{line}"),
+                },
+            }
+        );
+
+        result.Succeeded.Should().BeTrue();
+        await chat.Received(1)
+            .SendAnnouncementAsync(
+                Channel,
+                "Certified banger alert: numerictarget!",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
 }
