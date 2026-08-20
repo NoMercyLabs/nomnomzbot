@@ -24,7 +24,7 @@ const cfg = reactive<RedemptionConfig>({
   accentColor: '#9146ff',
 })
 
-interface RedemptionCard { user: string; reward: string; cost: number; input: string }
+interface RedemptionCard { user: string; reward: string; cost: number; input: string; avatarUrl: string }
 
 const queue: RedemptionCard[] = []
 const current = ref<RedemptionCard | null>(null)
@@ -57,6 +57,7 @@ function onRedeemed(d: any): void {
     reward: data.rewardTitle || 'a reward',
     cost: Number(data.cost) || 0,
     input: data.userInput || '',
+    avatarUrl: data.avatarUrl || '',
   })
   if (!current.value) showNext()
 }
@@ -98,7 +99,8 @@ onUnmounted(() => {
 <template>
   <div class="nnz-redemption" :style="{ '--accent': cfg.accentColor }">
     <div v-if="current" :key="cardKey" class="card" :class="{ show: visible }">
-      <div class="badge">&#127873;</div>
+      <img v-if="current.avatarUrl" class="avatar" :src="current.avatarUrl" alt="">
+      <div v-else class="badge">&#127873;</div>
       <div class="title">{{ headline(current) }}</div>
       <div v-if="current.cost > 0" class="cost">{{ current.cost }} points</div>
       <div v-if="current.input" class="input">&ldquo;{{ current.input }}&rdquo;</div>
@@ -138,6 +140,15 @@ onUnmounted(() => {
   font-size: 30px;
   line-height: 1;
   margin-bottom: 8px;
+}
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 8px;
+  display: block;
+  border: 2px solid var(--accent, #9146ff);
 }
 .title {
   font-size: 24px;

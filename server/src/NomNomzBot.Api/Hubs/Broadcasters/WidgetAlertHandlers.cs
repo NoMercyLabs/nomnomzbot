@@ -87,3 +87,31 @@ public sealed class WidgetNowPlayingHandler(IApplicationDbContext db, IWidgetNot
             cancellationToken
         );
 }
+
+/// <summary>
+/// A track saved/unsaved (liked/unliked) → the <c>now_playing</c> overlay's heart-pulse animation. Transient,
+/// unlike the standing <see cref="WidgetNowPlayingHandler"/> snapshot — fired once per like/unlike, not
+/// re-sent on every reload.
+/// </summary>
+public sealed class WidgetTrackSavedHandler(IApplicationDbContext db, IWidgetNotifier notifier)
+    : IEventHandler<TrackSavedChangedEvent>
+{
+    public Task HandleAsync(
+        TrackSavedChangedEvent @event,
+        CancellationToken cancellationToken = default
+    ) =>
+        WidgetAlertDispatch.RouteAsync(
+            db,
+            notifier,
+            @event.BroadcasterId,
+            "track_saved_changed",
+            new
+            {
+                trackUri = @event.TrackUri,
+                track = @event.TrackName,
+                artist = @event.Artist,
+                isSaved = @event.IsSaved,
+            },
+            cancellationToken
+        );
+}

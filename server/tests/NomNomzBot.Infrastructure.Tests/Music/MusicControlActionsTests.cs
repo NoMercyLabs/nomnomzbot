@@ -14,7 +14,9 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Music.PipelineActions;
 using NSubstitute;
 
@@ -212,7 +214,8 @@ public sealed class MusicControlActionsTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success());
-        MusicToggleSavedAction action = new(music, manageApi);
+        IEventBus eventBus = Substitute.For<IEventBus>();
+        MusicToggleSavedAction action = new(music, manageApi, eventBus);
 
         ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_toggle_saved"));
 
@@ -231,6 +234,13 @@ public sealed class MusicControlActionsTests
                 ChannelId,
                 "spotify",
                 Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            );
+        // Was saved, toggled off — the overlay heart animation reacts to isSaved:false.
+        await eventBus
+            .Received(1)
+            .PublishAsync(
+                Arg.Is<TrackSavedChangedEvent>(e => e.IsSaved == false),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -262,7 +272,8 @@ public sealed class MusicControlActionsTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success());
-        MusicToggleSavedAction action = new(music, manageApi);
+        IEventBus eventBus = Substitute.For<IEventBus>();
+        MusicToggleSavedAction action = new(music, manageApi, eventBus);
 
         ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_toggle_saved"));
 
@@ -295,7 +306,7 @@ public sealed class MusicControlActionsTests
         music
             .GetActiveProviderKeyAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns((string?)null);
-        MusicSaveTrackAction action = new(music, manageApi);
+        MusicSaveTrackAction action = new(music, manageApi, Substitute.For<IEventBus>());
 
         ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_save_track"));
 

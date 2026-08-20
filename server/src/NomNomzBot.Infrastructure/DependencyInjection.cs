@@ -881,6 +881,7 @@ public static class DependencyInjection
         // (e.g. IMusicService). The catalog is also scoped so it receives a consistent
         // IEnumerable<IBuiltinCommand> from the DI container within each request scope.
         services.AddScoped<IBuiltinCommand, Commands.Builtins.UptimeBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.UpdateUserInfoBuiltin>();
         services.AddScoped<IBuiltinCommand, Quotes.Builtins.QuoteBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.SongRequestBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.SkipBuiltin>();

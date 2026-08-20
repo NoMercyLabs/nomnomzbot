@@ -42,6 +42,12 @@ const progressMs = ref<number>(0)
 const titleEl = ref<HTMLElement | null>(null)
 const marqueeEl = ref<HTMLElement | null>(null)
 
+// Heart-pulse: fires once per like/unlike (track_saved_changed), independent of the standing
+// now_playing snapshot — a transient animation, not a persisted "is this liked" badge.
+const heartPulse = ref<boolean>(false)
+const heartIsSaved = ref<boolean>(false)
+let heartPulseTimeout: number | undefined
+
 let tickInterval: number | undefined
 
 const progressPct = computed<number>(() => {
@@ -85,6 +91,14 @@ const youtubeVideoId = computed<string>(() => {
 const showYoutubeVideo = computed<boolean>(
   () => cfg.youtubeMode === 'video' && isPlaying.value && !!youtubeVideoId.value
 )
+
+function onTrackSavedChanged(d: any): void {
+  const data: any = d || {}
+  heartIsSaved.value = !!data.isSaved
+  heartPulse.value = true
+  if (heartPulseTimeout) window.clearTimeout(heartPulseTimeout)
+  heartPulseTimeout = window.setTimeout(() => { heartPulse.value = false }, 1600)
+}
 
 function onNowPlaying(d: any): void {
   const data: any = d || {}
@@ -136,12 +150,15 @@ onMounted(() => {
     }
   })
   nnz.on('now_playing', onNowPlaying)
+  nnz.on('track_saved_changed', onTrackSavedChanged)
 })
 
 onUnmounted(() => {
   stopTicking()
+  if (heartPulseTimeout) window.clearTimeout(heartPulseTimeout)
   if (!nnz) return
   nnz.off('now_playing', onNowPlaying)
+  nnz.off('track_saved_changed', onTrackSavedChanged)
   disconnectSpotify()
 })
 
@@ -291,6 +308,11 @@ function enableAudio(): void {
       <div v-if="artist" class="artist">{{ artist }}</div>
       <div v-if="cfg.showProgressBar" class="bar"><div class="fill" :style="{ width: progressPct + '%' }"></div></div>
     </div>
+    <span
+      v-if="heartPulse"
+      class="heart"
+      :class="{ 'heart-saved': heartIsSaved, 'heart-unsaved': !heartIsSaved }"
+    >&#10084;</span>
   </div>
 
   <!-- Spotify Connect device status — quiet while connecting/active (the point is invisible audio, not
@@ -392,6 +414,27 @@ function enableAudio(): void {
   border-radius: 2px;
   background: var(--accent, #9146ff);
   transition: width 0.3s linear;
+}
+.heart {
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  font-size: 20px;
+  line-height: 1;
+  pointer-events: none;
+  animation: nnz-heart-pulse 1.6s ease-out forwards;
+}
+.heart-saved { color: #ff4d6d; }
+.heart-unsaved {
+  color: #8a8a94;
+  text-decoration: line-through;
+}
+@keyframes nnz-heart-pulse {
+  0% { transform: scale(0.3); opacity: 0; }
+  20% { transform: scale(1.4); opacity: 1; }
+  35% { transform: scale(1); opacity: 1; }
+  75% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.8) translateY(-14px); opacity: 0; }
 }
 .nnz-youtube-video {
   position: fixed;

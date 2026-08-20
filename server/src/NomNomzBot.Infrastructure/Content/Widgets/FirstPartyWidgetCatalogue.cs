@@ -184,7 +184,7 @@ public static class FirstPartyWidgetCatalogue
                 ["enableAudio"] = true,
                 ["youtubeMode"] = "card",
             },
-            DefaultEventSubscriptions: ["now_playing"]
+            DefaultEventSubscriptions: ["now_playing", "track_saved_changed"]
         ),
         new(
             Key: "sr_queue",

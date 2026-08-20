@@ -12,7 +12,9 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 
@@ -59,6 +61,27 @@ internal static class MusicControlResult
             ? Result.Failure<NowPlaying>("nothing is currently playing", "CAPABILITY_UNSUPPORTED")
             : Result.Success(nowPlaying);
     }
+
+    /// <summary>Publishes <see cref="TrackSavedChangedEvent"/> right after a successful save/unsave/toggle —
+    /// the overlay's heart-like animation reacts to this instead of waiting for the next playback poll.</summary>
+    public static Task PublishTrackSavedChangedAsync(
+        IEventBus eventBus,
+        Guid broadcasterId,
+        NowPlaying nowPlaying,
+        bool isSaved,
+        CancellationToken ct
+    ) =>
+        eventBus.PublishAsync(
+            new TrackSavedChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                TrackUri = nowPlaying.TrackUri!,
+                TrackName = nowPlaying.TrackName,
+                Artist = nowPlaying.Artist,
+                IsSaved = isSaved,
+            },
+            ct
+        );
 }
 
 // ─── Transport ──────────────────────────────────────────────────────────────
@@ -596,15 +619,21 @@ public sealed class MusicSaveTrackAction : ICommandAction
 {
     private readonly IMusicService _music;
     private readonly IMusicProviderManageApi _manageApi;
+    private readonly IEventBus _eventBus;
 
     public string ActionType => "music_save_track";
     public string Category => "Music Control";
     public string Description => "Adds the currently playing track to your Liked Songs.";
 
-    public MusicSaveTrackAction(IMusicService music, IMusicProviderManageApi manageApi)
+    public MusicSaveTrackAction(
+        IMusicService music,
+        IMusicProviderManageApi manageApi,
+        IEventBus eventBus
+    )
     {
         _music = music;
         _manageApi = manageApi;
+        _eventBus = eventBus;
     }
 
     public async Task<ActionResult> ExecuteAsync(
@@ -624,6 +653,14 @@ public sealed class MusicSaveTrackAction : ICommandAction
             [nowPlaying.Value.TrackUri],
             ctx.CancellationToken
         );
+        if (result.IsSuccess)
+            await MusicControlResult.PublishTrackSavedChangedAsync(
+                _eventBus,
+                ctx.BroadcasterId,
+                nowPlaying.Value,
+                isSaved: true,
+                ctx.CancellationToken
+            );
         return MusicControlResult.FromMusicResult(result, "track saved");
     }
 
@@ -649,15 +686,21 @@ public sealed class MusicUnsaveTrackAction : ICommandAction
 {
     private readonly IMusicService _music;
     private readonly IMusicProviderManageApi _manageApi;
+    private readonly IEventBus _eventBus;
 
     public string ActionType => "music_unsave_track";
     public string Category => "Music Control";
     public string Description => "Removes the currently playing track from your Liked Songs.";
 
-    public MusicUnsaveTrackAction(IMusicService music, IMusicProviderManageApi manageApi)
+    public MusicUnsaveTrackAction(
+        IMusicService music,
+        IMusicProviderManageApi manageApi,
+        IEventBus eventBus
+    )
     {
         _music = music;
         _manageApi = manageApi;
+        _eventBus = eventBus;
     }
 
     public async Task<ActionResult> ExecuteAsync(
@@ -678,6 +721,14 @@ public sealed class MusicUnsaveTrackAction : ICommandAction
             [nowPlaying.Value.TrackUri],
             ctx.CancellationToken
         );
+        if (result.IsSuccess)
+            await MusicControlResult.PublishTrackSavedChangedAsync(
+                _eventBus,
+                ctx.BroadcasterId,
+                nowPlaying.Value,
+                isSaved: false,
+                ctx.CancellationToken
+            );
         return MusicControlResult.FromMusicResult(result, "track removed from saved");
     }
 }
@@ -686,16 +737,22 @@ public sealed class MusicToggleSavedAction : ICommandAction
 {
     private readonly IMusicService _music;
     private readonly IMusicProviderManageApi _manageApi;
+    private readonly IEventBus _eventBus;
 
     public string ActionType => "music_toggle_saved";
     public string Category => "Music Control";
     public string Description =>
         "Adds/removes the current track from your Liked Songs based on whether it's already saved.";
 
-    public MusicToggleSavedAction(IMusicService music, IMusicProviderManageApi manageApi)
+    public MusicToggleSavedAction(
+        IMusicService music,
+        IMusicProviderManageApi manageApi,
+        IEventBus eventBus
+    )
     {
         _music = music;
         _manageApi = manageApi;
+        _eventBus = eventBus;
     }
 
     public async Task<ActionResult> ExecuteAsync(
@@ -720,8 +777,8 @@ public sealed class MusicToggleSavedAction : ICommandAction
         if (savedCheck.IsFailure)
             return ActionResult.Failure(savedCheck.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
 
-        bool isSaved = savedCheck.Value.Count > 0 && savedCheck.Value[0];
-        Result result = isSaved
+        bool wasSaved = savedCheck.Value.Count > 0 && savedCheck.Value[0];
+        Result result = wasSaved
             ? await _manageApi.RemoveSavedTracksAsync(
                 ctx.BroadcasterId,
                 provider.Value,
@@ -734,9 +791,17 @@ public sealed class MusicToggleSavedAction : ICommandAction
                 [trackUri],
                 ctx.CancellationToken
             );
+        if (result.IsSuccess)
+            await MusicControlResult.PublishTrackSavedChangedAsync(
+                _eventBus,
+                ctx.BroadcasterId,
+                nowPlaying.Value,
+                isSaved: !wasSaved,
+                ctx.CancellationToken
+            );
         return MusicControlResult.FromMusicResult(
             result,
-            isSaved ? "track removed from saved" : "track saved"
+            wasSaved ? "track removed from saved" : "track saved"
         );
     }
 }
