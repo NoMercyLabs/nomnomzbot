@@ -10,6 +10,7 @@
 
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DevPlatform.Dtos;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 
 namespace NomNomzBot.Application.Widgets.Services;
@@ -175,6 +176,26 @@ public interface IWidgetService
     /// <c>MISSING_SCOPE</c> when the connection hasn't granted the streaming scope yet.
     /// </summary>
     Task<Result<string>> GetSpotifyPlaybackTokenAsync(
+        string overlayToken,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// The current playback state for an overlay token's channel, in the exact shape
+    /// <c>WidgetNowPlayingHandler</c> pushes over the hub — so a <c>now_playing</c> widget can render the real
+    /// current track the instant it mounts instead of showing nothing until the next playback change. Null (not
+    /// a failure) when nothing is currently playing; fails <c>NOT_FOUND</c> for an unknown overlay token.
+    /// </summary>
+    Task<Result<OverlayNowPlayingSnapshot?>> GetNowPlayingSnapshotAsync(
+        string overlayToken,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// The channel's current playback queue (excluding the now-playing track), for a "next up" overlay widget to
+    /// fetch on mount or on track change — token-resolved the same way as every other public overlay read.
+    /// </summary>
+    Task<Result<IReadOnlyList<MusicQueueItem>>> GetQueueSnapshotAsync(
         string overlayToken,
         CancellationToken cancellationToken = default
     );

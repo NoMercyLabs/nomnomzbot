@@ -37,6 +37,42 @@ const artUrl = ref<string>('')
 const trackProvider = ref<string>('')
 const trackUri = ref<string>('')
 const spotifyStatus = ref<string>('') // '' | 'connecting' | 'active' | 'muted' | 'blocked' | 'error'
+const durationMs = ref<number>(0)
+const progressMs = ref<number>(0)
+const titleEl = ref<HTMLElement | null>(null)
+const marqueeEl = ref<HTMLElement | null>(null)
+
+let tickInterval: number | undefined
+
+const progressPct = computed<number>(() => {
+  if (!durationMs.value) return 0
+  return Math.min((progressMs.value / durationMs.value) * 100, 100)
+})
+
+function startTicking(): void {
+  stopTicking()
+  tickInterval = window.setInterval(() => { progressMs.value += 100 }, 100)
+}
+
+function stopTicking(): void {
+  if (tickInterval) { window.clearInterval(tickInterval); tickInterval = undefined }
+}
+
+// Measures real overflow rather than always-on CSS: a title that fits never scrolls, only one that
+// genuinely overflows its box gets the marquee class + a --marquee-distance sized to how far it overflows.
+function refreshMarquee(): void {
+  window.setTimeout(() => {
+    if (!titleEl.value || !marqueeEl.value) return
+    marqueeEl.value.classList.remove('animate-marquee')
+    marqueeEl.value.style.removeProperty('--marquee-distance')
+    const containerWidth = titleEl.value.getBoundingClientRect().width
+    const textWidth = marqueeEl.value.getBoundingClientRect().width
+    if (textWidth > containerWidth) {
+      marqueeEl.value.style.setProperty('--marquee-distance', `${containerWidth - textWidth}px`)
+      marqueeEl.value.classList.add('animate-marquee')
+    }
+  }, 300)
+}
 
 const youtubeVideoId = computed<string>(() => {
   if (trackProvider.value !== 'youtube' || !trackUri.value) return ''
@@ -59,11 +95,32 @@ function onNowPlaying(d: any): void {
   artUrl.value = data.artUrl || ''
   trackProvider.value = data.provider || ''
   trackUri.value = data.trackUri || ''
+  durationMs.value = Number.isFinite(Number(data.durationMs)) ? Number(data.durationMs) : 0
+  progressMs.value = Number.isFinite(Number(data.progressMs)) ? Number(data.progressMs) : 0
+  stopTicking()
+  if (isPlaying.value) startTicking()
+  refreshMarquee()
   if (trackProvider.value === 'spotify' && cfg.enableAudio) connectSpotify()
+}
+
+// Fetch the real current state on mount instead of showing nothing until the next playback change —
+// every overlay reload otherwise sat blank until the streamer's next skip/pause/resume.
+async function fetchCurrentState(): Promise<void> {
+  const token = widgetToken()
+  if (!token) return
+  try {
+    const res = await fetch(`/api/v1/overlay/now-playing?token=${encodeURIComponent(token)}`)
+    if (!res.ok) return
+    const body = await res.json()
+    if (body?.data) onNowPlaying(body.data)
+  } catch {
+    // Best-effort seed only — the next now_playing hub event still arrives normally.
+  }
 }
 
 onMounted(() => {
   if (!nnz) return
+  fetchCurrentState()
   nnz.onSettings((s: any) => {
     if (!s || typeof s !== 'object') return
     if (typeof s.layout === 'string' && s.layout) cfg.layout = s.layout
@@ -82,6 +139,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  stopTicking()
   if (!nnz) return
   nnz.off('now_playing', onNowPlaying)
   disconnectSpotify()
@@ -227,9 +285,11 @@ function enableAudio(): void {
     <img v-if="cfg.showArt && artUrl" class="art" :src="artUrl" alt="">
     <span v-else class="note">&#9835;</span>
     <div class="meta">
-      <div class="track">{{ track }}</div>
+      <div ref="titleEl" class="track">
+        <span ref="marqueeEl" class="track-text">{{ track }}</span>
+      </div>
       <div v-if="artist" class="artist">{{ artist }}</div>
-      <div v-if="cfg.showProgressBar" class="bar"><div class="sweep"></div></div>
+      <div v-if="cfg.showProgressBar" class="bar"><div class="fill" :style="{ width: progressPct + '%' }"></div></div>
     </div>
   </div>
 
@@ -298,7 +358,17 @@ function enableAudio(): void {
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+.track-text {
+  display: inline-block;
+}
+.track-text.animate-marquee {
+  animation: nnz-marquee 8s ease-in-out infinite;
+}
+@keyframes nnz-marquee {
+  0%, 15% { transform: translateX(0); }
+  50%, 65% { transform: translateX(var(--marquee-distance, 0)); }
+  100% { transform: translateX(0); }
 }
 .artist {
   font-size: 12px;
@@ -315,18 +385,13 @@ function enableAudio(): void {
   background: rgba(255, 255, 255, 0.15);
 }
 .layout-pill .bar {
-  display: none; /* the pill stays compact; the sweep is a card-layout detail */
+  display: none; /* the pill stays compact; the progress fill is a card-layout detail */
 }
-.sweep {
-  width: 40%;
+.fill {
   height: 100%;
   border-radius: 2px;
   background: var(--accent, #9146ff);
-  animation: nnz-sweep 2.4s ease-in-out infinite;
-}
-@keyframes nnz-sweep {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(350%); }
+  transition: width 0.3s linear;
 }
 .nnz-youtube-video {
   position: fixed;

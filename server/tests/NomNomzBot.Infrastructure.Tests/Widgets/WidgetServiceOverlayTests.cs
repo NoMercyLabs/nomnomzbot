@@ -387,4 +387,133 @@ public sealed class WidgetServiceOverlayTests
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("MISSING_SCOPE");
     }
+
+    [Fact]
+    public async Task Now_playing_snapshot_resolves_the_overlay_tokens_channel_and_delegates_to_music_service()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetNowPlayingAsync(channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new NowPlaying(
+                    "Song A",
+                    "Artist A",
+                    "Album A",
+                    "https://example.com/art.png",
+                    210_000,
+                    45_000,
+                    true,
+                    80,
+                    null,
+                    "spotify",
+                    "spotify:track:abc123"
+                )
+            );
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, Substitute.For<IWidgetBuildService>(), music);
+
+        Result<OverlayNowPlayingSnapshot?> result = await service.GetNowPlayingSnapshotAsync("tok");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value!.Track.Should().Be("Song A");
+        result.Value.Artist.Should().Be("Artist A");
+        result.Value.ArtUrl.Should().Be("https://example.com/art.png");
+        result.Value.Provider.Should().Be("spotify");
+        result.Value.TrackUri.Should().Be("spotify:track:abc123");
+        result.Value.DurationMs.Should().Be(210_000);
+        result.Value.ProgressMs.Should().Be(45_000);
+        result.Value.IsPlaying.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Now_playing_snapshot_is_null_but_still_a_success_when_nothing_is_playing()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetNowPlayingAsync(channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns((NowPlaying?)null);
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, Substitute.For<IWidgetBuildService>(), music);
+
+        Result<OverlayNowPlayingSnapshot?> result = await service.GetNowPlayingSnapshotAsync("tok");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Now_playing_snapshot_fails_NOT_FOUND_for_an_unknown_overlay_token()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, Substitute.For<IWidgetBuildService>());
+
+        Result<OverlayNowPlayingSnapshot?> result = await service.GetNowPlayingSnapshotAsync(
+            "nope"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task Queue_snapshot_resolves_the_overlay_tokens_channel_and_delegates_to_music_service()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new MusicQueue(
+                    null,
+                    [
+                        new MusicQueueItem(
+                            "Song B",
+                            "Artist B",
+                            "https://example.com/b.png",
+                            180_000,
+                            "viewer1"
+                        ),
+                    ]
+                )
+            );
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, Substitute.For<IWidgetBuildService>(), music);
+
+        Result<IReadOnlyList<MusicQueueItem>> result = await service.GetQueueSnapshotAsync("tok");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().ContainSingle();
+        result.Value[0].TrackName.Should().Be("Song B");
+    }
+
+    [Fact]
+    public async Task Queue_snapshot_fails_NOT_FOUND_for_an_unknown_overlay_token()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, Substitute.For<IWidgetBuildService>());
+
+        Result<IReadOnlyList<MusicQueueItem>> result = await service.GetQueueSnapshotAsync("nope");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
 }

@@ -949,6 +949,65 @@ public class WidgetService : IWidgetService
         );
     }
 
+    public async Task<Result<OverlayNowPlayingSnapshot?>> GetNowPlayingSnapshotAsync(
+        string overlayToken,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.OverlayToken == overlayToken,
+            cancellationToken
+        );
+        if (channel is null)
+            return Result.Failure<OverlayNowPlayingSnapshot?>(
+                "No channel found for the provided overlay token.",
+                "NOT_FOUND"
+            );
+
+        NowPlaying? nowPlaying = await _musicService.GetNowPlayingAsync(
+            channel.Id.ToString(),
+            cancellationToken
+        );
+        if (nowPlaying is null)
+            return Result.Success<OverlayNowPlayingSnapshot?>(null);
+
+        return Result.Success<OverlayNowPlayingSnapshot?>(
+            new OverlayNowPlayingSnapshot(
+                nowPlaying.IsPlaying,
+                nowPlaying.TrackName,
+                nowPlaying.Artist,
+                nowPlaying.ImageUrl,
+                nowPlaying.Provider,
+                nowPlaying.TrackUri,
+                nowPlaying.DurationMs,
+                nowPlaying.ProgressMs,
+                _timeProvider.GetUtcNow()
+            )
+        );
+    }
+
+    public async Task<Result<IReadOnlyList<MusicQueueItem>>> GetQueueSnapshotAsync(
+        string overlayToken,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.OverlayToken == overlayToken,
+            cancellationToken
+        );
+        if (channel is null)
+            return Result.Failure<IReadOnlyList<MusicQueueItem>>(
+                "No channel found for the provided overlay token.",
+                "NOT_FOUND"
+            );
+
+        MusicQueue queue = await _musicService.GetQueueAsync(
+            channel.Id.ToString(),
+            cancellationToken
+        );
+        return Result.Success<IReadOnlyList<MusicQueueItem>>(queue.Queue);
+    }
+
     public async Task<Result<OverlayBundle>> GetOverlayBundleAsync(
         string overlayToken,
         string widgetId,

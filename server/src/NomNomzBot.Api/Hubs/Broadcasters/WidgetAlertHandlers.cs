@@ -80,6 +80,9 @@ public sealed class WidgetNowPlayingHandler(IApplicationDbContext db, IWidgetNot
                 artUrl = @event.AlbumArtUrl,
                 provider = @event.Provider,
                 trackUri = @event.TrackUri,
+                durationMs = @event.DurationMs,
+                progressMs = @event.ProgressMs,
+                observedAt = @event.ObservedAt,
             },
             cancellationToken
         );

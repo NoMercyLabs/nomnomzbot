@@ -102,6 +102,24 @@ public sealed record OverlayWidgetEntry(
 public sealed record OverlayBundle(string Content, string Framework, string ContentHash);
 
 /// <summary>
+/// The current playback state for an overlay token's channel, field-for-field identical to the
+/// <c>now_playing</c> widget event payload (<c>WidgetNowPlayingHandler</c>) — a <c>now_playing</c> widget fetches
+/// this once on mount so it can render the real current track immediately instead of waiting for the next
+/// playback change to arrive over the hub.
+/// </summary>
+public sealed record OverlayNowPlayingSnapshot(
+    bool IsPlaying,
+    string? Track,
+    string? Artist,
+    string? ArtUrl,
+    string? Provider,
+    string? TrackUri,
+    int DurationMs,
+    int ProgressMs,
+    DateTimeOffset ObservedAt
+);
+
+/// <summary>
 /// A starter widget template the editor offers when creating a new custom widget — a working, SDK-using starting
 /// point (never a blank editor). <see cref="Source"/> is the authored source to seed into the editor + compile.
 /// </summary>

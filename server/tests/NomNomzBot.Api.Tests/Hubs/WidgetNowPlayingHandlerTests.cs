@@ -53,6 +53,8 @@ public sealed class WidgetNowPlayingHandlerTests
                 AlbumArtUrl = "https://example.com/art.png",
                 Provider = "youtube",
                 TrackUri = "https://www.youtube.com/watch?v=abc123",
+                DurationMs = 210_000,
+                ProgressMs = 45_000,
             }
         );
 

@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 
@@ -70,6 +71,52 @@ public class OverlayController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<string> { Data = result.Value });
+    }
+
+    /// <summary>
+    /// The current playback state, so a <c>now_playing</c> widget can render the real track the instant it mounts
+    /// instead of showing nothing until the next <c>now_playing</c> hub event arrives. <c>Data</c> is null when
+    /// nothing is currently playing.
+    /// </summary>
+    [HttpGet("now-playing")]
+    [ProducesResponseType<StatusResponseDto<OverlayNowPlayingSnapshot>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetNowPlayingSnapshot(
+        [FromQuery] string? token,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return BadRequestResponse("An overlay token is required.");
+
+        Result<OverlayNowPlayingSnapshot?> result = await _widgetService.GetNowPlayingSnapshotAsync(
+            token,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<OverlayNowPlayingSnapshot?> { Data = result.Value });
+    }
+
+    /// <summary>The channel's current playback queue (excluding the now-playing track).</summary>
+    [HttpGet("queue")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<MusicQueueItem>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetQueueSnapshot(
+        [FromQuery] string? token,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return BadRequestResponse("An overlay token is required.");
+
+        Result<IReadOnlyList<MusicQueueItem>> result = await _widgetService.GetQueueSnapshotAsync(
+            token,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<IReadOnlyList<MusicQueueItem>> { Data = result.Value });
     }
 
     /// <summary>
