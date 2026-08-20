@@ -35,18 +35,21 @@ public class EventStoreController : BaseController
 {
     private readonly IEventJournalPortabilityService _portability;
     private readonly ILegacyChannelImportService _legacyImport;
+    private readonly IProjectionRunner _projectionRunner;
     private readonly ICurrentTenantService _tenant;
     private readonly TimeProvider _clock;
 
     public EventStoreController(
         IEventJournalPortabilityService portability,
         ILegacyChannelImportService legacyImport,
+        IProjectionRunner projectionRunner,
         ICurrentTenantService tenant,
         TimeProvider clock
     )
     {
         _portability = portability;
         _legacyImport = legacyImport;
+        _projectionRunner = projectionRunner;
         _tenant = tenant;
         _clock = clock;
     }
@@ -92,6 +95,30 @@ public class EventStoreController : BaseController
         Result<EventJournalImportSummary> result = await _portability.ImportAsync(
             broadcasterId,
             upload,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Replays every imported-but-not-yet-replayed event for the channel, in their original order, through the
+    /// SAME live-handler path a real Twitch event takes — so pipeline triggers, TTS-enabled commands, and reward
+    /// handling actually re-run for the imported history instead of just sitting silently in the journal. Owner-
+    /// only. Idempotent: only advances past NEW imported rows since the last replay, so calling it again after
+    /// nothing new was imported is a safe no-op. Cannot touch another channel's events — the runner reads only
+    /// this resolved tenant's own stream (event-store §3.3).
+    /// </summary>
+    [RequireAction("eventstore:replay:write")]
+    [HttpPost("replay")]
+    [ProducesResponseType<StatusResponseDto<long>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Replay(string channelId, CancellationToken ct)
+    {
+        if (_tenant.BroadcasterId is not Guid broadcasterId)
+            return UnauthenticatedResponse("No channel resolved for the caller.");
+
+        Result<long> result = await _projectionRunner.RunOnceAsync(
+            "import-replay",
+            broadcasterId,
             ct
         );
         return ResultResponse(result);

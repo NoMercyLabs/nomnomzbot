@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,6 +53,13 @@ public sealed class TwitchEventSubHostedService
 
     private DateTimeOffset? _lastEventAt;
     private volatile int _activeSubscriptionCount;
+
+    // Per-tenant watermark of the last notification actually delivered — the gap-backfill start bound on a
+    // reconnect welcome. Guid-keyed (not the process-wide _lastEventAt) so one broadcaster's activity never
+    // masks another's gap in a multi-tenant deployment. No entry yet ⇒ nothing to backfill for that tenant
+    // (either this is its first-ever connect, or the process just started and hasn't seen it live yet either
+    // way, backfilling from "unknown" would mean an unbounded window, which we deliberately never attempt).
+    private readonly ConcurrentDictionary<Guid, DateTimeOffset> _lastEventAtByTenant = new();
 
     // Owners whose session has welcomed at least once this process. The FIRST welcome per owner does NOT trigger
     // a re-register: BotLifecycleService's startup reconcile already subscribes the desired set, so re-registering
@@ -224,7 +232,10 @@ public sealed class TwitchEventSubHostedService
             firstWelcome = _welcomedOwners.Add(ownerKey);
 
         if (!firstWelcome)
+        {
             _activeSubscriptionCount = await ReRegisterOwnerAsync(ownerKey, ct);
+            await BackfillOwnerGapAsync(ownerKey, ct);
+        }
 
         await _eventBus.PublishAsync(
             new EventSubConnectedEvent
@@ -277,6 +288,9 @@ public sealed class TwitchEventSubHostedService
                 return;
             }
         }
+
+        if (tenant.Value != Guid.Empty)
+            _lastEventAtByTenant[tenant.Value] = _clock.GetUtcNow();
 
         EventSubNotification notification = new()
         {
@@ -998,6 +1012,53 @@ public sealed class TwitchEventSubHostedService
         }
 
         return enabled;
+    }
+
+    /// <summary>
+    /// Sweeps every broadcaster owned by <paramref name="ownerKey"/> for what its dropped session missed
+    /// (twitch-eventsub §7). Only broadcasters with a recorded <see cref="_lastEventAtByTenant"/> watermark are
+    /// swept — no watermark means no reliable gap start, so that tenant is skipped rather than guessing a
+    /// window. A single broadcaster's backfill failure is logged and never blocks the others.
+    /// </summary>
+    private async Task BackfillOwnerGapAsync(string ownerKey, CancellationToken ct)
+    {
+        await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        List<EventSubSubscription> rows = await db
+            .EventSubSubscriptions.Where(s => s.Enabled && s.DeletedAt == null)
+            .Select(s => new EventSubSubscription
+            {
+                BroadcasterId = s.BroadcasterId,
+                EventType = s.EventType,
+            })
+            .ToListAsync(ct);
+
+        List<Guid> tenants =
+        [
+            .. rows.Where(r => OwnerKeyFor(r.BroadcasterId, r.EventType) == ownerKey)
+                .Select(r => r.BroadcasterId)
+                .Distinct(),
+        ];
+
+        IEventSubGapBackfillService backfill =
+            scope.ServiceProvider.GetRequiredService<IEventSubGapBackfillService>();
+        DateTimeOffset now = _clock.GetUtcNow();
+
+        foreach (Guid tenant in tenants)
+        {
+            if (!_lastEventAtByTenant.TryGetValue(tenant, out DateTimeOffset gapStart))
+                continue;
+
+            Result<int> result = await backfill.BackfillGapAsync(tenant, gapStart, now, ct);
+            if (result.IsFailure)
+                _logger.LogWarning(
+                    "EventSub gap backfill failed for {BroadcasterId}: {Error}",
+                    tenant,
+                    result.ErrorMessage
+                );
+        }
     }
 
     private Task PublishStatusChangedAsync(

@@ -1358,6 +1358,14 @@ public static class DependencyInjection
         services.AddSingleton<IWebSocketChannelFactory, ClientWebSocketChannelFactory>();
         services.AddSingleton<IEventSubTransport, WebSocketEventSubTransport>();
 
+        // Reconnect gap backfill (twitch-eventsub §7): sweeps redemptions + follows for the window a dropped
+        // WebSocket session silently missed, deterministically deduped, then replayed through the ordinary
+        // IEventBus path. Scoped — touches the scoped Helix sub-clients and the scoped journal.
+        services.AddScoped<
+            Application.Contracts.Twitch.IEventSubGapBackfillService,
+            EventSubGapBackfillService
+        >();
+
         // The lifecycle host: one instance behind ITwitchEventSubService + IEventSource + IHostedService.
         services.AddSingleton<TwitchEventSubHostedService>();
         services.AddSingleton<ITwitchEventSubService>(sp =>
@@ -1401,6 +1409,11 @@ public static class DependencyInjection
         // The projection driver (event-store.md §3.3) — periodically advances every projection to the journal
         // head so live appends reach the read models (without it, projections only move during import/rebuild).
         services.AddHostedService<EventStore.EventStoreProjectionDriver>();
+
+        // EventType → CLR type lookup for replay (a closed reflection scan over NomNomzBot.Domain only, built
+        // once — see DomainEventTypeRegistry's own doc comment for why this is safe against a crafted import).
+        // ImportReplayProjection itself is auto-discovered by the AddImplementationsOf<IProjection> scan above.
+        services.AddSingleton<EventStore.DomainEventTypeRegistry>();
 
         // Owner-gated legacy backfill — imports the legacy NoMercy bot's channel history onto the journal and
         // rebuilds projections from it. The locator (which legacy file to read) is a stateless seam; the service
