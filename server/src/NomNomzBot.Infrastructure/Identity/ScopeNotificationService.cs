@@ -34,6 +34,7 @@ public sealed class ScopeNotificationService : IScopeNotificationService
 {
     private readonly IApplicationDbContext _db;
     private readonly IServiceProvider _serviceProvider;
+    private readonly TwitchScopeRegistry _scopeRegistry;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ScopeNotificationService> _logger;
 
@@ -45,12 +46,14 @@ public sealed class ScopeNotificationService : IScopeNotificationService
     public ScopeNotificationService(
         IApplicationDbContext db,
         IServiceProvider serviceProvider,
+        TwitchScopeRegistry scopeRegistry,
         TimeProvider timeProvider,
         ILogger<ScopeNotificationService> logger
     )
     {
         _db = db;
         _serviceProvider = serviceProvider;
+        _scopeRegistry = scopeRegistry;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -145,6 +148,18 @@ public sealed class ScopeNotificationService : IScopeNotificationService
                 featuresByScope[scope] = features;
             }
             features.Add(feature.Key);
+        }
+
+        // FeatureScopeMap only covers toggleable features. An always-on Helix-backed action (e.g. the shoutout
+        // builtin's moderator:manage:shoutouts) has no feature key to key off, so without this second pass its
+        // scope gap was invisible here — surfacing only reactively, after a live 403 already broke the action on
+        // stream. TwitchScopeRegistry is every scope the code actually calls, always-on or not, so this closes
+        // that gap: a channel missing ANY code-required scope shows up the moment this runs, not after it fails.
+        foreach (string scope in _scopeRegistry.AllDeclaredScopes)
+        {
+            if (granted.Contains(scope) || featuresByScope.ContainsKey(scope))
+                continue;
+            featuresByScope[scope] = new SortedSet<string>(StringComparer.Ordinal);
         }
 
         // A runtime-detected scope that is not in any offered-feature map still surfaces (a raw Helix gap).

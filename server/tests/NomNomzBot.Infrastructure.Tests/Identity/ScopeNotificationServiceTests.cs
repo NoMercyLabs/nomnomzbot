@@ -53,6 +53,7 @@ public sealed class ScopeNotificationServiceTests
         ScopeNotificationService service = new(
             db,
             provider,
+            new TwitchScopeRegistry(),
             TimeProvider.System,
             NullLogger<ScopeNotificationService>.Instance
         );
@@ -106,12 +107,14 @@ public sealed class ScopeNotificationServiceTests
     public async Task GetMissingScopes_WhenAllOfferedScopesGranted_IsEmpty()
     {
         (ScopeNotificationService service, AuthDbContext db, _, _) = Build();
-        // Every scope every offered feature needs, in one grant — derived from the registry itself so this
-        // test can never drift behind a new FeatureScopeMap entry.
+        // Every scope every offered feature needs, PLUS every scope any Helix sub-client method actually
+        // declares (TwitchScopeRegistry) — derived from both sources themselves so this test can never drift
+        // behind a new FeatureScopeMap entry or a new [RequiresTwitchScope] method.
         string[] all =
         [
             .. FeatureScopeMap
                 .Features.Values.SelectMany(scopes => scopes)
+                .Concat(new TwitchScopeRegistry().AllDeclaredScopes)
                 .Distinct(StringComparer.OrdinalIgnoreCase),
         ];
         await SeedTwitchConnectionAsync(db, all);
@@ -281,11 +284,12 @@ public sealed class ScopeNotificationServiceTests
     public async Task BuildRegrantScopeSet_WhenNothingMissing_ReportsNoMissingScopes()
     {
         (ScopeNotificationService service, AuthDbContext db, _, _) = Build();
-        // The full offered-feature scope set, derived from the registry so this can never drift behind it.
+        // The full offered-feature + registry scope set, derived from both so this can never drift behind them.
         string[] all =
         [
             .. FeatureScopeMap
                 .Features.Values.SelectMany(scopes => scopes)
+                .Concat(new TwitchScopeRegistry().AllDeclaredScopes)
                 .Distinct(StringComparer.OrdinalIgnoreCase),
         ];
         await SeedTwitchConnectionAsync(db, all);

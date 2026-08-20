@@ -50,6 +50,12 @@ public sealed class OverlaySdkController : ControllerBase
 
           var ws = null;
           var backoffMs = 1000;
+          // Set once the FIRST connection ever completes its handshake. A later reconnect (bot restart,
+          // redeploy, network blip) means this page may be running stale JS/config — instead of quietly
+          // resuming with whatever was loaded at page-open, reload so the widget always ends up on the
+          // current code + settings without anyone touching OBS. The widget never has to be manually
+          // refreshed; it keeps retrying and self-heals the moment the bot is back.
+          var hadPriorConnection = false;
 
           function run(fn, a, b) { try { fn(a, b); } catch (e) { report((e && e.message) || e); } }
 
@@ -107,8 +113,10 @@ public sealed class OverlaySdkController : ControllerBase
 
                 if (msg.type === 1) dispatch(msg.target, msg.arguments || []);
                 else if (msg.type === 3 && msg.invocationId === "join" && msg.result) {
-                  // JoinWidgetResponse.initialState IS the saved Widget.Settings bag — deliver it so a reconnect or a
-                  // settings change made while offline lands even without a following WidgetSettingsChanged push.
+                  if (hadPriorConnection) { location.reload(); return; }
+                  hadPriorConnection = true;
+                  // JoinWidgetResponse.initialState IS the saved Widget.Settings bag — deliver it so the
+                  // first paint lands even without a following WidgetSettingsChanged push.
                   if (msg.result.initialState) applySettings(msg.result.initialState);
                 }
               });

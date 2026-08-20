@@ -56,6 +56,7 @@ public sealed class MissingScopeRecordingHandlerTests
         ScopeNotificationService notifications = new(
             db,
             provider,
+            new TwitchScopeRegistry(),
             TimeProvider.System,
             NullLogger<ScopeNotificationService>.Instance
         );
