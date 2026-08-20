@@ -251,7 +251,69 @@ checked for this specific risk and it did not materialize. Single-step authoring
 friction (add a step, pick action, configure, save) is reasonable; the pain is
 specifically in multi-step/branching chains and blind template authoring.
 
-## 7. Remediation plan, in priority order
+## 7. Single-file bloat — which widgets need splitting into components
+
+The compile pipeline **already supports** multi-file widgets (`App.vue` + child
+components + composables) — `EsbuildWidgetBuildService.BuildVueAsync` compiles every
+`.vue` file in a project independently and bundles them with real relative-import
+resolution; `WidgetVersion.FilesJson` already stores a `path → content` map. This is
+proven, working machinery, not something to build. The gap is narrower than "widgets
+can't be split": the 21 **first-party** widgets specifically bypass it —
+`FirstPartyWidgetCatalogueSeeder` embeds each as one asset into
+`WidgetGalleryItem.SourceCode`, a single `string?` column with no `FilesJson`/
+`ManifestJson` equivalent. Splitting a first-party widget into components needs one
+small, well-scoped addition (a file-set source column on `WidgetGalleryItem`, and the
+seeder embedding a file set instead of one asset) — not a rebuild of anything.
+
+**Real size ranking** (all 21, by line count) — the largest are, in order:
+`now_playing.vue` (360), `chat_box.vue` (311), `poll_prediction.vue` (226),
+`alerts.vue` (195), `drop_game.vue` (194), `crash.vue` (181), `goal_bar.vue`/
+`custom_data.vue` (167), `event_ticker.vue`/`redemption_alert.vue` (164). Everything
+from `emote_wall.vue` (155) down to `recent_followers.vue` (82) is under 160 lines.
+
+**Concrete split proposals** (named pieces, not generic "break it up" advice):
+
+- **`now_playing.vue`** — two genuinely separate concerns: the visual card/pill/iframe
+  rendering vs. a full Spotify Web Playback SDK device (~120 lines: token fetch, SDK
+  loader, player lifecycle, autoplay probe). Split into `NowPlayingCard.vue`
+  (presentational) + a `useSpotifyConnectDevice.ts` composable — the composable becomes
+  independently unit-testable (mock `fetch`/`window.Spotify`) without mounting Vue at
+  all, which it currently isn't.
+- **`chat_box.vue`** — the template interleaves 5 structurally distinct fragment
+  renderers (html/emote/cheermote/mention/link/plain) inside one `v-for`. Extract
+  `ChatFragment.vue` (one fragment → one visual unit) so the parent shrinks to line-list
+  + settings/event wiring, and each fragment type becomes independently testable.
+- **`poll_prediction.vue`** — poll and prediction share one visual shape (title + bars
+  + won-highlight) driven by two disjoint event families. Extract a generic
+  `useRoundState.ts` (show/scheduleHide/locked/ended state machine, parameterized) and
+  a presentational `RoundBars.vue` — reusable by anything that renders a ranked bar
+  list, not just these two.
+- **`alerts.vue` + `redemption_alert.vue`** — confirmed **near-duplicates**: identical
+  queue/current/visible/cardKey/timer state, a byte-for-byte identical `showNext()`
+  timing function (enter → hold `durationMs` → 400ms exit fade), and an identical
+  `.card` CSS block (same easing curve, same shadow formula) in both files. Strongest
+  candidate in the whole library for a shared `useAlertQueue<T>(durationMs)` composable
+  plus a shared `AlertCard.vue` presentational shell — both widgets would shrink to
+  60-80 lines of pure event-mapping logic each.
+- **`drop_game.vue` + `crash.vue`** — same "game round" pattern (phase state, reset,
+  kind-keyed frame dispatch, scheduleHide) and an identical results-board CSS block.
+  Candidate: `useGameRound.ts` + a shared `GameResultsBoard.vue`. Check `heist.vue`
+  against the same shape before finalizing the composable's API (Rule of Three — a
+  third confirmed occurrence should shape the interface, not just the first two).
+
+**Confirmed cross-widget duplication independent of any single file's size** — real
+drift risk, not just bloat: `alerts.vue` and `event_ticker.vue` each hardcode their own
+identical copy of the 10-type event enumeration (`ALL_EVENTS`) and an identical
+`money()` formatting helper — if a new event type is ever added, both files need
+editing in lockstep with nothing tying them together.
+
+**Fine as single-file, no split warranted** (avoid over-engineering small widgets):
+`recent_followers.vue`, `socials.vue`, `sub_train.vue`, `top_cheerers.vue`,
+`labels.vue`, `heist.vue`, `countdown_timer.vue`, `raffle.vue`, `sr_queue.vue` — all
+under ~140 lines, one visual concept, one event source each. Splitting these would add
+import/prop-plumbing overhead with no reuse value.
+
+## 8. Remediation plan, in priority order
 
 1. **§1 systemic field-name fix** — highest value, most mechanical, fixes 6 widgets in
    one pass; add a contract test so it can't silently recur.
@@ -284,3 +346,13 @@ specifically in multi-step/branching chains and blind template authoring.
     (spotify_player's off-theme error color, tts_caption's numeric-ID speaker label,
     raffle's blank-winner edge case, emote_wall's unconfirmed fragment shape) — lowest
     urgency, batch opportunistically.
+11. **§7 component splitting** — do this AFTER §1 (the field-name fixes), since
+    `alerts.vue`/`redemption_alert.vue` and `drop_game.vue`/`crash.vue` are both on the
+    split list and on the field-mismatch/redesign list respectively; splitting first
+    would mean re-touching the same extracted files again right after. Needs the small
+    `WidgetGalleryItem` file-set storage addition first (the seeder/storage gap, not
+    the compile pipeline — that part already works), then: `now_playing.vue` and
+    `chat_box.vue` splits (highest line-count payoff, no cross-widget dependency), then
+    the `useAlertQueue`/`AlertCard.vue` and `useGameRound`/`GameResultsBoard.vue`
+    composable extractions (highest duplication payoff, touches multiple widgets at
+    once so do them as their own dedicated slice).
