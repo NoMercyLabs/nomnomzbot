@@ -51,6 +51,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.io.captureWindowSupported
+import bot.nomnomz.dashboard.core.io.openCaptureWindow
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -96,6 +98,8 @@ import nomnomzbot.composeapp.generated.resources.widgets_submit_action
 import nomnomzbot.composeapp.generated.resources.widgets_review_action
 import nomnomzbot.composeapp.generated.resources.widgets_subtitle
 import nomnomzbot.composeapp.generated.resources.widgets_toggle_action
+import nomnomzbot.composeapp.generated.resources.widgets_capture_window_action
+import nomnomzbot.composeapp.generated.resources.widgets_capture_window_failed
 import nomnomzbot.composeapp.generated.resources.widgets_url_copied
 import nomnomzbot.composeapp.generated.resources.widgets_url_copy
 import nomnomzbot.composeapp.generated.resources.widgets_url_label
@@ -658,6 +662,39 @@ private fun WidgetRow(
                 copyLabel = stringResource(Res.string.widgets_url_copy),
                 copiedLabel = stringResource(Res.string.widgets_url_copied),
             )
+            // Desktop-only: OBS's embedded browser-source audio hook drops DRM-protected audio (e.g.
+            // Spotify) after ~10s. Opening the same overlay as a real, chrome-less window lets OBS
+            // capture it via ordinary Window + Application Audio Capture instead. A real OS window has
+            // no alpha channel, so chroma=1 swaps the overlay's transparent background for a solid
+            // keyable green, punched back out with OBS's Chroma Key filter.
+            if (captureWindowSupported()) {
+                var captureFailed: Boolean by remember(widget.id) { mutableStateOf(false) }
+                val separator: String = if ('?' in overlayUrl) "&" else "?"
+                TextButton(
+                    onClick = {
+                        captureFailed = !openCaptureWindow(
+                            url = "$overlayUrl${separator}chroma=1",
+                            width = 700,
+                            height = 350,
+                        )
+                    },
+                ) {
+                    Text(
+                        text = stringResource(Res.string.widgets_capture_window_action),
+                        color = tokens.primary,
+                        maxLines = 1,
+                    )
+                }
+                if (captureFailed) {
+                    Text(
+                        text = stringResource(Res.string.widgets_capture_window_failed),
+                        style = typography.xs,
+                        color = tokens.destructive,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         } else {
             Text(
                 text = stringResource(Res.string.widgets_url_missing),

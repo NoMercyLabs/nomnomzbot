@@ -1222,6 +1222,8 @@
     <string name="widgets_url_copy">Kopiëren</string>
     <string name="widgets_url_copied">Gekopieerd</string>
     <string name="widgets_url_missing">Nog geen browserbron-URL.</string>
+    <string name="widgets_capture_window_action">Openen als capture-venster</string>
+    <string name="widgets_capture_window_failed">Kon geen capture-venster openen — installeer Chrome of Edge.</string>
     <string name="widgets_delete_title">Overlay verwijderen?</string>
     <string name="widgets_delete_message">%1$s verwijderen? De browserbron-URL werkt dan niet meer.</string>
     <string name="widgets_delete_confirm">Verwijderen</string>

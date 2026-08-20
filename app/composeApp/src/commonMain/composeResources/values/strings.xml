@@ -1225,6 +1225,8 @@
     <string name="widgets_url_copy">Copy</string>
     <string name="widgets_url_copied">Copied</string>
     <string name="widgets_url_missing">No browser-source URL yet.</string>
+    <string name="widgets_capture_window_action">Open as capture window</string>
+    <string name="widgets_capture_window_failed">Could not open a capture window — install Chrome or Edge.</string>
     <string name="widgets_delete_title">Delete overlay?</string>
     <string name="widgets_delete_message">Delete %1$s? Its browser-source URL will stop working.</string>
     <string name="widgets_delete_confirm">Delete</string>
