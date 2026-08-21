@@ -29,6 +29,20 @@ public sealed class EdgeTtsProvider : ITtsProvider
     private const string ProviderName = "edge";
     private const string TrustedToken = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
 
+    /// <summary>Chromium version Edge's own client currently reports; feeds both Sec-MS-GEC-Version and the
+    /// User-Agent below — Microsoft's edge (WAF-level, not just the GEC hash) rejects the handshake if the
+    /// two disagree, so this constant is the single source for both.</summary>
+    private const string ChromiumFullVersion = "143.0.3650.75";
+    private const string ChromiumMajorVersion = "143";
+    private const string SecMsGecVersion = $"1-{ChromiumFullVersion}";
+
+    private const string UserAgent =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+        + $"Chrome/{ChromiumMajorVersion}.0.0.0 Safari/537.36 Edg/{ChromiumMajorVersion}.0.0.0";
+
+    /// <summary>Seconds between the Windows FILETIME epoch (1601-01-01) and the Unix epoch (1970-01-01).</summary>
+    private const long WindowsEpochOffsetSeconds = 11_644_473_600L;
+
     /// <summary>Same read-aloud surface the synthesis WebSocket uses, so the token stays a single constant.</summary>
     private const string VoiceListUrl =
         $"https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list?trustedclienttoken={TrustedToken}";
@@ -57,18 +71,29 @@ public sealed class EdgeTtsProvider : ITtsProvider
     )
     {
         string connectionId = Guid.NewGuid().ToString("N");
+
+        // Microsoft now rejects the handshake without a Sec-MS-GEC token proving the caller holds the
+        // trusted client token as of a recent 5-minute window (see rany2/edge-tts#290) — without it every
+        // connection 403s, the provider swallows that as an empty result, and TTS silently stops working.
         string url =
-            $"wss://speech.platform.bing.com/consumer/speech/synthesize/realtimetts/edge/v1?TrustedClientToken={TrustedToken}&ConnectionId={connectionId}";
+            $"wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1"
+            + $"?TrustedClientToken={TrustedToken}"
+            + $"&Sec-MS-GEC={GenerateSecMsGecToken()}"
+            + $"&Sec-MS-GEC-Version={SecMsGecVersion}"
+            + $"&ConnectionId={connectionId}";
 
         using ClientWebSocket ws = new();
+        // Full browser-fingerprint header set — Microsoft's edge WAF 403s the handshake if any of these
+        // are missing or if User-Agent's Chrome/Edg version doesn't match Sec-MS-GEC-Version above.
+        ws.Options.SetRequestHeader("Pragma", "no-cache");
+        ws.Options.SetRequestHeader("Cache-Control", "no-cache");
         ws.Options.SetRequestHeader(
             "Origin",
             "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold"
         );
-        ws.Options.SetRequestHeader(
-            "User-Agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        );
+        ws.Options.SetRequestHeader("Accept-Encoding", "gzip, deflate, br, zstd");
+        ws.Options.SetRequestHeader("Accept-Language", "en-US,en;q=0.9");
+        ws.Options.SetRequestHeader("User-Agent", UserAgent);
 
         try
         {
@@ -114,14 +139,9 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
                 if (result.MessageType == WebSocketMessageType.Binary)
                 {
-                    // Binary message: header\r\n\r\n<audio bytes>
-                    int headerEnd = FindHeaderEnd(msgBytes);
-                    if (headerEnd >= 0)
-                    {
-                        int audioStart = headerEnd + 4;
-                        if (audioStart < msgBytes.Length)
-                            audioStream.Write(msgBytes, audioStart, msgBytes.Length - audioStart);
-                    }
+                    int audioStart = FindBinaryAudioStart(msgBytes);
+                    if (audioStart >= 0 && audioStart < msgBytes.Length)
+                        audioStream.Write(msgBytes, audioStart, msgBytes.Length - audioStart);
                 }
                 else if (result.MessageType == WebSocketMessageType.Text)
                 {
@@ -261,6 +281,23 @@ public sealed class EdgeTtsProvider : ITtsProvider
             );
         }
         return voices;
+    }
+
+    /// <summary>
+    /// Sec-MS-GEC = SHA256(&lt;100ns Windows-epoch ticks, floored to a 5-minute boundary&gt; + TrustedToken),
+    /// uppercase hex. Mirrors rany2/edge-tts's DRM.generate_sec_ms_gec — Microsoft's WebSocket handshake
+    /// 403s without a token proving the caller derived it within the current 5-minute window.
+    /// </summary>
+    internal string GenerateSecMsGecToken()
+    {
+        long unixSeconds = _timeProvider.GetUtcNow().ToUnixTimeSeconds();
+        long windowsEpochSeconds = unixSeconds + WindowsEpochOffsetSeconds;
+        long flooredToFiveMinutes = windowsEpochSeconds - (windowsEpochSeconds % 300);
+        long hundredNanosecondTicks = flooredToFiveMinutes * 10_000_000L;
+
+        string stringToHash = $"{hundredNanosecondTicks}{TrustedToken}";
+        byte[] hash = SHA256.HashData(Encoding.ASCII.GetBytes(stringToHash));
+        return Convert.ToHexString(hash);
     }
 
     private static string? GetString(JsonElement element, string property) =>
@@ -496,19 +533,19 @@ public sealed class EdgeTtsProvider : ITtsProvider
         await ws.SendAsync(bytes, WebSocketMessageType.Text, true, ct);
     }
 
-    private static int FindHeaderEnd(byte[] data)
+    /// <summary>
+    /// Binary audio frames are [2-byte big-endian header length][that many header bytes][raw audio] — not
+    /// a header terminated by a blank line. Microsoft's current framing puts only a single CRLF between
+    /// header lines and none after the last one; searching for a double-CRLF (the old assumption) never
+    /// matches, so every frame's audio was silently discarded.
+    /// </summary>
+    private static int FindBinaryAudioStart(byte[] data)
     {
-        for (int i = 0; i < data.Length - 3; i++)
-        {
-            if (
-                data[i] == '\r'
-                && data[i + 1] == '\n'
-                && data[i + 2] == '\r'
-                && data[i + 3] == '\n'
-            )
-                return i;
-        }
-        return -1;
+        if (data.Length < 2)
+            return -1;
+        int headerLength = (data[0] << 8) | data[1];
+        int audioStart = 2 + headerLength;
+        return audioStart <= data.Length ? audioStart : -1;
     }
 
     private static TtsSynthesisResult EmptyResult(string voiceId) =>
