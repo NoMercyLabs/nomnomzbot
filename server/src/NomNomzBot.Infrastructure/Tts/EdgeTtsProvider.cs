@@ -94,6 +94,10 @@ public sealed class EdgeTtsProvider : ITtsProvider
         ws.Options.SetRequestHeader("Accept-Encoding", "gzip, deflate, br, zstd");
         ws.Options.SetRequestHeader("Accept-Language", "en-US,en;q=0.9");
         ws.Options.SetRequestHeader("User-Agent", UserAgent);
+        ws.Options.SetRequestHeader(
+            "Cookie",
+            $"muid={Convert.ToHexString(RandomNumberGenerator.GetBytes(16))};"
+        );
 
         try
         {
@@ -537,7 +541,8 @@ public sealed class EdgeTtsProvider : ITtsProvider
     /// Binary audio frames are [2-byte big-endian header length][that many header bytes][raw audio] — not
     /// a header terminated by a blank line. Microsoft's current framing puts only a single CRLF between
     /// header lines and none after the last one; searching for a double-CRLF (the old assumption) never
-    /// matches, so every frame's audio was silently discarded.
+    /// matches, so every frame's audio was silently discarded. Requiring "Path:audio" in the header text
+    /// (not just a length that happens to fit) rejects any non-audio binary frame Microsoft ever sends.
     /// </summary>
     private static int FindBinaryAudioStart(byte[] data)
     {
@@ -545,7 +550,11 @@ public sealed class EdgeTtsProvider : ITtsProvider
             return -1;
         int headerLength = (data[0] << 8) | data[1];
         int audioStart = 2 + headerLength;
-        return audioStart <= data.Length ? audioStart : -1;
+        if (audioStart > data.Length)
+            return -1;
+
+        string header = Encoding.UTF8.GetString(data, 2, headerLength);
+        return header.Contains("Path:audio", StringComparison.Ordinal) ? audioStart : -1;
     }
 
     private static TtsSynthesisResult EmptyResult(string voiceId) =>
