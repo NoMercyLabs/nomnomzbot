@@ -295,6 +295,13 @@ being treated as an already-satisfied success).
   when unconfigured — an incomplete feature, not a bug.)
 - Currency overflow: `long` balance fields, no realistic overflow risk.
 
+> **Cross-reference (2026-08-22):** `usability-shortcomings-audit-scope-and-plan.md` adds runtime
+> findings that belong with this plan — §B7 (EventSub zero-delay reconnect, reconnect drops broadcaster
+> sessions, unhandled `EventSubRevokedEvent`, four no-backoff workers, SQLite WAL, OAuth refresh lock,
+> SignalR no backplane/stateful-reconnect), §B4 (scoped `MusicService` holding the queue), §B1
+> (pipeline update never invalidates command/trigger caches — the sibling of F3; `Pipeline.IsEnabled`
+> never checked), and §A1 (pipeline reports Completed after a broken-out run — ships with F4).
+
 ## 5. Updated remediation plan
 
 Ordered by severity across both sweeps:

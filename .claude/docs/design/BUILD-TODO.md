@@ -64,7 +64,7 @@ desktop device-flow scope re-grant · schedule .ics · the multi-file `src/` edi
   (the watch UI shipped; the link model + one-ban-to-all-platforms is the design part); **import**
   feasibility for Streamer.bot (`.sb`) + provider overlays (opaque formats). (Resolved this session:
   pick-lists rename ✓, games/commands precedence ✓.)
-
+can
 ## new issues found
 - [ ] **OBS real-in-the-loop smoke — OWNER-run on a real OBS** (the deterministic legs are done:
   `ObsRealSocketIntegrationTests` drives the production `ClientWebSocket` against a mock obs-ws v5 server
@@ -89,3 +89,17 @@ desktop device-flow scope re-grant · schedule .ics · the multi-file `src/` edi
   not commands. REMAINS: `{user.messageCount}` still stubbed "0" (superseded by `{viewer.messages}` — decide
   whether to alias or drop); widgets were oracle-validated already; confirm each of the 15 code scripts
   test-runs green on the live channel.
+
+
+
+
+
+- [ ] individual tokens per widget + rotatable tokens → grounded in `usability-shortcomings-audit-scope-and-plan.md` §B5
+- [ ] rendered widget code from the event clicker does not reflect the actual widget. or the rendered widget is correct but the code is not.
+
+## Audit plans (2026-08-20 → 08-22) — the three plans to execute, in this order of reading
+- `stability-audit-scope-and-plan.md` (F1–F19) · `widget-quality-audit-scope-and-plan.md` (§1–§8) ·
+  `usability-shortcomings-audit-scope-and-plan.md` (Part A = owner-reported 08-22: raid, Spotify SaaS,
+  TTS system widget / voice lookup / segment action, Discord go-live UX, template-helper popup; Part B =
+  grounded rundown of every other area + runtime stability). Its "Remediation order" section merges all
+  three into one sequence.

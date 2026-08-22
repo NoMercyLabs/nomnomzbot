@@ -313,6 +313,13 @@ editing in lockstep with nothing tying them together.
 under ~140 lines, one visual concept, one event source each. Splitting these would add
 import/prop-plumbing overhead with no reuse value.
 
+> **Cross-reference (2026-08-22):** `usability-shortcomings-audit-scope-and-plan.md` extends this plan —
+> §A3/A4/A5 (TTS: `tts_caption.vue` ignores `audioUrl` so server TTS is silent in OBS; a system-level TTS
+> surface with an audio queue; voice lookup/override bugs; segment-based `play_tts`), §A7 (the variable
+> picker of item 7 below, made concrete: helper registry endpoint + shared "All helpers" dialog), §A6
+> item 5 (resource-picker field kinds in the pipeline catalogue), and §B5 (widget setup: per-widget
+> tokens, unused test-fire endpoint, no preview/last-seen, settings-form gaps).
+
 ## 8. Remediation plan, in priority order
 
 1. **§1 systemic field-name fix** — highest value, most mechanical, fixes 6 widgets in
