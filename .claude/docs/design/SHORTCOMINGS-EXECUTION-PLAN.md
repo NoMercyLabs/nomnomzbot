@@ -293,6 +293,12 @@ the grouping model is the only blocker, and it blocks 6.1 only.
   the Discord go-live handler. Either way: badge every chat line incl. Twitch (in 6.4).
 
 ## Tier 5 — polish and structure
+- **Sleak pass** (`sleak-review-2026-08-22.md`, rendered review): accent hierarchy (toggles neutral,
+  one accented CTA per screen; chat-colour clamp; accent derivation with lightness/chroma floor);
+  Home hero tile + collapsed activity feed; form width cap; destructive confirm + row overflow menu;
+  random-responses segmented control; chat-mode on/off state; concentric radius tokens; 13 px
+  muted-text contrast; one identity block in the sidebar; tone catalogue per locale. Then re-render
+  the six screens + Overlays/Economy/TTS/Integrations/Pipelines and re-run the checklist.
 - W·§8 items 5 (drop game redesign 🔒 mechanic), 8 (stacked-transition chat style 🔒 reference),
   10 (per-widget nits), 11 (component splits after 4.4; `WidgetGalleryItem` file-set storage first).
 - S LOW/informational list (§ "LOW / informational").

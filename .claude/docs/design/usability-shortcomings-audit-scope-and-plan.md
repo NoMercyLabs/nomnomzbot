@@ -830,7 +830,8 @@ Built (6 participant screens) but stranded:
   wrongsong, overlay (6). Fun/script commands (Hug, Roast, Yell, Scam, Sus, TelSell, Mock, Karen,
   Dramatic, Narrator, Detective, Confess, Excuse, Fight, Rigged, Ratio, Banger, Auction, Trial, Theme,
   StoneyAi, Weather, Translate, Todo, Records, Project, Editor, Slow) are custom-command territory
-  and **nothing seeds them** (no preset catalogue entry for any — grep confirmed). **Need backend a
+  and **nothing seeds them** (no preset catalogue entry for any — grep confirmed; the owner's own
+  channel has them only because they were imported as custom commands — a fresh channel gets none). **Need backend a
   custom command can't give, and have neither builtin nor seed (10):** `!help`, `!commands`, `!lurk`/
   `!unlurk`, `!leaderboard`, `!songhistory`, `!playlist`, `!bansong` (blocked-tracks exist, no chat
   verb), `!whisper`, `!discord` (invite link), `!accountage`. These are regressions for migrating
