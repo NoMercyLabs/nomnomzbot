@@ -279,6 +279,60 @@ Slice IDs are stable; the order is the queue.
   Checkbox, Combobox, Input, Label, Popover, RadioGroup, ScrollArea, Select, Skeleton, Table, Toast,
   Avatar) or re-scope the catalogue; Patterns tier documented (spec `frontend-design-system.md`).
 
+## Phase 6A — platform admin: reliable system-level management (U·Part D) — safety items first, then reach
+
+- **S086** IAM bootstrap truth — self-host = deployment-mode fact (not "any principal exists");
+  bootstrap mints a real principal + owner role for the self-host owner and `INITIAL_ADMIN_TWITCH_ID`;
+  acting principal never `Guid.Empty` (system principal row); resolve failure ≠ allow (U·D2).
+  Done-when: creating a service account on self-host does not lock the owner out (test).
+- **S087** IAM mutation audit + guards — every assign/revoke/create/deactivate/reactivate writes an
+  `IamAuditLog` row with target/role/scope; create transactional + validate-before-mutate; no duplicate
+  or inactive-target assignment; last `iam:manage` holder protected; flag changes audited (U·D2).
+- **S088** Suspension enforced — `Channel.Status` checked in tenant resolution; bot parts + EventSub
+  session revoked on suspend; handler on `TenantSuspensionChangedEvent` (U·D3). Done-when: a suspended
+  tenant's dashboard and bot stop within one tick.
+- **S089** Impersonation made safe — requires an active support session (extend the `IamRoleAssignment`
+  support grant with scope read|write, consent, session id); token lifetime clamped to session; `act`
+  honoured only for principals with `support:impersonate` and an active session; read-only default,
+  writes rejected unless scope=write; secrets redacted under `act`; refresh disabled; mints rate-limited;
+  every write journalled with BOTH actors + session id and mirrored to `IamAuditLog`; owner notified on
+  begin/first write/end; UI confirm + justification; spec amended (U·D4). Done-when: an impersonated
+  write shows operator + subject in one audit query; owner receives the notice.
+- **S090** Support access that works — session grants scoped read-only Plane-B visibility (RoleResolver
+  reads the session); list active grants; any `iam:manage` holder can end any grant; expiry reaper;
+  "view as tenant" reuses preview-as-viewer (client downgrade) (U·D4). Done-when: support staff can read
+  a tenant's console without impersonating.
+- **S091** Platform-wide user controls — user detail endpoint (channels, identities, sessions,
+  consent); platform disable/ban; `MergeIdentitiesAsync` exposed; compliance key for admin erasure
+  (not `tenant:access`) (U·D3).
+- **S092** Tenant ops — delete/purge + ownership transfer (writes `DeletionAuditLog`); per-tenant billing
+  state + quota/limit view; re-run seeds for a tenant; rotate tenant tokens/secrets; `IgnoreQueryFilters`
+  on admin lists; search by id/owner/GUID; Sort/Order honoured; real stats (no hardcoded "healthy"/0);
+  rate limits + explicit target confirmation on destructive admin ops (U·D3).
+- **S093** Ops visibility — EventSub session inventory per broadcaster; token health across tenants;
+  worker status + queue depths; error-log surface; AdminHub connect snapshot + scoped pushes;
+  break-glass/denial alerts from `IamAccessEvaluatedEvent` (U·D2/D3).
+- **S094** Billing roles — `billing:write`/`billing:grant` keys on the four billing writes; `billing:refund`
+  endpoint or key removed; `platform-billing` role usable (U·D2).
+- **S095** Admin UI truth — fix the `FeatureFlag` DTO so the tab loads; render `state.error` + every
+  slice's failure; writes route through `actionError`; paging on every list; refresh per tab; hub live
+  state truthful + connect errors surfaced; Admin entry in profile menu gated on Plane-C roles with chrome
+  swap + per-page routes/deep links (U·D6). Done-when: a 403 on any admin write is visible; Flags tab shows
+  flags.
+- **S096** Admin UI reach — flag editor (enable/rollout/tier/mode + per-tenant overrides); invite dialog
+  (count/tier/expiry/founder); grant tier/founder actions; support-access begin/end + active list;
+  impersonate confirm + justification; reasons + confirm on revoke/deactivate; Ban escalated behind
+  name-echo confirm; audit filters as pickers + date range; role keys viewable + role CRUD; Channels tab
+  merged into Tenants; timestamps formatted; one primary action per admin page (U·D6, K).
+- **S097** System-level content — `SystemPreset` (kind command|pipeline|event-response|pick-list|tone|
+  announcement, key, payload, version, enabled, origin seeded|operator) seeded from today's static
+  catalogues; `/admin/presets` CRUD + `SystemPresetAdoption` (auto|optin|declined, version) with push-to-
+  all and per-tenant opt-in; `Widget.IsSystem` + delete protection + restore; catalogue version stamp on
+  gallery items + installed widgets ("update available"); admin kill-switch for a first-party widget and
+  a builtin (`BuiltinCommandRegistry`); `PlatformNotice` (announcement/maintenance banner) read on
+  bootstrap (U·D5). Done-when: the operator creates a custom command preset and every opted-in tenant gets
+  it without a redeploy.
+
 ## Phase 7 — polish and structure
 
 - **S080** Sleak pass (K) — toggles neutral + one accented CTA per screen; chat-colour clamp; accent

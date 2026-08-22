@@ -873,6 +873,107 @@ action/toggle; configurable bot-line marker.
 
 ---
 
+## Part D — platform admin (Plane-C): system-level management for the SaaS operator and self-host owner (2026-08-22)
+
+Four lanes: IAM/tenant-ops backend · admin dashboard UI · system-level content · impersonation/support access.
+
+### D1. What exists (inventory)
+Controllers: `AdminController` (stats/channels/users/system/health/events), `PlatformAdminController`
+(tenants list/detail/suspend/reinstate, support access begin/end, impersonate, audit search),
+`PlatformIamController` (roles/principals/assign/revoke), `AdminBillingController` (invites, grant tier/
+founder), `FeatureFlagAdminController`, `ComplianceController` (erasure), `FederationController`,
+`WidgetGalleryController` (`gallery:review`), `PlatformAnalyticsController`, `AdminHub`. 13 keys seeded /
+12 enforced (`billing:refund` never enforced). UI: one `AdminScreen` with nine tabs (Overview, Channels,
+Users, System, Feature Flags, Billing, IAM, Tenants, Audit) + gallery review.
+
+### D2. IAM and bootstrap (backend)
+- `Infrastructure/Identity/PlatformIamService.cs:392` — `IsSaasAsync` = "any IamPrincipal row exists";
+  self-host owner has only the `IsPlatformPrincipal` marker (`AdminBootstrap.cs:44`) — creating ONE
+  principal (a service account) locks the owner out of every Plane-C route. `AuthService.cs:333` —
+  `INITIAL_ADMIN_TWITCH_ID` sets only the marker, so on a DB with principals the first admin fails closed
+  even on `iam:principal:create`. → self-host = deployment-mode fact; bootstrap mints a real principal +
+  owner role.
+- `PlatformIamService.cs:171-236,324-371` — assign/revoke/create/deactivate/reactivate write **no**
+  `IamAuditLog` row (only the permission check does, without target/role/scope). `:106-169` create is
+  non-transactional and can flush an orphan principal on "Unknown user". `:163/:66` acting principal
+  `Guid.Empty` on self-host/bootstrap → assignments attributed to nobody. `:200` duplicate/inactive-target
+  assignments allowed. `:335` only self-deactivation guarded → last `iam:manage` holder can be removed.
+  `PlatformAdminController.cs:186-191` + `PlatformIamController.cs:145-152` duplicated helper swallows a
+  resolve failure into `Guid.Empty` (= allow on self-host).
+- `Content/Identity/IamCatalogSeeder.cs:101` — `platform-billing` role can only read; all billing writes
+  (`AdminBillingController.cs:55,63,69,86`) gate on `iam:manage`; `billing:refund` has no endpoint.
+  `ComplianceController.cs:42` — admin GDPR erasure gated on `tenant:access` (a support-visit key).
+- `PlatformIamService.cs:79` `IamAccessEvaluatedEvent` and `PlatformAdminService.cs:250`
+  `TenantAccessGrantedEvent` have zero consumers (no owner notification, no break-glass alert, no
+  expiry reaper); `FeatureFlagAdminService.cs:87,136,161` flag changes unaudited.
+
+### D3. Tenant ops and user management (backend)
+- `PlatformAdminService.cs:149` — suspend writes `Channel.Status` that **nothing enforces**
+  (`TenantResolutionMiddleware` ignores it; only `ChannelAccessService.cs:59` reads it; no handler on
+  `TenantSuspensionChangedEvent` except a hub log line). A suspended tenant keeps running.
+- Missing: platform-wide user disable/ban (only per-channel bans exist); `GET admin/users/{id}` detail
+  (channels/identities/sessions/consent); tenant delete/purge + ownership transfer (`DeletionAuditLog`
+  unused); quota/limit administration + per-tenant billing state; re-run onboarding seeds; tenant secret/
+  token rotation; EventSub session inventory, token-health-across-tenants, worker status, queue depth,
+  error-log surface. `UserIdentityService.cs:308` `MergeIdentitiesAsync` built + tested, zero call sites.
+- `PlatformAdminService.cs:288-291` — an operator can end only their OWN support grant; no list of active
+  grants. `:50,54,97` + `AdminService.cs:79` — tenant/channel lists never `IgnoreQueryFilters` (soft-deleted
+  tenants invisible to the operator). `:56` search on normalized name only (no id/owner/GUID).
+- `AdminService.cs:63` headline status hardcoded `"healthy"`; `:89,175` counts hardcoded `0`; `:71-143`
+  ignore Sort/Order, no search. No `[EnableRateLimiting]` on any admin controller; destructive ops take a
+  whitespace-checked string only. `AdminHub.cs:25` no connect snapshot; all pushes `Clients.All`.
+
+### D4. Impersonation and support access
+- **Impersonation exists**: `PlatformAdminController.cs:137-152` `POST /admin/users/{id}/impersonate`
+  (`user:impersonate`) mints a full-power access token as the target (`PlatformAdminService.cs:304-364`)
+  with `act`/`act_name` claims (`JwtTokenService.cs:37-44,118-125`) that **nothing outside tests reads**.
+  No expiry/scope/consent/rate limit; writes journalled as the victim (`EventJournal.cs:66` single
+  `ActorUserId`); `GET /admin/audit` reads `IamAuditLog` only; owner never notified; refresh restores
+  operator session under an "acting as" banner (`SessionStore.kt:55-117`); secrets not redacted.
+- Support access (`BeginTenantAccessAsync` `PlatformAdminService.cs:200-274`) creates a time-boxed
+  scoped `IamRoleAssignment` with reason + expiry but grants **zero** channel-plane capability
+  (`RoleResolver.cs:107-191` never reads IAM; `PlatformIamService.cs:415-425` scope honoured only for
+  Plane-C) — the only door into a tenant's tools is full impersonation, and impersonation does not
+  require an open support session. Spec (`stream-admin.md:231-263`) promises audited support access
+  only; impersonation is code ahead of spec.
+- Right shape to reuse: `ShellScreen.kt:290-305` preview-as-viewer (client-side downgrade, no token).
+
+### D5. System-level content (what the operator defines once for every tenant)
+Every content type is code-seeded (a change = redeploy): widget catalogue (`FirstPartyWidgetCatalogue.cs:49`,
+seeder upserts gallery rows; installed tenant copies never updated, no version stamp on either side),
+widget templates, TTS voices (+ boot sync), pronouns, IAM catalogue, action definitions, billing tiers,
+config defaults, builtin catalogue (DI-derived, no DB row → cannot disable platform-wide), default
+builtin enablement (top-up over all channels), event-response presets (`EventResponsePresetCatalog.cs:22`
+static; onboarding + boot backfill), tones (`ToneTemplateCatalog.cs:27` static), custom-data presets.
+**None** for: pick-list presets, permission presets, fun-command packs, template-helper catalogue,
+platform announcement/maintenance banner, and **no system-level custom command or pipeline preset at all**
+(`DefaultCommandsSeeder.cs:39` seeds five builtin keys, not command bodies). `Widget.cs:25-65` has no
+`IsSystem` (tenant can delete a system surface; nothing recreates it). No admin kill-switch for a
+first-party widget or builtin.
+
+### D6. Admin dashboard UI
+- `AdminApi.kt:81` — `FeatureFlag` DTO requires `featureKey`+`isEnabled`; server sends `Key`/
+  `IsEnabledGlobally`/rollout fields (`FeatureFlagDtos.cs:14`) → the Flags tab can **never** load and says
+  nothing. `AdminScreen.kt:167-177` — `state.error` never rendered; `AdminController.kt:150-165,202-235` —
+  health/events/flags/invites failures → empty; seven flag/billing writes ignore `ApiResult`.
+- `AdminScreen.kt:541-579` flags read-only though set/override/delete are wired; `:605-616` invite
+  creation hardcoded (1 redemption, no tier/expiry/founder); `:80-81` grant-tier/founder dead;
+  `AdminTenantsTab.kt:157-189` support access built, never callable; no End-access, no active-grant list.
+- `AdminScreen.kt:412-419` + `AdminApi.kt:240` — Impersonate with no confirm, constant justification.
+  `AdminIamTab.kt:145,220-233` — revoke no confirm, reasons null. `AdminTenantsTab.kt:292-318` — Ban and
+  Suspend equal-weight buttons, no name echo. `AdminAuditTab.kt:77-84` — raw permission text filter;
+  principal/tenant/date filters unexposed. Lists never page (`AdminController.kt:334-349,395-410`; 25 cap).
+- `ShellScreen.kt:316-318,723-725` — Admin in the sidebar on legacy `user.isAdmin`, no Plane-C role
+  check, no chrome swap, one route (`:642`) vs spec's per-page routes; Channels tab duplicates Tenants with
+  less; `AdminController.kt:172-198` hub "live" never goes false; `AdminHubClient.kt:103` connect failures
+  swallowed; `AdminScreen.kt:174-176` stale-vs-empty load logic, no refresh; role keys never viewable, no
+  role CRUD; raw ISO timestamps; status string untranslated on Overview; service-account key dialog
+  mislabelled (`AdminIamTab.kt:435-437`). i18n en/nl parity clean (114 keys).
+
+What must change (admin): see slices S086–S097 in `SHORTCOMINGS-EXECUTION-PLAN.md`.
+
+---
+
 ## Remediation order (on top of the two existing plans)
 
 Severity first, then "unblocks the most":
