@@ -278,7 +278,9 @@ the grouping model is the only blocker, and it blocks 6.1 only.
   never act on the wrong channel.
 
 ### 6.7 Bot-as-a-bot quality (U·C7) — the first five ship inside Tier 1.3
-- Loop guard; `!commands`/`!help`; per-platform length chunking + duplicate variation; outbound send
+- Loop guard; `!commands`/`!help` + the other 8 legacy-regression builtins (`!lurk`/`!unlurk`,
+  `!leaderboard`, `!songhistory`, `!playlist`, `!bansong`, `!whisper`, `!discord`, `!accountage`) + a
+  seeded preset pack for the fun/script commands; per-platform length chunking + duplicate variation; outbound send
   queue/token bucket per channel per platform; reply-or-mention helper + `SendReplyAsync` result +
   fallback; `BuiltinOutcome`; tone on every outbound surface + usage/error slots; one
   `ParseUserMention`; permit via identity; whisper-with-fallback + inbound whisper handler;

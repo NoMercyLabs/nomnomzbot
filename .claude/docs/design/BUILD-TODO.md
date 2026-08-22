@@ -81,14 +81,13 @@ can
   no platform-IAM principal (see owner-calls below). Deep-verified: widget editor (highlight/scroll/live Vue
   preview renders the real BSOD), commands dialog, widgets overlay render, widget settings. Not yet clicked
   one-by-one: economy/games knobs, webhooks, sound-clip config, OBS mixer, roles make-a-mod, music/VTS.
-- [ ] **Old-bot parity — command diff DONE.** Compared the legacy repo's ~55 command scripts against live:
-  every user-facing command is covered by a custom command, a **built-in** (music song/skip/volume,
-  song-request, voice, quote, stats, uptime, permits, media, gdpr, games), or a subsystem (shoutout,
-  pronouns, blocked-tracks). The one real gap — `!followage` returned "unknown" (stubbed template var) — is
-  FIXED (real Helix follow-age). Non-chat legacy files (Commands/Editor/Update/Project/Records) are infra,
-  not commands. REMAINS: `{user.messageCount}` still stubbed "0" (superseded by `{viewer.messages}` — decide
-  whether to alias or drop); widgets were oracle-validated already; confirm each of the 15 code scripts
-  test-runs green on the live channel.
+- [ ] **Old-bot parity — command diff RE-OPENED (2026-08-22).** The earlier "every command covered" claim
+  was wrong: 10 legacy commands need backend and have neither builtin nor seed — `!help`, `!commands`,
+  `!lurk`/`!unlurk`, `!leaderboard`, `!songhistory`, `!playlist`, `!bansong`, `!whisper`, `!discord`,
+  `!accountage` — plus no preset seeds any of the ~28 fun/script commands. Grounded list in
+  `usability-shortcomings-audit-scope-and-plan.md` §C7; queued in `SHORTCOMINGS-EXECUTION-PLAN.md`
+  Tier 1.3 / 6.7. Still open from before: `{user.messageCount}` stubbed "0" (alias to `{viewer.messages}`
+  or drop); confirm each of the 15 code scripts test-runs green on the live channel.
 
 
 

@@ -823,6 +823,18 @@ Built (6 participant screens) but stranded:
   bot**: `nomercy-bot/.../commands/Help.cs:12,27,46` (per-command usage), `commands/Commands.cs:39`
   (permission-filtered list) and an on-connect "Bot is online… Type !help" announcement
   (`TwitchWebsocketHostedService.cs:935`) all exist there and none here.
+  **Sibling sweep (legacy `commands/*.cs`, 55 files, vs the 18 new builtin keys + actions):** the
+  BUILD-TODO claim "command diff DONE — every user-facing command covered" is overstated. Covered by a
+  builtin: song, skip, volume, sr, voice, quote, stats, update, permit(whitelist)/unpermit, gdpr,
+  media (12). Covered by an action/subsystem: shoutout, raid, setpronoun, followage (template var),
+  wrongsong, overlay (6). Fun/script commands (Hug, Roast, Yell, Scam, Sus, TelSell, Mock, Karen,
+  Dramatic, Narrator, Detective, Confess, Excuse, Fight, Rigged, Ratio, Banger, Auction, Trial, Theme,
+  StoneyAi, Weather, Translate, Todo, Records, Project, Editor, Slow) are custom-command territory
+  and **nothing seeds them** (no preset catalogue entry for any — grep confirmed). **Need backend a
+  custom command can't give, and have neither builtin nor seed (10):** `!help`, `!commands`, `!lurk`/
+  `!unlurk`, `!leaderboard`, `!songhistory`, `!playlist`, `!bansong` (blocked-tracks exist, no chat
+  verb), `!whisper`, `!discord` (invite link), `!accountage`. These are regressions for migrating
+  viewers; they go into Tier 1.3/6.7 with `!help`.
 - Length/splitting: `HelixChatProvider.cs:216-254`, `YouTubeChatPlatform.cs:55-82` send whole (Twitch
   500 / YouTube 200 → 400, dropped); `KickApiClient.cs:29,49-55` fails closed at 500. Legacy chunked at
   450 (`nomercy-bot/.../TwitchChatService.cs:183,347`). `HelixChatProvider.cs:226-240` — no duplicate-
