@@ -1,6 +1,6 @@
 # Developer Platform — Type-Safe Events, API SDK, Multi-File Editor, Forkable Library
 
-**Status:** draft for owner review (2026-07-18). **Owner directive (Bamo call):** Streamer.bot users
+**Status:** decided (owner 2026-08-22): expose-all with PII projection. **Owner directive (Bamo call):** Streamer.bot users
 resort to absurd hacks because SB *starves them of information and events*. Our answer is the
 inverse — **expose everything, fully type-safe** — turning custom code from a feature into a
 batteries-included, discoverable developer environment. This spec is the unifying layer over the
@@ -31,7 +31,7 @@ There are **six unreconciled event surfaces**, keyed three different ways:
 | Surface | Keyed by | Coverage | Source |
 |---|---|---|---|
 | Domain bus (`IEventBus`/`IDomainEvent`) | CLR **type** | 119 event types across 30 modules | `Domain/**/Events/**` |
-| Automation registry (`IAutomationEventDescriptor`) | `PublicName` **string** | **5** of 119 | `AutomationEventDescriptors.cs` |
+| Automation registry (as-built `IAutomationEventDescriptor`, replaced by the unified catalog — §2, `automation-api.md` D6) | `PublicName` **string** | **5** of 119 as-built → all 119 via the catalog | `AutomationEventDescriptors.cs` (retired by the catalog) |
 | Widget/overlay (`WidgetEventDto`) | dotted **string** | denylist-filtered | `OverlayEventFilter.cs` |
 | Live-game (`game.*`) | dotted **string** | 3 phases | `LiveGameEngine.cs` |
 | Custom-data (`custom.<source>`) | dotted **string** | dynamic | `CustomDataIngestService.cs` |
@@ -186,8 +186,10 @@ nnz.time, nnz.math, nnz.random, nnz.str, nnz.json, nnz.store   // pure-JS batter
 `args.get`), each with a floor tier (`low`/`tos`/`critical`, `critical` never exposed) + the
 `custom_code` feature-flag gate, and validates declared keys **deny-by-default** (unknown/ungated →
 whole grant `FORBIDDEN`, fail-closed), with the per-run host-call budget enforced in the executor.
-Phase 2a only wired two catalogued-but-dead bindings (`music.nowPlaying`, `user.get` — the latter
-public-profile-only, email withheld). So the `nnz.api.*` work is **not** unblocking a stub — it is
+Of the catalogue, `music.nowPlaying` and `user.get` (public-profile-only, email withheld) are wired; the
+still-unwired catalogued bindings are **`chat.send`, `chat.reply`, `economy.read`, `music.queue`, `http.fetch`,
+`vars.*`, `args.get`** — each is a slice in `SHORTCOMINGS-EXECUTION-PLAN.md` **Tier 3.2** (one binding = one
+`nnz.api.*` method + host bridge + test). So the `nnz.api.*` work is **not** unblocking a stub — it is
 building the typed, ergonomic layer (§3.1) over an existing, gated broker: each `nnz.api.*` method
 maps 1:1 to a catalogue key, and new keys extend the catalogue (deny-by-default preserved).
 

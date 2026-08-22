@@ -7,8 +7,8 @@ form pattern repeat everywhere, so the findings below are systemic, not per-scre
 over Overlays / Economy / TTS / Integrations would add instances, not categories.
 
 ## Context
-- Product: multi-tenant Twitch-bot management dashboard; audience = streamers and mods who live in
-  it for hours; dense data, frequent small edits.
+- Product: multi-platform bot management dashboard; audience = streamers, moderators and viewers —
+  streamers and moderators live in it for hours; dense data, frequent small edits.
 - Constraints: shadcn/ui (new-york) ported 1:1 to Compose; neutral base; accent derived at runtime
   from the user's Twitch chat colour (here: pure red `#FF0000`-ish → a deep maroon tint).
   `DesignSystemStyleGuardTest` forbids raw hex/dp in feature screens.

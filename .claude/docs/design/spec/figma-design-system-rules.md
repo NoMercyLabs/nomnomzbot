@@ -1,5 +1,7 @@
 # NomNomzBot — Figma Design System Rules
 
+> **Reference note, not a spec.** Figma is non-canonical (`frontend-design-system.md` DS1); this file only
+> explains how to read Figma input against the real design system.
 > Rules for implementing Figma designs in the KMP + Compose Multiplatform dashboard.
 > Figma files are a **reference for direction, not a pixel-perfect spec** — the
 > shadcn/ui (new-york) design system ported into Kotlin is the single source of truth.
@@ -18,7 +20,7 @@
 | `Spacing.kt` | `Spacing` data class — 12 spacing steps |
 | `Typography.kt` | `Typography` data class — 8 type steps |
 | `NomNomzTheme.kt` | Composition root; provides all four `CompositionLocal`s |
-| `color/Oklch.kt` | `fun oklch(l, c, h, a)` OKLCH→sRGB converter |
+| `../color/Oklch.kt` (`core/designsystem/color/`) | `fun oklch(l, c, h, a)` OKLCH→sRGB converter |
 
 ### Color tokens (28)
 
@@ -36,7 +38,7 @@ data class Tokens(
     val secondaryForeground: Color,
     val muted: Color,             // muted surfaces
     val mutedForeground: Color,   // muted / placeholder text
-    val accent: Color,            // dynamic: 15% Twitch chat-color blend
+    val accent: Color,            // dynamic: 15% blend of the chatter's platform-provided name colour
     val accentForeground: Color,
     val destructive: Color,       // red: delete, ban, clear
     val destructiveForeground: Color,
@@ -83,7 +85,7 @@ Use `tokens.radius.sm` for small elements (badges, tags).
 ### Dynamic accent
 
 ```kotlin
-// In NomNomzTheme: Twitch hex chat color → 15% alpha blend onto background
+// In NomNomzTheme: the chatter's platform-provided name colour (hex, any provider) → 15% alpha blend onto background
 fun Tokens.withAccent(hex: String): Tokens
 ```
 

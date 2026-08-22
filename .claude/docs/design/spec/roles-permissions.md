@@ -1,7 +1,7 @@
 # Interface Specification — Roles & Permissions Subsystem
 
 **Status:** Implementable. Code from this directly.
-**Sources (authoritative):** `2026-06-16-roles-and-permissions.md` (model), `2026-06-16-database-schema.md` (LOCKED schema — Domain B `ChannelMemberships`/`ChannelCommunityStandings`/`ActionDefinitions`/`ChannelActionOverrides`/`PermitGrants`; Domain C `Iam*`; O.9 `IamAuditLog`; O.8 `ModerationAuditLog`), `2026-06-16-stack-and-dependencies.md` (libs), `2026-06-16-decisions-pending-confirmation.md` (defaults).
+**Sources (authoritative):** `2026-06-16-roles-and-permissions.md` (model), `2026-06-16-database-schema.md` (LOCKED schema — Domain B `ChannelMemberships`/`ChannelCommunityStandings`/`ActionDefinitions`/`ChannelActionOverrides`/`PermitGrants`; Domain C `Iam*`; O.9 `IamAuditLog`; O.8 `ModerationAuditLog`), `2026-06-16-stack-and-dependencies.md` (libs), `2026-06-16-decisions-resolved.md` (defaults).
 
 **Binding conventions:** namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable` enabled; async all the way; `Result<T>` over exceptions/null; Repository + `IUnitOfWork` (no raw `DbContext` in controllers); typed-interface DI, no MediatR; responses `StatusResponseDto<T>` / `PaginatedResponse<T>`; controllers `[ApiVersion("1.0")] [Route("api/v{version:apiVersion}/...")]`; surrogate PK `guid` via `Guid.CreateVersion7()`; tenant key `BroadcasterId` is `Guid`; soft-delete global filter; Newtonsoft.Json for app JSON.
 
@@ -13,14 +13,14 @@ This subsystem owns **three authorization planes** and the **two gates** that re
 
 | Plane | Axis | Gates | Ladder |
 |---|---|---|---|
-| **A — Community standing** | chat badges (earned/granted) | chat-command + cosmetics (Gate 2 on `community` actions) | `Everyone(0) < Subscriber(2) < Vip(4) < Artist(6) < Moderator(10)` |
-| **B — Channel management** | administer the channel (dashboard/HTTP API) | **Gate 1** (entry) + **Gate 2** (per-action) on `management` actions | `Moderator(10) < SuperMod(20) < Editor(30) < Broadcaster(40)` |
+| **A — Community standing** | chat badges (earned/granted) | chat-command + cosmetics (Gate-2 on `community` actions) | `Everyone(0) < Subscriber(2) < Vip(4) < Artist(6) < Moderator(10)` |
+| **B — Channel management** | administer the channel (dashboard/HTTP API) | **Gate-1** (entry) + **Gate-2** (per-action) on `management` actions | `Moderator(10) < SuperMod(20) < Editor(30) < Broadcaster(40)` |
 | **C — Platform IAM** | NoMercy Labs operators + service accounts (SaaS only) | cross-tenant/privileged platform ops, audited | named permission bundles (least-privilege, default-deny) |
 
-**One unified ordered ladder** spans planes A+B for the per-action gate: `Everyone(0) < Subscriber(2) < Vip(4) < Artist(6) < Moderator(10) < SuperMod(20) < Editor(30) < Broadcaster(40)`. The numeric `LevelValue` is the only thing compared.
+**One unified ordered ladder** spans planes A+B for the per-action gate: `Everyone(0) < Subscriber(2) < Vip(4) < Artist(6) < Moderator(10) < SuperMod(20) < Editor(30) < Broadcaster(40)`. The numeric `LevelValue` is the only thing compared — and it is **internal**: it lives in the entities (`LevelValue` columns) and the resolver, never in a DTO, API response, chat reply, or UI. Every outward surface names the rung (`ManagementRole` / `CommunityStanding` names, PRODUCT-ALIGNMENT glossary); a user never sees a level number.
 
-- **Gate 1** = pure entry, **entry ≠ permission** (decided 2026-07-04): any authenticated caller may resolve tenant context for a channel that **exists** — community participant and channel manager alike. Fails closed only on a malformed id or a nonexistent channel. It carries **no** role floor: requiring management ≥ Moderator here would 403 every community-plane participant (viewer/sub/VIP) before their Everyone-floored actions ever reached Gate 2. All authorization — community AND management floors — is Gate 2's job, which makes **universal Gate-2 coverage a hard invariant**: every tenant-scoped controller action carries `[RequireAction]` (or a documented exemption), enforced by a reflection test.
-- **Gate 2** = per-action: "is the caller's resolved level ≥ this action's effective required level for this channel?" New with this epic; replaces the "almost everything is just `[Authorize]`" gap.
+- **Gate-1** = pure entry, **entry ≠ permission** (decided 2026-07-04): any authenticated caller may resolve tenant context for a channel that **exists** — community participant and channel manager alike. Fails closed only on a malformed id or a nonexistent channel. It carries **no** role floor: requiring management ≥ Moderator here would 403 every community-plane participant (viewer/sub/VIP) before their Everyone-floored actions ever reached Gate-2. All authorization — community AND management floors — is Gate-2's job, which makes **universal Gate-2 coverage a hard invariant**: every tenant-scoped controller action carries `[RequireAction]` (or a documented exemption), enforced by a reflection test.
+- **Gate-2** = per-action: "is the caller's resolved level ≥ this action's effective required level for this channel?" New with this epic; replaces the "almost everything is just `[Authorize]`" gap.
 - **`!permit`** — individual grants. **Effective level = MAX(Twitch-badge role, bot-role grants, individual capability grants)**, with two guardrails: **no escalation above the grantor's own level** (applies to every grantor), and **default-deny** (only capabilities whose `ActionDefinition.IsGrantableViaPermit == true` may be granted). The **Broadcaster (channel owner) is fully trusted and MAY grant Critical-tier capabilities** — paternalistic caps on what the owner can delegate do not exist; the owner is the sole authority over their channel. Critical grants are **always to a named individual user, never raised on a whole role tier** (§0.2), and the floor-tier guards that block a dangerous capability from being applied to a low *role* tier still hold.
 
 ### 0.2 Dangerous capabilities are delegated to a named individual, never raised on a role tier
@@ -116,7 +116,7 @@ public sealed record PermitRevokedEvent : DomainEventBase          // B.5 revoke
     public required string Reason { get; init; }                   // "unpermit" | "expired"
 }
 
-public sealed record AuthorizationDeniedEvent : DomainEventBase    // Gate 1 or Gate 2 denial
+public sealed record AuthorizationDeniedEvent : DomainEventBase    // Gate-1 or Gate-2 denial
 {
     public required Guid CallerUserId { get; init; }
     public required string ActionKey { get; init; }                // "" for Gate-1 entry denial
@@ -125,7 +125,7 @@ public sealed record AuthorizationDeniedEvent : DomainEventBase    // Gate 1 or 
     public required string Gate { get; init; }                     // "gate1" | "gate2"
 }
 
-public sealed record IamAccessEvaluatedEvent : DomainEventBase     // Plane C → also persists IamAuditLog
+public sealed record IamAccessEvaluatedEvent : DomainEventBase     // Plane-C → also persists IamAuditLog
 {
     public required Guid PrincipalId { get; init; }
     public required string Permission { get; init; }
@@ -141,7 +141,7 @@ public sealed record IamAccessEvaluatedEvent : DomainEventBase     // Plane C �
 
 All in `NomNomzBot.Application.Common.Interfaces` (matching `IChannelAccessService`'s location); impls in `NomNomzBot.Infrastructure.Services.Identity` (matching `ChannelAccessService`). All read/write through `IApplicationDbContext` + `IUnitOfWork`; mutating methods publish the events in §2 and `await _uow.SaveChangesAsync(ct)` before returning.
 
-### 3.1 `IChannelAccessService` — Gate 1 (EXTEND existing)
+### 3.1 `IChannelAccessService` — Gate-1 (EXTEND existing)
 Existing interface kept; signature widened `string → Guid` per §0.1; `IsPlatformPrincipal`/Plane-C path replaces the `User.IsAdmin` check.
 
 > **Single owner of the full surface:** `IChannelAccessService` is defined authoritatively in `platform-conventions.md` §3.2, which carries **both** `CanResolveTenantAsync` *and* `ResolveOwnChannelAsync` (the owner-channel resolver the `TenantResolutionMiddleware`/`OBSRelayHub` IDOR fix needs). This subsystem only consumes/extends the `CanResolveTenantAsync` member shown below — do not redeclare a narrower interface; the type has both methods.
@@ -149,8 +149,8 @@ Existing interface kept; signature widened `string → Guid` per §0.1; `IsPlatf
 ```csharp
 public interface IChannelAccessService
 {
-    // Gate 1 = pure entry (entry ≠ permission, §0): any authenticated caller resolves tenant context for a
-    // channel that exists. Fails closed only on malformed id / nonexistent channel; all floors are Gate 2's.
+    // Gate-1 = pure entry (entry ≠ permission, §0): any authenticated caller resolves tenant context for a
+    // channel that exists. Fails closed only on malformed id / nonexistent channel; all floors are Gate-2's.
     Task<bool> CanResolveTenantAsync(Guid userId, Guid channelId, CancellationToken cancellationToken = default);
 
     // Owner-channel resolver — defined in platform-conventions.md §3.2; listed here so the surface is not truncated.
@@ -170,16 +170,16 @@ public interface IRoleResolver
     Task<Result<ResolvedAccessDto>> ResolveAccessAsync(Guid userId, Guid broadcasterId, CancellationToken cancellationToken = default);
 
     // True if the caller holds (via role OR direct capability grant OR resolved level) the given action key.
-    // The canonical "can this user do this action" rule — backs BOTH chat-command gating and HTTP Gate 2.
+    // The canonical "can this user do this action" rule — backs BOTH chat-command gating and HTTP Gate-2.
     Task<Result<bool>> HasCapabilityAsync(Guid userId, Guid broadcasterId, string actionKey, CancellationToken cancellationToken = default);
 }
 ```
 
-### 3.3 `IActionAuthorizationService` — Gate 2 + per-action config (REPLACES generic `IPermissionService` authz)
+### 3.3 `IActionAuthorizationService` — Gate-2 + per-action config (REPLACES generic `IPermissionService` authz)
 ```csharp
 public interface IActionAuthorizationService
 {
-    // Gate 2: effectiveRequired = clamp(override ?? default, floor, Broadcaster); allow iff resolved caller level ≥ it
+    // Gate-2: effectiveRequired = clamp(override ?? default, floor, Broadcaster); allow iff resolved caller level ≥ it
     // OR the caller holds a direct per-user capability grant for this exact action (the HTTP mirror of
     // HasCapabilityAsync — how a broadcaster delegates an above-floor, permit-grantable action such as
     // channel:title:write to a specific mod; the bot then acts on the broadcaster's own token). Bounded by
@@ -202,7 +202,7 @@ public interface IActionAuthorizationService
 }
 ```
 
-### 3.4 `IMembershipService` — Plane B ladder writes + Helix/badge sync
+### 3.4 `IMembershipService` — Plane-B ladder writes + Helix/badge sync
 ```csharp
 public interface IMembershipService
 {
@@ -222,7 +222,7 @@ public interface IMembershipService
 }
 ```
 
-### 3.5 `ICommunityStandingService` — Plane A writes (chat-tag / EventSub badge sourced)
+### 3.5 `ICommunityStandingService` — Plane-A writes (chat-tag / EventSub badge sourced)
 ```csharp
 public interface ICommunityStandingService
 {
@@ -262,7 +262,7 @@ public interface IPermitService
 }
 ```
 
-### 3.7 `IPlatformIamService` — Plane C (SaaS only; no-op/owner=full on self-host)
+### 3.7 `IPlatformIamService` — Plane-C (SaaS only; no-op/owner=full on self-host)
 ```csharp
 public interface IPlatformIamService
 {
@@ -303,21 +303,23 @@ Records in `NomNomzBot.Application.Contracts.Authorization` (new domain folder).
 
 ```csharp
 // ── Resolution / read models ────────────────────────────────────────────────
+// Role NAMES only on the wire (PRODUCT-ALIGNMENT glossary): the numeric LevelValue stays inside the resolver/entities.
+// `EffectiveRung` is the unified-ladder rung name (the PermissionLevel enum: Everyone…Broadcaster) the comparison resolved to.
 public sealed record ResolvedAccessDto(
-    Guid UserId, Guid BroadcasterId, int EffectiveLevel,
-    CommunityStanding CommunityStanding, int CommunityLevel,
-    ManagementRole? ManagementRole, int ManagementLevel,
+    Guid UserId, Guid BroadcasterId, PermissionLevel EffectiveRung,
+    CommunityStanding CommunityStanding,
+    ManagementRole? ManagementRole,
     ManagementRole? PermitRole, IReadOnlyList<string> PermitCapabilities,
     string WinningSource);                                    // "community" | "management" | "permit"
 
 public sealed record ChannelMembershipDto(
-    Guid Id, Guid UserId, string? Username, ManagementRole Role, int LevelValue,
+    Guid Id, Guid UserId, string? Username, ManagementRole Role,
     MembershipSource Source, Guid? GrantedByUserId, DateTime GrantedAt, DateTime? LastSyncedAt);
 
 public sealed record ActionPermissionDto(
     Guid ActionDefinitionId, string ActionKey, AuthPlane Plane, string? Description,
-    int DefaultLevel, int FloorLevel, DangerTier FloorTier, bool IsGrantableViaPermit,
-    int? OverrideLevel, int EffectiveLevel);                  // EffectiveLevel = clamp(override ?? default, floor, Broadcaster)
+    PermissionLevel DefaultRung, PermissionLevel FloorRung, DangerTier FloorTier, bool IsGrantableViaPermit,
+    PermissionLevel? OverrideRung, PermissionLevel EffectiveRung); // EffectiveRung = clamp(override ?? default, floor, Broadcaster) — compared by LevelValue internally, surfaced as the rung name
 
 public sealed record PermitGrantDto(
     Guid Id, Guid UserId, string? Username, PermitGrantType GrantType,
@@ -352,7 +354,7 @@ public sealed record CreatePrincipalRequest(IamPrincipalType PrincipalType, Guid
 
 Two new controllers + one extended. All `[ApiVersion("1.0")]`, inherit `BaseController`, `[Authorize]`, return `StatusResponseDto<T>`/`PaginatedResponse<T>` via `ResultResponse(...)`.
 
-**Role gate** — **Gate 1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's). **Gate 2** = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the gate column before the service call (403 `FORBIDDEN` when the caller's resolved level is below the action's effective level). **Plane-C** rows (§5.4) = `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, ...)`; the ASP.NET `[Authorize(Policy="<key>")]` policy name **is** the permission key verbatim. The keys are seeded global `ActionDefinitions` (schema B.3); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`.
+**Role gate** — **Gate-1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). **Gate-2** = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the gate column before the service call (403 `FORBIDDEN` when the caller's resolved level is below the action's effective level). **Plane-C** rows (§5.4) = `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, ...)`; the ASP.NET `[Authorize(Policy="<key>")]` policy name **is** the permission key verbatim. The keys are seeded global `ActionDefinitions` (schema B.3); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`.
 
 ### 5.1 `RolesController` — `[Route("api/v{version:apiVersion}/channels/{channelId:guid}/roles")]`
 | Verb | Path | Request | Response | Plane / floor · Gate-2 action key |
@@ -420,22 +422,22 @@ In `NomNomzBot.Infrastructure/DependencyInjection.cs`, beside the existing ident
 
 ```csharp
 // Authorization — three planes + two gates
-services.AddScoped<IChannelAccessService, ChannelAccessService>();          // EXISTING — keep (Gate 1, widened)
+services.AddScoped<IChannelAccessService, ChannelAccessService>();          // EXISTING — keep (Gate-1, widened)
 services.AddScoped<IRoleResolver, RoleResolver>();
-services.AddScoped<IActionAuthorizationService, ActionAuthorizationService>(); // Gate 2 + per-action config
-services.AddScoped<IMembershipService, MembershipService>();                // Plane B writes + Twitch sync
-services.AddScoped<ICommunityStandingService, CommunityStandingService>();   // Plane A writes
+services.AddScoped<IActionAuthorizationService, ActionAuthorizationService>(); // Gate-2 + per-action config
+services.AddScoped<IMembershipService, MembershipService>();                // Plane-B writes + Twitch sync
+services.AddScoped<ICommunityStandingService, CommunityStandingService>();   // Plane-A writes
 services.AddScoped<IPermitService, PermitService>();                        // !permit / !unpermit
 
 // Pipeline actions
 services.AddTransient<ICommandAction, PermitAction>();
 services.AddTransient<ICommandAction, UnpermitAction>();
 
-// Plane C — Platform IAM: profile-adapter (SaaS = DB-backed; self-host = owner-is-full no-op)
+// Plane-C — Platform IAM: profile-adapter (SaaS = DB-backed; self-host = owner-is-full no-op)
 if (deploymentMode == DeploymentMode.Saas)
     services.AddScoped<IPlatformIamService, PlatformIamService>();          // reads Iam* tables + writes IamAuditLog
 else
-    services.AddScoped<IPlatformIamService, OwnerIsFullIamService>();        // self-host: always-allow, audit no-op (Plane C collapses)
+    services.AddScoped<IPlatformIamService, OwnerIsFullIamService>();        // self-host: always-allow, audit no-op (Plane-C collapses)
 ```
 
 **Deployment-profile adapter variant:** `IPlatformIamService` is the one swappable adapter — `PlatformIamService` (SaaS, `DeploymentMode.Saas`) vs `OwnerIsFullIamService` (self-host lite/full), selected by the `DeploymentProfile.Mode` boot switch (per the deployment-profile axis). The other six services have a single impl across profiles. **Seeding:** `ActionDefinitions`, `IamPermissions`, `IamRoles`, `IamRolePermissions` are `[GLOBAL, seed]` — add to the existing `DataSeeder` (line ~170).
@@ -446,7 +448,7 @@ else
 
 ## 7.1 Seed catalogue (canonical reference data)
 
-These are the `[GLOBAL, seed]` rows the `DataSeeder` writes (idempotent upsert by natural key) for `ActionDefinitions` (B.3), `IamPermissions` (C.1), `IamRoles` (C.2), and `IamRolePermissions` (C.3). Without them Gate 2 fails closed (403) on every gated route. Columns follow the schema: an `ActionDefinition` is `ActionKey` · `Plane` (`AuthPlane{Community,Management}`) · `DefaultLevel` · `FloorLevel` · `FloorTier` (`DangerTier{Critical,Tos,Low}`) · `IsGrantableViaPermit`. Level values: `Everyone(0)`, `Subscriber(2)`, `Vip(4)`, `Artist(6)`, `Moderator(10)`, `SuperMod(20)`, `Editor(30)`, `Broadcaster(40)`.
+These are the `[GLOBAL, seed]` rows the `DataSeeder` writes (idempotent upsert by natural key) for `ActionDefinitions` (B.3), `IamPermissions` (C.1), `IamRoles` (C.2), and `IamRolePermissions` (C.3). Without them Gate-2 fails closed (403) on every gated route. Columns follow the schema: an `ActionDefinition` is `ActionKey` · `Plane` (`AuthPlane{Community,Management}`) · `DefaultLevel` · `FloorLevel` · `FloorTier` (`DangerTier{Critical,Tos,Low}`) · `IsGrantableViaPermit`. Level values: `Everyone(0)`, `Subscriber(2)`, `Vip(4)`, `Artist(6)`, `Moderator(10)`, `SuperMod(20)`, `Editor(30)`, `Broadcaster(40)`.
 
 **Rule:** unless a row shows an explicit `Default X, Floor Y`, `DefaultLevel = FloorLevel`. `DefaultLevel` is the **out-of-the-box** required level — the action's Twitch base role — so a lower-standing viewer (e.g. a VIP or Sub) gets **nothing extra by default**. `FloorLevel` is the **lowest a broadcaster may set** via `ChannelActionOverride`: the override is clamped to `[FloorLevel, Broadcaster(40)]`, so a broadcaster may **raise** an action as high as Broadcaster **or lower** it as far as its floor — never below `FloorLevel`, and Critical-tier rows are not lowerable at all. A floor sits **below** the default only where abusing the action **cannot cause irreversible or serious harm** — non-destructive reads and reversible, non-destructive writes — so the broadcaster can *choose* to open them to a trusted VIP/Sub. Destructive, irreversible, Twitch-mutating, currency, or role/IAM actions keep `Floor = Default` at Moderator+ (or Broadcaster/Critical) and can never be lowered to VIP. The per-spec §5 controller tables are the **source** of these rows and must stay in sync — a §5 cell whose action key is absent here is a seed bug.
 
@@ -721,4 +723,4 @@ Least-privilege bundles; each row seeds the `IamRole` and its `IamRolePermission
 ## 9. Decisions (resolved)
 
 1. **`PermissionLevel` is extended in place** to the 8-rung unified ladder (one ladder, no parallel `AuthLevel`), keeping the single style `ChatMessageHandler` already uses. The enum and its `ToLevelValue` extension are defined in §1.1; the resolver maps against this one ladder.
-2. **Self-host Plane C is the `OwnerIsFullIamService` no-op adapter** (owner = full, audit no-op), per the model doc's "Self-hosted: N/A — Plane C collapses to owner = full." `IPlatformIamService` is always injected (DI selects the adapter by `DeploymentProfile.Mode`, §7) so controllers and `AdminController` carry no profile branching.
+2. **Self-host Plane-C is the `OwnerIsFullIamService` no-op adapter** (owner = full, audit no-op), per the model doc's "Self-hosted: N/A — Plane-C collapses to owner = full." `IPlatformIamService` is always injected (DI selects the adapter by `DeploymentProfile.Mode`, §7) so controllers and `AdminController` carry no profile branching.

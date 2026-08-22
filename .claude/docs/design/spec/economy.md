@@ -7,7 +7,7 @@ leaderboards. Code from this directly.
 Source of truth: locked schema `2026-06-16-database-schema.md` Domain **K** (Economy), plus the K-owned
 slices of Domain **L** (LeaderboardConfigs/OptOuts/Snapshots), Domain **O** (EventJournal, ConsentRecords),
 and Domain **Q** (TenantSequences). Library choices: `2026-06-16-stack-and-dependencies.md`. This spec
-conforms to the resolved cross-cutting decisions in `2026-06-16-decisions-pending-confirmation.md`.
+conforms to the resolved cross-cutting decisions in `2026-06-16-decisions-resolved.md`.
 
 ## Binding conventions (every signature below obeys these)
 
@@ -45,22 +45,24 @@ Defined and **owned** by this subsystem (locked schema — referenced, not redef
 `ITenantScoped` (`BroadcasterId : Guid`) and the EF global tenant + soft-delete filters except where the
 schema marks `[APPEND-ONLY]` (no `DeletedAt`/`UpdatedAt`) or `[CROSS-TENANT]` (membership-predicate RLS).
 
+**Accounts are keyed per channel, one per human.** A channel is one tenant spanning every platform connection (PRODUCT-ALIGNMENT D1) and a viewer is one `User` across platforms, so `CurrencyAccount` is `Unique(BroadcasterId, ViewerUserId)` — **one balance per human per channel**, regardless of which platform they earned or spent on. The denormalized `ViewerExternalUserId` + `ViewerProvider` pair records the platform identity the row was last touched from (PII-hash, for erasure/audit), never a second account key.
+
 | Entity | Schema | Kind | Key fields (abridged — schema is authoritative) |
 |---|---|---|---|
 | `CurrencyConfig` | K.1 | soft-delete, `Unique(BroadcasterId)` | `Id:Guid`, `BroadcasterId:Guid`, `CurrencyName:string(50)`, `CurrencyNamePlural:string?`, `IconUrl:string?`, `IsEnabled:bool`, `StartingBalance:long`, `MaxBalance:long?`, `DecimalPlaces:int` |
 | `EarningRule` | K.1a | soft-delete, `Unique(BroadcasterId,Source)` | `Id:Guid`, `BroadcasterId:Guid`, `Source:string(30)[VC:enum]`, `IsEnabled:bool`, `Rate:long`, `UnitWindowSeconds:int?`, `PerWindowCap:long?`, `PerStreamCap:long?`, `MinRoleLevel:int?`, `ConfigSchemaVersion:int`, `BonusConfigJson:string?[VC:JSON]` |
-| `CurrencyAccount` | K.2 | soft-delete, `Unique(BroadcasterId,ViewerUserId)` | `Id:Guid`, `BroadcasterId:Guid`, `ViewerUserId:Guid`, `ViewerTwitchUserId:string(50)[PII-hash]`, `Balance:long`, `LifetimeEarned:long`, `LifetimeSpent:long`, `IsFrozen:bool`, `LastActivityAt:DateTime?` |
-| `CurrencyLedgerEntry` | K.3 | **APPEND-ONLY**, `Unique(BroadcasterId,TenantPosition)` | `Id:long`, `BroadcasterId:Guid`, `TenantPosition:long`, `AccountId:Guid`, `ViewerUserId:Guid`, `ViewerTwitchUserId:string[PII-hash]`, `Amount:long` (signed), `BalanceAfter:long`, `EntryType:string(30)[VC:enum]`, `SourceType:string?[VC:enum]`, `SourceId:Guid?`, `RelatedEntryId:long?`, `EventId:Guid?`(FK→EventJournal.EventId), `Reason:string?[PII-scrub]`, `ActorUserId:Guid?` |
+| `CurrencyAccount` | K.2 | soft-delete, `Unique(BroadcasterId,ViewerUserId)` | `Id:Guid`, `BroadcasterId:Guid`, `ViewerUserId:Guid`, `ViewerExternalUserId:string(50)[PII-hash]`, `ViewerProvider:string(20)[VC:enum]`, `Balance:long`, `LifetimeEarned:long`, `LifetimeSpent:long`, `IsFrozen:bool`, `LastActivityAt:DateTime?` |
+| `CurrencyLedgerEntry` | K.3 | **APPEND-ONLY**, `Unique(BroadcasterId,TenantPosition)` | `Id:long`, `BroadcasterId:Guid`, `TenantPosition:long`, `AccountId:Guid`, `ViewerUserId:Guid`, `ViewerExternalUserId:string[PII-hash]`, `ViewerProvider:string(20)[VC:enum]`, `Amount:long` (signed), `BalanceAfter:long`, `EntryType:string(30)[VC:enum]`, `SourceType:string?[VC:enum]`, `SourceId:Guid?`, `RelatedEntryId:long?`, `EventId:Guid?`(FK→EventJournal.EventId), `Reason:string?[PII-scrub]`, `ActorUserId:Guid?` |
 | `SavingsJar` | K.4 | soft-delete, **CROSS-TENANT** | `Id:Guid`, `OwnerBroadcasterId:Guid`, `Name:string(100)`, `Description:string?`, `GoalAmount:long?`, `Balance:long`, `IconUrl:string?`, `IsOpen:bool`, `MaxWithdrawalPerChannel:long?` |
 | `SavingsJarMembership` | K.5 | soft-delete, `Unique(JarId,MemberBroadcasterId)` | `Id:Guid`, `JarId:Guid`, `MemberBroadcasterId:Guid`, `Role:string(20)[VC:enum]`(owner/partner/viewer), `Status:string(20)[VC:enum]`(pending/accepted/revoked), `ContributionCapPerStream:long?`, `WithdrawalCap:long?`, `InvitedByBroadcasterId:Guid?`, `AcceptedAt:DateTime?` |
 | `JarContribution` | K.6 | **APPEND-ONLY** | `Id:long`, `JarId:Guid`, `SourceBroadcasterId:Guid`, `ContributorAccountId:Guid?`, `ContributorUserId:Guid?`, `Amount:long` (signed), `MovementType:string(20)[VC:enum]`(contribute/withdraw), `LedgerEntryId:long?`, `ActorUserId:Guid?` |
 | `GameConfig` | K.7 | soft-delete, `Unique(BroadcasterId,GameType)` | `Id:Guid`, `BroadcasterId:Guid`, `GameType:string(30)`, `Category:string(20)`(minigame/gambling), `IsEnabled:bool`, `Requires18Plus:bool`, `MinBet:long?`, `MaxBet:long?`, `HouseEdgePercent:decimal(5,2)?`, `WinChancePercent:decimal(5,2)?`, `PayoutMultiplier:decimal(8,2)?`, `CooldownSeconds:int`, `MaxPlaysPerStream:int?`, `ConfigJson:string?[VC:JSON]`, `Permission:string(20)[VC:enum]` |
-| `ViewerAgeConsent` | K.8 | soft-delete, `Unique(BroadcasterId,ViewerUserId)` | `Id:Guid`, `BroadcasterId:Guid`, `ViewerUserId:Guid`, `ViewerTwitchUserId:string[PII-hash]`, `ConsentRecordId:Guid`(FK→ConsentRecords O.5), `Granted:bool`, `ConfirmedAt:DateTime`, `RevokedAt:DateTime?`, `ConfirmationMethod:string(30)` — thin 1:1 cache over `ConsentRecords` (`ConsentType=age_18_gambling`) |
+| `ViewerAgeConsent` | K.8 | soft-delete, `Unique(BroadcasterId,ViewerUserId)` | `Id:Guid`, `BroadcasterId:Guid`, `ViewerUserId:Guid`, `ViewerExternalUserId:string[PII-hash]`, `ViewerProvider:string(20)[VC:enum]`, `ConsentRecordId:Guid`(FK→ConsentRecords O.5), `Granted:bool`, `ConfirmedAt:DateTime`, `RevokedAt:DateTime?`, `ConfirmationMethod:string(30)` — thin 1:1 cache over `ConsentRecords` (`ConsentType=age_18_gambling`) |
 | `GamePlay` | K.9 | **APPEND-ONLY** | `Id:long`, `BroadcasterId:Guid`, `GameConfigId:Guid`, `GameSessionId:Guid?` (null for instant plays; set by live-games session settlement), `PlayerAccountId:Guid`, `PlayerUserId:Guid`, `BetAmount:long`, `Outcome:string(20)[VC:enum]`(win/lose/push/jackpot), `PayoutAmount:long`, `NetResult:long`, `ResultJson:string?[VC:JSON]`, `BetLedgerEntryId:long?`, `PayoutLedgerEntryId:long?` |
 | `CatalogItem` | K.10 | soft-delete, `Unique(BroadcasterId,NameNormalized)` | `Id:Guid`, `BroadcasterId:Guid`, `Name:string(100)`, `NameNormalized:string(100)`, `Description:string?`, `SinkType:string(30)`, `Cost:long`, `IconUrl:string?`, `IsEnabled:bool`, `Permission:string(20)[VC:enum]`, `PipelineId:Guid?`, `CooldownSeconds:int`, `CooldownPerUser:bool`, `StockLimit:int?`, `StockRemaining:int?`, `MaxPerViewerPerStream:int?`, `SortOrder:int` |
 | `CatalogPurchase` | K.11 | **APPEND-ONLY** | `Id:long`, `BroadcasterId:Guid`, `CatalogItemId:Guid`, `BuyerAccountId:Guid`, `BuyerUserId:Guid`, `CostPaid:long`, `ItemNameSnapshot:string(100)`, `Status:string(20)[VC:enum]`(completed/pending/refunded/failed), `LedgerEntryId:long?`, `InputArgs:string?[PII-scrub]` |
 | `LeaderboardConfig` | L.1 | soft-delete | `Id:Guid`, `BroadcasterId:Guid?`, `JarId:Guid?`, `Metric:string(30)`, `Scope:string(20)`(channel/jar), `Period:string(20)`, `IsPublic:bool`, `TopN:int` |
-| `LeaderboardOptOut` | L.2 | `Unique(BroadcasterId,ViewerUserId)` | `Id:Guid`, `BroadcasterId:Guid`, `ViewerUserId:Guid`, `ViewerTwitchUserId:string[PII-hash]`, `OptedOutAt:DateTime` |
+| `LeaderboardOptOut` | L.2 | `Unique(BroadcasterId,ViewerUserId)` | `Id:Guid`, `BroadcasterId:Guid`, `ViewerUserId:Guid`, `ViewerExternalUserId:string[PII-hash]`, `ViewerProvider:string(20)[VC:enum]`, `OptedOutAt:DateTime` |
 | `LeaderboardSnapshot` | L.3 | **APPEND-ONLY** | `Id:long`, `LeaderboardConfigId:Guid`, `BroadcasterId:Guid?`, `PeriodKey:string(20)`, `Rank:int`, `SubjectAccountId:Guid?`, `SubjectUserId:Guid?`, `SubjectTwitchUserId:string[PII-hash]`, `DisplayNameSnapshot:string(255)[PII-scrub]`, `Value:long`, `CapturedAt:DateTime` |
 
 Referenced (NOT owned — read/consumed by economy): `EventJournal` (O.1) is the ledger's `EventId` FK and the
@@ -461,7 +463,7 @@ public sealed record CurrencyConfigDto(Guid Id, Guid BroadcasterId, string Curre
 
 public sealed record EarningRuleDto(Guid Id, string Source, bool IsEnabled, long Rate, int? UnitWindowSeconds, long? PerWindowCap, long? PerStreamCap, int? MinRoleLevel, int ConfigSchemaVersion, IReadOnlyDictionary<string, object?>? BonusConfig);
 
-public sealed record CurrencyAccountDto(Guid Id, Guid ViewerUserId, string ViewerTwitchUserId, long Balance, long LifetimeEarned, long LifetimeSpent, bool IsFrozen, DateTime? LastActivityAt);
+public sealed record CurrencyAccountDto(Guid Id, Guid ViewerUserId, string ViewerExternalUserId, string ViewerProvider, long Balance, long LifetimeEarned, long LifetimeSpent, bool IsFrozen, DateTime? LastActivityAt);
 
 public sealed record CurrencyLedgerEntryDto(long Id, long TenantPosition, Guid AccountId, Guid ViewerUserId, long Amount, long BalanceAfter, string EntryType, string? SourceType, Guid? SourceId, long? RelatedEntryId, Guid? EventId, string? Reason, Guid? ActorUserId, DateTime CreatedAt);
 
@@ -550,12 +552,12 @@ New controllers under `NomNomzBot.Api/Controllers/V1/`, all `[ApiVersion("1.0")]
 **Role gate** (schema B.3 `ActionDefinitions`: per-action `AuthPlane` ∈ {`Community`,`Management`} + seeded
 `FloorLevel`). The keys below are seeded global `ActionDefinitions`; a broadcaster may raise a floor via
 `ChannelActionOverride` but never below the seeded `FloorLevel`. The gate runs in two stages:
-- **Gate 1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's).
-- **Gate 2** = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the
+- **Gate-1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's).
+- **Gate-2** = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the
   per-route floor named in the Action-key column before the service call (403 FORBIDDEN when below). The
   effective caller level is `MAX(community standing, management role, active !permit grant)` over the unified
   ladder spanning the community and management planes.
-- **Plane C** (platform IAM, `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, ...)`, where
+- **Plane-C** (platform IAM, `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, ...)`, where
   the `[Authorize(Policy="<key>")]` policy name IS the permission key verbatim) governs cross-tenant/privileged
   platform ops — none in this subsystem.
 

@@ -1,7 +1,7 @@
 # Interface Specification — Widgets & Overlays Subsystem
 
 **Status:** Implementable. Code the owner writes from this should compile first-try.
-**Sources of truth:** locked schema `2026-06-16-database-schema.md` (§P.6–P.9, §A.2 `Channels.OverlayToken`); design `2026-06-16-widgets.md`; stack `2026-06-16-stack-and-dependencies.md`; defaults `2026-06-16-decisions-pending-confirmation.md`.
+**Sources of truth:** locked schema `2026-06-16-database-schema.md` (§P.6–P.9, §A.2 `Channels.OverlayToken`); design `2026-06-16-widgets.md`; stack `2026-06-16-stack-and-dependencies.md`; defaults `2026-06-16-decisions-resolved.md`.
 **Conventions (binding):** namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable enable`; async all the way; `Result<T>` over exceptions/null; Repository + `IUnitOfWork`; typed-interface DI, no MediatR, no Roslyn; responses `StatusResponseDto<T>` / `PaginatedResponse<T>`; controllers `[ApiVersion("1.0")]` `[Route("api/v{version:apiVersion}/...")]`; Newtonsoft.Json for app JSON; surrogate PK `Guid` via `Guid.CreateVersion7()`; tenant key `BroadcasterId` is `Guid`; soft-delete (`IsDeleted`+`DeletedAt`) global filter.
 
 > **Relationship to existing code (EXTEND, do not duplicate).** A thin v0 already exists and is **aligned, not replaced**, by this spec:
@@ -10,7 +10,7 @@
 > - `NomNomzBot.Application/DTOs/Widgets/WidgetDtos.cs` — extend records below.
 > - `NomNomzBot.Api/Hubs/OverlayHub.cs`, `Hubs/Clients/IOverlayClient.cs`, `Hubs/WidgetNotifier.cs`, `Hubs/Dtos/HubResponseDtos.cs` — extend (add `WidgetCompileFailed`, `WidgetSettingsChanged` already present, CSP-nonce delivery; XSS-safe payloads).
 > - `NomNomzBot.Api/Controllers/V1/WidgetsController.cs` — extend with version/compile/gallery routes.
-> - `NomNomzBot.Infrastructure/Services/Application/WidgetService.cs`, `Persistence/Configurations/WidgetConfiguration.cs`, `Persistence/Repositories/WidgetRepository.cs` — align (`[VC:JSON]` converters replace the banned `HasColumnType("jsonb")`; UUIDv7 ids).
+> - `NomNomzBot.Infrastructure/Widgets/Persistence/WidgetConfiguration.cs`, `WidgetService.cs`, `WidgetRepository.cs` — aligned (`[VC:JSON]` Newtonsoft converters, no `HasColumnType("jsonb")` — re-verified against the file 2026-08-22; UUIDv7 ids).
 > - `NomNomzBot.Domain/Events/WidgetConnectedEvent.cs` / `WidgetDisconnectedEvent.cs` — keep; widen ids to `Guid`; add the new events below.
 
 ---
@@ -26,40 +26,60 @@ All owned by this subsystem; **defined in the locked schema — referenced here,
 | **`WidgetGalleryItem`** | §P.8 `[GLOBAL, soft-delete]` (no `BroadcasterId`) | global | `Id Guid` PK; `SubmitterUserId Guid` FK→`Users.Id` Index; `SubmitterTwitchUserId string(50)` Index [PII-hash]; `SubmitterDisplayNameSnapshot string(255)?` [PII-scrub]; `Name string(255)`; `Description text?`; `Framework string(20)`; `TrustTier string(20)` [VC:enum] Index (`first_party`\|`verified_community`\|`unverified`); `GitHubRepoUrl string(2048)`; `PinnedCommitSha string(40)`; `PinnedTag string(100)?`; `ReviewStatus string(20)` [VC:enum] Index (`submitted`\|`in_review`\|`verified`\|`rejected`); `ReviewedByUserId Guid?` FK→`Users.Id`; `ReviewNotes text?`; `ReviewedAt timestamp?`; `AvailableInSaaS bool`; `InstallCount int`; `CreatedAt/UpdatedAt/DeletedAt`. **Unique** `(GitHubRepoUrl, PinnedCommitSha)`. |
 | **`WidgetGallerySubmissionEvent`** | §P.9 `[GLOBAL, APPEND-ONLY]` (no `BroadcasterId`) | global | `Id Guid` PK; `GalleryItemId Guid` FK→`WidgetGalleryItem.Id` Index; `FromStatus string(20)?`; `ToStatus string(20)`; `ChangedByUserId Guid?` FK→`Users.Id`; `NewPinnedCommitSha string(40)?`; `Note text?`; `OccurredAt timestamp` Index; `CreatedAt`. Immutable review/pin-change history. |
 
-**Adjacent (read-only here, owned elsewhere):** `Channels.OverlayToken string(36)` Unique (§A.2) — the opaque per-channel browser-source token this subsystem validates at OverlayHub connect; not PII; **never** the user JWT (stack §Realtime). `WidgetGalleryItem.TrustTier` drives the SaaS rendering CSP tier (§ below).
+**Adjacent (read-only here, owned elsewhere):** `Channels.OverlayToken string(36)` Unique (§A.2) — the opaque per-channel overlay token; each widget and system surface receives a **per-widget token derived from it** (`widget-sdk.md` §6) which this subsystem verifies at OverlayHub connect; not PII; **never** the user JWT (stack §Realtime). `WidgetGalleryItem.TrustTier` drives the SaaS rendering CSP tier (§ below).
 
 **TrustTier source mapping (binding — security-load-bearing).** `OverlayWidgetEntry.TrustTier` (non-null, the CSP-tier input) is derived per widget from `Widget.Source`, **not** stored on `Widget`. A gallery-installed widget (`Source ∈ {verified_gallery, first_party}`, `GalleryItemId` set) inherits `WidgetGalleryItem.TrustTier` (`first_party`\|`verified_community`). A `Source=custom` widget (`GalleryItemId=null` — self-authored, the only output of `CreateAsync`+`CompileAsync`) has **no** `WidgetGalleryItem` and maps to **`unverified`** — fail-closed, never silently guessed. Mapping (exhaustive): `first_party` source → gallery `first_party`; `verified_gallery` source → gallery `verified_community`; `custom` source → `unverified`. A gallery-sourced widget whose `WidgetGalleryItem` is unexpectedly missing also falls back to `unverified` (fail-closed).
 
 **EF mapping notes (binding):**
-- All `[VC:JSON]` columns use the hand-rolled `JsonValueConverter<T>` + `JsonValueComparer<T>` convention (Newtonsoft.Json) — **never** `HasColumnType("jsonb")`/`HasDefaultValueSql("…::jsonb")` (banned; the live `WidgetConfiguration.cs` uses the banned form and MUST be corrected to converters).
+- All `[VC:JSON]` columns use the hand-rolled `JsonValueConverter<T>` + `JsonValueComparer<T>` convention (Newtonsoft.Json) — **never** `HasColumnType("jsonb")`/`HasDefaultValueSql("…::jsonb")`. **Done:** the live `Infrastructure/Widgets/Persistence/WidgetConfiguration.cs` uses the converters and no `jsonb` (re-verified 2026-08-22).
 - `Widget` carries the soft-delete global filter (`DeletedAt == null`). `WidgetVersion`/`WidgetGallerySubmissionEvent` are append-only (no filter, no `UpdatedAt`/`DeletedAt`).
 - `WidgetGalleryItem`/`WidgetGallerySubmissionEvent` are GLOBAL — **no** `BroadcasterId`, **no** tenant query filter; gallery reads are unscoped, writes are platform-IAM gated.
 
 ### 1.1 First-party catalogue (seeded)
 
-Thirteen `WidgetGalleryItem` rows ship with the bot, seeded idempotently by a new `FirstPartyWidgetCatalogueSeeder` (`ISeeder`, GLOBAL reference data, upsert by a stable natural key so a re-run adds nothing). All rows: `TrustTier=first_party`, `ReviewStatus=verified`, `AvailableInSaaS=true`, `SubmitterUserId=null` (platform-owned), `InstallCount=0`.
+**Nineteen** user-installable `WidgetGalleryItem` rows ship with the bot (the table below is the **only** source of the count — `dev-platform.md` and every other doc cite it, never a separate number), seeded idempotently by `FirstPartyWidgetCatalogueSeeder` (`ISeeder`, GLOBAL reference data, upsert by a stable natural key so a re-run adds nothing) from `Infrastructure/Content/Widgets/FirstPartyWidgetCatalogue.cs`. All rows: `TrustTier=first_party`, `ReviewStatus=verified`, `AvailableInSaaS=true`, `SubmitterUserId=null` (platform-owned), `InstallCount=0`. The two audio/alert surfaces the catalogue file still lists under the keys `alerts` and `tts_caption` are **not gallery items** — they are the channel-owned system surfaces of §1.2 and leave the installable catalogue (the file is trimmed to the nineteen below; the seeder provisions the §1.2 surfaces per channel instead).
 
 **First-party provenance (schema delta).** First-party widgets ship their source IN-REPO (compiled from the in-repo widget source tree at build time — there is no static `web/` folder), not from GitHub. So for `TrustTier=first_party` the `GitHubRepoUrl` and `PinnedCommitSha` columns are NULL, and a new `SourceKind string(20) [VC:enum] = in_repo | github` discriminator on `WidgetGalleryItem` distinguishes them (community submissions = `github`, the seeded catalogue = `in_repo`). The seeder loads each item's `SourceCode` + default settings schema from its in-repo asset on seed; install and clone copy from there. Note this `SourceKind` column + the now-nullable `GitHubRepoUrl`/`PinnedCommitSha` are a delta to the locked schema's `WidgetGalleryItem` table (DOMAIN for widgets, §P.8) — added there too.
 
 Each item declares a default settings schema (the config keys used to render its config form and validate overrides).
 
-| # | Name | key | Purpose | Config keys |
-|---|---|---|---|---|
-| 1 | Alerts | `alerts` | follow/sub/resub/gift/raid/cheer + `supporter.*` (tip/membership/merch/charity, branched on `Kind` — `supporter-events.md`) popups | `events[]` (per-event enable), `sound`, `image`, `textTemplate`, `durationMs`, `minBits`, `minGiftCount`, `minAmount` |
-| 2 | Chat box | `chat_box` | live chat rendered from the DECORATED fragment tree (consumes `chat-decoration.md`: FFZ/7TV/BTTV emotes + badges) | `theme`, `maxMessages`, `fadeAfterMs`, `showBadges`, `showEmotes`, `hideCommands`, `hideBots` |
-| 3 | Now Playing | `now_playing` | current track | `layout`, `showArt`, `showProgressBar`, `provider` |
-| 4 | SR Queue | `sr_queue` | upcoming song-request queue | `count`, `showRequester`, `showDuration` |
-| 5 | TTS caption | `tts_caption` | speaking indicator + caption; binds `OverlayHub.TtsSpeak` (§7) | `showText`, `voiceLabel`, `position` |
-| 6 | Goal bar | `goal_bar` | follower/sub/bits goal progress | `metric`, `target`, `start`, `resetCadence`, `colors`, `labels` |
-| 7 | Event ticker | `event_ticker` | scrolling recent events | `events[]`, `speed`, `count` |
-| 8 | Labels | `labels` | single-stat text (latest follower/sub, top cheerer, counts) | `label`, `formatString` |
-| 9 | Poll / Prediction | `poll_prediction` | live poll/prediction bars; binds `channel.poll.*` / `channel.prediction.*` | `position`, `colors` |
-| 10 | Redemption alert | `redemption_alert` | channel-point redemption popup | `rewards[]` (per-reward enable), `textTemplate`, `sound` |
-| 11 | Countdown / Timer | `countdown_timer` | countdown to a time or duration (BRB/soon), dashboard-controllable | `target`, `durationMs`, `label`, `onCompleteText` |
-| 12 | Emote wall | `emote_wall` | emotes from chat float across screen, incl. FFZ/7TV/BTTV emote fragments from the decorator | `density`, `size`, `animation`, `providers[]` |
-| 13 | Custom Data | `custom_data` | live value of a custom data source (`custom-events.md`); a heart-rate gauge is this bound to `heartrate.bpm` | `source` (custom-data source `name`), `field` (optional), `render` (`number`\|`gauge`\|`text`), `label`, `min`, `max` |
+Event bindings are the `domain.action` names of `widget-sdk.md` §2.1 (one name per domain event across every platform connection).
 
-**Dependency:** items `chat_box` (#2) and `emote_wall` (#12) consume the third-party-emote fragment tree from `chat-decoration.md` — they render real BTTV/FFZ/7TV emotes only once that subsystem's decorated DTO ships. **Test:** each of the thirteen seeds as `TrustTier=first_party` + `AvailableInSaaS=true`, installs into a channel, and carries its declared config keys in the default settings schema.
+| # | Name | key | Purpose | Binds | Config keys |
+|---|---|---|---|---|---|
+| 1 | Chat box | `chat_box` | live chat rendered from the DECORATED fragment tree (consumes `chat-decoration.md`: FFZ/7TV/BTTV emotes + badges) | `chat.message` | `theme`, `maxMessages`, `fadeAfterMs`, `showBadges`, `showEmotes`, `hideCommands`, `hideBots`, `fontFamily`, `background` |
+| 2 | Now Playing | `now_playing` | current track | `song.changed` | `layout`, `showArt`, `showProgressBar`, `provider`, `youtubeMode` |
+| 3 | SR Queue | `sr_queue` | upcoming song-request queue | `song.changed` | `count`, `showRequester`, `showDuration` |
+| 4 | Goal bar | `goal_bar` | follower/sub/bits goal progress | `viewer.followed`, `viewer.subscribed`, `viewer.gifted`, `bits.cheered`, `goal.changed` | `metric`, `target`, `start`, `resetCadence`, `colors`, `labels` |
+| 5 | Event ticker | `event_ticker` | scrolling recent events | `viewer.*`, `bits.cheered`, `channel.raided`, `supporter.any` | `events[]`, `speed`, `count` |
+| 6 | Labels | `labels` | single-stat text (latest follower/sub, top cheerer, counts) | `viewer.followed`, `viewer.subscribed`, `bits.cheered` | `label`, `formatString` |
+| 7 | Poll / Prediction | `poll_prediction` | live poll/prediction bars | `poll.updated`, `prediction.updated` | `position`, `colors` |
+| 8 | Redemption alert | `redemption_alert` | channel-point redemption popup | `reward.redeemed` | `rewards[]` (per-reward enable), `textTemplate`, `sound` |
+| 9 | Countdown / Timer | `countdown_timer` | countdown to a time or duration (BRB/soon), dashboard-controllable | — (settings push) | `target`, `durationMs`, `label`, `onCompleteText` |
+| 10 | Emote wall | `emote_wall` | emotes from chat float across screen, incl. FFZ/7TV/BTTV emote fragments from the decorator | `chat.message` | `density`, `size`, `animation`, `providers[]` |
+| 11 | Custom Data | `custom_data` | live value of a custom data source (`custom-events.md`); a heart-rate gauge is this bound to `heartrate.bpm` | `custom.<name>` | `source` (custom-data source `name`), `field` (optional), `render` (`number`\|`gauge`\|`text`), `label`, `min`, `max` |
+| 12 | Drop Game | `drop_game` | live drop-game round: target zone, each chatter's landing marker, payout scoreboard | `game.lobby`, `game.running`, `game.resolved` | `accentColor`, `hideAfterMs` |
+| 13 | Raffle | `raffle` | live raffle round: entrant roster, climbing pot, winner reveal | `game.lobby`, `game.running`, `game.resolved` | `accentColor`, `hideAfterMs` |
+| 14 | Heist | `heist` | live heist round: crew roster, escape odds, per-member outcome | `game.lobby`, `game.running`, `game.resolved` | `accentColor`, `hideAfterMs` |
+| 15 | Crash | `crash` | live crash round: rising multiplier, cash-out ticker, bust reveal | `game.lobby`, `game.running`, `game.resolved` | `accentColor`, `hideAfterMs` |
+| 16 | Recent Followers | `recent_followers` | always-on panel of the most recent followers | `viewer.followed` | `count`, `title`, `accentColor` |
+| 17 | Sub Train | `sub_train` | rolling-window sub/gift hype counter | `viewer.subscribed`, `viewer.gifted` | `windowMs`, `accentColor` |
+| 18 | Socials | `socials` | rotating social-handles bar (config only, no event feed) | — | `handles[]`, `rotateMs`, `accentColor` |
+| 19 | Top Cheerers | `top_cheerers` | ranked board of the session's biggest cheerers | `bits.cheered` | `count`, `title`, `accentColor` |
+
+**Dependency:** items `chat_box` (#1) and `emote_wall` (#10) consume the third-party-emote fragment tree from `chat-decoration.md` (decorated DTO). **Test:** each of the nineteen seeds as `TrustTier=first_party` + `AvailableInSaaS=true`, installs into a channel, and carries its declared config keys in the default settings schema; the seeder's key set equals this table's key set exactly (a test diff-asserts it).
+
+### 1.2 System surfaces (channel-owned, auto-provisioned — not gallery items)
+
+A **system surface** is a channel-owned page that is never installed from the gallery: it is provisioned for every channel at channel creation (and on first use if missing), served like a widget (own SPA, own per-widget token derived from `Channels.OverlayToken`, `widget-sdk.md` §6), configured from the page that owns it, and cannot be uninstalled — only disabled. Three ship:
+
+| Surface | Owner page | Behavior | Config |
+|---|---|---|---|
+| **Alert surface** | Alerts & Events (event responses) | **The one alert queue across every platform connection.** Renders every on-air alert an event response produces — `viewer.followed` / `viewer.subscribed` / `viewer.gifted` / `bits.cheered` / `channel.raided` / `supporter.*` (branched on `Kind`, `supporter-events.md`) — from Twitch, Kick, YouTube and X alike, strictly in order, one at a time. It consumes `IOverlayClient.WidgetEvent` pushes from the event-response engine; there is no per-platform alert page. | `events[]` (per-event enable), `sound`, `image`, `textTemplate`, `durationMs`, `minBits`, `minGiftCount`, `minAmount` |
+| **TTS surface** | TTS page (`tts.md` §6.2) | Holds the `<audio>` element for TTS. Consumes `IOverlayClient.TtsSpeak`; plays one utterance at a time from an **ordered audio queue**, each utterance's `Segments` in order (server-synthesized segments by `audioUrl`, `client_edge` segments via the browser's `speechSynthesis` with `utter.voice`/`lang` resolved from `voiceId`); an optional caption (speaking indicator + text) renders when `showText` is on. The former `tts_caption` gallery item is this surface. | `showText`, `voiceLabel`, `position`, `volume` |
+| **Sound surface** | Sound clips page (`sound-system.md`) | Holds the `<audio>` elements for sound clips. Consumes `IOverlayClient.PlaySound` / stop; plays overlap by default, a `Handle` lets `stop_sound` target one playback. | `volume` |
+
+The Alert, TTS and Sound surfaces are each added to OBS once (one browser source per surface); every other on-air element is a gallery widget.
 
 ---
 
@@ -354,7 +374,7 @@ public sealed record UpdatePinRequest
 
 All under `[ApiVersion("1.0")]`, return `StatusResponseDto<T>` / `PaginatedResponse<T>`, inherit `BaseController`.
 
-**Role gate.** Gate 1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's). Gate 2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the gate column's action key before the service call (403 `FORBIDDEN` when below). Plane-C rows = `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, …)`; the ASP.NET `[Authorize(Policy="<key>")]` policy-name **is** the permission key verbatim. The keys are seeded global `ActionDefinitions` (schema B.3); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. Widget authoring is an **Editor-floor** management action (overlays touch what's on stream); gallery review is a **platform** action.
+**Role gate.** Gate-1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). Gate-2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the gate column's action key before the service call (403 `FORBIDDEN` when below). Rows marked `platform` are **Plane-C** (platform IAM) = `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, …)`; the ASP.NET `[Authorize(Policy="<key>")]` policy-name **is** the permission key verbatim. The keys are seeded global `ActionDefinitions` (schema B.3); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. Widget authoring is an **Editor-floor** management action (overlays touch what's on stream); gallery review is a **platform** action.
 
 ### 5a. Tenant widget CRUD + versions — `WidgetsController` (EXTEND)
 `[Route("api/v{version:apiVersion}/channels/{channelId}/widgets")]` `[Authorize]`
@@ -401,7 +421,7 @@ One action — overlays are pushed from pipelines (alerts/now-playing). Folder `
 
 | Type string | Config DTO | Behavior |
 |---|---|---|
-| `widget_event` | `WidgetEventActionConfig(Guid WidgetId, string EventType, Dictionary<string,object?>? Data)` | Pushes one `WidgetEventDto` to the target widget's Overlay group via `IWidgetNotifier.SendWidgetEventAsync(broadcasterId, widgetId, dto)`. Payload is XSS-token-pipeline-sanitized before send. Fail-closed if widget not found/disabled in tenant. |
+| `widget_event` | `WidgetEventActionConfig(Guid WidgetId, string EventType, Dictionary<string,object?>? Data)` | Pushes one `WidgetEventDto` to the target widget's Overlay group via `IWidgetNotifier.SendWidgetEventAsync(broadcasterId, widgetId, dto)`. `EventType` is validated at **config time** (pipeline save / dry-run validate) against the event registry (`IAutomationEventRegistry`, `widget-sdk.md` §2.2 — a `domain.action` name or the widget's declared `EventSubscriptions`); an unknown name is `VALIDATION_FAILED` on save, never a silent no-op at run time. Payload is XSS-token-pipeline-sanitized before send. Fail-closed if widget not found/disabled in tenant. |
 
 (Reload/settings pushes are **not** pipeline actions — they are service-internal side effects of compile/update.)
 
@@ -430,21 +450,25 @@ public interface IOverlayClient
     Task WidgetReload();                                  // EXISTING (compile success / rollback)
     Task WidgetSettingsChanged(WidgetSettingsDto settings); // EXISTING
     Task WidgetCompileFailed(WidgetCompileFailedDto error);  // NEW — editor surfaces build error
-    Task TtsSpeak(TtsSpeakPayload payload);                  // NEW — server-sent utterance; consumed by tts.md client_edge dispatch (browser-source renders audio client-side)
-    Task PlaySound(PlaySoundPayload payload);                // NEW — server-sent sound-clip play; consumed by sound-system.md play_sound (browser-source plays the clip client-side)
+    Task TtsSpeak(TtsSpeakPayload payload);                  // NEW — server-sent utterance; consumed by the system TTS surface (§1.2; tts.md §6.2)
+    Task PlaySound(PlaySoundPayload payload);                // NEW — server-sent sound-clip play; consumed by the system Sound surface (§1.2; sound-system.md play_sound)
 }
 ```
 Hub server methods (extend `OverlayHub`): keep `JoinWidget`/`LeaveWidget`/`WidgetReady`; add `Task ReportRuntimeError(string widgetId, string error)` → `IWidgetService.RecordRuntimeErrorAsync`. Connect-time auth stays OverlayToken-only (validate `Channels.OverlayToken`; abort on mismatch) — **never** the user JWT. Add `WidgetCompileFailedDto(string WidgetId, int VersionNumber, string BuildError)` to `Hubs/Dtos/HubResponseDtos.cs`.
 
-**TTS utterance payload (extend `Hubs/Dtos/HubResponseDtos.cs`):** the `TtsSpeak` push DTO is **owned here** (the `IOverlayClient` contract lives in this subsystem) and **consumed by `tts.md` `client_edge` dispatch** — the server sends the utterance event and the browser-source widget renders audio client-side (no server-side audio synthesis on the `edge` path).
+**TTS utterance payload (extend `Hubs/Dtos/HubResponseDtos.cs`):** the `TtsSpeak` push DTO is **owned here** (the `IOverlayClient` contract lives in this subsystem) and **consumed by the system TTS surface** (§1.2; dispatch rules in `tts.md` §3.4/§6.2). One utterance = ONE `TtsSpeak` push carrying an **ordered segment array**; the surface enqueues the utterance and plays its segments back-to-back (`client_edge` segments via `speechSynthesis` with `utter.voice`/`lang` set from `VoiceId`; `byok`/`self_host` segments by `AudioUrl`).
 ```csharp
 public sealed record TtsSpeakPayload(
-    Guid BroadcasterId,             // tenant key (Guid) — overlay group scope
-    string Text,                    // utterance text (XSS-token-pipeline-cleaned before send)
-    string VoiceId,                 // provider voice identifier
+    Guid BroadcasterId,                       // tenant key (Guid) — overlay group scope
+    IReadOnlyList<TtsSpeakSegment> Segments,  // ordered; played back-to-back as one utterance
+    string? CueId,                            // optional client-side dedupe / cancellation handle
+    TtsSpeakOptions? Options);                // optional prosody overrides (apply to every segment)
+
+public sealed record TtsSpeakSegment(
+    string Text,                    // segment text (XSS-token-pipeline-cleaned before send)
+    string VoiceId,                 // resolved voice (tts.md §6.2 precedence) — the surface sets utter.voice/lang from it on client_edge
     string Provider,                // edge|elevenlabs|azure
-    string? CueId,                  // optional client-side dedupe / cancellation handle
-    TtsSpeakOptions? Options);      // optional prosody overrides
+    string? AudioUrl);              // tokened audio URL when server-synthesized (byok/self_host); null on client_edge
 
 public sealed record TtsSpeakOptions(
     double? Rate,                   // playback rate multiplier
@@ -452,7 +476,7 @@ public sealed record TtsSpeakOptions(
     double? Volume);                // output volume (0–1)
 ```
 
-**Sound-clip play payload (extend `Hubs/Dtos/HubResponseDtos.cs`):** the `PlaySound` push DTO is **owned here** (the `IOverlayClient` contract lives in this subsystem) and **consumed by `sound-system.md` `play_sound`/`stop_sound`** — parallel to `TtsSpeak`, the always-loaded overlay holds the `<audio>` element and plays (or stops) the clip on this push; plays overlap by default (each independent), and a non-null `Handle` lets `stop_sound` target one playback.
+**Sound-clip play payload (extend `Hubs/Dtos/HubResponseDtos.cs`):** the `PlaySound` push DTO is **owned here** (the `IOverlayClient` contract lives in this subsystem) and **consumed by `sound-system.md` `play_sound`/`stop_sound`** — parallel to `TtsSpeak`, the **system Sound surface** (§1.2) holds the `<audio>` elements and plays (or stops) the clip on this push; plays overlap by default (each independent), and a non-null `Handle` lets `stop_sound` target one playback.
 ```csharp
 public sealed record PlaySoundPayload(
     string PlaybackUrl,             // tokened, overlay-fetchable clip URL (ISoundClipStore)

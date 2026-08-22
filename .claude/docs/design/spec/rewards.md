@@ -9,7 +9,7 @@ Source of truth: locked schema `2026-06-16-database-schema.md` Domain **F.5 Rewa
 RewardRedemptions**, plus Domain **O** (`EventJournal`) for the redemption fact stream and Domain **F.7
 EventSubSubscriptions** (owned by `twitch-eventsub.md`). Library choices:
 `2026-06-16-stack-and-dependencies.md`. This spec conforms to the resolved cross-cutting decisions in
-`2026-06-16-decisions-pending-confirmation.md`. Closes gap **B7 / M1** (`_GAP-AUDIT.md`): F.5/F.6 and the
+`2026-06-16-decisions-resolved.md`. Closes gap **B7 / M1** (`_GAP-AUDIT.md`): F.5/F.6 and the
 `channel.channel_points_custom_reward_redemption.add` handler now have an owner.
 
 ## Binding conventions (every signature below obeys these)
@@ -315,8 +315,8 @@ resolves to `Guid broadcasterId` via tenant middleware + `IChannelAccessService`
 channel).
 
 **Role gate** (schema B.3 `ActionDefinitions`). All keys below are **management**-plane (dashboard config /
-moderation), seeded global `ActionDefinitions` (added to `roles-permissions.md` §7.1). Gate 1 = `[Authorize]` +
-tenant resolution; Gate 2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)`
+moderation), seeded global `ActionDefinitions` (added to `roles-permissions.md` §7.1). Gate-1 = `[Authorize]` +
+tenant resolution; Gate-2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)`
 enforces the per-route floor (403 `FORBIDDEN` below). Effective level =
 `MAX(community standing, management role, active permit grant)`.
 

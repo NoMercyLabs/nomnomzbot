@@ -12,7 +12,7 @@
 
 `widgets-overlays.md` stays the source of truth for the `Widget`/`WidgetVersion` entities, the compile-on-save (esbuild) pipeline, and the token-authed serving. This spec adds the layer **above** it — the SDK the compiled bundle is built against — and **simplifies** one thing:
 
-- **Widgets are self-authored and tied to a single user; they act as that user.** The elaborate `TrustTier` / gallery-review / per-CSP-tier machinery in `widgets-overlays.md` §1 is **not** applied to the self-authored case: a widget obeys nothing more than its owner's normal IAM permissions (§8). The gallery/community-submission surface remains for the *shared-gallery* future, but the default widget is the owner's own and carries no bespoke trust gating. This deletes a large amount of would-be plumbing.
+- **Widgets are self-authored and tied to a single user; they act as that user.** The `TrustTier` source mapping in `widgets-overlays.md` §1 **is applied** (a self-authored `Source=custom` widget renders at `unverified`, i.e. the strictest CSP tier) — what this spec removes is any **extra per-widget grant beyond IAM**: a widget's `actions.*` obey nothing more than its owner's normal IAM permissions (§8); there is no per-widget policy, capability list, or review step for the owner's own code. The gallery (first-party catalogue + community submission/review, `widgets-overlays.md` §1.1/§3.3) ships alongside and is the install path for shared widgets; the default widget is the owner's own.
 
 Everything else in `widgets-overlays.md` is unchanged and referenced, not redefined.
 
@@ -26,30 +26,36 @@ The single hardest requirement: **a reliable, in-house event-name system simpler
 
 Canonical form is **`domain.action`**, lower-case, dotted, the action a past-tense "what happened". The `domain` is always a short human word; the pair reads as a fact and never collides. **No aliases** (an alias re-introduces the ambiguity this scheme exists to remove).
 
-| In-house name | Fires when | Hides (raw provider topic) |
-|---|---|---|
-| `chat.message` | A viewer sent a chat message | `channel.chat.message` |
-| `chat.cleared` | Chat was cleared | `channel.chat.clear` |
-| `viewer.followed` | New follower | `channel.follow` |
-| `viewer.subscribed` | New / renewed sub | `channel.subscribe`, `channel.subscription.message` |
-| `viewer.gifted` | Someone gifted subs | `channel.subscription.gift` |
-| `bits.cheered` | Bits cheered | `channel.cheer` |
-| `channel.raided` | A raid arrived | `channel.raid` |
-| `reward.redeemed` | Channel-point reward redeemed | `channel.channel_points_custom_reward_redemption.add` |
-| `song.changed` | Now-playing track changed | `music.now_playing` (SR / Spotify / YouTube engine) |
-| `tip.received` | A tip / donation | `supporter.tip` (Ko-fi, …) |
-| `goal.changed` | A creator-goal moved | `channel.goal.progress` |
-| `poll.updated` | Poll begun / progressed / ended | `channel.poll.*` |
-| `prediction.updated` | Prediction begun / locked / resolved | `channel.prediction.*` |
-| `stream.started` / `stream.ended` | You went live / offline | `stream.online` / `stream.offline` |
-| `hypetrain.updated` | Hype train begun / progressed / ended | `channel.hype_train.*` |
-| `custom.<name>` | A custom data-source value updated (`custom-events.md`) | `custom.<name>` (already clean) |
+One domain event per row; every platform connection of the channel (PRODUCT-ALIGNMENT D1) ingests into the same row, and the payload carries a `provider` discriminator (`twitch`\|`kick`\|`youtube`\|`x`). A widget handles `viewer.subscribed` once and gets Twitch subs, Kick subs and YouTube memberships alike. `—` = that platform exposes no source for the row (X Live has no public event API: X rows stay empty by contract, not by omission).
 
-The table is the seed set; a new user-facing event adds one clean row. Codegen (§4) validates the shape mechanically (`^[a-z]+(\.[a-z_]+)+$`).
+| In-house name | Fires when | Twitch (EventSub) | Kick (webhooks) | YouTube (Live Chat / Data API) | X |
+|---|---|---|---|---|---|
+| `chat.message` | A viewer sent a chat message | `channel.chat.message` | `chat.message.sent` | `liveChatMessages` `textMessageEvent` | — |
+| `chat.cleared` | Chat was cleared | `channel.chat.clear` | — | — | — |
+| `viewer.followed` | New follower | `channel.follow` | `channel.followed` | `subscriptions` (channel-subscriber poll) | — |
+| `viewer.subscribed` | New / renewed sub or membership | `channel.subscribe`, `channel.subscription.message` | `channel.subscription.new`, `channel.subscription.renewal` | `newSponsorEvent`, `memberMilestoneChatEvent` | — |
+| `viewer.gifted` | Someone gifted subs / memberships | `channel.subscription.gift` | `channel.subscription.gifts` | `membershipGiftingEvent` | — |
+| `bits.cheered` | Bits / Kicks / Super Chat cheered | `channel.cheer` | `kicks.gifted` | `superChatEvent`, `superStickerEvent` | — |
+| `channel.raided` | A raid arrived | `channel.raid` | — | — | — |
+| `reward.redeemed` | Channel-point reward redeemed | `channel.channel_points_custom_reward_redemption.add` | — | — | — |
+| `song.changed` | Now-playing track changed | `music.now_playing` (SR / Spotify / YouTube engine — bot-internal, platform-independent) | ← | ← | ← |
+| `supporter.tip` | A one-time tip (Ko-fi, StreamElements, …) | `supporter-events.md` `SupporterEventReceived(Kind=tip)` — provider-independent ingest | ← | ← | ← |
+| `supporter.membership` | A recurring membership (Patreon, Fourthwall, …) | `SupporterEventReceived(Kind=membership)` | ← | ← | ← |
+| `supporter.merch` | A merch order (Fourthwall, Shopify) | `SupporterEventReceived(Kind=merch)` | ← | ← | ← |
+| `supporter.charity` | A charity donation (DonorDrive) | `SupporterEventReceived(Kind=charity)` | ← | ← | ← |
+| `supporter.any` | Any of the four supporter kinds | `SupporterEventReceived` (catch-all) | ← | ← | ← |
+| `goal.changed` | A creator-goal moved | `channel.goal.progress` | — | — | — |
+| `poll.updated` | Poll begun / progressed / ended | `channel.poll.*` | — | `liveChatMessages` `pollEvent` | — |
+| `prediction.updated` | Prediction begun / locked / resolved | `channel.prediction.*` | — | — | — |
+| `stream.started` / `stream.ended` | You went live / offline | `stream.online` / `stream.offline` | `livestream.status.updated` | `liveBroadcasts.lifeCycleStatus` `live` / `complete` | — |
+| `hypetrain.updated` | Hype train begun / progressed / ended | `channel.hype_train.*` | — | — | — |
+| `custom.<name>` | A custom data-source value updated (`custom-events.md`) | `custom.<name>` (bot-internal) | ← | ← | ← |
+
+The table is the seed set; a new user-facing event adds one clean row, and a new platform adds one column — never a new row per platform. Codegen (§4) validates the shape mechanically (`^[a-z]+(\.[a-z_]+)+$`).
 
 ### 2.2 Backend seam (reuse `IAutomationEventRegistry`)
 
-The clean names ARE the canonical `PublicName` on the existing auto-discovered registry (`automation-api.md` §Event stream) — **one vocabulary for widgets AND the automation API**, not two. The registry's `PublicName` scheme is set to the `domain.action` form above (superseding the old `Twitch.ChatMessage` PascalCase); `IAutomationEventDescriptor.ProjectPayload` already yields the PII-safe public projection that becomes the typed payload.
+The clean names ARE the canonical `PublicName` on the existing auto-discovered registry (`automation-api.md` §Event stream) — **one vocabulary for widgets AND the automation API**, not two. The registry's `PublicName` scheme is the `domain.action` form above; the rename off the old `Twitch.ChatMessage` PascalCase is §11 item 1 (completion criterion stated there). `IAutomationEventDescriptor.ProjectPayload` yields the PII-safe public projection that becomes the typed payload.
 
 ```csharp
 // EXTEND IAutomationEventDescriptor (automation-api.md) — add the machine-readable payload schema codegen reads.
@@ -91,7 +97,7 @@ interface Widget<Cfg = Record<string, unknown>> {
   // ── persist (server-backed per-widget KV) ────────────────────────────
   state: { get<T>(key: string): Promise<T | null>; set<T>(key: string, value: T): Promise<void> }
 
-  // ── media (the overlay audio bus, typed) ─────────────────────────────
+  // ── media (routed to the system TTS / Sound surfaces, typed) ─────────────────────────────
   sound: { play(url: string, opts?: SoundOpts): void; stop(handle?: string): void }
   tts: { speak(text: string, opts?: TtsOpts): void }
 
@@ -161,13 +167,13 @@ The core is framework-agnostic; each adapter exposes the connection + subscripti
 
 ## 6. Connection & the subscribe-via-handlers handshake
 
-The widget page is served with `?widgetId={id}&token={overlayToken}` (unchanged). The SDK:
+Each widget is its own standalone SPA (`widgets-overlays.md`), served with `?widgetId={id}&token={widgetToken}`. The `widgetToken` is a **per-widget token derived from the channel's `Channels.OverlayToken`** (HMAC over `widgetId` under the channel token — the channel token stays the parent credential; rotating it invalidates every derived widget token) and is scoped to **that widget's events + actions** (`Subscribe` is accepted only for events the registry knows, `InvokeAction` only for the owner's IAM — §8 — and only from the widget the token names). The SDK:
 
-1. Opens the SignalR connection to `/hubs/overlay` with the token in the query; the hub validates it against `Channels.OverlayToken` (never a user JWT) and resolves the owning channel + user.
-2. On connect, **subscribes at runtime to exactly the events the author registered** — the SDK derives the set from the live `on()` handlers: `widget.on('cheer', …)` → hub `Subscribe('cheer')`; dropping the last handler for an event → `Unsubscribe('cheer')`. The author **never** hand-manages subscriptions; registering a handler *is* subscribing, and the server sends that connection only what it asked for.
+1. Opens the SignalR connection to `/hubs/overlay` with the token in the query; the hub verifies the derivation against `Channels.OverlayToken` (never a user JWT) and resolves the owning channel + user + widget.
+2. On connect, **subscribes at runtime to exactly the events the author registered** — the SDK derives the set from the live `on()` handlers: `widget.on('bits.cheered', …)` → hub `Subscribe('bits.cheered')`; dropping the last handler for an event → `Unsubscribe('bits.cheered')`. The author **never** hand-manages subscriptions; registering a handler *is* subscribing, and the server sends that connection only what it asked for.
 3. Reconnects with backoff (behaviour studied from the reference: a subtle connection-state indicator + a grace period before signalling "stale"), re-subscribing the current handler set on every re-establish.
 
-`Widget.EventSubscriptions` (the entity field, `widgets-overlays.md`) becomes an optional **dashboard hint** (what a widget typically wants, for display) — not the gate. The runtime subscription is authoritative per connection.
+`Widget.EventSubscriptions` (the entity field, `widgets-overlays.md`) stays in the manifest as a **non-authoritative dashboard hint** (what a widget typically wants, for display + the `widget_event` config-time validation) — not the gate. The runtime subscription set is authoritative per connection.
 
 **Hub surface (extend `OverlayHub`, `widgets-overlays.md` §7):** add `Subscribe(string eventName)` / `Unsubscribe(string eventName)` (validate against the registry; a session subscription set filters the push fan-out), and the request/response methods backing `get`/`history`/`state`/`actions` (`GetResource`, `GetHistory`, `StateGet`/`StateSet`, `InvokeAction`).
 
@@ -175,7 +181,7 @@ The widget page is served with `?widgetId={id}&token={overlayToken}` (unchanged)
 
 ## 7. Config injection — typed, consolidated
 
-Load-time injection stays (it works), but as **one typed manifest object**, not scattered globals. The overlay host page injects:
+Load-time injection is **per widget SPA** — there is no shared host page. Each compiled widget bundle ships with **one typed manifest object** (not scattered globals), resolved at build time from the widget's declared settings schema and completed at load time from the serving URL's query (`widgetId`, `token`; `hubUrl` = the serving origin):
 
 ```html
 <script>window.__NOMNOMZ__ = { widgetId, name, version, settings, hubUrl, token };</script>
@@ -189,7 +195,7 @@ Load-time injection stays (it works), but as **one typed manifest object**, not 
 
 A widget is the owner's own code, tied to their identity; it acts **as them**. Every `actions.*` call is checked against the **owner's normal IAM permissions** (`roles-permissions.md` Gate-2) exactly as if they did it from the dashboard — if their role can send chat, the widget can; if not, it's denied with a typed error. There is **no** widget-specific policy, trust tier, or per-action grant.
 
-The entire security story is one sentence: **the overlay token authorizes acting as you, so it is private and rotatable** (`Channels.OverlayToken`, already rotatable). Reads/events/render/state carry no risk and are ungated; the `actions.*` writes are gated only by the owner's IAM. `InvokeAction` on the hub resolves the channel owner from the token and calls the same `IActionAuthorizationService` the REST controllers use.
+The entire security story is one sentence: **the per-widget token (derived from `Channels.OverlayToken`, §6) authorizes that widget to act as you, so it is private and rotatable** — rotate the channel token and every derived widget token dies with it. Reads/events/render/state carry no risk and are ungated; the `actions.*` writes are gated only by the owner's IAM and only for the widget the token names. `InvokeAction` on the hub resolves the channel owner + widget from the token and calls the same `IActionAuthorizationService` the REST controllers use.
 
 ---
 
@@ -216,11 +222,11 @@ A pure-polling surface (no socket — the public SR page, or a dropped connectio
 
 ## 11. Deliverables (build order)
 
-1. `IAutomationEventDescriptor.PayloadType` + the `domain.action` `PublicName` rename across the registry; `WidgetEventContractTest` + snapshot.
+1. `IAutomationEventDescriptor.PayloadType` + the `domain.action` `PublicName` migration across the registry (every descriptor's `PublicName` moves from the PascalCase `Twitch.ChatMessage` form to the §2.1 row; the automation event catalogue, `OutboundWebhookEventCatalogue`, and the dashboard pickers read the new names; no PascalCase alias is kept). **Done when:** `IAutomationEventRegistry` contains zero names failing `^[a-z]+(\.[a-z_]+)+$`, a registry test asserts it, and `WidgetEventContractTest` + the committed snapshot are green on the new names.
 2. `tools/WidgetTypeGen` (walks the registry → `events.generated.ts`), wired into CI.
 3. `@nomnomzbot/widget` core (`createWidget`, event bus lifted from `player-core`, config, connection + subscribe-via-handlers, `get`/`history`/`state`/`sound`/`tts`/`render`/`actions`).
 4. Framework adapters (`/vue`, `/react`, `/svelte`).
-5. `OverlayHub` extensions (`Subscribe`/`Unsubscribe`, `GetResource`/`GetHistory`/`StateGet`/`StateSet`/`InvokeAction`); manifest injection in the overlay host page.
+5. `OverlayHub` extensions (`Subscribe`/`Unsubscribe`, `GetResource`/`GetHistory`/`StateGet`/`StateSet`/`InvokeAction`); per-widget token derivation + verification; per-widget manifest injection at build/serve time (§7).
 6. First-party widgets rebuilt on the SDK (chat box, now-playing, alerts, … — the `widgets-overlays.md` §1.1 catalogue), proving the SDK end-to-end.
 7. `create-nomnomz-widget` CLI (dev tooling).
 
@@ -232,6 +238,6 @@ A pure-polling surface (no socket — the public SR page, or a dropped connectio
 2. **Distribution = published, versioned package** `@nomnomzbot/widget`, in-repo, installable by first-party and community authors alike.
 3. **Naming = `domain.action`, past-tense, no aliases** — reliable and doc-free; codegen-validated.
 4. **Subscribe = runtime, derived from handlers** — `on()`/`off()` drive `Subscribe`/`Unsubscribe`; the static entity field is a hint, not a gate.
-5. **Security = the owner's IAM only** — no trust tiers, no gallery gating for self-authored widgets; the overlay token is the private, rotatable credential.
+5. **Security = the owner's IAM only for actions** — no per-widget grants beyond IAM; the `TrustTier` CSP mapping still applies to rendering (custom ⇒ `unverified`); the per-widget token derived from the channel `OverlayToken` is the private, rotatable credential.
 6. **Now-playing = position anchor + local extrapolation** (`positionMs` + `serverTime`), never a per-second stream.
 7. **Authoring = dashboard editor primary, CLI dev-facing.**

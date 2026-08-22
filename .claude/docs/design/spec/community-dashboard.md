@@ -4,7 +4,7 @@ Implementable spec for **two read-only aggregation surfaces**: the **community/v
 (`CommunityController` — chatters/followers/subscribers/VIPs/moderators from real Twitch data, viewer detail
 folding analytics + standing + role + recent activity) and the **dashboard home** surface
 (`DashboardController` — live-stream summary, today's stats, recent activity feed, top viewers/earners, active
-alerts). Both **own no schema and no domain events** — they compose existing read models, live Helix reads, and
+health signals). Both **own no schema and no domain events** — they compose existing read models, live provider reads, and
 the journal. Code from this directly.
 
 Source of truth: the read models these controllers aggregate are owned by their respective specs —
@@ -12,7 +12,7 @@ Source of truth: the read models these controllers aggregate are owned by their 
 projections: M.1 `ViewerProfiles`, M.7 `ViewerEngagementDaily`, M.8 `ChannelAnalyticsDaily`), `roles-permissions.md`
 (B.2 `ChannelCommunityStandings`, B.1 `ChannelMemberships`), `event-store.md` (O.1 `EventJournal` filtered read),
 `economy.md` (L.1–L.3 leaderboards). Library choices: `2026-06-16-stack-and-dependencies.md`. Conforms to the
-resolved cross-cutting decisions in `2026-06-16-decisions-pending-confirmation.md`. These two controllers exist
+resolved cross-cutting decisions in `2026-06-16-decisions-resolved.md`. These two controllers exist
 today as thin shells; this spec gives them a typed service layer over the now-owned read models (replacing the
 ad-hoc Helix/DbContext calls the legacy shells made).
 
@@ -53,7 +53,7 @@ soft-delete filter is introduced here. The complete set of read dependencies (ne
 
 | Read dependency | Owner spec | What this subsystem reads from it |
 |---|---|---|
-| Live Helix chatters / followers / subscribers / VIPs / moderators | `twitch-helix.md` §3.2–3.4 | The community lists — `ChatAssets.GetChattersAsync`, `Channels.GetChannelFollowersAsync`, `Subscriptions.GetBroadcasterSubscriptionsAsync`, `Moderators.GetVipsAsync`, `Moderators.GetModeratorsAsync` (real Twitch data; **no seed/fake list, ever**) |
+| Live chatters / followers / subscribers / VIPs / moderators — **provider-fanned** (Twitch Helix + Kick + YouTube), merged under one viewer identity (`UserIdentity`) | `twitch-helix.md` §3.2–3.4 + the Kick/YouTube providers (`platform-identity.md`) | The community lists — Twitch leg: `ChatAssets.GetChattersAsync`, `Channels.GetChannelFollowersAsync`, `Subscriptions.GetBroadcasterSubscriptionsAsync`, `Moderators.GetVipsAsync`, `Moderators.GetModeratorsAsync`; Kick/YouTube legs via their provider clients (real platform data only; **no seed/fake list, ever**) |
 | Live channel/stream state | `twitch-helix.md` §3.2 | `GetChannelInformationAsync` / `GetStreamAsync` for the dashboard live-summary widget |
 | **M.1 `ViewerProfiles`** (per-viewer aggregate) | `analytics.md` §3.2 | `IViewerAnalyticsService.GetProfileAsync` — the viewer detail's lifetime totals, first/last seen, follower/sub flags |
 | **M.7 `ViewerEngagementDaily`** | `analytics.md` §3.2 | viewer-detail engagement series (optional drill-down range) |
@@ -128,7 +128,7 @@ namespace NomNomzBot.Application.Contracts.Dashboard;
 public interface IDashboardService
 {
     // The full dashboard-home snapshot in one call (the page-open payload): live-stream summary + today's
-    // stats + recent activity feed + top viewers + top earners + active alerts. Each sub-section is best-effort
+    // stats + recent activity feed + top viewers + top earners + active health signals. Each sub-section is best-effort
     // and degrades independently (§3.4): a missing-scope or rate-limited Helix leg yields a null LiveStream
     // with a Degraded note rather than failing the whole snapshot. Returns Result.Failure only on a hard
     // tenant/authorization fault.
@@ -156,9 +156,10 @@ adaptation; no Helix call is re-implemented here (all go through `ITwitchHelixCl
 
 ### 3.4 Degradation & enrichment rules (binding behavior)
 
-- **No fake data — hard rule.** Every community list comes from a live Helix read. A Helix failure surfaces as a
-  `Result.Failure(ErrorCode)` (or, for the dashboard snapshot's best-effort legs, a `Degraded` note + null
-  section) — **never** a fabricated viewer/subscriber/follower list. `missing_scope` is propagated, not masked.
+- **No fake data — hard rule.** Every community list comes from live provider reads — fanned across the channel's
+  platform connections (Twitch Helix + Kick + YouTube) and merged under one viewer identity. A provider failure
+  surfaces as a `Result.Failure(ErrorCode)` (or, for the dashboard snapshot's best-effort legs, a `Degraded` note +
+  null section) — **never** a fabricated viewer/subscriber/follower list. `missing_scope` is propagated, not masked.
 - **Enrichment is a left-join, never a gate.** A Helix chatter/follower with no local `ViewerProfile`/standing
   row is still returned (standing `Everyone`, `ManagementRole` null) — the community list is the Twitch truth,
   decorated where local data exists, not filtered to locally-known users.
@@ -191,7 +192,7 @@ public sealed record CommunityMemberDto(
     string Login,
     string DisplayName,
     CommunityStanding Standing,      // resolved B.2 standing; Everyone when unknown locally
-    ManagementRole? ManagementRole,  // resolved B.1 role; null when not a manager
+    ManagementRole? Role,            // resolved B.1 role; null when not a manager
     bool IsFollower,
     bool IsSubscriber);
 
@@ -254,13 +255,14 @@ public sealed record DashboardSnapshotDto(
     IReadOnlyList<ActivityItemDto> RecentActivity,     // newest-first, capped
     IReadOnlyList<TopViewerDto> TopViewers,            // analytics.md — top viewers (today/range)
     IReadOnlyList<LeaderboardEntryDto> TopEarners,     // economy.md — currency leaderboard ranking
-    IReadOnlyList<DashboardAlertDto> Alerts,           // active alerts (see below)
+    IReadOnlyList<DashboardHealthSignalDto> HealthSignals,  // active health signals (see below)
     IReadOnlyList<DashboardSectionNote> Degraded);
 
-// An active alert surfaced on the dashboard — composed from existing health/connection signals, NOT a new
-// store. Sourced from the integration-connection health the dashboard already observes (e.g. a Twitch
-// needs_reauth / missing-scope state, a paused projection). Read-only; no alert table is introduced.
-public sealed record DashboardAlertDto(
+// An active health signal surfaced on the dashboard — composed from existing health/connection signals, NOT a
+// new store. Sourced from the integration-connection health the dashboard already observes (e.g. a Twitch
+// needs_reauth / missing-scope state, a paused projection). Read-only; no health-signal table is introduced.
+// (Not an "alert" — alerts are the on-air viewer-facing notifications produced by event responses.)
+public sealed record DashboardHealthSignalDto(
     string Kind,                     // "twitch_reauth" | "missing_scope" | "projection_paused" | ...
     string Severity,                 // "info" | "warning" | "error"
     string Message,
@@ -271,10 +273,9 @@ public sealed record DashboardSectionNote(
     string Reason);                  // e.g. "missing_scope", "rate_limited", "feature_disabled"
 ```
 
-> `DashboardAlertDto` composes signals the platform already produces (Twitch connection status from
+> `DashboardHealthSignalDto` composes signals the platform already produces (Twitch connection status from
 > `IntegrationConnections`, paused/faulted projections from `IProjectionRunner` checkpoints); it owns **no**
-> storage. If a richer alert subsystem is ever introduced it would own its own table and this DTO would read it —
-> but as specified the dashboard derives alerts on the fly from existing health reads.
+> storage — the dashboard derives health signals on the fly from existing health reads.
 
 ---
 
@@ -282,10 +283,10 @@ public sealed record DashboardSectionNote(
 
 Two controllers under `NomNomzBot.Api/Controllers/V1/`, `[ApiVersion("1.0")]`, inherit `BaseController`,
 `[Authorize]`, route through `ResultResponse`/`GetPaginatedResponse`. Channel `{channelId}` resolves to
-`Guid broadcasterId` via tenant middleware + `IChannelAccessService` (Gate 1; caller must control the channel).
+`Guid broadcasterId` via tenant middleware + `IChannelAccessService` (Gate-1; caller must control the channel).
 
 **Role gate** (schema B.3 `ActionDefinitions`). Both surfaces are **management**-plane, read-only dashboard
-data. **Gate 1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's). **Gate 2** =
+data. **Gate-1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). **Gate-2** =
 `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route
 floor before the service call (403 `FORBIDDEN` below floor). Keys are seeded global `ActionDefinitions` (added to
 `roles-permissions.md` §7.1 — see §7 deltas below); a broadcaster may raise a floor via `ChannelActionOverride`
@@ -350,8 +351,9 @@ Both implementations constructor-inject the **already-registered** owner interfa
 
 - **`ITwitchHelixClient`** (`twitch-helix.md`) — `ChatAssets.GetChattersAsync`, `Channels.GetChannelFollowersAsync`/
   `GetChannelInformationAsync`, `Moderators.GetVipsAsync`/`GetModeratorsAsync`, `Streams.GetStreamAsync`,
-  `Subscriptions.GetBroadcasterSubscriptionsAsync`/`GetSubscriberCountAsync`. Live Twitch reads (no seed data).
-  Scope and rate-limit failures propagate as `Result.Failure(ErrorCode)`.
+  `Subscriptions.GetBroadcasterSubscriptionsAsync`/`GetSubscriberCountAsync` — the Twitch leg of the provider fan-out;
+  the Kick and YouTube provider clients (`platform-identity.md`) are the other legs, merged under one viewer identity.
+  Live platform reads only (no seed data). Scope and rate-limit failures propagate as `Result.Failure(ErrorCode)`.
 - **`IViewerAnalyticsService` / `IChannelAnalyticsService`** (`analytics.md`) — `ViewerProfileDto` (M.1) for
   viewer detail; `ChannelAnalyticsSummaryDto` (M.8) and `TopViewerDto` for the dashboard today/top-viewer blocks.
 - **`ICommunityStandingService` / `IRoleResolver`** (`roles-permissions.md`) — `CommunityStanding` (B.2) and
@@ -361,7 +363,7 @@ Both implementations constructor-inject the **already-registered** owner interfa
   subsystem never appends.
 - **`IEconomyLeaderboardService`** (`economy.md`) — `GetRankingAsync` → `LeaderboardEntryDto` for the
   top-earners widget.
-- **`IActionAuthorizationService` / `IChannelAccessService`** (`roles-permissions.md`) — Gate 1 + Gate 2.
+- **`IActionAuthorizationService` / `IChannelAccessService`** (`roles-permissions.md`) — Gate-1 + Gate-2.
 - **`TimeProvider`** — channel-local "today" boundary for the dashboard daily stats. Never
   `DateTimeOffset.UtcNow`.
 
@@ -376,9 +378,10 @@ interfaces.
    pipeline actions, no DI adapter pairs. They give the existing `CommunityController`/`DashboardController`
    shells a typed service layer (`ICommunityService`/`IDashboardService`) over read models owned by their proper
    specs, replacing the legacy ad-hoc Helix/`DbContext` calls.
-2. **Community lists are live Helix truth, enriched by left-join — never seeded.** The list endpoints return the
-   real Twitch chatter/follower/subscriber/VIP/moderator data, decorated with local standing/role where it
-   exists; a Helix scope/rate failure surfaces as an error code, never a fabricated list (the hard "no fake
+2. **Community lists are live provider truth, enriched by left-join — never seeded.** The list endpoints fan out
+   across the channel's platform connections (Twitch Helix + Kick + YouTube), merge the real
+   chatter/follower/subscriber/VIP/moderator data under one viewer identity, and decorate it with local
+   standing/role where it exists; a provider scope/rate failure surfaces as an error code, never a fabricated list (the hard "no fake
    community data" rule). This also closes the legacy "subscriber count always 0" silent-empty behavior by
    propagating `missing_scope`.
 3. **Viewer detail is a composite of owned read models** — `ViewerProfileDto` (analytics M.1) +
@@ -391,8 +394,8 @@ interfaces.
 5. **Recent-activity feed is journal-sourced and display-safe** — projected from `EventRecord` to a thin
    `ActivityItemDto`; raw payloads and `[PII-hash]`/encrypted fields are never surfaced through these read
    endpoints.
-6. **Active alerts are derived, not stored** — `DashboardAlertDto` composes existing connection-health and
-   projection-checkpoint signals on the fly; no alert table is introduced.
+6. **Active health signals are derived, not stored** — `DashboardHealthSignalDto` composes existing connection-health and
+   projection-checkpoint signals on the fly; no health-signal table is introduced.
 7. **Two action keys, both `management` / Moderator(10) / Low / grantable** — `community:read` and
    `dashboard:read`, seeded in `roles-permissions.md` §7.1 (§7 deltas). Read-only dashboard data sits at the
    Moderator floor like every other read key in the management plane.

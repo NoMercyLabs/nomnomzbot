@@ -3,7 +3,7 @@
 **Status:** implementable. Code from this directly. Source of truth: locked DB schema
 `docs/design/2026-06-16-database-schema.md` (G.2, G.2a, G.3, H.1–H.7, I.1, I.2, M.5), execution-model decision
 `docs/design/2026-06-16-custom-command-execution.md`, stack `docs/design/2026-06-16-stack-and-dependencies.md`,
-defaults `docs/design/2026-06-16-decisions-pending-confirmation.md`.
+defaults `docs/design/2026-06-16-decisions-resolved.md`.
 
 **Namespace:** `NomNomzBot.*`. **.NET 10 / C# 14 / EF Core 10.** File-scoped namespaces, `Nullable`
 enabled, async all the way, `Result<T>` (`NomNomzBot.Application.Common.Models`) over exceptions/null. App JSON =
@@ -525,7 +525,7 @@ All controllers extend `BaseController`, `[ApiVersion("1.0")]`, `[Authorize]`, r
 verified owned by the authenticated principal** (IDOR must-fix #1 — `ICurrentTenantService`/`IChannelAccessService`);
 mismatch ⇒ 403.
 
-**Role gate.** Gate 1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's). Gate 2 =
+**Role gate.** Gate-1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). Gate-2 =
 `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in
 the action-key column before the service call (403 FORBIDDEN when below). The keys are seeded global `ActionDefinitions`
 (schema B.3); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. The
@@ -1057,10 +1057,11 @@ user-bearing namespace the dispatcher resolves (e.g. `target.*` for a shoutout/t
 These are tokens the StreamElements/Nightbot/Fossabot/Wizebot sets popularize. Each has a binding decision below — they
 are **not** in the catalog above, and that is final for this subsystem:
 
-- **`{{channel.views}}` is excluded.** Twitch **deprecated** `view_count` on the users endpoint, so no upstream metric
-  backs it and our Helix DTOs do not carry it. The token does not ship — there is nothing to render. Introducing a
-  substitute metric is a new data-source concern owned by `twitch-helix.md`, not this catalog; until that spec defines a
-  replacement field, this catalog has no `{{channel.views}}` token.
+- **`{{channel.views}}` stays catalogued pending re-verification.** The claim that Twitch deprecated `view_count` on the
+  users endpoint is **re-verified against the current Helix docs before any exclusion** (full-coverage rule: never act
+  on a "deprecated/skip" claim about an external API without re-checking the live docs). Until verified, the token stays
+  in the catalog and resolves from the Helix field `twitch-helix.md` maps for it; if the field is confirmed gone, the
+  replacement metric is a data-source concern owned by `twitch-helix.md`, and this catalog keeps the token name bound to it.
 - **`{{economy.ranktier}}` / `{{economy.tiername}}` and daily/streak economy tokens depend on the economy subsystem.**
   `economy.md` today models balance, lifetime earned/spent, and numeric leaderboard rank — not a named rank-tier, daily
   bonus, or earn-streak. These tokens are owned by `economy.md`: when it adds tier/streak modeling, the corresponding
@@ -1201,4 +1202,13 @@ A generic **deferred-execution** primitive: "run pipeline P **once**, T seconds 
 
 **Sweeper `ScheduledPipelineExpiryService`** (Infrastructure `Commands.Jobs`, `BackgroundService`, auto-registered by the hosted-worker scan): a **5-second** clock-driven tick calling `FireDueAsync` on a fresh DI scope (cross-tenant, mirroring `RedemptionTimerExpiryService`). The first tick after boot **is** the startup sweep — tasks that came due during downtime fire now (or expire if stale).
 
-**Surfaces.** Pipeline action **`schedule_pipeline`** (`ICommandAction`, category `flow`): params `pipeline` (name → tenant id; typed failure if unknown), `delay_seconds` (required, clamped), optional template-resolved `dedupe_key`; it captures the current context variables so the deferred run keeps its context. Script SDK capability **`schedule.pipeline`** (low tier, side-effecting, `custom_code` feature-gated): `nnz.api.schedule.pipeline(pipelineName, delaySeconds, variables?, dedupeKey?) → boolean`, routed through the host bridge to `ScheduleByNameAsync` for the caller's tenant — this is what a Voice-Swap script calls to schedule its own revert. No new REST controller (management is a nice-to-have, deferred to avoid scope bloat).
+**Surfaces.** Pipeline action **`schedule_pipeline`** (`ICommandAction`, category `flow`): params `pipeline` (name → tenant id; typed failure if unknown), `delay_seconds` (required, clamped), optional template-resolved `dedupe_key`; it captures the current context variables so the deferred run keeps its context. Script SDK capability **`schedule.pipeline`** (low tier, side-effecting, `custom_code` feature-gated): `nnz.api.schedule.pipeline(pipelineName, delaySeconds, variables?, dedupeKey?) → boolean`, routed through the host bridge to `ScheduleByNameAsync` for the caller's tenant — this is what a Voice-Swap script calls to schedule its own revert.
+
+**REST management** (`PipelinesController` — EXTEND, same route base as §5; Gate-1 entry + Gate-2 floor per row):
+
+| Method | Route (suffix under `…/pipelines`) | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
+|--------|------------------------------------|-------------|--------------|-----------------------------------|
+| GET | `/scheduled` | — (`?page=1&pageSize=25`) | `PaginatedResponse<ScheduledPipelineDto>` | management / Moderator · `pipelines:read` |
+| DELETE | `/scheduled/{scheduledId:guid}` | — | `StatusResponseDto<bool>` | management / Editor · `pipelines:write` |
+
+`GET /scheduled` lists the tenant's **pending** tasks soonest-due first (`ListPendingAsync`); `DELETE` calls `CancelAsync` (marks `cancelled`; `NOT_FOUND` when the id is unknown or already terminal). `ScheduledPipelineDto(Guid Id, Guid PipelineId, string PipelineName, DateTime DueAt, string? DedupeKey, string Status, Guid? TriggeredByUserId, DateTime CreatedAt)`.

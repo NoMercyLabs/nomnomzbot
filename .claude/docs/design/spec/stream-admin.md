@@ -4,7 +4,7 @@ Directly-implementable interface contract. Owner codes from this first-try. No a
 
 **Scope:** three cohesive areas.
 - **Stream tools** — title/game/tag edits with a role floor (Twitch defines our defaults: on Twitch, Editors edit stream info while Moderators only moderate chat, so title/game/tags floor at Editor), per-game/per-segment presets, scheduled changes (mid-stream segment switch). Helix-backed.
-- **Platform admin console (Plane C IAM)** — operator IAM (roles/permissions/principals/assignments), audited support access (`tenant:access`, logged), tenant suspend/read, feature-flag administration. Default-deny, least-privilege, every cross-tenant act audited.
+- **Platform admin console (Plane-C IAM)** — operator IAM (roles/permissions/principals/assignments), audited support access (`tenant:access`, logged), tenant suspend/read, feature-flag administration. Default-deny, least-privilege, every cross-tenant act audited.
 - **IPC developer mode** — opt-in (off by default), key-gated, local-socket-only tokenless dev hook-in. Never exposed remotely.
 
 **Binding conventions (apply to every type below):** C# namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable` enabled; async all the way (never `.Result`/`.Wait`); `Result<T>` over exceptions/null; Repository + `IUnitOfWork` (no raw `DbContext` in controllers); typed-interface DI, no MediatR, no Roslyn; responses `StatusResponseDto<T>` / `PaginatedResponse<T>`; controllers `[ApiVersion("1.0")]` + `[Route("api/v{version:apiVersion}/...")]`; **Newtonsoft.Json** for app JSON (every `[VC:JSON]` column is a hand-rolled `ValueConverter<T,string>` + `ValueComparer`); surrogate PKs = `Guid` via `Guid.CreateVersion7()`; Twitch ids are indexed attribute columns; tenant key `BroadcasterId` is `Guid` (FK→`Channels.Id`); soft-delete (`IsDeleted`/`DeletedAt`) global filter; deployment-profile adapters chosen by DI.
@@ -26,7 +26,7 @@ All tables are defined in the **LOCKED** schema `docs/design/2026-06-16-database
 - **`ActionDefinitions`** (schema B.3) `[GLOBAL, seed]` — read-only here: the role-floor catalog. Relevant rows: `channel:title:write`, `channel:game:write`, `channel:tags:write`, `channel:ccl:write`, `channel:language:write`, `channel:brandedcontent:write`, `channel:extensions:write` — all seeded `FloorLevel = Editor` (Twitch defines our defaults: native Editors edit stream info, Moderators only moderate chat). The role floor is resolved through this table, never hard-coded. (CCL / `BroadcasterLanguage` / branded-content carry the same `channel:manage:broadcast` Twitch scope and the same Editor floor as title/game/tags; `channel:extensions:write` gates the extensions-config write, Twitch scope `user:edit:broadcast`.)
 - **`ChannelActionOverrides`** (schema B.4) — read-only here: per-channel raise/lower of the above action levels (floor-clamped).
 
-### Platform admin (Plane C IAM)
+### Platform admin (Plane-C IAM)
 - **`IamPermissions`** (C.1) `[GLOBAL, seed]` — `Key` e.g. `tenant:read`, `tenant:suspend`, `tenant:access`, `featureflag:write`, `audit:read`, `iam:manage`.
 - **`IamRoles`** (C.2) `[GLOBAL, soft-delete]`, **`IamRolePermissions`** (C.3) M2M, **`IamPrincipals`** (C.4) `[GLOBAL, soft-delete]` (employee/service_account), **`IamRoleAssignments`** (C.5) — bind principal→role, optional `ScopeChannelId` (one-tenant narrow), `ExpiresAt` (break-glass).
 - **`Channels`** (A.2) — admin writes `Status`/`SuspendedAt`/`SuspendedReason` for suspend; reads for tenant listing.
@@ -182,7 +182,7 @@ Behavior notes (one line each):
 - `UpdateMetadataAsync` — enforces the role floor per field (see floor table below) via `IStreamEditAuthorizer`; resolves `gameName`→`gameId` through `ITwitchSearchApi.SearchCategoriesAsync`; pushes to Helix via `ModifyChannelInformationAsync` (which carries `ContentLabels`/`Language`/`IsBrandedContent` — `ModifyChannelInformationRequest`, twitch-helix §4.1); persists to `Channels`; emits `StreamMetadataUpdatedEvent(Source="manual")`. **Per changed field** the matching action key is floor-checked: `Title`→`channel:title:write`, `GameName`→`channel:game:write`, `Tags`→`channel:tags:write`, `ContentLabels`→`channel:ccl:write`, `Language`→`channel:language:write`, `IsBrandedContent`→`channel:brandedcontent:write` (all Editor floor). Fails `FORBIDDEN` if actor under floor for any changed field, `VALIDATION_FAILED` on empty title.
 - `UpdateTitleAsync`/`UpdateGameAsync`/`UpdateTagsAsync` — single-field convenience wrappers over `UpdateMetadataAsync`; each independently floor-checked (title/game/tags all floor at Editor — Twitch defines our defaults: Editors edit stream info, Moderators only moderate chat).
 - `SearchCategoriesAsync` — proxies `ITwitchSearchApi.SearchCategoriesAsync`; read-only, no floor (autocomplete).
-- `GetExtensionsAsync` — reads the channel's active panel/overlay/component extension slots via Helix `GET /users/extensions` (broadcaster token); read-only, no floor (Gate 1 only). No state change, no event.
+- `GetExtensionsAsync` — reads the channel's active panel/overlay/component extension slots via Helix `GET /users/extensions` (broadcaster token); read-only, no floor (Gate-1 only). No state change, no event.
 - `UpdateExtensionsAsync` — floor-checks `channel:extensions:write` via `IStreamEditAuthorizer`; writes the requested slot activations via Helix `PUT /users/extensions` (Twitch scope `user:edit:broadcast` — progressive, requested when the operator first opens the extensions surface). Idempotent slot replace; `FORBIDDEN` under floor, `VALIDATION_FAILED` on an unknown extension/slot. Low-priority surface; no domain event (extensions are Twitch-side panel config, not a streamed metadata change).
 - `ListPresetsAsync` — tenant-scoped `StreamPresets` ordered by `SortOrder`; read-only.
 - `CreatePresetAsync` — inserts `StreamPresets` row (`Id = Guid.CreateVersion7()`); `ALREADY_EXISTS` on `(BroadcasterId, Name)` collision; no Helix call, no event.
@@ -438,27 +438,27 @@ All controllers extend `BaseController` (`NomNomzBot.Api.Controllers`), are `[Ap
 
 ### `StreamToolsController : BaseController`
 `[Route("api/v{version:apiVersion}/channels/{broadcasterId:guid}/stream")]` `[Tags("Stream")]`
-**Role gate** — all write routes are **management plane (Plane B)**. **Gate 1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's) — it only proves authentication + tenant access, not the write floor. **Gate 2** = the per-route floor named in the Gate-2 action-key column, enforced before the service call via `IStreamEditAuthorizer` (a sanctioned thin mapper that selects the per-field action key and delegates the decision to `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey, ct)`), returning `403 FORBIDDEN` when the caller's resolved level is below the action's effective floor. Title/game/tags all floor at Editor — Twitch defines our defaults: native Editors edit stream info, Moderators only moderate chat. Each floor is the action's seeded global `ActionDefinitions` (schema B.3) default; a broadcaster may raise it via `ChannelActionOverride` but never below the seeded `FloorLevel`. Read/autocomplete routes carry no Gate-2 key (Gate 1 only).
+**Role gate** — all write routes are **management plane (Plane-B)**. **Gate-1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's) — it only proves authentication + tenant access, not the write floor. **Gate-2** = the per-route floor named in the Gate-2 action-key column, enforced before the service call via `IStreamEditAuthorizer` (a sanctioned thin mapper that selects the per-field action key and delegates the decision to `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey, ct)`), returning `403 FORBIDDEN` when the caller's resolved level is below the action's effective floor. Title/game/tags all floor at Editor — Twitch defines our defaults: native Editors edit stream info, Moderators only moderate chat. Each floor is the action's seeded global `ActionDefinitions` (schema B.3) default; a broadcaster may raise it via `ChannelActionOverride` but never below the seeded `FloorLevel`. Read/autocomplete routes carry no Gate-2 key (Gate-1 only).
 
 > **Supersedes/merges the existing `StreamController`.** The current `StreamController` (`GET/PUT`, `PATCH title|game|tags`, `GET status|categories`) is rewritten to delegate to `IStreamToolsService` instead of calling the Helix sub-clients (`ITwitchChannelsApi`/`ITwitchStreamsApi`/`ITwitchSearchApi`) directly and to use `Guid` route keys. Keep the existing route paths; add presets + scheduled-change routes.
 
 | Verb | Route | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |------|-------|-------------|--------------|-----------------------------------|
-| GET | `/` | — | `StatusResponseDto<StreamMetadataDto>` | management · (Gate 1 only) |
+| GET | `/` | — | `StatusResponseDto<StreamMetadataDto>` | management · (Gate-1 only) |
 | PUT | `/` | `UpdateStreamMetadataRequest` | `StatusResponseDto<StreamMetadataDto>` | management / Editor · `channel:title:write` (per changed field; game/tags/ccl/language/brandedcontent · `channel:game:write`/`channel:tags:write`/`channel:ccl:write`/`channel:language:write`/`channel:brandedcontent:write`, all floor Editor) |
 | PATCH | `/title` | `{ "title": string }` | `StatusResponseDto<StreamMetadataDto>` | management / Editor · `channel:title:write` |
 | PATCH | `/game` | `{ "gameName": string }` | `StatusResponseDto<StreamMetadataDto>` | management / Editor · `channel:game:write` |
 | PATCH | `/tags` | `{ "tags": string[] }` | `StatusResponseDto<StreamMetadataDto>` | management / Editor · `channel:tags:write` |
-| GET | `/status` | — | `StatusResponseDto<StreamStatusDto>` | management · (Gate 1 only) |
-| GET | `/categories?query=` | — | `StatusResponseDto<List<StreamCategoryDto>>` | management · (Gate 1 only) |
-| GET | `/extensions` | — | `StatusResponseDto<ChannelExtensionsDto>` | management · (Gate 1 only) |
+| GET | `/status` | — | `StatusResponseDto<StreamStatusDto>` | management · (Gate-1 only) |
+| GET | `/categories?query=` | — | `StatusResponseDto<List<StreamCategoryDto>>` | management · (Gate-1 only) |
+| GET | `/extensions` | — | `StatusResponseDto<ChannelExtensionsDto>` | management · (Gate-1 only) |
 | PUT | `/extensions` | `UpdateChannelExtensionsRequest` | `StatusResponseDto<ChannelExtensionsDto>` | management / Editor · `channel:extensions:write` |
-| GET | `/presets` | — | `StatusResponseDto<List<StreamPresetDto>>` | management · (Gate 1 only) |
+| GET | `/presets` | — | `StatusResponseDto<List<StreamPresetDto>>` | management · (Gate-1 only) |
 | POST | `/presets` | `CreateStreamPresetRequest` | `StatusResponseDto<StreamPresetDto>` | management / Editor · `stream:preset:write` |
 | PUT | `/presets/{presetId:guid}` | `UpdateStreamPresetRequest` | `StatusResponseDto<StreamPresetDto>` | management / Editor · `stream:preset:write` |
 | DELETE | `/presets/{presetId:guid}` | — | `StatusResponseDto<object>` | management / Editor · `stream:preset:write` |
 | POST | `/presets/{presetId:guid}/apply` | — | `StatusResponseDto<StreamMetadataDto>` | management / Editor · `channel:title:write` (per-field; game/tags floor Editor) |
-| GET | `/scheduled` | — | `StatusResponseDto<List<ScheduledStreamChangeDto>>` | management · (Gate 1 only) |
+| GET | `/scheduled` | — | `StatusResponseDto<List<ScheduledStreamChangeDto>>` | management · (Gate-1 only) |
 | POST | `/scheduled` | `ScheduleStreamChangeRequest` | `StatusResponseDto<ScheduledStreamChangeDto>` | management / Editor · `channel:title:write` (per-field floor at schedule time; game/tags floor Editor) |
 | DELETE | `/scheduled/{scheduledChangeId:guid}` | — | `StatusResponseDto<object>` | management / Editor · `stream:schedule:write` |
 
@@ -466,7 +466,7 @@ All controllers extend `BaseController` (`NomNomzBot.Api.Controllers`), are `[Ap
 
 ### `PlatformAdminController : BaseController`
 `[Route("api/v{version:apiVersion}/admin")]` `[Tags("Admin")]`
-**Role gate** — these are **Plane C (platform IAM)** rows, default-deny, **no community/management role**. The class-level `[Authorize(Roles="admin")]` is replaced by per-action permission checks inside `IPlatformAdminService`, each resolved through `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, ...)` (owner `roles-permissions.md` §3.7 — authorizes and audits in one call; the ASP.NET `[Authorize(Policy="<key>")]` policy name **is** the permission key verbatim). The controller passes the resolved `Guid principalId` (from `ICurrentUserService` → `IamPrincipals.Id`). This **extends** the existing `AdminController` (stats/channels/users/system/health/events stay, now routed through the IAM gate); the privileged routes below are added.
+**Role gate** — these are **Plane-C (platform IAM)** rows, default-deny, **no community/management role**. The class-level `[Authorize(Roles="admin")]` is replaced by per-action permission checks inside `IPlatformAdminService`, each resolved through `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, ...)` (owner `roles-permissions.md` §3.7 — authorizes and audits in one call; the ASP.NET `[Authorize(Policy="<key>")]` policy name **is** the permission key verbatim). The controller passes the resolved `Guid principalId` (from `ICurrentUserService` → `IamPrincipals.Id`). This **extends** the existing `AdminController` (stats/channels/users/system/health/events stay, now routed through the IAM gate); the privileged routes below are added.
 
 | Verb | Route | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |------|-------|-------------|--------------|-----------------------------------|
@@ -522,7 +522,7 @@ All registrations added to `NomNomzBot.Infrastructure/DependencyInjection.cs` (t
 services.AddScoped<IStreamToolsService, StreamToolsService>();          // Infrastructure/Services/Stream
 services.AddScoped<IStreamEditAuthorizer, StreamEditAuthorizer>();      // Infrastructure/Services/Stream
 
-// Platform admin (Plane C IAM)
+// Platform admin (Plane-C IAM)
 services.AddScoped<IPlatformAdminService, PlatformAdminService>();      // Infrastructure/Services/Admin
 // IPlatformIamService (the public Plane-C gate) is registered by roles-permissions.md §7 — NOT here.
 //   PlatformIamService (SaaS) / OwnerIsFullIamService (self-host), profile-selected. This subsystem consumes it.
@@ -593,8 +593,8 @@ All surfaces are pinned by the locked schema, the existing code conventions, and
 - Dev mode "enabled" = at least one live, enabled, unexpired key AND profile != saas.
 - Revoke both tombstones (`DeletedAt`) and flips `IsEnabled=false`; create validates label ≤100 and
   a future `ExpiresAt`.
-- The local socket listener (`IpcDevModeListenerService`) is NOT built yet — only the registry the
-  spec's §5.3 controller covers; the listener is its own follow-up.
+- The local socket listener (`IpcDevModeListenerService`) ships alongside the registry — see the
+  as-built addendum below (2026-07-17).
 
 ### As-built addendum — IPC socket listener (2026-07-17)
 

@@ -9,7 +9,7 @@ Source of truth: locked schema `2026-06-16-database-schema.md` Domain **M** (Ana
 M.2 WatchSessions, M.3 WatchStreaks, M.4 MessageActivityDaily, M.5 CommandUsage, M.7 ViewerEngagementDaily,
 M.8 ChannelAnalyticsDaily; M.6 removed). Projection contract: `event-store.md` §3.3 (`IProjection` /
 `IProjectionRunner`). Library choices: `2026-06-16-stack-and-dependencies.md`. Conforms to the resolved
-cross-cutting decisions in `2026-06-16-decisions-pending-confirmation.md`. Closes gap **M2** (`_GAP-AUDIT.md`).
+cross-cutting decisions in `2026-06-16-decisions-resolved.md`. Closes gap **M2** (`_GAP-AUDIT.md`).
 
 **Scope correction (from grounding).** The audit (`_GAP-AUDIT.md` M2) over-assigned this subsystem.
 Analytics does **not** own: the moderation projections **J.4 `UserModerationHistory` / J.5 `UserTrustScore`**
@@ -171,7 +171,7 @@ public interface IChannelAnalyticsService
 
 ### 3.4 `IPlatformAnalyticsService` — SaaS-only cross-channel stats
 
-Platform-global basic stats for the SaaS operator dashboard — cross-tenant, **Plane C** (platform IAM) gated.
+Platform-global basic stats for the SaaS operator dashboard — cross-tenant, **Plane-C** (platform IAM) gated.
 On **self-host** the implementation is the `NullPlatformAnalyticsService` adapter that returns
 `FEATURE_DISABLED` (a self-host operator sees only their own channel via §3.3; there is no cross-tenant view).
 On **SaaS** it reads the global stream / `ChannelAnalyticsDaily` across tenants.
@@ -227,7 +227,7 @@ New `AnalyticsController` (channel-scoped) + `PlatformAnalyticsController` (plat
 `{channelId}` → `Guid broadcasterId` via tenant middleware + `IChannelAccessService`.
 
 **Role gate** (schema B.3 `ActionDefinitions`). Channel keys are **management** plane (read-only dashboard
-data — `Moderator` floor); the platform endpoint is **Plane C** (`[Authorize(Policy="platform:analytics:read")]`,
+data — `Moderator` floor); the platform endpoint is **Plane-C** (`[Authorize(Policy="platform:analytics:read")]`,
 the policy name IS the IAM permission key). Self-or-Gate-2: a viewer may read **their own** profile/streak/
 engagement without a management role (the `{viewerUserId}` equals the caller's user id); otherwise the
 management floor applies. Gate-2 = `IActionAuthorizationService.AuthorizeActionAsync`.
@@ -249,7 +249,7 @@ management floor applies. Gate-2 = `IActionAuthorizationService.AuthorizeActionA
 
 | Verb | Route | Request | Response | Plane / key |
 |---|---|---|---|---|
-| GET | `/stats` | `?from&to` | `StatusResponseDto<PlatformAnalyticsDto>` | Plane C · `platform:analytics:read` (SaaS only; self-host → `FEATURE_DISABLED`) |
+| GET | `/stats` | `?from&to` | `StatusResponseDto<PlatformAnalyticsDto>` | Plane-C · `platform:analytics:read` (SaaS only; self-host → `FEATURE_DISABLED`) |
 
 ---
 

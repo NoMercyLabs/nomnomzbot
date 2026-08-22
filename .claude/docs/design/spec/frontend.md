@@ -221,7 +221,7 @@ fun CommandsScreen() {
     @Serializable data object Integrations : Route                // pinned
     @Serializable data object Settings : Route                    // pinned
 
-    // ── Admin area (Plane C) — gated graph, frontend-ia.md §6 ──────────────────
+    // ── Admin area (Plane-C) — gated graph, frontend-ia.md §6 ──────────────────
     @Serializable data object Admin : Route                       // root → Tenants
     @Serializable data class  AdminTenant(val tenantId: String) : Route
     @Serializable data object AdminFeatureFlags : Route
@@ -233,7 +233,7 @@ fun CommandsScreen() {
 }
 ```
 
-- The **main shell** is a persistent left-nav + content `NavHost`; top-level destinations are the grouped page inventory in **`frontend-ia.md` §3** (Home · Chat · Loyalty · Media · Stream · Community + pinned Integrations/Settings — 17 pages). The platform **Admin** graph (`Admin*` routes) is a separate gated graph (`frontend-ia.md` §6), reached from the profile menu only for Plane-C principals. The sealed `Route` hierarchy lives centrally in `core/navigation/`; each feature contributes a `fun NavGraphBuilder.<x>Graph()` that wires its routes into the single `NavHost` — the linter fails the build on a `Route` declared but never wired (`frontend-structure.md` §4). Deep params (e.g. `PipelineEditor.pipelineId`, `WidgetEditor.widgetId`, `AdminTenant.tenantId`) ride the type-safe route. Back-stack is per-shell; entering/exiting the Admin graph swaps the shell chrome.
+- The **main shell** is a persistent left-nav + content `NavHost`; top-level destinations are the grouped page inventory in **`frontend-ia.md` §3** (Home · Chat · Loyalty · Music · Stream · Community · Moderation · Connect — 8 groups, plus the Setup pages Roles · Integrations · Settings — 21 pages; names mirror `frontend-ia.md` §3). The platform **Admin** graph (`Admin*` routes) is a separate gated graph (`frontend-ia.md` §6), reached from the profile menu only for Plane-C principals. The sealed `Route` hierarchy lives centrally in `core/navigation/`; each feature contributes a `fun NavGraphBuilder.<x>Graph()` that wires its routes into the single `NavHost` — the linter fails the build on a `Route` declared but never wired (`frontend-structure.md` §4). Deep params (e.g. `PipelineEditor.pipelineId`, `WidgetEditor.widgetId`, `AdminTenant.tenantId`) ride the type-safe route. Back-stack is per-shell; entering/exiting the Admin graph swaps the shell chrome.
 - Desktop and web share the identical graph; the web build maps routes to the browser URL/history via the wasmJs browser navigation integration so links/refresh work.
 
 ---

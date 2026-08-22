@@ -4,7 +4,7 @@
 (`2026-06-16-database-schema.md`), onboarding / GDPR / deployment-profile / stack / decisions docs, and
 the existing `server/src` code (extends, never duplicates or renames).
 
-**Subsystem scope:** Users, Channels (tenant root), BotAccounts, OAuth token vault (per-tenant/per-subject
+**Subsystem scope:** Users, Channels (tenant root — the streamer's ONE channel spanning platforms; each platform's presence is a `PlatformConnection` under it, `platform-identity.md` §0/§9.4), BotAccounts, OAuth token vault (per-tenant/per-subject
 DEK envelope crypto, crypto-shred), AuthSessions + RefreshTokens, JWT issuance, and the
 login / callback / refresh / logout HTTP surface. IPC dev-mode keys.
 
@@ -44,7 +44,7 @@ Defined authoritatively in `2026-06-16-database-schema.md`; referenced here, not
 | Entity | Schema | Base | Key fields (type) | Notes |
 |---|---|---|---|---|
 | `User` | A.1 | `SoftDeletableEntity` | `Id Guid` PK; `TwitchUserId string(50)` uniq idx; `Platform string(20)`; `Username/UsernameNormalized string(255)`; `DisplayName/NickName string(255)?`; `EmailCipher string(512)?`; `SubjectKeyId Guid?` FK→CryptoKey; `PronounId Guid?` FK→Pronouns; `IsPlatformPrincipal/IsBot/IsAnonymized/Enabled bool`; `LastSeenAt DateTime?` | **Rebuild:** `Id` `string`→`Guid`; raw Twitch id → `TwitchUserId`. `IsAdmin` bool → `IsPlatformPrincipal`. Email moves to `EmailCipher` (shred). |
-| `Channel` | A.2 | `SoftDeletableEntity` | `Id Guid` PK (= tenant id); `OwnerUserId Guid` uniq FK→User; `TwitchChannelId string(50)` uniq idx; `Name/NameNormalized string(25)`; `Status string(20)`; `SuspendedAt DateTime?`; `SuspendedReason string(500)?`; `DeploymentMode string(20)`; `BillingTierKey string(20)`; `OverlayToken string(36)` uniq; `IsOnboarded/IsLive/Enabled bool` | **Rebuild:** `Id` `string`→`Guid`; `OwnerUserId` FK replaces the `[ForeignKey(nameof(Id))]` shared-PK hack. |
+| `Channel` | A.2 | `SoftDeletableEntity` | `Id Guid` PK (= tenant id); `OwnerUserId Guid` uniq FK→User; `TwitchChannelId string(50)` uniq idx; `Name/NameNormalized string(25)`; `Status string(20)`; `SuspendedAt DateTime?`; `SuspendedReason string(500)?`; `DeploymentMode string(20)`; `BillingTierKey string(20)`; `OverlayToken string(36)` uniq; `IsOnboarded/IsLive/Enabled bool` | **Rebuild:** `Id` `string`→`Guid`; `OwnerUserId` FK replaces the `[ForeignKey(nameof(Id))]` shared-PK hack. `OwnerUserId` stays **unique**: one Channel per owner; platforms attach as `PlatformConnection` rows (A.7, `platform-identity.md` §1), so `TwitchChannelId` is a nullable projection of the `twitch` connection. |
 | `AuthSession` | A.3 | `BaseEntity` | `Id Guid` PK; `UserId Guid` FK→User; `BroadcasterId Guid?` FK→Channel; `ClientType string(20)`; `IpAddressCipher string(255)?`; `UserAgent string(512)?`; `LastSeenAt/ExpiresAt DateTime`; `RevokedAt DateTime?` | New. Live login per device; parent of refresh tokens. Tenant-scoped (`ITenantScoped`). |
 | `RefreshToken` | A.4 | `BaseEntity` | `Id Guid` PK; `SessionId Guid` FK→AuthSession; `UserId Guid` FK→User; `TokenHash string(64)` uniq; `PreviousTokenHash string(64)?`; `IssuedAt/ExpiresAt DateTime`; `ConsumedAt/RevokedAt DateTime?`; `RevokedReason string(30)?` | New. Hashed, single-use, rotating. Idx `(UserId, RevokedAt)`. |
 | `IpcDevModeKey` | A.5 | `SoftDeletableEntity` | `Id Guid` PK; `KeyHash string(64)` uniq; `Label string(100)?`; `IsEnabled bool`; `CreatedByUserId Guid?` FK→User; `ExpiresAt DateTime?` | New. Opt-in local-IPC gate (off by default, never remote). GLOBAL. |
@@ -58,7 +58,7 @@ Defined authoritatively in `2026-06-16-database-schema.md`; referenced here, not
 lookups/preferences subsystem — not redefined here.
 
 **Enum value sets (stored as `string`, [VC:enum]):**
-`Platform` = `twitch|kick|youtube`. `Channel.Status` = `active|suspended|churned|platform_banned`.
+`Platform` = `twitch|kick|youtube|twitter`. `Channel.Status` = `active|suspended|churned|platform_banned`.
 `Channel.DeploymentMode` = `saas|self_host_lite|self_host_full`. `AuthSession.ClientType` =
 `web|desktop|mobile|ipc_dev`. `RefreshToken.RevokedReason` = `logout|rotation|reuse_detected|erasure|admin`.
 `IntegrationConnection.Provider` = `twitch|spotify|discord|youtube|azure_tts|elevenlabs`.
@@ -109,21 +109,37 @@ public sealed record CryptoKeyShreddedEvent(Guid CryptoKeyId, string KeyScope, G
 
 All in `NomNomzBot.Application`. One responsibility per interface. Constructor-injected, called directly.
 
-### 3.1 `IAuthService` — extend `Services/IAuthService.cs`
+### 3.1 `IAuthService` — extend `Application/Identity/Services/IAuthService.cs`
 
-Keep the existing OAuth-URL + callback + bot methods; widen ids to `Guid`. Add session-aware login/logout.
+Keep the existing OAuth-URL + callback + bot methods; widen ids to `Guid`. Add session-aware login/logout and the
+provider-generic device-code pair (`PRODUCT-ALIGNMENT.md` D2 — any platform can be the first login; Twitch is the
+first provider, every other `ILoginProviderRegistry` key rides the same two methods).
 
 ```csharp
-namespace NomNomzBot.Application.Services;
+namespace NomNomzBot.Application.Identity.Services;
 
 public interface IAuthService
 {
+    // ── Provider-generic device-code login (D2) ───────────────────────────────
+    Task<Result<DeviceCodeStartDto>> StartDeviceLoginAsync(string provider, CancellationToken ct = default);
+    // Behavior: resolves `provider` via ILoginProviderRegistry (UNKNOWN_PROVIDER / PROVIDER_DISABLED / flow unsupported →
+    // Result failure); delegates to that ILoginIdentityProvider.StartDeviceAsync. No state change.
+
+    Task<Result<AuthResultDto>> PollDeviceLoginAsync(string provider, string deviceCode, AuthContextDto context, CancellationToken ct = default);
+    // Behavior: ILoginIdentityProvider.PollDeviceAsync → ExternalIdentityProof; upserts User via
+    // IUserIdentityService.ResolveUserAsync(provider, providerUserId, getOrCreate: true); on the first login of a user with no
+    // Channel, creates the Channel (tenant root) + its first PlatformConnection for `provider`; vaults tokens via
+    // IIntegrationTokenVault; opens an AuthSession; issues JWT (+ `idp` claim) + rotating RefreshToken.
+    // Emits UserRegisteredEvent (first time), ChannelOnboardedEvent (first onboarding), UserLoggedInEvent.
+
     // ── User OAuth (existing — widened) ──────────────────────────────────────
     Task<string> GetTwitchOAuthUrl(string? state = null, string? baseUrl = null, CancellationToken ct = default);
     // Behavior: builds the Twitch authorize URL with progressive streamer scopes. No state change.
 
     Task<Result<AuthResultDto>> HandleTwitchCallbackAsync(OAuthCallbackDto callback, AuthContextDto context, CancellationToken ct = default);
-    // Behavior: exchanges code→Twitch tokens; upserts User (by TwitchUserId) + Channel (tenant root, IsOnboarded on first login);
+    // Behavior: exchanges code→Twitch tokens; upserts User via IUserIdentityService.ResolveUserAsync("twitch", providerUserId,
+    // getOrCreate: true) (`User.TwitchUserId` is a maintained projection, not the lookup key) + Channel (tenant root,
+    // IsOnboarded on first login) + its `twitch` PlatformConnection;
     // vaults the user's Twitch tokens via IIntegrationTokenVault; opens an AuthSession; issues JWT + rotating RefreshToken.
     // Emits UserRegisteredEvent (first time), ChannelOnboardedEvent (first onboarding), UserLoggedInEvent.
 
@@ -156,13 +172,13 @@ public interface IAuthService
 }
 ```
 
-### 3.2 `IJwtTokenService` — extend `Common/Interfaces/IJwtTokenService.cs`
+### 3.2 `IJwtTokenService` — extend `Application/Abstractions/Auth/IJwtTokenService.cs`
 
 Widen `userId` to `Guid`; add the resolved tenant + session to the issued claims. Asymmetric-signing-ready
 (RS256/ES256 per decisions doc #4 — the impl chooses the key; signature unchanged).
 
 ```csharp
-namespace NomNomzBot.Application.Common.Interfaces;
+namespace NomNomzBot.Application.Abstractions.Auth;
 
 public interface IJwtTokenService
 {
@@ -180,13 +196,13 @@ public interface IJwtTokenService
 > `GenerateRefreshToken(userId, username)` (current) is **removed** — refresh tokens are now opaque random
 > values hashed into `RefreshTokens`, not self-describing JWTs. `GenerateToken` → `GenerateAccessToken`.
 
-### 3.3 `ISessionService` — new, `Common/Interfaces/ISessionService.cs`
+### 3.3 `ISessionService` — new, `Application/Abstractions/Auth/ISessionService.cs`
 
 Owns the `AuthSessions` + `RefreshTokens` lifecycle (extracted from `IAuthService` for single
 responsibility; `IAuthService` calls it).
 
 ```csharp
-namespace NomNomzBot.Application.Common.Interfaces;
+namespace NomNomzBot.Application.Abstractions.Auth;
 
 public interface ISessionService
 {
@@ -332,7 +348,7 @@ public sealed record DecryptedTokenDto(string Value, string TokenType, DateTime?
 public sealed record IntegrationConnectionDto(Guid Id, Guid? BroadcasterId, string Provider, string? ProviderAccountId, string? ProviderAccountName, string Status, IReadOnlyList<string> Scopes, bool IsByok, DateTime? ConnectedAt, DateTime? LastRefreshedAt, int ConsecutiveFailureCount);
 ```
 
-`ITwitchAuthService` (`Contracts/Twitch`) — keep as the low-level Twitch HTTP exchange; widen
+`ITwitchAuthService` (`Application/Abstractions/Auth/ITwitchAuthService.cs`) — keep as the low-level Twitch HTTP exchange; widen
 `broadcasterId` to `Guid` and route token storage through `IIntegrationTokenVault` instead of
 `Service.AccessToken`:
 
@@ -356,7 +372,7 @@ controller. Auth plane = **platform JWT**; the per-action floor is in the gate c
 
 **Role gate.** Two distinct authorization planes; a row uses exactly one.
 
-- **Management plane (Gate-2 — `ActionDefinitions`).** Gate 1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's). Gate 2 = `IActionAuthorizationService.AuthorizeActionAsync(userId,
+- **Management plane (Gate-2 — `ActionDefinitions`).** Gate-1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). Gate-2 = `IActionAuthorizationService.AuthorizeActionAsync(userId,
   broadcasterId, actionKey)` enforces the per-route floor named in the gate column before the service call
   (403 FORBIDDEN when below). The `actionKey`s are seeded global **`ActionDefinition`s** (schema B.3); a
   broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`.
@@ -371,6 +387,9 @@ controller. Auth plane = **platform JWT**; the per-action floor is in the gate c
 | Route | Verb | Request | Response | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|
 | `auth/me` | GET | — | `StatusResponseDto<CurrentUserDto>` | — (any authenticated user, own session) |
+| `auth/providers` | GET | — | `StatusResponseDto<IReadOnlyList<LoginProviderDto>>` | `[AllowAnonymous]` (login screen; `platform-identity.md` §5) |
+| `auth/{provider}/device` | POST | — | `StatusResponseDto<DeviceCodeStartDto>` | — (OAuth handshake, rate-limited `auth`; `provider` ∈ `ILoginProviderRegistry.EnabledAsync`, else 404 `UNKNOWN_PROVIDER` / 403 `PROVIDER_DISABLED`; `IAuthService.StartDeviceLoginAsync`) |
+| `auth/{provider}/device/poll` | POST | `DevicePollRequest` | `StatusResponseDto<object>` (tokens+user) | — (OAuth handshake; `IAuthService.PollDeviceLoginAsync`; `auth/twitch/device[/poll]` IS the `provider=twitch` case — same handlers) |
 | `auth/twitch` | GET | `?redirect_uri` | 302 → Twitch | — (OAuth handshake, rate-limited `auth`) |
 | `auth/twitch/callback` | GET | `?code&state` | 302 deep-link / `StatusResponseDto<object>` (tokens+user) | — (OAuth handshake) |
 | `auth/twitch/callback` | POST | `OAuthCallbackDto` | `StatusResponseDto<object>` (tokens+user) | — (OAuth handshake, SPA/mobile code exchange) |

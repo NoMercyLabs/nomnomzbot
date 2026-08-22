@@ -10,33 +10,16 @@ what REMAINS.
 - Slice by slice, hardest → smallest. One validated vertical slice at a time; commit each.
 - **Test cadence (owner, 2026-07-09):** during iterative churn run only the *targeted local tests
   that matter*. Reserve full `dotnet test` + push + CI watch for **meaningful checkpoints**.
-- Frontend allowed **shadcn only** (no Material). Never touch `aaoa-dev`'s screens except to relocate.
+- Frontend allowed **shadcn only** (no Material); design bar = the Sleak skill (track split suspended, D7).
 
 ---
 
-## 🔧 Backend — genuinely open
+## 🔧 Backend — open
 
-**None.** Every buildable backend item is shipped + deployed (git history is the record). Finished
-this session: TTS `client_edge` dispatch plane, id-picker search endpoints (viewer +
-custom-data-source), and the games/commands double-fire fix (an active live round now shadows a
-same-named command). The rest that briefly lived here reclassified after root-causing:
-- **Chat live-push** and **analytics charts** are **frontend-only** — the backend push path is
-  confirmed correct and the daily analytics series already exists (both diagnosed into
-  `handoff/for-frontend.md`).
-- **Import (Streamer.bot / overlays)** and **multi-channel moderation fan-out** are **owner/design
-  calls** (opaque export formats; the channel-link model) — see the design-forks bullet below.
+The open backend work is `SHORTCOMINGS-EXECUTION-PLAN.md`, top to bottom (D8). Nothing is tracked
+separately here.
 
-## 🎨 Frontend track — BUILT this session (git history is the record; validated jvmTest + wasm, LOCAL)
-
-Nearly the whole frontend surface shipped locally (waves 1+2): automation tokens · OBS/VTS config +
-`/obs-bridge` · live-games UI · widget gallery submit/review · bundles + marketplace · GDPR my-data ·
-TTS searchable voices + BYOK + config reshape · webhooks pickers · pick-lists "Random Responses"
-rename + picker · pipeline palette-from-catalogue · event-responses reaction-chains + preset prefill ·
-community per-viewer · music share + player · chat polls · chat triggers · reward timers + pipeline
-picker · discord announce flow + DM · kick tile · multi-channel chat watch · moderation panels
-(history/trust/escalation/nuke/shared-ban/standing) · admin (IAM/tenants/audit/AdminHub live) ·
-analytics charts + per-stream + metrics-row balance · home real stats · supporters one-step connect ·
-desktop device-flow scope re-grant · schedule .ics · the multi-file `src/` editor.
+## 🎨 Frontend
 
 **Frontend remainders (open):**
 - [ ] **Broad UX polish pass** ("more intuitive" — ongoing, subjective, frontend-led). Everything else
@@ -46,7 +29,7 @@ desktop device-flow scope re-grant · schedule .ics · the multi-file `src/` edi
 
 ## 🔒 Owner calls — gated, cannot close autonomously
 
-- [ ] **24d.** Confirm authz key names (Plane-C + Gate-2 buckets).
+- [ ] **24d.** Confirm authz key names — the two OWNER-CONFIRM items (Plane-C key mappings + Gate-2 keys minted 2026-07-04) in `ROADMAP.md` § Security & authorization fixes.
 - [ ] **Self-host owner = platform admin?** The owner user has NO IAM principal, so platform-IAM-gated
   features 403 for them (found: federation `peers` requires `IamPermissionKeys.AuditRead`; the Federatie
   screen then shows "Forbidden"). Decide: auto-seed the self-host root owner as a platform-admin IAM
@@ -60,11 +43,12 @@ desktop device-flow scope re-grant · schedule .ics · the multi-file `src/` edi
   the "rushed/yolo" failure the owner flagged): **pipelines 6-surface unification** (one trigger→action
   model across commands/event-responses/chat-triggers/timers/redemptions/webhooks — a large refactor);
   **community reposition** (loyalty view vs merge away); **data-sources push-bridge** payload contract;
-  **federation transport** (mTLS/OIDC); **multi-channel channel-link + cross-platform ban fan-out**
-  (the watch UI shipped; the link model + one-ban-to-all-platforms is the design part); **import**
-  feasibility for Streamer.bot (`.sb`) + provider overlays (opaque formats). (Resolved this session:
-  pick-lists rename ✓, games/commands precedence ✓.)
-can
+  **federation transport** (mTLS/OIDC); **cross-platform ban fan-out** — the grouping model is
+  decided: D1 one channel, many platform connections (see `PRODUCT-ALIGNMENT.md`), built in
+  `SHORTCOMINGS-EXECUTION-PLAN.md` Tier 6.1 (one ban → every platform connection of the channel);
+  **import** feasibility for Streamer.bot (`.sb`) + provider overlays (opaque formats). (Resolved this
+  session: pick-lists rename ✓, games/commands precedence ✓.)
+
 ## new issues found
 - [ ] **OBS real-in-the-loop smoke — OWNER-run on a real OBS** (the deterministic legs are done:
   `ObsRealSocketIntegrationTests` drives the production `ClientWebSocket` against a mock obs-ws v5 server

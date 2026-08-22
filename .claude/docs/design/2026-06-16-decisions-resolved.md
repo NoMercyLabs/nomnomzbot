@@ -62,12 +62,12 @@ Rationale: x86_64-Cranelift dodged the April-2026 *Critical* escapes but is not 
 (CVE-2026-24116, CVE-2026-34944) and compiler-miscompilation escapes are inherent — patch latency is a live
 operational risk, so the SLA is a hard requirement.
 
-## 7. No file logging after dropping Serilog — tension #7
+## 7. Logging — tension #7
 
-**DECISION:** **Console-only for lite** (`AddConsole()`), documented as "pipe to file /
-local OTel Collector". Do **not** build a custom file `ILoggerProvider` (YAGNI).
-Rationale: OTel has no file sink, but console output is tail-able/redirectable and keeps the lite profile
-dependency-free; a ~50 LOC file provider is speculative and out of scope.
+**DECISION (as built, re-affirmed 2026-08-22):** **Serilog stays** (`Serilog.AspNetCore` + console
+sink; `Program.cs` `UseSerilog`). The earlier "drop Serilog, console-only via `AddConsole()`" line was
+never implemented and is withdrawn. Lite profile: console output, tail-able/redirectable; no custom file
+provider (YAGNI).
 
 ## 8. Multi-instance double-fire is latent today — tension #8
 
@@ -141,7 +141,7 @@ The 12 cross-spec/schema **subsystem-readiness** owner gaps from `spec/_READINES
 6. **custom-code — domain-event base.** Events inherit the canonical `DomainEventBase`; `BroadcasterId` is the base-supplied `Guid` (locked UUIDv7 key, platform-conventions §2.0), not redeclared per-event. Binds to the bus contract.
 7. **custom-code — `code:script:author` plane vs floor.** Resolved to `Plane=management` (where Broadcaster 40 actually exists), `FloorLevel=40 (Broadcaster)`, `FloorTier=critical`; custom-code §5.1 owns the seed insertion point. **(Plane change — final: the T3 custom-code escape-hatch is re-planed `community`→`management`.)**
 8. **tts — client-edge dispatch surface.** Added `IOverlayClient.TtsSpeak(TtsSpeakPayload)` + `TtsSpeakPayload`/`TtsSpeakOptions` DTOs to widgets-overlays §7 (the `IOverlayClient` owner). tts `client_edge` consumes them — utterance event pushed, audio rendered edge-side, no bytes on the wire.
-9. **federation-oidc — `EventJournal.Source=federation`.** Extended the LOCKED schema O.1 enum with `federation` (+ changelog). Federated events are first-class, distinct from `eventsub|domain|irc|import`.
+9. **federation-oidc — `EventJournal.Source=federation`.** Extended the LOCKED schema O.1 enum with `federation` (+ changelog). Federated events are first-class, distinct from `eventsub|domain|kick|youtube|import`.
 10. **federation-oidc — envelope→typed-event mapping.** Added `IFederationInboundTranslator.TranslateAndApplyAsync` (§3.6) deserializing `FederationEventEnvelope.PayloadJson` by `FederatedEventType` (`moderation.ban.shared`→`SharedChatBanIssuedEvent`) and invoking moderation's `ISharedBanService.ApplyInboundSharedBanAsync`. Fails closed on unknown type/schema.
 11. **federation-oidc — `Origin` value conflict.** Settled on `Origin=federation` for the cross-instance inbound apply (distinct from Twitch-native same-instance `Origin=shared_chat`). The stale `origin=shared_chat` on `ApplyInboundSharedBanAsync` in `moderation.md` §3 was corrected inline to `origin=federation`.
 12. **federation-oidc — shared-chat-session precondition.** Declared at the owning method: `ApplyInboundSharedBanAsync` verifies an active shared-chat session (`SharedChatSessionId` carried on `SharedChatBanIssuedEvent`) and enforces the predicate itself — "not by the caller" (`moderation.md` §3).

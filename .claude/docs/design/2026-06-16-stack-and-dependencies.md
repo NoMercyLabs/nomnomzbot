@@ -155,7 +155,7 @@ Profile axis (drives every swappable adapter, per `2026-06-16-deployment-profile
 
 ---
 
-## 5. Resolved decisions (final — see `2026-06-16-decisions-pending-confirmation.md` #1–#10)
+## 5. Resolved decisions (final — see `2026-06-16-decisions-resolved.md` #1–#10)
 
 Every item below is a **binding decision**; the rationale is retained for context. Items phrased as a prerequisite are plan **dependencies** (ordering is the task board's job), not deferrals.
 

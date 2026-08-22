@@ -67,6 +67,20 @@ SignalR hub methods and pipeline actions excluded). `#PipeActions` = `ICommandAc
 | Pronoun Provider | `pronouns.md` | A.1 `Users.AltPronounId` (col) | 3 | 3 | 0 |
 | Broadcaster Live-Ops | `broadcaster-liveops.md` | F.12 `ActivePolls`, F.13 `ActivePredictions` | 2 (+ the granular Helix category sub-clients, twitch-helix §3.4a) | ~16 | 5 |
 | Deployment & Distribution (rulebook) | `deployment-distribution.md` | — (ops: packaging/run, SaaS phasing, wasm hosting, mDNS; no schema) | 0 | 0 | 0 |
+| Dashboard Chat Client | `chat-client.md` | — (renders/sends; no schema) | 4 (+2 extended) | 6 | 0 |
+| Developer Platform (typed events, API SDK, multi-file editor, library) | `dev-platform.md` | — (unifying layer over custom-code / sandbox / widgets / automation; no schema) | 3 | ~6 | 0 |
+| Platform Identity (multi-platform connections) | `platform-identity.md` | A.x `UserIdentity`, `PlatformConnection` (D1: one channel, many platform connections) | ~6 | ~10 | 0 |
+| Widget SDK | `widget-sdk.md` | — (client SDK contract for widgets; no schema) | 2 | 0 | 0 |
+| Stream Deck Plugin | `streamdeck-plugin.md` | (none — reuses P.17 via `stream-deck.md`) | 0 | 0 | 0 |
+| Music Automation Controls | `music-automation-controls.md` | — (automation-API music ops; reuses L.4–L.9) | 1 | ~8 | 0 |
+| Frontend IA (navigation, shell, role gating) | `frontend-ia.md` | — (client IA; consumes §5 tables) | 0 | 0 | 0 |
+| Frontend Structure (module layout) | `frontend-structure.md` | — (client layout rulebook) | 0 | 0 | 0 |
+| Frontend Data Layer (query/cache) | `frontend-data-layer.md` | — (client data layer) | ~4 (client) | 0 | 0 |
+| Frontend Design System (shadcn port) | `frontend-design-system.md` | — (tokens/components/patterns) | 0 | 0 | 0 |
+| Design-system Component Catalogue | `frontend-design-system.catalogue.md` | — (closed manifest; linter input) | 0 | 0 | 0 |
+| Figma Design-System Rules (reference note) | `figma-design-system-rules.md` | — (non-canonical reference; Figma is not a source of truth) | 0 | 0 | 0 |
+
+**Conventions (glossary, binding — `../PRODUCT-ALIGNMENT.md`):** **channel** = the tenant (`BroadcasterId`), one channel spanning many **platform connections** (Twitch/Kick/YouTube/X); **broadcaster** = the human owner role; **event response** = "when X do Y" config, an **alert** is only the on-air notification it produces; **widget** = the artifact, **overlay** = the OBS page rendering widgets, **system surface** = a channel-owned non-gallery page; spell **Gate-1 / Gate-2 / Plane-C** exactly so; the bot **types** in chat and **speaks** via TTS.
 
 Counts are nominal (some specs list extended-vs-new interfaces and inline supporting records); they are an
 orientation aid, not a contract.
@@ -300,6 +314,6 @@ now resolved by targeted edits and re-verified against the spec/schema files:
 
 **Verdict: fully implementable.** All originally-reviewed subsystem specs are buildable now, every one decision-complete with no
 open or pending questions (`scaling-qos.md`, `webhooks.md`, and `code-execution-sandbox.md` are decision-ready on the same conventions). The 12 resolutions are provisional
-(owner asleep) and logged for override-on-wake in `../2026-06-16-decisions-pending-confirmation.md`; only gap #7
+(owner asleep) and logged for override-on-wake in `../2026-06-16-decisions-resolved.md`; only gap #7
 (re-planing the T3 custom-code action `community`→`management`) changes a security plane and warrants a deliberate
 owner confirmation.

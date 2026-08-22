@@ -338,9 +338,9 @@ store.SetEpochDeadline(ticksBeyondCurrent: 1);    // trap after the watchdog adv
   the §5.3 GLOBAL semaphore a fleet of tenants each parking one such thread exhausts the global pool and stalls
   **all** sandbox execution (a liveness/DoS break against A5). Therefore **every** `bot.*` host import MUST:
     - (a) be bounded by its **own short internal timeout** (DB `CommandTimeout`, `HttpClient` per-request timeout,
-      IRC send timeout) — never rely solely on the watchdog, and
+      chat-provider send timeout — provider-agnostic, the same bound for every platform `IChatProvider`) — never rely solely on the watchdog, and
     - (b) **actually plumb the per-execution `CancellationToken`** into the underlying I/O (the DB command, the
-      `HttpClient` call, the IRC send) — not merely "signal a CTS" the import may drop.
+      `HttpClient` call, the chat-provider send) — not merely "signal a CTS" the import may drop.
   `MaxHostCalls` is capped (§5.1) such that worst-case `MaxHostCalls × per-import-timeout` stays **below** a hard
   ceiling (< the grace-window-extended `WallClockMs`). A stuck thread that survives the grace window forfeits its
   GLOBAL permit (step 4 above). Test: §12 T3 covers an import whose backing service blocks — it must trip within
@@ -576,7 +576,7 @@ insufficient for SaaS. The admission gate sits in `IScriptRunner` **before** `Ex
     **crash / IPC-abort / kill-timeout** as a `Faulted` `ScriptExecutionOutcome` **attributed to the exact
     `CodeScriptId` + `ExecutionId` in flight**, and it counts toward the N-in-window auto-disable. Test: §12 T5b.
 - **Per-tenant circuit breaker:** when a tenant's sandbox denial/fault **rate** crosses a threshold, the runner
-  short-circuits new executions to `Denied(QuotaExceeded)` for a cool-off and emits an alert event (§10).
+  short-circuits new executions to `Denied(QuotaExceeded)` for a cool-off and emits an ops notification (§10).
 - **Global feature kill:** the `custom_code` feature flag (`platform-conventions.md`) is the platform-wide off
   switch — disabling it makes every `run_code` fail `FEATURE_DISABLED` instantly, no deploy.
 
@@ -645,7 +645,7 @@ tenant-scopes + audits**, and where the **credential** lives.
 | `vars.write` | `bot.vars.write(key:string, val:string) → void` | low | yes | writes buffered into `VariablesOut`, merged back into **this** pipeline run only; key/val length-capped | none |
 | `args.get` | `bot.args(i:int) → string?` | low | no | reads `ScriptInputs.Args` snapshot; bounds-checked | none |
 | `user.get` | `bot.user.name → string` / `bot.user.id → string` | low | no | returns `TriggeredByDisplayName` + **internal guid** `TriggeredByUserId` — **NOT Twitch PII** (no email/IP) | none |
-| `chat.send` | `bot.chat.send(text:string) → void` | tos | yes | host sends via the IRC bot bound to **this** channel; `text` capped at `MaxOutputBytes`, rate-limited; output also returned as `ChatOutput` | bot OAuth token — **host-side**, in the IRC client, never in guest |
+| `chat.send` | `bot.chat.send(text:string) → void` | tos | yes | host sends via the platform chat provider (`IChatProvider`; Twitch = Helix Send Chat Message, no IRC) bound to **this** channel; `text` capped at `MaxOutputBytes`, rate-limited; output also returned as `ChatOutput` | bot OAuth token — **host-side**, in the chat provider, never in guest |
 | `chat.reply` | `bot.chat.reply(text:string) → void` | tos | yes | same as `chat.send`, replies to `ScriptInputs` message id (host-held) | host-side |
 | `music.queue` | `bot.music.queue(query:string) → bool` | tos | yes | host calls the Spotify/YT client **pre-bound to this BroadcasterId**; query length-capped | Spotify/YT OAuth token — **host-side** |
 | `music.nowPlaying` | `bot.music.nowPlaying() → {title,artist}?` | low | no | read-only, this channel's player only | host-side |
@@ -1014,7 +1014,7 @@ Every `run_code` invocation contributes to the **append-only** `PipelineExecutio
 - **PRE-run quota exhausted** → run refused with `BILLING_LIMIT`, `HostCallCount == 0`, one
   `ScriptExecutionDeniedEvent(QuotaExceeded)` (§5.3).
 - **Repeated faults** → auto-disable the script (§5.4); next trigger fails `Denied(ScriptDisabled)`.
-- **Per-tenant denial-rate threshold crossed** → circuit-breaker cool-off + **alert event** (ops paging hook).
+- **Per-tenant denial-rate threshold crossed** → circuit-breaker cool-off + **ops notification** (ops paging hook).
 - **Idempotent metering** (`RecordSandboxUsageAsync` keyed by `ExecutionId`) → a retried run cannot double-bill or
   be replayed to evade quota.
 

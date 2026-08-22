@@ -1,4 +1,4 @@
-# Frontend Structure — Kotlin Multiplatform + Compose Multiplatform (research record, 2026-06)
+# Frontend Structure — Kotlin Multiplatform + Compose Multiplatform (historical research record, 2026-06)
 
 > **⚠️ SUPERSEDED for two headline decisions — `spec/frontend.md` is the authority.**
 > This doc is kept as the **research record** (sources, version checks, the wizard/source-set

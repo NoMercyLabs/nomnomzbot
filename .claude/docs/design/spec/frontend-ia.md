@@ -137,13 +137,13 @@ Music is a **first-class area**: `Music` is the **area home** (remote/transport/
 | Page | Route | Read | Manage | Backend spec |
 |---|---|---|---|---|
 | **Overlays** | `Widgets` (+ `WidgetEditor`) | Moderator | Editor | `widgets-overlays.md` — first-party catalogue, install, settings, clone-to-edit, the code editor |
-| **Alerts & Events** | `Alerts` | Moderator | Editor | `commands-pipelines.md` + `twitch-eventsub.md` — follow/sub/raid/cheer/gift event responses (event-triggered pipelines) |
+| **Event Responses** | `EventResponses` (shipped also as `Alerts` — reconcile to one route) | Moderator | Editor | `commands-pipelines.md` + `twitch-eventsub.md` — follow/sub/raid/cheer/gift event responses (event-triggered pipelines); the on-air **alert** is what an event response produces, not the page |
 | **Analytics** | `Analytics` | Moderator | — | `analytics.md` — the projection dashboards |
 
 #### Community
 | Page | Route | Read | Manage | Backend spec |
 |---|---|---|---|---|
-| **Viewers** | `Community` | Moderator | Moderator | `community-dashboard.md` + `roles-permissions.md` — viewer list/standings/leaderboards (real Twitch data only) |
+| **Viewers** | `Community` | Moderator | Moderator | `community-dashboard.md` + `roles-permissions.md` — viewer list/standings/leaderboards (real platform data only — provider-fanned Twitch + Kick + YouTube, merged per viewer identity; never fabricated) |
 
 #### Connect
 | Page | Route | Read | Manage | Backend spec |
@@ -167,6 +167,24 @@ headerless rail). Feature pages must NOT carry wire-up controls — all provider
 > predictions, raids) surfaces as **quick-action panels on the Dashboard** (the live home), not a separate
 > sidebar page — these are run-while-live controls, used in the moment, not a workspace you navigate to.
 
+### 3b. Shipped-route reconciliation (`ShellNav.pages`, 42 routes)
+
+`ShellNav.pages` ships **42** routes against the 21 pages above. The extra routes are real pages and belong to
+the inventory under their shipped group — this table is the binding reconciliation (each row = a shipped route
+not listed in §3; the 21 rows above are unchanged):
+
+| Group | Shipped extra routes | Disposition |
+|---|---|---|
+| Chat | `MultiChat`, `ChatTriggers`, `PickLists` | `MultiChat` = the multi-channel feed lane of the Chat page (`chat-client.md` §0, provider-merged); `ChatTriggers` + `PickLists` = sub-pages of Commands (`commands-pipelines.md`, `pick-lists` builtin) |
+| Loyalty | `Giveaways` | own page (`giveaways.md`) |
+| Music | `SoundClips`, `Assets`, `MediaShare` | own pages (`sound-system.md`, asset library, `media-share.md`) |
+| Stream | `Alerts`, `Schedule`, `CodeScripts` | `Alerts` merges into `EventResponses` (one route); `Schedule` = live-ops schedule (`broadcaster-liveops.md`); `CodeScripts` = the T3 editor (`custom-code.md`, Broadcaster floor) |
+| Connect | `Webhooks`, `Federation`, `CustomEvents`, `Supporters`, `Obs`, `Vts`, `Automation` | own pages (`webhooks.md`, `federation-oidc.md`, `custom-events.md`, `supporter-events.md`, `obs-control.md`, `vtube-studio.md`, `automation-api.md`) |
+| Setup | `Bundles`, `Features`, `MyData` | `Bundles` (`marketplace.md`), `Features` (feature toggles, `platform-conventions.md`); `MyData` moves to the participant rung (§3a — D4, every signed-in viewer) |
+| — | `Admin` | not a sidebar page — the Plane-C graph reached from the profile menu (§4, §6), unchanged |
+
+**Persona priority** for every IA decision: **streamer → moderator of many channels → viewer** (PRODUCT-ALIGNMENT).
+
 ---
 
 ## 3a. The participant rung (Rung 0)
@@ -182,7 +200,12 @@ Plane-A `CommunityStanding` rather than a management role (`ParticipantNav`). Th
 | **Leaderboards** | Everyone | the channel's leaderboards (read) + the caller's own opt-in/opt-out toggle |
 | **Points & Store** | Everyone | the caller's balance, the catalog (read + purchase), community jars, points transfers |
 | **Games** | Everyone | the channel's games: read, play, and the caller's own play history |
-| **Me** | Everyone | the caller's own data: pronouns, activity summary, participation footprint |
+| **Me** | Everyone | the caller's own data: pronouns, activity summary, participation footprint, **own TTS voice** (`tts.md` per-viewer voice), **linked platforms** (`UserIdentity` rows — link/unlink Twitch/Kick/YouTube/X, `platform-identity.md`) |
+| **My Standing** | Everyone | the caller's `CommunityStanding` on this channel (name only, never a level number), active permits, ban/timeout state across the channels they participate in |
+| **My Data** | Everyone | `MyData` — GDPR export / erasure request, consent records (`gdpr-crypto.md`); shipped route re-homed here from Setup (D4 — a viewer right, not a Moderator-floor page) |
+
+On SaaS a viewer signs in **free** and this rung spans every channel on the instance they participate in (D4); on
+self-host it is the same surface for the operator's own viewers.
 
 Progressive unlocks (a sub-only lane, sub leaderboards, higher pending limits) are decided **on the page**
 from the caller's standing — never by hiding the whole page.

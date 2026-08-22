@@ -2,7 +2,7 @@
 
 **Subsystem:** SaaS subscriptions, tiers + `TierLimit` quotas, usage counters tied to cost drivers, invite codes, founders badge. **The hosted/SaaS service is paid-only — there is no free hosted tier; the only free path is self-host (unlimited).**
 **Status:** Directly-implementable. Code from this first-try.
-**Sources of truth:** locked schema `2026-06-16-database-schema.md` Domain N (N.1–N.7) + globals `P.12 DeploymentProfile` / `P.13 FeatureFlag`; design `2026-06-16-monetization.md`; stack `2026-06-16-stack-and-dependencies.md`; defaults `2026-06-16-decisions-pending-confirmation.md`.
+**Sources of truth:** locked schema `2026-06-16-database-schema.md` Domain N (N.1–N.7) + globals `P.12 DeploymentProfile` / `P.13 FeatureFlag`; design `2026-06-16-monetization.md`; stack `2026-06-16-stack-and-dependencies.md`; defaults `2026-06-16-decisions-resolved.md`.
 
 ## Conventions binding on this subsystem
 
@@ -352,9 +352,9 @@ public record StripeInvoiceEventDto(
 
 ## 5. Controller endpoints
 
-All under `api/v1/`. Tenant endpoints (`BillingController`, §5.1) sit on the **management plane**; platform-admin endpoints (`AdminBillingController`, §5.3) sit on the **platform IAM plane (Plane C)**.
+All under `api/v1/`. Tenant endpoints (`BillingController`, §5.1) sit on the **management plane**; platform-admin endpoints (`AdminBillingController`, §5.3) sit on the **platform IAM plane (Plane-C)**.
 
-**Role gate** — **Gate 1** = `[Authorize]` + tenant resolution (`ICurrentTenantService`/`IChannelAccessService`) is pure entry only (any authenticated caller, channel must exist); it cannot distinguish the per-route floor. **Gate 2** = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey, ct)` enforces the per-route floor named in the gate column **before** the service call, returning `FORBIDDEN` (403) when the caller's resolved level is below the floor (owner-level billing control — mods cannot change billing). **Plane-C rows** (§5.3) are enforced by `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, targetBroadcasterId, …)`; the ASP.NET `[Authorize(Policy = "<key>")]` policy name **is** the permission key verbatim (`billing:read`/`billing:refund`/`iam:manage`, replacing the legacy `[Authorize(Roles = "admin")]` gate). Floors are seeded global `ActionDefinitions` (schema B.3 / Domain C); a broadcaster may raise a floor via `ChannelActionOverride` but never below the seeded `FloorLevel`.
+**Role gate** — **Gate-1** = `[Authorize]` + tenant resolution (`ICurrentTenantService`/`IChannelAccessService`) is pure entry only (any authenticated caller, channel must exist); it cannot distinguish the per-route floor. **Gate-2** = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey, ct)` enforces the per-route floor named in the gate column **before** the service call, returning `FORBIDDEN` (403) when the caller's resolved level is below the floor (owner-level billing control — mods cannot change billing). **Plane-C rows** (§5.3) are enforced by `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, targetBroadcasterId, …)`; the ASP.NET `[Authorize(Policy = "<key>")]` policy name **is** the permission key verbatim (`billing:read`/`billing:refund`/`iam:manage`, replacing the legacy `[Authorize(Roles = "admin")]` gate). Floors are seeded global `ActionDefinitions` (schema B.3 / Domain C); a broadcaster may raise a floor via `ChannelActionOverride` but never below the seeded `FloorLevel`.
 
 ### 5.1 `BillingController` — tenant self-serve
 
@@ -386,7 +386,7 @@ All under `api/v1/`. Tenant endpoints (`BillingController`, §5.1) sit on the **
 |---|---|---|---|---|
 | POST | `/` | raw body + `Stripe-Signature` header | `StatusResponseDto<object>` (200 ack) | **Anonymous**; authenticated by HMAC signature verification against the Stripe webhook secret (in-box `HMACSHA256`, constant-time compare). Invalid signature → 400. Routes by event type: `customer.subscription.*` → `StripeSubscriptionEventDto` → `ISubscriptionService.ApplyStripeSubscriptionEventAsync`; `invoice.*` (`invoice.paid`/`invoice.payment_failed`) → `StripeInvoiceEventDto` → `ISubscriptionService.ApplyStripeInvoiceEventAsync` (Invoice upsert). Idempotent by `StripeEventId`. |
 
-### 5.3 `AdminBillingController` — platform admin (Plane C)
+### 5.3 `AdminBillingController` — platform admin (Plane-C)
 
 `[ApiVersion("1.0")] [Route("api/v{version:apiVersion}/admin/billing")] [Authorize] [Tags("Admin")]`
 

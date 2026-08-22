@@ -17,7 +17,7 @@
 | D3 | **Auth transport: header or first-message — never query-param.** Native tools send `Authorization: Bearer <token>` on the REST request / WS handshake. Browser clients (which cannot set WS handshake headers) send a first `{ "op":"authenticate", "token":"…" }` within a short auth-timeout, else the socket closes. Tokens never travel in a query string (contrast the SignalR `?access_token=` hubs — acceptable for those, not here). |
 | D4 | **Two planes.** **Management plane** (token CRUD) lives under `/api/v1/automation/*`, JWT-authed, Gate-2 `automation:tokens:*` (Broadcaster / `Critical`). **Data plane** (the external API itself) lives under `/automation/v1/*` + WS `/automation/v1/stream`, authed by `IAutomationTokenAuthenticator` against the token + its scopes. |
 | D5 | **Invocation = `TriggerKind=manual`.** `POST /automation/v1/invoke` resolves the pipeline (by id or name), enforces scope `invoke` + the token allowlist, and calls `IPipelineEngine.ExecuteAsync` with a synthetic **automation actor** (`TriggeredByDisplayName` = token name; `{{trigger.source}}` = `automation`). No new execution path. |
-| D6 | **Event stream is a curated public catalog, default-deny.** Only domain events with a registered `IAutomationEventDescriptor` (stable `PublicName` + **PII-safe** payload projection) are exposed; everything else is invisible (no internal/PII leakage). Descriptors are **auto-discovered** — exposing a new event = drop a descriptor, no engine edit. The bridge consumes `IEventBus`, fans out to locally-connected sessions holding scope `events`; cluster-wide for free because the bus is cluster-wide (`RedisEventBus` on SaaS), so each node serves its own sessions with no cross-node session routing. |
+| D6 | **Event stream is expose-all with PII projection** (owner 2026-08-22; `dev-platform.md` §1–§2). **Every** domain event on `IEventBus` is exposed on the stream under its wire name from the **unified event catalog** (`dev-platform.md` §2 — `[Event(wireName, Visibility)]` class attribute, auto-reflected); the wire payload is the **attribute-generated projection** — `[NotExposed]` members never leave the server, `[Pii]` members are present for Broadcaster+ tiers and stripped from Public. Registration is **attribute-driven and descriptor-free**: exposing a new event = declare the event type, no descriptor, no engine edit; an unannotated event ships at the default visibility with all plain fields. The bridge consumes `IEventBus`, fans out to locally-connected sessions holding scope `events`; cluster-wide for free because the bus is cluster-wide (`RedisEventBus` on SaaS), so each node serves its own sessions with no cross-node session routing. |
 | D7 | **Profile-agnostic surface; exposure differs, API identical.** Self-host binds the data plane on localhost + LAN (remote via the operator's existing opt-in tunnel — `ExposureModel.OptInTunnel`); SaaS exposes it at the managed edge per-tenant. Same routes, same protocol, same auth on both — only the bind/exposure (owned by the existing `ExposureModel`) changes. |
 | D8 | **Rate-limited + audited.** Every data-plane call passes `IRateLimiter` on a per-token bucket (tier-scaled: safe baseline + headroom). Token lifecycle (`created`/`rotated`/`revoked`) is journaled (Critical-tier credential). |
 | D9 | **Schema:** **P.17 `AutomationApiToken`** (tenant-scoped, soft-delete). WS sessions are ephemeral (in-memory, per node) — **no session table**. Boundary vs `webhooks.md`: webhooks = passive event adapters (in/out); this = active command/query/subscribe. No overlap. |
@@ -58,7 +58,7 @@ public sealed record AutomationTokenRevokedEvent : DomainEventBase
 }
 ```
 
-These are **internal audit** events (no `IAutomationEventDescriptor` — a token's own lifecycle is not streamed to automation clients, D6).
+These are **internal audit** events (class-level `[Event(Visibility=Internal)]` — a token's own lifecycle is not streamed to automation clients, D6).
 
 ---
 
@@ -99,18 +99,14 @@ public interface IAutomationCommandService
 }
 
 // ── Event stream ────────────────────────────────────────────────────────────
-// One descriptor per externally-exposed domain event; auto-discovered at startup (D6).
-public interface IAutomationEventDescriptor
-{
-    string PublicName { get; }            // stable wire name, e.g. "Twitch.ChatMessage", "Supporter.Received", "Custom.HeartRate"
-    Type DomainEventType { get; }         // the source DomainEventBase subtype
-    object ProjectPayload(DomainEventBase domainEvent);   // PII-safe public projection
-}
-
+// The unified event catalog (dev-platform.md §2) is the registry: every DomainEventBase subtype is reflected at
+// startup; wire name + visibility come from the class-level [Event(wireName, Visibility)] attribute (default:
+// "<Module>.<EventName>" / Public), the projection is generated from [NotExposed]/[Pii] — no per-event descriptor.
 public interface IAutomationEventRegistry
 {
-    bool TryGet(Type domainEventType, out IAutomationEventDescriptor descriptor);
-    IReadOnlyList<AutomationEventCatalogItem> Catalog { get; }
+    bool TryGet(Type domainEventType, out AutomationEventCatalogItem item);   // wire name + visibility + projector
+    IReadOnlyList<AutomationEventCatalogItem> Catalog { get; }                 // the full reflected catalog (D6)
+    object Project(DomainEventBase domainEvent, AutomationVisibility viewerTier); // attribute-generated projection
 }
 
 // Consumes IEventBus; pushes matching public events to locally-connected sessions with scope `events`.
@@ -177,7 +173,7 @@ Text frames, one JSON object per frame. Client requests carry `op` + `id` (corre
 { "op": "event", "type": "Supporter.Received", "broadcasterId": "…", "occurredAt": "…", "data": { "kind": "tip", "from": "…", "amount": 5.00, "currency": "USD", "message": "…" } }
 ```
 
-**Rules:** unauthenticated sockets accept only `authenticate` and are closed after `authTimeoutSeconds`; each op enforces the token's scope (`subscribe`→`events`, `invoke`→`invoke` + allowlist, `sendChat`→`chat`); subscriptions are filtered server-side against the **public catalog** (D6) and the token scope — an event with no descriptor is never sent. Wildcards (`Custom.*`, `*`) match catalog `PublicName`s. The server pushes only events for the token's `BroadcasterId`.
+**Rules:** unauthenticated sockets accept only `authenticate` and are closed after `authTimeoutSeconds`; each op enforces the token's scope (`subscribe`→`events`, `invoke`→`invoke` + allowlist, `sendChat`→`chat`); subscriptions are filtered server-side against the **unified event catalog** (D6) and the token scope — an event marked `Visibility=Internal` is never sent; every other event is sent with its tier projection. Wildcards (`Custom.*`, `*`) match catalog wire names. The server pushes only events for the token's `BroadcasterId`.
 
 ### 4.3 Exposure (D7)
 
@@ -205,9 +201,9 @@ The **data plane** (§4) is **not** in this Gate-2 table: it is authed by `IAuto
 
 ## 6. DI & testing
 
-`NomNomzBot.Infrastructure/AutomationApi/DependencyInjection.cs` (`AddAutomationApi()`): `IAutomationApiTokenService`→`AutomationApiTokenService` (Scoped); `IAutomationTokenAuthenticator`→`AutomationTokenAuthenticator` (Scoped); `IAutomationCommandService`→`AutomationCommandService` (Scoped); `AutomationApiTokenRepository` (Scoped); `IAutomationSessionRegistry`→`AutomationSessionRegistry` (Singleton, in-memory); `IAutomationEventRegistry`→`AutomationEventRegistry` (Singleton, **auto-discovers** all `IAutomationEventDescriptor`); `IAutomationEventBridge`→`AutomationEventBridge` (Singleton `IHostedService`, subscribes `IEventBus`). The `/automation/v1` route group uses `ApiTokenAuthenticationHandler`; rate-limit buckets resolve through `IRateLimiter` per token.
+`NomNomzBot.Infrastructure/AutomationApi/DependencyInjection.cs` (`AddAutomationApi()`): `IAutomationApiTokenService`→`AutomationApiTokenService` (Scoped); `IAutomationTokenAuthenticator`→`AutomationTokenAuthenticator` (Scoped); `IAutomationCommandService`→`AutomationCommandService` (Scoped); `AutomationApiTokenRepository` (Scoped); `IAutomationSessionRegistry`→`AutomationSessionRegistry` (Singleton, in-memory); `IAutomationEventRegistry`→`AutomationEventRegistry` (Singleton, **reflects** every `DomainEventBase` subtype into the unified event catalog — attribute-driven, descriptor-free, `dev-platform.md` §2); `IAutomationEventBridge`→`AutomationEventBridge` (Singleton `IHostedService`, subscribes `IEventBus`). The `/automation/v1` route group uses `ApiTokenAuthenticationHandler`; rate-limit buckets resolve through `IRateLimiter` per token.
 
-**Tests (prove behavior):** creating a token returns the plaintext **once** and persists only the hash, with the requested scopes (a second read never exposes the secret); `AuthenticateAsync` accepts a valid secret and rejects an expired/revoked/soft-deleted one and stamps `LastUsedAt`; `InvokePipelineAsync` with scope `invoke` enqueues a `manual`-trigger execution attributed to the token name, while a token lacking `invoke` (or invoking a pipeline outside its `AllowedPipelineIds`) is rejected and **no execution is enqueued**; a `chat`-scoped call reaches `IChatProvider.SendMessageAsync`, a token without `chat` does not; the event bridge delivers a `Supporter.Received` public event **only** to sessions that subscribed to it **and** hold scope `events`, with the **PII-safe projection** (no raw domain-event internals), and never delivers an event lacking a descriptor; rate-limit denial returns `Retry-After` and performs no side effect; rotating/revoking emits the audit events and invalidates the old secret.
+**Tests (prove behavior):** creating a token returns the plaintext **once** and persists only the hash, with the requested scopes (a second read never exposes the secret); `AuthenticateAsync` accepts a valid secret and rejects an expired/revoked/soft-deleted one and stamps `LastUsedAt`; `InvokePipelineAsync` with scope `invoke` enqueues a `manual`-trigger execution attributed to the token name, while a token lacking `invoke` (or invoking a pipeline outside its `AllowedPipelineIds`) is rejected and **no execution is enqueued**; a `chat`-scoped call reaches `IChatProvider.SendMessageAsync`, a token without `chat` does not; the event bridge delivers a `Supporter.Received` public event **only** to sessions that subscribed to it **and** hold scope `events`, with the **attribute-generated projection** (`[NotExposed]` members absent, `[Pii]` members absent for a Public-tier session), and delivers **every** catalog event (expose-all — an event with no attributes still arrives under its default wire name); rate-limit denial returns `Retry-After` and performs no side effect; rotating/revoking emits the audit events and invalidates the old secret.
 
 ---
 

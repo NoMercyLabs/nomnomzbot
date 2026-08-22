@@ -1,10 +1,11 @@
-# Deployment Profile — Design (DRAFT)
+# Deployment Profile — Design (implemented)
 
 Source: design dialogue 2026-06-16. The central axis that selects every swappable adapter.
 
-## Two profiles, one codebase
-- **Self-hosted (lite):** SQLite + in-memory cache/pub-sub + WebSocket EventSub. **No Docker required.**
-- **SaaS (full):** Postgres + Redis + conduits/webhooks EventSub. Managed infra.
+## Three profiles, one codebase (matching `DEPLOY.md` scenarios)
+- **`self_host_lite`** (`desktop` scenario): SQLite + in-memory cache/pub-sub + WebSocket EventSub. **No Docker required.**
+- **`self_host_full`** (`docker` scenario): Postgres + Redis, single-tenant, WebSocket EventSub.
+- **`saas`** (`saas` scenario — **restricted option**, reserved to NoMercy Labs): Postgres + Redis + conduits/webhooks EventSub, multi-tenant. Managed infra.
 
 ## Selection
 - **Auto-detect** (Docker / Postgres / Redis reachable? → full; else lite) **+ explicit override** (`App__DeploymentMode`). Auto-detect picks the sensible default; the operator can force either.

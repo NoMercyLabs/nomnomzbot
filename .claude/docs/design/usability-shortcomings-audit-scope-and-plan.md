@@ -636,9 +636,9 @@ all of it uniformly from one place. Eight lanes. Same format.
   — one `Channel` row (= one tenant/`BroadcasterId`) **per platform**. A simulcast streamer is three
   tenants: three command sets, three timer sets, three currency ledgers, three giveaway pools, three
   trust scores, three mod rosters. `spec/platform-identity.md §9.4` explicitly refuses grouping sibling
-  channels — that spec line is overturned by the simulcast rule and must be rewritten (🔒 owner
-  confirms the model: either a channel-group aggregation key, or a designated primary tenant that
-  per-viewer/per-config domains resolve to).
+  channels — that spec line is overturned by the simulcast rule and must be rewritten (DECIDED,
+  PRODUCT-ALIGNMENT D1: one channel, many platform connections — `Channel` = the streamer's channel,
+  each platform a `PlatformConnection` under it; per-viewer/per-config domains resolve to it).
 - `Infrastructure/Chat/ChatPlatformRouter.cs:119-140` — reply platform is resolved from the *tenant's*
   `Channel.Provider`, never from the message's origin (`ChatMessageReceivedEvent.Provider` exists,
   `:32`). `:134-139` unknown provider silently falls back to Twitch (cached per scope `:32,121-129`).
@@ -755,8 +755,9 @@ without federation; earning credits the linked person.
   string literals across 68 files (mostly registration keys). `MultiChatScreen.kt:219-221` tags
   non-Twitch only; `ProviderBrand.kt:58-80` palettes used only on the connect modal.
 - What must change before a 4th platform: C0 spine + badge every line + announcement-target registry;
-  before X specifically: `IntegrationProvider.twitter`, `tweet.write`, announcement target. 🔒 owner:
-  is X cross-posting in scope at all (spec says no).
+  before X specifically: `IntegrationProvider.twitter`, `tweet.write`, announcement target. DECIDED
+  (PRODUCT-ALIGNMENT D3): X Live is a sibling streaming platform connection now; tweets/clips are a
+  separate announcement-target idea.
 
 ### C5. Viewer persona on SaaS
 

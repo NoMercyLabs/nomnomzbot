@@ -3,7 +3,7 @@
 **Status:** Implementable. Code from this directly.
 **Owner area:** EventSub lifecycle (`IHostedService`), transport adapter (WebSocket self-host / conduit+webhook SaaS), subscription registry, notification handlers, reconnect/backfill, idempotent journaling.
 
-**Grounding:** schema `2026-06-16-database-schema.md` (LOCKED) §F.4/F.7/F.8/F.9/O.1/O.1a/O.4/Q.3; rebuild `2026-06-16-twitch-rebuild.md` (EventSub transport split, `IEventSource` seam); stack `2026-06-16-stack-and-dependencies.md` (Twitch decision: hand-rolled, lite=`ClientWebSocket`, SaaS=conduits+webhooks+in-box `HMACSHA256`); decisions `2026-06-16-decisions-pending-confirmation.md`.
+**Grounding:** schema `2026-06-16-database-schema.md` (LOCKED) §F.4/F.7/F.8/F.9/O.1/O.1a/O.4/Q.3; rebuild `2026-06-16-twitch-rebuild.md` (EventSub transport split, `IEventSource` seam); stack `2026-06-16-stack-and-dependencies.md` (Twitch decision: hand-rolled, lite=`ClientWebSocket`, SaaS=conduits+webhooks+in-box `HMACSHA256`); decisions `2026-06-16-decisions-resolved.md`.
 
 **Binding conventions:** namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable` enabled; async all the way (no `.Result`/`.Wait`); `Result<T>` over exceptions/null; Repository + `IUnitOfWork` (no raw `DbContext` in controllers); typed-interface DI, no MediatR, no Roslyn; responses `StatusResponseDto<T>`/`PaginatedResponse<T>`; controllers `[ApiVersion("1.0")]` `[Route("api/v{version:apiVersion}/...")]`; **Newtonsoft.Json** for app JSON (`[VC:JSON]` converters); inbound EventSub frame parsing stays on `System.Text.Json` (`.Strict`, hot path) per the validation decision; surrogate PKs `Guid` via `Guid.CreateVersion7()`; Twitch ids = indexed `string` attribute columns; tenant key `BroadcasterId` is `Guid`; soft-delete (`IsDeleted`+`DeletedAt`) global filter.
 
@@ -17,7 +17,7 @@ All entities are EF Core 10 classes in `NomNomzBot.Domain/Entities/`. Each imple
 
 | Entity | Schema ref | Scope | Key fields (type) |
 |---|---|---|---|
-| `EventSubSubscription` | §F.7 `[soft-delete]` | tenant | `Id Guid` PK; `BroadcasterId Guid` (FK→Channels); `Provider string(20)` (`twitch`); `EventType string(100)`; `Version string(20)`; `Condition string` `[VC:JSON]` `Dictionary<string,string>`; `Transport string(20)` (`websocket`\|`conduit`\|`webhook`); `TwitchSubscriptionId string(255)?`; `SessionId string(255)?`; `ConduitId string(255)?`; `ShardId string(255)?`; `Status string(20)` (`pending`\|`enabled`\|`failed`\|`revoked`); `Enabled bool`; `Cost int?`; `LastError string(1000)?`; `ExpiresAt timestamp?`. **Unique** `(BroadcasterId, Provider, EventType, Version)`. |
+| `EventSubSubscription` | §F.7 `[soft-delete]` | tenant | `Id Guid` PK; `BroadcasterId Guid` (FK→Channels); `Provider string(20)` (`twitch`|`kick`|`youtube`|`x`); `EventType string(100)`; `Version string(20)`; `Condition string` `[VC:JSON]` `Dictionary<string,string>`; `Transport string(20)` (`websocket`\|`conduit`\|`webhook`); `TwitchSubscriptionId string(255)?`; `SessionId string(255)?`; `ConduitId string(255)?`; `ShardId string(255)?`; `Status string(20)` (`pending`\|`enabled`\|`failed`\|`revoked`); `Enabled bool`; `Cost int?`; `LastError string(1000)?`; `ExpiresAt timestamp?`. **Unique** `(BroadcasterId, Provider, EventType, Version)`. |
 | `EventSubConduit` | §F.8 `[GLOBAL]` | global | `Id Guid` PK; `Provider string(20)`; `ConduitId string(255)` Unique; `ShardCount int`; `Status string(20)` (`active`\|`degraded`\|`reprovisioning`\|`revoked`); `LastReconciledAt timestamp?`. |
 | `EventSubConduitShard` | §F.9 `[GLOBAL]` | global | `Id Guid` PK; `ConduitId Guid` (FK→EventSubConduit); `ShardId string(255)`; `Transport string(20)` (`webhook`\|`websocket`); `CallbackUrl string(2048)?`; `SessionId string(255)?`; `Status string(20)` (`enabled`\|`webhook_callback_verification_pending`\|`disabled`); `AssignedAt timestamp?`. **Unique** `(ConduitId, ShardId)`. |
 | `EventJournal` | §O.1 `[APPEND-ONLY]` | tenant-nullable | `Id bigint` PK; `EventId Guid` Unique; `BroadcasterId Guid?` (FK→Channels); `StreamPosition bigint` (app-assigned via TenantSequences); `EventType string(150)`; `EventVersion int`; `Source string(30)` (`eventsub`\|`domain`\|`irc`\|`import`); `Payload string` `[VC:JSON]`; `PayloadIsEncrypted bool`; `SubjectKeyId Guid?` (FK→CryptoKey); `CorrelationId Guid?`; `CausationId Guid?`; `ActorUserId Guid?`; `ActorTwitchUserId string(50)?`; `Metadata string` `[VC:JSON]`; `OccurredAt timestamp`; `RecordedAt timestamp`. **Unique** `EventId`, **Unique** `(BroadcasterId, StreamPosition)`. |
@@ -111,14 +111,14 @@ namespace NomNomzBot.Application.Contracts.Platform;
 
 public interface IEventSource
 {
-    string Provider { get; }   // "twitch" — Twitch is the implemented source; the seam admits other providers per provider slice
+    string Provider { get; }   // "twitch" | "kick" | "youtube" | "x" — one IEventSource per platform connection (PRODUCT-ALIGNMENT D1)
 
     Task<Result> EnsureSubscribedAsync(Guid broadcasterId, IReadOnlyCollection<string> eventTypes, CancellationToken ct = default);
     Task<Result> UnsubscribeAllAsync(Guid broadcasterId, CancellationToken ct = default);
     EventSourceHealth Health { get; }
 }
 ```
-- `Provider` — discriminator; the Twitch impl returns `"twitch"`. Twitch is the single implemented source; the seam is provider-agnostic so another provider is an additive implementation, not a seam change.
+- `Provider` — discriminator; one implementation per platform (`TwitchEventSource` = EventSub, `KickEventSource` = Kick webhooks, `YouTubeEventSource` = Live Chat / Data API polling, `XEventSource` = X Live). Every source translates its raw events into the **same domain events** with `Provider` stamped (Kick subs/gifts/Kicks and YouTube memberships/Super Chats → `NewSubscriptionEvent`/`ResubscriptionEvent`/`GiftSubscriptionEvent`/`CheerEvent`, table in `supporter-events.md` §4.1) — one event response config, one Alert surface, one `domain.action` name per fact (`widget-sdk.md` §2.1).
 - `EnsureSubscribedAsync` — declaratively reconciles the channel's subscription set to exactly `eventTypes` (creates missing, leaves existing, no-ops duplicates); persists registry rows; returns failure with `ErrorCode` `SCOPE_MISSING`/`SERVICE_UNAVAILABLE` on Twitch rejection.
 - `UnsubscribeAllAsync` — revokes every active subscription for the tenant at Twitch and soft-deletes its registry rows (channel offboarding / erasure).
 - `Health` — synchronous transport-health snapshot for the dashboard/health endpoint.
@@ -336,7 +336,7 @@ Two controllers, both `NomNomzBot.Api/Controllers/V1/`, `[ApiVersion("1.0")]`, r
 
 ### 5.1 `EventSubController` — tenant subscription management (management plane)
 
-`[Route("api/v{version:apiVersion}/eventsub")]`, `[Authorize]`, `[Tags("EventSub")]`. Tenant resolved from JWT `sub` → `BroadcasterId`. **Role gate.** Gate 1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's). Gate 2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the action-key column before the service call (403 FORBIDDEN when below). The keys are seeded global `ActionDefinitions` (§5.1.1); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. Self-host collapses to "owner = full".
+`[Route("api/v{version:apiVersion}/eventsub")]`, `[Authorize]`, `[Tags("EventSub")]`. Tenant resolved from JWT `sub` → `BroadcasterId`. **Role gate.** Gate-1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). Gate-2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the action-key column before the service call (403 FORBIDDEN when below). The keys are seeded global `ActionDefinitions` (§5.1.1); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. Self-host collapses to "owner = full".
 
 #### 5.1.1 Seeded `ActionDefinitions` rows (this subsystem owns these seed entries)
 
@@ -439,4 +439,4 @@ No new 3rd-party dependency. (Conduit transport stays in-box; no `TwitchLib`.)
 
 ### 9.1 Chat read/send boundary (relationship to `IChatProvider`)
 
-Chat **read** (ingest) is EventSub `channel.chat.message` on **both** deployment profiles — this subsystem journals and fans it out via `INotificationDispatcher` like any other notification. There is **no per-channel IRC socket on any profile** for ingest; IRC `chat:read` is not used (scaling-qos.md §6). Chat **send** is **not** this subsystem — it is the `IChatProvider` seam (`HelixChatProvider` = Helix `POST /helix/chat/messages` on **every** profile — IRC retired, no profile-selected transport; scaling-qos.md §6). This subsystem owns inbound events only; outbound chat is the chat-provider seam's concern.
+Chat **read** (ingest) is EventSub `channel.chat.message` on **both** deployment profiles — this subsystem journals and fans it out via `INotificationDispatcher` like any other notification; the Kick/YouTube/X sources ingest their chat the same way through `IEventSource`. There is **no per-channel chat socket on any profile** for ingest. Chat **send** is **not** this subsystem — it is the platform-keyed `IChatProvider` seam behind `IChatProviderRouter` (`HelixChatProvider` = Helix `POST /helix/chat/messages` for Twitch; Kick/YouTube/X providers beside it; scaling-qos.md §6). This subsystem owns inbound events only; outbound chat is the chat-provider seam's concern.

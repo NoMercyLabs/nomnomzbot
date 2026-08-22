@@ -1,10 +1,10 @@
 # Interface Specification — Sound System (sound clips & playback)
 
 **Status:** Implementable. Code the owner writes from this should compile first-try.
-**Sources of truth:** Streamer.bot's sound sub-actions (Play Sound / Play Sound From Folder / Stop — the ecosystem reference). Corpus: `tts.md` (the audio-store + overlay-playback pattern — `ITtsAudioStore` deployment-profile abstraction, `IOverlayClient.TtsSpeak`); `widgets-overlays.md` (§7 `IOverlayClient`, `widget_event`, the always-loaded overlay as the audio output); `commands-pipelines.md` (§3.13 `ICommandAction`/`ActionContext`, §6.1 action list); `platform-conventions.md` (`IDeploymentProfileService`, `ICacheService`); `scaling-qos.md` (`IRateLimiter`); `roles-permissions.md` (Gate-2, §5 cell format); locked schema `2026-06-16-database-schema.md` (Domain P — overlay/audio media, beside TTS P.1–P.5 and widgets P.6–P.9).
+**Sources of truth:** Streamer.bot's sound sub-actions (Play Sound / Play Sound From Folder / Stop — the ecosystem reference). Corpus: `tts.md` (the audio-store + overlay-playback pattern — `ITtsAudioStore` deployment-profile abstraction, `IOverlayClient.TtsSpeak`); `widgets-overlays.md` (§7 `IOverlayClient`, `widget_event`, the system Sound surface as the audio output); `commands-pipelines.md` (§3.13 `ICommandAction`/`ActionContext`, §6.1 action list); `platform-conventions.md` (`IDeploymentProfileService`, `ICacheService`); `scaling-qos.md` (`IRateLimiter`); `roles-permissions.md` (Gate-2, §5 cell format); locked schema `2026-06-16-database-schema.md` (Domain P — overlay/audio media, beside TTS P.1–P.5 and widgets P.6–P.9).
 **Conventions (binding):** namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable enable`; **explicit types — never `var`** (IDE0008 = error); async all the way; `Result<T>` over exceptions/null; Repository + `IUnitOfWork`; typed-interface DI, no MediatR, no Roslyn; `StatusResponseDto<T>` / `PaginatedResponse<T>`; `[ApiVersion("1.0")]`; UUIDv7 `Guid` PKs; `BroadcasterId Guid` tenant scope; soft-delete filter; Newtonsoft.Json.
 
-> **Why.** Audio is currently TTS-only. Every serious bot plays **sound clips** — alert stingers, meme SFX, hype horns — triggered by commands, redemptions, and events. This subsystem adds a per-channel **sound-clip library** (upload/manage curated clips) and a **`play_sound`** pipeline action that plays a clip on the **overlay audio bus** (the same browser-source path TTS already uses, so OBS captures it with zero extra setup). It is streamer-curated (no per-play approval queue — unlike viewer-submitted TTS), bounded by tier-scaled size/count limits.
+> **Why.** Audio is currently TTS-only. Every serious bot plays **sound clips** — alert stingers, meme SFX, hype horns — triggered by commands, redemptions, and events. This subsystem adds a per-channel **sound-clip library** (upload/manage curated clips) and a **`play_sound`** pipeline action that plays a clip on the **system Sound surface** (the system Sound surface, `widgets-overlays.md` §1.2 — a sibling of the system TTS surface, added to OBS once). It is streamer-curated (no per-play approval queue — unlike viewer-submitted TTS), bounded by tier-scaled size/count limits.
 
 ---
 
@@ -12,11 +12,11 @@
 
 | # | Decision |
 |---|---|
-| D1 | **`play_sound` plays a library clip on the overlay audio bus.** The pipeline action resolves a clip (by id or name) and pushes a `PlaySound` payload to the always-loaded overlay (the browser source OBS already captures) via `IOverlayClient` — the **same delivery path as TTS** (`tts.md`), so no new OBS setup. Params: clip ref, `Volume` (0–100), `WaitForFinish` (the action awaits playback end before the next action), optional `Handle` (a name for targeted stop). A `stop_sound` action stops a handle or all playback. |
+| D1 | **`play_sound` plays a library clip on the system Sound surface.** The pipeline action resolves a clip (by id or name) and pushes a `PlaySound` payload to the system Sound surface (`widgets-overlays.md` §1.2) via `IOverlayClient` — the **same delivery path as TTS** (`tts.md`), so no new OBS setup. Params: clip ref, `Volume` (0–100), `WaitForFinish` (the action awaits playback end before the next action), optional `Handle` (a name for targeted stop). A `stop_sound` action stops a handle or all playback. |
 | D2 | **Curated library, no approval queue.** Clips are uploaded and managed by the broadcaster/editor (`SoundClip` library); playing one is gated by who can edit the pipeline that calls it. There is **no per-play moderation queue** — the library is streamer-chosen content (contrast `tts.md`, which queues viewer-submitted *text*). |
-| D3 | **Durable clip storage via a deployment-profile store.** `ISoundClipStore` mirrors the `ITtsAudioStore` adapter pattern — disk on self-host, object-store on SaaS — but with **durable** retention (user uploads, not regenerable cache). The overlay fetches a clip by a tokened playback URL (the overlay-asset access pattern). |
+| D3 | **Durable clip storage via a deployment-profile store.** `ISoundClipStore` mirrors the `ITtsAudioStore` adapter pattern — disk on self-host, object-store on SaaS — but with **durable** retention (user uploads, not regenerable cache). The Sound surface fetches a clip by a tokened playback URL (the overlay-asset access pattern). |
 | D4 | **Tier-scaled limits, validated formats.** Per-clip max size, per-channel total library size, and clip count are safe-baseline + tier-scaled (the limits rule). Accepted formats: `mp3`/`ogg`/`wav` (validated by content sniff, not just extension); duration is probed and stored. Uploads pass `IRateLimiter`. |
-| D5 | **Schema delta P.18 `SoundClip`.** No play-log table — a play is a transient overlay push (`CommandLogEntry`/event journal already record the pipeline run). `IOverlayClient` gains `PlaySound` (parallel to `TtsSpeak`, `widgets-overlays.md` §7); `commands-pipelines.md` gains `play_sound` + `stop_sound` actions. |
+| D5 | **Schema delta P.18 `SoundClip`.** No play-log table — a play is a transient push to the Sound surface (`CommandLogEntry`/event journal already record the pipeline run). `IOverlayClient` gains `PlaySound` (parallel to `TtsSpeak`, `widgets-overlays.md` §7); `commands-pipelines.md` gains `play_sound` + `stop_sound` actions. |
 
 ---
 
@@ -51,10 +51,10 @@ public interface ISoundClipService
     Task<Result<SoundClipDto>> UpdateAsync(Guid broadcasterId, Guid id, Guid actorUserId, UpdateSoundClipRequest request, CancellationToken ct = default);
     Task<Result> DeleteAsync(Guid broadcasterId, Guid id, Guid actorUserId, CancellationToken ct = default);
 
-    // Resolves a clip (id or name) → a tokened playback URL + effective volume for the overlay.
+    // Resolves a clip (id or name) → a tokened playback URL + effective volume for the Sound surface.
     Task<Result<SoundPlaybackDto>> ResolveForPlaybackAsync(Guid broadcasterId, string clipRef, int? volumeOverride, CancellationToken ct = default);
 
-    // Plays a clip on the overlay now (dashboard preview / test).
+    // Plays a clip on the Sound surface now (dashboard preview / test).
     Task<Result> PreviewAsync(Guid broadcasterId, Guid id, CancellationToken ct = default);
 }
 
@@ -75,16 +75,16 @@ public sealed record SoundPlaybackDto(Guid ClipId, string PlaybackUrl, int Volum
 
 ---
 
-## 4. Pipeline actions & overlay
+## 4. Pipeline actions & the Sound surface
 
 Two `ICommandAction`s (canonical contract, `commands-pipelines.md §3.13). Register in `NomNomzBot.Infrastructure/Sound/PipelineActions/`.
 
 | Action `Type` | Parameters | Behavior |
 |---|---|---|
 | **`play_sound`** | `{ string Clip (id or name), int? Volume, bool WaitForFinish, string? Handle }` | `ISoundClipService.ResolveForPlaybackAsync` → `IOverlayClient.PlaySound`. If `WaitForFinish`, the action awaits `DurationMs` (capped) before completing. Unknown/disabled clip → typed action failure (no throw). |
-| **`stop_sound`** | `{ string? Handle, bool All }` | Pushes a stop to the overlay for the named handle, or all playback when `All`. |
+| **`stop_sound`** | `{ string? Handle, bool All }` | Pushes a stop to the Sound surface for the named handle, or all playback when `All`. |
 
-**Overlay (`widgets-overlays.md` §7):** add `IOverlayClient.PlaySound(PlaySoundPayload)` (parallel to `TtsSpeak`). `PlaySoundPayload = (string PlaybackUrl, int Volume, string? Handle)`. The always-loaded overlay holds the `<audio>` element and plays/stops on the pushed payload; plays overlap by default (each is independent), `WaitForFinish` serializes at the **pipeline** level, not the overlay.
+**Sound surface (`widgets-overlays.md` §1.2, §7):** add `IOverlayClient.PlaySound(PlaySoundPayload)` (parallel to `TtsSpeak`). `PlaySoundPayload = (string PlaybackUrl, int Volume, string? Handle)`. The system Sound surface holds the `<audio>` elements and plays/stops on the pushed payload; plays overlap by default (each is independent), `WaitForFinish` serializes at the **pipeline** level, not the surface.
 
 ---
 
@@ -107,12 +107,12 @@ Seed in `roles-permissions.md`: **`sounds:read`** (`management`, Moderator 10, `
 
 ## 6. DI & testing
 
-`NomNomzBot.Infrastructure/Sound/DependencyInjection.cs` (`AddSound()`): `ISoundClipService`→`SoundClipService` (Scoped); `SoundClipRepository` (Scoped); `ISoundClipStore`→`DiskSoundClipStore` / `ObjectStoreSoundClipStore` selected by `IDeploymentProfileService.Current` (the `ITtsAudioStore` selection pattern); `play_sound` + `stop_sound` actions auto-discovered into the pipeline action registry. `IOverlayClient.PlaySound` is implemented in the overlay client (`widgets-overlays.md`).
+`NomNomzBot.Infrastructure/Sound/DependencyInjection.cs` (`AddSound()`): `ISoundClipService`→`SoundClipService` (Scoped); `SoundClipRepository` (Scoped); `ISoundClipStore`→`DiskSoundClipStore` / `ObjectStoreSoundClipStore` selected by `IDeploymentProfileService.Current` (the `ITtsAudioStore` selection pattern); `play_sound` + `stop_sound` actions auto-discovered into the pipeline action registry. `IOverlayClient.PlaySound` is consumed by the system Sound surface (`widgets-overlays.md` §1.2).
 
-**Tests (prove behavior):** uploading a valid `mp3` stores the blob, probes a non-zero `DurationMs`, and persists metadata; an oversized clip or a file whose **content** isn't audio (extension spoofed) is rejected and **nothing is stored**; a library that would exceed the tier total-size cap rejects the upload; `play_sound` by name resolves the clip and pushes exactly one `PlaySound` to the overlay with the effective volume (clip default unless overridden), and an unknown/disabled clip yields a typed failure with **no overlay push**; `WaitForFinish` makes the action's completion follow the (capped) duration so a following `send_message` runs after; `stop_sound` with a handle pushes a targeted stop, `All` stops everything; deleting a clip removes both the row and the stored blob; upload rate-limit denial performs no store write.
+**Tests (prove behavior):** uploading a valid `mp3` stores the blob, probes a non-zero `DurationMs`, and persists metadata; an oversized clip or a file whose **content** isn't audio (extension spoofed) is rejected and **nothing is stored**; a library that would exceed the tier total-size cap rejects the upload; `play_sound` by name resolves the clip and pushes exactly one `PlaySound` to the Sound surface with the effective volume (clip default unless overridden), and an unknown/disabled clip yields a typed failure with **no push to the surface**; `WaitForFinish` makes the action's completion follow the (capped) duration so a following `send_message` runs after; `stop_sound` with a handle pushes a targeted stop, `All` stops everything; deleting a clip removes both the row and the stored blob; upload rate-limit denial performs no store write.
 
 ---
 
 ## 7. Decisions (resolved)
 
-`play_sound`/`stop_sound` over the overlay audio bus, same delivery as TTS (D1); curated library, no per-play approval (D2); durable deployment-profile `ISoundClipStore`, tokened playback URL (D3); tier-scaled size/count limits + content-sniffed format validation (D4); schema delta **P.18 `SoundClip`**, `IOverlayClient.PlaySound` + two pipeline actions, no play-log table (D5).
+`play_sound`/`stop_sound` on the system Sound surface, same delivery path as TTS (D1); curated library, no per-play approval (D2); durable deployment-profile `ISoundClipStore`, tokened playback URL (D3); tier-scaled size/count limits + content-sniffed format validation (D4); schema delta **P.18 `SoundClip`**, `IOverlayClient.PlaySound` + two pipeline actions, no play-log table (D5).

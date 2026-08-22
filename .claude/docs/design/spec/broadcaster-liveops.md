@@ -38,7 +38,7 @@ raw Helix requests.
 
 - **Source of truth:** locked schema `2026-06-16-database-schema.md` (Domain F — this spec adds **F.12
   `ActivePolls`** / **F.13 `ActivePredictions`** as schema deltas, §1); `2026-06-16-stack-and-dependencies.md`
-  (libs); `2026-06-16-decisions-pending-confirmation.md` (resolved cross-cutting defaults).
+  (libs); `2026-06-16-decisions-resolved.md` (resolved cross-cutting defaults).
 - **Read-side ingest (consumed, not owned):** `twitch-eventsub.md` §2 (`PollBeganEvent`, `PollEndedEvent`,
   `PredictionBeganEvent`, `PredictionLockedEvent`, `PredictionEndedEvent`, `RaidEvent`) + §3.4
   `INotificationDispatcher`.
@@ -504,7 +504,7 @@ New `LiveOpsController` family under `NomNomzBot.Api/Controllers/V1/`, all `[Api
 middleware + channel-access check. The controller passes the JWT `actorUserId` and `source="dashboard"`/`"api"`
 to the services.
 
-**Role gate.** All write routes are **management plane**. **Gate 1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's). **Gate 2** = `IActionAuthorizationService.AuthorizeActionAsync(userId,
+**Role gate.** All write routes are **management plane**. **Gate-1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). **Gate-2** = `IActionAuthorizationService.AuthorizeActionAsync(userId,
 broadcasterId, actionKey)` enforces the per-route floor (403 `FORBIDDEN` below it) — each key seeded global in
 `ActionDefinitions` (§5.1 deltas). Effective level = `MAX(community standing, management role, active permit
 grant)`.

@@ -63,8 +63,9 @@ spec is their contract, not their source.
   (RIDs: `win-x64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`). One file, **no .NET runtime install
   required**, **no Docker**. Carries **zero crypto third-parties** (the `kms_envelope` Azure branch is never
   referenced in this branch — `gdpr-crypto.md` §7) and the in-process scaling adapters (`InProcessRateLimiter`,
-  `InProcessFairWorkScheduler`, in-memory `ICache`/`IEventBus`, WebSocket EventSub; chat sends via
-  `HelixChatProvider` — IRC is retired on every profile). Ships the
+  `InProcessFairWorkScheduler`, in-memory `ICache`/`IEventBus`, WebSocket EventSub; chat sends via the
+  per-platform chat provider behind `IChatProvider` — Twitch = `HelixChatProvider` (Helix Send Chat Message), IRC
+  retired on every profile). Ships the
   embedded SQLite migration set and the embedded wasmJs dashboard + public pages (§5). Published as a **GitHub
   Release** asset per RID (e.g. `nomnomz-linux-x64`), `chmod +x`, run as `./nomnomz`. First run creates the
   per-user data folder (`SelfHostDataPaths`: `%LOCALAPPDATA%\NomNomzBot` / `~/.local/share/NomNomzBot` /

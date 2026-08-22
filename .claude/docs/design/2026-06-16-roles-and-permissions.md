@@ -1,6 +1,6 @@
-# Roles & Permissions — Model (DRAFT)
+# Roles & Permissions — Model (implemented)
 
-Source: design dialogue 2026-06-16. Status: **DRAFT for review.** Feeds the permissions epic + Gate 2 (per-action authorization). Pairs with the tenant-resolution / Gate 1 fix already shipped.
+Source: design dialogue 2026-06-16. Status: **implemented** — `spec/roles-permissions.md` is the implementable contract; this is the model record. Feeds Gate-2 (per-action authorization); pairs with tenant-resolution / Gate-1.
 
 ## Fundamental: opt-in / default-deny
 
@@ -41,7 +41,7 @@ A Subscriber/VIP has community standing but **zero** management power — they n
 ## Decisions / simplifications
 
 - Mod vs Editor don't perfectly nest in real Twitch (different powers). We **decide** a linear trust order (`mod < editor`) for simplicity; add per-capability overrides only on real need (Rule of Three) — **no full capability matrix on day one.**
-- Gate 1 (`ChannelAccessService`) currently allows **broadcaster + moderator + platform-admin**. **Editor + super-mod** entry land with this epic (editor needs a Helix editors sync + store).
+- Gate-1 (`ChannelAccessService.CanResolveTenantAsync`) admits any authenticated caller to any existing channel (pure entry); Gate-2 per-action keys enforce the `ManagementRole` there. Editor + SuperMod are rungs of the `ManagementRole` ladder (editor sourced from the Helix editors sync + store).
 - Each HTTP endpoint/action declares its required min level; the resolved caller's level for the channel must be ≥ it. This replaces the current "almost everything is just `[Authorize]`" gap.
 
 ## Per-action levels are configurable (with floors)

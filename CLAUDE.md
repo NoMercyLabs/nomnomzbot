@@ -1,8 +1,13 @@
 # NomNomzBot — AI Assistant Context
 
-An open-source, multi-tenant Twitch bot platform. One deployment supports unlimited channels — each
-streamer gets a full isolated dashboard, pipeline editor, custom commands, event responses, timers,
-overlays, and integrations (Spotify, Discord, YouTube, TTS).
+An open-source, multi-tenant, multi-platform bot platform — one channel, many platform connections
+(Twitch, Kick, YouTube, X Live, simultaneously) managed from one uniform dashboard for streamers,
+moderators and viewers. One deployment supports unlimited channels — each streamer gets a full
+isolated dashboard, pipeline editor, custom commands, event responses, timers, widgets & overlays,
+and integrations (Spotify, Discord, YouTube, TTS).
+
+**Binding product statement:** `.claude/docs/design/PRODUCT-ALIGNMENT.md` (decisions D1–D9, glossary,
+domain table) — it wins over any older sentence in this file or any spec.
 
 Licensed under **AGPL-3.0**. Copyright (C) NoMercy Labs.
 
@@ -13,7 +18,7 @@ Licensed under **AGPL-3.0**. Copyright (C) NoMercy Labs.
 - **Everything is `NomNomzBot.*`** — namespace, folder, assembly, and product all match. Every `.cs` file's `namespace` and every csproj `<RootNamespace>` is `NomNomzBot.*`. (History: the legacy code carried `NoMercyBot.*` from an incomplete earlier rename; the clean-slate rebuild **fully migrated** it to `NomNomzBot.*` via a repo-wide rename — there is no `NoMercyBot` left in code or specs, **do not reintroduce it**. The **copyright holder is still NoMercy Labs** — the company name in license headers is unaffected.)
 - **Username is `Stoney_Eagle`** — underscore, not hyphen. Never change this.
 - **shadcn/ui (new-york) is the source of truth for the dashboard design** — ported 1:1 to Compose; full spec in `.claude/docs/design/spec/frontend-design-system.md`. The old Figma file (`MkKBuW2Ee6T5jC8fCtZsM0`) is **discarded** (not a viable dashboard); a fresh Figma may be minted from the spec later.
-- **HTML mockups at `nomnomzbot-design/mockups/`** are a loose historical reference only — the design system, not the mockups, is authoritative.
+- **HTML mockups** (the `nomnomzbot-design` repo — an external archived repo, not in this tree) are a loose historical reference only — the design system, not the mockups, is authoritative.
 - **No `Co-Authored-By` in git commits** — ever.
 - **No MediatR** — services are called directly via typed interfaces registered in DI.
 - **No Roslyn** — don't use Roslyn for code generation or analysis.
@@ -24,9 +29,9 @@ Licensed under **AGPL-3.0**. Copyright (C) NoMercy Labs.
 - **Match the design system exactly** — the shadcn (new-york) tokens, component catalogue, and variant tables in `frontend-design-system.md`; correct tokens/spacing/variants. Never hardcode a color or `dp`; do not approximate.
 - **Test every interactive element** — never claim something "works" without full validation.
 - **No half-assed work** — seed ALL data, test EVERY button, run parallel where possible.
-- **Track split** — backend (`server/`) = `Stoney_Eagle` + Claude; frontend (`app/`) = `aaoa-dev` (designer). Commits never cross the boundary; cross-track needs go through `handoff/`. See *Team & Track Ownership*.
+- **Track split + handoff inboxes — SUSPENDED (not allowed to be used) during the remediation campaign (2026-08-22, D7).** Claude works backend + frontend; the work queue is `.claude/docs/design/SHORTCOMINGS-EXECUTION-PLAN.md`; the design bar is the Sleak skill + the shadcn catalogue. The original rule ("Check your handoff inbox at session start — `handoff/for-backend.md` / `handoff/for-frontend.md`; open items are picked up automatically") stays on the books below and resumes when the campaign ends.
 - **CI green before sign-off** — run the full test suite before EVERY commit; after EVERY push, `gh run watch <run-id> --exit-status` and fix failures immediately. See *CI Gate*.
-- **Check your handoff inbox at session start** — `handoff/for-backend.md` (backend track) / `handoff/for-frontend.md` (frontend track). Open items are picked up automatically, no prompt needed.
+- **Work queue = `.claude/docs/design/SHORTCOMINGS-EXECUTION-PLAN.md`, top to bottom** (D8: stabilize before adding; new feature ideas go to the tracker as ideas).
 - **`saas` mode is a RESTRICTED option** — operating NomNomzBot as a hosted service for third parties is against the project license (reserved to NoMercy Labs); self-hosting your own bot is always free. Every doc/script surface that shows saas instructions must carry this restriction marker — never drop it.
 
 ---
@@ -80,6 +85,11 @@ Work structured and organized — small, complete vertical slices, not scattered
 
 ## Team & Track Ownership — Backend vs Frontend
 
+**SUSPENDED for the remediation campaign (2026-08-22, PRODUCT-ALIGNMENT D7):** Claude works backend
++ frontend in one lane; the `handoff/*.md` files are not used; the design bar is the Sleak skill + the
+shadcn catalogue (the designer's own rules). The work queue is `SHORTCOMINGS-EXECUTION-PLAN.md`, top
+to bottom. The section below is the **pre-campaign rule**, kept for the record.
+
 Two people, one repo, two strictly separated tracks. Detect the active track from `git config user.name`.
 
 | Track | Person | Owns (commit surface) | Never touches |
@@ -93,7 +103,7 @@ Two people, one repo, two strictly separated tracks. Detect the active track fro
 - **Boundary override — only via an explicit yes/no question, never silently.** When work on your track genuinely requires a change on the other track's side, ask the user directly with a yes/no `AskUserQuestion` ("This needs a <backend/frontend> change: <what and why>. Make it now?"). **Yes** → make the change, in its own commit(s), scoped to that need. **No** → write the full findings into the other track's handoff file: what is needed, the exact desired change, and your reasoning — then continue your work without crossing. This is self-enforcing: apply it unprompted, every time — needing a reminder is a failure.
 - **The API contract is the only bridge.** The frontend consumes the backend exclusively through the typed shared KMP client and the committed `server/openapi/v1.json` snapshot. Contract changes originate on the backend track; the frontend syncs Kotlin DTOs from the snapshot (`ApiContractTest` guards drift).
 
-### Handoff TODOs — cross-track work orders
+### Handoff TODOs — cross-track work orders (pre-campaign rule; unused under D7)
 
 Two committed files (so they travel through git between machines):
 
@@ -127,17 +137,19 @@ Rules:
 
 ```
 nomnomzbot/
-├── server/                  # Backend — .NET 10, PostgreSQL, Redis
+├── server/                  # Backend — .NET 10; SQLite (self_host_lite) or PostgreSQL + Redis (full/saas)
 │   ├── src/
 │   │   ├── NomNomzBot.Domain/          # Entities, domain events, value objects, interfaces
 │   │   ├── NomNomzBot.Application/     # Use cases, services, pipeline engine, IEventBus
 │   │   ├── NomNomzBot.Infrastructure/  # EF Core, Twitch services, EventSub, SignalR
+│   │   ├── NomNomzBot.Migrations.Sqlite/ # SQLite migration assembly (self_host_lite)
 │   │   └── NomNomzBot.Api/             # ASP.NET Core host, controllers, hubs, middleware
 │   ├── tests/
 │   │   ├── NomNomzBot.Domain.Tests/
 │   │   ├── NomNomzBot.Application.Tests/
 │   │   ├── NomNomzBot.Infrastructure.Tests/
-│   │   └── NomNomzBot.Api.Tests/
+│   │   ├── NomNomzBot.Api.Tests/
+│   │   └── NomNomzBot.E2E.Tests/       # Playwright.NET end-to-end tests
 │   └── Dockerfile
 ├── app/                     # Frontend — Kotlin Multiplatform + Compose Multiplatform (desktop + web/Wasm)
 │   └── composeApp/          #   src/commonMain: App.kt, core/ (network client, i18n, design system),
@@ -145,16 +157,22 @@ nomnomzbot/
 │                            #   composeResources/values/strings.xml (en) + values-nl/ (nl)
 │                            # Public surfaces (OBS overlays, song-request) = compiled widgets served by the
 │                            # bot + CDN-cached for SaaS (widgets-overlays); there is no static web/ folder.
-├── handoff/                 # Cross-track work orders — for-backend.md / for-frontend.md
+├── docs/                    # Published documentation
+├── dist/                    # Build/distribution output
+├── scripts/                 # Repo scripts (ship.ps1 etc.)
+├── tools/                   # Developer tooling
+│   └── streamdeck/          #   Stream Deck plugin
+├── .scratch/                # Gitignored throwaway artifacts
+├── handoff/                 # Cross-track work orders — unused during the remediation campaign (D7)
 ├── docker-compose.yml       # Root compose — references ./server
 ├── DEPLOY.md                # Deployment chooser — desktop / docker / saas × web / desktop app
 ├── deploy.sh                # One deploy script per OS: <scenario> [--app]
 ├── deploy.ps1
-├── .env.example
-└── nomnomzbot-design/       # HTML mockups, research docs, architecture specs (separate repo)
-    ├── mockups/             # HTML reference implementations of Figma designs
-    └── research/            # Architecture decisions, API research, design system docs
+└── .env.example
 ```
+
+The HTML mockups / research docs live in the `nomnomzbot-design` repo — an external archived repo,
+not in this tree.
 
 ---
 
@@ -207,14 +225,14 @@ NomNomzBot.Domain          → Entities, domain events, value objects, no extern
 | `ITwitchHelixClient` | Application contract, Infrastructure impl | Typed Helix client — 26 sub-clients covering the full Helix surface |
 | `TwitchEventSubHostedService` | Infrastructure (`Platform/Eventing`) | EventSub lifecycle over `WebSocketEventSubTransport`; 74 event translators |
 | `HelixChatProvider` | Infrastructure | Chat send (`IChatProvider`) via Helix Send Chat Message — every profile |
-| `SpotifyService` | Infrastructure | Now playing, queue, playback control |
-| `DiscordService` | Infrastructure | Guild sync, notifications |
+| `MusicService` + `SpotifyMusicProvider` | Infrastructure (`Music/`) | Now playing, queue, playback control (provider-backed) |
+| `DiscordGuildService` / `DiscordNotificationConfigService` / `DiscordGuildDirectoryService` / `DiscordNotificationRoleService` | Infrastructure (`Discord/`) | Guild sync, notification config, guild directory, role buttons |
 | `TtsService` | Infrastructure | Azure Cognitive Services + ElevenLabs provider |
 | `PipelineEngine` | Infrastructure | Executes pipeline action chains |
 
 ### Controllers (all under `/api/v1/`, source in `NomNomzBot.Api/Controllers/V1/`)
 
-**~56 controllers, one per module** — do not rely on a hand-maintained list; browse them at
+**~87 controllers, one per module** — do not rely on a hand-maintained list; browse them at
 `http://localhost:5080/scalar` or in `Controllers/V1/`. Each domain spec's **§5 table** is the
 authoritative contract (routes + Gate-2 action keys). Major groups: auth/channels/users,
 commands/builtins/pipelines/event-responses/timers/quotes, chat/moderation, rewards/live-ops/stream,
@@ -269,7 +287,7 @@ dotnet run
 ```
 
 On first start the API:
-1. Waits for Postgres and Redis to be reachable
+1. Resolves the deployment profile; Development with no Postgres/Redis reachable → `SelfHostLite` on SQLite (the appsettings Postgres connection is unused in that mode)
 2. Runs all EF Core migrations
 3. Seeds reference data (TTS voices, permission presets)
 4. Starts Twitch EventSub WebSocket
@@ -364,48 +382,42 @@ script's `--app` flag wraps the installer task (see `DEPLOY.md`).
 **Redirect URIs are computed at runtime from `App:BaseUrl`** — do not set them in config or env vars. All Twitch OAuth flows now share one callback path:
 - `{App:BaseUrl}/api/v1/auth/twitch/callback`
 
-Register only that single callback URL in the Twitch Developer Console using your actual API base URL (e.g. `https://bot-dev-api.nomercy.tv` for dev, `https://api.nomnomz.bot` for prod).
+Register only that single callback URL in the Twitch Developer Console using your actual API base URL. Domains (PRODUCT-ALIGNMENT.md):
+
+| Purpose | Domain |
+|---|---|
+| Deployed dev (Proxmox) dashboard + API | `https://dev.nomnomz.bot` (LAN `http://192.168.2.60:5080`) |
+| Local-dev tunnel (owner's machine, OAuth redirects) | `https://bot-dev-api.nomercy.tv` — dev convenience only; self-host needs no NoMercy domain |
+| Planned production | `https://api.nomnomz.bot` |
 
 **Progressive scopes** — don't request everything up front. Request scopes when the user enables the relevant feature (e.g., `channel:manage:raids` when they enable raid responses).
 
 ### Streamer Account Scopes
 
-```
-user:read:email
-channel:read:subscriptions
-channel:read:redemptions
-channel:manage:redemptions
-channel:manage:raids
-channel:manage:broadcast
-channel:manage:polls
-channel:manage:predictions
-moderator:read:followers
-moderator:manage:banned_users
-moderator:manage:chat_messages
-moderator:manage:automod
-bits:read
-```
+Computed at runtime — no hardcoded list: `AuthService.ResidualNonHelixGatedScopes` ∪
+`TwitchScopeRegistry.AllDeclaredScopes` (reflected from `[RequiresTwitchScope]` on the Helix sub-clients).
+Adding a scope = tagging the Helix method; never edit a list.
 
 ### Bot Account Scopes
 
 ```
 user:write:chat
 user:read:chat
-chat:read
-chat:edit
 ```
+
+IRC is retired; no IRC scopes are requested.
 
 ### EventSub (WebSocket — not webhooks)
 
 The bot uses `wss://eventsub.wss.twitch.tv/ws` — **no public HTTPS URL required** during local dev.
 
-- `TwitchEventSubService` runs as `IHostedService`
+- `TwitchEventSubHostedService` runs as `IHostedService`
 - Manages WebSocket lifecycle automatically
 - Reconnects with exponential backoff on disconnect
 - Re-registers all subscriptions after reconnect
 - Twitch sends a `reconnect` message every ~5 minutes (normal behavior, not a bug)
 
-**Key EventSub topics subscribed:**
+**EventSub topics (sample — 74 topics subscribed):**
 - `stream.online` / `stream.offline`
 - `channel.follow`
 - `channel.subscribe` / `channel.subscription.gift`
@@ -420,7 +432,7 @@ The bot uses `wss://eventsub.wss.twitch.tv/ws` — **no public HTTPS URL require
 
 - Chat **send** via `IChatProvider` → `HelixChatProvider`: **Helix Send Chat Message** (`POST /helix/chat/messages`, `user:write:chat`) on **every** profile — stateless, no per-channel socket, no sharding. Whispers via `POST /helix/whispers`.
 - Chat **read** via EventSub `channel.chat.message` (bot `user:read:chat` scope) on every profile (`spec/scaling-qos.md` §6).
-- IRC is **fully retired** — there is no `TwitchIrcService` and no TLS IRC socket; no chat flows over IRC on any profile (decision: Helix everywhere). The bot **types** via Helix Send Chat Message on its own token (`user:write:chat`) and **reads** via EventSub (`user:read:chat`); the bot OAuth also still requests the legacy IRC `chat:read`/`chat:edit` scopes (see Bot Account Scopes), which the Helix path does not exercise.
+- IRC is **fully retired** — there is no `TwitchIrcService` and no TLS IRC socket; no chat flows over IRC on any profile (decision: Helix everywhere). The bot **types** via Helix Send Chat Message on its own token (`user:write:chat`) and **reads** via EventSub (`user:read:chat`); no IRC scopes are requested.
 - **Note:** If `ENCRYPTION_KEY` changes, the stored bot token becomes unreadable — the bot needs to re-auth.
 
 ### Cloudflare Tunnel (for OAuth redirects)
@@ -433,7 +445,7 @@ cloudflared tunnel --url http://localhost:5080
 
 Then update `App__BaseUrl` in `appsettings.Development.json` and add the tunnel URL to your Twitch app's redirect URIs.
 
-A shared dev tunnel at `bot-dev-api.nomercy.tv` is pre-configured in `appsettings.Development.json`. This is the **active domain** — `api.nomnomz.bot` is the planned production domain and will replace it once fully configured.
+The owner's local-dev tunnel `bot-dev-api.nomercy.tv` is pre-configured in `appsettings.Development.json` — a dev convenience only; self-host needs no NoMercy domain. The deployed dev instance is `https://dev.nomnomz.bot`; `api.nomnomz.bot` is the planned production domain (see the domain table under *OAuth Flow*).
 
 ---
 
@@ -449,17 +461,34 @@ A shared dev tunnel at `bot-dev-api.nomercy.tv` is pre-configured in `appsetting
 | `JWT_ISSUER` | no | `nomnomzbot` | JWT issuer claim |
 | `JWT_AUDIENCE` | no | `nomnomzbot` | JWT audience claim |
 | `ENCRYPTION_KEY` | prod: yes | `ZGV2...` (base64) | AES key for OAuth token storage. Generate: `openssl rand -base64 32`. **Changing this invalidates all stored tokens.** |
-| `TWITCH_CLIENT_ID` | **yes** | — | From Twitch Developer Console |
-| `TWITCH_CLIENT_SECRET` | **yes** | — | From Twitch Developer Console |
-| `TWITCH_BOT_USERNAME` | **yes** | — | Twitch username of the bot account |
-| `REDIS_CONNECTION_STRING` | no | `redis:6379` | Redis (uses Docker service name inside stack) |
+| `TWITCH_CLIENT_ID` | recommended | — | From Twitch Developer Console (may be blank: wizard collects it; shared public client works for device-code login; BYOC encouraged) |
+| `TWITCH_CLIENT_SECRET` | recommended | — | From Twitch Developer Console |
+| `TWITCH_BOT_USERNAME` | no | `NomNomzBot` | Twitch username of the account the bot posts chat as |
+| `POSTGRES_DB` | no | `nomnomzbot` | PostgreSQL database name |
+| `REDIS_PASSWORD` | no | — | Optional Redis password; when set the API appends it to the connection string automatically |
+| `API_BASE_URL` | no | `http://localhost:5080` | Public URL the API is reachable at; OAuth redirect URIs derive from it (`App__BaseUrl`) |
+| `INITIAL_ADMIN_TWITCH_ID` | no | — | Numeric Twitch user id promoted to platform admin on next login; blank once an admin exists |
+| `TRUSTED_PROXY_NETWORKS` | no | — | CIDR of the proxy allowed to set `X-Forwarded-For` (e.g. `172.16.0.0/12`); loopback trusted by default |
+| `DEPLOYMENT_MODE` | no | `self_host_full` | `self_host_full` (single-tenant Postgres+Redis) or `saas` (multi-tenant — **restricted option**, reserved to NoMercy Labs) |
+| `API_IMAGE` | no | `nomnomzbot-api:local` | Container image; set `ghcr.io/nomercylabs/nomnomzbot:latest` to pull the CI image instead of building |
 | `SPOTIFY_CLIENT_ID` | no | — | Enables Spotify music integration |
 | `SPOTIFY_CLIENT_SECRET` | no | — | Enables Spotify music integration |
 | `DISCORD_CLIENT_ID` | no | — | Enables Discord integration |
 | `DISCORD_CLIENT_SECRET` | no | — | Enables Discord integration |
-| `YOUTUBE_CLIENT_ID` | no | — | Enables YouTube music provider |
-| `YOUTUBE_CLIENT_SECRET` | no | — | Enables YouTube music provider |
+| `DISCORD_PUBLIC_KEY` | no | — | Ed25519 public key for the Discord interactions webhook (opt-in buttons); without it the endpoint answers 503 |
+| `YOUTUBE_CLIENT_ID` | no | — | Enables YouTube music provider + YouTube sign-in (device-code) |
+| `YOUTUBE_CLIENT_SECRET` | no | — | Enables YouTube music provider + YouTube sign-in |
 | `YOUTUBE_API_KEY` | no | — | Enables YouTube search for song requests (app-level, separate from OAuth) |
+| `KICK_CLIENT_ID` | no | — | Kick platform connection + sign-in (OAuth 2.1 auth-code + PKCE; callback `/api/v1/auth/kick/callback`) |
+| `KICK_CLIENT_SECRET` | no | — | Kick platform connection + sign-in |
+| `TWITTER_CLIENT_ID` | no | — | X platform connection + sign-in (OAuth 2.0 auth-code + PKCE; callback `/api/v1/auth/twitter/callback`) |
+| `TWITTER_CLIENT_SECRET` | no | — | X platform connection + sign-in |
+| `PATREON_CLIENT_ID` | no | — | Supporter events — Patreon membership ingest (callback `/api/v1/integrations/patreon/callback`) |
+| `PATREON_CLIENT_SECRET` | no | — | Supporter events — Patreon |
+| `SHOPIFY_CLIENT_ID` | no | — | Supporter events — Shopify merch order ingest (callback `/api/v1/integrations/shopify/callback`) |
+| `SHOPIFY_CLIENT_SECRET` | no | — | Supporter events — Shopify |
+| `TREATSTREAM_CLIENT_ID` | no | — | Supporter events — TreatStream realtime treat ingest (callback `/api/v1/integrations/treatstream/callback`) |
+| `TREATSTREAM_CLIENT_SECRET` | no | — | Supporter events — TreatStream |
 | `AZURE_TTS_API_KEY` | no | — | Azure Cognitive Services key for TTS |
 | `AZURE_TTS_REGION` | no | `westeurope` | Azure region for TTS service |
 | `ELEVENLABS_API_KEY` | no | — | ElevenLabs key for TTS |
@@ -478,16 +507,19 @@ The KMP + Compose dashboard is **profile-agnostic** — its only required config
 a list of saved server connections (mDNS LAN discovery + manual add) with per-server tokens in the
 OS keychain, switchable from the profile menu.
 
-### `appsettings.json` structure (config hierarchy)
+### `appsettings.json` structure (config hierarchy — abridged; the file carries more sections)
 
 ```json
 {
   "ConnectionStrings": { "DefaultConnection": "...", "Redis": "..." },
+  "Deployment": { "Mode": "self_host_full" },
   "Jwt": { "Secret": "", "Issuer": "nomnomzbot", "Audience": "nomnomzbot", "ExpiryMinutes": 60 },
   "Encryption": { "Key": "" },
   "Twitch": { "ClientId": "", "ClientSecret": "", "BotUsername": "" },
+  "Kick": { "ClientId": "", "ClientSecret": "" },
+  "Twitter": { "ClientId": "", "ClientSecret": "" },
   "Spotify": { "ClientId": "", "ClientSecret": "" },
-  "Discord": { "ClientId": "", "ClientSecret": "" },
+  "Discord": { "ClientId": "", "ClientSecret": "", "PublicKey": "" },
   "YouTube": { "ClientId": "", "ClientSecret": "", "ApiKey": "" },
   "Azure": { "Tts": { "ApiKey": "", "Region": "westeurope" } },
   "ElevenLabs": { "ApiKey": "" },
@@ -522,7 +554,8 @@ OS keychain, switchable from the profile menu.
 ### Adding a New Twitch EventSub Subscription
 
 Per the `twitch-eventsub.md` spec: add the topic to the subscription catalogue and write a
-translator beside the 74 existing ones in `NomNomzBot.Infrastructure/Platform/Eventing/` —
+translator beside the existing ones in `NomNomzBot.Infrastructure/Platform/Eventing/Translators/`
+(17 files covering 74 topics) —
 `TwitchEventSubHostedService` re-registers the full set on every (re)connect, and the translator
 turns the wire payload into a domain event on the bus.
 
@@ -537,10 +570,9 @@ turns the wire payload into a domain event on the bus.
 ### Adding a New Pipeline Action
 
 1. Create the action implementing `ICommandAction` in `NomNomzBot.Infrastructure/Platform/Pipeline/CoreActions/` (core) or `NomNomzBot.Infrastructure/<Module>/PipelineActions/` (side-effecting)
-2. Set `Type` property to a unique snake_case string
-3. Register in `NomNomzBot.Infrastructure/DependencyInjection.cs`
-4. Add the contract/DTO to `NomNomzBot.Application/Abstractions/Pipeline/`
-5. Surface the action in the dashboard's pipeline builder block palette (`feature/pipelines`).
+2. Set `Type` property to a unique snake_case string — registration is automatic via the `ICommandAction` assembly scan (`AddImplementationsOf<ICommandAction>`); no DI edit
+3. Add the contract/DTO to `NomNomzBot.Application/Abstractions/Pipeline/`
+4. Surface the action in the dashboard's pipeline builder block palette (`feature/pipelines`).
 
 ---
 
@@ -564,11 +596,11 @@ All action blocks are compiled C# classes — no scripting engine.
 - **Tokens:** shadcn's closed **OKLCH** contract (Tailwind v4), **neutral base**; the accent is **dynamic — derived at runtime from the signed-in user's Twitch chat color** (subtle, light + dark).
 - **Components:** a closed catalogue, variants-as-data, each on the most-correct primitive (Material3-wrapped or Compose Foundation). **Icons:** the designer's pack (`IconKey`/`IconSet`), Line style, Lucide fallback.
 - **Enforcement (as-built, 2026-07-20):** there is **no detekt/ktlint** and CI runs no lint pass. The real gate is local jvmTests: `DesignSystemStyleGuardTest` fails on new raw hex/`dp` in feature screens (49 pre-existing grandfathered as a shrinking per-file baseline) and on off-catalogue Material3 primitives; `StringResourceEscapingTest` bans render-breaking `\'`/`\"` in string resources. **Duplication is NOT yet gated** (a copy-paste detector / design review is still needed — this is why two poll-creation surfaces coexisted). Run via `& app\gradlew.bat -p app :composeApp:jvmTest`.
-- The old Figma (`MkKBuW2Ee6T5jC8fCtZsM0`) is discarded; HTML mockups at `nomnomzbot-design/mockups/` are a loose historical reference only.
+- The old Figma (`MkKBuW2Ee6T5jC8fCtZsM0`) is discarded; the HTML mockups (`nomnomzbot-design` — external archived repo, not in this tree) are a loose historical reference only.
 
 ---
 
-## Known Issues / Current State (as of 2026-07-04)
+## Known Issues / Current State (as of 2026-08-22)
 
 | Issue | Notes |
 |-------|-------|
@@ -594,8 +626,10 @@ All action blocks are compiled C# classes — no scripting engine.
 
 The app detects when no streamer account is configured and routes to the setup wizard. The wizard:
 
-1. **Connect Twitch account** — OAuth with initial streamer scopes
-2. **Connect bot account** — separate OAuth for the bot identity
+1. **Connect your first platform** — any of Twitch / Kick / YouTube / X (device code where the
+   platform has it); this creates the channel. Further platforms attach as connections (D2).
+2. **Connect bot account** — optional separate account the bot types from; until then the bot types
+   as the streamer's own account with a user-defined line prefix (D5)
 3. **Configure basics** — bot prefix, default language, timezone
 4. **Enable integrations** — Spotify, Discord, etc. (can skip and do later from Settings)
 

@@ -19,9 +19,9 @@ Run yours with no arguments any time to see this guide's short form.
 
 | You want… | Scenario | Linux / macOS | Windows (PowerShell) |
 |---|---|---|---|
-| The bot on **this machine**, zero dependencies, one file | **desktop** | `./deploy.sh desktop` | `.\deploy.ps1 desktop` |
-| The bot on a **home server** with a real database | **docker** | `./deploy.sh docker` | `.\deploy.ps1 docker` |
-| To **host the bot for other streamers** (multi-tenant) — **restricted, see below** | **saas** | `./deploy.sh saas` | `.\deploy.ps1 saas` |
+| The bot on **this machine**, zero dependencies, one file | **desktop** (`self_host_lite`) | `./deploy.sh desktop` | `.\deploy.ps1 desktop` |
+| The bot on a **home server** with a real database | **docker** (`self_host_full`) | `./deploy.sh docker` | `.\deploy.ps1 docker` |
+| To **host the bot for other streamers** (multi-tenant) — **restricted, see below** | **saas** (`saas`) | `./deploy.sh saas` | `.\deploy.ps1 saas` |
 
 Any scenario can also build the **standalone desktop dashboard app** for your OS by adding the
 app flag (single dash on Windows — that's PowerShell's native flag style):
@@ -86,8 +86,7 @@ Copy-Item server\src\NomNomzBot.Api\bin\Release\net10.0\win-x64\publish\nomnomz.
 First start creates the data folder and walks you through setup in the dashboard — open
 **http://localhost:5080** in a browser (or connect the desktop app; it finds LAN bots
 automatically). **Update** by re-running the scenario and replacing the binary; your data stays in
-place. Prebuilt per-OS binaries will ship as GitHub Release assets once tagged releases begin —
-until then, this scenario is the build.
+place. There are no prebuilt binaries yet — this scenario is the build.
 
 ## Scenario: docker — `self_host_full`
 
@@ -120,15 +119,15 @@ prints your URLs.
 - **Update** by re-running the scenario. **Logs:** `docker compose logs -f api`.
 - **Backup:** the `postgres_data` and `api_data` volumes plus your `.env`.
 
-## Scenario: saas — multi-tenant fleet mode (restricted)
+## Scenario: saas — `saas` multi-tenant fleet mode (restricted)
 
 > **⚠ Restricted option.** Operating NomNomzBot as a hosted service for other people is **against
 > the project license** — that right is reserved to **NoMercy Labs** (the official cloud offering).
 > Self-hosting your own bot for your own channel(s) — desktop or docker — is always free and
 > unrestricted. This section documents the mode for the official cloud deployment.
 
-The same Docker stack switched to `saas` mode — multi-tenant, built to sit behind **your** HTTPS
-reverse proxy. A single streamer never needs it.
+The same Docker stack switched to `saas` mode (`DEPLOYMENT_MODE=saas`) — multi-tenant, built to sit
+behind **your** HTTPS reverse proxy. A single streamer never needs it.
 
 **Requirements:** Docker, a public domain, and a reverse proxy terminating TLS (Caddy, nginx, or a
 Cloudflare Tunnel — see the [README's production deployment section](README.md#production-deployment)).

@@ -8,29 +8,30 @@
 
 Clean Architecture, `NomNomzBot.*` namespaces, file-scoped namespaces, `Nullable` on, **explicit types (never `var`)**, `async` all the way, `Result<T>` over throw/null, UUIDv7 keys, AGPL header on every source file, CSharpier-formatted, `TreatWarningsAsErrors`. Tests prove behaviour/shape, not non-null. **Every new Gate-2 action key introduced here is seeded in `roles-permissions.md` §7.1 and `ActionDefinitionSeeder` in the same slice** — a §5 cell whose key is absent from the seed catalogue is a seed bug.
 
-> **Decided architecture (do not re-derive).** The client is a **thin renderer over a fully-server-decorated payload** and a **thin composer over server-provided identity + emote catalogue**. The server already emits one enriched `DashboardChatMessageDto` per message (chat-decoration.md §0); this spec makes **history emit that identical shape**, adds the **operator send identity** and the **emote catalogue**, and wires **cross-channel ban** onto Twitch's own "channels I moderate". No message is ever persisted by this surface beyond what `moderation.md` already writes.
+> **Decided architecture (do not re-derive).** The client is a **thin renderer over a fully-server-decorated payload** and a **thin composer over server-provided identity + emote catalogue**. The server already emits one enriched `DashboardChatMessageDto` per message (chat-decoration.md §0); this spec makes **history emit that identical shape**, adds the **operator send identity** and the **emote catalogue**, and wires **cross-channel ban** onto the operator's moderated-channel set — resolved from the **local membership store, unioned across providers** (Twitch Helix Get Moderated Channels is one contributor alongside Kick / YouTube / X). No message is ever persisted by this surface beyond what `moderation.md` already writes.
 
 ---
 
 ## 0. Surfaces, planes & the client render contract
 
-The Chat page is three surfaces on one screen, all scoped to the joined `channelId`:
+The Chat page is three surfaces on one screen, all scoped to the joined `channelId`. The channel is **one** channel with many platform connections (Twitch / Kick / YouTube / X — PRODUCT-ALIGNMENT D1), so every surface is the channel's **combined stream across all platform connections**: each message carries `Provider`, and every line renders a **per-message platform badge** (Twitch included — no "default platform" without a badge):
 
-1. **Feed** (read) — live (`DashboardHub` push) + scrollback (`GET …/chat/messages`). Both MUST carry the **same** decorated+enriched shape (Decision 9).
-2. **Composer** (send) — a rich, emote-aware input that sends **as the operator** by default, optionally **as the bot** (Decision 1), with emote **autocomplete** and **inline emote images** (Decision 5).
+1. **Feed** (read) — live (`DashboardHub` push) + scrollback (`GET …/chat/messages`), merged across platform connections in server emit order. Both MUST carry the **same** decorated+enriched shape (Decision 9).
+2. **Composer** (send) — a rich, emote-aware input that sends **as the operator** by default, optionally **as the bot** (Decision 1), with emote **autocomplete** and **inline emote images** (Decision 5). The target selector defaults to **all live platforms** and can narrow to **one chosen platform**; the result is **per target** (each platform's outcome reported separately, never collapsed into one boolean).
 3. **Quick-mod** (moderate) — ban / timeout / delete on a message or user, single-channel or **every channel the operator moderates** (Decision 6).
 
-**Client render contract (the server guarantee ⇒ what the client MUST render).** These fields already ride the wire on every live `DashboardChatMessageDto`; the client's only job is to render them. Where the client fails to today, it is a *client* fix, not a server gap:
+**Client render contract (the server guarantee ⇒ what the client MUST render).** These fields already ride the wire on every live `DashboardChatMessageDto`; the client's only job is to render them. Where the client fails to, it is a *client* fix, not a server gap (the open client items are listed in §10):
 
-| Payload field (server guarantees) | Client must render | Today's gap (#) |
-|---|---|---|
-| `Fragments[].Emote.Urls` + `Animated=true` + `/animated/` url | play the animated image (WebP/GIF), not a static first frame | **#3** |
-| `Fragments[].Emote.ZeroWidth=true` | stack the emote over the preceding one (7TV overlay) | — |
-| `Pronouns` (e.g. `"He/Him"`, via `IHubUserEnricher` → alejo.io) | a pronoun **badge/chip** beside the name | **#7** |
-| `AvatarUrl` | the chatter avatar | — |
-| `Timestamp` (UTC ISO-8601 `"O"`) | formatted in the **viewer's local time** | **#8** |
-| one push per message, unbatched (`ChatMessageBroadcastHandler`) | append on receive — **no buffer that withholds the newest message** | **#2** |
-| `Badges[].Urls` (chat-decoration §3.3) | badge images | (shipped `b7b7eab`) |
+| Payload field (server guarantees) | Client must render |
+|---|---|
+| `Provider` | the per-message platform badge (Twitch / Kick / YouTube / X) on every line |
+| `Fragments[].Emote.Urls` + `Animated=true` + `/animated/` url | play the animated image (WebP/GIF), not a static first frame |
+| `Fragments[].Emote.ZeroWidth=true` | stack the emote over the preceding one (7TV overlay) |
+| `Pronouns` (e.g. `"He/Him"`, via `IHubUserEnricher` → alejo.io) | a pronoun **badge/chip** beside the name |
+| `AvatarUrl` | the viewer avatar |
+| `Timestamp` (UTC ISO-8601 `"O"`) | formatted in the **operator's local time** |
+| one push per message, unbatched (`ChatMessageBroadcastHandler`) | append on receive — **no buffer that withholds the newest message** |
+| `Badges[].Urls` (chat-decoration §3.3) | badge images |
 
 The feed is **not** a place the client may hold, debounce, or re-order messages; ordering is server emit order, append-only. The composer renders emotes **inline** by tokenising the draft against the catalogue (§3.2) and swapping matched codes for their images — purely local, no round-trip per keystroke.
 
@@ -102,7 +103,7 @@ public interface IOperatorChatSender
 }
 ```
 
-Impl `OperatorChatSender` (`Infrastructure/Chat/`): `GetUserTokenAsync(operatorUserId)` → `ITwitchIdentityResolver.GetTwitchChannelIdAsync(broadcasterId)` → `POST /helix/chat/messages` on the operator context with `sender_id` = the operator's Twitch id. A `403` (banned / not permitted in that channel) maps to a typed failure the composer surfaces plainly.
+Impl `OperatorChatSender` (`Infrastructure/Chat/`): send is the **per-platform `IChatProvider`** selected by the message's target platform (Twitch = Helix Send Chat Message, Kick, YouTube, X — never Helix-only); a reply is routed to the **origin platform** of the parent message. Twitch path: `GetUserTokenAsync(operatorUserId)` → `ITwitchIdentityResolver.GetTwitchChannelIdAsync(broadcasterId)` → `POST /helix/chat/messages` on the operator context with `sender_id` = the operator's Twitch id. A `403` (banned / not permitted in that channel) maps to a typed failure the composer surfaces plainly, per target.
 
 ### 3.4 `IChatEmoteCatalogueWarmer` — NEW background contribution (`Infrastructure/Chat/Jobs/`)
 
@@ -110,19 +111,20 @@ Twitch **first-party** emotes are not cached today (only reactively resolved fro
 
 ### 3.5 Cross-channel ban — EXTEND `moderation.md` §3.4 `INetworkNukeService`
 
-`INetworkNukeService.NukeAsync` already "bans a target across every channel the actor holds ban rights on", but resolves that channel set from the **local DB**. Rewire its resolution to Twitch's authority and expose it as the ban dialog's "every channel I moderate" option:
+`INetworkNukeService.NukeAsync` already "bans a target across every channel the actor holds ban rights on". Expose that resolution as the ban dialog's "every channel I moderate" option:
 
 ```csharp
-// EXTEND: the actor's channel set is Twitch's Get Moderated Channels for the actor's Twitch id
-// (GetModeratedChannelsAsync, user:read:moderated_channels), NOT the local DB — so it covers EVERY channel Twitch
-// says the operator moderates, tenant or not. Each ban is issued AS THE OPERATOR (their token, moderator_id = them,
-// moderator:manage:banned_users). Best-effort, per-channel outcome; a channel that fails (rate-limit / no longer mod)
-// is reported, never aborts the rest.
+// EXTEND: the actor's channel set is the LOCAL MEMBERSHIP STORE unioned across providers — Twitch's Get Moderated
+// Channels (GetModeratedChannelsAsync, user:read:moderated_channels) is one contributor that syncs into it, beside the
+// Kick / YouTube / X moderator rosters — so it covers EVERY channel any platform says the operator moderates.
+// Each ban is issued AS THE OPERATOR on that channel's platform connection (their token, moderator_id = them,
+// moderator:manage:banned_users on Twitch). Best-effort, per-channel outcome; a channel that fails
+// (rate-limit / no longer mod) is reported, never aborts the rest.
 Task<Result<NetworkBanResult>> BanAcrossModeratedAsync(
     Guid operatorUserId, string targetTwitchUserId, string? reason, CancellationToken ct = default);   // NEW verb
 ```
 
-`NetworkBanResult` carries per-channel outcomes (channel id/login, succeeded, error). Single-channel ban stays `moderation.md` §3.1 `IModerationService.BanAsync` unchanged. **Relationship (do not conflate):** this operator-scoped, Twitch-gated fan-out is distinct from `moderation:nuke` (a SuperMod *platform* power over tenant channels regardless of the actor's per-channel Twitch mod status). Twitch is the sole authority here — the operator can only ban where Twitch already made them a moderator, so there is zero privilege escalation.
+`NetworkBanResult` carries per-channel outcomes (channel id/login, succeeded, error). Single-channel ban stays `moderation.md` §3.1 `IModerationService.BanAsync` unchanged. **Relationship (do not conflate):** this operator-scoped, platform-gated fan-out is distinct from `moderation:nuke` (a SuperMod *platform* power over tenant channels regardless of the actor's per-channel mod status). Each platform is the authority for its own channels — the operator can only ban where that platform already made them a moderator, so there is zero privilege escalation.
 
 ### 3.6 `IChatController` history parity — EXTEND
 
@@ -156,7 +158,7 @@ public sealed record ModeratedChannelDto(string BroadcasterId, string Broadcaste
 
 ## 5. Controller endpoints
 
-All under `[Route("api/v{version:apiVersion}/channels/{channelId:guid}/…")]`, `[ApiVersion("1.0")]`, `[Authorize]`, results via `BaseController`. **Gate 1** (entry, no floor): `[Authorize]` + `TenantResolutionMiddleware` / `IChannelAccessService`. **Gate 2** (per-row floor): `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` before the service call (403 below floor). Roles are `ManagementRole` names (PascalCase, never snake-case).
+All under `[Route("api/v{version:apiVersion}/channels/{channelId:guid}/…")]`, `[ApiVersion("1.0")]`, `[Authorize]`, results via `BaseController`. **Gate-1** (entry, no floor): `[Authorize]` + `TenantResolutionMiddleware` / `IChannelAccessService`. **Gate-2** (per-row floor): `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` before the service call (403 below floor). Roles are `ManagementRole` names (PascalCase, never snake-case).
 
 **`…/chat` (ChatController — EXTEND):**
 
@@ -213,12 +215,12 @@ None new. The composer, feed, and quick-mod are dashboard request/hub surfaces, 
 
 ## 9. Decisions (resolved)
 
-1. **The composer sends as the OPERATOR, not the bot** — the logged-in user's own Twitch identity (their token + their Twitch id as `sender_id`). This is the multi-mod-correct default: a moderator typing in a channel they moderate appears as themselves; the streamer in their own channel appears as themselves. An explicit **identity selector** in the composer switches to **Bot** for bot-voice posts. **Automation** (commands, timers, event responses, announcements) is unchanged and still speaks as the bot. Capability is never removed — bot-send stays reachable, it is just not the default.
+1. **The composer sends as the OPERATOR, not the bot** — the logged-in user's own Twitch identity (their token + their Twitch id as `sender_id`). This is the multi-mod-correct default: a moderator typing in a channel they moderate appears as themselves; the streamer in their own channel appears as themselves. An explicit **identity selector** in the composer switches to **Bot** for bot-identity posts. **Automation** (commands, timers, event responses, announcements) is unchanged and still types as the bot. Capability is never removed — bot-send stays reachable, it is just not the default.
 2. **A new per-operator token path** (`GetUserTokenAsync(Guid userId)`, §3.1) — `ITwitchTokenResolver` previously knew only bot + broadcaster tokens. `user:write:chat` is already granted to every Twitch login (`AuthService.RequiredScopes`), so send-as-you needs **no re-auth**.
 3. **`chat:send` and `chat:read` are introduced and seeded** (§7). They were used in code but absent from the seed catalogue; this makes them real Gate-2 keys at the Moderator floor (matching the Chat page's `frontend-ia.md` floor).
 4. **One emote catalogue endpoint, unified shape, client-side filter** (§3.2, §5). `GET …/chat/emotes` returns the operator's usable set for the channel — Twitch global+channel+user-emotes and BTTV/FFZ/7TV — as the single `ChatEmote` shape, deduped with chat-decoration precedence. The composer filters locally for instant `:prefix` autocomplete; no per-keystroke round-trip.
 5. **Rich, emote-inline composer is a client contract over the catalogue** (§0). The draft is tokenised against the catalogue and matched codes render as inline images. On send, the **wire text is the emote code** — Twitch re-parses first-party emote codes the operator can use; third-party (BTTV/FFZ/7TV) codes travel as plain text and are re-emoted on the return trip by the decoration pipeline, so the sent message renders with emotes for every viewer of our feed.
-6. **Cross-channel ban is Twitch-gated and operator-scoped** (§3.5). "Every channel I moderate" resolves from Twitch *Get Moderated Channels* (not the local DB) and bans as the operator in each — best-effort, per-channel result. It reuses `moderation:ban` (Moderator floor) with a `scope` field + an explicit UI confirm, and is **distinct from `moderation:nuke`** (the SuperMod platform power). Because the operator can only act where Twitch already trusts them as a moderator, there is no privilege escalation; the larger blast radius is handled by explicit confirm + full per-channel audit, not a higher floor.
+6. **Cross-channel ban is platform-gated and operator-scoped** (§3.5). "Every channel I moderate" resolves from the **local membership store unioned across providers** (Twitch *Get Moderated Channels* is one contributor; Kick / YouTube / X rosters are the others) and bans as the operator in each — best-effort, per-channel result. It reuses `moderation:ban` (Moderator floor) with a `scope` field + an explicit UI confirm, and is **distinct from `moderation:nuke`** (the SuperMod platform power). Because the operator can only act where the platform already trusts them as a moderator, there is no privilege escalation; the larger blast radius is handled by explicit confirm + full per-channel audit, not a higher floor.
 7. **The moderated-channel list is its own read endpoint** (`GET …/moderation/moderated-channels`, `moderation:action:read`) so the ban dialog can show "Every channel I moderate (N)".
 8. **Pronoun badge, avatar, local-time timestamp, and animated emote are CLIENT render fixes, not server gaps** (§0). The server already emits `Pronouns`, `AvatarUrl`, `Animated`+the `/animated/` url, and a UTC ISO-8601 `Timestamp` on every live message. The client renders the pronoun chip, the avatar, plays the animated image, and formats the timestamp to the viewer's local time.
 9. **Feed live/history parity** (§3.6). `GET …/chat/messages` is upgraded to emit the **same** `DashboardChatMessageDto` (pronouns, avatar, real timestamp, animated fragments) as the live hub, so scrollback and live render identically — no drift.
@@ -226,3 +228,12 @@ None new. The composer, feed, and quick-mod are dashboard request/hub surfaces, 
 11. **Owns nothing new in the locked schema** (§1). No tables, no columns, no migration. New behaviour is services + endpoints + seed rows (action keys) + `FeatureScopeMap` entries — all data/DI, not schema.
 12. **`frontend-ia.md` reconciliation.** The Chat row is repointed from the non-existent `chat.md` to **`chat-client.md`**, and its "send-as-bot" note is corrected to "send as **you** (operator); bot optional" (Decision 1). Floors stay Moderator/Moderator.
 13. **Emote cache-key keying is inconsistent but left as-is** — third-party emote channel keys use the **Twitch id**, badges/cheermotes use the tenant **Guid** (chat-decoration §7). The catalogue reads both correctly by using the id each key expects; unifying the keys is a chat-decoration concern, not re-opened here.
+
+## 10. Open (client render items not yet landed)
+
+Client-side fixes against the §0 render contract; the server already emits every field. Each is a dashboard slice in `SHORTCOMINGS-EXECUTION-PLAN.md`:
+
+- **#2** — append on receive with no buffer that withholds the newest message ("one message late").
+- **#3** — play `Animated=true` emotes (WebP/GIF from the `/animated/` url), not a static first frame.
+- **#7** — render the `Pronouns` badge/chip beside the name.
+- **#8** — format `Timestamp` in the operator's local time.

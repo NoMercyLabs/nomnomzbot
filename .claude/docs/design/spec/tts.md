@@ -1,7 +1,7 @@
 # TTS Subsystem — Interface Specification
 
 **Status:** Implementable. Code from this directly.
-**Grounding:** LOCKED schema (`2026-06-16-database-schema.md` Domain P / Q.1 / R.1), design doc (`2026-06-16-tts-stream-admin-devmode.md` §TTS), stack doc (`2026-06-16-stack-and-dependencies.md`), decisions doc (`2026-06-16-decisions-pending-confirmation.md`).
+**Grounding:** LOCKED schema (`2026-06-16-database-schema.md` Domain P / Q.1 / R.1), design doc (`2026-06-16-tts-stream-admin-devmode.md` §TTS), stack doc (`2026-06-16-stack-and-dependencies.md`), decisions doc (`2026-06-16-decisions-resolved.md`).
 **Conventions:** C# namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable` enabled; async all the way; `Result<T>` over exceptions/null; Repository + `IUnitOfWork`; typed-interface DI, no MediatR; `Newtonsoft.Json` for app JSON; surrogate guid PKs via `Guid.CreateVersion7()`; tenant key `BroadcasterId` is `Guid`; soft-delete (`IsDeleted`+`DeletedAt`) global filter; deployment-profile adapters chosen by DI.
 
 > **Note on the live code (extend, do not duplicate).** A working TTS subsystem already exists: `ITtsService` (`Application/Contracts/Tts/ITtsService.cs`), `ITtsConfigService` (`Application/Services/ITtsConfigService.cs`), `ITtsProvider` (`Domain/Interfaces/ITtsProvider.cs`), `TtsService` + `EdgeTtsProvider`/`AzureTtsProvider`/`ElevenLabsTtsProvider` (`Infrastructure/Services/Tts/`), `TtsConfigService` (`Infrastructure/Services/Application/`), `TtsController` + `TtsConfigController` (`Api/Controllers/V1/`). This spec **extends those exact types** to the locked schema and adds the missing capabilities (per-channel `TtsConfig` table, BYOK key vault, opt-out profanity censor, mod-approval queue, content-addressed `StorageRef` cache, per-viewer voice, usage ledger, client-edge dispatch). The two duplicate controllers (`TtsController` + `TtsConfigController`, identical routes) collapse into one — see §5. Two duplicate `StatusResponseDto<T>` exist (`Api.Models` and `Application.DTOs`); use **`Api.Models.StatusResponseDto<T>`** in controllers (matches `BaseController.ResultResponse`).
@@ -223,8 +223,12 @@ public interface ITtsDispatchService
     ///    The character cap is the channel tier's RESOLVED value: effectiveCap = min(AbsoluteMaxCharacters, GetLimitAsync(broadcasterId,"tts_max_characters")),
     ///    treating GetLimitAsync's -1 (unlimited / self-host) as AbsoluteMaxCharacters. Over-cap → TtsUtteranceRejectedEvent(too_long) + Result.Failure(VALIDATION_FAILED). No static 500 cap.
     /// 3. Applies the opt-out profanity censor (only when ProfanityCensorEnabled); empty-after-censor → reject(empty_after_censor).
-    /// 4. If ModApprovalRequired → inserts TtsApprovalQueueEntry(status=pending), emits TtsUtteranceQueuedEvent, returns Result.Success(Queued).
-    ///    Else → synthesizes via ITtsService.SynthesizeForChannelAsync, dispatches (client_edge: OverlayHub → IOverlayClient.TtsSpeak(TtsSpeakPayload) — the widget renders audio edge-side, no bytes on the wire; self_host: audio store), appends TtsUsageRecord, emits TtsUtteranceDispatchedEvent, returns Result.Success(Dispatched).
+    /// 4. If ModApprovalRequired AND NOT (request.BypassQueue AND the requester holds tts:queue:review via IActionAuthorizationService)
+    ///    → inserts TtsApprovalQueueEntry(status=pending), emits TtsUtteranceQueuedEvent, returns Result.Success(Queued).
+    ///    Else → resolves each segment's voice (§6.2 precedence), synthesizes server-side segments via ITtsService.SynthesizeForChannelAsync,
+    ///    dispatches ONE IOverlayClient.TtsSpeak(TtsSpeakPayload{Segments}) to the system TTS surface (client_edge: no bytes on the wire;
+    ///    byok/self_host: AudioUrl per segment from the audio store), appends TtsUsageRecord, emits TtsUtteranceDispatchedEvent, returns Result.Success(Dispatched).
+    ///    A BypassQueue request whose requester lacks tts:queue:review is NOT rejected — it simply takes the queue path (the flag is ignored).
     /// </summary>
     Task<Result<TtsDispatchOutcome>> RequestSpeakAsync(TtsSpeakRequest request, CancellationToken ct = default);
 
@@ -246,12 +250,15 @@ public sealed record TtsSpeakRequest(
     Guid RequestedByUserId,
     string RequestedByTwitchUserId,
     string RequestedByDisplayName,
-    string Text,
-    string? VoiceIdOverride,
+    IReadOnlyList<TtsSegment> Segments,   // ordered; a single-segment list for plain "speak this" callers
     int BitsAmount,
     string CommunityStanding,     // everyone|subscriber|vip|artist|moderator (resolved by caller)
     string? SourceMessageId,
-    Guid? StreamId);
+    Guid? StreamId,
+    bool BypassQueue = false);    // honored only when the requester holds tts:queue:review (§6)
+
+public enum TtsVoiceMode { ChannelDefault, TriggeringUser, Explicit }
+public sealed record TtsSegment(string Text, TtsVoiceMode VoiceMode, string? VoiceId); // VoiceId required when VoiceMode=Explicit
 
 public enum TtsDispatchDisposition { Dispatched, Queued }
 public sealed record TtsDispatchOutcome(TtsDispatchDisposition Disposition, Guid? QueueEntryId, string? ContentHash);
@@ -404,7 +411,7 @@ public sealed record TtsQueueEntryDto(
 
 **One controller — `TtsController`** (`Api/Controllers/V1/`). **Delete `TtsConfigController`** (duplicate route). Base route already established by the live code: `api/v{version:apiVersion}/channels/{channelId}/tts`. `[ApiVersion("1.0")]`, `[Authorize]`, `[Tags("TTS")]`. `channelId` resolves to `BroadcasterId Guid` via the tenant middleware. Responses via `BaseController.ResultResponse(...)` → `Api.Models.StatusResponseDto<T>` / `PaginatedResponse<T>`.
 
-**Role gate:** every route is tenant-scoped. The management-plane routes carry a Gate-2 floor; the three `self`-plane `/me/voice` routes carry NO action key — the caller acts on their OWN identity (a "my data" self route), gated only by Gate 1 + the channel's `ViewerVoiceSelfServiceEnabled` + `IsEnabled` toggles (the service returns `FEATURE_DISABLED` when either is off). Gate 1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's). Gate 2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the Gate-2 action-key column before the service call (403 FORBIDDEN when below). The keys are seeded global `ActionDefinitions` (schema Domain B); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. No platform-admin (Plane C) endpoints are owned here.
+**Role gate:** every route is tenant-scoped. The management-plane routes carry a Gate-2 floor; the three `self`-plane `/me/voice` routes carry NO action key — the caller acts on their OWN identity (a "my data" self route), gated only by Gate-1 + the channel's `ViewerVoiceSelfServiceEnabled` + `IsEnabled` toggles (the service returns `FEATURE_DISABLED` when either is off). Gate-1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). Gate-2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the Gate-2 action-key column before the service call (403 FORBIDDEN when below). The keys are seeded global `ActionDefinitions` (schema Domain B); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. No platform-admin (Plane-C) endpoints are owned here.
 
 | Route (relative to base) | Verb | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|
@@ -422,9 +429,9 @@ public sealed record TtsQueueEntryDto(
 | `/queue/{entryId}/approve` | POST | — | `StatusResponseDto<object>` | management / Moderator · `tts:queue:review` |
 | `/queue/{entryId}/reject` | POST | — | `StatusResponseDto<object>` | management / Moderator · `tts:queue:review` |
 
-> `action key` mapping (Domain B `ActionDefinitions`): `tts:config:read`(floor Moderator), `tts:config:write`(floor Editor), `tts:voice:read`(Moderator), `tts:voice:test`(Moderator), `tts:uservoice:write`(Moderator), `tts:queue:review`(Moderator). Each section-5 endpoint is gated by Gate 2 — `IActionAuthorizationService.AuthorizeActionAsync(userId, channelId, actionKey)` — against its action key (`/voices` GET → `tts:voice:read`). Register these seeds in `DataSeeder`.
+> `action key` mapping (Domain B `ActionDefinitions`): `tts:config:read`(floor Moderator), `tts:config:write`(floor Editor), `tts:voice:read`(Moderator), `tts:voice:test`(Moderator), `tts:uservoice:write`(Moderator), `tts:queue:review`(Moderator). Each section-5 endpoint is gated by Gate-2 — `IActionAuthorizationService.AuthorizeActionAsync(userId, channelId, actionKey)` — against its action key (`/voices` GET → `tts:voice:read`). Register these seeds in `DataSeeder`.
 
-No platform-admin (Plane C) endpoints are owned here. The `TtsVoice` catalog is reference data — seeded by `DataSeeder` AND periodically synced from live provider voice lists via `ITtsVoiceCatalogSync` (§7), still not a per-channel endpoint.
+No platform-admin (Plane-C) endpoints are owned here. The `TtsVoice` catalog is reference data — seeded by `DataSeeder` AND periodically synced from live provider voice lists via `ITtsVoiceCatalogSync` (§7), still not a per-channel endpoint.
 
 ---
 
@@ -437,11 +444,24 @@ One action: **`PlayTts`** (the `PlayMusic`/`SendMessage` sibling). Files: `Appli
 - **Config DTO** (read from `ActionContext.Parameters` / `ActionDefinition.Get*`):
   ```csharp
   public sealed record PlayTtsActionConfig(
-      string Text,            // template, resolved via ITemplateResolver (e.g. "{{args}}")
-      string? VoiceId,        // null → resolve UserTtsVoice then TtsConfig.DefaultVoiceId
-      bool BypassQueue);      // ignored unless caller has tts:queue:review; default false
+      IReadOnlyList<TtsSegment> Segments,   // ordered; each Text is a template resolved via ITemplateResolver (e.g. "{{user.name}} says", "{{args}}")
+      bool BypassQueue);                    // honored only when the triggering user holds tts:queue:review; default false
+
+  // TtsSegment(string Text, TtsVoiceMode VoiceMode, string? VoiceId) — §3.4; VoiceMode: ChannelDefault | TriggeringUser | Explicit
   ```
-- **Behavior:** resolves the text template, builds a `TtsSpeakRequest` from `ActionContext` (`BroadcasterId`, `TriggeredByUserId`, display name, community standing supplied by the engine), calls `ITtsDispatchService.RequestSpeakAsync`. Returns `ActionResult.Success` with the spoken/queued text on `Dispatched`/`Queued`, `ActionResult.Failure(reason)` when the dispatch gate rejects. Emits no events directly (the dispatch service owns events). Registered in `ICommandActionRegistry`.
+  A one-segment config is the plain "speak this" case; a multi-segment config lets one utterance switch voices mid-sentence (e.g. an announcer segment in the channel voice followed by the viewer's message in their own voice). The editor shows the segment list with a voice-mode picker per segment.
+- **Behavior:** resolves every segment's text template, builds ONE `TtsSpeakRequest` (`Segments` in order, `BypassQueue` from config) from `ActionContext` (`BroadcasterId`, `TriggeredByUserId`, display name, community standing supplied by the engine), calls `ITtsDispatchService.RequestSpeakAsync` once — the utterance is dispatched as ONE `TtsSpeak` payload with an ordered segment array (`widgets-overlays.md` §7), never one push per segment. `BypassQueue`: when set and the triggering user holds `tts:queue:review`, the utterance skips the approval queue (§3.4 step 4); otherwise the flag is ignored and the normal queue rule applies. Returns `ActionResult.Success` with the spoken/queued text on `Dispatched`/`Queued`, `ActionResult.Failure(reason)` when the dispatch gate rejects. Emits no events directly (the dispatch service owns events). Registered in `ICommandActionRegistry`.
+
+### 6.2 System TTS surface + voice resolution
+
+The TTS audio plays on the **system TTS surface** (`widgets-overlays.md` §1.2): a channel-owned page provisioned with the channel (never installed from the gallery; disable-only), owned by the TTS page, added to OBS once. It keeps an **ordered utterance queue** — one `TtsSpeak` payload = one queue item; items play one at a time, each item's `Segments` back-to-back — and renders an optional caption (`showText`). Per segment it plays `AudioUrl` when present (`byok`/`self_host`) or synthesizes via the browser's `speechSynthesis` on `client_edge`; on `client_edge` the SDK **must** set `utter.voice` and `utter.lang` from the segment's `VoiceId` (match on `TtsVoice.Id`, fall back to `Locale`) — never the browser default voice.
+
+**Voice resolution (server-side, per segment, binding):**
+1. `VoiceMode=Explicit` → the segment's `VoiceId` (`VALIDATION_FAILED` if it is not a catalogue voice).
+2. `VoiceMode=TriggeringUser` → the triggering user's `UserTtsVoice` for this channel; when unset → step 3.
+3. `VoiceMode=ChannelDefault` (and every fall-through) → `TtsConfig.DefaultVoiceId`; when unset → the provider's seeded `IsDefault` voice.
+
+Precedence is therefore **explicit segment voice → triggering user's voice → channel default**. Voice lookup (`!voice <query>`, `SearchVoicesAsync`, `VoiceId` validation) matches `TtsVoice.Id` **and** `Locale` **case-insensitively** (`en-us` = `en-US`; `en-US-AriaNeural` = `en-us-arianeural`), then `Name`/`DisplayName` fuzzy.
 
 ## 6.1 Built-in chat command — `!voice` (viewer self-service)
 
@@ -494,7 +514,7 @@ services.AddScoped<ITtsVoiceCatalogSync, TtsVoiceCatalogSync>();
 **Voice catalog sync.** `ITtsVoiceCatalogSync` / `TtsVoiceCatalogSync`, on startup/seed (and an operator-triggerable refresh), pulls each provider's live `GetVoicesAsync` (Azure + ElevenLabs when an operator/BYOK key is configured; Edge from the static seed) and UPSERTS them into `TtsVoice` by `(Id)`, capturing the rich metadata (accent/age/styles/tags/description/previewUrl) the provider exposes — replacing today's "10 hardcoded Edge voices, provider lists discarded".
 
 **Deployment-profile adapter variants:**
-- **TTS `Mode` / provider plane** (per-channel, from `TtsConfig.Mode`, resolved at request time by `IByokTtsProviderFactory`): `client_edge` → `EdgeTtsProvider` + `OverlayHub` dispatch via `IOverlayClient.TtsSpeak(TtsSpeakPayload)` (zero server cost; the OBS widget synthesizes/renders edge-side from the payload, no audio bytes leave the server); `byok` → per-channel `AzureTtsProvider`/`ElevenLabsTtsProvider` from decrypted key; `self_host` → operator-config provider.
+- **TTS `Mode` / provider plane** (per-channel, from `TtsConfig.Mode`, resolved at request time by `IByokTtsProviderFactory`): `client_edge` → `EdgeTtsProvider` + `OverlayHub` dispatch via `IOverlayClient.TtsSpeak(TtsSpeakPayload)` (zero server cost; the system TTS surface (§6.2) synthesizes/renders edge-side from the payload, no audio bytes leave the server); `byok` → per-channel `AzureTtsProvider`/`ElevenLabsTtsProvider` from decrypted key; `self_host` → operator-config provider.
 - **`ITtsAudioStore`** chosen by `DeploymentProfile` (disk vs object-store vs inline), aligned to `TtsCacheEntry.StorageKind`.
 - **BYOK key crypto** goes through gdpr-crypto's vault — `IIntegrationTokenVault` / `ISubjectKeyService.ProtectAsync`/`UnprotectAsync` (envelope `CipherPayload`+`keyVersion`, AAD `tenantId‖provider‖tokenType‖keyVersion`) — whose `IKeyVault` KEK adapter (`local_aes` vs `kms_envelope`) is already selected by `DeploymentProfile.TokenVault`. This subsystem only references the vault service + `CryptoKey`; it neither picks the adapter nor defines a parallel cipher.
 
@@ -511,7 +531,7 @@ services.AddScoped<ITtsVoiceCatalogSync, TtsVoiceCatalogSync>();
 | App JSON (DTO/config serialization) | `Newtonsoft.Json` (per project convention) | App JSON uses `Newtonsoft.Json` (binding project convention); this also fixes the `[VC:JSON]` converter serializer. See §9 decision 1. |
 | Persistence | EF Core 10 (2nd) + provider adapter (Npgsql 10.0.2 / `EFCore.Sqlite`) | `[VC:JSON]`/`[VC:enum]` via hand-rolled `ValueConverter`+`ValueComparer`; no `jsonb`. |
 | Cache L1/L2 | `Microsoft.Extensions.Caching.Hybrid` 10.7.0 (2nd) | Optional hot in-proc cache in front of `TtsCacheEntry` lookups. |
-| Real-time client-edge dispatch | `Microsoft.AspNetCore.SignalR` (2nd) via `OverlayHub` → `IOverlayClient.TtsSpeak(TtsSpeakPayload)` (widgets-overlays §7 wire surface) | `client_edge` audio rendered in the OBS widget; server pushes a `TtsSpeakPayload` (voiceId/text/standing — see widgets-overlays `IOverlayClient`), never audio bytes. |
+| Real-time client-edge dispatch | `Microsoft.AspNetCore.SignalR` (2nd) via `OverlayHub` → `IOverlayClient.TtsSpeak(TtsSpeakPayload)` (widgets-overlays §7 wire surface) | `client_edge` audio rendered in the system TTS surface (§6.2); server pushes a `TtsSpeakPayload` (voiceId/text/standing — see widgets-overlays `IOverlayClient`), never audio bytes. |
 | Events | in-box `IEventBus` (1st) | No MediatR. |
 | Tier-scaled character cap | `IBillingTierService.GetLimitAsync(broadcasterId,"tts_max_characters")` (monetization-billing §3.2) | Resolves the EFFECTIVE per-utterance cap from the channel's billing tier (`-1`=unlimited→`TtsCharacterLimits.AbsoluteMaxCharacters`); injected into `ITtsDispatchService` (gate) + `TtsConfigService` (clamp). No new dep. |
 

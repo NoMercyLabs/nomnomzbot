@@ -13,7 +13,7 @@
 | # | Decision |
 |---|---|
 | D1 | **Log-first runtime.** Every inbound action (chat command, EventSub event, API mutation, inbound webhook) is: (1) authorized at the edge, (2) appended as a durable `CommandLogEntry` (O(1)), (3) ACKed. Async workers pull lazily, **re-check invariants at processing time**, execute, emit domain events, advance projections. The append is the only synchronous work on the hot path. |
-| D2 | **No per-channel stateful connections → no sharding/leasing.** EventSub inbound rides app-global **Conduits + webhooks** (`twitch-eventsub.md`); chat outbound rides `IChatProvider` → **`HelixChatProvider`** (Helix `Send Chat Message`, `user:write:chat`) on **every** profile — IRC is retired, so there is no per-channel chat socket anywhere. Chat *read* is EventSub `channel.chat.message` on both. App nodes are therefore **fully stateless**; horizontal scale = add nodes behind the load balancer. |
+| D2 | **No per-channel stateful connections → no sharding/leasing.** Inbound events ride each platform's app-global push (Twitch EventSub **Conduits + webhooks**, `twitch-eventsub.md`; Kick webhooks; YouTube Live Chat polling); chat outbound rides the platform-keyed `IChatProvider` (§6) — Twitch via Helix `Send Chat Message` (`user:write:chat`), Kick / YouTube / X via their chat-send REST — on **every** profile, so there is no per-channel chat socket anywhere. App nodes are therefore **fully stateless**; horizontal scale = add nodes behind the load balancer. |
 | D3 | **Stateful in-memory state is a rebuildable cache.** Per-channel runtime state (song fair-queue, pipeline state, trust cache) is always reconstructable from Postgres (`music-sr.md` §3.8 deterministic rebuild). Any node serves any channel; no affinity. |
 | D4 | **Distributed rate limiting** via the `IRateLimiter` adapter (Redis SaaS / in-process self-host): a **global Helix client-id bucket** with **per-channel fair sub-budgets**, plus **tier-weighted per-tenant inbound buckets**. |
 | D5 | **Per-tenant fair work scheduling** via `IFairWorkScheduler` — Bamo's rank fairness (`IFairQueue<T>`) keyed by `BroadcasterId`, bounded by per-tenant concurrency caps. No channel starves another. |
@@ -30,7 +30,7 @@
 
 Three logical tiers, all running the **same stateless binary** (separable by role via config, not by code):
 
-1. **Edge tier (ingest + API).** Receives HTTP (REST), EventSub conduit webhooks, inbound integration webhooks, and chat events. Does only: authenticate → authorize (Gate 1/2 or `IPlatformIamService`) → **append `CommandLogEntry`** → ACK. No business logic on the hot path. Scales linearly; behind the load balancer; no sticky sessions.
+1. **Edge tier (ingest + API).** Receives HTTP (REST), EventSub conduit webhooks, inbound integration webhooks, and chat events. Does only: authenticate → authorize (Gate-1/Gate-2 or `IPlatformIamService`) → **append `CommandLogEntry`** → ACK. No business logic on the hot path. Scales linearly; behind the load balancer; no sticky sessions.
 2. **Worker tier (log-first processors).** Pulls ready `CommandLogEntry` rows via `IFairWorkScheduler`, re-checks invariants, runs the action (pipeline engine, integrations, moderation, economy…), emits domain events, advances projections. Bounded by lane + per-tenant concurrency. Scales by adding workers.
 3. **Data tier.** Postgres (primary + replicas), Redis (cluster), object storage (exports/artifacts). §8.
 
@@ -175,29 +175,50 @@ Thresholds are `Scaling:Backpressure:*` config. State (`green`/`amber`/`red`) is
 
 ---
 
-## 6. Chat transport — `IChatProvider` (Helix everywhere)
+## 6. Chat transport — `IChatProvider` (platform-keyed, stateless)
 
-`NomNomzBot.Domain/Chat/Interfaces/IChatProvider.cs`. Outbound chat + moderation with **no per-channel connection on any profile** — IRC is retired, so every profile sends over Helix and there is no transport axis.
+`NomNomzBot.Domain/Chat/Interfaces/IChatProvider.cs`. Outbound chat + moderation with **no per-channel connection on any profile**. One channel has many platform connections (PRODUCT-ALIGNMENT D1), so the seam is **platform-keyed**: every call names the `ChatPlatform` it targets, and one router picks the implementation. There is no transport axis per deployment profile.
 
 ```csharp
 namespace NomNomzBot.Domain.Chat.Interfaces;
 
+public enum ChatPlatform { Twitch, Kick, YouTube, X }
+
+// One impl per platform; `Platform` is the router key.
 public interface IChatProvider
 {
-    // broadcasterId is the tenant Guid; the impl resolves it to the Twitch channel id before any Helix call.
-    Task SendMessageAsync(Guid broadcasterId, string message, CancellationToken ct = default);
-    Task SendReplyAsync(Guid broadcasterId, string replyToMessageId, string message, CancellationToken ct = default);
-    Task TimeoutUserAsync(Guid broadcasterId, string userId, int durationSeconds, string? reason = null, CancellationToken ct = default);
-    Task BanUserAsync(Guid broadcasterId, string userId, string? reason = null, CancellationToken ct = default);
-    Task UnbanUserAsync(Guid broadcasterId, string userId, CancellationToken ct = default);
-    Task DeleteMessageAsync(Guid broadcasterId, string messageId, CancellationToken ct = default);
+    ChatPlatform Platform { get; }
+    // broadcasterId is the tenant Guid; the impl resolves the channel's PlatformConnection for its Platform before any API call.
+    Task<Result<ChatSendResult>> SendMessageAsync(Guid broadcasterId, string message, CancellationToken ct = default);
+    // Reply threading where the platform supports it (Twitch reply_parent_message_id, YouTube none, Kick reply, X none);
+    // when the platform cannot thread, the impl sends plain text with an @mention prefix and reports Fallback=Mention.
+    Task<Result<ChatSendResult>> SendReplyAsync(Guid broadcasterId, string replyToMessageId, string message, CancellationToken ct = default);
+    Task<Result> TimeoutUserAsync(Guid broadcasterId, string userId, int durationSeconds, string? reason = null, CancellationToken ct = default);
+    Task<Result> BanUserAsync(Guid broadcasterId, string userId, string? reason = null, CancellationToken ct = default);
+    Task<Result> UnbanUserAsync(Guid broadcasterId, string userId, CancellationToken ct = default);
+    Task<Result> DeleteMessageAsync(Guid broadcasterId, string messageId, CancellationToken ct = default);
+}
+
+public enum ChatReplyFallback { None, Mention, Plain }
+public sealed record ChatSendResult(string? MessageId, int ChunkCount, ChatReplyFallback Fallback);
+
+// The single entry point callers use. Selects the IChatProvider by the message's origin platform
+// (a command typed on Kick is answered on Kick), or fans out to every live connection for broadcasts (timers, announcements).
+public interface IChatProviderRouter
+{
+    IChatProvider For(ChatPlatform platform);
+    Task<Result<ChatSendResult>> SendAsync(Guid broadcasterId, ChatPlatform platform, string message, string? replyToMessageId = null, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<ChatSendResult>>> BroadcastAsync(Guid broadcasterId, string message, CancellationToken ct = default); // every connected platform
 }
 ```
 
-- **`HelixChatProvider` (every profile):** send via Helix `POST /helix/chat/messages` (`user:write:chat`); moderation (ban / timeout / unban / delete) via the Helix moderation endpoints. **Stateless** — any node sends for any channel; no IRC socket; rate-limited via §4.2. This is what removes the last sharding problem **on self-host and SaaS alike**.
-- Chat **read** is EventSub `channel.chat.message` on every profile (the bot's `user:read:chat` scope) — the single ingest path; the legacy IRC `chat:read` is not used.
+- **Implementations (every profile, all stateless — any node sends for any channel):** `HelixChatProvider` (Twitch — `POST /helix/chat/messages` `user:write:chat`, moderation via the Helix moderation endpoints, rate-limited via §4.2); `KickChatProvider` (Kick Public API chat-send + moderation); `YouTubeChatProvider` (Live Chat `liveChatMessages.insert` + `liveChatBans`); `XChatProvider` (X Live chat send). Registered as a set, resolved through `IChatProviderRouter`.
+- **Outbound send queue — per channel, per platform.** Every send passes a `chat:out:{platform}:{broadcasterId}` token bucket (`IRateLimiter`, §4: Twitch 20 msgs/30 s as a non-mod, 100/30 s as mod or broadcaster; Kick and YouTube at their documented per-channel limits) and an in-order queue that **coalesces** bursts: messages to the same platform within the bucket window queue FIFO and drain at the refill rate, never dropped silently — a denied-at-cap send after the queue's bounded wait (`Scaling:ChatOut:MaxQueueWaitMs`, default 5 000) returns a typed `RATE_LIMITED` result.
+- **Per-platform length chunking.** A line longer than the platform's cap is split at word boundaries into ordered chunks (`ChunkCount` in the result), each sent through the same queue: **Twitch 500**, **YouTube 200**, **Kick 500**, X 280. Chunking is the provider's job; callers send the full text.
+- **Bot-line prefix (PRODUCT-ALIGNMENT D5).** When the bot types on the **streamer's own account** (no separate bot identity on that platform connection), every outbound line is prefixed with the channel's configured `BotLinePrefix` — `none` / `*` / `#` / one emoji (stored on the channel settings, default `none`) — so viewers can tell bot typing from the streamer typing. The prefix is applied once per logical message (before chunking, on the first chunk only) by the router, never by callers; it is not applied when the channel has a dedicated bot account on that platform.
+- Chat **read** is the platform's push/poll ingest (Twitch EventSub `channel.chat.message` on the bot's `user:read:chat`; Kick `chat.message.sent` webhook; YouTube Live Chat polling) — one ingest seam per platform (`twitch-eventsub.md` §3.1 `IEventSource`).
 
-Registered once (`services.AddScoped<IChatProvider, HelixChatProvider>()`); there is no profile-selected transport. (Supersedes both the legacy "all chat via IRC" assumption and the earlier Helix-on-SaaS / IRC-on-self-host split — IRC fully retired, Helix everywhere; CLAUDE.md updated.)
+Registered once as a set (`services.AddScoped<IChatProvider, HelixChatProvider>(); …KickChatProvider; …YouTubeChatProvider; …XChatProvider; services.AddScoped<IChatProviderRouter, ChatProviderRouter>()`); there is no profile-selected transport.
 
 ---
 
@@ -245,8 +266,12 @@ else
     services.AddScoped<IReadDbContext>(sp => (IReadDbContext)sp.GetRequiredService<IApplicationDbContext>());
 }
 
-// Chat send is profile-independent — Helix on every profile (IRC retired), registered once.
+// Chat send is profile-independent — one stateless provider per platform behind the router (§6), registered once.
 services.AddScoped<IChatProvider, HelixChatProvider>();
+services.AddScoped<IChatProvider, KickChatProvider>();
+services.AddScoped<IChatProvider, YouTubeChatProvider>();
+services.AddScoped<IChatProvider, XChatProvider>();
+services.AddScoped<IChatProviderRouter, ChatProviderRouter>();
 
 // Cluster-singleton guard (pg advisory lock SaaS / no-op self-host) — provisioner, sweeps
 services.AddSingleton<IRunOnceGuard>(/* profile-selected */);
@@ -265,7 +290,7 @@ services.AddSingleton<IRunOnceGuard>(/* profile-selected */);
 | Fair ordering | existing `NomNomzBot.Domain.Interfaces.IFairQueue<T>` (`music-sr.md` §3.8 reuse) | 1st |
 | Persistence / partitioning | `Microsoft.EntityFrameworkCore` 10.0.9 (+ Npgsql declarative partitioning / Sqlite) | 2nd/3rd |
 | Cluster-singleton | pg `pg_try_advisory_lock` via `IRunOnceGuard` (existing) | — |
-| Chat send | hand-rolled Helix (`IChatProvider` → `HelixChatProvider`), every profile — IRC retired | 1st |
+| Chat send | hand-rolled platform clients (`IChatProvider` → `HelixChatProvider` / `KickChatProvider` / `YouTubeChatProvider` / `XChatProvider` behind `IChatProviderRouter`), every profile | 1st |
 | Events | in-box `IEventBus` (`SystemPressureChangedEvent`, `CommandDeadLetteredEvent`) | 1st |
 
 **No new third-party dependency** beyond the already-accepted stack. Every distributed mechanism degrades to an in-process equivalent on self-host through the single boot switch.

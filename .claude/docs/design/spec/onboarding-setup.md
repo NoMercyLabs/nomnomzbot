@@ -95,12 +95,12 @@ public interface ISetupService
     Task<Result<SetupStatusDto>> CompleteAsync(Guid broadcasterId, Guid actingUserId, CancellationToken cancellationToken = default);
 }
 
-public enum SetupStage { NeedsStreamerAuth = 0, NeedsBotIdentity = 1, NeedsBasics = 2, ReadyToComplete = 3, Complete = 4 }
+public enum SetupStage { NeedsStreamerAuth = 0, ConnectMorePlatforms = 1, NeedsBotIdentity = 2, NeedsBasics = 3, ReadyToComplete = 4, Complete = 5 }
 public enum GuidanceLevel { Novice, Expert }
 public enum BotIdentityChoice { Shared, Custom }
 ```
 
-**State-machine rule (fail-closed, monotonic):** `GetStatusAsync` computes `Stage` as the **lowest unmet** requirement — `NeedsStreamerAuth` (no streamer `IntegrationConnection`) → `NeedsBotIdentity` (no bot bound / not chosen) → `NeedsBasics` (`SetupCompletedAt` null AND basics unset) → `ReadyToComplete` (all met, not yet completed) → `Complete` (`SetupCompletedAt` set). Steps may be revisited until `Complete`; `Complete` is terminal. Streamer connect is always first (it establishes the gating principal).
+**State-machine rule (fail-closed, monotonic):** `GetStatusAsync` computes `Stage` as the **lowest unmet** requirement — `NeedsStreamerAuth` (no `PlatformConnection` on the channel yet — the first login on **any** provider from `ILoginProviderRegistry` (Twitch/Kick/YouTube/X, `PRODUCT-ALIGNMENT.md` D2) creates the channel + its first connection) → `ConnectMorePlatforms` (**non-blocking**: offers the remaining providers as additional `PlatformConnection`s via `auth/identities/{provider}/link` + platform connect; "skip" advances, and the stage stays revisitable from Settings → Platforms) → `NeedsBotIdentity` (no bot bound / not chosen) → `NeedsBasics` (`SetupCompletedAt` null AND basics unset) → `ReadyToComplete` (all met, not yet completed) → `Complete` (`SetupCompletedAt` set). Steps may be revisited until `Complete`; `Complete` is terminal. The first platform connect is always first (it establishes the gating principal and the channel).
 
 ---
 

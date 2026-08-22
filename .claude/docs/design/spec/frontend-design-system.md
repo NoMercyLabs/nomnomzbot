@@ -19,7 +19,9 @@ raw hex, `Color(0x…)`, or `.dp` literal (linter-enforced, §8).
 - **DS1 — shadcn is the design source of truth.** The previous Figma file is discarded; we do **not**
   treat Figma as canonical. We port **shadcn/ui** to Compose 1:1: its token contract, its component
   set, its variant/size/state model. A fresh Figma may later be minted *from* this spec, never the
-  reverse. (Supersedes CLAUDE.md's "Figma is the source of truth" for the dashboard.)
+  reverse. (Supersedes CLAUDE.md's "Figma is the source of truth" for the dashboard.) Figma is
+  **non-canonical**; `figma-design-system-rules.md` is a **reference note** for reading Figma input, not a
+  spec.
 - **DS2 — Style = New York.** shadcn's `default` style is deprecated; we use **new-york** (tighter
   padding, smaller radii, subtler shadows) — the right density for a data dashboard.
 - **DS3 — Closed token contract, copied verbatim from shadcn.** The token set in §1 is exactly
@@ -45,7 +47,10 @@ raw hex, `Color(0x…)`, or `.dp` literal (linter-enforced, §8).
   set. No `if (variant == …)` styling at call sites (§4.2).
 - **DS9 — Closed catalogue, as-needed growth.** Components live in one folder, named exactly as
   shadcn. New components are added when a screen needs them (Rule of Three over speculative ports),
-  each faithful to shadcn's spec. One component = one file (§4).
+  each faithful to shadcn's spec. One component = one file (§4). The catalogue has two tiers:
+  **Components** (shadcn 1:1) and **Patterns** (app composites built from components — same folder,
+  same token/variant rules, listed in `catalogue.md` "Patterns"); a catalogued row not yet built is
+  marked **to build** there.
 - **DS10 — Icons are the designer's pack, set-agnostic at the call site.** Components reference a typed
   `IconKey` resolved by an injected `IconSet`. The **delivered designer pack** (4 styles × ~1,574
   24×24 stroke glyphs) is the primary set, **style = Line**; **Lucide** stays a fallback for any
@@ -241,7 +246,11 @@ The accent's source is the **active theme subject** — whoever the current scre
 > **`catalogue.md` is the authority** (ships with this spec as `frontend-design-system.catalogue.md`);
 > the table above is a readable summary — the full per-component variant/size/state/base enumeration is
 > in `catalogue.md`. ¹ `Combobox` = `Popover` + `Command` composite (modeled on shadcn — no 1:1
-> primitive). ² `Toast` is modeled on shadcn's Sonner (no JS lib ported).
+> primitive). ² `Toast` is modeled on shadcn's Sonner (no JS lib ported). The **Patterns** tier (the 17
+> shipped app composites — `ActionErrorBanner`, `AppSelectField`, `AppTextField`, `ColorField`,
+> `ConfirmDialog`, `CopyButton`, `CopyLinkButton`, `EntityPickerField`, `FileTree`, `GlyphButton`,
+> `LinkedText`, `ManageGate`, `MetricChart`, `PageHeader`, `ResizableSplit`, `RevealableSecretField`,
+> `SearchPickerField`) and the **to build** marks on catalogued-but-unbuilt components are in `catalogue.md`.
 >
 > **No ambiguity in the shorthand.** "shadcn's" = that component's **exact** published variant/size set
 > in shadcn (a deterministic external source, transcribed verbatim, version-pinned); a base of

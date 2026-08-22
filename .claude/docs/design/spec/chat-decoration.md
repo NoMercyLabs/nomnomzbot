@@ -283,8 +283,8 @@ None. Decoration is not a pipeline action — it runs in the chat broadcast path
    `Provider`. The decorator fills `Urls`/`Animated`/`ZeroWidth` so the client renders any emote identically — exactly the
    legacy decorator's model. The existing `"emote"` type and `ChatEmoteDto` are extended in place, not split.
 9. **Link/OG preview is double-gated and off by default**: the `use_link_preview` `ChannelFeature` toggle (default off) **and**
-   the author's effective `CommunityStanding ≥ Subscriber` (via `IRoleResolver`, the modern equivalent of the legacy
-   "subscriber+" gate). Fetch is via the SSRF-hardened egress client; non-http(s)/internal targets yield no preview.
+   the author's effective `CommunityStanding ≥ Subscriber` (via `IRoleResolver`; ladder per `roles-permissions.md` §1).
+   Fetch is via the SSRF-hardened egress client; non-http(s)/internal targets yield no preview.
 10. **Provider clients are a registry, not a switch** (`IThirdPartyEmoteProviderRegistry`), each auto-discovered; adding a
     provider = a new `IThirdPartyEmoteProvider` impl, no DI edit (backend-structure §D5).
 11. **Self-host vs SaaS** differ only in the cache adapter (L1 vs L1+L2) behind the unchanged `ICacheService`; the decorator

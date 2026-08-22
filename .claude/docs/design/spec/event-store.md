@@ -7,7 +7,7 @@
 - Locked schema — `docs/design/2026-06-16-database-schema.md` §O (Event Store), §Q (CryptoKey/TenantSequences), §1 (conventions), F.4/F.6/K.3 (read-models that FK the journal).
 - Design — `docs/design/2026-06-16-event-store.md`.
 - Stack — `docs/design/2026-06-16-stack-and-dependencies.md` (Persistence, Distributed cache + pub/sub, Crypto/secrets, Background jobs).
-- Resolved baselines — `docs/design/2026-06-16-decisions-pending-confirmation.md` (#8 `IRunOnceGuard`, #10 crypto-shred completeness); both are decided here in §9.
+- Resolved baselines — `docs/design/2026-06-16-decisions-resolved.md` (#8 `IRunOnceGuard`, #10 crypto-shred completeness); both are decided here in §9.
 
 **Binding conventions for every file in this subsystem:**
 - Namespace `NomNomzBot.*`. `.NET 10 / C# 14 / EF Core 10`. File-scoped namespaces. `Nullable` enabled. Async all the way (no `.Result`/`.Wait()`).
@@ -29,7 +29,7 @@ All defined in `docs/design/2026-06-16-database-schema.md`. Referenced here by i
 
 | Schema id | Entity (class) | PK | Key fields / types | Append-only | Notes |
 |---|---|---|---|---|---|
-| **O.1** | `EventJournal` | `Id bigint` | `EventId Guid` (Unique), `BroadcasterId Guid?`, `StreamPosition long` (Unique-with-`BroadcasterId`), `EventType string(150)`, `EventVersion int`, `Source string(30)` [VC:enum] (`eventsub`\|`domain`\|`irc`\|`import`\|`federation`\|`webhook`), `Payload string` [VC:JSON], `PayloadIsEncrypted bool`, `SubjectKeyId Guid?` (FK→CryptoKey), `CorrelationId Guid?`, `CausationId Guid?`, `ActorUserId Guid?`, `ActorTwitchUserId string(50)?`, `Metadata string` [VC:JSON], `OccurredAt DateTime`, `RecordedAt DateTime` | **yes** | The **outcome/fact** log — the durable record of *what happened*, and the sole replay/projection source of truth (§1.1). Unique `EventId`; **Unique `(BroadcasterId, StreamPosition)`** (idempotent replay). `StreamPosition` app-assigned via `TenantSequences`. `Source="webhook"` = a verified third-party inbound webhook (`webhooks.md`); `Source="eventsub"` = Twitch's first-party ingest (`twitch-eventsub.md`) — distinct sources. |
+| **O.1** | `EventJournal` | `Id bigint` | `EventId Guid` (Unique), `BroadcasterId Guid?`, `StreamPosition long` (Unique-with-`BroadcasterId`), `EventType string(150)`, `EventVersion int`, `Source string(30)` [VC:enum] (`eventsub`\|`domain`\|`kick`\|`youtube`\|`x`\|`import`\|`federation`\|`webhook`), `Payload string` [VC:JSON], `PayloadIsEncrypted bool`, `SubjectKeyId Guid?` (FK→CryptoKey), `CorrelationId Guid?`, `CausationId Guid?`, `ActorUserId Guid?`, `ActorExternalUserId string(50)?`, `ActorProvider string(20)?` [VC:enum], `Metadata string` [VC:JSON], `OccurredAt DateTime`, `RecordedAt DateTime` | **yes** | The **outcome/fact** log — the durable record of *what happened*, and the sole replay/projection source of truth (§1.1). Unique `EventId`; **Unique `(BroadcasterId, StreamPosition)`** (idempotent replay). `StreamPosition` app-assigned via `TenantSequences`. `Source="webhook"` = a verified third-party inbound webhook (`webhooks.md`); `Source="eventsub"` = Twitch's first-party ingest (`twitch-eventsub.md`) — distinct sources. |
 | **O.1a** | `EventSubjectKey` | `Id Guid` (UUIDv7) | `EventId Guid` (FK→`EventJournal.EventId`), `BroadcasterId Guid?`, `SubjectIdHash string(64)`, `SubjectKeyId Guid` (FK→CryptoKey), `Role string(20)?` | no (`CreatedAt` only) | Multi-subject (gift sub / raid) event→DEK link. Unique `(EventId, SubjectKeyId)`. Enables per-subject shred of a shared payload. |
 | **O.2** | `EventSnapshot` | `Id bigint` | `BroadcasterId Guid?`, `AggregateType string(100)`, `AggregateId string(100)`, `StreamPosition long`, `SnapshotVersion int`, `State string` [VC:JSON], `StateIsEncrypted bool`, `SubjectKeyId Guid?` (FK→CryptoKey), `CreatedAt DateTime` | yes | Folded checkpoint so replay needn't start at zero. Unique `(BroadcasterId, AggregateType, AggregateId)`. |
 | **O.3** | `ProjectionCheckpoint` | `Id bigint` | `ProjectionName string(150)`, `BroadcasterId Guid?`, `LastPosition long`, `Status string(20)` [VC:enum] (`running`/`rebuilding`/`faulted`/`paused`), `LastError string?`, `LastProcessedAt DateTime?`, `UpdatedAt DateTime` | no | Per-projection consume cursor. Unique `(ProjectionName, BroadcasterId)`. (Carries `UpdatedAt`, not append-only.) |
@@ -425,7 +425,7 @@ public sealed record AppendEventRequest(
     Guid? BroadcasterId,
     string EventType,
     int EventVersion,
-    string Source,                       // eventsub|domain|irc|import|federation|webhook
+    string Source,                       // eventsub|domain|kick|youtube|x|import|federation|webhook
                                          //   webhook: a verified third-party inbound webhook (webhooks.md §3.2) — built as
                                          //   AppendEventRequest(Source="webhook", EventType="webhook.<provider>.<kind>",
                                          //   EventId = WebhookEventId(broadcasterId, endpointId, providerEventId) — a deterministic
@@ -441,7 +441,8 @@ public sealed record AppendEventRequest(
     Guid? CorrelationId = null,
     Guid? CausationId = null,
     Guid? ActorUserId = null,
-    string? ActorTwitchUserId = null,
+    string? ActorExternalUserId = null,
+    string? ActorProvider = null,        // twitch|kick|youtube|x — the platform ActorExternalUserId belongs to
     IReadOnlyList<EventPiiSubject>? PiiSubjects = null); // drives encryption + EventSubjectKeys linkage
 
 public sealed record EventPiiSubject(string SubjectIdHash, string? Role); // Role: gifter|recipient|raider|raided|...
@@ -460,7 +461,8 @@ public sealed record EventRecord(
     Guid? CorrelationId,
     Guid? CausationId,
     Guid? ActorUserId,
-    string? ActorTwitchUserId,
+    string? ActorExternalUserId,
+    string? ActorProvider,
     string MetadataJson,
     DateTime OccurredAt,
     DateTime RecordedAt);
@@ -536,7 +538,7 @@ public sealed record IdempotencyClaim(bool IsFirst, string? PriorResultHash);
 
 One controller: `EventStoreController` in `NomNomzBot.Api/Controllers/V1/`, `[ApiVersion("1.0")]`, `[Route("api/v{version:apiVersion}/event-store")]`, `[Authorize]`, inherits `BaseController`, returns via `ResultResponse(...)` / `GetPaginatedResponse(...)`.
 
-**Role gate** — tenant-scoped routes are **management plane**; cross-tenant/global routes are **platform IAM (Plane C)**. `[Authorize]` + tenant resolution yields only **Gate 1** (pure entry — any authenticated caller, channel must exist). The per-route floor is enforced in **Gate 2** by calling `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` on the action key in the table's gate column **before** the service call — returning `FORBIDDEN` (403) when the caller's resolved effective level is below the floor. Tenant-scoped operations (journal read, replay of *own* channel projections) floor at **`Broadcaster`** (replay/rebuild is destructive to derived data → owner-only; not delegatable below `Broadcaster`). Plane-C rows are authorized per-action via `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, targetBroadcasterId, ...)`; the ASP.NET `[Authorize(Policy="<key>")]` policy name **is** the permission key verbatim — `audit:read` for reads (global checkpoint listing, cross-tenant replay status), `iam:manage` for the sensitive projection pause/resume mutations — and the policy's handler (owned by the IAM subsystem) delegates to `AuthorizePlatformAsync` with the same key. Use the flat key form (`audit:read`, never `iam:audit:read`). Every floor is the action's seeded global `ActionDefinition` (schema B.3); a broadcaster may raise it via `ChannelActionOverride` but not below the seeded `FloorLevel`. `channelId` in tenant routes is validated against the caller via the existing `IChannelAccessService`.
+**Role gate** — tenant-scoped routes are **management plane**; cross-tenant/global routes are **platform IAM (Plane-C)**. `[Authorize]` + tenant resolution yields only **Gate-1** (pure entry — any authenticated caller, channel must exist). The per-route floor is enforced in **Gate-2** by calling `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` on the action key in the table's gate column **before** the service call — returning `FORBIDDEN` (403) when the caller's resolved effective level is below the floor. Tenant-scoped operations (journal read, replay of *own* channel projections) floor at **`Broadcaster`** (replay/rebuild is destructive to derived data → owner-only; not delegatable below `Broadcaster`). Plane-C rows are authorized per-action via `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, targetBroadcasterId, ...)`; the ASP.NET `[Authorize(Policy="<key>")]` policy name **is** the permission key verbatim — `audit:read` for reads (global checkpoint listing, cross-tenant replay status), `iam:manage` for the sensitive projection pause/resume mutations — and the policy's handler (owned by the IAM subsystem) delegates to `AuthorizePlatformAsync` with the same key. Use the flat key form (`audit:read`, never `iam:audit:read`). Every floor is the action's seeded global `ActionDefinition` (schema B.3); a broadcaster may raise it via `ChannelActionOverride` but not below the seeded `FloorLevel`. `channelId` in tenant routes is validated against the caller via the existing `IChannelAccessService`.
 
 | Route | Verb | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|

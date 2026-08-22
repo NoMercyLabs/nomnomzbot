@@ -1,9 +1,12 @@
 # NomNomzBot
 
-> An open-source, **multi-tenant Twitch bot platform**. Run one deployment and serve unlimited
-> channels — every streamer gets a fully isolated bot: custom commands, a visual pipeline engine,
-> moderation, channel-point rewards, timers, an economy, text-to-speech, song requests, OBS
-> overlays, and integrations (Spotify, Discord, YouTube).
+> An open-source, **multi-tenant, multi-platform bot platform** — one channel, many platform connections
+> (Twitch, Kick, YouTube, X Live, simultaneously) managed from one uniform dashboard for streamers,
+> moderators and viewers. Run one deployment and serve unlimited channels — every streamer gets a fully
+> isolated bot: custom commands, a visual pipeline engine, moderation, channel-point rewards, timers, an
+> economy, text-to-speech, song requests, widgets & overlays, and integrations (Spotify, Discord, YouTube).
+>
+> Binding product statement: [`.claude/docs/design/PRODUCT-ALIGNMENT.md`](.claude/docs/design/PRODUCT-ALIGNMENT.md).
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](server/LICENSE) [![Backend: .NET 10](https://img.shields.io/badge/backend-.NET%2010-512BD4.svg)](#how-it-works) [![Frontend: Kotlin Multiplatform + Compose](https://img.shields.io/badge/frontend-Kotlin%20Multiplatform%20%2B%20Compose-7F52FF.svg)](#how-it-works) [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](#project-status)
 
@@ -51,8 +54,9 @@ Pre-1.0, under active development. Honest snapshot:
   the Twitch Helix + EventSub integration, moderation, channel-point rewards, the pipeline engine, timers,
   the economy, TTS, roles & permissions, server-side chat decoration (emotes, badges, cheermotes), webhooks,
   and the sandboxed custom-code action.
-- **Public surfaces (overlays + song-request)** — delivered by the **widget system**: widgets are compiled
-  from source at build time, served by the bot, and CDN-cached for SaaS (not static files). In development.
+- **Public surfaces (widgets & overlays + song-request)** — delivered by the **widget system**: each widget is
+  a standalone Vue SPA compiled from source, served by the bot, and CDN-cached for SaaS (not static files).
+  Shipped — the gallery, editor, overlay host page and per-widget event subscriptions are live.
 - **Dashboard (`app/`)** — the **Kotlin Multiplatform + Compose** client (one codebase for desktop and
   web) is **built and functional**: guided setup, Twitch device-code login, and management pages for the
   core modules, all against the live API. The web build ships inside every backend artifact; pre-release
@@ -67,8 +71,8 @@ What a connected channel gets:
 - **Commands** — custom and built-in chat commands, each backed by a **visual pipeline** of actions and
   conditions (send/reply, timeout/ban, shoutout, set-variable, wait, play music, and more), with 90+
   template variables (`{{user.name}}`, `{{stream.uptime}}`, `{{args.1}}`, …).
-- **Event responses & timers** — automatic reactions to follows, subs, gifts, cheers, raids, and
-  redemptions; scheduled recurring messages.
+- **Event responses & timers** — "when X happens do Y" for follows, subs, gifts, cheers, raids, and
+  redemptions (including on-air alerts); scheduled recurring messages.
 - **Moderation** — bans and timeouts, AutoMod settings, blocked-term lists, Shield Mode, and a mod-action
   log — all mirrored from the real Twitch API.
 - **Channel points & live ops** — custom reward management, polls, and predictions.
@@ -79,18 +83,20 @@ What a connected channel gets:
 - **Rich chat** — server-side message decoration: Twitch **and** BTTV / FFZ / 7TV emotes, badge and
   cheermote images, coloured mentions, and opt-in link previews, emitted ready-to-render to the dashboard.
 - **Text-to-speech** — Azure Cognitive Services and ElevenLabs voices.
-- **Overlays & widgets** — OBS browser-source alerts and a now-playing bar, pushed in real time over
-  SignalR.
-- **Integrations** — Spotify, Discord, and YouTube via OAuth, requested progressively as you enable them.
-- **Multi-tenant & roles** — one deployment, unlimited channels, each isolated; a three-plane authorization
-  model (community standing, management roles, and per-action `!permit` delegation).
+- **Widgets & overlays** — alerts, a now-playing bar and the full widget gallery rendered on the OBS overlay
+  page, pushed in real time over SignalR.
+- **Platforms** — Twitch, Kick, YouTube and X Live as platform connections under one channel (chat + events
+  per platform); any of them can be the first login.
+- **Integrations** — Spotify, Discord, and YouTube (music) via OAuth, requested progressively as you enable them.
+- **Multi-tenant & roles** — one deployment, unlimited channels, each isolated; two role ladders
+  (`CommunityStanding` and `ManagementRole`) plus per-action `!permit` delegation.
 - **Extensibility** — inbound and outbound webhooks, and a hardened, sandboxed custom-code action.
 
 ## How it works
 
 ```
 ┌─ server/  — .NET 10 backend (the bot)
-│   PostgreSQL + Redis · Twitch Helix + EventSub (WebSocket) · SignalR · Serilog
+│   SQLite (self_host_lite) or PostgreSQL + Redis (self_host_full / saas) · Twitch Helix + EventSub (WebSocket) · SignalR · Serilog
 │   Versioned REST API (v1)  ·  interactive docs at /scalar
 │   Public surfaces (OBS overlays, song-request) — compiled widgets served by the bot, CDN-cached for SaaS
 │
@@ -105,11 +111,14 @@ points it at the SaaS API. There is no central broker.
 |-------|-----------|
 | Runtime | .NET 10, C# 14 |
 | Framework | ASP.NET Core (Asp.Versioning) |
-| ORM | EF Core 10 + Npgsql → PostgreSQL 16 |
-| Cache / pub-sub | Redis 7 |
+| ORM | EF Core 10 — SQLite (`self_host_lite`) or Npgsql → PostgreSQL 16 (`self_host_full` / `saas`) |
+| Cache / pub-sub | Redis 7 (`self_host_full` / `saas`; none in `self_host_lite`) |
 | Real-time | ASP.NET SignalR (WebSocket) |
-| Auth | JWT + Twitch Device Code Flow (secret-free login) · OAuth code flow for integrations |
+| Auth | JWT + provider-generic sign-in (device code where the platform has it, code flow otherwise) · OAuth code flow for integrations |
 | Twitch | Helix API, EventSub (WebSocket) — chat reads via EventSub, sends via Helix; no IRC |
+| Kick | Platform connection — chat + events via the Kick API (OAuth 2.1 + PKCE) |
+| YouTube | Platform connection — live chat + events via the YouTube Data API (also the YouTube music provider) |
+| X Live | Platform connection — X Live chat + events (OAuth 2.0 + PKCE) |
 | Logging | Serilog |
 | Dashboard | Kotlin Multiplatform + Compose (desktop + web) |
 | API docs | OpenAPI + Scalar |
@@ -134,14 +143,17 @@ The dashboard is the normal way to run NomNomzBot — **no config files, no API 
 at a backend URL (`localhost` or your own server for self-host, the hosted API for SaaS) and a **setup
 wizard** walks you through everything, with a labelled input for each value the bot needs:
 
-1. **Connect your Twitch account** — sign in and authorize. Scopes are requested progressively, only as you
-   enable the features that need them.
-2. **Connect your bot account** — authorize the account the bot posts chat from. This is an *additional
-   connection* on top of your account (like linking Spotify), not a second login.
+1. **Connect your first platform** — Twitch, Kick, YouTube or X; sign in and authorize. This creates
+   your channel; other platforms attach afterwards as connections. Scopes are requested
+   progressively, only as you enable the features that need them.
+2. **Connect your bot account** — optionally authorize a separate account the bot types chat from. This
+   is an *additional connection* on top of your account (like linking Spotify), not a second login;
+   until then the bot types as you, with a line prefix you choose.
 3. **Enter your app credentials** *(self-host)* — paste the Twitch **Client ID / Secret** from your Twitch
    developer app into the wizard's fields. On the hosted offering this is already configured for you.
 4. **Basics** — bot prefix, default language, timezone.
-5. **Integrations (optional)** — Spotify, Discord, YouTube; enable any now or later from settings.
+5. **Integrations (optional)** — Spotify, Discord, YouTube (music); enable any now or from settings. Additional
+   platform connections (Kick, YouTube, X Live) attach to the same channel from the Platforms page.
 
 When you finish, you land on the dashboard home with the bot live in your channel.
 
@@ -239,10 +251,8 @@ Viewer/OBS-facing surfaces are delivered by the **widget system** — widgets ar
 time, served by the bot, and CDN-cached for SaaS (not static files):
 
 - **Song requests** — viewers open a token-based request page and queue tracks with no login.
-- **OBS overlays** — add your channel's overlay URL as a **browser source**; alerts and a now-playing bar are
-  pushed live over the `OverlayHub` (SignalR).
-
-This is in development; the compiled-widget pipeline (build → serve → CDN cache) is being specced.
+- **Overlays** — add your channel's overlay URL as an OBS **browser source**; the widgets placed on it (alerts,
+  now-playing bar, gallery widgets) are pushed live over the `OverlayHub` (SignalR).
 
 ## Configuration
 
@@ -257,7 +267,7 @@ The dashboard collects most settings for you; these are the backend's own knobs:
   `{App:BaseUrl}/api/v1/auth/twitch/callback`.
 
 Optional integrations activate when their credentials are present: `Spotify`, `Discord`, `YouTube`,
-`Azure:Tts`, and `ElevenLabs`. See `server/.env.example` for the full, commented reference.
+`Azure:Tts`, and `ElevenLabs`; platform connections `Kick` and `Twitter` (X) likewise. See `server/.env.example` for the full, commented reference.
 
 ## Production deployment
 
@@ -288,7 +298,7 @@ address (e.g. a containerised sidecar), set `TRUSTED_PROXY_NETWORKS` so the real
 ```
 nomnomzbot/
 ├── server/   .NET 10 backend (Domain → Application → Infrastructure → Api), tests, Docker
-└── app/      Kotlin Multiplatform + Compose dashboard (in active development)
+└── app/      Kotlin Multiplatform + Compose dashboard (desktop + web/Wasm)
 ```
 
 The backend follows Clean Architecture (dependencies flow inward) with the `Result<T>` pattern, soft

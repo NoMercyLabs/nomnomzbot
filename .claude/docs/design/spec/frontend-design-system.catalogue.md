@@ -48,6 +48,40 @@ in §4.2. Foundation = `androidx.compose.foundation`; M3 = a themed `androidx.co
 | `Toast` | Foundation (`Popup`) | default · destructive | (single) | enter · visible · exit | modeled on shadcn's Sonner; queue + auto-dismiss |
 | `Stepper` | Foundation | orientation: horizontal · vertical | (single) | step: completed · current · upcoming | numbered/labeled steps + connector line; drives multi-step flows (e.g. setup wizard) |
 
+**Build status (as-built, `core/designsystem/component/`):** built — `Button`, `Textarea`, `Switch`, `DropdownMenu`,
+`Dialog`, `Sheet`, `Tooltip`, `Card`, `Badge`, `Separator`, `Progress`, `Spinner`, `Tabs`, `Slider`, `Stepper`.
+**To build** (catalogued, no file yet) — `Alert`, `Avatar`, `Checkbox`, `Combobox`, `Input`, `Label`, `Popover`,
+`RadioGroup`, `ScrollArea`, `Select`, `Skeleton`, `Table`, `Toast` (13). Until `Input` lands, `AppTextField`
+(Patterns) is the text-field primitive in use.
+
+---
+
+## Patterns (app composites — second tier)
+
+Composites built **from** the components above for recurring dashboard needs. Same folder, same token/variant/
+state rules, no raw colour/`dp`; each is one file. They are not shadcn primitives and never substitute for a
+catalogued component that exists. The 17 shipped:
+
+| Pattern | Built from | Purpose |
+|---|---|---|
+| `ActionErrorBanner` | `Alert`-style surface + `Button` | inline failure banner for a page action with retry |
+| `AppSelectField` | `DropdownMenu` + field chrome | labelled single-select field (stands in for `Select` until it is built) |
+| `AppTextField` | M3 `OutlinedTextField` + `appFieldColors()` | labelled text field, single/multiline (stands in for `Input`) |
+| `ColorField` | `AppTextField` + swatch | hex colour input with live swatch |
+| `ConfirmDialog` | `Dialog` + `Button` | destructive-action confirmation (`message`, confirm/cancel) |
+| `CopyButton` | `Button`(icon) + `Tooltip` | copy-to-clipboard with confirmation |
+| `CopyLinkButton` | `CopyButton` | copy a URL (tokens/overlay links) |
+| `EntityPickerField` | `AppTextField` + `DropdownMenu` | pick a server entity (pipeline, reward, …) by search |
+| `FileTree` | Foundation lazy list | multi-file project tree for the code/widget editor |
+| `GlyphButton` | `Button`(icon) | icon-only button over `IconKey` (`imageVector`) |
+| `LinkedText` | Foundation text | inline links/mentions in prose |
+| `ManageGate` | wrapper | disables (never hides) children below the manage floor with a reason tooltip |
+| `MetricChart` | Foundation canvas | time-series chart for analytics tiles |
+| `PageHeader` | text + `Button` slot | page title/description + primary action |
+| `ResizableSplit` | Foundation | draggable two-pane split (editor + preview) |
+| `RevealableSecretField` | `AppTextField` + `GlyphButton` | masked secret with reveal toggle |
+| `SearchPickerField` | `AppTextField` + list | typeahead picker over a remote search |
+
 ---
 
 ## Adding a component (the closed-growth rule)
