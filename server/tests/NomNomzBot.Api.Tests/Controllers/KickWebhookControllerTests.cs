@@ -10,7 +10,6 @@
 
 using System.Text;
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Contracts.Kick;
@@ -48,7 +47,7 @@ public sealed class KickWebhookControllerTests
 
         KickWebhookController controller = new(verifier, ingest, TimeProvider.System)
         {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+            ControllerContext = new() { HttpContext = new DefaultHttpContext() },
         };
         return (controller, verifier, ingest);
     }

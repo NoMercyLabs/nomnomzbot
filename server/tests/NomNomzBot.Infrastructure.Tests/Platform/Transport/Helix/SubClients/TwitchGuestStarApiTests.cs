@@ -45,7 +45,7 @@ public class TwitchGuestStarApiTests
         new(
             SessionId,
             [
-                new TwitchGuestStarGuest(
+                new(
                     SlotId,
                     IsLive: true,
                     UserId: GuestId,
@@ -53,8 +53,8 @@ public class TwitchGuestStarApiTests
                     UserLogin: "coolguest",
                     Volume: 80,
                     AssignedAt: DateTimeOffset.UnixEpoch,
-                    AudioSettings: new TwitchGuestStarMediaSettings(true, true, true),
-                    VideoSettings: new TwitchGuestStarMediaSettings(true, false, true)
+                    AudioSettings: new(true, true, true),
+                    VideoSettings: new(true, false, true)
                 ),
             ]
         );
@@ -133,7 +133,7 @@ public class TwitchGuestStarApiTests
 
         Result result = await api.UpdateChannelSettingsAsync(
             Tenant,
-            new UpdateGuestStarSettingsRequest(SlotCount: 4)
+            new(SlotCount: 4)
         );
 
         result.IsFailure.Should().BeTrue();

@@ -67,14 +67,14 @@ public sealed class ApiTokenAuthenticationHandler
 
         ClaimsIdentity identity = new(
             [
-                new Claim("automation:token_id", principal.TokenId.ToString()),
-                new Claim("automation:token_name", principal.TokenName),
-                new Claim("automation:broadcaster_id", principal.BroadcasterId.ToString()),
+                new("automation:token_id", principal.TokenId.ToString()),
+                new("automation:token_name", principal.TokenName),
+                new("automation:broadcaster_id", principal.BroadcasterId.ToString()),
             ],
             SchemeName
         );
         return AuthenticateResult.Success(
-            new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName)
+            new(new(identity), SchemeName)
         );
     }
 }

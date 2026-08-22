@@ -182,16 +182,16 @@ public sealed class CrashGame : ILiveGame
                 : capped ? maxMultiplier
                 : null;
 
-            long payout = cashMultiplier is double m ? CashPayout(player.Stake, m, entry) : 0;
+            long payout = cashMultiplier is { } m ? CashPayout(player.Stake, m, entry) : 0;
             GameOutcome outcome =
                 cashMultiplier is null ? GameOutcome.Lose
                 : payout > player.Stake * 5 ? GameOutcome.Jackpot
                 : GameOutcome.Win;
             awards.Add(
-                new LiveGameAward(player.UserId, player.AccountId, player.Stake, outcome, payout)
+                new(player.UserId, player.AccountId, player.Stake, outcome, payout)
             );
             results.Add(
-                new Dictionary<string, object?>
+                new()
                 {
                     ["player"] = player.DisplayName,
                     ["stake"] = player.Stake,

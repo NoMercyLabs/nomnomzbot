@@ -94,7 +94,7 @@ public sealed class ScopeNotificationService : IScopeNotificationService
         }
 
         _db.ChannelMissingScopes.Add(
-            new ChannelMissingScope
+            new()
             {
                 BroadcasterId = broadcasterId,
                 Scope = scope,
@@ -144,7 +144,7 @@ public sealed class ScopeNotificationService : IScopeNotificationService
                 continue;
             if (!featuresByScope.TryGetValue(scope, out SortedSet<string>? features))
             {
-                features = new SortedSet<string>(StringComparer.Ordinal);
+                features = new(StringComparer.Ordinal);
                 featuresByScope[scope] = features;
             }
             features.Add(feature.Key);
@@ -159,13 +159,13 @@ public sealed class ScopeNotificationService : IScopeNotificationService
         {
             if (granted.Contains(scope) || featuresByScope.ContainsKey(scope))
                 continue;
-            featuresByScope[scope] = new SortedSet<string>(StringComparer.Ordinal);
+            featuresByScope[scope] = new(StringComparer.Ordinal);
         }
 
         // A runtime-detected scope that is not in any offered-feature map still surfaces (a raw Helix gap).
         foreach (string scope in runtime.Keys)
             if (!granted.Contains(scope) && !featuresByScope.ContainsKey(scope))
-                featuresByScope[scope] = new SortedSet<string>(StringComparer.Ordinal);
+                featuresByScope[scope] = new(StringComparer.Ordinal);
 
         List<MissingScopeDto> rows =
         [

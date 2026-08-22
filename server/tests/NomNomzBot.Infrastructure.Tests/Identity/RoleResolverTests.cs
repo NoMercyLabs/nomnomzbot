@@ -61,7 +61,7 @@ public sealed class RoleResolverTests
 
     private static void SeedStanding(AuthDbContext db, CommunityStanding standing) =>
         db.ChannelCommunityStandings.Add(
-            new ChannelCommunityStanding
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,
@@ -73,7 +73,7 @@ public sealed class RoleResolverTests
 
     private static void SeedModerator(AuthDbContext db) =>
         db.ChannelMemberships.Add(
-            new ChannelMembership
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,
@@ -89,7 +89,7 @@ public sealed class RoleResolverTests
     {
         (RoleResolver sut, AuthDbContext db) = Build();
         db.ChannelCommunityStandings.Add(
-            new ChannelCommunityStanding
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,
@@ -99,7 +99,7 @@ public sealed class RoleResolverTests
             }
         );
         db.ChannelMemberships.Add(
-            new ChannelMembership
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,
@@ -110,7 +110,7 @@ public sealed class RoleResolverTests
             }
         );
         db.PermitGrants.Add(
-            new PermitGrant
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,
@@ -145,7 +145,7 @@ public sealed class RoleResolverTests
         // Ownership alone — no standing/membership/permit rows — must resolve to Broadcaster (40), so a fresh
         // self-host streamer can use their own channel's dashboard (action floor: dashboard:read = 10).
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Channel,
                 OwnerUserId = User,
@@ -168,7 +168,7 @@ public sealed class RoleResolverTests
         (RoleResolver sut, AuthDbContext db) = Build();
         // Channel owned by someone else and the caller has no grants → not the owner → stays Everyone (0).
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Channel,
                 OwnerUserId = Guid.Parse("0192a000-0000-7000-8000-0000000000c9"),
@@ -189,7 +189,7 @@ public sealed class RoleResolverTests
     {
         (RoleResolver sut, AuthDbContext db) = Build();
         db.PermitGrants.Add(
-            new PermitGrant
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,
@@ -200,7 +200,7 @@ public sealed class RoleResolverTests
             }
         );
         db.PermitGrants.Add(
-            new PermitGrant
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,
@@ -223,7 +223,7 @@ public sealed class RoleResolverTests
     {
         (RoleResolver sut, AuthDbContext db) = Build();
         db.ChannelMemberships.Add(
-            new ChannelMembership
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,
@@ -234,7 +234,7 @@ public sealed class RoleResolverTests
             }
         );
         db.PermitGrants.Add(
-            new PermitGrant
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,
@@ -258,7 +258,7 @@ public sealed class RoleResolverTests
     {
         (RoleResolver sut, AuthDbContext db) = Build();
         db.ActionDefinitions.Add(
-            new ActionDefinition
+            new()
             {
                 ActionKey = "economy:config:read",
                 Plane = AuthPlane.Management,
@@ -269,7 +269,7 @@ public sealed class RoleResolverTests
             }
         );
         db.ChannelMemberships.Add(
-            new ChannelMembership
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,
@@ -303,7 +303,7 @@ public sealed class RoleResolverTests
         db.ActionDefinitions.Add(action);
         // The caller is only a Moderator (10) — far below the Critical floor (40) — but holds a direct grant.
         db.ChannelMemberships.Add(
-            new ChannelMembership
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,
@@ -315,7 +315,7 @@ public sealed class RoleResolverTests
         );
         await db.SaveChangesAsync();
         db.PermitGrants.Add(
-            new PermitGrant
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,

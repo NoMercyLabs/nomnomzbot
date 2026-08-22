@@ -12,7 +12,6 @@ using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -38,7 +37,7 @@ public sealed class SongRequestPageTokenServiceTests
         if (seedChannel)
         {
             db.Channels.Add(
-                new Channel
+                new()
                 {
                     Id = Channel,
                     OwnerUserId = Guid.NewGuid(),
@@ -50,7 +49,7 @@ public sealed class SongRequestPageTokenServiceTests
             await db.SaveChangesAsync();
         }
         IMusicConfigService config = Substitute.For<IMusicConfigService>();
-        return (new SongRequestPageTokenService(db, config), db, config);
+        return (new(db, config), db, config);
     }
 
     [Fact]

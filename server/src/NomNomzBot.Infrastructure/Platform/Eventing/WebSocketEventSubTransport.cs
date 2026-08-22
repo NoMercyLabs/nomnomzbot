@@ -126,7 +126,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
     {
         WsSession session = _sessions.GetOrAdd(
             ownerKey,
-            key => new WsSession(key, _channelFactory, _clock, _logger, this)
+            key => new(key, _channelFactory, _clock, _logger, this)
         );
 
         Result<string> sessionId = await session.EnsureStartedAsync(ct);
@@ -200,7 +200,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
             HttpMethod.Delete,
             "eventsub/subscriptions",
             TwitchHelixAuth.App,
-            Query: [new KeyValuePair<string, string>("id", twitchSubscriptionId)]
+            Query: [new("id", twitchSubscriptionId)]
         );
 
         Result deleted = await WithHelixAsync(helix => helix.SendAsync(request, ct));
@@ -222,7 +222,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         {
             List<KeyValuePair<string, string>> query = [];
             if (cursor is not null)
-                query.Add(new KeyValuePair<string, string>("after", cursor));
+                query.Add(new("after", cursor));
 
             TwitchHelixRequest request = new(
                 HttpMethod.Get,
@@ -243,7 +243,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
 
             foreach (TwitchEventSubWireSubscription wire in page.Value.Items)
                 all.Add(
-                    new TwitchSubscriptionResult
+                    new()
                     {
                         TwitchSubscriptionId = wire.Id ?? string.Empty,
                         Type = wire.Type ?? string.Empty,
@@ -372,11 +372,11 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                 // welcome the loop will complete (a private TCS would never be signaled → the caller hangs).
                 if (_receiveLoop is null || _startWelcome is null)
                 {
-                    _startWelcome = new TaskCompletionSource<string>(
+                    _startWelcome = new(
                         TaskCreationOptions.RunContinuationsAsynchronously
                     );
                     _runCts?.Cancel();
-                    _runCts = new CancellationTokenSource();
+                    _runCts = new();
                     CancellationToken runToken = _runCts.Token;
                     TaskCompletionSource<string> welcome = _startWelcome;
                     _receiveLoop = Task.Run(
@@ -500,7 +500,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
             CancellationToken ct
         )
         {
-            IWebSocketChannel channel = await _channelFactory.ConnectAsync(new Uri(url), ct);
+            IWebSocketChannel channel = await _channelFactory.ConnectAsync(new(url), ct);
 
             // Swap atomically and tear down the superseded channel (server-requested reconnect keeps the old
             // socket only until the new one is connected — then it is closed, no leak, no duplicate stream).

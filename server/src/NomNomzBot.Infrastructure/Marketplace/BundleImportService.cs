@@ -21,7 +21,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Marketplace;
 using NomNomzBot.Application.CustomEvents.Services;
-using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.Marketplace.Services;
 using NomNomzBot.Application.PickLists.Dtos;
 using NomNomzBot.Application.PickLists.Services;
@@ -249,7 +248,7 @@ public class BundleImportService : IBundleImportService
                 // failure path deletes that remnant before rolling the bundle back.
                 string entrySource = export.Files[export.Manifest.Entry];
                 Result<CodeScriptDetailDto> createdScript = await _codeScripts.CreateAsync(
-                    new CreateCodeScriptRequest(name, export.Description, entrySource),
+                    new(name, export.Description, entrySource),
                     ct
                 );
                 if (createdScript.IsFailure)
@@ -282,9 +281,9 @@ public class BundleImportService : IBundleImportService
                 {
                     Result<CodeScriptVersionDto> savedProject = await _codeScripts.SaveProjectAsync(
                         createdScript.Value.Id,
-                        new ProjectDto(
+                        new(
                             export.Files.ToDictionary(kv => kv.Key, kv => kv.Value),
-                            new ProjectManifestDto(
+                            new(
                                 export.Manifest.Entry,
                                 export.Manifest.Kind,
                                 export.Manifest.Framework,
@@ -500,7 +499,7 @@ public class BundleImportService : IBundleImportService
                     Result<CommandDto> disabled = await _commands.UpdateAsync(
                         channelId,
                         name,
-                        new UpdateCommandDto { IsEnabled = false },
+                        new() { IsEnabled = false },
                         ct
                     );
                     if (disabled.IsFailure)
@@ -523,7 +522,7 @@ public class BundleImportService : IBundleImportService
                 Result<EventResponseDto> upserted = await _eventResponses.UpsertAsync(
                     channelId,
                     export.EventType,
-                    new UpdateEventResponseDto
+                    new()
                     {
                         IsEnabled = export.IsEnabled,
                         ResponseType = export.ResponseType,
@@ -595,7 +594,7 @@ public class BundleImportService : IBundleImportService
                 // unavailable can never fail the bundle.
                 Result<RewardDetail> createdReward = await _rewards.CreateAsync(
                     channelId,
-                    new CreateRewardRequest
+                    new()
                     {
                         Title = title,
                         Cost = export.Cost,
@@ -625,7 +624,7 @@ public class BundleImportService : IBundleImportService
                     Result<RewardDetail> disabled = await _rewards.UpdateAsync(
                         channelId,
                         createdReward.Value.Id,
-                        new UpdateRewardRequest { IsEnabled = false },
+                        new() { IsEnabled = false },
                         ct
                     );
                     if (disabled.IsFailure)
@@ -681,7 +680,7 @@ public class BundleImportService : IBundleImportService
 
                 Result<TimerDto> createdTimer = await _timers.CreateAsync(
                     channelId,
-                    new CreateTimerDto
+                    new()
                     {
                         Name = name,
                         Messages = export.Messages.ToList(),
@@ -752,7 +751,7 @@ public class BundleImportService : IBundleImportService
 
                 Result<ChatTriggerDto> createdTrigger = await _chatTriggers.CreateAsync(
                     channelId,
-                    new CreateChatTriggerRequest
+                    new()
                     {
                         Pattern = pattern,
                         MatchType = export.MatchType,
@@ -833,7 +832,7 @@ public class BundleImportService : IBundleImportService
 
                 Result<PickListDto> createdList = await _pickLists.CreateAsync(
                     broadcasterId,
-                    new CreatePickListRequest(name, export.Description, export.Items.ToList()),
+                    new(name, export.Description, export.Items.ToList()),
                     ct
                 );
                 if (createdList.IsFailure)
@@ -922,7 +921,7 @@ public class BundleImportService : IBundleImportService
                     await _widgets.CompileAsync(
                         channelId,
                         createdWidget.Value.Id.ToString(),
-                        new CompileWidgetRequest { SourceCode = export.SourceCode },
+                        new() { SourceCode = export.SourceCode },
                         ct
                     );
                 }
@@ -977,7 +976,7 @@ public class BundleImportService : IBundleImportService
                 Result<SoundClipDto> createdSound = await _sounds.UploadAsync(
                     broadcasterId,
                     actorUserId,
-                    new UploadSoundClipRequest(
+                    new(
                         name,
                         export.DisplayName,
                         Path.GetFileName(export.AudioPath),
@@ -1031,7 +1030,7 @@ public class BundleImportService : IBundleImportService
                 Result<ChannelAssetDto> createdAsset = await _assets.UploadAsync(
                     broadcasterId,
                     actorUserId,
-                    new UploadChannelAssetRequest(
+                    new(
                         assetName,
                         export.DisplayName,
                         Path.GetFileName(export.PayloadPath),
@@ -1099,7 +1098,7 @@ public class BundleImportService : IBundleImportService
                 Result<CustomDataSourceDto> createdSource = await _dataSources.CreateAsync(
                     broadcasterId,
                     actorUserId,
-                    new UpsertCustomDataSourceRequest(
+                    new(
                         name,
                         export.DisplayName,
                         export.SourceKind,
@@ -1317,7 +1316,7 @@ public class BundleImportService : IBundleImportService
         ZipArchive archive;
         try
         {
-            archive = new ZipArchive(buffer, ZipArchiveMode.Read, leaveOpen: false);
+            archive = new(buffer, ZipArchiveMode.Read, leaveOpen: false);
         }
         catch (InvalidDataException)
         {

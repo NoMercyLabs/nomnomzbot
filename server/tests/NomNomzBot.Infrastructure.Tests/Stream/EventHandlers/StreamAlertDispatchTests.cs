@@ -13,7 +13,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
-using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Stream.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -51,7 +50,7 @@ public sealed class StreamAlertDispatchTests
         );
 
         await handler.HandleAsync(
-            new AdBreakBeganEvent
+            new()
             {
                 BroadcasterId = Channel,
                 OccurredAt = DateTimeOffset.UtcNow,
@@ -90,7 +89,7 @@ public sealed class StreamAlertDispatchTests
         );
 
         await handler.HandleAsync(
-            new AdBreakBeganEvent
+            new()
             {
                 BroadcasterId = Channel,
                 OccurredAt = DateTimeOffset.UtcNow,
@@ -125,7 +124,7 @@ public sealed class StreamAlertDispatchTests
         );
 
         await handler.HandleAsync(
-            new OutgoingRaidEvent
+            new()
             {
                 BroadcasterId = Channel,
                 OccurredAt = DateTimeOffset.UtcNow,

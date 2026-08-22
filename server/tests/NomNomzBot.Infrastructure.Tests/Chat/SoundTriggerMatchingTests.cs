@@ -8,11 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
@@ -21,7 +19,6 @@ using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
-using NomNomzBot.Infrastructure.Games;
 using NomNomzBot.Infrastructure.Platform.RateLimiting;
 using NSubstitute;
 
@@ -80,7 +77,7 @@ public sealed class SoundTriggerMatchingTests
             .Returns(
                 resolveSucceeds
                     ? Result<SoundPlaybackDto>.Success(
-                        new SoundPlaybackDto(ClipId, "https://cdn/clip.mp3", 80, 1200)
+                        new(ClipId, "https://cdn/clip.mp3", 80, 1200)
                     )
                     : Result<SoundPlaybackDto>.Failure(
                         "Sound clip not found or disabled.",
@@ -111,7 +108,7 @@ public sealed class SoundTriggerMatchingTests
             builtins,
             Substitute.For<ITemplateResolver>(),
             Substitute.For<IEventBus>(),
-            new LiveGameSessionRegistry(),
+            new(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );

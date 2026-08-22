@@ -25,7 +25,7 @@ public readonly record struct PkceCodePair(string Verifier, string Challenge)
     {
         string verifier = Base64Url(RandomNumberGenerator.GetBytes(32));
         string challenge = Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
-        return new PkceCodePair(verifier, challenge);
+        return new(verifier, challenge);
     }
 
     private static string Base64Url(byte[] bytes) =>

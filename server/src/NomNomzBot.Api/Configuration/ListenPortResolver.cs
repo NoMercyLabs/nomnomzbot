@@ -67,7 +67,7 @@ public sealed class ListenPortResolver : IListenPortResolver
 
         // 1. Target is free → take it.
         if (_ops.IsPortBindable(target))
-            return new ListenPortDecision(
+            return new(
                 target,
                 locked ? PortResolution.HonoredLock : PortResolution.PreferredFree,
                 target
@@ -85,7 +85,7 @@ public sealed class ListenPortResolver : IListenPortResolver
             );
 
             if (_ops.KillProcessAndWait(pid, KillWait) && _ops.IsPortBindable(target))
-                return new ListenPortDecision(target, PortResolution.ReplacedStaleInstance, target);
+                return new(target, PortResolution.ReplacedStaleInstance, target);
 
             // The kill didn't free the port in time (it lingered, or a third party grabbed it in the gap). When locked
             // we must not abandon the port (OAuth is registered on it) — abort with a conflict; otherwise step aside.
@@ -96,7 +96,7 @@ public sealed class ListenPortResolver : IListenPortResolver
                         + "than moving to a different port (the OAuth redirect URLs are registered on this one).",
                     target
                 );
-                return new ListenPortDecision(target, PortResolution.LockConflict, target);
+                return new(target, PortResolution.LockConflict, target);
             }
 
             _logger.LogWarning(
@@ -124,7 +124,7 @@ public sealed class ListenPortResolver : IListenPortResolver
                     target,
                     ownerPid
                 );
-            return new ListenPortDecision(target, PortResolution.LockConflict, target);
+            return new(target, PortResolution.LockConflict, target);
         }
 
         if (ownerPid is null)
@@ -146,7 +146,7 @@ public sealed class ListenPortResolver : IListenPortResolver
     private ListenPortDecision EphemeralFallback(int preferredPort)
     {
         int ephemeral = _ops.FindFreeEphemeralPort();
-        return new ListenPortDecision(ephemeral, PortResolution.EphemeralFallback, preferredPort);
+        return new(ephemeral, PortResolution.EphemeralFallback, preferredPort);
     }
 
     // A stale duplicate of us reports the same process name. Resolve the owner's name and compare to ours; any

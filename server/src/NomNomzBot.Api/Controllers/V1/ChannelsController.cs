@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
-using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -22,7 +21,6 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -86,7 +84,7 @@ public class ChannelsController : BaseController
             Result<TwitchPage<TwitchModeratedChannel>> moderated =
                 await _moderators.GetModeratedChannelsAsync(
                     ownChannel,
-                    new TwitchPageRequest(),
+                    new(),
                     ct
                 );
             if (moderated.IsSuccess)
@@ -186,7 +184,7 @@ public class ChannelsController : BaseController
         Result<TwitchPage<TwitchModeratedChannel>> moderatedResult =
             await _moderators.GetModeratedChannelsAsync(
                 moderatorChannelId,
-                new TwitchPageRequest(),
+                new(),
                 ct
             );
         IReadOnlyList<TwitchModeratedChannel> moderated = moderatedResult.IsSuccess
@@ -251,7 +249,7 @@ public class ChannelsController : BaseController
         Result<TwitchPage<TwitchModeratedChannel>> moderatedResult =
             await _moderators.GetModeratedChannelsAsync(
                 moderatorChannelId,
-                new TwitchPageRequest(),
+                new(),
                 ct
             );
         TwitchModeratedChannel? match = moderatedResult.IsSuccess

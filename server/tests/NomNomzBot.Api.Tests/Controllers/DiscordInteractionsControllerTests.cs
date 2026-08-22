@@ -118,7 +118,7 @@ public sealed class DiscordInteractionsControllerTests
         IDiscordInteractionService interactions = HandlerReturning(Result.Success(PongJson));
         DiscordInteractionsController controller = new(verifier, interactions)
         {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+            ControllerContext = new() { HttpContext = new DefaultHttpContext() },
         };
         using Key key = Key.Create(SignatureAlgorithm.Ed25519);
         SetRequest(controller, PingBody, Sign(key, Timestamp, PingBody), Timestamp);
@@ -160,9 +160,9 @@ public sealed class DiscordInteractionsControllerTests
         DiscordInteractionVerifier verifier = new(
             ConfigWith(Convert.ToHexString(key.PublicKey.Export(KeyBlobFormat.RawPublicKey)))
         );
-        return new DiscordInteractionsController(verifier, interactions)
+        return new(verifier, interactions)
         {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+            ControllerContext = new() { HttpContext = new DefaultHttpContext() },
         };
     }
 

@@ -30,7 +30,7 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore;
 public sealed class EventPayloadProtectorTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     // A chat-message-shaped payload carrying a viewer's PII (display name + message text).
@@ -51,7 +51,7 @@ public sealed class EventPayloadProtectorTests
             Source: "eventsub",
             PayloadJson: payload,
             MetadataJson: "{}",
-            OccurredAt: new DateTime(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc),
+            OccurredAt: new(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc),
             ActorUserId: actorUserId
         );
 
@@ -75,7 +75,7 @@ public sealed class EventPayloadProtectorTests
             Clock,
             protector
         );
-        return new Harness(journal, protector, subjectKeys);
+        return new(journal, protector, subjectKeys);
     }
 
     [Fact]

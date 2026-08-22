@@ -63,7 +63,7 @@ public sealed class ChatFiltersControllerTests
 
         IActionResult listed = await controller.ListFilters(
             Broadcaster.ToString(),
-            new PageRequestDto(),
+            new(),
             CancellationToken.None
         );
 

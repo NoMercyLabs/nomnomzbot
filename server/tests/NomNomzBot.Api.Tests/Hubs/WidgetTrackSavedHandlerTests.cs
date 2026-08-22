@@ -12,7 +12,6 @@ using System.Text.Json;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -44,7 +43,7 @@ public sealed class WidgetTrackSavedHandlerTests
         WidgetTrackSavedHandler handler = new(db, widgets);
 
         await handler.HandleAsync(
-            new TrackSavedChangedEvent
+            new()
             {
                 BroadcasterId = channel,
                 TrackUri = "spotify:track:abc123",
@@ -73,7 +72,7 @@ public sealed class WidgetTrackSavedHandlerTests
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         db.Widgets.Add(
-            new Widget
+            new()
             {
                 Id = Guid.NewGuid(),
                 BroadcasterId = channel,
@@ -86,7 +85,7 @@ public sealed class WidgetTrackSavedHandlerTests
         WidgetTrackSavedHandler handler = new(db, widgets);
 
         await handler.HandleAsync(
-            new TrackSavedChangedEvent
+            new()
             {
                 BroadcasterId = channel,
                 TrackUri = "spotify:track:abc123",

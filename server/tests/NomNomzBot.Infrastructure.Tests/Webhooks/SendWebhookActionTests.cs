@@ -17,7 +17,6 @@ using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Domain.Webhooks.Enums;
 using NomNomzBot.Infrastructure.Webhooks.PipelineActions;
 using NSubstitute;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Webhooks;
 
@@ -81,7 +80,7 @@ public sealed class SendWebhookActionTests
                         )
                     )
             );
-        return (new SendWebhookAction(dispatcher), dispatcher);
+        return (new(dispatcher), dispatcher);
     }
 
     [Fact]

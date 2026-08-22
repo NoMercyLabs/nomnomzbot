@@ -11,8 +11,6 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Rewards.Events;
-using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -46,7 +44,7 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         NewSubscriptionBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new NewSubscriptionEvent
+            new()
             {
                 BroadcasterId = channel,
                 UserId = "u1",
@@ -101,7 +99,7 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         NewSubscriptionBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new NewSubscriptionEvent
+            new()
             {
                 BroadcasterId = channel,
                 UserId = "u1",
@@ -133,7 +131,7 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         ResubscriptionBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new ResubscriptionEvent
+            new()
             {
                 BroadcasterId = channel,
                 UserId = "u1",
@@ -181,7 +179,7 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         GiftSubscriptionBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new GiftSubscriptionEvent
+            new()
             {
                 BroadcasterId = channel,
                 GifterUserId = "g1",
@@ -189,7 +187,7 @@ public sealed class SubscriptionCheerRaidBroadcastTests
                 Tier = "1000",
                 GiftCount = 5,
                 IsAnonymous = false,
-                Recipients = [new GiftRecipient("r1", "Lucky")],
+                Recipients = [new("r1", "Lucky")],
             }
         );
 
@@ -242,7 +240,7 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         GiftSubscriptionBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new GiftSubscriptionEvent
+            new()
             {
                 BroadcasterId = channel,
                 GifterUserId = "g1",
@@ -250,7 +248,7 @@ public sealed class SubscriptionCheerRaidBroadcastTests
                 Tier = "1000",
                 GiftCount = 5,
                 IsAnonymous = false,
-                Recipients = [new GiftRecipient("r1", "Lucky")],
+                Recipients = [new("r1", "Lucky")],
             }
         );
 
@@ -277,7 +275,7 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         CheerBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new CheerEvent
+            new()
             {
                 BroadcasterId = channel,
                 UserId = "u1",
@@ -324,7 +322,7 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         RaidBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new RaidEvent
+            new()
             {
                 BroadcasterId = channel,
                 FromUserId = "u1",
@@ -369,7 +367,7 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         CheerBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new CheerEvent
+            new()
             {
                 BroadcasterId = Guid.Empty,
                 UserId = "u1",

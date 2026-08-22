@@ -13,7 +13,6 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Integrations.Dtos;
 using NomNomzBot.Application.Integrations.Services;
-using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Infrastructure.Integrations;
 

@@ -17,7 +17,6 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Infrastructure.Platform.Auth;
-using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -71,7 +70,7 @@ public sealed class TwitchDeviceCodeServiceTests
         // A self-host operator's own app (BYOC) is a system Configuration row; it must win over the shipped default.
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Configurations.Add(
-            new ConfigEntity
+            new()
             {
                 BroadcasterId = null,
                 Key = "twitch.client_id",
@@ -278,8 +277,8 @@ public sealed class TwitchDeviceCodeServiceTests
         StubHandler wire = new(status, body);
         TwitchDeviceCodeService service = new(
             credentials,
-            new DeviceCodePollThrottle(TimeProvider.System),
-            new DeviceCodeScopeMemory(),
+            new(TimeProvider.System),
+            new(),
             new SingleClientFactory(wire),
             NullLogger<TwitchDeviceCodeService>.Instance,
             TimeProvider.System
@@ -300,7 +299,7 @@ public sealed class TwitchDeviceCodeServiceTests
                 protector,
                 ConfigWith("nomnomz-public-id")
             ),
-            new DeviceCodePollThrottle(TimeProvider.System),
+            new(TimeProvider.System),
             scopeMemory,
             new SingleClientFactory(wire),
             NullLogger<TwitchDeviceCodeService>.Instance,
@@ -324,7 +323,7 @@ public sealed class TwitchDeviceCodeServiceTests
             if (request.Content is not null)
                 LastBody = await request.Content.ReadAsStringAsync(cancellationToken);
 
-            return new HttpResponseMessage(status)
+            return new(status)
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json"),
             };
@@ -351,7 +350,7 @@ public sealed class TwitchDeviceCodeServiceTests
             if (isToken && request.Content is not null)
                 LastTokenBody = await request.Content.ReadAsStringAsync(cancellationToken);
 
-            return new HttpResponseMessage(HttpStatusCode.OK)
+            return new(HttpStatusCode.OK)
             {
                 Content = new StringContent(
                     isToken ? tokenJson : deviceJson,

@@ -131,7 +131,7 @@ public static class LegacyImportCli
 
         LegacyChannelEventImporter importer = new(
             journal,
-            new LegacyChannelEventMapper(),
+            new(),
             NullLogger.Instance
         );
         LegacySqliteChannelEventSource source = new(legacyPath.Value);

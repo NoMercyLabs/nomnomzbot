@@ -57,7 +57,7 @@ public sealed class UptimeBuiltinTests
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Channel).Returns(ctx);
-        return new UptimeBuiltin(
+        return new(
             registry,
             new BuiltinResponseComposer(FakeResolver()),
             new FakeTimeProvider(Now)
@@ -110,7 +110,7 @@ public sealed class UptimeBuiltinTests
     [Fact]
     public async Task Live_under_an_hour_formats_minutes_and_seconds()
     {
-        Result<string> result = await Sut(LiveContext(new TimeSpan(0, 3, 30)))
+        Result<string> result = await Sut(LiveContext(new(0, 3, 30)))
             .ExecuteAsync(Ctx(PersonalityTone.Informative));
 
         result.Value.Should().Contain("3m 30s");

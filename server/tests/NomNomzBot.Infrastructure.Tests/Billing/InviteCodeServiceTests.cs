@@ -17,7 +17,6 @@ using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Events;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.Content.Billing;
@@ -56,7 +55,7 @@ public sealed class InviteCodeServiceTests
     {
         await new BillingTierSeeder(db).SeedAsync();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Channel,
                 TwitchChannelId = "t1",
@@ -75,7 +74,7 @@ public sealed class InviteCodeServiceTests
         await SeedAsync(db);
         BillingTier pro = await db.BillingTiers.FirstAsync(t => t.Key == "pro");
         db.InviteCodes.Add(
-            new InviteCode
+            new()
             {
                 Code = "FOUNDER1",
                 MaxRedemptions = 5,
@@ -105,7 +104,7 @@ public sealed class InviteCodeServiceTests
         await SeedAsync(db);
         BillingTier pro = await db.BillingTiers.FirstAsync(t => t.Key == "pro");
         db.InviteCodes.Add(
-            new InviteCode
+            new()
             {
                 Code = "PREVIEW",
                 MaxRedemptions = 3,
@@ -130,7 +129,7 @@ public sealed class InviteCodeServiceTests
         (InviteCodeService sut, AuthDbContext db, _) = Build();
         await SeedAsync(db);
         db.InviteCodes.Add(
-            new InviteCode
+            new()
             {
                 Code = "ONCE",
                 MaxRedemptions = 1,
@@ -150,7 +149,7 @@ public sealed class InviteCodeServiceTests
         await SeedAsync(db);
 
         Result<InviteCodeDto> created = await sut.CreateInviteCodeAsync(
-            new CreateInviteCodeRequest(MaxRedemptions: 10, GrantsFoundersBadge: true, null, null)
+            new(MaxRedemptions: 10, GrantsFoundersBadge: true, null, null)
         );
 
         created.Value.Code.Should().NotBeNullOrEmpty();

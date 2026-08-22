@@ -54,7 +54,7 @@ public class SupportersController : BaseController
     )]
     public async Task<IActionResult> ListConnections(CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _connections.ListAsync(broadcasterId, ct));
     }
@@ -68,7 +68,7 @@ public class SupportersController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         if (!Guid.TryParse(_currentUser.UserId, out Guid actorUserId))
             return UnauthenticatedResponse("No acting user.");
@@ -83,7 +83,7 @@ public class SupportersController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeleteConnection(string sourceKey, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         if (!Guid.TryParse(_currentUser.UserId, out Guid actorUserId))
             return UnauthenticatedResponse("No acting user.");
@@ -103,7 +103,7 @@ public class SupportersController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         SupporterEventQuery query = new(request.Page, request.Take, kind, sourceKey);

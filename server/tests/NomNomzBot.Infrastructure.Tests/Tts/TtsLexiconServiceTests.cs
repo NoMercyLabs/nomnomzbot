@@ -45,7 +45,7 @@ public sealed class TtsLexiconServiceTests
             new MemoryCache(new MemoryCacheOptions()),
             NullLogger<MemoryCacheService>.Instance
         );
-        return new Harness { Service = new TtsLexiconService(db, cache), Db = db };
+        return new() { Service = new(db, cache), Db = db };
     }
 
     private static UpsertTtsLexiconEntryDto Rule(
@@ -246,7 +246,7 @@ public sealed class TtsLexiconServiceTests
         for (int i = 0; i < TtsLexiconService.MaxAppliedEntries; i++)
         {
             h.Db.TtsLexiconEntries.Add(
-                new TtsLexiconEntry
+                new()
                 {
                     BroadcasterId = Tenant,
                     Phrase = $"k{i:000}",
@@ -256,7 +256,7 @@ public sealed class TtsLexiconServiceTests
             );
         }
         h.Db.TtsLexiconEntries.Add(
-            new TtsLexiconEntry
+            new()
             {
                 BroadcasterId = Tenant,
                 Phrase = "zz",

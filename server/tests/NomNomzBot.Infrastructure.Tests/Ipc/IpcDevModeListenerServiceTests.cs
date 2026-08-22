@@ -19,7 +19,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Ipc;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Enums.Deployment;
-using NomNomzBot.Infrastructure.Platform.Deployment;
 using NomNomzBot.Infrastructure.Services.Ipc;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -59,7 +58,7 @@ public sealed class IpcDevModeListenerServiceTests : IAsyncDisposable
                 default
             )
         );
-        _registry = new IpcDevModeService(_db, profile, _clock);
+        _registry = new(_db, profile, _clock);
 
         ServiceCollection services = new();
         services.AddScoped<IIpcDevModeService>(_ => new IpcDevModeService(_db, profile, _clock));
@@ -80,10 +79,10 @@ public sealed class IpcDevModeListenerServiceTests : IAsyncDisposable
         DeploymentMode mode = DeploymentMode.SelfHostLite
     )
     {
-        _service = new IpcDevModeListenerService(
+        _service = new(
             _factory,
             _provider.GetRequiredService<IServiceScopeFactory>(),
-            new DeploymentContext(mode),
+            new(mode),
             _clock,
             NullLogger<IpcDevModeListenerService>.Instance
         );
@@ -95,7 +94,7 @@ public sealed class IpcDevModeListenerServiceTests : IAsyncDisposable
     {
         Result<IpcDevModeKeyDto> created = await _registry.CreateKeyAsync(
             Guid.CreateVersion7(),
-            new CreateIpcKeyRequest("listener test", ExpiresAt: null)
+            new("listener test", ExpiresAt: null)
         );
         created.IsSuccess.Should().BeTrue(created.ErrorMessage);
         return created.Value!.PlaintextKey!;

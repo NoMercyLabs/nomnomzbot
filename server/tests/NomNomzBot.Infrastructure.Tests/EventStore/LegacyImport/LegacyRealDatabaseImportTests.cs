@@ -29,7 +29,7 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore.LegacyImport;
 public sealed class LegacyRealDatabaseImportTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static string LegacyDbPath =>
@@ -65,7 +65,7 @@ public sealed class LegacyRealDatabaseImportTests
                 Clock,
                 new PassthroughEventPayloadProtector()
             );
-            LegacyChannelEventImporter importer = new(journal, new LegacyChannelEventMapper());
+            LegacyChannelEventImporter importer = new(journal, new());
             Guid tenant = Guid.Parse("0192a000-0000-7000-8000-00000000cc01");
 
             Result<LegacyImportSummary> result = await importer.ImportAsync(

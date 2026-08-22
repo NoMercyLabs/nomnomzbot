@@ -11,7 +11,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Commands.Services;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
@@ -35,7 +34,7 @@ public sealed class EventResponseSeedingTests
     {
         SupporterTestDbContext db = SupporterTestDbContext.New();
         return (
-            new EventResponseService(
+            new(
                 db,
                 Substitute.For<IEventBus>(),
                 Billing.TestTiers.Unlimited()
@@ -45,7 +44,7 @@ public sealed class EventResponseSeedingTests
     }
 
     private static Task ListAsync(EventResponseService service) =>
-        service.ListAsync(Tenant.ToString(), new PaginationParams(1, 50, null, null));
+        service.ListAsync(Tenant.ToString(), new(1, 50, null, null));
 
     [Fact]
     public async Task A_fresh_channel_is_seeded_with_the_full_catalog_disabled()

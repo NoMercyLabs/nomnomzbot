@@ -17,7 +17,6 @@ using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Platform.Dtos;
-using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.Chat.Enums;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
@@ -54,7 +53,7 @@ public sealed class ChatDecorationFeatureTogglingTests
         await cache.SetAsync<IReadOnlyList<ChatEmote>>(
             ChatEmoteCacheKeys.Global(EmoteProvider.SevenTv),
             [
-                new ChatEmote(
+                new(
                     EmoteProvider.SevenTv,
                     "7tv-1",
                     "PepeLaugh",
@@ -148,7 +147,7 @@ public sealed class ChatDecorationFeatureTogglingTests
         FakeCache cache = new();
         FeatureServiceTestDbContext db = FeatureServiceTestDbContext.New();
         db.ChannelFeatures.Add(
-            new ChannelFeature
+            new()
             {
                 BroadcasterId = channel,
                 FeatureKey = "use_link_preview",
@@ -167,7 +166,7 @@ public sealed class ChatDecorationFeatureTogglingTests
         previews
             .FetchAsync(Arg.Any<Uri>(), Arg.Any<CancellationToken>())
             .Returns(
-                Result.Success<LinkPreview?>(new LinkPreview("example.com", "Example", null, null))
+                Result.Success<LinkPreview?>(new("example.com", "Example", null, null))
             );
         ChatMessageDecorator decorator = new(
             [new ExplodeTextAdapter(), new LinkPreviewAdapter(previews), new ImplodeTextAdapter()],
@@ -211,10 +210,10 @@ public sealed class ChatDecorationFeatureTogglingTests
             ChatDecorationRulesCacheInvalidator
         >();
         ServiceProvider provider = services.BuildServiceProvider();
-        return new EventBus(
+        return new(
             provider,
             NullLogger<EventBus>.Instance,
-            new EventLogger(NullLogger<EventLogger>.Instance)
+            new(NullLogger<EventLogger>.Instance)
         );
     }
 
@@ -241,7 +240,7 @@ public sealed class ChatDecorationFeatureTogglingTests
             UserDisplayName = "Stoney",
             UserLogin = "stoney_eagle",
             Message = text,
-            Fragments = [new ChatMessageFragment { Type = "text", Text = text }],
+            Fragments = [new() { Type = "text", Text = text }],
             Badges = [],
             IsSubscriber = isSubscriber,
             IsVip = false,

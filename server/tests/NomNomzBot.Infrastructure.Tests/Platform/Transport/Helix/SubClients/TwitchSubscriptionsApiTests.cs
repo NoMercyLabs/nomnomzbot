@@ -43,7 +43,7 @@ public class TwitchSubscriptionsApiTests
         TwitchSubscriptionsApi api = Build(transport); // no scopes granted
 
         Result<TwitchPage<TwitchBroadcasterSubscription>> result =
-            await api.GetBroadcasterSubscriptionsAsync(Tenant, null, new TwitchPageRequest());
+            await api.GetBroadcasterSubscriptionsAsync(Tenant, null, new());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);
@@ -57,7 +57,7 @@ public class TwitchSubscriptionsApiTests
         {
             PageResult = new TwitchPage<TwitchBroadcasterSubscription>(
                 [
-                    new TwitchBroadcasterSubscription(
+                    new(
                         TwitchId,
                         "broadcasterlogin",
                         "BroadcasterName",
@@ -82,7 +82,7 @@ public class TwitchSubscriptionsApiTests
             await api.GetBroadcasterSubscriptionsAsync(
                 Tenant,
                 null,
-                new TwitchPageRequest(After: "abc", PageSize: 50)
+                new(After: "abc", PageSize: 50)
             );
 
         result.IsSuccess.Should().BeTrue();
@@ -115,7 +115,7 @@ public class TwitchSubscriptionsApiTests
             await api.GetBroadcasterSubscriptionsAsync(
                 Tenant,
                 ["100", "200"],
-                new TwitchPageRequest()
+                new()
             );
 
         result.IsSuccess.Should().BeTrue();
@@ -134,7 +134,7 @@ public class TwitchSubscriptionsApiTests
         );
 
         Result<TwitchPage<TwitchBroadcasterSubscription>> result =
-            await api.GetBroadcasterSubscriptionsAsync(Tenant, null, new TwitchPageRequest());
+            await api.GetBroadcasterSubscriptionsAsync(Tenant, null, new());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.NotFound);

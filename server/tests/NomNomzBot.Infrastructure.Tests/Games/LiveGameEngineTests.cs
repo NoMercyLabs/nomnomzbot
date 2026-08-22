@@ -141,12 +141,12 @@ public sealed class LiveGameEngineTests
 
     private static Harness New(SqliteTestDatabase database, params ILiveGame[] games)
     {
-        FakeTimeProvider clock = new(new DateTimeOffset(2026, 7, 17, 14, 0, 0, TimeSpan.Zero));
+        FakeTimeProvider clock = new(new(2026, 7, 17, 14, 0, 0, TimeSpan.Zero));
         EventStoreTestDbContext db = database.NewContext();
         if (!db.CurrencyConfigs.Any(c => c.BroadcasterId == Channel))
         {
             db.CurrencyConfigs.Add(
-                new CurrencyConfig
+                new()
                 {
                     BroadcasterId = Channel,
                     CurrencyName = "points",
@@ -183,7 +183,7 @@ public sealed class LiveGameEngineTests
             clock,
             NullLogger<LiveGameEngine>.Instance
         );
-        return new Harness(engine, db, gameService, bus, overlay, registry, clock);
+        return new(engine, db, gameService, bus, overlay, registry, clock);
     }
 
     private static Guid SeedConfig(EventStoreTestDbContext db, string gameType = "fake_game")
@@ -212,7 +212,7 @@ public sealed class LiveGameEngineTests
 
         Result<GameSessionDto> started = await h.Engine.StartAsync(
             Channel,
-            new StartLiveGameCommand("fake_game", PlayerA)
+            new("fake_game", PlayerA)
         );
         started.IsSuccess.Should().BeTrue(started.ErrorMessage);
         started.Value.Status.Should().Be("Lobby");
@@ -271,13 +271,13 @@ public sealed class LiveGameEngineTests
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         Harness h = New(database, new FakeGame());
         SeedConfig(h.Db);
-        (await h.Engine.StartAsync(Channel, new StartLiveGameCommand("fake_game", null)))
+        (await h.Engine.StartAsync(Channel, new("fake_game", null)))
             .IsSuccess.Should()
             .BeTrue();
 
         Result<GameSessionDto> second = await h.Engine.StartAsync(
             Channel,
-            new StartLiveGameCommand("fake_game", null)
+            new("fake_game", null)
         );
 
         second.IsFailure.Should().BeTrue();
@@ -291,7 +291,7 @@ public sealed class LiveGameEngineTests
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         FakeGame game = new()
         {
-            Manifest = new LiveGameManifest(
+            Manifest = new(
                 "Fake Game",
                 ["!join"],
                 "fake_widget",
@@ -304,7 +304,7 @@ public sealed class LiveGameEngineTests
         };
         Harness h = New(database, game);
         SeedConfig(h.Db);
-        await h.Engine.StartAsync(Channel, new StartLiveGameCommand("fake_game", null));
+        await h.Engine.StartAsync(Channel, new("fake_game", null));
         await h.Engine.HandleChatInputAsync(Channel, PlayerA, "Alice", "!join 40");
 
         h.Clock.Advance(TimeSpan.FromSeconds(31));
@@ -336,7 +336,7 @@ public sealed class LiveGameEngineTests
         FakeGame second = new()
         {
             GameKey = "other_game",
-            Manifest = new LiveGameManifest(
+            Manifest = new(
                 "Other",
                 ["!other"],
                 "other_widget",
@@ -353,7 +353,7 @@ public sealed class LiveGameEngineTests
         // The second game runs with ZERO engine edits — discovered, started, and settled generically.
         Result<GameSessionDto> started = await h.Engine.StartAsync(
             Channel,
-            new StartLiveGameCommand("other_game", null)
+            new("other_game", null)
         );
         started.IsSuccess.Should().BeTrue(started.ErrorMessage);
 
@@ -382,7 +382,7 @@ public sealed class LiveGameEngineTests
         (
             await h.Games.StakeLiveGameEntryAsync(
                 Channel,
-                new Application.DTOs.Economy.LiveGameStakeCommand(orphan.Id, configId, PlayerA, 40)
+                new(orphan.Id, configId, PlayerA, 40)
             )
         )
             .IsSuccess.Should()

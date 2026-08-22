@@ -20,7 +20,6 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.YouTube;
 using NomNomzBot.Infrastructure.Identity;
@@ -55,7 +54,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         ) = await BuildConnectedAsync();
 
         client.LivenessResults.Enqueue(
-            Result.Success<YouTubeActiveChat?>(new YouTubeActiveChat("b1", "chat-1", "Live!"))
+            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
         );
         // Page 1 = history bootstrap: its items must NOT reach the feed; only the cursor is kept.
         client.PageResults.Enqueue(
@@ -135,7 +134,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
 
         // The overlap victim: m-1 already reached the ChatMessages table on an earlier page.
         db.ChatMessages.Add(
-            new NomNomzBot.Domain.Chat.Entities.ChatMessage
+            new()
             {
                 Id = "m-1",
                 BroadcasterId = Broadcaster,
@@ -149,7 +148,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         await db.SaveChangesAsync();
 
         client.LivenessResults.Enqueue(
-            Result.Success<YouTubeActiveChat?>(new YouTubeActiveChat("b1", "chat-1", "Live!"))
+            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
         );
         client.PageResults.Enqueue(Result.Success(new YouTubeLiveChatPage([], "tok-1", 1000)));
         client.PageResults.Enqueue(
@@ -186,7 +185,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         ) = await BuildConnectedAsync();
 
         client.LivenessResults.Enqueue(
-            Result.Success<YouTubeActiveChat?>(new YouTubeActiveChat("b1", "chat-1", "Live!"))
+            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
         );
         client.PageResults.Enqueue(
             Result.Failure<YouTubeLiveChatPage>(
@@ -228,7 +227,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
 
         // The crash artifact: a tenant row left IsLive=true by a mid-stream shutdown.
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Guid.Parse("0199b000-0000-7000-8000-0000000000c1"),
                 OwnerUserId = Owner,
@@ -267,7 +266,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         ) = await BuildConnectedAsync();
 
         client.LivenessResults.Enqueue(
-            Result.Success<YouTubeActiveChat?>(new YouTubeActiveChat("b1", "chat-1", "Live!"))
+            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
         );
         await worker.TickAsync(CancellationToken.None); // → live, IsLive stamped
 
@@ -339,7 +338,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Broadcaster,
                 OwnerUserId = Owner,
@@ -354,7 +353,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
             }
         );
         db.Services.Add(
-            new Service
+            new()
             {
                 Name = "youtube",
                 Enabled = true,

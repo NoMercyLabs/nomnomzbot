@@ -62,7 +62,7 @@ public sealed class PlayTtsActionTests
             .Returns(Task.FromResult(resolvedText));
 
         ITtsDispatchService dispatch = Substitute.For<ITtsDispatchService>();
-        return (new PlayTtsAction(resolver, dispatch), dispatch);
+        return (new(resolver, dispatch), dispatch);
     }
 
     [Fact]

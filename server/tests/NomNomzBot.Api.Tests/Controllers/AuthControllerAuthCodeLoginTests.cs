@@ -9,15 +9,12 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NSubstitute;
-using Xunit;
 
 namespace NomNomzBot.Api.Tests.Controllers;
 
@@ -51,9 +48,9 @@ public sealed class AuthControllerAuthCodeLoginTests
 
         DefaultHttpContext http = new();
         http.Request.Scheme = "https";
-        http.Request.Host = new HostString("bot.test");
+        http.Request.Host = new("bot.test");
 
-        return new AuthController(
+        return new(
             Substitute.For<IUserService>(),
             Substitute.For<IAuthService>(),
             config,
@@ -67,7 +64,7 @@ public sealed class AuthControllerAuthCodeLoginTests
             Substitute.For<ISessionService>()
         )
         {
-            ControllerContext = new ControllerContext { HttpContext = http },
+            ControllerContext = new() { HttpContext = http },
         };
     }
 

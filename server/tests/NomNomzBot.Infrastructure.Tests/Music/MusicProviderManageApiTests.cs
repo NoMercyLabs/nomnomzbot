@@ -14,7 +14,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 
@@ -172,7 +171,7 @@ public sealed class MusicProviderManageApiTests
         if (connectSpotify)
         {
             db.Services.Add(
-                new Service
+                new()
                 {
                     Id = Guid.NewGuid().ToString(),
                     Name = "spotify",
@@ -189,7 +188,7 @@ public sealed class MusicProviderManageApiTests
             db,
             new PassthroughProtector(),
             new InMemoryIntegrationCapabilityStore(),
-            new NomNomzBot.Infrastructure.Music.LastActiveSpotifyDeviceTracker(),
+            new LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance

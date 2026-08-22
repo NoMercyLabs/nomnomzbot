@@ -30,6 +30,6 @@ public sealed class SqliteDesignTimeDbContextFactory : IDesignTimeDbContextFacto
             "Data Source=./nomnomz.db",
             sqliteOptions => sqliteOptions.MigrationsAssembly("NomNomzBot.Migrations.Sqlite")
         );
-        return new AppDbContext(optionsBuilder.Options);
+        return new(optionsBuilder.Options);
     }
 }

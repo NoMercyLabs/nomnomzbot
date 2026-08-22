@@ -12,7 +12,6 @@ using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
-using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Domain.Economy.Events;
 using NomNomzBot.Infrastructure.Economy;
@@ -32,7 +31,7 @@ public sealed class CurrencyEarningServiceTests
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000c1");
     private static readonly Guid Viewer = Guid.Parse("0192a000-0000-7000-8000-0000000000c2");
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static (
@@ -62,7 +61,7 @@ public sealed class CurrencyEarningServiceTests
     )
     {
         db.CurrencyConfigs.Add(
-            new CurrencyConfig
+            new()
             {
                 BroadcasterId = Channel,
                 CurrencyName = "points",
@@ -71,7 +70,7 @@ public sealed class CurrencyEarningServiceTests
             }
         );
         db.EarningRules.Add(
-            new EarningRule
+            new()
             {
                 BroadcasterId = Channel,
                 Source = source,
@@ -112,7 +111,7 @@ public sealed class CurrencyEarningServiceTests
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         (CurrencyEarningService sut, EventStoreTestDbContext db, _) = New(database);
         db.CurrencyConfigs.Add(
-            new CurrencyConfig
+            new()
             {
                 BroadcasterId = Channel,
                 CurrencyName = "points",
@@ -190,15 +189,15 @@ public sealed class CurrencyEarningServiceTests
 
         Result<IReadOnlyList<EarnResultDto>> results = await sut.ApplyWatchTimeBatchAsync(
             Channel,
-            new WatchTimeBatchRequest(
+            new(
                 [
-                    new WatchTimeViewer(
+                    new(
                         present,
                         PresentSeconds: 120,
                         PresenceVerified: true,
                         RoleLevel: 0
                     ),
-                    new WatchTimeViewer(
+                    new(
                         absent,
                         PresentSeconds: 120,
                         PresenceVerified: false,
@@ -220,7 +219,7 @@ public sealed class CurrencyEarningServiceTests
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         (CurrencyEarningService sut, EventStoreTestDbContext db, _) = New(database);
         db.Streams.Add(
-            new NomNomzBot.Domain.Stream.Entities.Stream
+            new()
             {
                 Id = "s1",
                 ChannelId = Channel,

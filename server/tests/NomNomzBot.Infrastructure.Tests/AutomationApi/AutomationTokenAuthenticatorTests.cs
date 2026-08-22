@@ -37,8 +37,8 @@ public sealed class AutomationTokenAuthenticatorTests
     ) Build()
     {
         AutomationTestDbContext db = AutomationTestDbContext.New();
-        FakeTimeProvider clock = new(new DateTimeOffset(T0));
-        return (new AutomationTokenAuthenticator(db, clock), db, clock);
+        FakeTimeProvider clock = new(new(T0));
+        return (new(db, clock), db, clock);
     }
 
     private static AutomationApiToken Seed(

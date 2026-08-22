@@ -81,7 +81,7 @@ public sealed class IntegrationTokenVaultTests
 
         Result store = await vault.StoreTokensAsync(
             connectionId,
-            new StoreTokensDto(
+            new(
                 "access-token-PLAINTEXT",
                 "refresh-token-PLAINTEXT",
                 AppToken: null,
@@ -116,7 +116,7 @@ public sealed class IntegrationTokenVaultTests
             connectionId = (await vault.UpsertConnectionAsync(TwitchConnect())).Value.Id;
             Result store = await vault.StoreTokensAsync(
                 connectionId,
-                new StoreTokensDto(
+                new(
                     "access-token-survives-restart",
                     "refresh-token-survives-restart",
                     AppToken: null,
@@ -146,7 +146,7 @@ public sealed class IntegrationTokenVaultTests
 
         await vault.StoreTokensAsync(
             connectionId,
-            new StoreTokensDto("super-secret-access", null, null, DateTime.UtcNow.AddHours(1))
+            new("super-secret-access", null, null, DateTime.UtcNow.AddHours(1))
         );
 
         IntegrationToken stored = await db
@@ -187,7 +187,7 @@ public sealed class IntegrationTokenVaultTests
 
         await vault.StoreTokensAsync(
             connectionId,
-            new StoreTokensDto("a", "r", null, DateTime.UtcNow.AddHours(1))
+            new("a", "r", null, DateTime.UtcNow.AddHours(1))
         );
 
         IntegrationConnection connection = await db
@@ -205,7 +205,7 @@ public sealed class IntegrationTokenVaultTests
         Guid connectionId = (await vault.UpsertConnectionAsync(TwitchConnect())).Value.Id;
         await vault.StoreTokensAsync(
             connectionId,
-            new StoreTokensDto("a", "r", null, DateTime.UtcNow.AddHours(1))
+            new("a", "r", null, DateTime.UtcNow.AddHours(1))
         );
 
         await vault.MarkRefreshFailureAsync(connectionId, "err-1");
@@ -238,7 +238,7 @@ public sealed class IntegrationTokenVaultTests
         Guid connectionId = (await vault.UpsertConnectionAsync(TwitchConnect())).Value.Id;
         await vault.StoreTokensAsync(
             connectionId,
-            new StoreTokensDto("a", "r", null, DateTime.UtcNow.AddHours(1))
+            new("a", "r", null, DateTime.UtcNow.AddHours(1))
         );
 
         await vault.RevokeConnectionAsync(connectionId, "user_disconnect");

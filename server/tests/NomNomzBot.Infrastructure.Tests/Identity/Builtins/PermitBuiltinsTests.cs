@@ -78,7 +78,7 @@ public sealed class PermitBuiltinsTests
             .Returns(
                 targetExists
                     ? Result.Success<IReadOnlyList<TwitchUser>>([
-                        new TwitchUser(
+                        new(
                             "tw-target",
                             "someone",
                             "Someone",
@@ -128,9 +128,9 @@ public sealed class PermitBuiltinsTests
             .Returns(Result.Success());
 
         FakeTimeProvider clock = new(Now);
-        return new Harness(
-            new PermitBuiltin(permits, users, roles, twitchUsers, clock),
-            new UnpermitBuiltin(permits, users, roles, twitchUsers),
+        return new(
+            new(permits, users, roles, twitchUsers, clock),
+            new(permits, users, roles, twitchUsers),
             permits,
             roles
         );

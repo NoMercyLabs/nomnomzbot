@@ -87,7 +87,7 @@ public class GameSessionsController(
         return ResultResponse(
             await engine.StartAsync(
                 broadcasterId,
-                new StartLiveGameCommand(request.GameType, startedBy),
+                new(request.GameType, startedBy),
                 ct
             )
         );
@@ -129,7 +129,7 @@ public class GameSessionsController(
             m.MinPlayers,
             m.MaxPlayers,
             (int)m.LobbyWindow.TotalSeconds,
-            m.TickInterval is TimeSpan tick ? (int)tick.TotalSeconds : null,
+            m.TickInterval is { } tick ? (int)tick.TotalSeconds : null,
             m.RequiresEntryFee
         );
 

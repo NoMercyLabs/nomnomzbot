@@ -48,7 +48,7 @@ public class CodeScriptsController(
         if (gate.IsFailure)
             return ResultResponse(gate);
         Result<PagedList<CodeScriptSummaryDto>> result = await scripts.ListAsync(
-            new PaginationParams(request.Page, request.Take, request.Sort, request.Order),
+            new(request.Page, request.Take, request.Sort, request.Order),
             ct
         );
         if (result.IsFailure)
@@ -133,7 +133,7 @@ public class CodeScriptsController(
             return ResultResponse(gate);
         Result<PagedList<CodeScriptVersionDto>> result = await scripts.ListVersionsAsync(
             id,
-            new PaginationParams(request.Page, request.Take, request.Sort, request.Order),
+            new(request.Page, request.Take, request.Sort, request.Order),
             ct
         );
         if (result.IsFailure)

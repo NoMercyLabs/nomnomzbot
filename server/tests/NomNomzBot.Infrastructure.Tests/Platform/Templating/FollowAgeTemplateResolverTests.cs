@@ -15,7 +15,6 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NSubstitute;
@@ -36,7 +35,7 @@ public sealed class FollowAgeTemplateResolverTests
     private readonly PronounGrammarTestDbContext _db;
     private readonly ITwitchChannelsApi _channels = Substitute.For<ITwitchChannelsApi>();
     private readonly FakeTimeProvider _time = new(
-        new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)
+        new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)
     );
     private readonly TemplateResolver _resolver;
 
@@ -44,7 +43,7 @@ public sealed class FollowAgeTemplateResolverTests
     {
         _db = PronounGrammarTestDbContext.New();
         _db.Users.Add(
-            new User
+            new()
             {
                 TwitchUserId = "555",
                 Username = "eve",
@@ -62,7 +61,7 @@ public sealed class FollowAgeTemplateResolverTests
         services.AddSingleton(helix);
         ServiceProvider provider = services.BuildServiceProvider();
 
-        _resolver = new TemplateResolver(
+        _resolver = new(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<TemplateResolver>.Instance,
@@ -88,11 +87,11 @@ public sealed class FollowAgeTemplateResolverTests
             .GetChannelFollowerAsync(Channel, "555", Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<TwitchChannelFollower?>(
-                    new TwitchChannelFollower(
+                    new(
                         "555",
                         "eve",
                         "Eve",
-                        new DateTimeOffset(2024, 11, 1, 0, 0, 0, TimeSpan.Zero)
+                        new(2024, 11, 1, 0, 0, 0, TimeSpan.Zero)
                     )
                 )
             );

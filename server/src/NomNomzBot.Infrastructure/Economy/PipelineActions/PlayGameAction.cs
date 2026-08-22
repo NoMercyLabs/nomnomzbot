@@ -60,7 +60,7 @@ public sealed class PlayGameAction(IGameService games, IRoleResolver roles) : IC
 
         Result<GamePlayResultDto> play = await games.PlayAsync(
             ctx.BroadcasterId,
-            new PlayGameRequest(game.Id, viewer, bet, level.IsSuccess ? level.Value : 0),
+            new(game.Id, viewer, bet, level.IsSuccess ? level.Value : 0),
             ctx.CancellationToken
         );
         if (play.IsFailure)

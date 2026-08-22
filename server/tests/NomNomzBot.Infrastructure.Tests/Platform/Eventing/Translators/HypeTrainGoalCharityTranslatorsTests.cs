@@ -27,16 +27,16 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing.Translators;
 public sealed class HypeTrainGoalCharityTranslatorsTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static EventSubNotification Notification(Guid tenant, string type, string payload)
     {
         using JsonDocument doc = JsonDocument.Parse(payload);
-        return new EventSubNotification
+        return new()
         {
             MessageId = "msg-1",
-            MessageTimestamp = new DateTimeOffset(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
+            MessageTimestamp = new(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
             SubscriptionType = type,
             SubscriptionVersion = type.StartsWith("channel.hype_train") ? "2" : "1",
             BroadcasterId = tenant,
@@ -85,7 +85,7 @@ public sealed class HypeTrainGoalCharityTranslatorsTests
         published.Total.Should().Be(700);
         published.Progress.Should().Be(200);
         published.Goal.Should().Be(1000);
-        published.ExpiresAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 35, 0, TimeSpan.Zero));
+        published.ExpiresAt.Should().Be(new(2026, 6, 20, 11, 35, 0, TimeSpan.Zero));
         published.TopContributions.Should().HaveCount(2);
         published
             .TopContributions[0]
@@ -161,7 +161,7 @@ public sealed class HypeTrainGoalCharityTranslatorsTests
             .Subject;
         published.Level.Should().Be(5);
         published.Total.Should().Be(3500);
-        published.EndedAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 40, 0, TimeSpan.Zero));
+        published.EndedAt.Should().Be(new(2026, 6, 20, 11, 40, 0, TimeSpan.Zero));
         published.TopContributions[0].Total.Should().Be(2000);
     }
 
@@ -197,7 +197,7 @@ public sealed class HypeTrainGoalCharityTranslatorsTests
         published.Description.Should().Be("Road to 1k followers");
         published.CurrentAmount.Should().Be(850);
         published.TargetAmount.Should().Be(1000);
-        published.StartedAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 0, 0, TimeSpan.Zero));
+        published.StartedAt.Should().Be(new(2026, 6, 20, 11, 0, 0, TimeSpan.Zero));
     }
 
     [Fact]
@@ -260,7 +260,7 @@ public sealed class HypeTrainGoalCharityTranslatorsTests
         GoalEndedEvent published = bus.EventsOf<GoalEndedEvent>().Should().ContainSingle().Subject;
         published.IsAchieved.Should().BeTrue("current_amount reached target_amount");
         published.CurrentAmount.Should().Be(1000);
-        published.EndedAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 50, 0, TimeSpan.Zero));
+        published.EndedAt.Should().Be(new(2026, 6, 20, 11, 50, 0, TimeSpan.Zero));
     }
 
     [Fact]
@@ -306,7 +306,7 @@ public sealed class HypeTrainGoalCharityTranslatorsTests
         published.TargetAmountValue.Should().Be(1500000);
         published.TargetAmountDecimalPlaces.Should().Be(2);
         published.TargetAmountCurrency.Should().Be("USD");
-        published.StartedAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 0, 0, TimeSpan.Zero));
+        published.StartedAt.Should().Be(new(2026, 6, 20, 11, 0, 0, TimeSpan.Zero));
     }
 
     [Fact]
@@ -409,6 +409,6 @@ public sealed class HypeTrainGoalCharityTranslatorsTests
             .ContainSingle()
             .Subject;
         published.CurrentAmountValue.Should().Be(1500000);
-        published.StoppedAt.Should().Be(new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
+        published.StoppedAt.Should().Be(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
     }
 }

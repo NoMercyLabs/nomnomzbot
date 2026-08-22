@@ -38,7 +38,7 @@ public sealed class OverlayEventFeedHook(
         CancellationToken cancellationToken = default
     )
     {
-        if (committed.BroadcasterId is not Guid broadcasterId || broadcasterId == Guid.Empty)
+        if (committed.BroadcasterId is not { } broadcasterId || broadcasterId == Guid.Empty)
             return Result.Success();
 
         // Never push an encrypted payload to a browser source — the overlay could not use it and it must not leave

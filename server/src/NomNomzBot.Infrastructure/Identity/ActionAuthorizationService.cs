@@ -165,7 +165,7 @@ public sealed class ActionAuthorizationService(
         if (existing is null)
         {
             db.ChannelActionOverrides.Add(
-                new ChannelActionOverride
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     ActionDefinitionId = action.Id,

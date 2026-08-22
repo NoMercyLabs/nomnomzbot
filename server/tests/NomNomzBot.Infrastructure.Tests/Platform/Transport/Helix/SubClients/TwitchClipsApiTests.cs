@@ -120,7 +120,7 @@ public class TwitchClipsApiTests
 
         Result<TwitchClipStub> result = await api.CreateClipFromVodAsync(
             Tenant,
-            new CreateClipFromVodRequest("9876", "video-1", 320, "Clutch moment")
+            new("9876", "video-1", 320, "Clutch moment")
         );
 
         result.IsFailure.Should().BeTrue();
@@ -181,7 +181,7 @@ public class TwitchClipsApiTests
 
         Result<TwitchClipStub> result = await api.CreateClipFromVodAsync(
             Tenant,
-            new CreateClipFromVodRequest("9876", "video-1", 320, "Clutch moment")
+            new("9876", "video-1", 320, "Clutch moment")
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -200,7 +200,7 @@ public class TwitchClipsApiTests
 
         Result<TwitchPage<TwitchClip>> result = await api.GetClipsByBroadcasterAsync(
             Tenant,
-            new TwitchPageRequest()
+            new()
         );
 
         result.IsFailure.Should().BeTrue();
@@ -219,7 +219,7 @@ public class TwitchClipsApiTests
 
         Result<TwitchPage<TwitchClip>> result = await api.GetClipsByBroadcasterAsync(
             Tenant,
-            new TwitchPageRequest(After: "abc", PageSize: 25)
+            new(After: "abc", PageSize: 25)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -263,12 +263,12 @@ public class TwitchClipsApiTests
             ListResult =
                 (IReadOnlyList<TwitchClipDownload>)
                     [
-                        new TwitchClipDownload(
+                        new(
                             "InexpensiveDistinctFoxChefFrank",
                             "https://production.assets.clips.twitchcdn.net/yFZG",
                             null
                         ),
-                        new TwitchClipDownload(
+                        new(
                             "SpinelessCloudyLeopardMcaT",
                             "https://production.assets.clips.twitchcdn.net/542j",
                             "https://production.assets.clips.twitchcdn.net/542j-portrait"

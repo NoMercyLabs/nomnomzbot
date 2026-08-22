@@ -207,7 +207,7 @@ public class PipelineService : IPipelineService
             ? JsonSerializer.Deserialize<JsonElement>(p.GraphJsonCache)
             : null;
 
-        return new PipelineDto(
+        return new(
             p.Id,
             p.BroadcasterId.ToString(),
             p.Name,

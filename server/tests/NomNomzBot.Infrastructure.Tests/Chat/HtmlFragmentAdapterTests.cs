@@ -31,7 +31,7 @@ public sealed class HtmlFragmentAdapterTests
         {
             Type = "emote",
             Text = code,
-            Emote = new ChatEmote(
+            Emote = new(
                 EmoteProvider.Twitch,
                 "25",
                 code,

@@ -166,25 +166,25 @@ public sealed class CatalogService(
         }
         if (request.Description is not null)
             item.Description = request.Description;
-        if (request.Cost is long cost)
+        if (request.Cost is { } cost)
             item.Cost = cost;
         if (request.IconUrl is not null)
             item.IconUrl = request.IconUrl;
-        if (request.IsEnabled is bool enabled)
+        if (request.IsEnabled is { } enabled)
             item.IsEnabled = enabled;
         if (request.Permission is not null)
             item.Permission = request.Permission;
         if (request.PipelineId is not null)
             item.PipelineId = request.PipelineId;
-        if (request.CooldownSeconds is int cooldown)
+        if (request.CooldownSeconds is { } cooldown)
             item.CooldownSeconds = cooldown;
-        if (request.CooldownPerUser is bool perUser)
+        if (request.CooldownPerUser is { } perUser)
             item.CooldownPerUser = perUser;
-        if (request.StockLimit is int stock)
+        if (request.StockLimit is { } stock)
             item.StockLimit = stock;
-        if (request.MaxPerViewerPerStream is int maxPer)
+        if (request.MaxPerViewerPerStream is { } maxPer)
             item.MaxPerViewerPerStream = maxPer;
-        if (request.SortOrder is int sort)
+        if (request.SortOrder is { } sort)
             item.SortOrder = sort;
 
         await db.SaveChangesAsync(ct);
@@ -281,14 +281,14 @@ public sealed class CatalogService(
         if (item.StockLimit is not null && item.StockRemaining <= 0)
             return Result.Failure<CatalogPurchaseDto>("Item is out of stock.", "OUT_OF_STOCK");
 
-        if (item.MaxPerViewerPerStream is int maxPerStream)
+        if (item.MaxPerViewerPerStream is { } maxPerStream)
         {
             DateTime? streamStart = await EconomyStreamWindow.CurrentStreamStartAsync(
                 db,
                 broadcasterId,
                 ct
             );
-            if (streamStart is DateTime since)
+            if (streamStart is { } since)
             {
                 int already = await db.CatalogPurchases.CountAsync(
                     p =>
@@ -309,7 +309,7 @@ public sealed class CatalogService(
 
         Result<CurrencyLedgerEntryDto> debit = await accounts.PostLedgerEntryAsync(
             broadcasterId,
-            new PostLedgerEntryCommand(
+            new(
                 request.BuyerUserId,
                 -item.Cost,
                 nameof(CurrencyEntryType.SpendCatalog),
@@ -325,7 +325,7 @@ public sealed class CatalogService(
         if (debit.IsFailure)
             return Result.Failure<CatalogPurchaseDto>(debit.ErrorMessage, debit.ErrorCode);
 
-        if (item.StockRemaining is int remaining)
+        if (item.StockRemaining is { } remaining)
             item.StockRemaining = remaining - 1;
 
         CatalogPurchase purchase = new()
@@ -382,7 +382,7 @@ public sealed class CatalogService(
 
         Result<CurrencyLedgerEntryDto> credit = await accounts.PostLedgerEntryAsync(
             broadcasterId,
-            new PostLedgerEntryCommand(
+            new(
                 original.BuyerUserId,
                 original.CostPaid,
                 nameof(CurrencyEntryType.RefundCatalog),
@@ -402,7 +402,7 @@ public sealed class CatalogService(
             i => i.Id == original.CatalogItemId,
             ct
         );
-        if (item?.StockRemaining is int remaining)
+        if (item?.StockRemaining is { } remaining)
             item.StockRemaining = remaining + 1;
 
         CatalogPurchase refundRow = new()
@@ -445,9 +445,9 @@ public sealed class CatalogService(
         IQueryable<CatalogPurchase> query = db.CatalogPurchases.Where(p =>
             p.BroadcasterId == broadcasterId
         );
-        if (filter.CatalogItemId is Guid itemId)
+        if (filter.CatalogItemId is { } itemId)
             query = query.Where(p => p.CatalogItemId == itemId);
-        if (filter.BuyerUserId is Guid buyer)
+        if (filter.BuyerUserId is { } buyer)
             query = query.Where(p => p.BuyerUserId == buyer);
         if (
             filter.Status is not null

@@ -32,7 +32,7 @@ public sealed class ScriptExecutionMeterTests
     private static (ScriptExecutionMeter Sut, IUsageMeteringService Usage) Build()
     {
         IUsageMeteringService usage = Substitute.For<IUsageMeteringService>();
-        return (new ScriptExecutionMeter(usage, new FakeTimeProvider(Now)), usage);
+        return (new(usage, new FakeTimeProvider(Now)), usage);
     }
 
     [Fact]

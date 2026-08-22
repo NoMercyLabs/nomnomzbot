@@ -87,7 +87,7 @@ public sealed class TwitchManagementSnapshotBuilderTests
             .Returns(
                 Result.Success(
                     new TwitchPage<TwitchModerator>(
-                        [new TwitchModerator("tw-mod", "modlogin", "ModName")],
+                        [new("tw-mod", "modlogin", "ModName")],
                         null,
                         1
                     )
@@ -97,7 +97,7 @@ public sealed class TwitchManagementSnapshotBuilderTests
             .GetChannelEditorsAsync(Broadcaster, Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<IReadOnlyList<TwitchChannelEditor>>([
-                    new TwitchChannelEditor("tw-editor", "EditorName", DateTimeOffset.UtcNow),
+                    new("tw-editor", "EditorName", DateTimeOffset.UtcNow),
                 ])
             );
 
@@ -151,7 +151,7 @@ public sealed class TwitchManagementSnapshotBuilderTests
             .GetChannelEditorsAsync(Broadcaster, Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<IReadOnlyList<TwitchChannelEditor>>([
-                    new TwitchChannelEditor("tw-editor", "EditorName", DateTimeOffset.UtcNow),
+                    new("tw-editor", "EditorName", DateTimeOffset.UtcNow),
                 ])
             );
 
@@ -193,7 +193,7 @@ public sealed class TwitchManagementSnapshotBuilderTests
             .Returns(
                 Result.Success(
                     new TwitchPage<TwitchModerator>(
-                        [new TwitchModerator("tw-both", "bothlogin", "BothName")],
+                        [new("tw-both", "bothlogin", "BothName")],
                         null,
                         1
                     )
@@ -203,7 +203,7 @@ public sealed class TwitchManagementSnapshotBuilderTests
             .GetChannelEditorsAsync(Broadcaster, Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<IReadOnlyList<TwitchChannelEditor>>([
-                    new TwitchChannelEditor("tw-both", "BothName", DateTimeOffset.UtcNow),
+                    new("tw-both", "BothName", DateTimeOffset.UtcNow),
                 ])
             );
 
@@ -242,7 +242,7 @@ public sealed class TwitchManagementSnapshotBuilderTests
             .Returns(
                 Result.Success(
                     new TwitchPage<TwitchModerator>(
-                        [new TwitchModerator("tw-mod", "modlogin", "ModName")],
+                        [new("tw-mod", "modlogin", "ModName")],
                         "cursor-1",
                         2
                     )
@@ -256,7 +256,7 @@ public sealed class TwitchManagementSnapshotBuilderTests
             .Returns(
                 Result.Success(
                     new TwitchPage<TwitchModerator>(
-                        [new TwitchModerator("tw-mod2", "mod2login", "Mod2Name")],
+                        [new("tw-mod2", "mod2login", "Mod2Name")],
                         null,
                         2
                     )
@@ -303,8 +303,8 @@ public sealed class TwitchManagementSnapshotBuilderTests
                 Result.Success(
                     new TwitchPage<TwitchModerator>(
                         [
-                            new TwitchModerator("tw-mod", "modlogin", "ModName"),
-                            new TwitchModerator("tw-flaky", "flakylogin", "FlakyName"),
+                            new("tw-mod", "modlogin", "ModName"),
+                            new("tw-flaky", "flakylogin", "FlakyName"),
                         ],
                         null,
                         2
@@ -339,7 +339,7 @@ public sealed class TwitchManagementSnapshotBuilderTests
             .Returns(
                 Result.Success(
                     new TwitchPage<TwitchModerator>(
-                        [new TwitchModerator("tw-mod", "modlogin", "ModName")],
+                        [new("tw-mod", "modlogin", "ModName")],
                         "cursor-1",
                         2
                     )

@@ -48,8 +48,8 @@ public class TwitchResilienceTests
     {
         // First two attempts 503, third 200 — the retry strategy must reach the success.
         (HttpClient client, RecordingHelixHandler wire) = BuildClient([
-            () => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable),
-            () => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable),
+            () => new(HttpStatusCode.ServiceUnavailable),
+            () => new(HttpStatusCode.ServiceUnavailable),
             () => RecordingHelixHandler.Json(HttpStatusCode.OK, "{\"data\":[]}"),
         ]);
 
@@ -63,7 +63,7 @@ public class TwitchResilienceTests
     public async Task Pipeline_DoesNotRetry_ClientError400()
     {
         (HttpClient client, RecordingHelixHandler wire) = BuildClient([
-            () => new HttpResponseMessage(HttpStatusCode.BadRequest),
+            () => new(HttpStatusCode.BadRequest),
         ]);
 
         HttpResponseMessage response = await client.GetAsync("https://api.twitch.tv/helix/users");
@@ -77,7 +77,7 @@ public class TwitchResilienceTests
     {
         // 429 is the rate-limit handler's job (honour Ratelimit-Reset), never a blind resilience retry.
         (HttpClient client, RecordingHelixHandler wire) = BuildClient([
-            () => new HttpResponseMessage(HttpStatusCode.TooManyRequests),
+            () => new(HttpStatusCode.TooManyRequests),
         ]);
 
         HttpResponseMessage response = await client.GetAsync("https://api.twitch.tv/helix/users");

@@ -67,7 +67,7 @@ public sealed record UploadChannelAssetRequest(
     string Name,
     string DisplayName,
     string FileName,
-    System.IO.Stream Content
+    Stream Content
 );
 
 public sealed record ChannelAssetDto(
@@ -85,7 +85,7 @@ public sealed record ChannelAssetDto(
 
 /// <summary>An open asset stream plus the sniffed MIME type, for the public serving route.</summary>
 public sealed record ChannelAssetContent(
-    System.IO.Stream Content,
+    Stream Content,
     string MimeType,
     string Kind,
     long SizeBytes

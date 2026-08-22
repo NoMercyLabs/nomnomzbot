@@ -27,7 +27,7 @@ public sealed class TwitchOAuthStateServiceTests
         TwitchOAuthStateService svc = new(new FakeCache());
 
         string nonce = await svc.IssueAsync(
-            new TwitchOAuthFlowState("channel_bot", ChannelId: "abc")
+            new("channel_bot", ChannelId: "abc")
         );
 
         nonce.Should().NotBeNullOrWhiteSpace();
@@ -41,7 +41,7 @@ public sealed class TwitchOAuthStateServiceTests
     public async Task Consume_is_single_use()
     {
         TwitchOAuthStateService svc = new(new FakeCache());
-        string nonce = await svc.IssueAsync(new TwitchOAuthFlowState("user"));
+        string nonce = await svc.IssueAsync(new("user"));
 
         (await svc.ConsumeAsync(nonce)).Should().NotBeNull();
         (await svc.ConsumeAsync(nonce)).Should().BeNull(); // already used — replay rejected
@@ -63,8 +63,8 @@ public sealed class TwitchOAuthStateServiceTests
     {
         TwitchOAuthStateService svc = new(new FakeCache());
 
-        string a = await svc.IssueAsync(new TwitchOAuthFlowState("user"));
-        string b = await svc.IssueAsync(new TwitchOAuthFlowState("user"));
+        string a = await svc.IssueAsync(new("user"));
+        string b = await svc.IssueAsync(new("user"));
 
         a.Should().NotBe(b);
     }
@@ -79,7 +79,7 @@ public sealed class TwitchOAuthStateServiceTests
         public Task SetAsync<T>(
             string key,
             T value,
-            System.TimeSpan? expiry = null,
+            TimeSpan? expiry = null,
             CancellationToken ct = default
         )
         {

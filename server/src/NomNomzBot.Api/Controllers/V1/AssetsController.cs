@@ -71,7 +71,7 @@ public sealed class AssetsController : BaseController
 
         Result<PagedList<ChannelAssetDto>> result = await _service.ListAsync(
             broadcasterId,
-            new PaginationParams(pagination.Page, pagination.Take),
+            new(pagination.Page, pagination.Take),
             ct
         );
 

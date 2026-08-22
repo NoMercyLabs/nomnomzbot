@@ -199,7 +199,7 @@ public class BundleExportService : IBundleExportService
         ];
         foreach (Guid? boundId in boundPipelineIds)
         {
-            if (boundId is not Guid pipelineId || pipelines.ContainsKey(pipelineId))
+            if (boundId is not { } pipelineId || pipelines.ContainsKey(pipelineId))
                 continue;
             Result pulled = await ResolveAsync(
                 _db.Pipelines,
@@ -221,7 +221,7 @@ public class BundleExportService : IBundleExportService
 
             // The `pipeline:<name>` re-link/dependency mechanics shared by every pipeline-bound item type.
             string? PipelineNameOf(Guid? pipelineId) =>
-                pipelineId is Guid id ? pipelines[id].Name : null;
+                pipelineId is { } id ? pipelines[id].Name : null;
             static IReadOnlyList<string> PipelineEdge(string? pipelineName) =>
                 pipelineName is null ? [] : [$"{BundleFormat.PipelineType}:{pipelineName}"];
 
@@ -349,7 +349,7 @@ public class BundleExportService : IBundleExportService
                 string entryPath = BundleConventions.EntryPath(BundleFormat.SoundType, slug);
                 await WriteJsonEntryAsync(archive, entryPath, export, ct);
                 manifestItems.Add(
-                    new BundleManifestItem(BundleFormat.SoundType, sound.Name, entryPath, [])
+                    new(BundleFormat.SoundType, sound.Name, entryPath, [])
                 );
             }
 
@@ -383,7 +383,7 @@ public class BundleExportService : IBundleExportService
                 string entryPath = BundleConventions.EntryPath(BundleFormat.AssetType, slug);
                 await WriteJsonEntryAsync(archive, entryPath, export, ct);
                 manifestItems.Add(
-                    new BundleManifestItem(BundleFormat.AssetType, asset.Name, entryPath, [])
+                    new(BundleFormat.AssetType, asset.Name, entryPath, [])
                 );
             }
 
@@ -548,7 +548,7 @@ public class BundleExportService : IBundleExportService
             {
                 // Export the live (current) version's project, falling back to the newest saved version
                 // for a script that never published a valid one — the same read GetProjectAsync makes.
-                CodeScriptVersion? version = script.CurrentVersionId is Guid currentId
+                CodeScriptVersion? version = script.CurrentVersionId is { } currentId
                     ? await _db.CodeScriptVersions.FirstOrDefaultAsync(v => v.Id == currentId, ct)
                     : await _db
                         .CodeScriptVersions.Where(v => v.CodeScriptId == script.Id)
@@ -575,7 +575,7 @@ public class BundleExportService : IBundleExportService
                     Description = script.Description,
                     Language = script.Language,
                     Files = files,
-                    Manifest = new CodeScriptManifestExport(
+                    Manifest = new(
                         manifest.Entry,
                         manifest.Kind,
                         manifest.Framework,
@@ -712,7 +712,7 @@ public class BundleExportService : IBundleExportService
     {
         string entryPath = BundleConventions.EntryPath(type, UniqueSlug(name, usedSlugs));
         await WriteJsonEntryAsync(archive, entryPath, export, ct);
-        return new BundleManifestItem(type, name, entryPath, dependencies);
+        return new(type, name, entryPath, dependencies);
     }
 
     private static async Task WriteJsonEntryAsync<T>(

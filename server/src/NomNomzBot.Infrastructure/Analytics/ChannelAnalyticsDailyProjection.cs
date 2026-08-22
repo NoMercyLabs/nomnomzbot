@@ -8,8 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -72,7 +70,7 @@ public sealed class ChannelAnalyticsDailyProjection(
         CancellationToken cancellationToken = default
     )
     {
-        if (@event.BroadcasterId is not Guid broadcasterId)
+        if (@event.BroadcasterId is not { } broadcasterId)
             return Result.Success(); // directory-level event — no channel to attribute it to
 
         DateOnly date = DateOnly.FromDateTime(@event.OccurredAt);
@@ -138,7 +136,7 @@ public sealed class ChannelAnalyticsDailyProjection(
     )
     {
         List<ChannelAnalyticsDaily> rows = await (
-            broadcasterId is Guid id
+            broadcasterId is { } id
                 ? db.ChannelAnalyticsDailies.Where(r => r.BroadcasterId == id)
                 : db.ChannelAnalyticsDailies
         ).ToListAsync(cancellationToken);
@@ -147,7 +145,7 @@ public sealed class ChannelAnalyticsDailyProjection(
         // The distinctness/presence anchor is owned by this projection — it resets with the aggregate,
         // or a replay would see every chatter as "already counted".
         List<ChannelChatterDay> anchors = await (
-            broadcasterId is Guid anchorTenant
+            broadcasterId is { } anchorTenant
                 ? db.ChannelChatterDays.Where(r => r.BroadcasterId == anchorTenant)
                 : db.ChannelChatterDays
         ).ToListAsync(cancellationToken);
@@ -195,7 +193,7 @@ public sealed class ChannelAnalyticsDailyProjection(
         if (anchor is null)
         {
             db.ChannelChatterDays.Add(
-                new ChannelChatterDay
+                new()
                 {
                     BroadcasterId = row.BroadcasterId,
                     ActivityDate = row.ActivityDate,
@@ -249,7 +247,7 @@ public sealed class ChannelAnalyticsDailyProjection(
             );
         if (row is null)
         {
-            row = new ChannelAnalyticsDaily { BroadcasterId = broadcasterId, ActivityDate = date };
+            row = new() { BroadcasterId = broadcasterId, ActivityDate = date };
             db.ChannelAnalyticsDailies.Add(row);
         }
         return row;

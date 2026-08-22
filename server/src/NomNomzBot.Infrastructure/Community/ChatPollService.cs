@@ -86,7 +86,7 @@ public sealed class ChatPollService : IChatPollService
             OptionsJson = JsonSerializer.Serialize(options),
             Status = ChatPollStatus.Open,
             OpenedAt = now,
-            ClosesAt = request.DurationSeconds is int seconds and > 0
+            ClosesAt = request.DurationSeconds is { } seconds and > 0
                 ? now.AddSeconds(Math.Min(seconds, MaxDurationSeconds))
                 : null,
         };
@@ -213,7 +213,7 @@ public sealed class ChatPollService : IChatPollService
         }
 
         DateTime now = _clock.GetUtcNow().UtcDateTime;
-        if (poll.ClosesAt is DateTime closesAt && now >= closesAt)
+        if (poll.ClosesAt is { } closesAt && now >= closesAt)
         {
             await CloseCoreAsync(poll, announce: true, cancellationToken);
             return;
@@ -232,7 +232,7 @@ public sealed class ChatPollService : IChatPollService
         if (existing is null)
         {
             _db.ChatPollVotes.Add(
-                new ChatPollVote
+                new()
                 {
                     Id = Guid.CreateVersion7(),
                     BroadcasterId = broadcasterId,
@@ -322,7 +322,7 @@ public sealed class ChatPollService : IChatPollService
                 (label, i) => new ChatPollOptionDto(i + 1, label, votes.GetValueOrDefault(i + 1))
             ),
         ];
-        return new ChatPollDto(
+        return new(
             poll.Id,
             poll.Question,
             optionDtos,
@@ -350,7 +350,7 @@ public sealed class ChatPollService : IChatPollService
     {
         ChannelContext? ctx = _registry.Get(broadcaster);
         if (ctx is not null)
-            ctx.ActiveChatPoll = new CachedChatPoll { Id = poll.Id, OptionCount = optionCount };
+            ctx.ActiveChatPoll = new() { Id = poll.Id, OptionCount = optionCount };
     }
 
     private void ClearHotPathPoll(Guid broadcaster)

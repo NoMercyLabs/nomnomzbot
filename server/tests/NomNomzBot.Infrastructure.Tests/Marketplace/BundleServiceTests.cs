@@ -116,11 +116,11 @@ public sealed class BundleServiceTests
             Substitute.For<ICurrentTenantService>(),
             bus
         );
-        return new Harness(db, export, import, commands, pipelines, dataSources, bus, protector);
+        return new(db, export, import, commands, pipelines, dataSources, bus, protector);
     }
 
     private static ExportRequest Request(params ExportItemRef[] items) =>
-        new(items, new BundleMetadata("Starter Pack", "1.0.0", "stoney", "MIT", "test bundle"));
+        new(items, new("Starter Pack", "1.0.0", "stoney", "MIT", "test bundle"));
 
     /// <summary>Seeds a pipeline (with the given graph) + a command executing it; returns their ids.</summary>
     private static async Task<(Guid PipelineId, Guid CommandId)> SeedCommandWithPipelineAsync(
@@ -132,7 +132,7 @@ public sealed class BundleServiceTests
         PipelineDto pipeline = (
             await h.Pipelines.CreateAsync(
                 Channel.ToString(),
-                new CreatePipelineDto
+                new()
                 {
                     Name = "Greeting Flow",
                     Description = "greets",
@@ -148,7 +148,7 @@ public sealed class BundleServiceTests
         CommandDto command = (
             await h.Commands.CreateAsync(
                 Channel.ToString(),
-                new CreateCommandDto
+                new()
                 {
                     Name = commandName,
                     Tier = "pipeline",
@@ -238,7 +238,7 @@ public sealed class BundleServiceTests
             await h.DataSources.CreateAsync(
                 Channel,
                 Actor,
-                new UpsertCustomDataSourceRequest(
+                new(
                     "heartrate",
                     "Heart Rate",
                     "poll",
@@ -408,7 +408,7 @@ public sealed class BundleServiceTests
         CommandDto bundled = (
             await source.Commands.CreateAsync(
                 Channel.ToString(),
-                new CreateCommandDto { Name = "hello", TemplateResponse = "bundled response" }
+                new() { Name = "hello", TemplateResponse = "bundled response" }
             )
         ).Value;
         MemoryStream zip = await ExportCommandBundleAsync(source, bundled.Id);
@@ -417,7 +417,7 @@ public sealed class BundleServiceTests
         CommandDto existing = (
             await target.Commands.CreateAsync(
                 OtherChannel.ToString(),
-                new CreateCommandDto { Name = "hello", TemplateResponse = "original response" }
+                new() { Name = "hello", TemplateResponse = "original response" }
             )
         ).Value;
 
@@ -445,7 +445,7 @@ public sealed class BundleServiceTests
         CommandDto bundled = (
             await source.Commands.CreateAsync(
                 Channel.ToString(),
-                new CreateCommandDto { Name = "hello", TemplateResponse = "bundled response" }
+                new() { Name = "hello", TemplateResponse = "bundled response" }
             )
         ).Value;
         MemoryStream zip = await ExportCommandBundleAsync(source, bundled.Id);
@@ -454,7 +454,7 @@ public sealed class BundleServiceTests
         CommandDto existing = (
             await target.Commands.CreateAsync(
                 OtherChannel.ToString(),
-                new CreateCommandDto { Name = "hello", TemplateResponse = "original response" }
+                new() { Name = "hello", TemplateResponse = "original response" }
             )
         ).Value;
 
@@ -478,7 +478,7 @@ public sealed class BundleServiceTests
         CommandDto bundled = (
             await source.Commands.CreateAsync(
                 Channel.ToString(),
-                new CreateCommandDto { Name = "hello", TemplateResponse = "bundled response" }
+                new() { Name = "hello", TemplateResponse = "bundled response" }
             )
         ).Value;
         MemoryStream zip = await ExportCommandBundleAsync(source, bundled.Id);
@@ -486,7 +486,7 @@ public sealed class BundleServiceTests
         Harness target = Build();
         await target.Commands.CreateAsync(
             OtherChannel.ToString(),
-            new CreateCommandDto { Name = "hello", TemplateResponse = "original response" }
+            new() { Name = "hello", TemplateResponse = "original response" }
         );
 
         Result<InstalledBundleDto> installed = await target.Import.ImportAsync(
@@ -521,7 +521,7 @@ public sealed class BundleServiceTests
         CommandDto keeper = (
             await target.Commands.CreateAsync(
                 OtherChannel.ToString(),
-                new CreateCommandDto { Name = "keep-me", TemplateResponse = "stays" }
+                new() { Name = "keep-me", TemplateResponse = "stays" }
             )
         ).Value;
 

@@ -194,7 +194,7 @@ public class TtsLexiconService : ITtsLexiconService
             {
                 foreach (Match match in Regex.Matches(text, pattern, options, MatchTimeout))
                     matches.Add(
-                        new LexiconMatch(match.Index, match.Length, entry.Replacement, order)
+                        new(match.Index, match.Length, entry.Replacement, order)
                     );
             }
             catch (RegexMatchTimeoutException)

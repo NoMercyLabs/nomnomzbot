@@ -425,10 +425,10 @@ public sealed class PipelineEngine : IPipelineEngine
             if (row.Conditions is { Count: > 0 })
             {
                 PipelineStepCondition first = row.Conditions.OrderBy(c => c.Order).First();
-                condition = new ConditionDefinition
+                condition = new()
                 {
                     Type = first.ConditionType,
-                    Parameters = new Dictionary<string, JsonElement>
+                    Parameters = new()
                     {
                         ["operator"] = JsonSerializer.SerializeToElement(
                             first.Operator ?? "eq",
@@ -448,7 +448,7 @@ public sealed class PipelineEngine : IPipelineEngine
             }
 
             definition.Steps.Add(
-                new PipelineStepDefinition { Action = action, Condition = condition }
+                new() { Action = action, Condition = condition }
             );
         }
 
@@ -458,7 +458,7 @@ public sealed class PipelineEngine : IPipelineEngine
     private PipelineDefinition? ParseJson(string json)
     {
         if (string.IsNullOrWhiteSpace(json) || json == "{}")
-            return new PipelineDefinition();
+            return new();
         try
         {
             PipelineDefinition? parsed = JsonSerializer.Deserialize<PipelineDefinition>(

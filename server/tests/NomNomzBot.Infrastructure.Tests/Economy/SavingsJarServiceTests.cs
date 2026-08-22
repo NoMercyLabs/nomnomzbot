@@ -33,7 +33,7 @@ public sealed class SavingsJarServiceTests
     private static readonly Guid Partner = Guid.Parse("0192a000-0000-7000-8000-0000000000e2");
     private static readonly Guid Viewer = Guid.Parse("0192a000-0000-7000-8000-0000000000e3");
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static (SavingsJarService Sut, EventStoreTestDbContext Db, RecordingEventBus Bus) New(
@@ -42,7 +42,7 @@ public sealed class SavingsJarServiceTests
     {
         EventStoreTestDbContext db = database.NewContext();
         db.CurrencyConfigs.Add(
-            new CurrencyConfig
+            new()
             {
                 BroadcasterId = Owner,
                 CurrencyName = "points",
@@ -67,7 +67,7 @@ public sealed class SavingsJarServiceTests
     {
         Result<SavingsJarDto> jar = await sut.CreateJarAsync(
             Owner,
-            new CreateSavingsJarRequest("Charity Pot", null, goal, null, open, null)
+            new("Charity Pot", null, goal, null, open, null)
         );
         return jar.Value.Id;
     }
@@ -96,7 +96,7 @@ public sealed class SavingsJarServiceTests
 
         Result<SavingsJarMembershipDto> invite = await sut.InviteChannelAsync(
             Owner,
-            new InviteChannelRequest(jarId, Partner, "Partner", null, null)
+            new(jarId, Partner, "Partner", null, null)
         );
         invite.Value.Status.Should().Be("Pending");
 
@@ -120,7 +120,7 @@ public sealed class SavingsJarServiceTests
 
         Result<JarMovementDto> result = await sut.ContributeAsync(
             Partner, // no membership
-            new JarContributeRequest(jarId, Viewer, 10)
+            new(jarId, Viewer, 10)
         );
 
         result.ErrorCode.Should().Be("JAR_MEMBERSHIP_REQUIRED");
@@ -135,7 +135,7 @@ public sealed class SavingsJarServiceTests
 
         Result<JarMovementDto> result = await sut.ContributeAsync(
             Owner,
-            new JarContributeRequest(jarId, Viewer, 30)
+            new(jarId, Viewer, 30)
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -165,7 +165,7 @@ public sealed class SavingsJarServiceTests
 
         Result<JarMovementDto> result = await sut.ContributeAsync(
             Owner,
-            new JarContributeRequest(jarId, Viewer, 10)
+            new(jarId, Viewer, 10)
         );
 
         result.ErrorCode.Should().Be("JAR_NOT_OPEN");
@@ -177,11 +177,11 @@ public sealed class SavingsJarServiceTests
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         (SavingsJarService sut, _, _) = New(database);
         Guid jarId = await CreateJarAsync(sut);
-        await sut.ContributeAsync(Owner, new JarContributeRequest(jarId, Viewer, 30)); // jar = 30
+        await sut.ContributeAsync(Owner, new(jarId, Viewer, 30)); // jar = 30
 
         Result<JarMovementDto> result = await sut.WithdrawAsync(
             Owner,
-            new JarWithdrawRequest(jarId, Viewer, 20, Owner)
+            new(jarId, Viewer, 20, Owner)
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -195,7 +195,7 @@ public sealed class SavingsJarServiceTests
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         (SavingsJarService sut, EventStoreTestDbContext db, _) = New(database);
         db.Streams.Add(
-            new NomNomzBot.Domain.Stream.Entities.Stream
+            new()
             {
                 Id = "s1",
                 ChannelId = Owner,
@@ -210,10 +210,10 @@ public sealed class SavingsJarServiceTests
         owner.ContributionCapPerStream = 50;
         db.SaveChanges();
 
-        (await sut.ContributeAsync(Owner, new JarContributeRequest(jarId, Viewer, 30)))
+        (await sut.ContributeAsync(Owner, new(jarId, Viewer, 30)))
             .IsSuccess.Should()
             .BeTrue();
-        (await sut.ContributeAsync(Owner, new JarContributeRequest(jarId, Viewer, 30)))
+        (await sut.ContributeAsync(Owner, new(jarId, Viewer, 30)))
             .ErrorCode.Should()
             .Be("JAR_CAP_EXCEEDED"); // 30 already + 30 > 50
     }
@@ -224,11 +224,11 @@ public sealed class SavingsJarServiceTests
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         (SavingsJarService sut, _, _) = New(database);
         Guid jarId = await CreateJarAsync(sut);
-        await sut.ContributeAsync(Owner, new JarContributeRequest(jarId, Viewer, 30)); // jar = 30
-        await sut.WithdrawAsync(Owner, new JarWithdrawRequest(jarId, Viewer, 10, Owner)); // jar = 20
+        await sut.ContributeAsync(Owner, new(jarId, Viewer, 30)); // jar = 30
+        await sut.WithdrawAsync(Owner, new(jarId, Viewer, 10, Owner)); // jar = 20
 
         PagedList<JarMovementDto> history = (
-            await sut.GetJarHistoryAsync(Owner, jarId, new PaginationParams(1, 25))
+            await sut.GetJarHistoryAsync(Owner, jarId, new(1, 25))
         ).Value;
 
         history.Items.Should().HaveCount(2);

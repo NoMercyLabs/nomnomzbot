@@ -41,7 +41,7 @@ internal sealed class SocketIoFrameSource(IHttpClientFactory httpClientFactory) 
         );
 
         Channel<string> frames = Channel.CreateUnbounded<string>(
-            new UnboundedChannelOptions { SingleReader = true }
+            new() { SingleReader = true }
         );
 
         using SocketIO client = new(
@@ -69,7 +69,7 @@ internal sealed class SocketIoFrameSource(IHttpClientFactory httpClientFactory) 
             );
 
         await client.ConnectAsync(ct);
-        if (io.BuildConnectEmit(secret) is SocketIoEmit emit)
+        if (io.BuildConnectEmit(secret) is { } emit)
             await client.EmitAsync(emit.EventName, [emit.Payload], ct);
 
         try

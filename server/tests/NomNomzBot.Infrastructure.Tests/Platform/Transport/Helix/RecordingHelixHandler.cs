@@ -38,7 +38,7 @@ public sealed class RecordingHelixHandler(IEnumerable<Func<HttpResponseMessage>>
             : await request.Content.ReadAsStringAsync(cancellationToken);
 
         Requests.Add(
-            new RecordedRequest(
+            new(
                 request.Method,
                 request.RequestUri!,
                 request.Headers.Authorization?.Parameter,
@@ -52,14 +52,14 @@ public sealed class RecordingHelixHandler(IEnumerable<Func<HttpResponseMessage>>
         Func<HttpResponseMessage> next =
             _responses.Count > 0
                 ? _responses.Dequeue()
-                : () => new HttpResponseMessage(HttpStatusCode.OK);
+                : () => new(HttpStatusCode.OK);
 
         return next();
     }
 
     public static HttpResponseMessage Json(HttpStatusCode status, string body)
     {
-        return new HttpResponseMessage(status)
+        return new(status)
         {
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
@@ -67,7 +67,7 @@ public sealed class RecordingHelixHandler(IEnumerable<Func<HttpResponseMessage>>
 
     public static HttpResponseMessage Text(HttpStatusCode status, string body, string mediaType)
     {
-        return new HttpResponseMessage(status)
+        return new(status)
         {
             Content = new StringContent(body, Encoding.UTF8, mediaType),
         };

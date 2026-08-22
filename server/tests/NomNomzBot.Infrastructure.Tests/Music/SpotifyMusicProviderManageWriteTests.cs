@@ -14,7 +14,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 
@@ -156,7 +155,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
         Result<MusicPlaylistDto> result = await api.CreatePlaylistAsync(
             ChannelId,
             "spotify",
-            new CreateMusicPlaylistDto
+            new()
             {
                 Name = "Stream Bangers",
                 Description = "Hype tracks",
@@ -210,7 +209,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
             ChannelId,
             "spotify",
             "pl1",
-            new UpdateMusicPlaylistDto { Name = "Renamed" }
+            new() { Name = "Renamed" }
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -232,7 +231,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
             ChannelId,
             "spotify",
             "pl1",
-            new UpdateMusicPlaylistDto()
+            new()
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -413,7 +412,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
                 .Options
         );
         db.Services.Add(
-            new Service
+            new()
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = "spotify",
@@ -429,7 +428,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
             db,
             new PassthroughProtector(),
             new InMemoryIntegrationCapabilityStore(),
-            new NomNomzBot.Infrastructure.Music.LastActiveSpotifyDeviceTracker(),
+            new LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance

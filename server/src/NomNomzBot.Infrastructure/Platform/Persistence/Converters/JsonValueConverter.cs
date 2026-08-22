@@ -44,7 +44,7 @@ public static class JsonValueConverter
             model => JsonConvert.SerializeObject(model, Settings),
             column =>
                 string.IsNullOrEmpty(column)
-                    ? new T()
+                    ? new()
                     : JsonConvert.DeserializeObject<T>(column, Settings) ?? new T()
         );
 

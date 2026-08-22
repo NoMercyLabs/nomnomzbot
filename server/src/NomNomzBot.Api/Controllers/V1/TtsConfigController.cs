@@ -144,7 +144,7 @@ public class TtsConfigController : BaseController
     )
     {
         Result<PagedList<TtsVoiceDto>> result = await _ttsConfigService.SearchVoicesAsync(
-            new TtsVoiceQuery(q, locale, gender, provider, accent, page, pageSize),
+            new(q, locale, gender, provider, accent, page, pageSize),
             ct
         );
         if (result.IsFailure)

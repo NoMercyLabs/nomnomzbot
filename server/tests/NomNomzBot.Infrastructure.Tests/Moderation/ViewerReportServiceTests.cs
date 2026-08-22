@@ -14,7 +14,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Moderation.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Moderation;
@@ -44,7 +43,7 @@ public sealed class ViewerReportServiceTests
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Tenant,
                 TwitchChannelId = "1001",

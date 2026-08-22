@@ -47,7 +47,7 @@ public sealed class ViewerProfileProjection(IApplicationDbContext db, ViewerReso
         CancellationToken cancellationToken = default
     )
     {
-        if (@event.BroadcasterId is not Guid broadcasterId)
+        if (@event.BroadcasterId is not { } broadcasterId)
             return Result.Success();
 
         JObject? payload = ViewerResolver.TryParse(@event.PayloadJson);
@@ -105,7 +105,7 @@ public sealed class ViewerProfileProjection(IApplicationDbContext db, ViewerReso
     )
     {
         List<ViewerProfile> rows = await (
-            broadcasterId is Guid id
+            broadcasterId is { } id
                 ? db.ViewerProfiles.Where(p => p.BroadcasterId == id)
                 : db.ViewerProfiles
         ).ToListAsync(cancellationToken);

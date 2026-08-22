@@ -34,7 +34,7 @@ public sealed class ChannelBasicsServiceTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Users.Add(
-            new User
+            new()
             {
                 Id = OwnerId,
                 Username = "stoney",
@@ -43,7 +43,7 @@ public sealed class ChannelBasicsServiceTests
             }
         );
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = ChannelId,
                 OwnerUserId = OwnerId,
@@ -63,7 +63,7 @@ public sealed class ChannelBasicsServiceTests
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         RecordingEventBus bus = new();
-        return (new ChannelService(db, TimeProvider.System, bus, registry), registry, bus);
+        return (new(db, TimeProvider.System, bus, registry), registry, bus);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class ChannelBasicsServiceTests
 
         Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
             ChannelId.ToString(),
-            new UpdateChannelSettingsDto
+            new()
             {
                 Prefix = "?",
                 Locale = "nl",
@@ -134,7 +134,7 @@ public sealed class ChannelBasicsServiceTests
         // Only the prefix is supplied; locale/auto-join/timezone are null and must not be overwritten.
         Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
             ChannelId.ToString(),
-            new UpdateChannelSettingsDto { Prefix = "~" }
+            new() { Prefix = "~" }
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -152,7 +152,7 @@ public sealed class ChannelBasicsServiceTests
 
         Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
             ChannelId.ToString(),
-            new UpdateChannelSettingsDto { Prefix = "a b" }
+            new() { Prefix = "a b" }
         );
 
         result.IsFailure.Should().BeTrue();
@@ -170,7 +170,7 @@ public sealed class ChannelBasicsServiceTests
 
         Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
             ChannelId.ToString(),
-            new UpdateChannelSettingsDto { Prefix = "!!!!!!" }
+            new() { Prefix = "!!!!!!" }
         );
 
         result.IsFailure.Should().BeTrue();

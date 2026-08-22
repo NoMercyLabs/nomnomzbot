@@ -38,7 +38,7 @@ public sealed class ScriptCapabilityBrokerTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(featureEnabled);
-        return new ScriptCapabilityBroker(features);
+        return new(features);
     }
 
     [Fact]

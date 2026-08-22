@@ -12,7 +12,6 @@ using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.Identity;
@@ -50,7 +49,7 @@ public sealed class PermitServiceTests
 
     private static void SeedMembership(AuthDbContext db, Guid userId, ManagementRole role) =>
         db.ChannelMemberships.Add(
-            new ChannelMembership
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = userId,
@@ -63,7 +62,7 @@ public sealed class PermitServiceTests
 
     private static void SeedAction(AuthDbContext db, string key, int floor, bool grantable) =>
         db.ActionDefinitions.Add(
-            new ActionDefinition
+            new()
             {
                 ActionKey = key,
                 Plane = AuthPlane.Management,

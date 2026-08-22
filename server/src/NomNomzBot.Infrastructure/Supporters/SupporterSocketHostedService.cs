@@ -216,7 +216,7 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
     /// </summary>
     private static string? CredentialFingerprint(SupporterConnection connection) =>
         connection.AuthSecretCipher
-        ?? (connection.IntegrationConnectionId is Guid oauthId ? $"oauth:{oauthId}" : null);
+        ?? (connection.IntegrationConnectionId is { } oauthId ? $"oauth:{oauthId}" : null);
 
     /// <summary>
     /// The live credential for one connect attempt: the unsealed connection secret, or — for an
@@ -242,7 +242,7 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
             );
         }
 
-        if (oauthConnectionId is Guid oauthId)
+        if (oauthConnectionId is { } oauthId)
         {
             IIntegrationTokenVault vault =
                 scope.ServiceProvider.GetRequiredService<IIntegrationTokenVault>();

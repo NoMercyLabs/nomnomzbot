@@ -11,7 +11,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Content.Identity;
 using NomNomzBot.Infrastructure.Identity;
@@ -51,7 +50,7 @@ public sealed class GateEndToEndTests
         ChannelAccessService gate1 = new(db);
 
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Channel,
                 OwnerUserId = Owner,
@@ -61,7 +60,7 @@ public sealed class GateEndToEndTests
             }
         );
         db.ChannelMemberships.Add(
-            new ChannelMembership
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = Moderator,
@@ -72,7 +71,7 @@ public sealed class GateEndToEndTests
             }
         );
         db.ChannelMemberships.Add(
-            new ChannelMembership
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = Editor,
@@ -84,7 +83,7 @@ public sealed class GateEndToEndTests
         );
         // A community-plane VIP with NO management membership: effective level = MAX(4, 0, 0) = Vip(4).
         db.ChannelCommunityStandings.Add(
-            new ChannelCommunityStanding
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = VipViewer,
@@ -96,7 +95,7 @@ public sealed class GateEndToEndTests
         await new ActionDefinitionSeeder(db).SeedAsync();
         await db.SaveChangesAsync();
 
-        return new Fixture(gate1, gate2, db);
+        return new(gate1, gate2, db);
     }
 
     [Theory]

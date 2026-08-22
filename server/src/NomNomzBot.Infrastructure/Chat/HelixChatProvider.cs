@@ -326,7 +326,7 @@ public sealed class HelixChatProvider : IChatPlatform
         if (row is null || string.IsNullOrEmpty(row.ProviderAccountId))
             return null;
 
-        return new BotSenderIdentity(
+        return new(
             TwitchHelixAuth.App,
             row.ProviderAccountId,
             HasBotScope(row.Scopes),

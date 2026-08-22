@@ -46,7 +46,7 @@ public sealed class CustomDataTemplateResolverTests
 
         _cache = provider.GetRequiredService<ICacheService>();
 
-        _resolver = new TemplateResolver(
+        _resolver = new(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<TemplateResolver>.Instance,

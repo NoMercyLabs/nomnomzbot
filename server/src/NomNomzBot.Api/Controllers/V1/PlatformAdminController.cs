@@ -52,7 +52,7 @@ public class PlatformAdminController(
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
         Result<PagedList<AdminTenantDto>> result = await admin.ListTenantsAsync(
             await ActingPrincipalIdAsync(ct),
-            new AdminTenantQuery(search, status, isLive),
+            new(search, status, isLive),
             pagination,
             ct
         );
@@ -169,7 +169,7 @@ public class PlatformAdminController(
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
         Result<PagedList<IamAuditEntryDto>> result = await admin.SearchAuditAsync(
             await ActingPrincipalIdAsync(ct),
-            new AuditSearchQuery(principalId, targetBroadcasterId, permission, outcome, from, to),
+            new(principalId, targetBroadcasterId, permission, outcome, from, to),
             pagination,
             ct
         );

@@ -102,7 +102,7 @@ public sealed class ConsentService : IConsentService
 
         if (record is null)
         {
-            record = new ConsentRecord
+            record = new()
             {
                 BroadcasterId = request.BroadcasterId,
                 SubjectUserId = request.SubjectUserId,

@@ -16,7 +16,6 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Events;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Community.EventHandlers;
@@ -106,7 +105,7 @@ public sealed class BannedUserImportOnOnboardingHandler(
                     continue;
 
                 db.Configurations.Add(
-                    new Configuration
+                    new()
                     {
                         BroadcasterId = @event.BroadcasterId,
                         Key = key,

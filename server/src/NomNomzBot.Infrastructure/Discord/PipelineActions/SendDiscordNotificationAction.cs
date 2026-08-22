@@ -58,7 +58,7 @@ public sealed class SendDiscordNotificationAction : ICommandAction
         };
 
         Result<DiscordDispatchOutcomeDto> result = await _dispatcher.DispatchAsync(
-            new DiscordDispatchRequest(
+            new(
                 ctx.BroadcasterId,
                 triggerType,
                 dedupeKey,

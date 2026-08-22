@@ -17,7 +17,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.DTOs.Webhooks;
-using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
 using NomNomzBot.Domain.Webhooks.Events;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -107,7 +106,7 @@ public sealed class InboundWebhookDispatcherTests
     private static async Task SeedGithubAsync(AuthDbContext db, bool enabled = true)
     {
         db.InboundWebhookEndpoints.Add(
-            new InboundWebhookEndpoint
+            new()
             {
                 Id = Endpoint,
                 BroadcasterId = Channel,
@@ -130,7 +129,7 @@ public sealed class InboundWebhookDispatcherTests
         string signature =
             "sha256="
             + Convert.ToHexStringLower(HMACSHA256.HashData(Encoding.UTF8.GetBytes(Secret), body));
-        return new InboundWebhookRequest
+        return new()
         {
             Token = "tok123",
             Method = "POST",

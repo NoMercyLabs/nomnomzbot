@@ -160,7 +160,7 @@ public sealed class InboundWebhookEndpointServiceTests
         await sut.UpdateAsync(
             Channel,
             created.Id,
-            new UpdateInboundWebhookRequest { Name = "renamed" }
+            new() { Name = "renamed" }
         );
         db.InboundWebhookEndpoints.Single()
             .VerificationSecretEnvelope.Should()
@@ -169,7 +169,7 @@ public sealed class InboundWebhookEndpointServiceTests
         await sut.UpdateAsync(
             Channel,
             created.Id,
-            new UpdateInboundWebhookRequest { VerificationSecret = "rotated" }
+            new() { VerificationSecret = "rotated" }
         );
         db.InboundWebhookEndpoints.Single()
             .VerificationSecretEnvelope.Should()
@@ -194,7 +194,7 @@ public sealed class InboundWebhookEndpointServiceTests
             await sut.CreateAsync(
                 Channel,
                 Actor,
-                new CreateInboundWebhookRequest
+                new()
                 {
                     Name = "zapier",
                     Adapter = WebhookAdapterKind.Generic,
@@ -239,7 +239,7 @@ public sealed class InboundWebhookEndpointServiceTests
 
         (await sut.DeleteAsync(Channel, created.Id)).IsSuccess.Should().BeTrue();
 
-        (await sut.ListAsync(Channel, new PaginationParams(1, 25, null, null)))
+        (await sut.ListAsync(Channel, new(1, 25, null, null)))
             .Value.Items.Should()
             .BeEmpty();
         bus.Published.OfType<ChannelConfigChangedEvent>()

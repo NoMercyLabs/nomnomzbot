@@ -10,8 +10,6 @@
 
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
-using Microsoft.Extensions.Primitives;
 using NomNomzBot.Api.Identifiers;
 
 namespace NomNomzBot.Api.Tests.Identifiers;
@@ -38,10 +36,10 @@ public sealed class UlidGuidModelBinderTests
 
     private static DefaultModelBindingContext ContextFor(Type modelType, ValueProviderResult value)
     {
-        return new DefaultModelBindingContext
+        return new()
         {
             ModelName = "id",
-            ModelState = new ModelStateDictionary(),
+            ModelState = new(),
             ValueProvider = new FixedValueProvider("id", value),
             ModelMetadata = new EmptyModelMetadataProvider().GetMetadataForType(modelType),
         };
@@ -51,7 +49,7 @@ public sealed class UlidGuidModelBinderTests
     {
         ValueProviderResult result = value is null
             ? ValueProviderResult.None
-            : new ValueProviderResult(new StringValues(value));
+            : new(new(value));
         DefaultModelBindingContext context = ContextFor(modelType, result);
         await new UlidGuidModelBinder().BindModelAsync(context);
         return context;

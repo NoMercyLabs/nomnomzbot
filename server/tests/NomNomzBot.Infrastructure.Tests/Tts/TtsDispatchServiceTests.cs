@@ -15,7 +15,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
-using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
@@ -139,10 +138,10 @@ public sealed class TtsDispatchServiceTests
             db,
             bus,
             tiers ?? Billing.TestTiers.Unlimited(),
-            new FakeTimeProvider(new DateTimeOffset(T0)),
+            new FakeTimeProvider(new(T0)),
             NullLogger<TtsDispatchService>.Instance
         );
-        return new Harness
+        return new()
         {
             Service = service,
             Db = db,
@@ -325,7 +324,7 @@ public sealed class TtsDispatchServiceTests
     {
         Harness h = Build(defaultVoice: "default-voice");
         h.Db.UserTtsVoices.Add(
-            new UserTtsVoice
+            new()
             {
                 BroadcasterId = Tenant,
                 UserId = Viewer,
@@ -781,7 +780,7 @@ public sealed class TtsDispatchServiceTests
     {
         Harness h = Build();
         h.Db.TtsLexiconEntries.Add(
-            new TtsLexiconEntry
+            new()
             {
                 BroadcasterId = Tenant,
                 Phrase = "JD",
@@ -813,7 +812,7 @@ public sealed class TtsDispatchServiceTests
     {
         Harness h = Build(mode: "client_edge");
         h.Db.TtsLexiconEntries.Add(
-            new TtsLexiconEntry
+            new()
             {
                 BroadcasterId = Tenant,
                 Phrase = "brb",
@@ -852,7 +851,7 @@ public sealed class TtsDispatchServiceTests
         (
             await h.Lexicon.CreateAsync(
                 Tenant,
-                new UpsertTtsLexiconEntryDto { Phrase = "gg", Replacement = "good game" }
+                new() { Phrase = "gg", Replacement = "good game" }
             )
         )
             .IsSuccess.Should()

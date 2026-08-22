@@ -118,7 +118,7 @@ public sealed class ScopeGrantService : IScopeGrantService
         // A re-grant (or any wider grant) clears every recorded missing-scope gap the new set now satisfies, so
         // the dashboard banner clears and a future loss of the same scope is announced afresh. Runs whether or not
         // anything was dropped — the gap clears purely on what is now granted.
-        if (connection.BroadcasterId is Guid broadcasterId)
+        if (connection.BroadcasterId is { } broadcasterId)
             await _scopeNotifications.ClearResolvedAsync(
                 broadcasterId,
                 connection.Scopes,

@@ -45,7 +45,7 @@ public class EngagementController : BaseController
     [ProducesResponseType<StatusResponseDto<EngagementConfigDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetConfig(CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _engagement.GetConfigAsync(broadcasterId, ct));
     }
@@ -59,7 +59,7 @@ public class EngagementController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _engagement.UpdateConfigAsync(broadcasterId, request, ct));
     }

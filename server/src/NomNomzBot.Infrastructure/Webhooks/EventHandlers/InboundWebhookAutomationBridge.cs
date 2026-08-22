@@ -76,7 +76,7 @@ public sealed class InboundWebhookAutomationBridge : IEventHandler<InboundWebhoo
 
         Dictionary<string, string> variables = await BuildVariablesAsync(@event, cancellationToken);
 
-        if (endpoint.TargetPipelineId is Guid pipelineId)
+        if (endpoint.TargetPipelineId is { } pipelineId)
         {
             await RunPipelineAsync(@event, endpoint, pipelineId, variables, cancellationToken);
             return;
@@ -104,7 +104,7 @@ public sealed class InboundWebhookAutomationBridge : IEventHandler<InboundWebhoo
         try
         {
             await _pipeline.ExecuteAsync(
-                new PipelineRequest
+                new()
                 {
                     BroadcasterId = @event.BroadcasterId,
                     // The engine loads PipelineStep rows for this id (its preferred path); no inline graph needed.

@@ -53,7 +53,7 @@ public sealed class CommunityRosterService(
         // and the dashboard surface "could not read your moderators" instead of a false zero.
         Result<TwitchPage<TwitchModerator>> modsResult = await moderators.GetModeratorsAsync(
             broadcasterId,
-            new TwitchPageRequest(),
+            new(),
             cancellationToken
         );
         if (modsResult.IsFailure)
@@ -67,7 +67,7 @@ public sealed class CommunityRosterService(
 
         Result<TwitchPage<TwitchVip>> vipsResult = await moderators.GetVipsAsync(
             broadcasterId,
-            new TwitchPageRequest(),
+            new(),
             cancellationToken
         );
         if (vipsResult.IsFailure)
@@ -105,7 +105,7 @@ public sealed class CommunityRosterService(
         // Get-or-create a User for every moderator (then every VIP not already covered by a moderator).
         foreach (TwitchModerator mod in mods.Where(m => !existingTwitchUserIds.Contains(m.UserId)))
             db.Users.Add(
-                new User
+                new()
                 {
                     TwitchUserId = mod.UserId,
                     Username = mod.UserLogin,
@@ -120,7 +120,7 @@ public sealed class CommunityRosterService(
             )
         )
             db.Users.Add(
-                new User
+                new()
                 {
                     TwitchUserId = vip.UserId,
                     Username = vip.UserLogin,
@@ -151,7 +151,7 @@ public sealed class CommunityRosterService(
                 continue;
 
             db.ChannelModerators.Add(
-                new ChannelModerator
+                new()
                 {
                     ChannelId = broadcasterId,
                     UserId = modUserId,

@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.IO;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -84,7 +83,7 @@ public sealed class EsbuildWidgetBuildServiceVueTests : IClassFixture<VueSfcComp
                 string dir = r.WorkingDirectory!;
                 materializedEntry = File.ReadAllText(Path.Combine(dir, "index.vue"));
                 mountModule = File.ReadAllText(Path.Combine(dir, "__nnz_mount__.ts"));
-                return new ProcessRunResult(true, 0, bundle, string.Empty);
+                return new(true, 0, bundle, string.Empty);
             });
         EsbuildWidgetBuildService service = Build(runner);
 

@@ -40,7 +40,7 @@ public sealed class ExplodeTextAdapter : IChatDecorationAdapter
             }
 
             foreach (string token in Tokenize(fragment.Text))
-                exploded.Add(new ChatMessageFragment { Type = "text", Text = token });
+                exploded.Add(new() { Type = "text", Text = token });
         }
 
         context.Fragments.Clear();

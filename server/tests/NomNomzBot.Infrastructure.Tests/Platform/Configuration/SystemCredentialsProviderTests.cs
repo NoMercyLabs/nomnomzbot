@@ -64,7 +64,7 @@ public sealed class SystemCredentialsProviderTests
         if (plainId is not null)
         {
             db.Configurations.Add(
-                new ConfigEntity
+                new()
                 {
                     BroadcasterId = null,
                     Key = key.Replace("client_secret", "client_id"),
@@ -74,7 +74,7 @@ public sealed class SystemCredentialsProviderTests
         }
 
         db.Configurations.Add(
-            new ConfigEntity
+            new()
             {
                 BroadcasterId = null,
                 Key = key,
@@ -189,7 +189,7 @@ public sealed class SystemCredentialsProviderTests
         // raw-DB attacker would attempt). The AAD is bound to ("system", provider, field), so opening under
         // the twitch key fails closed — the provider returns the row as not-configured, never the spotify secret.
         db.Configurations.Add(
-            new ConfigEntity
+            new()
             {
                 BroadcasterId = null,
                 Key = "twitch.client_id",
@@ -197,7 +197,7 @@ public sealed class SystemCredentialsProviderTests
             }
         );
         db.Configurations.Add(
-            new ConfigEntity
+            new()
             {
                 BroadcasterId = null,
                 Key = "twitch.client_secret",
@@ -221,7 +221,7 @@ public sealed class SystemCredentialsProviderTests
         IConfiguration config = Config(("Twitch:BotUsername", "config-bot"));
         (SystemCredentialsProvider provider, AuthDbContext db, _) = Build(config);
         db.Configurations.Add(
-            new ConfigEntity
+            new()
             {
                 BroadcasterId = null,
                 Key = "twitch.bot_username",

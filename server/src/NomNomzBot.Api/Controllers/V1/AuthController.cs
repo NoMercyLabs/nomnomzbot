@@ -95,7 +95,7 @@ public class AuthController : BaseController
 
         string? ip = Request.HttpContext.Connection.RemoteIpAddress?.ToString();
         string? userAgent = Request.Headers.UserAgent.ToString();
-        return new AuthContextDto(
+        return new(
             clientType,
             ip,
             string.IsNullOrWhiteSpace(userAgent) ? null : userAgent
@@ -172,7 +172,7 @@ public class AuthController : BaseController
             PkceCodePair pkce = PkceCodePair.Generate();
             string callbackUri = $"{GetPublicBaseUrl()}/api/v1/auth/{provider}/callback";
             string state = await _oauthState.IssueAsync(
-                new TwitchOAuthFlowState(
+                new(
                     "link",
                     redirect_uri,
                     Client: client,
@@ -194,7 +194,7 @@ public class AuthController : BaseController
                 : Ok(
                     new StatusResponseDto<OAuthStartDto>
                     {
-                        Data = new OAuthStartDto(url.Value.ToString(), state),
+                        Data = new(url.Value.ToString(), state),
                     }
                 );
         }
@@ -347,7 +347,7 @@ public class AuthController : BaseController
         // safely (the client class can't be tampered with in the query string on the way back). The return
         // path is normalized to a same-origin relative path (or dropped) BEFORE it enters the state.
         string state = await _oauthState.IssueAsync(
-            new TwitchOAuthFlowState(
+            new(
                 "user",
                 redirect_uri,
                 Client: client,
@@ -415,7 +415,7 @@ public class AuthController : BaseController
         if (flow == "bot")
         {
             Result<BotStatusDto> botResult = await _authService.HandleTwitchBotCallbackAsync(
-                new OAuthCallbackDto { Code = code, RedirectUri = callbackUri },
+                new() { Code = code, RedirectUri = callbackUri },
                 ct
             );
 
@@ -465,7 +465,7 @@ public class AuthController : BaseController
             Result<BotStatusDto> channelBotResult =
                 await _authService.HandleTwitchChannelBotCallbackAsync(
                     channelTenantId,
-                    new OAuthCallbackDto { Code = code, RedirectUri = callbackUri },
+                    new() { Code = code, RedirectUri = callbackUri },
                     ct
                 );
 
@@ -487,7 +487,7 @@ public class AuthController : BaseController
         }
 
         Result<AuthResultDto> result = await _authService.HandleTwitchCallbackAsync(
-            new OAuthCallbackDto
+            new()
             {
                 Code = code,
                 State = state,
@@ -586,7 +586,7 @@ public class AuthController : BaseController
         Response.Cookies.Append(
             "nnz_refresh_token",
             refreshToken,
-            new CookieOptions
+            new()
             {
                 HttpOnly = true,
                 // Secure when actually served over HTTPS (production / the dev tunnel); relaxed for a plain
@@ -607,7 +607,7 @@ public class AuthController : BaseController
     private void ClearRefreshTokenCookie() =>
         Response.Cookies.Delete(
             "nnz_refresh_token",
-            new CookieOptions
+            new()
             {
                 HttpOnly = true,
                 Secure = Request.IsHttps,
@@ -824,7 +824,7 @@ public class AuthController : BaseController
             return Ok(
                 new StatusResponseDto<DeviceLoginPollDto>
                 {
-                    Data = new DeviceLoginPollDto(poll.ErrorCode ?? DeviceLoginStatus.Error),
+                    Data = new(poll.ErrorCode ?? DeviceLoginStatus.Error),
                 }
             );
         }
@@ -884,7 +884,7 @@ public class AuthController : BaseController
         PkceCodePair pkce = PkceCodePair.Generate();
         string callbackUri = $"{GetPublicBaseUrl()}/api/v1/auth/{provider}/callback";
         string state = await _oauthState.IssueAsync(
-            new TwitchOAuthFlowState(
+            new(
                 "login",
                 redirect_uri,
                 Client: client,
@@ -940,7 +940,7 @@ public class AuthController : BaseController
 
         // A LINK flow attaches the proven identity to the already-authenticated user carried in the state; a
         // plain login turns it into a tenant-less session. Same proof, different destination.
-        if (flowState.LinkUserId is Guid linkUserId)
+        if (flowState.LinkUserId is { } linkUserId)
         {
             Result<UserIdentityDto> link = await _identities.LinkAsync(linkUserId, proof.Value, ct);
             return BuildLinkResponse(
@@ -1160,7 +1160,7 @@ public class AuthController : BaseController
             return BadRequest("Disallowed redirect_uri.");
 
         string state = await _oauthState.IssueAsync(
-            new TwitchOAuthFlowState("bot", redirect_uri),
+            new("bot", redirect_uri),
             ct
         );
 
@@ -1172,7 +1172,7 @@ public class AuthController : BaseController
         if (authUrl.IsFailure)
             return ResultResponse(authUrl);
         return Ok(
-            new StatusResponseDto<OAuthStartDto> { Data = new OAuthStartDto(authUrl.Value, state) }
+            new StatusResponseDto<OAuthStartDto> { Data = new(authUrl.Value, state) }
         );
     }
 

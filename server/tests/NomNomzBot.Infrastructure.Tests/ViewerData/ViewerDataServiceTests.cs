@@ -11,7 +11,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.ViewerData.Entities;
 using NomNomzBot.Infrastructure.ViewerData;
 
@@ -33,7 +32,7 @@ public sealed class ViewerDataServiceTests
     {
         ViewerDataTestDbContext db = ViewerDataTestDbContext.New();
         db.Users.Add(
-            new User
+            new()
             {
                 Id = Viewer,
                 TwitchUserId = "111",
@@ -43,7 +42,7 @@ public sealed class ViewerDataServiceTests
             }
         );
         db.Users.Add(
-            new User
+            new()
             {
                 Id = OtherViewer,
                 TwitchUserId = "222",
@@ -53,7 +52,7 @@ public sealed class ViewerDataServiceTests
             }
         );
         db.SaveChanges();
-        return (new ViewerDataService(db, TimeProvider.System), db);
+        return (new(db, TimeProvider.System), db);
     }
 
     [Fact]
@@ -101,7 +100,7 @@ public sealed class ViewerDataServiceTests
     {
         (ViewerDataService sut, ViewerDataTestDbContext db) = Build();
 
-        Result set = await sut.SetAsync(Channel, Viewer, "bio", new string('x', 501));
+        Result set = await sut.SetAsync(Channel, Viewer, "bio", new('x', 501));
 
         set.IsFailure.Should().BeTrue();
         set.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -115,7 +114,7 @@ public sealed class ViewerDataServiceTests
         for (int i = 0; i < ViewerDataService.MaxKeysPerViewer; i++)
         {
             db.ViewerData.Add(
-                new ViewerDatum
+                new()
                 {
                     BroadcasterId = Channel,
                     ViewerUserId = Viewer,
@@ -170,7 +169,7 @@ public sealed class ViewerDataServiceTests
         string databaseName = Guid.NewGuid().ToString();
         ViewerDataTestDbContext db = ViewerDataTestDbContext.New(databaseName);
         db.Users.Add(
-            new User
+            new()
             {
                 Id = Viewer,
                 TwitchUserId = "111",

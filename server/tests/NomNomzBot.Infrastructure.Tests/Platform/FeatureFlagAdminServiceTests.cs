@@ -11,9 +11,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Caching;
-using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -42,7 +40,7 @@ public sealed class FeatureFlagAdminServiceTests
         ICacheService cache = Substitute.For<ICacheService>();
         RecordingEventBus bus = new();
         return (
-            new FeatureFlagAdminService(db, bus, cache, new FakeTimeProvider(Now)),
+            new(db, bus, cache, new FakeTimeProvider(Now)),
             db,
             cache,
             bus
@@ -52,7 +50,7 @@ public sealed class FeatureFlagAdminServiceTests
     private static async Task SeedFlagAsync(AuthDbContext db, string key = "feat")
     {
         db.FeatureFlags.Add(
-            new FeatureFlag
+            new()
             {
                 Key = key,
                 CreatedAt = Now.UtcDateTime,
@@ -67,8 +65,8 @@ public sealed class FeatureFlagAdminServiceTests
     {
         (FeatureFlagAdminService sut, AuthDbContext db, _, _) = Build();
 
-        await sut.SetFlagAsync(new SetFeatureFlagRequest("feat", "desc", true, 50), null);
-        await sut.SetFlagAsync(new SetFeatureFlagRequest("feat", "desc", true, 100), null);
+        await sut.SetFlagAsync(new("feat", "desc", true, 50), null);
+        await sut.SetFlagAsync(new("feat", "desc", true, 100), null);
 
         db.FeatureFlags.Single().RolloutPercentage.Should().Be(100);
     }
@@ -87,7 +85,7 @@ public sealed class FeatureFlagAdminServiceTests
         Result result = await sut.SetOverrideAsync(
             "feat",
             Channel,
-            new SetFeatureFlagOverrideRequest(IsEnabled: true),
+            new(IsEnabled: true),
             null
         );
 
@@ -108,7 +106,7 @@ public sealed class FeatureFlagAdminServiceTests
         Result result = await sut.SetOverrideAsync(
             "missing",
             Channel,
-            new SetFeatureFlagOverrideRequest(IsEnabled: true),
+            new(IsEnabled: true),
             null
         );
 
@@ -120,7 +118,7 @@ public sealed class FeatureFlagAdminServiceTests
     {
         (FeatureFlagAdminService sut, AuthDbContext db, ICacheService cache, _) = Build();
         await SeedFlagAsync(db);
-        await sut.SetOverrideAsync("feat", Channel, new SetFeatureFlagOverrideRequest(true), null);
+        await sut.SetOverrideAsync("feat", Channel, new(true), null);
 
         Result result = await sut.RemoveOverrideAsync("feat", Channel, null);
 

@@ -12,7 +12,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.PickLists.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.PickLists.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Infrastructure.PickLists;
@@ -36,7 +35,7 @@ public sealed class PickListServiceTests
         Guid channelId = Guid.CreateVersion7();
         await using PickListTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -62,7 +61,7 @@ public sealed class PickListServiceTests
             PickListService service = NewService(db, bus);
             Result<PickListDto> result = await service.CreateAsync(
                 channel,
-                new CreatePickListRequest(
+                new(
                     "fight_moves",
                     "Fight lines",
                     ["{user} bonks {target}", "swings wildly"]
@@ -113,7 +112,7 @@ public sealed class PickListServiceTests
             PickListService service = NewService(db, bus);
             await service.CreateAsync(
                 channel,
-                new CreatePickListRequest("greetings", null, ["hi"])
+                new("greetings", null, ["hi"])
             );
         }
 
@@ -122,7 +121,7 @@ public sealed class PickListServiceTests
             PickListService service = NewService(db, bus);
             Result<PickListDto> duplicate = await service.CreateAsync(
                 channel,
-                new CreatePickListRequest("greetings", null, ["yo"])
+                new("greetings", null, ["yo"])
             );
 
             duplicate.IsFailure.Should().BeTrue();
@@ -152,7 +151,7 @@ public sealed class PickListServiceTests
             PickListService service = NewService(db, bus);
             Result<PickListDto> first = await service.CreateAsync(
                 channel,
-                new CreatePickListRequest("seasonal", "v1", ["old"])
+                new("seasonal", "v1", ["old"])
             );
             originalId = first.Value.Id;
             await service.DeleteAsync(channel, originalId);
@@ -164,7 +163,7 @@ public sealed class PickListServiceTests
             PickListService service = NewService(db, bus);
             Result<PickListDto> second = await service.CreateAsync(
                 channel,
-                new CreatePickListRequest("seasonal", "v2", ["fresh", "new"])
+                new("seasonal", "v2", ["fresh", "new"])
             );
             second.IsSuccess.Should().BeTrue(second.ErrorMessage);
             revived = second.Value;
@@ -198,7 +197,7 @@ public sealed class PickListServiceTests
         {
             PickListService service = NewService(db, bus);
             id = (
-                await service.CreateAsync(channel, new CreatePickListRequest("orig", "old", ["a"]))
+                await service.CreateAsync(channel, new("orig", "old", ["a"]))
             )
                 .Value
                 .Id;
@@ -210,7 +209,7 @@ public sealed class PickListServiceTests
             Result<PickListDto> updated = await service.UpdateAsync(
                 channel,
                 id,
-                new UpdatePickListRequest("renamed", "new", ["b", "c"])
+                new("renamed", "new", ["b", "c"])
             );
             updated.IsSuccess.Should().BeTrue(updated.ErrorMessage);
             updated.Value.Name.Should().Be("renamed");
@@ -238,11 +237,11 @@ public sealed class PickListServiceTests
         {
             PickListService service = NewService(db, bus);
             idA = (
-                await service.CreateAsync(channel, new CreatePickListRequest("aaa", null, ["1"]))
+                await service.CreateAsync(channel, new("aaa", null, ["1"]))
             )
                 .Value
                 .Id;
-            await service.CreateAsync(channel, new CreatePickListRequest("bbb", null, ["2"]));
+            await service.CreateAsync(channel, new("bbb", null, ["2"]));
         }
 
         await using (PickListTestDbContext db = database.NewContext())
@@ -251,7 +250,7 @@ public sealed class PickListServiceTests
             Result<PickListDto> clash = await service.UpdateAsync(
                 channel,
                 idA,
-                new UpdatePickListRequest("bbb", null, ["1"])
+                new("bbb", null, ["1"])
             );
             clash.IsFailure.Should().BeTrue();
             clash.ErrorCode.Should().Be("ALREADY_EXISTS");
@@ -278,7 +277,7 @@ public sealed class PickListServiceTests
         {
             PickListService service = NewService(db, bus);
             id = (
-                await service.CreateAsync(channel, new CreatePickListRequest("temp", null, ["x"]))
+                await service.CreateAsync(channel, new("temp", null, ["x"]))
             )
                 .Value
                 .Id;
@@ -318,10 +317,10 @@ public sealed class PickListServiceTests
         await using (PickListTestDbContext db = database.NewContext())
         {
             PickListService service = NewService(db, bus);
-            await service.CreateAsync(channel, new CreatePickListRequest("alpha", null, ["a1"]));
+            await service.CreateAsync(channel, new("alpha", null, ["a1"]));
             await service.CreateAsync(
                 channel,
-                new CreatePickListRequest("beta", null, ["b1", "b2"])
+                new("beta", null, ["b1", "b2"])
             );
         }
 
@@ -347,7 +346,7 @@ public sealed class PickListServiceTests
             PickListService service = NewService(db, bus);
             await service.CreateAsync(
                 channel,
-                new CreatePickListRequest("moves", null, [.. entries])
+                new("moves", null, [.. entries])
             );
         }
 
@@ -389,7 +388,7 @@ public sealed class PickListServiceTests
         await using (PickListTestDbContext db = database.NewContext())
         {
             PickListService service = NewService(db, bus);
-            await service.CreateAsync(channel, new CreatePickListRequest("empty", null, []));
+            await service.CreateAsync(channel, new("empty", null, []));
         }
 
         await using PickListTestDbContext readDb = database.NewContext();
@@ -414,7 +413,7 @@ public sealed class PickListServiceTests
         // A name is used verbatim as the {list.pick.<name>} key, so spaces/braces are rejected.
         Result<PickListDto> bad = await service.CreateAsync(
             channel,
-            new CreatePickListRequest("has spaces!", null, ["x"])
+            new("has spaces!", null, ["x"])
         );
 
         bad.IsFailure.Should().BeTrue();
@@ -439,11 +438,11 @@ public sealed class PickListServiceTests
             PickListService service = NewService(db, bus);
             await service.CreateAsync(
                 channelA,
-                new CreatePickListRequest("shared", null, ["a-one"])
+                new("shared", null, ["a-one"])
             );
             await service.CreateAsync(
                 channelB,
-                new CreatePickListRequest("shared", null, ["b-one"])
+                new("shared", null, ["b-one"])
             );
         }
 

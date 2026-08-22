@@ -52,7 +52,7 @@ public class TenantResolutionMiddlewareTests
 
     private static void Authenticate(DefaultHttpContext context, Guid userId)
     {
-        context.User = new ClaimsPrincipal(
+        context.User = new(
             new ClaimsIdentity(
                 new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) },
                 "TestAuth"

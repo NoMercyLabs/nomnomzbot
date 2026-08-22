@@ -17,10 +17,7 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Models.Crypto;
 using NomNomzBot.Application.Contracts.Gdpr;
-using NomNomzBot.Application.Identity.Dtos;
-using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
-using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
@@ -96,13 +93,13 @@ public sealed class ErasureServiceTests
             TimeProvider.System,
             NullLogger<ErasureService>.Instance
         );
-        return new Harness(sut, vault, subjectKeys, db, bus, database);
+        return new(sut, vault, subjectKeys, db, bus, database);
     }
 
     private static async Task SeedUsersAsync(GdprTestDbContext db)
     {
         db.Users.Add(
-            new User
+            new()
             {
                 Id = SubjectUser,
                 TwitchUserId = "tw-subject",
@@ -112,7 +109,7 @@ public sealed class ErasureServiceTests
             }
         );
         db.Users.Add(
-            new User
+            new()
             {
                 Id = OtherUser,
                 TwitchUserId = "tw-other",
@@ -133,7 +130,7 @@ public sealed class ErasureServiceTests
     {
         Guid connectionId = (
             await vault.UpsertConnectionAsync(
-                new UpsertConnectionDto(
+                new(
                     channel,
                     AuthEnums.IntegrationProvider.Twitch,
                     "twitch-account",
@@ -151,7 +148,7 @@ public sealed class ErasureServiceTests
 
         await vault.StoreTokensAsync(
             connectionId,
-            new StoreTokensDto(accessToken, "refresh", AppToken: null, DateTime.UtcNow.AddHours(1)),
+            new(accessToken, "refresh", AppToken: null, DateTime.UtcNow.AddHours(1)),
             ["channel:read:subscriptions"]
         );
         return connectionId;
@@ -306,7 +303,7 @@ public sealed class ErasureServiceTests
         User user = await h.Db.Users.SingleAsync(u => u.Id == SubjectUser);
         user.SubjectKeyId = keyId.Value;
         h.Db.ConsentRecords.Add(
-            new ConsentRecord
+            new()
             {
                 BroadcasterId = SubjectChannel,
                 SubjectUserId = SubjectUser,
@@ -397,7 +394,7 @@ public sealed class ErasureServiceTests
         };
         h.Db.CryptoKeys.Add(eventKey);
         h.Db.EventSubjectKeys.Add(
-            new EventSubjectKey
+            new()
             {
                 EventId = Guid.CreateVersion7(),
                 SubjectIdHash = subjectHash,
@@ -439,7 +436,7 @@ public sealed class ErasureServiceTests
         using GdprSqliteDatabase _ = h.Database;
         await SeedUsersAsync(h.Db);
         h.Db.CryptoKeys.Add(
-            new CryptoKey
+            new()
             {
                 Id = Guid.Parse("0192a000-0000-7000-8000-00000000d001"),
                 KeyScope = "subject",
@@ -451,7 +448,7 @@ public sealed class ErasureServiceTests
             }
         );
         h.Db.ChatMessages.Add(
-            new NomNomzBot.Domain.Chat.Entities.ChatMessage
+            new()
             {
                 Id = "msg-1",
                 BroadcasterId = SubjectChannel,
@@ -517,7 +514,7 @@ public sealed class ErasureServiceTests
             }
         );
         h.Db.ConsentRecords.Add(
-            new ConsentRecord
+            new()
             {
                 BroadcasterId = null,
                 SubjectUserId = SubjectUser,
@@ -531,7 +528,7 @@ public sealed class ErasureServiceTests
         await h.Db.SaveChangesAsync();
 
         Result<DataExportDto> result = await h.Sut.RequestExportAsync(
-            new RequestExportRequest(SubjectUser, null, "self_service")
+            new(SubjectUser, null, "self_service")
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -608,7 +605,7 @@ public sealed class ErasureServiceTests
         await h.Db.SaveChangesAsync();
 
         Result<ErasureRequestDto> result = await h.Sut.RequestOptOutAsync(
-            new RequestOptOutRequest(SubjectUser, null, "self_service")
+            new(SubjectUser, null, "self_service")
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -648,22 +645,22 @@ public sealed class ErasureServiceTests
         await SeedUsersAsync(h.Db);
         (
             await h.Sut.RequestExportAsync(
-                new RequestExportRequest(SubjectUser, null, "self_service")
+                new(SubjectUser, null, "self_service")
             )
         )
             .IsSuccess.Should()
             .BeTrue();
-        (await h.Sut.RequestExportAsync(new RequestExportRequest(OtherUser, null, "self_service")))
+        (await h.Sut.RequestExportAsync(new(OtherUser, null, "self_service")))
             .IsSuccess.Should()
             .BeTrue();
 
         Result<PagedList<ErasureRequestDto>> own = await h.Sut.ListRequestsAsync(
-            new PaginationParams(),
+            new(),
             subjectUserId: SubjectUser,
             broadcasterId: null
         );
         Result<PagedList<ErasureRequestDto>> all = await h.Sut.ListRequestsAsync(
-            new PaginationParams(),
+            new(),
             subjectUserId: null,
             broadcasterId: null
         );

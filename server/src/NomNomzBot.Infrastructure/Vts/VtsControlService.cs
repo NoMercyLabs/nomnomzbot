@@ -188,7 +188,7 @@ public class VtsControlService : IVtsControlService
         )
             foreach (JsonElement item in items.EnumerateArray())
                 models.Add(
-                    new VtsModelRef(
+                    new(
                         item.TryGetProperty("modelID", out JsonElement id)
                             ? id.GetString() ?? ""
                             : "",
@@ -212,7 +212,7 @@ public class VtsControlService : IVtsControlService
         )
             foreach (JsonElement item in items.EnumerateArray())
                 hotkeys.Add(
-                    new VtsHotkeyRef(
+                    new(
                         item.TryGetProperty("hotkeyID", out JsonElement id)
                             ? id.GetString() ?? ""
                             : "",

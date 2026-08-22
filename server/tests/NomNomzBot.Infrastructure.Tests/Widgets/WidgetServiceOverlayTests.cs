@@ -17,7 +17,6 @@ using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Content.Widgets;
@@ -35,7 +34,7 @@ namespace NomNomzBot.Infrastructure.Tests.Widgets;
 public sealed class WidgetServiceOverlayTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
     private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
 
@@ -69,7 +68,7 @@ public sealed class WidgetServiceOverlayTests
     {
         await using WidgetTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -93,7 +92,7 @@ public sealed class WidgetServiceOverlayTests
     {
         await using WidgetTestDbContext db = database.NewContext();
         db.Widgets.Add(
-            new Widget
+            new()
             {
                 Id = widgetId,
                 BroadcasterId = channelId,
@@ -122,7 +121,7 @@ public sealed class WidgetServiceOverlayTests
         Result<WidgetVersionDetail> result = await service.CompileAsync(
             channelId.ToString(),
             widgetId.ToString(),
-            new CompileWidgetRequest { SourceCode = "src" }
+            new() { SourceCode = "src" }
         );
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.BuildStatus.Should().Be("success");
@@ -523,7 +522,7 @@ public sealed class WidgetServiceOverlayTests
                 new MusicQueue(
                     null,
                     [
-                        new MusicQueueItem(
+                        new(
                             "Song B",
                             "Artist B",
                             "https://example.com/b.png",

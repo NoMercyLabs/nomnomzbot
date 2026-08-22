@@ -50,7 +50,7 @@ public class QuotesController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         QuoteSearch search = new(request.Search);
@@ -72,7 +72,7 @@ public class QuotesController : BaseController
     [ProducesResponseType<StatusResponseDto<QuoteDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetRandomQuote(CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result<QuoteDto> result = await _quotes.GetRandomAsync(broadcasterId, ct);
@@ -85,7 +85,7 @@ public class QuotesController : BaseController
     [ProducesResponseType<StatusResponseDto<QuoteDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetQuote(int number, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result<QuoteDto> result = await _quotes.GetAsync(broadcasterId, number, ct);
@@ -101,7 +101,7 @@ public class QuotesController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result<QuoteDto> result = await _quotes.AddAsync(broadcasterId, request, ct);
@@ -129,7 +129,7 @@ public class QuotesController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result<QuoteDto> result = await _quotes.EditAsync(broadcasterId, number, request, ct);
@@ -142,7 +142,7 @@ public class QuotesController : BaseController
     [ProducesResponseType<StatusResponseDto<QuoteDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeleteQuote(int number, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result result = await _quotes.DeleteAsync(broadcasterId, number, ct);

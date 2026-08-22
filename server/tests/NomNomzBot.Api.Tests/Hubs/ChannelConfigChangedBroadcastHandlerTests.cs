@@ -11,7 +11,6 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Platform.Events;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -31,7 +30,7 @@ public sealed class ChannelConfigChangedBroadcastHandlerTests
         ChannelConfigChangedBroadcastHandler handler = new(notifier);
 
         await handler.HandleAsync(
-            new ChannelConfigChangedEvent
+            new()
             {
                 BroadcasterId = channel,
                 Domain = "commands",
@@ -62,7 +61,7 @@ public sealed class ChannelConfigChangedBroadcastHandlerTests
         ChannelConfigChangedBroadcastHandler handler = new(notifier);
 
         await handler.HandleAsync(
-            new ChannelConfigChangedEvent
+            new()
             {
                 BroadcasterId = channel,
                 Domain = "tts-config",
@@ -87,7 +86,7 @@ public sealed class ChannelConfigChangedBroadcastHandlerTests
         ChannelConfigChangedBroadcastHandler handler = new(notifier);
 
         await handler.HandleAsync(
-            new ChannelConfigChangedEvent
+            new()
             {
                 BroadcasterId = Guid.Empty,
                 Domain = "features",

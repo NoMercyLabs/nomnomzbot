@@ -44,7 +44,7 @@ public sealed class PermitActionTests
 
         ActionResult result = await sut.ExecuteAsync(
             Ctx(("target.id", TargetTwitchId), ("target.display", "Streamer"), ("args.1", "mod")),
-            new ActionDefinition { Type = "permit" }
+            new() { Type = "permit" }
         );
 
         result.Succeeded.Should().BeTrue();
@@ -75,7 +75,7 @@ public sealed class PermitActionTests
 
         ActionResult result = await sut.ExecuteAsync(
             Ctx(("target.id", TargetTwitchId), ("args.1", "economy:transfer:write")),
-            new ActionDefinition { Type = "permit" }
+            new() { Type = "permit" }
         );
 
         result.Succeeded.Should().BeTrue();
@@ -110,7 +110,7 @@ public sealed class PermitActionTests
 
         ActionResult result = await sut.ExecuteAsync(
             Ctx(("target.id", TargetTwitchId), ("args.1", "mod")),
-            new ActionDefinition { Type = "permit" }
+            new() { Type = "permit" }
         );
 
         result.Succeeded.Should().BeFalse();
@@ -132,7 +132,7 @@ public sealed class PermitActionTests
         // No target.id variable (no @mention resolved) — the action must not guess a target.
         ActionResult result = await sut.ExecuteAsync(
             Ctx(("args.1", "mod")),
-            new ActionDefinition { Type = "permit" }
+            new() { Type = "permit" }
         );
 
         result.Succeeded.Should().BeFalse();
@@ -151,10 +151,10 @@ public sealed class PermitActionTests
 
         ActionResult result = await sut.ExecuteAsync(
             Ctx(("target.id", TargetTwitchId), ("args.1", "mod")),
-            new ActionDefinition
+            new()
             {
                 Type = "permit",
-                Parameters = new Dictionary<string, JsonElement>
+                Parameters = new()
                 {
                     ["duration_minutes"] = JsonSerializer.SerializeToElement(30),
                 },

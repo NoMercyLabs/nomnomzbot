@@ -32,7 +32,7 @@ public sealed class ChatTriggerServiceTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
-        return (new ChatTriggerService(db, registry), db, registry);
+        return (new(db, registry), db, registry);
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public sealed class ChatTriggerServiceTests
 
         Result<ChatTriggerDto> created = await service.CreateAsync(
             Tenant.ToString(),
-            new CreateChatTriggerRequest { Pattern = "good bot", Response = "thanks {user}!" }
+            new() { Pattern = "good bot", Response = "thanks {user}!" }
         );
 
         created.IsSuccess.Should().BeTrue();
@@ -61,7 +61,7 @@ public sealed class ChatTriggerServiceTests
 
         Result<ChatTriggerDto> created = await service.CreateAsync(
             Tenant.ToString(),
-            new CreateChatTriggerRequest { Pattern = "hello" } // no response, no pipeline
+            new() { Pattern = "hello" } // no response, no pipeline
         );
 
         created.IsFailure.Should().BeTrue();
@@ -78,7 +78,7 @@ public sealed class ChatTriggerServiceTests
 
         Result<ChatTriggerDto> created = await service.CreateAsync(
             Tenant.ToString(),
-            new CreateChatTriggerRequest
+            new()
             {
                 Pattern = "([unclosed",
                 MatchType = "regex",
@@ -97,7 +97,7 @@ public sealed class ChatTriggerServiceTests
         Guid id = (
             await service.CreateAsync(
                 Tenant.ToString(),
-                new CreateChatTriggerRequest { Pattern = "hello", Response = "hi!" }
+                new() { Pattern = "hello", Response = "hi!" }
             )
         )
             .Value
@@ -107,7 +107,7 @@ public sealed class ChatTriggerServiceTests
         Result<ChatTriggerDto> updated = await service.UpdateAsync(
             Tenant.ToString(),
             id,
-            new UpdateChatTriggerRequest { CooldownSeconds = 999_999, IsEnabled = false }
+            new() { CooldownSeconds = 999_999, IsEnabled = false }
         );
 
         updated.Value.Pattern.Should().Be("hello", "absent fields stay unchanged");
@@ -125,7 +125,7 @@ public sealed class ChatTriggerServiceTests
         Guid id = (
             await service.CreateAsync(
                 Tenant.ToString(),
-                new CreateChatTriggerRequest { Pattern = "combo", PipelineId = Guid.NewGuid() }
+                new() { Pattern = "combo", PipelineId = Guid.NewGuid() }
             )
         )
             .Value
@@ -137,7 +137,7 @@ public sealed class ChatTriggerServiceTests
         Result<ChatTriggerDto> updated = await service.UpdateAsync(
             Tenant.ToString(),
             id,
-            new UpdateChatTriggerRequest { PipelineId = Guid.Empty, Response = "back to text" }
+            new() { PipelineId = Guid.Empty, Response = "back to text" }
         );
 
         updated.IsSuccess.Should().BeTrue();
@@ -152,7 +152,7 @@ public sealed class ChatTriggerServiceTests
         Guid id = (
             await service.CreateAsync(
                 Tenant.ToString(),
-                new CreateChatTriggerRequest { Pattern = "bye", Response = "cya" }
+                new() { Pattern = "bye", Response = "cya" }
             )
         )
             .Value

@@ -97,7 +97,7 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
         // Remember what THIS code was authorized for, so the poll re-sends the same set (widened for a regrant).
         _scopeMemory.Remember(json.DeviceCode, scopes);
 
-        return new DeviceCodeResult(
+        return new(
             json.DeviceCode,
             json.UserCode,
             json.VerificationUri,
@@ -116,11 +116,11 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
         // however fast — or however many — clients call us; Twitch returns slow_down otherwise. A too-soon poll
         // is reported as still pending, with no Twitch round-trip.
         if (!_throttle.TryAcquire(deviceCode, MinPollInterval))
-            return new DevicePollOutcome(DevicePollStatus.Pending);
+            return new(DevicePollStatus.Pending);
 
         string? clientId = await _credentials.GetClientIdAsync(TwitchProvider, ct);
         if (string.IsNullOrWhiteSpace(clientId))
-            return new DevicePollOutcome(DevicePollStatus.Error);
+            return new(DevicePollStatus.Error);
 
         // Re-send the scopes the code was REQUESTED with — not whatever the caller passed. A regrant's widened
         // set lives in the singleton; polling with the narrower base set is what stopped the extra scopes from
@@ -144,7 +144,7 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
                 cancellationToken: ct
             );
             if (json is null)
-                return new DevicePollOutcome(DevicePollStatus.Error);
+                return new(DevicePollStatus.Error);
 
             // Diagnostic (identity-auth): compare what we asked Twitch for against what it actually issued, so a
             // scope that was requested but NOT granted is visible instead of silently vanishing (the "permissions
@@ -171,7 +171,7 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
                 _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(json.ExpiresIn),
                 granted
             );
-            return new DevicePollOutcome(DevicePollStatus.Authorized, tokens);
+            return new(DevicePollStatus.Authorized, tokens);
         }
 
         // A still-pending / declined / expired poll comes back as a 4xx whose body names the reason. Twitch
@@ -189,16 +189,16 @@ public sealed class TwitchDeviceCodeService : ITwitchDeviceCodeService
     private DevicePollOutcome ClassifyPendingBody(string body)
     {
         if (body.Contains("authorization_pending", StringComparison.OrdinalIgnoreCase))
-            return new DevicePollOutcome(DevicePollStatus.Pending);
+            return new(DevicePollStatus.Pending);
         if (body.Contains("slow_down", StringComparison.OrdinalIgnoreCase))
-            return new DevicePollOutcome(DevicePollStatus.SlowDown);
+            return new(DevicePollStatus.SlowDown);
         if (body.Contains("expired_token", StringComparison.OrdinalIgnoreCase))
-            return new DevicePollOutcome(DevicePollStatus.Expired);
+            return new(DevicePollStatus.Expired);
         if (body.Contains("access_denied", StringComparison.OrdinalIgnoreCase))
-            return new DevicePollOutcome(DevicePollStatus.Denied);
+            return new(DevicePollStatus.Denied);
 
         _logger.LogWarning("Unrecognized device-code poll response: {Body}", body);
-        return new DevicePollOutcome(DevicePollStatus.Error);
+        return new(DevicePollStatus.Error);
     }
 
     private sealed class TwitchDeviceCodeResponse

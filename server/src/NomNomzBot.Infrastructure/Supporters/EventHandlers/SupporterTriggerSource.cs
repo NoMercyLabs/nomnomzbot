@@ -77,7 +77,7 @@ public sealed class SupporterTriggerSource : IEventHandler<SupporterEventReceive
 
     /// <summary>Minor units → a human "12.34" (or "" when there is no amount).</summary>
     private static string FormatAmount(long? amountMinor) =>
-        amountMinor is long minor
+        amountMinor is { } minor
             ? (minor / 100m).ToString("0.##", CultureInfo.InvariantCulture)
             : string.Empty;
 

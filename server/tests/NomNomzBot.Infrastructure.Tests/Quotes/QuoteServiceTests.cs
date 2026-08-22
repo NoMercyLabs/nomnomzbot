@@ -13,7 +13,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Quotes.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Quotes.Entities;
 using NomNomzBot.Domain.Quotes.Events;
 using NomNomzBot.Infrastructure.EventStore;
@@ -31,14 +30,14 @@ namespace NomNomzBot.Infrastructure.Tests.Quotes;
 public sealed class QuoteServiceTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static QuoteService NewService(QuoteTestDbContext db, RecordingEventBus bus)
     {
         QuoteTestUnitOfWork uow = new(db);
         TenantSequenceAllocator allocator = new(db);
-        return new QuoteService(db, allocator, uow, bus, Clock);
+        return new(db, allocator, uow, bus, Clock);
     }
 
     private static async Task<Guid> SeedChannelAsync(QuoteSqliteTestDatabase database)
@@ -46,7 +45,7 @@ public sealed class QuoteServiceTests
         Guid channelId = Guid.CreateVersion7();
         await using QuoteTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -73,7 +72,7 @@ public sealed class QuoteServiceTests
             QuoteService service = NewService(db, bus);
             Result<QuoteDto> result = await service.AddAsync(
                 channel,
-                new AddQuoteRequest("blame the lag", "Stoney_Eagle", "Just Chatting", null, author)
+                new("blame the lag", "Stoney_Eagle", "Just Chatting", null, author)
             );
 
             result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -120,7 +119,7 @@ public sealed class QuoteServiceTests
             {
                 Result<QuoteDto> result = await service.AddAsync(
                     channel,
-                    new AddQuoteRequest(text, null, null, null, null)
+                    new(text, null, null, null, null)
                 );
                 result.IsSuccess.Should().BeTrue(result.ErrorMessage);
                 numbers.Add(result.Value.Number);
@@ -142,9 +141,9 @@ public sealed class QuoteServiceTests
         await using (QuoteTestDbContext db = database.NewContext())
         {
             QuoteService service = NewService(db, bus);
-            await service.AddAsync(channel, new AddQuoteRequest("one", null, null, null, null));
-            await service.AddAsync(channel, new AddQuoteRequest("two", null, null, null, null));
-            await service.AddAsync(channel, new AddQuoteRequest("three", null, null, null, null));
+            await service.AddAsync(channel, new("one", null, null, null, null));
+            await service.AddAsync(channel, new("two", null, null, null, null));
+            await service.AddAsync(channel, new("three", null, null, null, null));
         }
 
         // Delete #2 (soft-delete; the row + its number are retained).
@@ -161,7 +160,7 @@ public sealed class QuoteServiceTests
             QuoteService service = NewService(db, bus);
             Result<QuoteDto> added = await service.AddAsync(
                 channel,
-                new AddQuoteRequest("four", null, null, null, null)
+                new("four", null, null, null, null)
             );
             added.IsSuccess.Should().BeTrue(added.ErrorMessage);
             newNumber = added.Value.Number;
@@ -190,8 +189,8 @@ public sealed class QuoteServiceTests
         await using (QuoteTestDbContext db = database.NewContext())
         {
             QuoteService service = NewService(db, bus);
-            await service.AddAsync(channel, new AddQuoteRequest("keep", null, null, null, null));
-            await service.AddAsync(channel, new AddQuoteRequest("delete", null, null, null, null));
+            await service.AddAsync(channel, new("keep", null, null, null, null));
+            await service.AddAsync(channel, new("delete", null, null, null, null));
             await service.DeleteAsync(channel, 2);
         }
 
@@ -235,7 +234,7 @@ public sealed class QuoteServiceTests
             QuoteService service = NewService(db, bus);
             await service.AddAsync(
                 channel,
-                new AddQuoteRequest("original", "Alice", "Game A", null, null)
+                new("original", "Alice", "Game A", null, null)
             );
         }
 
@@ -245,7 +244,7 @@ public sealed class QuoteServiceTests
             Result<QuoteDto> edited = await service.EditAsync(
                 channel,
                 1,
-                new EditQuoteRequest("edited", "Bob", "Game B")
+                new("edited", "Bob", "Game B")
             );
             edited.IsSuccess.Should().BeTrue(edited.ErrorMessage);
             edited.Value.Number.Should().Be(1, "the number is immutable across an edit");
@@ -273,11 +272,11 @@ public sealed class QuoteServiceTests
             QuoteService service = NewService(db, bus);
             await service.AddAsync(
                 channel,
-                new AddQuoteRequest("the lag is real", "Stoney_Eagle", null, null, null)
+                new("the lag is real", "Stoney_Eagle", null, null, null)
             );
             await service.AddAsync(
                 channel,
-                new AddQuoteRequest("gg well played", "OtherUser", null, null, null)
+                new("gg well played", "OtherUser", null, null, null)
             );
         }
 
@@ -287,8 +286,8 @@ public sealed class QuoteServiceTests
         // Term matches the body of #1 only.
         Result<PagedList<QuoteDto>> byText = await reader.ListAsync(
             channel,
-            new QuoteSearch("lag"),
-            new PaginationParams(1, 25)
+            new("lag"),
+            new(1, 25)
         );
         byText.IsSuccess.Should().BeTrue();
         byText.Value.Items.Should().ContainSingle().Which.Number.Should().Be(1);
@@ -296,8 +295,8 @@ public sealed class QuoteServiceTests
         // Term matches the attribution of #2 only.
         Result<PagedList<QuoteDto>> byName = await reader.ListAsync(
             channel,
-            new QuoteSearch("OtherUser"),
-            new PaginationParams(1, 25)
+            new("OtherUser"),
+            new(1, 25)
         );
         byName.IsSuccess.Should().BeTrue();
         byName.Value.Items.Should().ContainSingle().Which.Number.Should().Be(2);
@@ -314,8 +313,8 @@ public sealed class QuoteServiceTests
         await using (QuoteTestDbContext db = database.NewContext())
         {
             QuoteService service = NewService(db, bus);
-            await service.AddAsync(channelA, new AddQuoteRequest("a-one", null, null, null, null));
-            await service.AddAsync(channelB, new AddQuoteRequest("b-one", null, null, null, null));
+            await service.AddAsync(channelA, new("a-one", null, null, null, null));
+            await service.AddAsync(channelB, new("b-one", null, null, null, null));
         }
 
         await using QuoteTestDbContext readDb = database.NewContext();
@@ -329,8 +328,8 @@ public sealed class QuoteServiceTests
 
         Result<PagedList<QuoteDto>> listA = await reader.ListAsync(
             channelA,
-            new QuoteSearch(null),
-            new PaginationParams(1, 25)
+            new(null),
+            new(1, 25)
         );
         listA.Value.Items.Should().ContainSingle().Which.Text.Should().Be("a-one");
     }

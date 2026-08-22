@@ -53,14 +53,14 @@ public sealed class RewardServiceRedemptionsTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Redemptions.AddRange(
-            Redeem("r1", "unfulfilled", new DateTime(2025, 8, 1, 0, 0, 0, DateTimeKind.Utc)),
-            Redeem("r2", "fulfilled", new DateTime(2025, 8, 2, 0, 0, 0, DateTimeKind.Utc)),
-            Redeem("r3", "unfulfilled", new DateTime(2025, 8, 3, 0, 0, 0, DateTimeKind.Utc))
+            Redeem("r1", "unfulfilled", new(2025, 8, 1, 0, 0, 0, DateTimeKind.Utc)),
+            Redeem("r2", "fulfilled", new(2025, 8, 2, 0, 0, 0, DateTimeKind.Utc)),
+            Redeem("r3", "unfulfilled", new(2025, 8, 3, 0, 0, 0, DateTimeKind.Utc))
         );
         await db.SaveChangesAsync();
 
         Result<PagedList<RedemptionListItem>> result = await Build(db)
-            .ListRedemptionsAsync(Channel.ToString(), "unfulfilled", new PaginationParams(1, 25));
+            .ListRedemptionsAsync(Channel.ToString(), "unfulfilled", new(1, 25));
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.TotalCount.Should().Be(2); // only the two unfulfilled, not the fulfilled one
@@ -76,13 +76,13 @@ public sealed class RewardServiceRedemptionsTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Redemptions.AddRange(
-            Redeem("r1", "unfulfilled", new DateTime(2025, 8, 1, 0, 0, 0, DateTimeKind.Utc)),
-            Redeem("r2", "fulfilled", new DateTime(2025, 8, 2, 0, 0, 0, DateTimeKind.Utc))
+            Redeem("r1", "unfulfilled", new(2025, 8, 1, 0, 0, 0, DateTimeKind.Utc)),
+            Redeem("r2", "fulfilled", new(2025, 8, 2, 0, 0, 0, DateTimeKind.Utc))
         );
         await db.SaveChangesAsync();
 
         Result<PagedList<RedemptionListItem>> result = await Build(db)
-            .ListRedemptionsAsync(Channel.ToString(), status: null, new PaginationParams(1, 25));
+            .ListRedemptionsAsync(Channel.ToString(), status: null, new(1, 25));
 
         result.Value.TotalCount.Should().Be(2);
     }
@@ -93,7 +93,7 @@ public sealed class RewardServiceRedemptionsTests
         AuthDbContext db = AuthTestBuilder.NewContext();
 
         Result<PagedList<RedemptionListItem>> result = await Build(db)
-            .ListRedemptionsAsync("not-a-guid", null, new PaginationParams(1, 25));
+            .ListRedemptionsAsync("not-a-guid", null, new(1, 25));
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -104,7 +104,7 @@ public sealed class RewardServiceRedemptionsTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Redemptions.Add(
-            Redeem("redeem-1", "unfulfilled", new DateTime(2025, 8, 1, 0, 0, 0, DateTimeKind.Utc))
+            Redeem("redeem-1", "unfulfilled", new(2025, 8, 1, 0, 0, 0, DateTimeKind.Utc))
         );
         await db.SaveChangesAsync();
 

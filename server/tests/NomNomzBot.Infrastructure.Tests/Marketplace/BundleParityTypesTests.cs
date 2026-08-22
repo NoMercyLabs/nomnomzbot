@@ -21,7 +21,6 @@ using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Marketplace;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.CustomEvents.Services;
-using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.Marketplace.Services;
 using NomNomzBot.Application.PickLists.Dtos;
 using NomNomzBot.Application.Rewards.Dtos;
@@ -29,7 +28,6 @@ using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.CustomCode.Entities;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.PickLists.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Entities;
@@ -90,7 +88,7 @@ public sealed class BundleParityTypesTests
     {
         MarketplaceTestDbContext db = MarketplaceTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = actingChannel,
                 OwnerUserId = Actor,
@@ -177,7 +175,7 @@ public sealed class BundleParityTypesTests
             tenant,
             bus
         );
-        return new Harness(
+        return new(
             db,
             actingChannel,
             export,
@@ -213,7 +211,7 @@ public sealed class BundleParityTypesTests
         PipelineDto pipeline = (
             await h.Pipelines.CreateAsync(
                 channelId,
-                new CreatePipelineDto
+                new()
                 {
                     Name = "Greeting Flow",
                     TriggerKind = "event",
@@ -229,13 +227,13 @@ public sealed class BundleParityTypesTests
             await h.EventResponses.UpsertAsync(
                 channelId,
                 "channel.follow",
-                new UpdateEventResponseDto
+                new()
                 {
                     IsEnabled = true,
                     ResponseType = "pipeline",
                     Message = "Thanks for the follow, {user}!",
                     PipelineId = pipeline.Id,
-                    Metadata = new Dictionary<string, string> { ["widget"] = "alert-box" },
+                    Metadata = new() { ["widget"] = "alert-box" },
                 }
             )
         ).Value;
@@ -243,7 +241,7 @@ public sealed class BundleParityTypesTests
         RewardDetail reward = (
             await h.Rewards.CreateAsync(
                 channelId,
-                new CreateRewardRequest
+                new()
                 {
                     Title = "Hydrate!",
                     Cost = 250,
@@ -258,7 +256,7 @@ public sealed class BundleParityTypesTests
         TimerDto timer = (
             await h.Timers.CreateAsync(
                 channelId,
-                new CreateTimerDto
+                new()
                 {
                     Name = "Discord plug",
                     Messages = ["Join the Discord!", "Seriously, join it."],
@@ -274,7 +272,7 @@ public sealed class BundleParityTypesTests
         ChatTriggerDto trigger = (
             await h.ChatTriggers.CreateAsync(
                 channelId,
-                new CreateChatTriggerRequest
+                new()
                 {
                     Pattern = "hello there",
                     MatchType = "exact",
@@ -290,7 +288,7 @@ public sealed class BundleParityTypesTests
         PickListDto pickList = (
             await h.PickLists.CreateAsync(
                 h.ActingChannel,
-                new CreatePickListRequest(
+                new(
                     "fight_moves",
                     "Fight lines",
                     ["{user} bonks {target}", "{user} yeets {target}"]
@@ -300,23 +298,23 @@ public sealed class BundleParityTypesTests
 
         CodeScriptDetailDto script = (
             await h.CodeScripts.CreateAsync(
-                new CreateCodeScriptRequest("greeter", "Greets chat", "export {};")
+                new("greeter", "Greets chat", "export {};")
             )
         ).Value;
         Result<CodeScriptVersionDto> project = await h.CodeScripts.SaveProjectAsync(
             script.Id,
-            new ProjectDto(
-                new Dictionary<string, string>
+            new(
+                new()
                 {
                     ["index.ts"] = "import { line } from './lib/lines'; api.chat.send(line());",
                     ["lib/lines.ts"] = "export const line = () => 'hi';",
                 },
-                new ProjectManifestDto("index.ts", "script", "typescript", [])
+                new("index.ts", "script", "typescript", [])
             )
         );
         project.IsSuccess.Should().BeTrue(project.ErrorMessage);
 
-        return new SeededParityContent(
+        return new(
             pipeline.Id,
             eventResponse.Id,
             Guid.Parse(reward.Id),
@@ -330,14 +328,14 @@ public sealed class BundleParityTypesTests
     private static ExportRequest AllItemsRequest(SeededParityContent seeded) =>
         new(
             [
-                new ExportItemRef(BundleFormat.EventResponseType, seeded.EventResponseId),
-                new ExportItemRef(BundleFormat.RewardType, seeded.RewardId),
-                new ExportItemRef(BundleFormat.TimerType, seeded.TimerId),
-                new ExportItemRef(BundleFormat.ChatTriggerType, seeded.ChatTriggerId),
-                new ExportItemRef(BundleFormat.PickListType, seeded.PickListId),
-                new ExportItemRef(BundleFormat.CodeScriptType, seeded.CodeScriptId),
+                new(BundleFormat.EventResponseType, seeded.EventResponseId),
+                new(BundleFormat.RewardType, seeded.RewardId),
+                new(BundleFormat.TimerType, seeded.TimerId),
+                new(BundleFormat.ChatTriggerType, seeded.ChatTriggerId),
+                new(BundleFormat.PickListType, seeded.PickListId),
+                new(BundleFormat.CodeScriptType, seeded.CodeScriptId),
             ],
-            new BundleMetadata("Parity Pack", "1.0.0", "stoney", "MIT", "full channel setup")
+            new("Parity Pack", "1.0.0", "stoney", "MIT", "full channel setup")
         );
 
     private static async Task<MemoryStream> ExportAllAsync(Harness h, SeededParityContent seeded)
@@ -509,7 +507,7 @@ public sealed class BundleParityTypesTests
         Harness target = Build(OtherChannel);
         // The target already has the lazily-seeded disabled default for this event (module convention).
         target.Db.EventResponses.Add(
-            new EventResponse
+            new()
             {
                 BroadcasterId = OtherChannel,
                 EventType = "channel.follow",
@@ -835,13 +833,13 @@ public sealed class BundleParityTypesTests
     {
         CodeScriptDetailDto script = (
             await h.CodeScripts.CreateAsync(
-                new CreateCodeScriptRequest("greeter", "Greets chat", "export {};")
+                new("greeter", "Greets chat", "export {};")
             )
         ).Value;
         PipelineDto pipeline = (
             await h.Pipelines.CreateAsync(
                 h.ActingChannel.ToString(),
-                new CreatePipelineDto
+                new()
                 {
                     Name = "Code Flow",
                     TriggerKind = "manual",
@@ -860,9 +858,9 @@ public sealed class BundleParityTypesTests
     {
         Result<System.IO.Stream> zip = await h.Export.ExportAsync(
             h.ActingChannel,
-            new ExportRequest(
-                [new ExportItemRef(BundleFormat.PipelineType, pipelineId)],
-                new BundleMetadata("Code Pack", "1.0.0", null, null, null)
+            new(
+                [new(BundleFormat.PipelineType, pipelineId)],
+                new("Code Pack", "1.0.0", null, null, null)
             )
         );
         zip.IsSuccess.Should().BeTrue(zip.ErrorMessage);
@@ -1078,7 +1076,7 @@ public sealed class BundleParityTypesTests
         PickListDto keeper = (
             await target.PickLists.CreateAsync(
                 OtherChannel,
-                new CreatePickListRequest("keep_me", null, ["stays"])
+                new("keep_me", null, ["stays"])
             )
         ).Value;
 

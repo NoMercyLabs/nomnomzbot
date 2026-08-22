@@ -43,7 +43,7 @@ public static class NameBasedGuid
         result[8] = (byte)((result[8] & 0x3F) | 0x80);
 
         SwapByteOrder(result);
-        return new Guid(result);
+        return new(result);
     }
 
     // .NET's Guid byte layout is little-endian for the first three fields; RFC 4122 hashing is big-endian.

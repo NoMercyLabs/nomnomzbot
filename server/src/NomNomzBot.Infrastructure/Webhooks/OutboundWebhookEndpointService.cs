@@ -222,7 +222,7 @@ public sealed class OutboundWebhookEndpointService(
             endpoint.BodyTemplate = request.BodyTemplate;
         if (request.CustomHeaders is not null)
             endpoint.CustomHeadersJson = JsonConvert.SerializeObject(request.CustomHeaders);
-        if (request.IsEnabled is bool enabled)
+        if (request.IsEnabled is { } enabled)
             endpoint.IsEnabled = enabled;
 
         endpoint.UpdatedAt = clock.GetUtcNow().UtcDateTime;
@@ -364,7 +364,7 @@ public sealed class OutboundWebhookEndpointService(
     {
         endpoint.SigningSecretEnvelope = await tokenProtector.ProtectAsync(
             secret,
-            new TokenProtectionContext(broadcasterId.ToString(), Provider, endpoint.Id.ToString()),
+            new(broadcasterId.ToString(), Provider, endpoint.Id.ToString()),
             ct
         );
         endpoint.EncryptionKeyId = await ResolveKeyIdAsync(broadcasterId, ct);

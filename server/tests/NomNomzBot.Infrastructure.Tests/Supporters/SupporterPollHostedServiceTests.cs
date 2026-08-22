@@ -18,7 +18,6 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Supporters.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Supporters.Entities;
 using NomNomzBot.Infrastructure.Platform.Deployment;
@@ -56,7 +55,7 @@ public sealed class SupporterPollHostedServiceTests
     {
         SupporterTestDbContext db = SupporterTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Tenant,
                 TwitchChannelId = "1001",
@@ -66,7 +65,7 @@ public sealed class SupporterPollHostedServiceTests
             }
         );
         db.SupporterConnections.Add(
-            new SupporterConnection
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = Tenant,
@@ -217,7 +216,7 @@ public sealed class SupporterPollHostedServiceTests
             return Task.FromResult(
                 _responses.Count > 0
                     ? _responses.Dequeue()
-                    : new HttpResponseMessage(HttpStatusCode.OK)
+                    : new(HttpStatusCode.OK)
                     {
                         Content = new StringContent("[]", Encoding.UTF8, "application/json"),
                     }

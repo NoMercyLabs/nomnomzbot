@@ -136,7 +136,7 @@ public sealed class InboundWebhookEndpointService(
             endpoint.TargetEventType = request.TargetEventType;
         if (request.GenericConfig is not null)
             endpoint.GenericConfigJson = JsonConvert.SerializeObject(request.GenericConfig);
-        if (request.IsEnabled is bool enabled)
+        if (request.IsEnabled is { } enabled)
             endpoint.IsEnabled = enabled;
         if (!string.IsNullOrEmpty(request.VerificationSecret))
             await SealSecretAsync(endpoint, request.VerificationSecret, broadcasterId, ct);
@@ -216,7 +216,7 @@ public sealed class InboundWebhookEndpointService(
     {
         endpoint.VerificationSecretEnvelope = await tokenProtector.ProtectAsync(
             secret,
-            new TokenProtectionContext(broadcasterId.ToString(), Provider, endpoint.Id.ToString()),
+            new(broadcasterId.ToString(), Provider, endpoint.Id.ToString()),
             ct
         );
         endpoint.EncryptionKeyId = await ResolveKeyIdAsync(broadcasterId, ct);

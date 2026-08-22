@@ -14,12 +14,10 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Engagement.Dtos;
 using NomNomzBot.Domain.Engagement.Entities;
 using NomNomzBot.Domain.Engagement.Events;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Engagement;
 using NomNomzBot.Infrastructure.Platform.RateLimiting;
-using DomainStream = NomNomzBot.Domain.Stream.Entities.Stream;
 
 namespace NomNomzBot.Infrastructure.Tests.Engagement;
 
@@ -62,7 +60,7 @@ public sealed class EngagementServiceTests
     {
         EngagementTestDbContext db = EngagementTestDbContext.New();
         db.Users.Add(
-            new User
+            new()
             {
                 Id = Viewer,
                 TwitchUserId = "111",
@@ -72,7 +70,7 @@ public sealed class EngagementServiceTests
             }
         );
         db.Users.Add(
-            new User
+            new()
             {
                 Id = Viewer2,
                 TwitchUserId = "222",
@@ -83,9 +81,9 @@ public sealed class EngagementServiceTests
         );
         db.SaveChanges();
         RecordingBus bus = new();
-        FakeTimeProvider clock = new(new DateTimeOffset(2026, 7, 11, 12, 0, 0, TimeSpan.Zero));
+        FakeTimeProvider clock = new(new(2026, 7, 11, 12, 0, 0, TimeSpan.Zero));
         EngagementService sut = new(db, bus, new CooldownManager(clock));
-        return new Harness(sut, db, bus, clock);
+        return new(sut, db, bus, clock);
     }
 
     private static void SeedConfig(
@@ -98,7 +96,7 @@ public sealed class EngagementServiceTests
     )
     {
         db.EngagementConfigs.Add(
-            new EngagementConfig
+            new()
             {
                 BroadcasterId = Channel,
                 FirstTimeChatterEnabled = firstTime,
@@ -116,7 +114,7 @@ public sealed class EngagementServiceTests
     private static void SeedStream(EngagementTestDbContext db, string id, DateTimeOffset startedAt)
     {
         db.Streams.Add(
-            new DomainStream
+            new()
             {
                 Id = id,
                 ChannelId = Channel,
@@ -318,7 +316,7 @@ public sealed class EngagementServiceTests
 
         await h.Sut.UpdateConfigAsync(
             Channel,
-            new UpdateEngagementConfigRequest(true, true, true, [5, 10, 25], 8)
+            new(true, true, true, [5, 10, 25], 8)
         );
 
         EngagementConfigDto dto = (await h.Sut.GetConfigAsync(Channel)).Value;
@@ -337,7 +335,7 @@ public sealed class EngagementServiceTests
         NomNomzBot.Application.Common.Models.Result<EngagementConfigDto> result =
             await h.Sut.UpdateConfigAsync(
                 Channel,
-                new UpdateEngagementConfigRequest(true, false, false, [0, -1], 5)
+                new(true, false, false, [0, -1], 5)
             );
 
         result.IsFailure.Should().BeTrue();

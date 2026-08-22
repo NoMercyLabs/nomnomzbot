@@ -37,7 +37,7 @@ public sealed class ChannelAssetServiceTests
     {
         MarketplaceTestDbContext db = MarketplaceTestDbContext.New();
         FakeAssetStore store = new();
-        return (new ChannelAssetService(db, store), db, store);
+        return (new(db, store), db, store);
     }
 
     // ── Payloads with real magic bytes ──────────────────────────────────────────
@@ -224,7 +224,7 @@ public sealed class ChannelAssetServiceTests
         for (int i = 0; i < 8; i++)
         {
             db.ChannelAssets.Add(
-                new ChannelAsset
+                new()
                 {
                     Id = Guid.NewGuid(),
                     BroadcasterId = Channel,
@@ -257,7 +257,7 @@ public sealed class ChannelAssetServiceTests
         (ChannelAssetService service, MarketplaceTestDbContext db, FakeAssetStore _) = Build();
         // 60 MB live on THIS channel under one name; another channel is irrelevant to the budget.
         db.ChannelAssets.Add(
-            new ChannelAsset
+            new()
             {
                 Id = Guid.NewGuid(),
                 BroadcasterId = Channel,
@@ -271,7 +271,7 @@ public sealed class ChannelAssetServiceTests
             }
         );
         db.ChannelAssets.Add(
-            new ChannelAsset
+            new()
             {
                 Id = Guid.NewGuid(),
                 BroadcasterId = OtherChannel,
@@ -378,7 +378,7 @@ public sealed class ChannelAssetServiceTests
 
         Result<PagedList<ChannelAssetDto>> otherList = await service.ListAsync(
             OtherChannel,
-            new PaginationParams(1, 25)
+            new(1, 25)
         );
         otherList.Value.Items.Should().BeEmpty();
 
@@ -409,7 +409,7 @@ public sealed class ChannelAssetServiceTests
 
         Result<PagedList<ChannelAssetDto>> page = await service.ListAsync(
             Channel,
-            new PaginationParams(1, 2)
+            new(1, 2)
         );
 
         page.Value.Items.Should().HaveCount(2);

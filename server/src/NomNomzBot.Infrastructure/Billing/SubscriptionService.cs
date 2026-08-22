@@ -304,7 +304,7 @@ public sealed class SubscriptionService(
         InvoiceStatus status = ParseInvoiceStatus(stripeEvent.Status);
         if (invoice is null)
         {
-            invoice = new Invoice
+            invoice = new()
             {
                 BroadcasterId = sub.BroadcasterId,
                 SubscriptionId = sub.Id,
@@ -363,7 +363,7 @@ public sealed class SubscriptionService(
         string fromTierKey = "";
         if (sub is null)
         {
-            sub = new Subscription { BroadcasterId = broadcasterId };
+            sub = new() { BroadcasterId = broadcasterId };
             db.Subscriptions.Add(sub);
         }
         else
@@ -428,7 +428,7 @@ public sealed class SubscriptionService(
                 t => t.Id == sub.TierId,
                 ct
             );
-            return new SubscriptionDto(
+            return new(
                 sub.Id,
                 broadcasterId,
                 tier?.Key ?? "",
@@ -450,7 +450,7 @@ public sealed class SubscriptionService(
             t => t.Key == entitlement.TierKey,
             ct
         );
-        return new SubscriptionDto(
+        return new(
             Guid.Empty,
             broadcasterId,
             entitlement.TierKey,
@@ -476,13 +476,13 @@ public sealed class SubscriptionService(
             i.Currency,
             ToOffset(i.PeriodStart),
             ToOffset(i.PeriodEnd),
-            new DateTimeOffset(i.IssuedAt, TimeSpan.Zero),
+            new(i.IssuedAt, TimeSpan.Zero),
             ToOffset(i.PaidAt),
             i.HostedInvoiceUrl
         );
 
     private static DateTimeOffset? ToOffset(DateTime? value) =>
-        value is DateTime d ? new DateTimeOffset(d, TimeSpan.Zero) : null;
+        value is { } d ? new DateTimeOffset(d, TimeSpan.Zero) : null;
 
     private static SubscriptionStatus ParseStatus(string status) =>
         status.ToLowerInvariant() switch

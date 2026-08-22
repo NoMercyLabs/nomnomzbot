@@ -35,7 +35,7 @@ public sealed class TwitchAppTokenProviderTests
         RecordingAppTokenHandler handler = new();
         TwitchAppTokenProvider provider = Build(
             handler,
-            new SystemAppCredentials("cid-42", "sec-99")
+            new("cid-42", "sec-99")
         );
 
         Result<string> result = await provider.GetAppTokenAsync();
@@ -55,7 +55,7 @@ public sealed class TwitchAppTokenProviderTests
     public async Task GetAppToken_CachesTheToken_SecondCallMakesNoSecondHttpRequest()
     {
         RecordingAppTokenHandler handler = new();
-        TwitchAppTokenProvider provider = Build(handler, new SystemAppCredentials("cid", "sec"));
+        TwitchAppTokenProvider provider = Build(handler, new("cid", "sec"));
 
         Result<string> first = await provider.GetAppTokenAsync();
         Result<string> second = await provider.GetAppTokenAsync();
@@ -69,7 +69,7 @@ public sealed class TwitchAppTokenProviderTests
     public async Task Invalidate_ForcesAReMint_OnTheNextCall()
     {
         RecordingAppTokenHandler handler = new();
-        TwitchAppTokenProvider provider = Build(handler, new SystemAppCredentials("cid", "sec"));
+        TwitchAppTokenProvider provider = Build(handler, new("cid", "sec"));
 
         await provider.GetAppTokenAsync();
         provider.Invalidate();
@@ -102,7 +102,7 @@ public sealed class TwitchAppTokenProviderTests
             .GetAsync("twitch", Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(credentials));
 
-        return new TwitchAppTokenProvider(
+        return new(
             ScopeFactoryFor(creds),
             new SingleClientFactory(handler),
             TimeProvider.System,
@@ -138,7 +138,7 @@ public sealed class TwitchAppTokenProviderTests
             if (request.Content is not null)
                 LastBody = await request.Content.ReadAsStringAsync(cancellationToken);
 
-            return new HttpResponseMessage(HttpStatusCode.OK)
+            return new(HttpStatusCode.OK)
             {
                 Content = new StringContent(
                     """{"access_token":"app-token-abc","expires_in":5000000,"token_type":"bearer"}""",

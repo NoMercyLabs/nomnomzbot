@@ -119,7 +119,7 @@ public sealed class ShopifyWebhookProvisioner : ISupporterProviderProvisioner
             Result<InboundWebhookEndpointDto> sealedSecret = await _endpoints.UpdateAsync(
                 broadcasterId,
                 endpointId,
-                new UpdateInboundWebhookRequest { VerificationSecret = app.ClientSecret },
+                new() { VerificationSecret = app.ClientSecret },
                 ct
             );
             if (sealedSecret.IsFailure)

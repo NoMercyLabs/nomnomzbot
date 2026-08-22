@@ -22,8 +22,8 @@ public class CooldownManagerTests
     // deterministically.
     private static (CooldownManager Manager, FakeTimeProvider Clock) Create()
     {
-        FakeTimeProvider clock = new(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
-        return (new CooldownManager(clock), clock);
+        FakeTimeProvider clock = new(new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        return (new(clock), clock);
     }
 
     // ─── IsOnCooldown ─────────────────────────────────────────────────────────

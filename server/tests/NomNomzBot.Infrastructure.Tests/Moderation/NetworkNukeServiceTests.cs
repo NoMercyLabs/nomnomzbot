@@ -16,8 +16,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -93,7 +91,7 @@ public sealed class NetworkNukeServiceTests
             }
         )
             db.Channels.Add(
-                new Channel
+                new()
                 {
                     Id = id,
                     OwnerUserId = Guid.NewGuid(),
@@ -259,7 +257,7 @@ public sealed class NetworkNukeServiceTests
 
         Result<PagedList<NetworkNukeBatchDto>> list = await sut.ListBatchesAsync(
             Origin,
-            new PaginationParams(1, 10, null, null)
+            new(1, 10, null, null)
         );
 
         list.Value.Items.Should().ContainSingle();

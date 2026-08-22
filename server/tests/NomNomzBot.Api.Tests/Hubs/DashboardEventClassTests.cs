@@ -213,7 +213,7 @@ public sealed class DashboardEventClassTests
         IHubClients<IDashboardClient> clients = Substitute.For<IHubClients<IDashboardClient>>();
         clients.Group(Arg.Any<string>()).Returns(Substitute.For<IDashboardClient>());
         hub.Clients.Returns(clients);
-        return (new DashboardNotifier(hub, TimeProvider.System), clients);
+        return (new(hub, TimeProvider.System), clients);
     }
 
     [Fact]
@@ -224,7 +224,7 @@ public sealed class DashboardEventClassTests
 
         await notifier.SendChatMessageAsync(
             id,
-            new DashboardChatMessageDto(
+            new(
                 "m1",
                 id,
                 "u1",
@@ -249,8 +249,8 @@ public sealed class DashboardEventClassTests
                 "now"
             )
         );
-        await notifier.SendMusicStateAsync(id, new MusicStateDto(false, null));
-        await notifier.SendModActionAsync(id, new ModActionDto("timeout", "mod-1", "u1", null, 10));
+        await notifier.SendMusicStateAsync(id, new(false, null));
+        await notifier.SendModActionAsync(id, new("timeout", "mod-1", "u1", null, 10));
 
         clients.Received(1).Group($"channel-{id}:chat");
         clients.Received(1).Group($"channel-{id}:music");
@@ -278,10 +278,10 @@ public sealed class DashboardEventClassTests
         (DashboardNotifier notifier, IHubClients<IDashboardClient> clients) = BuildNotifier();
         string id = Channel.ToString();
 
-        await notifier.SendStreamStatusAsync(id, new StreamStatusDto(true, null, null, null, null));
+        await notifier.SendStreamStatusAsync(id, new(true, null, null, null, null));
         await notifier.SendConfigChangedAsync(
             id,
-            new ConfigChangedDto(id, "commands", null, "updated")
+            new(id, "commands", null, "updated")
         );
 
         clients.Received(2).Group($"channel-{id}");

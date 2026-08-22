@@ -62,7 +62,7 @@ public sealed class DiscordGoLiveNotificationHandler : IEventHandler<ChannelOnli
         };
 
         Result<DiscordDispatchOutcomeDto> result = await _dispatcher.DispatchAsync(
-            new DiscordDispatchRequest(
+            new(
                 @event.BroadcasterId,
                 Trigger,
                 dedupeKey,

@@ -57,7 +57,7 @@ public sealed class UsageMeteringService(
         long before = record?.Quantity ?? 0;
         if (record is null)
         {
-            record = new UsageRecord
+            record = new()
             {
                 BroadcasterId = broadcasterId,
                 MetricKey = metricKey,
@@ -83,8 +83,8 @@ public sealed class UsageMeteringService(
                     MetricKey = metricKey,
                     Used = record.Quantity,
                     Limit = limit,
-                    PeriodStart = new DateTimeOffset(periodStart, TimeSpan.Zero),
-                    PeriodEnd = new DateTimeOffset(periodEnd, TimeSpan.Zero),
+                    PeriodStart = new(periodStart, TimeSpan.Zero),
+                    PeriodEnd = new(periodEnd, TimeSpan.Zero),
                 },
                 ct
             );

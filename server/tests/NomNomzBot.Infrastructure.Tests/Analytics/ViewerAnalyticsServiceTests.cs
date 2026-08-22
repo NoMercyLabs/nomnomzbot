@@ -11,7 +11,6 @@
 using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
-using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Infrastructure.Services.Analytics;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -30,7 +29,7 @@ public sealed class ViewerAnalyticsServiceTests
     private static (ViewerAnalyticsService Sut, AuthDbContext Db) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        return (new ViewerAnalyticsService(db), db);
+        return (new(db), db);
     }
 
     private static async Task SeedProfileAsync(
@@ -41,7 +40,7 @@ public sealed class ViewerAnalyticsServiceTests
     )
     {
         db.ViewerProfiles.Add(
-            new ViewerProfile
+            new()
             {
                 BroadcasterId = Channel,
                 ViewerUserId = viewerUserId,
@@ -86,8 +85,8 @@ public sealed class ViewerAnalyticsServiceTests
         PagedList<ViewerProfileListItemDto> page = (
             await sut.ListProfilesAsync(
                 Channel,
-                new ViewerProfileQuery(Sort: ViewerProfileSort.Messages),
-                new PaginationParams()
+                new(Sort: ViewerProfileSort.Messages),
+                new()
             )
         ).Value;
 

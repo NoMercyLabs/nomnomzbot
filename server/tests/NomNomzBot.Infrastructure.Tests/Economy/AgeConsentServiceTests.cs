@@ -35,7 +35,7 @@ public sealed class AgeConsentServiceTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         RecordingEventBus bus = new();
-        return (new AgeConsentService(db, bus, new FakeTimeProvider(Now)), db, bus);
+        return (new(db, bus, new FakeTimeProvider(Now)), db, bus);
     }
 
     private static Guid SeedUser(AuthDbContext db, DateTime accountCreated, string type = "")
@@ -97,7 +97,7 @@ public sealed class AgeConsentServiceTests
 
         Result<AgeConsentDto> grant = await sut.GrantAsync(
             Channel,
-            new GrantAgeConsentRequest(viewer, "self_confirm", null, "v1")
+            new(viewer, "self_confirm", null, "v1")
         );
 
         grant.Value.Granted.Should().BeTrue();
@@ -114,7 +114,7 @@ public sealed class AgeConsentServiceTests
         Guid viewer = SeedUser(db, Now.UtcDateTime.AddYears(-1));
         await sut.GrantAsync(
             Channel,
-            new GrantAgeConsentRequest(viewer, "self_confirm", null, null)
+            new(viewer, "self_confirm", null, null)
         );
 
         Result<AgeConsentDto> revoke = await sut.RevokeAsync(Channel, viewer);

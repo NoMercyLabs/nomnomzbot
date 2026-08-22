@@ -113,7 +113,7 @@ public sealed class DiscordGuildService : IDiscordGuildService
 
             if (connection is null)
             {
-                connection = new DiscordGuildConnection
+                connection = new()
                 {
                     Id = Guid.CreateVersion7(),
                     BroadcasterId = broadcasterId,
@@ -135,7 +135,7 @@ public sealed class DiscordGuildService : IDiscordGuildService
             // Vault the bot OAuth token (no plaintext column). The connection upsert is idempotent on
             // (BroadcasterId, Provider="discord", ProviderAccountId=GuildId).
             Result<IntegrationConnectionDto> vaultConnection = await _vault.UpsertConnectionAsync(
-                new UpsertConnectionDto(
+                new(
                     broadcasterId,
                     Provider,
                     oauth.GuildId,
@@ -159,7 +159,7 @@ public sealed class DiscordGuildService : IDiscordGuildService
 
             Result storeTokens = await _vault.StoreTokensAsync(
                 vaultConnection.Value.Id,
-                new StoreTokensDto(
+                new(
                     oauth.AccessToken,
                     oauth.RefreshToken,
                     AppToken: null,

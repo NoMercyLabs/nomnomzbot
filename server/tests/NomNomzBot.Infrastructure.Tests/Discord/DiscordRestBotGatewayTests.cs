@@ -17,7 +17,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Discord.Gateway;
 using NomNomzBot.Infrastructure.Platform.Resilience;
 using NSubstitute;
@@ -46,7 +45,7 @@ public sealed class DiscordRestBotGatewayTests
         IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
 
         CapturingHandler handler = new(
-            new HttpResponseMessage(HttpStatusCode.OK)
+            new(HttpStatusCode.OK)
             {
                 Content = new StringContent(
                     """{"id":"112233445566778899"}""",
@@ -62,7 +61,7 @@ public sealed class DiscordRestBotGatewayTests
         Result<string> result = await gateway.PostMessageAsync(
             Channel,
             "999000111",
-            new DiscordOutboundMessage("Stream is live!", Embed: null, PingRoleId: "555444333")
+            new("Stream is live!", Embed: null, PingRoleId: "555444333")
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -121,7 +120,7 @@ public sealed class DiscordRestBotGatewayTests
         Result<string> result = await gateway.PostMessageAsync(
             Channel,
             "999000111",
-            new DiscordOutboundMessage("hello", Embed: null, PingRoleId: null)
+            new("hello", Embed: null, PingRoleId: null)
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -137,7 +136,7 @@ public sealed class DiscordRestBotGatewayTests
         IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
 
         CapturingHandler handler = new(
-            new HttpResponseMessage(HttpStatusCode.Forbidden)
+            new(HttpStatusCode.Forbidden)
             {
                 Content = new StringContent(
                     """{"message":"Missing Access","code":50001}""",
@@ -153,7 +152,7 @@ public sealed class DiscordRestBotGatewayTests
         Result<string> result = await gateway.PostMessageAsync(
             Channel,
             "999000111",
-            new DiscordOutboundMessage("nope", Embed: null, PingRoleId: null)
+            new("nope", Embed: null, PingRoleId: null)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -166,7 +165,7 @@ public sealed class DiscordRestBotGatewayTests
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
         // No connection seeded → no vaulted token → must fail closed, never reaching the wire.
         IIntegrationTokenVault vault = Substitute.For<IIntegrationTokenVault>();
-        CapturingHandler handler = new(new HttpResponseMessage(HttpStatusCode.OK));
+        CapturingHandler handler = new(new(HttpStatusCode.OK));
 
         await using DiscordTestDbContext db = database.NewContext();
         DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
@@ -174,7 +173,7 @@ public sealed class DiscordRestBotGatewayTests
         Result<string> result = await gateway.PostMessageAsync(
             Channel,
             "999000111",
-            new DiscordOutboundMessage("hi", Embed: null, PingRoleId: null)
+            new("hi", Embed: null, PingRoleId: null)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -190,7 +189,7 @@ public sealed class DiscordRestBotGatewayTests
         IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
 
         CapturingHandler handler = new(
-            new HttpResponseMessage(HttpStatusCode.OK)
+            new(HttpStatusCode.OK)
             {
                 Content = new StringContent(
                     """{"id":"dm-chan-42","type":1}""",
@@ -228,7 +227,7 @@ public sealed class DiscordRestBotGatewayTests
         Guid connectionId = await SeedDiscordConnectionAsync(database);
         IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
 
-        CapturingHandler handler = new(new HttpResponseMessage(HttpStatusCode.NoContent));
+        CapturingHandler handler = new(new(HttpStatusCode.NoContent));
         await using DiscordTestDbContext db = database.NewContext();
         DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
 
@@ -255,7 +254,7 @@ public sealed class DiscordRestBotGatewayTests
         IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
 
         CapturingHandler handler = new(
-            new HttpResponseMessage(HttpStatusCode.OK)
+            new(HttpStatusCode.OK)
             {
                 Content = new StringContent(
                     """{"id":"guild1","name":"The Guild","icon":"a1b2c3","description":"About us","owner_id":"555"}""",
@@ -295,7 +294,7 @@ public sealed class DiscordRestBotGatewayTests
         IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
 
         CapturingHandler handler = new(
-            new HttpResponseMessage(HttpStatusCode.OK)
+            new(HttpStatusCode.OK)
             {
                 Content = new StringContent(
                     """[{"id":"role-1","name":"Notify Squad","color":16711935,"position":3,"managed":false,"hoist":true},{"id":"role-2","name":"Bot Role","color":0,"position":1,"managed":true}]""",
@@ -341,7 +340,7 @@ public sealed class DiscordRestBotGatewayTests
         IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
 
         CapturingHandler handler = new(
-            new HttpResponseMessage(HttpStatusCode.OK)
+            new(HttpStatusCode.OK)
             {
                 Content = new StringContent(
                     """[{"id":"chan-1","name":"general","type":0,"parent_id":"cat-9","position":2},{"id":"cat-9","name":"Text","type":4,"parent_id":null,"position":0}]""",
@@ -379,7 +378,7 @@ public sealed class DiscordRestBotGatewayTests
         IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
 
         CapturingHandler handler = new(
-            new HttpResponseMessage(HttpStatusCode.NotFound)
+            new(HttpStatusCode.NotFound)
             {
                 Content = new StringContent(
                     """{"message":"Unknown Guild","code":10004}""",
@@ -416,7 +415,7 @@ public sealed class DiscordRestBotGatewayTests
         ServiceProvider provider = services.BuildServiceProvider();
         IHttpClientFactory factory = provider.GetRequiredService<IHttpClientFactory>();
 
-        return new DiscordRestBotGateway(
+        return new(
             factory,
             db,
             vault,
@@ -438,7 +437,7 @@ public sealed class DiscordRestBotGatewayTests
         Guid connectionId = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.IntegrationConnections.Add(
-            new IntegrationConnection
+            new()
             {
                 Id = connectionId,
                 BroadcasterId = Channel,

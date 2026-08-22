@@ -45,7 +45,7 @@ public sealed record WidgetBuildInput(
             framework,
             source
         );
-        return new WidgetBuildInput(manifest, files);
+        return new(manifest, files);
     }
 }
 

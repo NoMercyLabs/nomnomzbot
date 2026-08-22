@@ -122,7 +122,7 @@ public sealed class YouTubeLiveChatClientTests
         message.AuthorChannelId.Should().Be("UCauthor");
         message.AuthorDisplayName.Should().Be("Viewer One");
         message.DisplayText.Should().Be("hello world");
-        message.PublishedAt.Should().Be(new DateTimeOffset(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
+        message.PublishedAt.Should().Be(new(2026, 7, 10, 12, 0, 0, TimeSpan.Zero));
         message.IsModerator.Should().BeTrue();
         message.IsOwner.Should().BeFalse();
         message.IsMember.Should().BeTrue();
@@ -214,7 +214,7 @@ public sealed class YouTubeLiveChatClientTests
         StubHttpMessageHandler handler = new((HttpStatusCode.OK, "{}"));
         YouTubeLiveChatClient sut = Build(handler);
 
-        Result result = await sut.SendMessageAsync(Token, "chat123", new string('a', 201));
+        Result result = await sut.SendMessageAsync(Token, "chat123", new('a', 201));
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -358,7 +358,7 @@ public sealed class YouTubeLiveChatClientTests
 
         Result<string> result = await sut.UpdateActiveBroadcastTitleAsync(
             Token,
-            new string('t', 101)
+            new('t', 101)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -402,7 +402,7 @@ public sealed class YouTubeLiveChatClientTests
                 Math.Min(_index, responses.Length - 1)
             ];
             _index++;
-            return new HttpResponseMessage(status)
+            return new(status)
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json"),
             };

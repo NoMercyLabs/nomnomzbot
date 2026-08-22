@@ -88,7 +88,7 @@ public sealed class PublicOriginExtensionsTests
     {
         DefaultHttpContext context = new();
         context.Request.Scheme = "http";
-        context.Request.Host = new HostString("localhost", 5080);
+        context.Request.Host = new("localhost", 5080);
         context.Request.Headers["X-Forwarded-Host"] = host;
         context.Request.Headers["X-Forwarded-Proto"] = proto;
         return context.Request;
@@ -99,7 +99,7 @@ public sealed class PublicOriginExtensionsTests
     {
         DefaultHttpContext context = new();
         context.Request.Scheme = scheme;
-        context.Request.Host = new HostString(host);
+        context.Request.Host = new(host);
         return context.Request;
     }
 }

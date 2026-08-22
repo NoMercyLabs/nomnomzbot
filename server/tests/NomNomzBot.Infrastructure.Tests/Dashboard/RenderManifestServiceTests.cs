@@ -93,7 +93,7 @@ public class RenderManifestServiceTests
     private static MissingScopesDto SampleScopes() =>
         new(
             "connected",
-            [new MissingScopeDto("channel:read:redemptions", ["song_requests"], true, false)]
+            [new("channel:read:redemptions", ["song_requests"], true, false)]
         );
 
     private sealed record Harness(
@@ -132,7 +132,7 @@ public class RenderManifestServiceTests
             scopes,
             NullLogger<RenderManifestService>.Instance
         );
-        return new Harness(service, roles, features, integrations, scopes);
+        return new(service, roles, features, integrations, scopes);
     }
 
     [Fact]

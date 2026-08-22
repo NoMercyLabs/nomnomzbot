@@ -109,7 +109,7 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
 
         if (connection is null)
         {
-            connection = new SupporterConnection
+            connection = new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = broadcasterId,
@@ -150,7 +150,7 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
             // provider's side and the endpoint verifies with the secret the PROVIDER mints — the streamer
             // supplies no secret at all, just the OAuth connection.
             else if (
-                request.IntegrationConnectionId is Guid oauthConnectionId
+                request.IntegrationConnectionId is { } oauthConnectionId
                 && _provisioners.TryGetValue(
                     sourceKey,
                     out ISupporterProviderProvisioner? provisioner
@@ -208,18 +208,18 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
     )
     {
         WebhookAdapterKind? adapter = SupporterWebhookAdapters.AdapterFor(sourceKey);
-        if (adapter is not WebhookAdapterKind kind)
+        if (adapter is not { } kind)
             return Result.Failure(
                 $"'{sourceKey}' has no inbound webhook adapter to provision.",
                 "VALIDATION_FAILED"
             );
 
-        if (connection.InboundWebhookEndpointId is Guid endpointId)
+        if (connection.InboundWebhookEndpointId is { } endpointId)
         {
             Result<InboundWebhookEndpointDto> rotated = await _endpoints.UpdateAsync(
                 broadcasterId,
                 endpointId,
-                new UpdateInboundWebhookRequest { VerificationSecret = verificationSecret },
+                new() { VerificationSecret = verificationSecret },
                 ct
             );
             return rotated.IsFailure
@@ -230,7 +230,7 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
         Result<InboundWebhookEndpointDto> created = await _endpoints.CreateAsync(
             broadcasterId,
             actorUserId,
-            new CreateInboundWebhookRequest
+            new()
             {
                 Name = $"{sourceKey} (supporters)",
                 Adapter = kind,
@@ -263,7 +263,7 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
     {
         string ingestUrl;
         Guid endpointId;
-        if (connection.InboundWebhookEndpointId is Guid existingId)
+        if (connection.InboundWebhookEndpointId is { } existingId)
         {
             Result<InboundWebhookEndpointDto> existing = await _endpoints.GetAsync(
                 broadcasterId,
@@ -278,7 +278,7 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
         else
         {
             WebhookAdapterKind? adapter = SupporterWebhookAdapters.AdapterFor(sourceKey);
-            if (adapter is not WebhookAdapterKind kind)
+            if (adapter is not { } kind)
                 return Result.Failure(
                     $"'{sourceKey}' has no inbound webhook adapter to provision.",
                     "VALIDATION_FAILED"
@@ -292,7 +292,7 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
             Result<InboundWebhookEndpointDto> created = await _endpoints.CreateAsync(
                 broadcasterId,
                 actorUserId,
-                new CreateInboundWebhookRequest
+                new()
                 {
                     Name = $"{sourceKey} (supporters)",
                     Adapter = kind,
@@ -324,7 +324,7 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
     )
     {
         string? endpointUrl = null;
-        if (connection.InboundWebhookEndpointId is Guid endpointId)
+        if (connection.InboundWebhookEndpointId is { } endpointId)
         {
             Result<InboundWebhookEndpointDto> endpoint = await _endpoints.GetAsync(
                 connection.BroadcasterId,
@@ -335,7 +335,7 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
                 endpointUrl = endpoint.Value.IngestUrl;
         }
 
-        return new SupporterConnectionDto(
+        return new(
             connection.SourceKey,
             connection.ConnectionMode,
             connection.AuthSecretCipher != null || connection.InboundWebhookEndpointId != null,
@@ -364,7 +364,7 @@ public sealed class SupporterConnectionService : ISupporterConnectionService
         // A one-step-provisioned endpoint belongs to this connection — disconnecting retires it too, so the
         // dead ingest URL stops resolving. Endpoints created manually on the Webhooks page are never linked
         // here and stay untouched.
-        if (connection.InboundWebhookEndpointId is Guid endpointId)
+        if (connection.InboundWebhookEndpointId is { } endpointId)
             await _endpoints.DeleteAsync(broadcasterId, endpointId, ct);
 
         _db.SupporterConnections.Remove(connection); // Soft delete via the interceptor.

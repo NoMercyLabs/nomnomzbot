@@ -43,7 +43,7 @@ public sealed class ChannelAnalyticsDailyProjectionTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(coveringStreamId);
-        return (new ChannelAnalyticsDailyProjection(db, liveWindow), db);
+        return (new(db, liveWindow), db);
     }
 
     private static EventRecord Event(
@@ -100,7 +100,7 @@ public sealed class ChannelAnalyticsDailyProjectionTests
 
         ChannelAnalyticsDaily row = db.ChannelAnalyticsDailies.Single();
         row.BroadcasterId.Should().Be(Channel);
-        row.ActivityDate.Should().Be(new DateOnly(2026, 6, 22));
+        row.ActivityDate.Should().Be(new(2026, 6, 22));
         row.TotalMessages.Should().Be(3);
         row.NewFollowers.Should().Be(2); // live FollowEvent + legacy NewFollowerEvent
         row.NewSubscribers.Should().Be(3); // new sub + resub + gift

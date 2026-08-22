@@ -111,7 +111,7 @@ public sealed class LocalIpcListenerFactory : IIpcListenerFactory
             Socket socket = new(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
             socket.Bind(new UnixDomainSocketEndPoint(socketPath));
             socket.Listen(backlog: 8);
-            return new UnixSocketIpcListener(socket, socketPath);
+            return new(socket, socketPath);
         }
 
         public async Task<IIpcConnection?> AcceptAsync(CancellationToken ct)

@@ -96,7 +96,7 @@ public sealed class AlejoPronounClient : IAlejoPronounClient
             if (user is null || string.IsNullOrWhiteSpace(user.PronounId))
                 return null;
 
-            return new AlejoUserPronoun(user.PronounId, user.AltPronounId);
+            return new(user.PronounId, user.AltPronounId);
         }
         catch (Exception ex)
             when (ex
@@ -134,7 +134,7 @@ public sealed class AlejoPronounClient : IAlejoPronounClient
                 continue;
 
             records.Add(
-                new PronounRecord(
+                new(
                     entry.Value.Subject,
                     entry.Value.Object,
                     entry.Value.Singular,

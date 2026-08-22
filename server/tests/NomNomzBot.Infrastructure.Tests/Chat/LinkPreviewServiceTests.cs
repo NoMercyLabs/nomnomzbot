@@ -39,18 +39,18 @@ public sealed class LinkPreviewServiceTests
     private static LinkPreviewService Service(StubHandler handler, ICacheService cache)
     {
         IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
-        factory.CreateClient(EgressHttpClient.Name).Returns(_ => new HttpClient(handler));
-        return new LinkPreviewService(factory, cache, NullLogger<LinkPreviewService>.Instance);
+        factory.CreateClient(EgressHttpClient.Name).Returns(_ => new(handler));
+        return new(factory, cache, NullLogger<LinkPreviewService>.Instance);
     }
 
     [Fact]
     public async Task Parses_open_graph_tags_into_a_preview()
     {
         Result<LinkPreview?> result = await Service(
-                new StubHandler(Html, "text/html"),
+                new(Html, "text/html"),
                 new FakeCache()
             )
-            .FetchAsync(new Uri("https://example.com/page"));
+            .FetchAsync(new("https://example.com/page"));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
@@ -65,10 +65,10 @@ public sealed class LinkPreviewServiceTests
     public async Task Non_html_content_yields_no_preview()
     {
         Result<LinkPreview?> result = await Service(
-                new StubHandler("binary-image-bytes", "image/png"),
+                new("binary-image-bytes", "image/png"),
                 new FakeCache()
             )
-            .FetchAsync(new Uri("https://example.com/x.png"));
+            .FetchAsync(new("https://example.com/x.png"));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeNull();
@@ -80,8 +80,8 @@ public sealed class LinkPreviewServiceTests
         StubHandler handler = new(Html, "text/html");
         LinkPreviewService service = Service(handler, new FakeCache());
 
-        await service.FetchAsync(new Uri("https://example.com/page"));
-        await service.FetchAsync(new Uri("https://example.com/page"));
+        await service.FetchAsync(new("https://example.com/page"));
+        await service.FetchAsync(new("https://example.com/page"));
 
         handler.Calls.Should().Be(1); // the second request hit the cache, no re-fetch
     }

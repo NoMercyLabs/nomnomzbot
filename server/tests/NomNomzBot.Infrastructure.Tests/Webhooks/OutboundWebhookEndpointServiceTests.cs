@@ -15,7 +15,6 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Application.Services;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
@@ -61,7 +60,7 @@ public sealed class OutboundWebhookEndpointServiceTests
             .Returns(Result.Success(Guid.Parse("0192a000-0000-7000-8000-0000000000cc")));
         RecordingEventBus bus = new();
         return (
-            new OutboundWebhookEndpointService(db, protector, keys, new FakeTimeProvider(Now), bus),
+            new(db, protector, keys, new FakeTimeProvider(Now), bus),
             db,
             bus
         );
@@ -70,7 +69,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     private static async Task SeedAllowlistAsync(AuthDbContext db, string fqdn = "api.example.com")
     {
         db.HttpEgressAllowlists.Add(
-            new HttpEgressAllowlist
+            new()
             {
                 BroadcasterId = Channel,
                 Fqdn = fqdn,
@@ -241,7 +240,7 @@ public sealed class OutboundWebhookEndpointServiceTests
         Result<OutboundWebhookEndpointDto> result = await sut.UpdateAsync(
             Channel,
             endpointId,
-            new UpdateOutboundWebhookRequest { SubscribedEventTypes = ["FollowEvent", "bogus"] }
+            new() { SubscribedEventTypes = ["FollowEvent", "bogus"] }
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -344,7 +343,7 @@ public sealed class OutboundWebhookEndpointServiceTests
         Result<PagedList<OutboundWebhookDeliveryDto>> result = await sut.ListDeliveriesAsync(
             Channel,
             endpointId,
-            new PaginationParams(1, 10, null, null)
+            new(1, 10, null, null)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -363,7 +362,7 @@ public sealed class OutboundWebhookEndpointServiceTests
         Result<PagedList<OutboundWebhookDeliveryDto>> result = await sut.ListDeliveriesAsync(
             Channel,
             Guid.NewGuid(),
-            new PaginationParams(1, 10, null, null)
+            new(1, 10, null, null)
         );
 
         result.ErrorCode.Should().Be("NOT_FOUND");

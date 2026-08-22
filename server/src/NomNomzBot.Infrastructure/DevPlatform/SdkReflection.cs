@@ -108,7 +108,7 @@ public static class SdkReflection
         Type t = Nullable.GetUnderlyingType(type) ?? type;
 
         if (t == typeof(string) || t == typeof(Guid) || t.Name == "Ulid")
-            return new ClassifiedType(TypeCategory.StringLike, t, null, null);
+            return new(TypeCategory.StringLike, t, null, null);
         if (
             t == typeof(DateTime)
             || t == typeof(DateTimeOffset)
@@ -116,25 +116,25 @@ public static class SdkReflection
             || t == typeof(TimeOnly)
             || t == typeof(TimeSpan)
         )
-            return new ClassifiedType(TypeCategory.StringLike, t, null, null);
+            return new(TypeCategory.StringLike, t, null, null);
         if (t.IsEnum)
-            return new ClassifiedType(TypeCategory.Enum, t, null, null);
+            return new(TypeCategory.Enum, t, null, null);
         if (t == typeof(bool))
-            return new ClassifiedType(TypeCategory.BoolLike, t, null, null);
+            return new(TypeCategory.BoolLike, t, null, null);
         if (IsIntegral(t))
-            return new ClassifiedType(TypeCategory.IntegerLike, t, null, null);
+            return new(TypeCategory.IntegerLike, t, null, null);
         if (t == typeof(decimal) || t == typeof(double) || t == typeof(float))
-            return new ClassifiedType(TypeCategory.NumberLike, t, null, null);
+            return new(TypeCategory.NumberLike, t, null, null);
 
         if (TryGetDictionaryValueType(t, out Type? valueType))
-            return new ClassifiedType(TypeCategory.Dictionary, t, null, valueType);
+            return new(TypeCategory.Dictionary, t, null, valueType);
         if (TryGetEnumerableElementType(t, out Type? elementType))
-            return new ClassifiedType(TypeCategory.Collection, t, elementType, null);
+            return new(TypeCategory.Collection, t, elementType, null);
 
         if (t.IsClass || (t.IsValueType && !t.IsPrimitive))
-            return new ClassifiedType(TypeCategory.Object, t, null, null);
+            return new(TypeCategory.Object, t, null, null);
 
-        return new ClassifiedType(TypeCategory.Unknown, t, null, null);
+        return new(TypeCategory.Unknown, t, null, null);
     }
 
     private static bool IsIntegral(Type t) =>

@@ -35,7 +35,7 @@ public sealed class PublicSongRequestControllerTests
     {
         ISongRequestPageTokenService tokens = Substitute.For<ISongRequestPageTokenService>();
         IMusicService music = Substitute.For<IMusicService>();
-        return (new PublicSongRequestController(tokens, music), tokens, music);
+        return (new(tokens, music), tokens, music);
     }
 
     private static SongRequestPageDto Page(bool accepting) =>
@@ -51,7 +51,7 @@ public sealed class PublicSongRequestControllerTests
 
         IActionResult result = await controller.Submit(
             "nope",
-            new SongRequestDto { Query = "a song" },
+            new() { Query = "a song" },
             default
         );
 
@@ -68,7 +68,7 @@ public sealed class PublicSongRequestControllerTests
 
         IActionResult result = await controller.Submit(
             "tok",
-            new SongRequestDto { Query = "a song" },
+            new() { Query = "a song" },
             default
         );
 
@@ -109,7 +109,7 @@ public sealed class PublicSongRequestControllerTests
 
         IActionResult result = await controller.Submit(
             "tok",
-            new SongRequestDto { Query = "never gonna give you up" },
+            new() { Query = "never gonna give you up" },
             default
         );
 

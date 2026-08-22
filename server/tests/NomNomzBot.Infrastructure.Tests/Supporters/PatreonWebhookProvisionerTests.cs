@@ -86,7 +86,7 @@ public sealed class PatreonWebhookProvisionerTests
             await endpoints.CreateAsync(
                 Tenant,
                 Guid.NewGuid(),
-                new NomNomzBot.Application.DTOs.Webhooks.CreateInboundWebhookRequest
+                new()
                 {
                     Name = "patreon (supporters)",
                     Adapter = WebhookAdapterKind.Patreon,
@@ -250,7 +250,7 @@ public sealed class PatreonWebhookProvisionerTests
                 return Json(WebhooksListJson);
             if (path.EndsWith("/campaigns"))
                 return Json(CampaignsJson);
-            return new HttpResponseMessage(HttpStatusCode.NotFound);
+            return new(HttpStatusCode.NotFound);
         }
 
         private static HttpResponseMessage Json(string body) =>

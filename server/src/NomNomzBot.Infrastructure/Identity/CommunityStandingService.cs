@@ -49,7 +49,7 @@ public sealed class CommunityStandingService(
         if (existing is null)
         {
             db.ChannelCommunityStandings.Add(
-                new ChannelCommunityStanding
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     UserId = userId,
@@ -147,13 +147,13 @@ public sealed class CommunityStandingService(
                 member.Standing,
                 fullyAuthoritative
             );
-            if (apply is not CommunityStanding target)
+            if (apply is not { } target)
                 continue; // leave the existing row untouched (higher non-owned standing, or a partial-read lower)
 
             if (row is null)
             {
                 db.ChannelCommunityStandings.Add(
-                    new ChannelCommunityStanding
+                    new()
                     {
                         BroadcasterId = broadcasterId,
                         UserId = member.UserId,
@@ -240,13 +240,13 @@ public sealed class CommunityStandingService(
         bool fullyAuthoritative
     )
     {
-        if (current is not CommunityStanding cur)
+        if (current is not { } cur)
             return desired; // no row yet — create at the Twitch standing
 
         int curLevel = cur.ToLevel();
         int desLevel = desired.ToLevel();
 
-        if (currentSource is not StandingSource src || !IsReconcilable(src, cur))
+        if (currentSource is not { } src || !IsReconcilable(src, cur))
             // A standing we don't own: only take it over to RAISE a strictly-lower row, never lower an equal/higher one.
             return desLevel > curLevel ? desired : null;
 

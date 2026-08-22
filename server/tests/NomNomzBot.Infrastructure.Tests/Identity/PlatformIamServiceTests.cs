@@ -48,7 +48,7 @@ public sealed class PlatformIamServiceTests
         Guid roleId = Guid.NewGuid();
         Guid permissionId = Guid.NewGuid();
         db.IamPrincipals.Add(
-            new IamPrincipal
+            new()
             {
                 Id = principalId,
                 PrincipalType = IamPrincipalType.Employee,
@@ -56,9 +56,9 @@ public sealed class PlatformIamServiceTests
                 IsActive = true,
             }
         );
-        db.IamRoles.Add(new IamRole { Id = roleId, Name = $"role-{permissionId}" });
+        db.IamRoles.Add(new() { Id = roleId, Name = $"role-{permissionId}" });
         db.IamPermissions.Add(
-            new IamPermission
+            new()
             {
                 Id = permissionId,
                 Key = permissionKey,
@@ -66,10 +66,10 @@ public sealed class PlatformIamServiceTests
             }
         );
         db.IamRolePermissions.Add(
-            new IamRolePermission { RoleId = roleId, PermissionId = permissionId }
+            new() { RoleId = roleId, PermissionId = permissionId }
         );
         db.IamRoleAssignments.Add(
-            new IamRoleAssignment
+            new()
             {
                 PrincipalId = principalId,
                 RoleId = roleId,
@@ -167,7 +167,7 @@ public sealed class PlatformIamServiceTests
         Guid target = Guid.NewGuid();
         Guid roleId = Guid.NewGuid();
         db.IamPrincipals.Add(
-            new IamPrincipal
+            new()
             {
                 Id = target,
                 PrincipalType = IamPrincipalType.Employee,
@@ -175,7 +175,7 @@ public sealed class PlatformIamServiceTests
                 IsActive = true,
             }
         );
-        db.IamRoles.Add(new IamRole { Id = roleId, Name = "support" });
+        db.IamRoles.Add(new() { Id = roleId, Name = "support" });
         await db.SaveChangesAsync();
 
         Result<IamRoleAssignmentDto> ok = await sut.AssignRoleAsync(
@@ -225,7 +225,7 @@ public sealed class PlatformIamServiceTests
 
         Result<IamPrincipalDto> result = await sut.CreatePrincipalAsync(
             creator,
-            new CreatePrincipalRequest(
+            new(
                 IamPrincipalType.ServiceAccount,
                 UserId: null,
                 DisplayName: "ci-bot",
@@ -250,7 +250,7 @@ public sealed class PlatformIamServiceTests
 
         Result<IamPrincipalDto> result = await sut.CreatePrincipalAsync(
             creator,
-            new CreatePrincipalRequest(
+            new(
                 IamPrincipalType.Employee,
                 UserId: null,
                 DisplayName: "no-user",
@@ -275,7 +275,7 @@ public sealed class PlatformIamServiceTests
 
         Result<IamPrincipalDto> result = await sut.CreatePrincipalAsync(
             creator,
-            new CreatePrincipalRequest(
+            new(
                 IamPrincipalType.Employee,
                 UserId: user.Id,
                 DisplayName: "Promoted Operator",
@@ -301,7 +301,7 @@ public sealed class PlatformIamServiceTests
 
         Result<IamPrincipalDto> result = await sut.CreatePrincipalAsync(
             creator,
-            new CreatePrincipalRequest(
+            new(
                 IamPrincipalType.Employee,
                 UserId: Guid.NewGuid(),
                 DisplayName: "ghost",
@@ -323,7 +323,7 @@ public sealed class PlatformIamServiceTests
         db.Users.Add(user);
         Guid targetId = Guid.NewGuid();
         db.IamPrincipals.Add(
-            new IamPrincipal
+            new()
             {
                 Id = targetId,
                 PrincipalType = IamPrincipalType.Employee,
@@ -368,7 +368,7 @@ public sealed class PlatformIamServiceTests
         (PlatformIamService sut, AuthDbContext db, _) = Build();
         SeedPrincipalWithPermission(db, "iam:manage"); // seeds one role bound to iam:manage
         db.IamRoles.Add(
-            new IamRole
+            new()
             {
                 Id = Guid.NewGuid(),
                 Name = "empty-role",
@@ -394,10 +394,10 @@ public sealed class PlatformIamServiceTests
         (PlatformIamService sut, AuthDbContext db, _) = Build();
         Guid principalId = SeedPrincipalWithPermission(db, "iam:manage");
         Guid roleId = Guid.NewGuid();
-        db.IamRoles.Add(new IamRole { Id = roleId, Name = "stale-role" });
+        db.IamRoles.Add(new() { Id = roleId, Name = "stale-role" });
         // A revoked and an expired assignment — both must be filtered out of the summary.
         db.IamRoleAssignments.Add(
-            new IamRoleAssignment
+            new()
             {
                 PrincipalId = principalId,
                 RoleId = roleId,
@@ -406,7 +406,7 @@ public sealed class PlatformIamServiceTests
             }
         );
         db.IamRoleAssignments.Add(
-            new IamRoleAssignment
+            new()
             {
                 PrincipalId = principalId,
                 RoleId = roleId,

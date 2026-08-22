@@ -11,7 +11,6 @@
 using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
-using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Widgets;
 
 namespace NomNomzBot.Infrastructure.Tests.Widgets;
@@ -41,7 +40,7 @@ public sealed class WidgetGalleryServiceTests
         Guid id = Guid.CreateVersion7();
         await using WidgetTestDbContext db = database.NewContext();
         db.WidgetGalleryItems.Add(
-            new WidgetGalleryItem
+            new()
             {
                 Id = id,
                 Name = name,
@@ -55,7 +54,7 @@ public sealed class WidgetGalleryServiceTests
                 AvailableInSaaS = true,
                 InstallCount = installCount,
                 DefaultEventSubscriptions = ["follow", "cheer"],
-                DefaultSettings = new Dictionary<string, object> { ["durationMs"] = 6000 },
+                DefaultSettings = new() { ["durationMs"] = 6000 },
             }
         );
         await db.SaveChangesAsync();
@@ -75,7 +74,7 @@ public sealed class WidgetGalleryServiceTests
         await using (WidgetTestDbContext db = database.NewContext())
         {
             Result<PagedList<GalleryItemSummary>> result = await NewService(db)
-                .ListAsync(new GalleryListRequest(), FirstPage);
+                .ListAsync(new(), FirstPage);
             result.IsSuccess.Should().BeTrue(result.ErrorMessage);
             page = result.Value;
         }
@@ -102,7 +101,7 @@ public sealed class WidgetGalleryServiceTests
 
         await using WidgetTestDbContext db = database.NewContext();
         Result<PagedList<GalleryItemSummary>> result = await NewService(db)
-            .ListAsync(new GalleryListRequest { Framework = "vue" }, FirstPage);
+            .ListAsync(new() { Framework = "vue" }, FirstPage);
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.Items.Should().ContainSingle().Which.Name.Should().Be("Goals");
@@ -117,7 +116,7 @@ public sealed class WidgetGalleryServiceTests
 
         await using WidgetTestDbContext db = database.NewContext();
         Result<PagedList<GalleryItemSummary>> result = await NewService(db)
-            .ListAsync(new GalleryListRequest { TrustTier = "verified_community" }, FirstPage);
+            .ListAsync(new() { TrustTier = "verified_community" }, FirstPage);
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.Items.Should().ContainSingle().Which.Name.Should().Be("Community");

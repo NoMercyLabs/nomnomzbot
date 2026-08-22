@@ -102,7 +102,7 @@ public class PipelinesController : BaseController
         return Ok(
             new StatusResponseDto<PipelineCatalogueDto>
             {
-                Data = new PipelineCatalogueDto(actions, conditions),
+                Data = new(actions, conditions),
             }
         );
     }

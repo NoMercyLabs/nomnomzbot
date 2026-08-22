@@ -17,7 +17,6 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Entities;
@@ -53,10 +52,10 @@ public sealed class TtsConfigControllerOwnVoiceTests
             Substitute.For<ITtsService>(),
             Substitute.For<IEventBus>(),
             Substitute.For<ISubjectKeyService>(),
-            Substitute.For<NomNomzBot.Application.Identity.Services.IUserService>()
+            Substitute.For<Application.Identity.Services.IUserService>()
         );
 
-        return new TtsConfigController(
+        return new(
             service,
             Substitute.For<ITtsLexiconService>(),
             db,
@@ -66,7 +65,7 @@ public sealed class TtsConfigControllerOwnVoiceTests
 
     private static void SeedChannel(TtsConfigControllerOwnVoiceTestDbContext db) =>
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Broadcaster,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -79,7 +78,7 @@ public sealed class TtsConfigControllerOwnVoiceTests
 
     private static void SeedVoiceCatalogue(TtsConfigControllerOwnVoiceTestDbContext db) =>
         db.TtsVoices.Add(
-            new TtsVoice
+            new()
             {
                 Id = VoiceId,
                 Name = "Jenny",
@@ -98,7 +97,7 @@ public sealed class TtsConfigControllerOwnVoiceTests
         SeedChannel(db);
         SeedVoiceCatalogue(db);
         db.UserIdentities.Add(
-            new UserIdentity
+            new()
             {
                 UserId = CallerUserId,
                 Provider = AuthEnums.Platform.Twitch,
@@ -113,7 +112,7 @@ public sealed class TtsConfigControllerOwnVoiceTests
 
         IActionResult result = await controller.SetOwnVoice(
             Broadcaster.ToString(),
-            new SetUserVoiceDto { VoiceId = VoiceId },
+            new() { VoiceId = VoiceId },
             CancellationToken.None
         );
 
@@ -141,7 +140,7 @@ public sealed class TtsConfigControllerOwnVoiceTests
 
         IActionResult result = await controller.SetOwnVoice(
             Broadcaster.ToString(),
-            new SetUserVoiceDto { VoiceId = VoiceId },
+            new() { VoiceId = VoiceId },
             CancellationToken.None
         );
 
@@ -159,7 +158,7 @@ public sealed class TtsConfigControllerOwnVoiceTests
             TtsConfigControllerOwnVoiceTestDbContext.New();
         SeedChannel(db);
         db.UserIdentities.Add(
-            new UserIdentity
+            new()
             {
                 UserId = CallerUserId,
                 Provider = AuthEnums.Platform.Twitch,
@@ -169,7 +168,7 @@ public sealed class TtsConfigControllerOwnVoiceTests
             }
         );
         db.UserTtsVoices.Add(
-            new UserTtsVoice
+            new()
             {
                 BroadcasterId = Broadcaster,
                 UserId = CallerExternalId,

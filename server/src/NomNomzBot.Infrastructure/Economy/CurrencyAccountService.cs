@@ -264,7 +264,7 @@ public sealed class CurrencyAccountService(
     ) =>
         PostLedgerEntryAsync(
             broadcasterId,
-            new PostLedgerEntryCommand(
+            new(
                 command.ViewerUserId,
                 command.Amount,
                 nameof(CurrencyEntryType.AdminAdjust),
@@ -341,7 +341,7 @@ public sealed class CurrencyAccountService(
         long newBalance = account.Balance + amount;
         if (amount < 0 && newBalance < 0)
             return Result.Failure<CurrencyLedgerEntry>("Insufficient funds.", "INSUFFICIENT_FUNDS");
-        if (amount > 0 && config.MaxBalance is long max && newBalance > max)
+        if (amount > 0 && config.MaxBalance is { } max && newBalance > max)
             return Result.Failure<CurrencyLedgerEntry>(
                 "Maximum balance exceeded.",
                 "MAX_BALANCE_EXCEEDED"
@@ -402,7 +402,7 @@ public sealed class CurrencyAccountService(
 
         long position = (await allocator.NextAsync(broadcasterId, LedgerSequence, ct)).Value;
         db.CurrencyLedgerEntries.Add(
-            new CurrencyLedgerEntry
+            new()
             {
                 BroadcasterId = broadcasterId,
                 TenantPosition = position,

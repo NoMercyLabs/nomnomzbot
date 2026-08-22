@@ -39,7 +39,7 @@ public sealed class FederationEventSignerTests
         keyProvider
             .GetActiveSigningKey()
             .Returns(Result.Success(new FederationSigningKey(KeyId, rsa.ExportRSAPrivateKeyPem())));
-        return (new FederationEventSigner(db, keyProvider, new FakeTimeProvider(Now)), db, rsa);
+        return (new(db, keyProvider, new FakeTimeProvider(Now)), db, rsa);
     }
 
     private static async Task<Guid> SeedPeerKeyAsync(
@@ -58,7 +58,7 @@ public sealed class FederationEventSignerTests
         };
         db.FederationPeers.Add(peer);
         db.FederationPeerKeys.Add(
-            new FederationPeerKey
+            new()
             {
                 PeerId = peer.Id,
                 PublicKey = rsa.ExportSubjectPublicKeyInfoPem(),

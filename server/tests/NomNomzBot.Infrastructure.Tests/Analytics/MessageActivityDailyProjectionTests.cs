@@ -17,7 +17,6 @@ using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Infrastructure.Analytics;
-using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -42,7 +41,7 @@ public sealed class MessageActivityDailyProjectionTests
         ServiceProvider provider = services.BuildServiceProvider();
         IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
         IUserService userService = AuthTestBuilder.UserService(db, currentUser, scopeFactory);
-        return (new MessageActivityDailyProjection(db, new ViewerResolver(db, userService)), db);
+        return (new(db, new(db, userService)), db);
     }
 
     private static EventRecord Chat(string twitchId, DateTime occurredAt) =>
@@ -86,7 +85,7 @@ public sealed class MessageActivityDailyProjectionTests
 
         MessageActivityDaily row = db.MessageActivityDailies.Single();
         row.MessageCount.Should().Be(3);
-        row.ActivityDate.Should().Be(new DateOnly(2026, 6, 22));
+        row.ActivityDate.Should().Be(new(2026, 6, 22));
         row.ViewerProfileId.Should().NotBeEmpty();
         row.FirstMessageAt.Should().Be(day);
         row.LastMessageAt.Should().Be(day.AddHours(2));
@@ -97,8 +96,8 @@ public sealed class MessageActivityDailyProjectionTests
     {
         (MessageActivityDailyProjection sut, AuthDbContext db) = Build();
 
-        await sut.ApplyAsync(Chat("t1", new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc)));
-        await sut.ApplyAsync(Chat("t1", new DateTime(2026, 6, 23, 9, 0, 0, DateTimeKind.Utc)));
+        await sut.ApplyAsync(Chat("t1", new(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc)));
+        await sut.ApplyAsync(Chat("t1", new(2026, 6, 23, 9, 0, 0, DateTimeKind.Utc)));
 
         db.MessageActivityDailies.Should().HaveCount(2);
     }
@@ -107,7 +106,7 @@ public sealed class MessageActivityDailyProjectionTests
     public async Task Reset_clears_the_rollup_for_replay()
     {
         (MessageActivityDailyProjection sut, AuthDbContext db) = Build();
-        await sut.ApplyAsync(Chat("t1", new DateTime(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc)));
+        await sut.ApplyAsync(Chat("t1", new(2026, 6, 22, 9, 0, 0, DateTimeKind.Utc)));
         db.MessageActivityDailies.Should().ContainSingle();
 
         await sut.ResetAsync(Channel);

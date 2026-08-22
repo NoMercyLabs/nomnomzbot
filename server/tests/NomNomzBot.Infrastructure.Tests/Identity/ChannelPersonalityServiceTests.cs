@@ -34,7 +34,7 @@ public sealed class ChannelPersonalityServiceTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = ChannelId,
                 OwnerUserId = OwnerId,
@@ -54,7 +54,7 @@ public sealed class ChannelPersonalityServiceTests
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         RecordingEventBus bus = new();
-        return (new ChannelService(db, TimeProvider.System, bus, registry), registry, bus);
+        return (new(db, TimeProvider.System, bus, registry), registry, bus);
     }
 
     [Fact]

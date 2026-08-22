@@ -118,7 +118,7 @@ public class AutomationCommandService : IAutomationCommandService
 
         Guid correlationId = Guid.CreateVersion7();
         Dictionary<string, string> variables = request.Variables is null
-            ? new Dictionary<string, string>()
+            ? new()
             : new Dictionary<string, string>(request.Variables);
         variables["trigger.source"] = "automation";
         variables["automation.correlation_id"] = correlationId.ToString();
@@ -260,7 +260,7 @@ public class AutomationCommandService : IAutomationCommandService
         if (limited.IsFailure)
             return limited;
 
-        if (request.WhisperToTwitchUserId is string whisperTo)
+        if (request.WhisperToTwitchUserId is { } whisperTo)
             return await _whispers.SendWhisperAsync(
                 principal.BroadcasterId,
                 whisperTo,
@@ -268,7 +268,7 @@ public class AutomationCommandService : IAutomationCommandService
                 ct
             );
 
-        if (request.ReplyToMessageId is string replyTo)
+        if (request.ReplyToMessageId is { } replyTo)
         {
             await _chat.SendReplyAsync(principal.BroadcasterId, replyTo, request.Text, ct);
             return Result.Success();
@@ -439,7 +439,7 @@ public class AutomationCommandService : IAutomationCommandService
         CancellationToken ct
     )
     {
-        if (request.PipelineId is Guid id)
+        if (request.PipelineId is { } id)
             return await _db.Pipelines.FirstOrDefaultAsync(
                 p => p.BroadcasterId == principal.BroadcasterId && p.Id == id && p.IsEnabled,
                 ct

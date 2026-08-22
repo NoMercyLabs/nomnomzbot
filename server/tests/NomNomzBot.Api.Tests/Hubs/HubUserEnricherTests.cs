@@ -27,7 +27,7 @@ public sealed class HubUserEnricherTests
     public async Task Second_call_for_the_same_viewer_hits_the_cache_not_the_store()
     {
         CountingStore store = new(
-            new HubUserEnrichment("Stoney", "https://cdn/avatar.png", "they/them", "Subscriber")
+            new("Stoney", "https://cdn/avatar.png", "they/them", "Subscriber")
         );
         HubUserEnricher enricher = NewEnricher(store);
         Guid channel = Guid.CreateVersion7();
@@ -45,7 +45,7 @@ public sealed class HubUserEnricherTests
     [Fact]
     public async Task Different_viewers_each_get_their_own_store_call()
     {
-        CountingStore store = new(new HubUserEnrichment("Stoney", null, null, null));
+        CountingStore store = new(new("Stoney", null, null, null));
         HubUserEnricher enricher = NewEnricher(store);
         Guid channel = Guid.CreateVersion7();
 
@@ -58,7 +58,7 @@ public sealed class HubUserEnricherTests
     [Fact]
     public async Task Different_channels_for_the_same_viewer_each_get_their_own_store_call()
     {
-        CountingStore store = new(new HubUserEnrichment("Stoney", null, null, null));
+        CountingStore store = new(new("Stoney", null, null, null));
         HubUserEnricher enricher = NewEnricher(store);
 
         await enricher.EnrichAsync(Guid.CreateVersion7(), "u1");
@@ -89,7 +89,7 @@ public sealed class HubUserEnricherTests
     [Fact]
     public async Task Empty_twitch_user_id_returns_null_without_calling_the_store()
     {
-        CountingStore store = new(new HubUserEnrichment("Stoney", null, null, null));
+        CountingStore store = new(new("Stoney", null, null, null));
         HubUserEnricher enricher = NewEnricher(store);
 
         HubUserEnrichment? result = await enricher.EnrichAsync(Guid.CreateVersion7(), string.Empty);

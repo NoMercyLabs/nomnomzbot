@@ -166,9 +166,9 @@ public class InfraPipelineEngineTests
             {
                 Steps =
                 [
-                    new PipelineStepDefinition
+                    new()
                     {
-                        Action = new ActionDefinition { Type = "music_play" },
+                        Action = new() { Type = "music_play" },
                     },
                 ],
             }

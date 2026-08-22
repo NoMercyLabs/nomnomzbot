@@ -146,7 +146,7 @@ public sealed class KickLoginProvider : IAuthCodeLoginProvider
         string username = identity.Name ?? providerUserId;
 
         Result<IntegrationConnectionDto> connection = await _vault.UpsertConnectionAsync(
-            new UpsertConnectionDto(
+            new(
                 BroadcasterId: null,
                 Provider: AuthEnums.LoginProvider.Kick,
                 ProviderAccountId: providerUserId,
@@ -164,7 +164,7 @@ public sealed class KickLoginProvider : IAuthCodeLoginProvider
 
         Result store = await _vault.StoreTokensAsync(
             connection.Value.Id,
-            new StoreTokensDto(
+            new(
                 token.AccessToken,
                 token.RefreshToken,
                 AppToken: null,

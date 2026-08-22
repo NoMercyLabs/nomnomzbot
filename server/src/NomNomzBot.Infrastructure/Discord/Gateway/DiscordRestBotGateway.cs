@@ -154,11 +154,11 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
             AllowedMentions: null,
             Components:
             [
-                new DiscordComponent(
+                new(
                     Type: 1,
                     Components:
                     [
-                        new DiscordComponent(
+                        new(
                             Type: 2,
                             Style: 1,
                             Label: button.ButtonLabel,
@@ -514,7 +514,7 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
     /// <summary>Restricts mentions to only the one ping role (never @everyone / @here / arbitrary users).</summary>
     private static DiscordAllowedMentions? BuildAllowedMentions(string? pingRoleId) =>
         string.IsNullOrEmpty(pingRoleId)
-            ? new DiscordAllowedMentions([], [])
+            ? new([], [])
             : new DiscordAllowedMentions([], [pingRoleId]);
 
     private static DiscordEmbedPayload ToWireEmbed(DiscordEmbedDto embed) =>

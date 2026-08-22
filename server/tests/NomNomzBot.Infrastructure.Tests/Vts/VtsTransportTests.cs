@@ -110,7 +110,7 @@ public sealed class VtsTransportTests
     {
         VtsTestDbContext db = VtsTestDbContext.New();
         db.VtsConnections.Add(
-            new VtsConnection
+            new()
             {
                 BroadcasterId = Channel,
                 Mode = "direct",
@@ -152,9 +152,9 @@ public sealed class VtsTransportTests
             .GetRequiredService<IServiceScopeFactory>();
 
         RecordingEventBus bus = new();
-        return new Harness
+        return new()
         {
-            Transport = new DirectVtsTransport(
+            Transport = new(
                 factory,
                 scopeFactory,
                 bus,
@@ -317,7 +317,7 @@ public sealed class VtsTransportTests
     {
         for (int i = 0; i < 150; i++)
         {
-            if (probe() is T hit)
+            if (probe() is { } hit)
                 return hit;
             await Task.Delay(20);
         }

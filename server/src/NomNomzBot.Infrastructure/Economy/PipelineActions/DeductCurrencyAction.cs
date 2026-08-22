@@ -40,7 +40,7 @@ public sealed class DeductCurrencyAction(ICurrencyAccountService accounts) : ICo
 
         Result<CurrencyLedgerEntryDto> result = await accounts.PostLedgerEntryAsync(
             ctx.BroadcasterId,
-            new PostLedgerEntryCommand(
+            new(
                 viewer,
                 -amount,
                 nameof(CurrencyEntryType.SpendPipeline),

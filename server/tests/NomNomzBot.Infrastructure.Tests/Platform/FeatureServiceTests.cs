@@ -51,7 +51,7 @@ public sealed class FeatureServiceTests
         flags
             .EvaluateAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new FeatureFlagEvaluation(false, false, null, null));
-        return (new FeatureService(db, new FakeTimeProvider(Now), bus, flags), bus, flags);
+        return (new(db, new FakeTimeProvider(Now), bus, flags), bus, flags);
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public sealed class FeatureServiceTests
     {
         FeatureServiceTestDbContext db = FeatureServiceTestDbContext.New();
         db.ChannelFeatures.Add(
-            new ChannelFeature
+            new()
             {
                 BroadcasterId = Channel,
                 FeatureKey = "use_7tv",
@@ -215,7 +215,7 @@ public sealed class FeatureServiceTests
         // when the channel's tier does not entitle it. The row IS on here — but the tier gate is not satisfied.
         FeatureServiceTestDbContext db = FeatureServiceTestDbContext.New();
         db.ChannelFeatures.Add(
-            new ChannelFeature
+            new()
             {
                 BroadcasterId = Channel,
                 FeatureKey = "custom_code",
@@ -311,7 +311,7 @@ public sealed class FeatureServiceTests
         // Revoking a feature you can no longer afford (e.g. after a downgrade) must always succeed.
         FeatureServiceTestDbContext db = FeatureServiceTestDbContext.New();
         db.ChannelFeatures.Add(
-            new ChannelFeature
+            new()
             {
                 BroadcasterId = Channel,
                 FeatureKey = "custom_code",

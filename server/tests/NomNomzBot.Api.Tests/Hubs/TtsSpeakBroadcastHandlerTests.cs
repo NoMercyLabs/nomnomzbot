@@ -12,7 +12,6 @@ using System.Text.Json;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Tts.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -45,7 +44,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
         TtsSpeakBroadcastHandler handler = new(db, widgets);
 
         await handler.HandleAsync(
-            new TtsUtteranceDispatchedEvent
+            new()
             {
                 BroadcasterId = channel,
                 Text = "hello chat",
@@ -93,7 +92,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
         TtsSpeakBroadcastHandler handler = new(db, widgets);
 
         await handler.HandleAsync(
-            new TtsUtteranceDispatchedEvent
+            new()
             {
                 BroadcasterId = channel,
                 Text = "hello chat",

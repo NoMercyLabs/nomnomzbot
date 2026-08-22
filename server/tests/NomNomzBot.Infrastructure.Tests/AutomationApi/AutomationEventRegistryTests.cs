@@ -12,7 +12,6 @@ using System.Text.Json;
 using FluentAssertions;
 using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Domain.Chat.Events;
-using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Supporters.Events;
 using NomNomzBot.Infrastructure.AutomationApi.Events;
 
@@ -49,7 +48,7 @@ public sealed class AutomationEventRegistryTests
 
         // An event with no descriptor is invisible — default-deny, not an error.
         registry
-            .TryGet(typeof(NomNomzBot.Domain.Automation.Events.AutomationTokenIssuedEvent), out _)
+            .TryGet(typeof(Domain.Automation.Events.AutomationTokenIssuedEvent), out _)
             .Should()
             .BeFalse("token lifecycle events are internal audit, never streamed");
     }

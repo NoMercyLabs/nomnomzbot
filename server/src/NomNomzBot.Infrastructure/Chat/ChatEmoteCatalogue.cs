@@ -316,7 +316,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         foreach ((string key, string scale) in Scales)
             urls[key] = $"https://static-cdn.jtvnw.net/emoticons/v2/{id}/{format}/dark/{scale}";
 
-        return new ChatEmote(
+        return new(
             EmoteProvider.Twitch,
             id,
             code,

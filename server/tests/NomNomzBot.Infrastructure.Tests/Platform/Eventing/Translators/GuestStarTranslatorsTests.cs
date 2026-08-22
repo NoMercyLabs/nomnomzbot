@@ -27,16 +27,16 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing.Translators;
 public sealed class GuestStarTranslatorsTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static EventSubNotification Notification(Guid tenant, string type, string payload)
     {
         using JsonDocument doc = JsonDocument.Parse(payload);
-        return new EventSubNotification
+        return new()
         {
             MessageId = "msg-guest-star-1",
-            MessageTimestamp = new DateTimeOffset(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
+            MessageTimestamp = new(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
             SubscriptionType = type,
             SubscriptionVersion = "beta",
             BroadcasterId = tenant,
@@ -74,7 +74,7 @@ public sealed class GuestStarTranslatorsTests
             .Subject;
         published.BroadcasterId.Should().Be(tenant);
         published.SessionId.Should().Be("session-2KFRQbFtpmfyD3IevNRnCzOzhg1");
-        published.StartedAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 28, 0, TimeSpan.Zero));
+        published.StartedAt.Should().Be(new(2026, 6, 20, 11, 28, 0, TimeSpan.Zero));
         published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
@@ -106,8 +106,8 @@ public sealed class GuestStarTranslatorsTests
             .Subject;
         published.BroadcasterId.Should().Be(tenant);
         published.SessionId.Should().Be("session-abc");
-        published.StartedAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 28, 0, TimeSpan.Zero));
-        published.EndedAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 55, 0, TimeSpan.Zero));
+        published.StartedAt.Should().Be(new(2026, 6, 20, 11, 28, 0, TimeSpan.Zero));
+        published.EndedAt.Should().Be(new(2026, 6, 20, 11, 55, 0, TimeSpan.Zero));
         published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 

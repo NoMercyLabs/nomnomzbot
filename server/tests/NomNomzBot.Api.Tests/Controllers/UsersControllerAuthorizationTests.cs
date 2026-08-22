@@ -10,7 +10,6 @@
 
 using System.Security.Claims;
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -60,20 +59,20 @@ public sealed class UsersControllerAuthorizationTests
 
         UsersController controller = new(users, gate2, currentUser, currentTenant)
         {
-            ControllerContext = new ControllerContext
+            ControllerContext = new()
             {
                 HttpContext = new DefaultHttpContext
                 {
-                    User = new ClaimsPrincipal(
+                    User = new(
                         new ClaimsIdentity(
-                            [new Claim(ClaimTypes.NameIdentifier, Caller.ToString())],
+                            [new(ClaimTypes.NameIdentifier, Caller.ToString())],
                             "TestAuth"
                         )
                     ),
                 },
             },
         };
-        return new Fixture(controller, users, gate2);
+        return new(controller, users, gate2);
     }
 
     private static UserProfileDto Profile(Guid id) =>
@@ -85,8 +84,8 @@ public sealed class UsersControllerAuthorizationTests
             null,
             null,
             null,
-            new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc)
+            new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            new(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc)
         );
 
     // ── PUT {userId}/profile — strictly self-only ──────────────────────────────
@@ -98,7 +97,7 @@ public sealed class UsersControllerAuthorizationTests
 
         IActionResult result = await f.Controller.UpdateUserProfile(
             OtherUser.ToString(),
-            new UpdateUserProfileRequest { DisplayName = "hijacked" },
+            new() { DisplayName = "hijacked" },
             CancellationToken.None
         );
 
@@ -125,7 +124,7 @@ public sealed class UsersControllerAuthorizationTests
 
         IActionResult result = await f.Controller.UpdateUserProfile(
             Caller.ToString(),
-            new UpdateUserProfileRequest { DisplayName = "Me" },
+            new() { DisplayName = "Me" },
             CancellationToken.None
         );
 

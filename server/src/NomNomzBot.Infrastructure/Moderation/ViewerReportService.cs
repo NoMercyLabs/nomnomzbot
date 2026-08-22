@@ -246,9 +246,9 @@ public sealed class ViewerReportService : IViewerReportService
             reportedUsername,
             report.Reason,
             report.Status,
-            report.ReporterUserId is Guid reporter ? names.GetValueOrDefault(reporter) : null,
+            report.ReporterUserId is { } reporter ? names.GetValueOrDefault(reporter) : null,
             report.CreatedAt,
             report.ResolvedAt,
-            report.ResolvedByUserId is Guid resolver ? names.GetValueOrDefault(resolver) : null
+            report.ResolvedByUserId is { } resolver ? names.GetValueOrDefault(resolver) : null
         );
 }

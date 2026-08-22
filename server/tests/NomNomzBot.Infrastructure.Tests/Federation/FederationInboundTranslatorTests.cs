@@ -12,7 +12,6 @@ using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Federation;
-using NomNomzBot.Application.DTOs.Federation;
 using NomNomzBot.Domain.Federation.Entities;
 using NomNomzBot.Domain.Federation.Enums;
 using NomNomzBot.Infrastructure.Federation;
@@ -77,7 +76,7 @@ public sealed class FederationInboundTranslatorTests
     private static Task AcceptAsync(FederationOptInService optIns, Guid channel, Guid? peer) =>
         optIns.UpsertAsync(
             channel,
-            new UpsertChannelFederationOptInRequest(
+            new(
                 peer,
                 FederationOptInType.SharedChatBans,
                 FederationDirection.Accept,

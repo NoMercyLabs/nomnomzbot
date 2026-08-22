@@ -31,7 +31,7 @@ public class TwitchSearchApiTests
         {
             PageResult = new TwitchPage<TwitchSearchCategory>(
                 [
-                    new TwitchSearchCategory(
+                    new(
                         "509658",
                         "Just Chatting",
                         "https://box-art/{width}x{height}.jpg"
@@ -45,7 +45,7 @@ public class TwitchSearchApiTests
 
         Result<TwitchPage<TwitchSearchCategory>> result = await api.SearchCategoriesAsync(
             "chatting",
-            new TwitchPageRequest(After: "cur", PageSize: 25)
+            new(After: "cur", PageSize: 25)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -76,7 +76,7 @@ public class TwitchSearchApiTests
         };
         TwitchSearchApi api = new(transport);
 
-        await api.SearchCategoriesAsync("art", new TwitchPageRequest(PageSize: 100));
+        await api.SearchCategoriesAsync("art", new(PageSize: 100));
 
         transport.LastRequest!.Query.Should().NotContain(q => q.Key == "after");
         transport.LastRequest.Query.Should().Contain(q => q.Key == "first" && q.Value == "100");
@@ -89,7 +89,7 @@ public class TwitchSearchApiTests
         {
             PageResult = new TwitchPage<TwitchSearchChannel>(
                 [
-                    new TwitchSearchChannel(
+                    new(
                         "44322889",
                         "dallas",
                         "Dallas",
@@ -113,7 +113,7 @@ public class TwitchSearchApiTests
         Result<TwitchPage<TwitchSearchChannel>> result = await api.SearchChannelsAsync(
             "dallas",
             true,
-            new TwitchPageRequest(After: "cur", PageSize: 40)
+            new(After: "cur", PageSize: 40)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -148,7 +148,7 @@ public class TwitchSearchApiTests
         };
         TwitchSearchApi api = new(transport);
 
-        await api.SearchChannelsAsync("dallas", false, new TwitchPageRequest(PageSize: 100));
+        await api.SearchChannelsAsync("dallas", false, new(PageSize: 100));
 
         transport
             .LastRequest!.Query.Should()
@@ -164,7 +164,7 @@ public class TwitchSearchApiTests
         };
         TwitchSearchApi api = new(transport);
 
-        await api.SearchChannelsAsync("dallas", null, new TwitchPageRequest(PageSize: 100));
+        await api.SearchChannelsAsync("dallas", null, new(PageSize: 100));
 
         transport.LastRequest!.Query.Should().NotContain(q => q.Key == "live_only");
         transport.LastRequest.Query.Should().NotContain(q => q.Key == "after");

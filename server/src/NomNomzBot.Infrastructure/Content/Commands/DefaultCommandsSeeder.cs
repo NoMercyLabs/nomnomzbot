@@ -48,7 +48,7 @@ public sealed class DefaultCommandsSeeder : ISeeder
     /// </summary>
     public async Task SeedAsync(Guid? broadcasterId, CancellationToken ct = default)
     {
-        List<Guid> channelIds = broadcasterId is Guid id
+        List<Guid> channelIds = broadcasterId is { } id
             ? [id]
             : await _db.Channels.Select(c => c.Id).ToListAsync(ct);
 
@@ -72,7 +72,7 @@ public sealed class DefaultCommandsSeeder : ISeeder
                     continue;
 
                 _db.ChannelBuiltinCommands.Add(
-                    new ChannelBuiltinCommand
+                    new()
                     {
                         BroadcasterId = channelId,
                         BuiltinKey = key,

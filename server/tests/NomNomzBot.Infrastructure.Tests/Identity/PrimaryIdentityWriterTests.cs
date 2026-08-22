@@ -14,7 +14,6 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Identity;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -72,7 +71,7 @@ public sealed class PrimaryIdentityWriterTests
         Guid userId = Guid.CreateVersion7();
         // A placeholder identity as the resolver/backfill would leave it (username = the external id).
         ctx.UserIdentities.Add(
-            new UserIdentity
+            new()
             {
                 UserId = userId,
                 Provider = "twitch",
@@ -109,7 +108,7 @@ public sealed class PrimaryIdentityWriterTests
         using AuthDbContext ctx = NewContext();
         Guid userId = Guid.CreateVersion7();
         ctx.UserIdentities.Add(
-            new UserIdentity
+            new()
             {
                 UserId = userId,
                 Provider = "twitch",

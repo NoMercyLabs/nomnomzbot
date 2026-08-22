@@ -76,7 +76,7 @@ public interface IApplicationDbContext
     DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans { get; }
     DbSet<ChannelEvent> ChannelEvents { get; }
     DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams { get; }
-    DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations { get; }
+    DbSet<Configuration> Configurations { get; }
     DbSet<Storage> Storages { get; }
     DbSet<Record> Records { get; }
     DbSet<Permission> Permissions { get; }
@@ -102,7 +102,7 @@ public interface IApplicationDbContext
     DbSet<DiscordMemberOptIn> DiscordMemberOptIns { get; }
     DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches { get; }
     DbSet<ChannelSubscription> ChannelSubscriptions { get; }
-    DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens { get; }
+    DbSet<Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens { get; }
     DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections { get; }
     DbSet<NomNomzBot.Domain.Vts.Entities.VtsConnection> VtsConnections { get; }
     DbSet<TtsConfig> TtsConfigs { get; }
@@ -152,7 +152,7 @@ public interface IApplicationDbContext
     // Roles & permissions (Plane A/B) — the authorization data the gates read.
     DbSet<ChannelMembership> ChannelMemberships { get; }
     DbSet<ChannelCommunityStanding> ChannelCommunityStandings { get; }
-    DbSet<NomNomzBot.Domain.Identity.Entities.ActionDefinition> ActionDefinitions { get; }
+    DbSet<ActionDefinition> ActionDefinitions { get; }
     DbSet<ChannelActionOverride> ChannelActionOverrides { get; }
     DbSet<PermitGrant> PermitGrants { get; }
 

@@ -14,7 +14,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Games;
-using NomNomzBot.Application.Games.Dtos;
 using NomNomzBot.Application.Games.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Economy.Entities;
@@ -77,7 +76,7 @@ public sealed class CrashGameTests
         {
             SessionId = Guid.CreateVersion7(),
             BroadcasterId = Channel,
-            Config = new GameConfigView(10, 1000, null, config),
+            Config = new(10, 1000, null, config),
             Participants = participants,
             Phase = phase,
             Data = data,
@@ -267,10 +266,10 @@ public sealed class CrashGameTests
     public async Task End_to_end_a_cashed_player_wins_and_a_still_in_player_loses_on_bust()
     {
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
-        FakeTimeProvider clock = new(new DateTimeOffset(2026, 7, 17, 14, 0, 0, TimeSpan.Zero));
+        FakeTimeProvider clock = new(new(2026, 7, 17, 14, 0, 0, TimeSpan.Zero));
         EventStoreTestDbContext db = database.NewContext();
         db.CurrencyConfigs.Add(
-            new CurrencyConfig
+            new()
             {
                 BroadcasterId = Channel,
                 CurrencyName = "points",
@@ -321,7 +320,7 @@ public sealed class CrashGameTests
             NullLogger<LiveGameEngine>.Instance
         );
 
-        (await engine.StartAsync(Channel, new StartLiveGameCommand("crash", null)))
+        (await engine.StartAsync(Channel, new("crash", null)))
             .IsSuccess.Should()
             .BeTrue();
         await engine.HandleChatInputAsync(Channel, PlayerA, "Alice", "!crash");

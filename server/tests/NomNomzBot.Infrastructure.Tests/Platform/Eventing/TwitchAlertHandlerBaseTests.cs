@@ -96,7 +96,7 @@ public sealed class TwitchAlertHandlerBaseTests
         await using ReadModelRebuildDbContext db = database.NewContext();
         Guid eventId = Guid.CreateVersion7();
         db.ChannelEvents.Add(
-            new ChannelEvent
+            new()
             {
                 Id = eventId.ToString(),
                 ChannelId = Channel,
@@ -106,7 +106,7 @@ public sealed class TwitchAlertHandlerBaseTests
         );
         await db.SaveChangesAsync();
 
-        await NewHandler().Log(db, new TestFollow(eventId, Channel));
+        await NewHandler().Log(db, new(eventId, Channel));
 
         ChannelEvent row = await db.ChannelEvents.AsNoTracking().SingleAsync();
         row.Data.Should().Contain("existing"); // handler skipped — no overwrite, no duplicate

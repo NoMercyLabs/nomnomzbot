@@ -18,7 +18,6 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Analytics;
-using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -44,7 +43,7 @@ public sealed class ViewerProfileProjectionTests
         ServiceProvider provider = services.BuildServiceProvider();
         IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
         IUserService userService = AuthTestBuilder.UserService(db, currentUser, scopeFactory);
-        return (new ViewerProfileProjection(db, new ViewerResolver(db, userService)), db);
+        return (new(db, new(db, userService)), db);
     }
 
     private static EventRecord Chat(

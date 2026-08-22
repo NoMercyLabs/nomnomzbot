@@ -39,7 +39,7 @@ public static class AssemblyScanExtensions
         {
             if (excluded.Contains(implementation))
                 continue;
-            services.Add(new ServiceDescriptor(typeof(TMarker), implementation, lifetime));
+            services.Add(new(typeof(TMarker), implementation, lifetime));
         }
 
         return services;
@@ -70,7 +70,7 @@ public static class AssemblyScanExtensions
             // the closed AddSingleton<IHostedService>(factory) form by hand.
             services.AddSingleton(worker);
             services.Add(
-                new ServiceDescriptor(
+                new(
                     hostedServiceType,
                     sp => sp.GetRequiredService(worker),
                     ServiceLifetime.Singleton
@@ -124,7 +124,7 @@ public static class AssemblyScanExtensions
 
         foreach ((Type serviceInterface, Type implementation) in bindings)
         {
-            services.Add(new ServiceDescriptor(serviceInterface, implementation, lifetime));
+            services.Add(new(serviceInterface, implementation, lifetime));
         }
 
         return services;
@@ -151,7 +151,7 @@ public static class AssemblyScanExtensions
                 )
             )
             {
-                services.Add(new ServiceDescriptor(repository, repository, lifetime));
+                services.Add(new(repository, repository, lifetime));
             }
         }
 
@@ -175,7 +175,7 @@ public static class AssemblyScanExtensions
         {
             foreach (Type closedInterface in ClosedInterfacesOf(handler, openHandlerInterface))
             {
-                services.Add(new ServiceDescriptor(closedInterface, handler, lifetime));
+                services.Add(new(closedInterface, handler, lifetime));
             }
         }
 

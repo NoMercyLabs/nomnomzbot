@@ -112,7 +112,7 @@ public class TwitchHelixTransportTests
         ]);
 
         Result<TwitchPage<Followers>> result = await transport.GetPageAsync<Followers>(
-            new TwitchHelixRequest(HttpMethod.Get, "channels/followers", TwitchHelixAuth.App)
+            new(HttpMethod.Get, "channels/followers", TwitchHelixAuth.App)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -133,7 +133,7 @@ public class TwitchHelixTransportTests
         ]);
 
         Result<TwitchPage<Followers>> result = await transport.GetPageAsync<Followers>(
-            new TwitchHelixRequest(HttpMethod.Get, "channels/followers", TwitchHelixAuth.App)
+            new(HttpMethod.Get, "channels/followers", TwitchHelixAuth.App)
         );
 
         result.Value.NextCursor.Should().BeNull();
@@ -149,7 +149,7 @@ public class TwitchHelixTransportTests
         ]);
 
         Result<int> result = await transport.GetTotalAsync(
-            new TwitchHelixRequest(HttpMethod.Get, "subscriptions", TwitchHelixAuth.User, Tenant)
+            new(HttpMethod.Get, "subscriptions", TwitchHelixAuth.User, Tenant)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -167,7 +167,7 @@ public class TwitchHelixTransportTests
         );
 
         await transport.GetListAsync<Followers>(
-            new TwitchHelixRequest(HttpMethod.Get, "users", TwitchHelixAuth.App)
+            new(HttpMethod.Get, "users", TwitchHelixAuth.App)
         );
 
         RecordedRequest sent = wire.Requests.Should().ContainSingle().Subject;
@@ -183,7 +183,7 @@ public class TwitchHelixTransportTests
         ]);
 
         await transport.GetListAsync<Followers>(
-            new TwitchHelixRequest(HttpMethod.Get, "users", TwitchHelixAuth.App)
+            new(HttpMethod.Get, "users", TwitchHelixAuth.App)
         );
 
         RecordedRequest sent = wire.Requests.Should().ContainSingle().Subject;
@@ -212,7 +212,7 @@ public class TwitchHelixTransportTests
         ]);
 
         Result<string> result = await transport.GetRawAsync(
-            new TwitchHelixRequest(
+            new(
                 HttpMethod.Get,
                 "schedule/icalendar",
                 TwitchHelixAuth.App,
@@ -242,7 +242,7 @@ public class TwitchHelixTransportTests
         ]);
 
         Result<string> result = await transport.GetRawAsync(
-            new TwitchHelixRequest(HttpMethod.Get, "schedule/icalendar", TwitchHelixAuth.App)
+            new(HttpMethod.Get, "schedule/icalendar", TwitchHelixAuth.App)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -281,7 +281,7 @@ public class TwitchHelixTransportTests
         ]);
 
         Result<TwitchSchedule> result = await transport.GetSingleAsync<TwitchSchedule>(
-            new TwitchHelixRequest(HttpMethod.Get, "schedule", TwitchHelixAuth.App)
+            new(HttpMethod.Get, "schedule", TwitchHelixAuth.App)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -290,7 +290,7 @@ public class TwitchHelixTransportTests
         result.Value.Vacation.Should().BeNull();
         TwitchScheduleSegment segment = result.Value.Segments.Should().ContainSingle().Subject;
         segment.Title.Should().Be("TwitchDev Monthly Update // July 1, 2021");
-        segment.StartTime.Should().Be(new DateTimeOffset(2021, 7, 1, 18, 0, 0, TimeSpan.Zero));
+        segment.StartTime.Should().Be(new(2021, 7, 1, 18, 0, 0, TimeSpan.Zero));
         segment.Category!.Name.Should().Be("Science & Technology");
         segment.IsRecurring.Should().BeFalse();
     }
@@ -323,7 +323,7 @@ public class TwitchHelixTransportTests
 
         Result<TwitchActiveExtensions> result =
             await transport.GetSingleAsync<TwitchActiveExtensions>(
-                new TwitchHelixRequest(
+                new(
                     HttpMethod.Get,
                     "users/extensions",
                     TwitchHelixAuth.App,
@@ -367,7 +367,7 @@ public class TwitchHelixTransportTests
                 ),
         ]);
         UpdateUserExtensionsRequest request = new(
-            new UpdateUserExtensionsData(
+            new(
                 Panel: new Dictionary<string, TwitchExtensionSlotUpdate>
                 {
                     ["1"] = new(true, "rh6jq1q334hqc2rr1qlzqbvwlfl3x0", "1.1.0"),
@@ -382,7 +382,7 @@ public class TwitchHelixTransportTests
 
         Result<TwitchActiveExtensions> result =
             await transport.SendWithResultAsync<TwitchActiveExtensions>(
-                new TwitchHelixRequest(
+                new(
                     HttpMethod.Put,
                     "users/extensions",
                     TwitchHelixAuth.User,
@@ -444,7 +444,7 @@ public class TwitchHelixTransportTests
         ]);
 
         Result<Followers> result = await transport.GetSingleAsync<Followers>(
-            new TwitchHelixRequest(HttpMethod.Get, "users", TwitchHelixAuth.App)
+            new(HttpMethod.Get, "users", TwitchHelixAuth.App)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -461,12 +461,12 @@ public class TwitchHelixTransportTests
             FakeTwitchTokenResolver resolver,
             _
         ) = Build([
-            () => new HttpResponseMessage(HttpStatusCode.Unauthorized),
+            () => new(HttpStatusCode.Unauthorized),
             () => RecordingHelixHandler.Json(HttpStatusCode.OK, """{ "data": [] }"""),
         ]);
 
         Result<IReadOnlyList<Followers>> result = await transport.GetListAsync<Followers>(
-            new TwitchHelixRequest(
+            new(
                 HttpMethod.Get,
                 "channels/followers",
                 TwitchHelixAuth.User,
@@ -493,12 +493,12 @@ public class TwitchHelixTransportTests
             FakeTwitchTokenResolver resolver,
             CapturingEventBus bus
         ) = Build([
-            () => new HttpResponseMessage(HttpStatusCode.Unauthorized),
-            () => new HttpResponseMessage(HttpStatusCode.Unauthorized),
+            () => new(HttpStatusCode.Unauthorized),
+            () => new(HttpStatusCode.Unauthorized),
         ]);
 
         Result result = await transport.SendAsync(
-            new TwitchHelixRequest(HttpMethod.Post, "moderation/bans", TwitchHelixAuth.User, Tenant)
+            new(HttpMethod.Post, "moderation/bans", TwitchHelixAuth.User, Tenant)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -512,11 +512,11 @@ public class TwitchHelixTransportTests
     public async Task SendAsync_MapsStatusToTypedErrorCodes()
     {
         (TwitchHelixTransport transport, _, _, _) = Build([
-            () => new HttpResponseMessage(HttpStatusCode.NotFound),
+            () => new(HttpStatusCode.NotFound),
         ]);
 
         Result result = await transport.SendAsync(
-            new TwitchHelixRequest(HttpMethod.Delete, "channels/vips", TwitchHelixAuth.User, Tenant)
+            new(HttpMethod.Delete, "channels/vips", TwitchHelixAuth.User, Tenant)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -529,11 +529,11 @@ public class TwitchHelixTransportTests
         // A 409 (e.g. an identical EventSub subscription still lingering in Twitch's stale-session GC window)
         // maps to the typed Conflict code so the caller can park the row "pending" instead of "failed".
         (TwitchHelixTransport transport, _, _, _) = Build([
-            () => new HttpResponseMessage(HttpStatusCode.Conflict),
+            () => new(HttpStatusCode.Conflict),
         ]);
 
         Result result = await transport.SendAsync(
-            new TwitchHelixRequest(HttpMethod.Post, "eventsub/subscriptions", TwitchHelixAuth.App)
+            new(HttpMethod.Post, "eventsub/subscriptions", TwitchHelixAuth.App)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -553,12 +553,12 @@ public class TwitchHelixTransportTests
             FakeTwitchTokenResolver resolver,
             _
         ) = Build([
-            () => new HttpResponseMessage(HttpStatusCode.Unauthorized),
+            () => new(HttpStatusCode.Unauthorized),
             () => RecordingHelixHandler.Json(HttpStatusCode.OK, """{ "data": [] }"""),
         ]);
 
         Result result = await transport.SendAsync(
-            new TwitchHelixRequest(HttpMethod.Get, "users", TwitchHelixAuth.App)
+            new(HttpMethod.Get, "users", TwitchHelixAuth.App)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -579,12 +579,12 @@ public class TwitchHelixTransportTests
             FakeTwitchTokenResolver resolver,
             CapturingEventBus bus
         ) = Build([
-            () => new HttpResponseMessage(HttpStatusCode.Unauthorized),
-            () => new HttpResponseMessage(HttpStatusCode.Unauthorized),
+            () => new(HttpStatusCode.Unauthorized),
+            () => new(HttpStatusCode.Unauthorized),
         ]);
 
         Result result = await transport.SendAsync(
-            new TwitchHelixRequest(HttpMethod.Get, "users", TwitchHelixAuth.App)
+            new(HttpMethod.Get, "users", TwitchHelixAuth.App)
         );
 
         result.IsFailure.Should().BeTrue();

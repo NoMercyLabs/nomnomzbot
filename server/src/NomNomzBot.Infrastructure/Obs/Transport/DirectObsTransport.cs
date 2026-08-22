@@ -232,7 +232,7 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
             && dataEl.ValueKind == JsonValueKind.Object
         )
         {
-            data = new Dictionary<string, object?>();
+            data = new();
             foreach (JsonProperty property in dataEl.EnumerateObject())
                 data[property.Name] = property.Value.ValueKind switch
                 {
@@ -245,7 +245,7 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
                 };
         }
 
-        return new ObsResponse(ok, data, error);
+        return new(ok, data, error);
     }
 
     private async Task<Result<ObsSession>> GetOrConnectAsync(
@@ -256,7 +256,7 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
         if (_sessions.TryGetValue(broadcasterId, out ObsSession? live))
             return Result.Success(live);
 
-        SemaphoreSlim gate = _connectGates.GetOrAdd(broadcasterId, _ => new SemaphoreSlim(1, 1));
+        SemaphoreSlim gate = _connectGates.GetOrAdd(broadcasterId, _ => new(1, 1));
         await gate.WaitAsync(ct);
         try
         {

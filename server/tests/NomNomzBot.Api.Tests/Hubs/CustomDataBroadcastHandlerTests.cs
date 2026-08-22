@@ -12,7 +12,6 @@ using System.Text.Json;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.CustomEvents.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -52,7 +51,7 @@ public sealed class CustomDataBroadcastHandlerTests
         CustomDataBroadcastHandler handler = new(db, widgets);
 
         await handler.HandleAsync(
-            new CustomDataReceivedEvent
+            new()
             {
                 BroadcasterId = channel,
                 SourceName = "heartrate",

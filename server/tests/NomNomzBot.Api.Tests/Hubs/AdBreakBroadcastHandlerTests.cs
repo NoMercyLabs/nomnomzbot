@@ -11,7 +11,6 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Stream.Events;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -31,7 +30,7 @@ public sealed class AdBreakBroadcastHandlerTests
         DateTimeOffset startedAt = new(2026, 7, 1, 12, 0, 0, TimeSpan.Zero);
 
         await handler.HandleAsync(
-            new AdBreakBeganEvent
+            new()
             {
                 BroadcasterId = channel,
                 DurationSeconds = 180,
@@ -67,7 +66,7 @@ public sealed class AdBreakBroadcastHandlerTests
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
-            new AdBreakBeganEvent
+            new()
             {
                 BroadcasterId = channel,
                 DurationSeconds = 90,
@@ -100,7 +99,7 @@ public sealed class AdBreakBroadcastHandlerTests
         AdBreakBeganBroadcastHandler handler = new(notifier);
 
         await handler.HandleAsync(
-            new AdBreakBeganEvent
+            new()
             {
                 BroadcasterId = Guid.Empty,
                 DurationSeconds = 60,

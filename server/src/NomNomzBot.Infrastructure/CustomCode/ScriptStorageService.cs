@@ -81,7 +81,7 @@ public sealed class ScriptStorageService(IApplicationDbContext db) : IScriptStor
                 );
 
             db.Storages.Add(
-                new Storage
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     Key = storageKey,

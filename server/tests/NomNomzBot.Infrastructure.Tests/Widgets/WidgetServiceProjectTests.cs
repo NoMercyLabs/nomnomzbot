@@ -19,7 +19,6 @@ using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.DevPlatform.Projects;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Domain.Widgets.Events;
@@ -42,7 +41,7 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
     private const string CrossFileMarker = "NNZ_PROJECT_CROSSFILE_MARKER";
 
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 7, 16, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 7, 16, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
@@ -79,7 +78,7 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
         Guid channelId = Guid.CreateVersion7();
         await using WidgetTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -102,7 +101,7 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
         Guid widgetId = Guid.CreateVersion7();
         await using WidgetTestDbContext db = database.NewContext();
         db.Widgets.Add(
-            new Widget
+            new()
             {
                 Id = widgetId,
                 BroadcasterId = channelId,
@@ -121,7 +120,7 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
         string entry,
         Dictionary<string, string> files,
         params string[] dependencies
-    ) => new(files, new ProjectManifestDto(entry, "widget", framework, dependencies));
+    ) => new(files, new(entry, "widget", framework, dependencies));
 
     [Fact]
     public async Task SaveProject_PersistsVersion_WithStoredProject_AndPointsActive()

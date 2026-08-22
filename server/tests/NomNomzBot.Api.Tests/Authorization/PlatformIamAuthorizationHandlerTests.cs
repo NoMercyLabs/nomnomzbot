@@ -48,18 +48,18 @@ public sealed class PlatformIamAuthorizationHandlerTests
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.IsAuthenticated.Returns(true);
         currentUser.UserId.Returns(userId.ToString());
-        return (new PlatformIamAuthorizationHandler(iam, currentUser), db);
+        return (new(iam, currentUser), db);
     }
 
     private static AuthorizationHandlerContext Context(bool platformMarked)
     {
-        List<Claim> claims = [new Claim(ClaimTypes.NameIdentifier, OperatorUser.ToString())];
+        List<Claim> claims = [new(ClaimTypes.NameIdentifier, OperatorUser.ToString())];
         if (platformMarked)
             claims.Add(
-                new Claim(ClaimTypes.Role, PlatformIamAuthorizationHandler.PlatformPrincipalRole)
+                new(ClaimTypes.Role, PlatformIamAuthorizationHandler.PlatformPrincipalRole)
             );
         ClaimsPrincipal principal = new(new ClaimsIdentity(claims, "TestAuth"));
-        return new AuthorizationHandlerContext(
+        return new(
             [new PlatformIamRequirement(Permission)],
             principal,
             resource: null
@@ -85,10 +85,10 @@ public sealed class PlatformIamAuthorizationHandlerTests
         db.IamRoles.Add(role);
         db.IamPermissions.Add(permission);
         db.IamRolePermissions.Add(
-            new IamRolePermission { RoleId = role.Id, PermissionId = permission.Id }
+            new() { RoleId = role.Id, PermissionId = permission.Id }
         );
         db.IamRoleAssignments.Add(
-            new IamRoleAssignment
+            new()
             {
                 PrincipalId = principal.Id,
                 RoleId = role.Id,
@@ -140,7 +140,7 @@ public sealed class PlatformIamAuthorizationHandlerTests
         (PlatformIamAuthorizationHandler handler, ApiTestDbContext db) = BuildReal(OperatorUser);
         // A DIFFERENT user's principal exists → SaaS-shaped store, but the caller has no principal row.
         db.IamPrincipals.Add(
-            new IamPrincipal
+            new()
             {
                 PrincipalType = IamPrincipalType.Employee,
                 UserId = Guid.NewGuid(),

@@ -80,7 +80,7 @@ internal sealed class ClientWebSocketFrameSource : ISocketFrameSource
         using CancellationTokenSource keepaliveCts =
             CancellationTokenSource.CreateLinkedTokenSource(ct);
         Task keepalive =
-            raw.KeepaliveInterval is TimeSpan interval && raw.KeepalivePayload is string payload
+            raw.KeepaliveInterval is { } interval && raw.KeepalivePayload is { } payload
                 ? SendKeepalivesAsync(socket, interval, payload, keepaliveCts.Token)
                 : Task.CompletedTask;
 
@@ -95,7 +95,7 @@ internal sealed class ClientWebSocketFrameSource : ISocketFrameSource
                 while (socket.State == WebSocketState.Open && !ct.IsCancellationRequested)
                 {
                     WebSocketReceiveResult result = await socket.ReceiveAsync(
-                        new ArraySegment<byte>(buffer),
+                        new(buffer),
                         ct
                     );
                     if (result.MessageType == WebSocketMessageType.Close)
@@ -149,7 +149,7 @@ internal sealed class ClientWebSocketFrameSource : ISocketFrameSource
             if (socket.State != WebSocketState.Open)
                 return;
             await socket.SendAsync(
-                new ArraySegment<byte>(bytes),
+                new(bytes),
                 WebSocketMessageType.Text,
                 endOfMessage: true,
                 ct

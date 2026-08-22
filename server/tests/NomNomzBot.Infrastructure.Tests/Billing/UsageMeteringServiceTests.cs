@@ -15,7 +15,6 @@ using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Enums;
 using NomNomzBot.Domain.Billing.Events;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.Content.Billing;
@@ -56,7 +55,7 @@ public sealed class UsageMeteringServiceTests
         await db.SaveChangesAsync();
         BillingTier baseTier = await db.BillingTiers.FirstAsync(t => t.Key == "base");
         db.TierLimits.Add(
-            new TierLimit
+            new()
             {
                 TierId = baseTier.Id,
                 LimitKey = Metric,
@@ -64,7 +63,7 @@ public sealed class UsageMeteringServiceTests
             }
         );
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Channel,
                 TwitchChannelId = "t1",
@@ -75,7 +74,7 @@ public sealed class UsageMeteringServiceTests
         );
         if (mode == AuthEnums.DeploymentMode.Saas)
             db.Subscriptions.Add(
-                new Subscription
+                new()
                 {
                     BroadcasterId = Channel,
                     TierId = baseTier.Id,

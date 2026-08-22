@@ -18,7 +18,6 @@ using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Content.Widgets;
 using NomNomzBot.Infrastructure.Widgets;
 using NSubstitute;
@@ -179,7 +178,7 @@ public sealed class WidgetSettingsSchemaTests
         {
             db.Channels.Add(NewChannel(channel));
             db.WidgetGalleryItems.Add(
-                new WidgetGalleryItem
+                new()
                 {
                     Id = galleryItemId,
                     NaturalKey = "chat_box",
@@ -192,7 +191,7 @@ public sealed class WidgetSettingsSchemaTests
                 }
             );
             db.Widgets.Add(
-                new Widget
+                new()
                 {
                     Id = widgetId,
                     BroadcasterId = channel,
@@ -233,7 +232,7 @@ public sealed class WidgetSettingsSchemaTests
         {
             db.Channels.Add(NewChannel(channel));
             db.Widgets.Add(
-                new Widget
+                new()
                 {
                     Id = widgetId,
                     BroadcasterId = channel,
@@ -277,7 +276,7 @@ public sealed class WidgetSettingsSchemaTests
             Substitute.For<IEventBus>(),
             Substitute.For<IWidgetBuildService>(),
             new WidgetSettingsSchemaProvider(),
-            new FakeTimeProvider(new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)),
+            new FakeTimeProvider(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)),
             Substitute.For<IMusicService>(),
             Substitute.For<IScriptStorageService>()
         );

@@ -13,7 +13,6 @@ using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
-using NomNomzBot.Application.Engagement.Dtos;
 using NomNomzBot.Application.Engagement.Services;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -94,7 +93,7 @@ public sealed class EngagementChatActivityHandler(
             scope.ServiceProvider.GetRequiredService<IEngagementService>();
         await engagement.OnChatActivityAsync(
             @event.BroadcasterId,
-            new EngagementSignal(
+            new(
                 viewerUserId,
                 @event.UserId,
                 @event.UserDisplayName,

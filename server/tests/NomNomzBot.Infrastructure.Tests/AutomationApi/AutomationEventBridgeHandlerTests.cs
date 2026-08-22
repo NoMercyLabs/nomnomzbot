@@ -11,7 +11,6 @@
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
-using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Domain.Supporters.Events;
 using NomNomzBot.Infrastructure.AutomationApi.Events;
@@ -41,7 +40,7 @@ public sealed class AutomationEventBridgeHandlerTests
         AutomationSession session = new()
         {
             SessionId = Guid.NewGuid().ToString(),
-            Principal = new AutomationPrincipal(broadcasterId, Guid.NewGuid(), "t", scopes, null),
+            Principal = new(broadcasterId, Guid.NewGuid(), "t", scopes, null),
             SendAsync = (frame, _) =>
             {
                 if (throws)

@@ -48,7 +48,7 @@ public sealed class TtsVoiceAssignmentImportTests
         foreach (string userId in knownUserIds ?? [])
         {
             db.UserIdentities.Add(
-                new UserIdentity
+                new()
                 {
                     UserId = Guid.CreateVersion7(),
                     Provider = "twitch",
@@ -60,7 +60,7 @@ public sealed class TtsVoiceAssignmentImportTests
         foreach (string voiceId in catalogueVoiceIds ?? [])
         {
             db.TtsVoices.Add(
-                new TtsVoice
+                new()
                 {
                     Id = voiceId,
                     Name = voiceId,
@@ -97,7 +97,7 @@ public sealed class TtsVoiceAssignmentImportTests
                 string displayName = call.ArgAt<string>(2);
                 Guid userId = Guid.CreateVersion7();
                 db.UserIdentities.Add(
-                    new UserIdentity
+                    new()
                     {
                         UserId = userId,
                         Provider = "twitch",
@@ -121,9 +121,9 @@ public sealed class TtsVoiceAssignmentImportTests
                 );
             });
 
-        return new Harness
+        return new()
         {
-            Service = new TtsConfigService(
+            Service = new(
                 db,
                 tts,
                 Substitute.For<IEventBus>(),
@@ -152,7 +152,7 @@ public sealed class TtsVoiceAssignmentImportTests
     {
         Harness h = Build(knownUserIds: ["100", "200"], catalogueVoiceIds: ["voice-a", "voice-b"]);
         h.Db.UserTtsVoices.Add(
-            new UserTtsVoice
+            new()
             {
                 BroadcasterId = Tenant,
                 UserId = "100",
@@ -232,7 +232,7 @@ public sealed class TtsVoiceAssignmentImportTests
     {
         Harness h = Build(knownUserIds: ["100"], catalogueVoiceIds: ["voice-a"]);
         h.Db.UserTtsVoices.Add(
-            new UserTtsVoice
+            new()
             {
                 BroadcasterId = OtherTenant,
                 UserId = "100",

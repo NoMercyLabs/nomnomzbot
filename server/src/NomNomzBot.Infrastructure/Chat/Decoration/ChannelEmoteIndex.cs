@@ -46,6 +46,6 @@ public sealed class ChannelEmoteIndex
         foreach (ChatEmote emote in set)
             byCode.TryAdd(emote.Code, emote);
 
-        return new ChannelEmoteIndex(byCode);
+        return new(byCode);
     }
 }

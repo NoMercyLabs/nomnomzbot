@@ -15,7 +15,6 @@ using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -74,7 +73,7 @@ public sealed class HelixChatProviderTests
     )
     {
         db.IntegrationConnections.Add(
-            new IntegrationConnection
+            new()
             {
                 BroadcasterId = broadcasterId,
                 Provider = provider,
@@ -190,14 +189,14 @@ public sealed class HelixChatProviderTests
             channelA,
             AuthEnums.IntegrationProvider.Twitch,
             ownerAUserId,
-            new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         );
         await AddConnectionAsync(
             db,
             channelB,
             AuthEnums.IntegrationProvider.Twitch,
             ownerBUserId,
-            new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc)
+            new(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc)
         );
 
         MultiChannelIdentityResolver resolver = new(
@@ -573,7 +572,7 @@ public sealed class HelixChatProviderTests
     /// <summary>Reads the anonymous chat-send body (PascalCase) the provider hands the transport.</summary>
     private static (string SenderId, string BroadcasterId, string Message) ReadBody(object body)
     {
-        System.Type t = body.GetType();
+        Type t = body.GetType();
         string senderId = (string)t.GetProperty("SenderId")!.GetValue(body)!;
         string broadcasterId = (string)t.GetProperty("BroadcasterId")!.GetValue(body)!;
         string message = (string)t.GetProperty("Message")!.GetValue(body)!;

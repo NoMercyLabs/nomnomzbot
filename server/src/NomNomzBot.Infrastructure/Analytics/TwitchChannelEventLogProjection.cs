@@ -75,7 +75,7 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
         CancellationToken cancellationToken = default
     )
     {
-        if (@event.BroadcasterId is not Guid broadcasterId)
+        if (@event.BroadcasterId is not { } broadcasterId)
             return Result.Success(); // directory-level event — no channel to attribute it to
 
         if (!EventTypeToChannelType.TryGetValue(@event.EventType, out string? channelType))
@@ -91,7 +91,7 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
 
         if (row is null)
         {
-            row = new ChannelEvent
+            row = new()
             {
                 Id = id,
                 ChannelId = broadcasterId,
@@ -143,7 +143,7 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
     )
     {
         List<ChannelEvent> rows = await (
-            broadcasterId is Guid id
+            broadcasterId is { } id
                 ? db.ChannelEvents.Where(e => e.ChannelId == id)
                 : db.ChannelEvents
         ).ToListAsync(cancellationToken);
@@ -349,7 +349,7 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
         }
         catch (JsonException)
         {
-            return new JObject();
+            return new();
         }
     }
 
@@ -372,7 +372,7 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
         foreach ((string from, string to) in keys)
         {
             int? value = source[from]?.Value<int?>();
-            if (value is int v)
+            if (value is { } v)
                 target[to] = v;
         }
     }
@@ -386,7 +386,7 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
         foreach ((string from, string to) in keys)
         {
             bool? value = source[from]?.Value<bool?>();
-            if (value is bool v)
+            if (value is { } v)
                 target[to] = v;
         }
     }

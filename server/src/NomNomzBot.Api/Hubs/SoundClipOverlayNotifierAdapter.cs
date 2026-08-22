@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Sound.Services;
 
 namespace NomNomzBot.Api.Hubs;
@@ -34,7 +33,7 @@ internal sealed class SoundClipOverlayNotifierAdapter : ISoundClipOverlayNotifie
     ) =>
         _notifier.PlaySoundAsync(
             broadcasterId.ToString(),
-            new PlaySoundPayload(playback.PlaybackUrl, playback.Volume, null),
+            new(playback.PlaybackUrl, playback.Volume, null),
             ct
         );
 
@@ -43,5 +42,5 @@ internal sealed class SoundClipOverlayNotifierAdapter : ISoundClipOverlayNotifie
         string? handle,
         bool all,
         CancellationToken ct = default
-    ) => _notifier.StopSoundAsync(broadcasterId.ToString(), new StopSoundPayload(handle, all), ct);
+    ) => _notifier.StopSoundAsync(broadcasterId.ToString(), new(handle, all), ct);
 }

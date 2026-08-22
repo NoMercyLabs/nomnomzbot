@@ -193,7 +193,7 @@ public sealed class ProviderImportService : IProviderImportService
 
             Result<QuoteDto> result = await _quotes.AddAsync(
                 broadcasterId,
-                new AddQuoteRequest(
+                new(
                     text,
                     string.IsNullOrWhiteSpace(source.AddedBy) ? null : source.AddedBy.Trim(),
                     string.IsNullOrWhiteSpace(source.Game) ? null : source.Game.Trim(),

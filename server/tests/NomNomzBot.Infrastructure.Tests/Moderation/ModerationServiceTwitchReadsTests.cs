@@ -15,7 +15,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Moderation;
 using NSubstitute;
@@ -48,7 +47,7 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Tenant,
                 TwitchChannelId = BroadcasterTwitchId,
@@ -58,10 +57,10 @@ public sealed class ModerationServiceTwitchReadsTests
             }
         );
         db.SaveChanges();
-        return new ModerationService(
+        return new(
             db,
             moderation,
-            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            Substitute.For<IChannelRegistry>(),
             TimeProvider.System,
             NullLogger<ModerationService>.Instance,
             Substitute.For<IEventBus>()
@@ -80,7 +79,7 @@ public sealed class ModerationServiceTwitchReadsTests
             UserLogin: name.ToLowerInvariant(),
             UserName: name,
             ExpiresAt: expiresAt,
-            CreatedAt: new DateTimeOffset(2026, 7, 1, 12, 0, 0, TimeSpan.Zero),
+            CreatedAt: new(2026, 7, 1, 12, 0, 0, TimeSpan.Zero),
             Reason: reason,
             ModeratorId: "9000",
             ModeratorLogin: moderatorName.ToLowerInvariant(),
@@ -118,7 +117,7 @@ public sealed class ModerationServiceTwitchReadsTests
             UserName: userName,
             Text: "please unban me",
             Status: status,
-            CreatedAt: new DateTimeOffset(2026, 7, 1, 12, 0, 0, TimeSpan.Zero),
+            CreatedAt: new(2026, 7, 1, 12, 0, 0, TimeSpan.Zero),
             ResolvedAt: null,
             ResolutionText: resolutionText
         );
@@ -647,7 +646,7 @@ public sealed class ModerationServiceTwitchReadsTests
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Tenant,
                 TwitchChannelId = BroadcasterTwitchId,
@@ -658,10 +657,10 @@ public sealed class ModerationServiceTwitchReadsTests
         );
         await db.SaveChangesAsync();
         return (
-            new ModerationService(
+            new(
                 db,
                 moderation,
-                Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+                Substitute.For<IChannelRegistry>(),
                 TimeProvider.System,
                 NullLogger<ModerationService>.Instance,
                 Substitute.For<IEventBus>()
@@ -783,7 +782,7 @@ public sealed class ModerationServiceTwitchReadsTests
                         "5005",
                         BroadcasterTwitchId,
                         BroadcasterTwitchId,
-                        new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
+                        new(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
                         "restricted",
                         ["ban_evader"]
                     )
@@ -845,7 +844,7 @@ public sealed class ModerationServiceTwitchReadsTests
                         "5005",
                         BroadcasterTwitchId,
                         BroadcasterTwitchId,
-                        new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
+                        new(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
                         "none",
                         []
                     )
@@ -878,7 +877,7 @@ public sealed class ModerationServiceTwitchReadsTests
         void Seed(string action, string target, string username, int minute)
         {
             db.Records.Add(
-                new Record
+                new()
                 {
                     BroadcasterId = Tenant,
                     RecordType = "moderation_action",
@@ -907,7 +906,7 @@ public sealed class ModerationServiceTwitchReadsTests
         ModerationService service = new(
             db,
             Substitute.For<ITwitchModerationApi>(),
-            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            Substitute.For<IChannelRegistry>(),
             TimeProvider.System,
             NullLogger<ModerationService>.Instance,
             Substitute.For<IEventBus>()
@@ -943,19 +942,19 @@ public sealed class ModerationServiceTwitchReadsTests
         Result<UserNoteDto> plain = await service.AddUserNoteAsync(
             BroadcasterId,
             "5005",
-            new CreateUserNoteRequest { Content = "  watch this one  " },
+            new() { Content = "  watch this one  " },
             "mod-1"
         );
         Result<UserNoteDto> pinned = await service.AddUserNoteAsync(
             BroadcasterId,
             "5005",
-            new CreateUserNoteRequest { Content = "known ban evader", Pinned = true },
+            new() { Content = "known ban evader", Pinned = true },
             "mod-1"
         );
         await service.AddUserNoteAsync(
             BroadcasterId,
             "9999",
-            new CreateUserNoteRequest { Content = "a different viewer" },
+            new() { Content = "a different viewer" },
             "mod-1"
         );
 
@@ -974,7 +973,7 @@ public sealed class ModerationServiceTwitchReadsTests
         Result<UserNoteDto> updated = await service.UpdateUserNoteAsync(
             BroadcasterId,
             plain.Value.Id,
-            new UpdateUserNoteRequest { Content = "escalated to a ban", Pinned = true }
+            new() { Content = "escalated to a ban", Pinned = true }
         );
         updated.IsSuccess.Should().BeTrue();
         updated.Value.Content.Should().Be("escalated to a ban");
@@ -996,7 +995,7 @@ public sealed class ModerationServiceTwitchReadsTests
         Result<UserNoteDto> result = await service.AddUserNoteAsync(
             BroadcasterId,
             "5005",
-            new CreateUserNoteRequest { Content = "   " }
+            new() { Content = "   " }
         );
 
         result.IsFailure.Should().BeTrue();

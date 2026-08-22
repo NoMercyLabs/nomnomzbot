@@ -36,7 +36,7 @@ public sealed class TwitchRateLimiter(TimeProvider timeProvider) : ITwitchRateLi
         CancellationToken ct = default
     )
     {
-        Bucket bucket = _buckets.GetOrAdd(tokenBucketKey, _ => new Bucket());
+        Bucket bucket = _buckets.GetOrAdd(tokenBucketKey, _ => new());
         await bucket.AcquireAsync(priority, timeProvider, ct);
         return new Lease(bucket);
     }
@@ -49,7 +49,7 @@ public sealed class TwitchRateLimiter(TimeProvider timeProvider) : ITwitchRateLi
         bool wasHardLimited = false
     )
     {
-        Bucket bucket = _buckets.GetOrAdd(tokenBucketKey, _ => new Bucket());
+        Bucket bucket = _buckets.GetOrAdd(tokenBucketKey, _ => new());
         bucket.Observe(limit, remaining, resetsAt, wasHardLimited);
     }
 

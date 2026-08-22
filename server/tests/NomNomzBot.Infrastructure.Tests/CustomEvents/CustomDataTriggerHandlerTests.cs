@@ -8,13 +8,11 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Domain.CustomEvents.Events;
 using NomNomzBot.Infrastructure.CustomEvents.EventHandlers;
 using NSubstitute;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.CustomEvents;
 

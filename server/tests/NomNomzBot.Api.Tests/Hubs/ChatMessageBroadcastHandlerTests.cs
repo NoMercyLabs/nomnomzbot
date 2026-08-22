@@ -14,7 +14,6 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Events;
-using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
@@ -135,7 +134,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             UserDisplayName = "Viewer",
             UserLogin = "viewer",
             Message = "hello from youtube",
-            Fragments = [new ChatMessageFragment { Type = "text", Text = "hello from youtube" }],
+            Fragments = [new() { Type = "text", Text = "hello from youtube" }],
             Badges = [],
             IsSubscriber = false,
             IsVip = false,

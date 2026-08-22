@@ -37,7 +37,7 @@ public sealed class EgressSchemeHandlerTests
 
         Func<Task> act = () =>
             invoker.SendAsync(
-                new HttpRequestMessage(HttpMethod.Get, "http://example.com/hook"),
+                new(HttpMethod.Get, "http://example.com/hook"),
                 CancellationToken.None
             );
 
@@ -52,7 +52,7 @@ public sealed class EgressSchemeHandlerTests
         );
 
         HttpResponseMessage response = await invoker.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "https://example.com/hook"),
+            new(HttpMethod.Get, "https://example.com/hook"),
             CancellationToken.None
         );
 

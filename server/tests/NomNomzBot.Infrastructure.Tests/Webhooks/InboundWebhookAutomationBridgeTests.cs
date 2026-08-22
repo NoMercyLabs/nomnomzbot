@@ -14,13 +14,11 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
-using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
 using NomNomzBot.Domain.Webhooks.Events;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Webhooks.EventHandlers;
 using NSubstitute;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Webhooks;
 
@@ -105,7 +103,7 @@ public sealed class InboundWebhookAutomationBridgeTests
     )
     {
         db.InboundWebhookEndpoints.Add(
-            new InboundWebhookEndpoint
+            new()
             {
                 Id = Endpoint,
                 BroadcasterId = Channel,

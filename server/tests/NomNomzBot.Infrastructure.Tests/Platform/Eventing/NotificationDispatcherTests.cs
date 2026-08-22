@@ -33,14 +33,14 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
 public sealed class NotificationDispatcherTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static EventJournalService NewJournal(EventStoreTestDbContext db)
     {
         EventStoreTestUnitOfWork uow = new(db);
         TenantSequenceAllocator allocator = new(db);
-        return new EventJournalService(
+        return new(
             db,
             allocator,
             uow,
@@ -57,10 +57,10 @@ public sealed class NotificationDispatcherTests
     )
     {
         using JsonDocument doc = JsonDocument.Parse(payload);
-        return new EventSubNotification
+        return new()
         {
             MessageId = messageId,
-            MessageTimestamp = new DateTimeOffset(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
+            MessageTimestamp = new(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
             SubscriptionType = type,
             SubscriptionVersion = "2",
             BroadcasterId = tenant,

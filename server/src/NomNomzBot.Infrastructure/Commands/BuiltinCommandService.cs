@@ -108,7 +108,7 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
         if (existing is null)
         {
             _db.ChannelBuiltinCommands.Add(
-                new ChannelBuiltinCommand
+                new()
                 {
                     BroadcasterId = broadcaster,
                     BuiltinKey = builtinKey,

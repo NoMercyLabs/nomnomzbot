@@ -86,7 +86,7 @@ public sealed class EarningRuleSeedOnOnboardingHandler(
                     continue;
 
                 db.EarningRules.Add(
-                    new EarningRule
+                    new()
                     {
                         BroadcasterId = @event.BroadcasterId,
                         Source = source,

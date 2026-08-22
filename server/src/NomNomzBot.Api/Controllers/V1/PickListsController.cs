@@ -50,7 +50,7 @@ public class PickListsController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         PickListSearch search = new(request.Search);
@@ -72,7 +72,7 @@ public class PickListsController : BaseController
     [ProducesResponseType<StatusResponseDto<PickListDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPickList(Guid id, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result<PickListDto> result = await _pickLists.GetAsync(broadcasterId, id, ct);
@@ -89,7 +89,7 @@ public class PickListsController : BaseController
     [ProducesResponseType<StatusResponseDto<PickListPreviewDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> PreviewPick(Guid id, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         // Resolve the list by id first so we sample the exact list the dashboard opened (and 404 a bad id), then
@@ -103,7 +103,7 @@ public class PickListsController : BaseController
             return ResultResponse(pick);
 
         return Ok(
-            new StatusResponseDto<PickListPreviewDto> { Data = new PickListPreviewDto(pick.Value) }
+            new StatusResponseDto<PickListPreviewDto> { Data = new(pick.Value) }
         );
     }
 
@@ -116,7 +116,7 @@ public class PickListsController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result<PickListDto> result = await _pickLists.CreateAsync(broadcasterId, request, ct);
@@ -144,7 +144,7 @@ public class PickListsController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result<PickListDto> result = await _pickLists.UpdateAsync(broadcasterId, id, request, ct);
@@ -157,7 +157,7 @@ public class PickListsController : BaseController
     [ProducesResponseType<StatusResponseDto<PickListDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeletePickList(Guid id, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result result = await _pickLists.DeleteAsync(broadcasterId, id, ct);

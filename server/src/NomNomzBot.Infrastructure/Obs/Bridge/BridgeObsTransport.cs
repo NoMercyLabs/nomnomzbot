@@ -143,7 +143,7 @@ public sealed class BridgeObsTransport : IObsTransport
                 using JsonDocument doc = JsonDocument.Parse(ack.DataJson);
                 if (doc.RootElement.ValueKind == JsonValueKind.Object)
                 {
-                    data = new Dictionary<string, object?>();
+                    data = new();
                     foreach (JsonProperty property in doc.RootElement.EnumerateObject())
                         data[property.Name] = property.Value.ValueKind switch
                         {
@@ -161,6 +161,6 @@ public sealed class BridgeObsTransport : IObsTransport
                 // A malformed ack still settles the command as-is.
             }
         }
-        return new ObsResponse(ack.Ok, data, ack.Error);
+        return new(ack.Ok, data, ack.Error);
     }
 }

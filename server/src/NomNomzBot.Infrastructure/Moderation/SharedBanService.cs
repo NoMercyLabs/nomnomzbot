@@ -74,7 +74,7 @@ public sealed class SharedBanService(
         );
         if (settings is null)
         {
-            settings = new SharedBanSettings { BroadcasterId = broadcasterId };
+            settings = new() { BroadcasterId = broadcasterId };
             db.SharedBanSettings.Add(settings);
         }
         settings.AcceptSharedChatBans = request.AcceptSharedChatBans;
@@ -116,7 +116,7 @@ public sealed class SharedBanService(
         );
         if (existing is null)
         {
-            existing = new SharedBanTrustedChannel
+            existing = new()
             {
                 BroadcasterId = broadcasterId,
                 TrustedChannelId = trustedChannelId,

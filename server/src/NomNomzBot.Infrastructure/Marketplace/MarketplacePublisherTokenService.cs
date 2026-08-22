@@ -47,7 +47,7 @@ public sealed class MarketplacePublisherTokenService : IMarketplacePublisherToke
             return Result.Failure("The publisher token must not be empty.", "VALIDATION_FAILED");
 
         Result<IntegrationConnectionDto> connection = await _vault.UpsertConnectionAsync(
-            new UpsertConnectionDto(
+            new(
                 broadcasterId,
                 AuthEnums.IntegrationProvider.Marketplace,
                 PublisherAccountSentinel,
@@ -68,7 +68,7 @@ public sealed class MarketplacePublisherTokenService : IMarketplacePublisherToke
 
         return await _vault.StoreTokensAsync(
             connection.Value.Id,
-            new StoreTokensDto(token, RefreshToken: null, AppToken: null, AccessExpiresAt: null),
+            new(token, RefreshToken: null, AppToken: null, AccessExpiresAt: null),
             grantedScopes: null,
             ct
         );

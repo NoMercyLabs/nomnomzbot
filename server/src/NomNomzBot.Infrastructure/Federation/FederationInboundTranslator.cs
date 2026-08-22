@@ -70,7 +70,7 @@ public sealed class FederationInboundTranslator(
         CancellationToken cancellationToken
     )
     {
-        if (envelope.TargetBroadcasterId is Guid directed)
+        if (envelope.TargetBroadcasterId is { } directed)
         {
             bool permitted = (
                 await optIns.IsActionPermittedAsync(

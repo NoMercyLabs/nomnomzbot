@@ -67,7 +67,7 @@ public sealed class JwtTokenService : IJwtTokenService
             _ => BuildSymmetric(jwtSection),
         };
 
-        _validationParameters = new TokenValidationParameters
+        _validationParameters = new()
         {
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = validationKey,
@@ -158,7 +158,7 @@ public sealed class JwtTokenService : IJwtTokenService
                 ?? throw new InvalidOperationException("JWT Secret is not configured.")
         );
         SymmetricSecurityKey securityKey = new(key);
-        return (new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256), securityKey);
+        return (new(securityKey, SecurityAlgorithms.HmacSha256), securityKey);
     }
 
     private static (SigningCredentials, SecurityKey) BuildAsymmetric(
@@ -177,12 +177,12 @@ public sealed class JwtTokenService : IJwtTokenService
             ECDsa ecdsa = ECDsa.Create();
             ecdsa.ImportFromPem(privatePem);
             ECDsaSecurityKey key = new(ecdsa);
-            return (new SigningCredentials(key, SecurityAlgorithms.EcdsaSha256), key);
+            return (new(key, SecurityAlgorithms.EcdsaSha256), key);
         }
 
         RSA rsa = RSA.Create();
         rsa.ImportFromPem(privatePem);
         RsaSecurityKey rsaKey = new(rsa);
-        return (new SigningCredentials(rsaKey, SecurityAlgorithms.RsaSha256), rsaKey);
+        return (new(rsaKey, SecurityAlgorithms.RsaSha256), rsaKey);
     }
 }

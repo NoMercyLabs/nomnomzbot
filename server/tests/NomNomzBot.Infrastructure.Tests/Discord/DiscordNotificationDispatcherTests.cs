@@ -14,7 +14,6 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord.Entities;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Discord;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -29,7 +28,7 @@ namespace NomNomzBot.Infrastructure.Tests.Discord;
 public sealed class DiscordNotificationDispatcherTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 22, 18, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 22, 18, 0, 0, TimeSpan.Zero)
     );
 
     [Fact]
@@ -53,7 +52,7 @@ public sealed class DiscordNotificationDispatcherTests
         {
             DiscordNotificationDispatcher dispatcher = NewDispatcher(db, gateway, bus);
             Result<DiscordDispatchOutcomeDto> result = await dispatcher.DispatchAsync(
-                new DiscordDispatchRequest(
+                new(
                     channel,
                     "go_live",
                     "go_live:stream-1",
@@ -110,7 +109,7 @@ public sealed class DiscordNotificationDispatcherTests
             Result<DiscordDispatchOutcomeDto> first = await NewDispatcher(
                     db,
                     gateway,
-                    new RecordingEventBus()
+                    new()
                 )
                 .DispatchAsync(request);
             first.Value.Status.Should().Be("sent");
@@ -122,7 +121,7 @@ public sealed class DiscordNotificationDispatcherTests
             Result<DiscordDispatchOutcomeDto> second = await NewDispatcher(
                     db,
                     gateway,
-                    new RecordingEventBus()
+                    new()
                 )
                 .DispatchAsync(request);
             second.Value.Status.Should().Be("skipped_dupe");
@@ -160,10 +159,10 @@ public sealed class DiscordNotificationDispatcherTests
         DiscordNotificationDispatcher dispatcher = NewDispatcher(
             db,
             gateway,
-            new RecordingEventBus()
+            new()
         );
         Result<DiscordDispatchOutcomeDto> result = await dispatcher.DispatchAsync(
-            new DiscordDispatchRequest(
+            new(
                 channel,
                 "go_live",
                 "go_live:s1",
@@ -192,10 +191,10 @@ public sealed class DiscordNotificationDispatcherTests
         DiscordNotificationDispatcher dispatcher = NewDispatcher(
             db,
             gateway,
-            new RecordingEventBus()
+            new()
         );
         Result<DiscordDispatchOutcomeDto> result = await dispatcher.DispatchAsync(
-            new DiscordDispatchRequest(
+            new(
                 channel,
                 "go_live",
                 "go_live:s9",
@@ -227,10 +226,10 @@ public sealed class DiscordNotificationDispatcherTests
             Result<DiscordDispatchOutcomeDto> result = await NewDispatcher(
                     db,
                     gateway,
-                    new RecordingEventBus()
+                    new()
                 )
                 .DispatchAsync(
-                    new DiscordDispatchRequest(
+                    new(
                         channel,
                         "go_live",
                         "go_live:s1",
@@ -285,9 +284,9 @@ public sealed class DiscordNotificationDispatcherTests
         RecordingGateway gateway = new();
 
         await using DiscordTestDbContext db = database.NewContext();
-        await NewDispatcher(db, gateway, new RecordingEventBus())
+        await NewDispatcher(db, gateway, new())
             .DispatchAsync(
-                new DiscordDispatchRequest(
+                new(
                     channel,
                     "go_live",
                     "go_live:s2",
@@ -313,9 +312,9 @@ public sealed class DiscordNotificationDispatcherTests
         RecordingGateway gateway = new();
 
         await using DiscordTestDbContext db = database.NewContext();
-        await NewDispatcher(db, gateway, new RecordingEventBus())
+        await NewDispatcher(db, gateway, new())
             .DispatchAsync(
-                new DiscordDispatchRequest(
+                new(
                     channel,
                     "go_live",
                     "go_live:s3",
@@ -350,10 +349,10 @@ public sealed class DiscordNotificationDispatcherTests
             Result<DiscordDispatchOutcomeDto> result = await NewDispatcher(
                     db,
                     gateway,
-                    new RecordingEventBus()
+                    new()
                 )
                 .DispatchAsync(
-                    new DiscordDispatchRequest(
+                    new(
                         channel,
                         "go_live",
                         "go_live:s4",
@@ -406,7 +405,7 @@ public sealed class DiscordNotificationDispatcherTests
         await using (DiscordTestDbContext db = database.NewContext())
         {
             db.DiscordNotificationDispatches.Add(
-                new DiscordNotificationDispatch
+                new()
                 {
                     Id = Guid.CreateVersion7(),
                     BroadcasterId = channel,
@@ -424,9 +423,9 @@ public sealed class DiscordNotificationDispatcherTests
         RecordingGateway gateway = new();
         await using (DiscordTestDbContext db = database.NewContext())
         {
-            await NewDispatcher(db, gateway, new RecordingEventBus())
+            await NewDispatcher(db, gateway, new())
                 .DispatchAsync(
-                    new DiscordDispatchRequest(
+                    new(
                         channel,
                         "go_live",
                         "go_live:s5",
@@ -472,9 +471,9 @@ public sealed class DiscordNotificationDispatcherTests
 
         await using (DiscordTestDbContext db = database.NewContext())
         {
-            await NewDispatcher(db, gateway, new RecordingEventBus())
+            await NewDispatcher(db, gateway, new())
                 .DispatchAsync(
-                    new DiscordDispatchRequest(
+                    new(
                         channel,
                         "go_live",
                         "go_live:s6",
@@ -521,7 +520,7 @@ public sealed class DiscordNotificationDispatcherTests
             new RecordingEventBus(),
             Clock
         );
-        return new DiscordNotificationDispatcher(
+        return new(
             db,
             guildService,
             gateway,
@@ -536,7 +535,7 @@ public sealed class DiscordNotificationDispatcherTests
         Guid channelId = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -564,7 +563,7 @@ public sealed class DiscordNotificationDispatcherTests
         Guid id = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.DiscordGuildConnections.Add(
-            new DiscordGuildConnection
+            new()
             {
                 Id = id,
                 BroadcasterId = channel,
@@ -590,7 +589,7 @@ public sealed class DiscordNotificationDispatcherTests
         Guid configId = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.DiscordNotificationConfigs.Add(
-            new DiscordNotificationConfig
+            new()
             {
                 Id = configId,
                 BroadcasterId = channel,
@@ -617,7 +616,7 @@ public sealed class DiscordNotificationDispatcherTests
         Guid roleId = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.DiscordNotificationRoles.Add(
-            new DiscordNotificationRole
+            new()
             {
                 Id = roleId,
                 BroadcasterId = channel,
@@ -643,7 +642,7 @@ public sealed class DiscordNotificationDispatcherTests
     {
         await using DiscordTestDbContext db = database.NewContext();
         db.DiscordMemberOptIns.Add(
-            new DiscordMemberOptIn
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = channel,

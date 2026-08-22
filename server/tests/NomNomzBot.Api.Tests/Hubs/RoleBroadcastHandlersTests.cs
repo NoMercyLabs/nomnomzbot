@@ -11,7 +11,6 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -35,7 +34,7 @@ public sealed class RoleBroadcastHandlersTests
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
-            new ModeratorAddedEvent
+            new()
             {
                 BroadcasterId = channel,
                 UserId = "u1",
@@ -72,7 +71,7 @@ public sealed class RoleBroadcastHandlersTests
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
-            new ModeratorRemovedEvent
+            new()
             {
                 BroadcasterId = channel,
                 UserId = "u1",
@@ -106,7 +105,7 @@ public sealed class RoleBroadcastHandlersTests
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
-            new VipAddedEvent
+            new()
             {
                 BroadcasterId = channel,
                 UserId = "u2",
@@ -143,7 +142,7 @@ public sealed class RoleBroadcastHandlersTests
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
-            new VipRemovedEvent
+            new()
             {
                 BroadcasterId = channel,
                 UserId = "u2",
@@ -176,7 +175,7 @@ public sealed class RoleBroadcastHandlersTests
         ModeratorAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
         await handler.HandleAsync(
-            new ModeratorAddedEvent
+            new()
             {
                 BroadcasterId = Guid.Empty,
                 UserId = "u1",
@@ -216,7 +215,7 @@ public sealed class RoleBroadcastHandlersTests
         ModeratorAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
         await handler.HandleAsync(
-            new ModeratorAddedEvent
+            new()
             {
                 BroadcasterId = channel,
                 UserId = "u1",
@@ -269,7 +268,7 @@ public sealed class RoleBroadcastHandlersTests
         ModeratorAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
         await handler.HandleAsync(
-            new ModeratorAddedEvent
+            new()
             {
                 BroadcasterId = channel,
                 UserId = "u1",

@@ -11,7 +11,6 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Obs.Events;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -31,7 +30,7 @@ public sealed class ObsBridgeStateBroadcastHandlerTests
         ObsBridgeStateBroadcastHandler handler = new(notifier);
 
         await handler.HandleAsync(
-            new ObsBridgeStateChangedEvent
+            new()
             {
                 BroadcasterId = channel,
                 InstanceCount = 2,
@@ -61,7 +60,7 @@ public sealed class ObsBridgeStateBroadcastHandlerTests
         ObsBridgeStateBroadcastHandler handler = new(notifier);
 
         await handler.HandleAsync(
-            new ObsBridgeStateChangedEvent
+            new()
             {
                 BroadcasterId = channel,
                 InstanceCount = 0,
@@ -85,7 +84,7 @@ public sealed class ObsBridgeStateBroadcastHandlerTests
         ObsBridgeStateBroadcastHandler handler = new(notifier);
 
         await handler.HandleAsync(
-            new ObsBridgeStateChangedEvent
+            new()
             {
                 BroadcasterId = Guid.Empty,
                 InstanceCount = 1,

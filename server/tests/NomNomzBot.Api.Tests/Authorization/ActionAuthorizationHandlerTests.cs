@@ -33,7 +33,7 @@ public sealed class ActionAuthorizationHandlerTests
     private static AuthorizationHandlerContext Context(ActionAuthorizationRequirement requirement)
     {
         ClaimsPrincipal principal = new(new ClaimsIdentity(authenticationType: "test"));
-        return new AuthorizationHandlerContext([requirement], principal, resource: null);
+        return new([requirement], principal, resource: null);
     }
 
     private static (ActionAuthorizationHandler Handler, IActionAuthorizationService Gate2) Build(
@@ -59,14 +59,14 @@ public sealed class ActionAuthorizationHandlerTests
         ICurrentTenantService tenantService = Substitute.For<ICurrentTenantService>();
         tenantService.BroadcasterId.Returns(tenant);
 
-        return (new ActionAuthorizationHandler(gate2, user, tenantService), gate2);
+        return (new(gate2, user, tenantService), gate2);
     }
 
     [Fact]
     public async Task Succeeds_when_authenticated_tenant_resolved_and_gate2_allows()
     {
         (ActionAuthorizationHandler handler, _) = Build(tenant: Channel, gate2Allows: true);
-        AuthorizationHandlerContext context = Context(new ActionAuthorizationRequirement(Action));
+        AuthorizationHandlerContext context = Context(new(Action));
 
         await handler.HandleAsync(context);
 
@@ -77,7 +77,7 @@ public sealed class ActionAuthorizationHandlerTests
     public async Task Fails_when_gate2_denies()
     {
         (ActionAuthorizationHandler handler, _) = Build(tenant: Channel, gate2Allows: false);
-        AuthorizationHandlerContext context = Context(new ActionAuthorizationRequirement(Action));
+        AuthorizationHandlerContext context = Context(new(Action));
 
         await handler.HandleAsync(context);
 
@@ -92,7 +92,7 @@ public sealed class ActionAuthorizationHandlerTests
             tenant: Channel,
             gate2Allows: true
         );
-        AuthorizationHandlerContext context = Context(new ActionAuthorizationRequirement(Action));
+        AuthorizationHandlerContext context = Context(new(Action));
 
         await handler.HandleAsync(context);
 
@@ -114,7 +114,7 @@ public sealed class ActionAuthorizationHandlerTests
             tenant: null,
             gate2Allows: true
         );
-        AuthorizationHandlerContext context = Context(new ActionAuthorizationRequirement(Action));
+        AuthorizationHandlerContext context = Context(new(Action));
 
         await handler.HandleAsync(context);
 

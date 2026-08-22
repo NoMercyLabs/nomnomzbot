@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using NomNomzBot.Infrastructure.Platform;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform;
 

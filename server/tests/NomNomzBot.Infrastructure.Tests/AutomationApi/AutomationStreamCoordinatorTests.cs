@@ -147,16 +147,16 @@ public sealed class AutomationStreamCoordinatorTests
         );
         FakeTimeProvider clock = new();
 
-        return new Harness
+        return new()
         {
-            Coordinator = new AutomationStreamCoordinator(
+            Coordinator = new(
                 scopeFactory,
                 sessions,
                 profile,
                 clock,
                 NullLogger<AutomationStreamCoordinator>.Instance
             ),
-            Connection = new FakeConnection(),
+            Connection = new(),
             Sessions = sessions,
             Commands = commands,
             Clock = clock,
@@ -170,7 +170,7 @@ public sealed class AutomationStreamCoordinatorTests
     {
         for (int i = 0; i < 100; i++)
         {
-            if (probe() is T hit)
+            if (probe() is { } hit)
                 return hit;
             await Task.Delay(20);
         }

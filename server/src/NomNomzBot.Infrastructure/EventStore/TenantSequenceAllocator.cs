@@ -79,7 +79,7 @@ public sealed class TenantSequenceAllocator : ITenantSequenceAllocator
         {
             // First allocation for this tenant/sequence: start the stream at 1. A racing creator loses the
             // unique (BroadcasterId, SequenceName) insert; the caller's IUnitOfWork surfaces that and retries.
-            sequence = new TenantSequence
+            sequence = new()
             {
                 BroadcasterId = broadcasterId,
                 SequenceName = sequenceName,

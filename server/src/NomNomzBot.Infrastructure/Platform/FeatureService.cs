@@ -140,7 +140,7 @@ public class FeatureService : IFeatureService
                 await _featureFlags.EvaluateAsync(entry.Key, broadcasterId, cancellationToken)
             );
             features.Add(
-                new FeatureStatusDto(
+                new(
                     entry.Key,
                     entry.Value.Label,
                     entry.Value.Description,

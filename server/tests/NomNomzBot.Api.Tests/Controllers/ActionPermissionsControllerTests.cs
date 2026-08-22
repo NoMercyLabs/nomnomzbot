@@ -36,7 +36,7 @@ public sealed class ActionPermissionsControllerTests
         IActionAuthorizationService service = Substitute.For<IActionAuthorizationService>();
         ICurrentUserService user = Substitute.For<ICurrentUserService>();
         user.UserId.Returns(Caller.ToString());
-        return (new ActionPermissionsController(service, user), service);
+        return (new(service, user), service);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class ActionPermissionsControllerTests
         IActionResult result = await controller.SetOverride(
             Channel.ToString(),
             "economy:config:write",
-            new ActionPermissionsController.SetOverrideBody(30),
+            new(30),
             default
         );
 
@@ -89,7 +89,7 @@ public sealed class ActionPermissionsControllerTests
         IActionResult result = await controller.SetOverride(
             Channel.ToString(),
             "moderation:ban",
-            new ActionPermissionsController.SetOverrideBody(4),
+            new(4),
             default
         );
 

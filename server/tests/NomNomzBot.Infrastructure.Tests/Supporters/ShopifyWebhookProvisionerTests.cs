@@ -21,7 +21,6 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
 using NomNomzBot.Infrastructure.Supporters;
@@ -59,7 +58,7 @@ public sealed class ShopifyWebhookProvisionerTests
     {
         SupporterTestDbContext db = SupporterTestDbContext.New();
         db.IntegrationConnections.Add(
-            new IntegrationConnection
+            new()
             {
                 Id = OAuthConnection,
                 BroadcasterId = Tenant,
@@ -95,7 +94,7 @@ public sealed class ShopifyWebhookProvisionerTests
             await endpoints.CreateAsync(
                 Tenant,
                 Guid.NewGuid(),
-                new NomNomzBot.Application.DTOs.Webhooks.CreateInboundWebhookRequest
+                new()
                 {
                     Name = "shopify (supporters)",
                     Adapter = WebhookAdapterKind.Shopify,

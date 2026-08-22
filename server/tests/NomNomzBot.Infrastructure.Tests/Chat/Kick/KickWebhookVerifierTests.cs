@@ -44,7 +44,7 @@ public sealed class KickWebhookVerifierTests
     {
         IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient("kick").Returns(new HttpClient(handler));
-        return new KickWebhookVerifier(
+        return new(
             factory,
             TimeProvider.System,
             NullLogger<KickWebhookVerifier>.Instance

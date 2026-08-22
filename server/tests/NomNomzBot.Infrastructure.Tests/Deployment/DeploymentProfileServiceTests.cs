@@ -171,7 +171,7 @@ public sealed class DeploymentProfileServiceTests
         public static Harness Create(
             IInfraReachabilityProbe probe,
             params (string Key, string Value)[] config
-        ) => Create(probe, new RecordingEventBus(), config);
+        ) => Create(probe, new(), config);
 
         public static Harness Create(
             IInfraReachabilityProbe probe,
@@ -209,7 +209,7 @@ public sealed class DeploymentProfileServiceTests
                 NullLogger<DeploymentProfileService>.Instance
             );
 
-            return new Harness(connection, provider, service);
+            return new(connection, provider, service);
         }
 
         public AppDbContext NewDbContext() =>

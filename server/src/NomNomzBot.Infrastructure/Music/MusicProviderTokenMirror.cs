@@ -77,30 +77,30 @@ public sealed class MusicProviderTokenMirror : IMusicProviderTokenMirror
         );
 
         bool isNew = service is null;
-        service ??= new Service { Name = name, BroadcasterId = broadcasterId };
+        service ??= new() { Name = name, BroadcasterId = broadcasterId };
 
         service.Enabled = true;
         service.TokenExpiry = tokenExpiry;
         service.AccessToken = await _tokenProtector.ProtectAsync(
             accessToken,
-            new TokenProtectionContext(subjectId, name, "access"),
+            new(subjectId, name, "access"),
             cancellationToken
         );
         service.RefreshToken = refreshToken is not null
             ? await _tokenProtector.ProtectAsync(
                 refreshToken,
-                new TokenProtectionContext(subjectId, name, "refresh"),
+                new(subjectId, name, "refresh"),
                 cancellationToken
             )
             : null;
         service.ClientId = await _tokenProtector.ProtectAsync(
             clientId,
-            new TokenProtectionContext(subjectId, name, "client_id"),
+            new(subjectId, name, "client_id"),
             cancellationToken
         );
         service.ClientSecret = await _tokenProtector.ProtectAsync(
             clientSecret,
-            new TokenProtectionContext(subjectId, name, "client_secret"),
+            new(subjectId, name, "client_secret"),
             cancellationToken
         );
         if (grantedScopes is not null)

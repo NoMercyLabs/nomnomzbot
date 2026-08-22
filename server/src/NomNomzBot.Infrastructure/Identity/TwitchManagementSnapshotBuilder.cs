@@ -55,7 +55,7 @@ public sealed class TwitchManagementSnapshotBuilder(
         {
             Result<TwitchPage<TwitchModerator>> page = await moderators.GetModeratorsAsync(
                 broadcasterId,
-                new TwitchPageRequest(After: cursor),
+                new(After: cursor),
                 ct
             );
             if (page.IsFailure)
@@ -78,8 +78,8 @@ public sealed class TwitchManagementSnapshotBuilder(
                     mod.UserName ?? mod.UserLogin,
                     ct
                 );
-                if (userId is Guid id)
-                    byUser[id] = new TwitchManagementMember(
+                if (userId is { } id)
+                    byUser[id] = new(
                         id,
                         mod.UserId,
                         ManagementRole.Moderator,
@@ -118,8 +118,8 @@ public sealed class TwitchManagementSnapshotBuilder(
                     editor.UserName,
                     ct
                 );
-                if (userId is Guid id)
-                    byUser[id] = new TwitchManagementMember(
+                if (userId is { } id)
+                    byUser[id] = new(
                         id,
                         editor.UserId,
                         ManagementRole.Editor,
@@ -147,7 +147,7 @@ public sealed class TwitchManagementSnapshotBuilder(
             );
         }
 
-        return new ManagementSnapshot([.. byUser.Values], authoritative);
+        return new([.. byUser.Values], authoritative);
     }
 
     private async Task<Guid?> ResolveUserIdAsync(

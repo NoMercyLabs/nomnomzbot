@@ -56,7 +56,7 @@ public class ObsController(
     public async Task<IActionResult> GetState(Guid channelId, CancellationToken ct) =>
         ObsReadResponse(
             await control.GetStateAsync(channelId, ct),
-            new ObsStateDto(null, false, false, false, false, null)
+            new(null, false, false, false, false, null)
         );
 
     /// <summary>The scene list (current one flagged).</summary>
@@ -88,11 +88,11 @@ public class ObsController(
     {
         Result<ObsResponse> result = await control.RequestAsync(
             channelId,
-            new ObsRequest("GetVersion", null),
+            new("GetVersion", null),
             ct
         );
         ObsProbeDto probe = result.IsSuccess
-            ? new ObsProbeDto(Connected: true, ErrorCode: null, Error: null)
+            ? new(Connected: true, ErrorCode: null, Error: null)
             : new ObsProbeDto(
                 Connected: false,
                 ErrorCode: result.ErrorCode,

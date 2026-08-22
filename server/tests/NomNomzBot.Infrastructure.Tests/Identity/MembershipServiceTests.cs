@@ -49,7 +49,7 @@ public sealed class MembershipServiceTests
         MembershipSource source
     ) =>
         db.ChannelMemberships.Add(
-            new ChannelMembership
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = userId,
@@ -228,7 +228,7 @@ public sealed class MembershipServiceTests
     {
         (MembershipService sut, AuthDbContext db, _) = Build();
         db.Users.Add(
-            new User
+            new()
             {
                 Id = Target,
                 Username = "mod_user",
@@ -238,7 +238,7 @@ public sealed class MembershipServiceTests
             }
         );
         db.Users.Add(
-            new User
+            new()
             {
                 Id = Grantor,
                 Username = "editor_user",

@@ -62,7 +62,7 @@ public class EventStoreController : BaseController
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> Export(string channelId, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No channel resolved for the caller.");
 
         MemoryStream buffer = new();
@@ -85,7 +85,7 @@ public class EventStoreController : BaseController
     [ProducesResponseType<StatusResponseDto<EventJournalImportSummary>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Import(string channelId, IFormFile file, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No channel resolved for the caller.");
 
         if (file is null || file.Length == 0)
@@ -113,7 +113,7 @@ public class EventStoreController : BaseController
     [ProducesResponseType<StatusResponseDto<long>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Replay(string channelId, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No channel resolved for the caller.");
 
         Result<long> result = await _projectionRunner.RunOnceAsync(
@@ -134,7 +134,7 @@ public class EventStoreController : BaseController
     [ProducesResponseType<StatusResponseDto<LegacyImportResult>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ImportLegacy(string channelId, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No channel resolved for the caller.");
 
         Result<LegacyImportResult> result = await _legacyImport.ImportLegacyAsync(
@@ -156,7 +156,7 @@ public class EventStoreController : BaseController
     )]
     public async Task<IActionResult> RebuildProjections(string channelId, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No channel resolved for the caller.");
 
         Result<IReadOnlyList<ProjectionRebuildResult>> result =

@@ -34,7 +34,7 @@ public sealed class AdminServiceHealthTests
             .AddHealthChecks()
             .AddCheck(
                 "database",
-                () => new HealthCheckResult(databaseStatus, "probe result"),
+                () => new(databaseStatus, "probe result"),
                 tags: ["db"]
             );
         ServiceProvider provider = services.BuildServiceProvider();
@@ -42,7 +42,7 @@ public sealed class AdminServiceHealthTests
         IPlatformBotReadinessGate gate = Substitute.For<IPlatformBotReadinessGate>();
         gate.IsPlatformBotConfiguredAsync(Arg.Any<CancellationToken>()).Returns(botReady);
 
-        return new AdminService(
+        return new(
             AuthTestBuilder.NewContext(),
             TimeProvider.System,
             provider.GetRequiredService<HealthCheckService>(),

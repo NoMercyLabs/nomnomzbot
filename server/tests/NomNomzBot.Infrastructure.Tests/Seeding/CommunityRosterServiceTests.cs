@@ -35,7 +35,7 @@ public sealed class CommunityRosterServiceTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Channel,
                 OwnerUserId = Guid.Parse("0192a000-0000-7000-8000-00000000c000"),
@@ -77,10 +77,10 @@ public sealed class CommunityRosterServiceTests
         StubRoster(
             mods,
             [
-                new TwitchModerator("tw-mod-1", "modone", "ModOne"),
-                new TwitchModerator("tw-mod-2", "modtwo", "ModTwo"),
+                new("tw-mod-1", "modone", "ModOne"),
+                new("tw-mod-2", "modtwo", "ModTwo"),
             ],
-            [new TwitchVip("tw-vip-1", "VipOne", "vipone")]
+            [new("tw-vip-1", "VipOne", "vipone")]
         );
 
         Result<int> result = await sut.SyncModeratorsFromTwitchAsync(Channel);
@@ -110,7 +110,7 @@ public sealed class CommunityRosterServiceTests
     public async Task Sync_is_idempotent_a_second_run_adds_nothing()
     {
         (CommunityRosterService sut, AuthDbContext db, ITwitchModeratorsApi mods) = Build();
-        StubRoster(mods, [new TwitchModerator("tw-mod-1", "modone", "ModOne")], []);
+        StubRoster(mods, [new("tw-mod-1", "modone", "ModOne")], []);
 
         Result<int> first = await sut.SyncModeratorsFromTwitchAsync(Channel);
         Result<int> second = await sut.SyncModeratorsFromTwitchAsync(Channel);
@@ -195,7 +195,7 @@ public sealed class CommunityRosterServiceTests
             .Returns(
                 Result.Success(
                     new TwitchPage<TwitchModerator>(
-                        [new TwitchModerator("tw-mod-1", "modone", "ModOne")],
+                        [new("tw-mod-1", "modone", "ModOne")],
                         null,
                         1
                     )

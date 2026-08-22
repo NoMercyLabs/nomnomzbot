@@ -10,7 +10,6 @@
 
 using System.Security.Claims;
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -38,9 +37,9 @@ public sealed class ChannelsControllerOnboardTests
     )
     {
         IChannelService service = Substitute.For<IChannelService>();
-        List<Claim> claims = [new Claim(ClaimTypes.NameIdentifier, Caller.ToString())];
+        List<Claim> claims = [new(ClaimTypes.NameIdentifier, Caller.ToString())];
         if (asAdmin)
-            claims.Add(new Claim(ClaimTypes.Role, "admin"));
+            claims.Add(new(ClaimTypes.Role, "admin"));
 
         ChannelsController controller = new(
             service,
@@ -51,11 +50,11 @@ public sealed class ChannelsControllerOnboardTests
             Substitute.For<IUserService>()
         )
         {
-            ControllerContext = new ControllerContext
+            ControllerContext = new()
             {
                 HttpContext = new DefaultHttpContext
                 {
-                    User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth")),
+                    User = new(new ClaimsIdentity(claims, "TestAuth")),
                 },
             },
         };
@@ -76,7 +75,7 @@ public sealed class ChannelsControllerOnboardTests
             null,
             "free",
             null,
-            new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         );
 
     [Fact]
@@ -85,7 +84,7 @@ public sealed class ChannelsControllerOnboardTests
         (ChannelsController controller, IChannelService service) = Build();
 
         IActionResult result = await controller.OnboardChannel(
-            new CreateChannelRequest { BroadcasterId = Victim.ToString() },
+            new() { BroadcasterId = Victim.ToString() },
             CancellationToken.None
         );
 
@@ -112,7 +111,7 @@ public sealed class ChannelsControllerOnboardTests
             .Returns(Result.Success(Channel(Caller)));
 
         IActionResult result = await controller.OnboardChannel(
-            new CreateChannelRequest { BroadcasterId = Caller.ToString() },
+            new() { BroadcasterId = Caller.ToString() },
             CancellationToken.None
         );
 
@@ -139,7 +138,7 @@ public sealed class ChannelsControllerOnboardTests
             .Returns(Result.Success(Channel(Victim)));
 
         IActionResult result = await controller.OnboardChannel(
-            new CreateChannelRequest { BroadcasterId = Victim.ToString() },
+            new() { BroadcasterId = Victim.ToString() },
             CancellationToken.None
         );
 

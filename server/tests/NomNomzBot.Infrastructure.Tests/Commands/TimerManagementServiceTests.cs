@@ -30,7 +30,7 @@ public sealed class TimerManagementServiceTests
     {
         CommandsTestDbContext db = CommandsTestDbContext.New();
         RecordingEventBus bus = new();
-        return (new TimerManagementService(db, bus, Billing.TestTiers.Unlimited()), bus);
+        return (new(db, bus, Billing.TestTiers.Unlimited()), bus);
     }
 
     private static CreateTimerDto Req(string name = "greeting") =>
@@ -76,7 +76,7 @@ public sealed class TimerManagementServiceTests
         await sut.UpdateAsync(
             Channel.ToString(),
             created.Id,
-            new UpdateTimerDto { IntervalMinutes = 45 }
+            new() { IntervalMinutes = 45 }
         );
 
         bus.Published.OfType<ChannelConfigChangedEvent>()
@@ -95,7 +95,7 @@ public sealed class TimerManagementServiceTests
         TimerDto created = (
             await sut.CreateAsync(
                 Channel.ToString(),
-                new CreateTimerDto
+                new()
                 {
                     Name = "welcome-once",
                     Messages = ["hi"],
@@ -113,7 +113,7 @@ public sealed class TimerManagementServiceTests
             await sut.UpdateAsync(
                 Channel.ToString(),
                 created.Id,
-                new UpdateTimerDto { FireOnce = false }
+                new() { FireOnce = false }
             )
         ).Value;
         updated.FireOnce.Should().BeFalse("update cleared one-shot mode");
@@ -128,7 +128,7 @@ public sealed class TimerManagementServiceTests
         Result<TimerDto> result = await sut.UpdateAsync(
             Channel.ToString(),
             Guid.CreateVersion7(),
-            new UpdateTimerDto()
+            new()
         );
 
         result.IsSuccess.Should().BeFalse();

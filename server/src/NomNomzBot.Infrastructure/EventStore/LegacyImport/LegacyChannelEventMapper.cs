@@ -185,7 +185,7 @@ public sealed class LegacyChannelEventMapper
         if (@event is null)
             return null;
 
-        return new AppendEventRequest(
+        return new(
             EventId: @event.EventId,
             BroadcasterId: @event.BroadcasterId,
             EventType: @event.GetType().Name,
@@ -222,7 +222,7 @@ public sealed class LegacyChannelEventMapper
         DateTime occurred = eventTimeKey is null
             ? AsUtc(row.CreatedAt)
             : EventTime(data, eventTimeKey, row);
-        return new EventEnvelope(eventId, tenant, new DateTimeOffset(occurred, TimeSpan.Zero));
+        return new(eventId, tenant, new(occurred, TimeSpan.Zero));
     }
 
     // ── chat message / notification ─────────────────────────────────────────────────────────────────────────
@@ -241,7 +241,7 @@ public sealed class LegacyChannelEventMapper
         JObject? cheer = data["Cheer"] as JObject;
         JObject? reply = data["Reply"] as JObject;
 
-        return new ChatMessageReceivedEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -281,7 +281,7 @@ public sealed class LegacyChannelEventMapper
         JObject? message = data["Message"] as JObject;
         IReadOnlyList<ChatBadge> badges = ReadBadges(data);
 
-        return new ChatMessageReceivedEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -333,7 +333,7 @@ public sealed class LegacyChannelEventMapper
         if (userId is null || Bool(data, "IsGift") == true)
             return null;
 
-        return new NewSubscriptionEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -371,7 +371,7 @@ public sealed class LegacyChannelEventMapper
         // The legacy gift event records the gifter and a Total count but not the individual recipients (Twitch
         // delivers those as separate channel.subscribe rows). The new event models recipients as a list; an empty
         // list with the correct GiftCount preserves the count-bearing fact the subscriber projections fold.
-        return new GiftSubscriptionEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -391,7 +391,7 @@ public sealed class LegacyChannelEventMapper
         bool anonymous = Bool(data, "IsAnonymous") ?? false;
         string userId = Str(data, "UserId") ?? "anonymous";
 
-        return new CheerEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -511,7 +511,7 @@ public sealed class LegacyChannelEventMapper
         if (userId is null || rewardId is null)
             return null;
 
-        return new RewardRedeemedEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -540,7 +540,7 @@ public sealed class LegacyChannelEventMapper
         if (userId is null || rewardId is null)
             return null;
 
-        return new RewardRedemptionUpdatedEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -601,7 +601,7 @@ public sealed class LegacyChannelEventMapper
         if (toId is null)
             return null;
 
-        return new ShoutoutSentEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -618,7 +618,7 @@ public sealed class LegacyChannelEventMapper
         if (fromId is null)
             return null;
 
-        return new ShoutoutReceivedEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -659,7 +659,7 @@ public sealed class LegacyChannelEventMapper
         if (durationSeconds == 0 && endsAt is { } e)
             durationSeconds = Math.Max(0, (int)(e - env.OccurredAt).TotalSeconds);
 
-        return new PollBeganEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -679,7 +679,7 @@ public sealed class LegacyChannelEventMapper
         if (pollId is null || title is null)
             return null;
 
-        return new PollProgressEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -706,7 +706,7 @@ public sealed class LegacyChannelEventMapper
                 winner = choice;
         }
 
-        return new PollEndedEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -734,7 +734,7 @@ public sealed class LegacyChannelEventMapper
             if (id is null || title is null)
                 continue;
             result.Add(
-                new PollChoice(
+                new(
                     id,
                     title,
                     Int(choice, "Votes") ?? 0,
@@ -755,7 +755,7 @@ public sealed class LegacyChannelEventMapper
         if (id is null)
             return null;
 
-        return new HypeTrainBeganEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -776,7 +776,7 @@ public sealed class LegacyChannelEventMapper
         if (id is null)
             return null;
 
-        return new HypeTrainProgressEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -797,7 +797,7 @@ public sealed class LegacyChannelEventMapper
         if (id is null)
             return null;
 
-        return new HypeTrainEndedEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -826,7 +826,7 @@ public sealed class LegacyChannelEventMapper
         if (windowSeconds < 0)
             windowSeconds = 0;
 
-        return new PredictionBeganEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -846,7 +846,7 @@ public sealed class LegacyChannelEventMapper
         if (id is null || title is null)
             return null;
 
-        return new PredictionProgressEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -865,7 +865,7 @@ public sealed class LegacyChannelEventMapper
         if (id is null || title is null)
             return null;
 
-        return new PredictionLockedEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -883,7 +883,7 @@ public sealed class LegacyChannelEventMapper
         if (id is null || title is null)
             return null;
 
-        return new PredictionEndedEvent
+        return new()
         {
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
@@ -911,7 +911,7 @@ public sealed class LegacyChannelEventMapper
             if (outcomeId is null || outcomeTitle is null)
                 continue;
             result.Add(
-                new PredictionOutcome(
+                new(
                     outcomeId,
                     outcomeTitle,
                     Int(outcome, "ChannelPoints") ?? 0,
@@ -938,7 +938,7 @@ public sealed class LegacyChannelEventMapper
             if (userId is null)
                 continue;
             result.Add(
-                new HypeTrainContribution(
+                new(
                     userId,
                     Str(contribution, "UserLogin") ?? userId,
                     Str(contribution, "UserName") ?? userId,
@@ -986,7 +986,7 @@ public sealed class LegacyChannelEventMapper
             JObject? mention = fragment["Mention"] as JObject;
 
             fragments.Add(
-                new ChatMessageFragment
+                new()
                 {
                     Type = fragment["Type"]?.Value<string>() ?? "text",
                     Text = fragment["Text"]?.Value<string>() ?? string.Empty,
@@ -1025,7 +1025,7 @@ public sealed class LegacyChannelEventMapper
             string? id = badge["Id"]?.Value<string>();
             if (setId is null || id is null)
                 continue;
-            badges.Add(new ChatBadge(setId, id, badge["Info"]?.Value<string>()));
+            badges.Add(new(setId, id, badge["Info"]?.Value<string>()));
         }
 
         return badges;

@@ -37,13 +37,13 @@ public sealed class OverlayVueRuntimeController : ControllerBase
 
     private static string LoadRuntime()
     {
-        Assembly assembly = typeof(NomNomzBot.Infrastructure.DependencyInjection).Assembly;
-        using System.IO.Stream? stream = assembly.GetManifestResourceStream(ResourceName);
+        Assembly assembly = typeof(Infrastructure.DependencyInjection).Assembly;
+        using Stream? stream = assembly.GetManifestResourceStream(ResourceName);
         if (stream is null)
             throw new InvalidOperationException(
                 $"Embedded Vue runtime '{ResourceName}' was not found in {assembly.GetName().Name}."
             );
-        using System.IO.StreamReader reader = new(stream);
+        using StreamReader reader = new(stream);
         return reader.ReadToEnd();
     }
 

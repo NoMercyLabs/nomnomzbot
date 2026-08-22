@@ -17,10 +17,7 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Enums.Deployment;
-using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Identity;
-using NomNomzBot.Infrastructure.Platform.Deployment;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
@@ -237,7 +234,7 @@ public sealed class AuthServiceStreamerScopesTests
         Guid channel = Guid.Parse("0192a000-0000-7000-8000-0000000000e1");
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.IntegrationConnections.Add(
-            new IntegrationConnection
+            new()
             {
                 BroadcasterId = channel,
                 Provider = "twitch",
@@ -246,14 +243,14 @@ public sealed class AuthServiceStreamerScopesTests
             }
         );
         db.ChannelMissingScopes.Add(
-            new ChannelMissingScope
+            new()
             {
                 BroadcasterId = channel,
                 // `channel:manage:extensions` is a real Twitch scope this codebase has no Helix method for
                 // (unlike `channel:edit:commercial`, which the [RequiresTwitchScope]-reflected base set now
                 // covers), so it's still a genuine runtime-detected gap OUTSIDE the reflected ∪ residual base set.
                 Scope = "channel:manage:extensions",
-                DetectedAt = new DateTime(2026, 7, 16, 0, 0, 0, DateTimeKind.Utc),
+                DetectedAt = new(2026, 7, 16, 0, 0, 0, DateTimeKind.Utc),
             }
         );
         await db.SaveChangesAsync();
@@ -289,7 +286,7 @@ public sealed class AuthServiceStreamerScopesTests
             config
         );
 
-        return new AuthService(
+        return new(
             db,
             Substitute.For<ITwitchAuthService>(),
             Substitute.For<ITwitchDeviceCodeService>(),
@@ -299,9 +296,9 @@ public sealed class AuthServiceStreamerScopesTests
             credentials,
             Substitute.For<IHttpClientFactory>(),
             config,
-            new DeploymentContext(DeploymentMode.SelfHostLite),
+            new(DeploymentMode.SelfHostLite),
             TimeProvider.System,
-            new TwitchScopeRegistry(),
+            new(),
             NullLogger<AuthService>.Instance
         );
     }

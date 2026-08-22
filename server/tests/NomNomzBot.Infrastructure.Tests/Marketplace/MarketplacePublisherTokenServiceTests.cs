@@ -51,7 +51,7 @@ public sealed class MarketplacePublisherTokenServiceTests
             TimeProvider.System,
             NullLogger<IntegrationTokenVault>.Instance
         );
-        return (new MarketplacePublisherTokenService(vault), db);
+        return (new(vault), db);
     }
 
     [Fact]

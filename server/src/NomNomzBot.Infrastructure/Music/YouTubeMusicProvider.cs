@@ -419,7 +419,7 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
 
         string title = request.Name ?? existing.Snippet?.Title ?? string.Empty;
         string description = request.Description ?? existing.Snippet?.Description ?? string.Empty;
-        string privacyStatus = request.IsPublic is bool isPublic
+        string privacyStatus = request.IsPublic is { } isPublic
             ? (isPublic ? "public" : "private")
             : existing.Status?.PrivacyStatus ?? "private";
 
@@ -1050,7 +1050,7 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
     private static TrackInfo MapToTrackInfo(YouTubeVideo video)
     {
         string videoId = video.Id ?? string.Empty;
-        return new TrackInfo
+        return new()
         {
             TrackName = video.Snippet?.Title ?? string.Empty,
             Artist = video.Snippet?.ChannelTitle ?? string.Empty,

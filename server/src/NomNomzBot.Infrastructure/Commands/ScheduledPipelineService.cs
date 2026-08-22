@@ -187,7 +187,7 @@ public sealed class ScheduledPipelineService : IScheduledPipelineService
         }
         else
         {
-            task = new ScheduledPipelineTask
+            task = new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = broadcasterId,
@@ -327,7 +327,7 @@ public sealed class ScheduledPipelineService : IScheduledPipelineService
             using IServiceScope scope = _scopeFactory.CreateScope();
             IPipelineEngine engine = scope.ServiceProvider.GetRequiredService<IPipelineEngine>();
             PipelineExecutionResult result = await engine.ExecuteAsync(
-                new PipelineRequest
+                new()
                 {
                     BroadcasterId = task.BroadcasterId,
                     PipelineId = task.PipelineId,
@@ -360,19 +360,19 @@ public sealed class ScheduledPipelineService : IScheduledPipelineService
     private static Dictionary<string, string> DeserializeVariables(string variablesJson)
     {
         if (string.IsNullOrWhiteSpace(variablesJson))
-            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            return new(StringComparer.OrdinalIgnoreCase);
         try
         {
             Dictionary<string, string>? parsed = JsonSerializer.Deserialize<
                 Dictionary<string, string>
             >(variablesJson, JsonOpts);
             return parsed is null
-                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                ? new(StringComparer.OrdinalIgnoreCase)
                 : new Dictionary<string, string>(parsed, StringComparer.OrdinalIgnoreCase);
         }
         catch (JsonException)
         {
-            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            return new(StringComparer.OrdinalIgnoreCase);
         }
     }
 

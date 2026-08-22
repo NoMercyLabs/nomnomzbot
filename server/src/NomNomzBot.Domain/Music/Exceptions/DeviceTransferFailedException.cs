@@ -25,7 +25,7 @@ public sealed class DeviceTransferFailedException : DomainException
 {
     public DeviceTransferFailedException(string provider, int? statusCode)
         : base(
-            statusCode is int code
+            statusCode is { } code
                 ? $"{provider} rejected the device transfer (HTTP {code})."
                 : $"{provider} device transfer request failed."
         )

@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -178,7 +177,7 @@ internal sealed class CustomDataPollService : ICustomDataPollService
             ? null
             : await _tokenProtector.TryUnprotectAsync(
                 source.AuthSecretCipher,
-                new TokenProtectionContext(
+                new(
                     source.BroadcasterId.ToString(),
                     SecretProvider,
                     source.Id.ToString()
@@ -188,7 +187,7 @@ internal sealed class CustomDataPollService : ICustomDataPollService
 
         using HttpRequestMessage request = new(HttpMethod.Get, endpoint);
         if (!string.IsNullOrWhiteSpace(authSecret))
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authSecret);
+            request.Headers.Authorization = new("Bearer", authSecret);
 
         HttpClient client = _httpClientFactory.CreateClient(EgressHttpClient.Name);
         using HttpResponseMessage response = await client.SendAsync(request, ct);
@@ -239,7 +238,7 @@ internal sealed class CustomDataPollService : ICustomDataPollService
     )
     {
         // Fast reject when the server declares an oversize body up front — no need to buffer.
-        if (response.Content.Headers.ContentLength is long declared && declared > MaxResponseBytes)
+        if (response.Content.Headers.ContentLength is { } declared && declared > MaxResponseBytes)
             return (true, string.Empty);
 
         await using System.IO.Stream stream = await response.Content.ReadAsStreamAsync(ct);

@@ -85,7 +85,7 @@ public sealed class GiveawayCodePoolService : IGiveawayCodePoolService
                 ct
             );
             await _db.GiveawayCodes.AddAsync(
-                new GiveawayCode
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     CodePoolId = poolId,
@@ -238,6 +238,6 @@ public sealed class GiveawayCodePoolService : IGiveawayCodePoolService
                 c.Status == GiveawayCodeStatus.Assigned || c.Status == GiveawayCodeStatus.Delivered
             )
             .Sum(c => c.Count);
-        return new CodePoolDto(pool.Id, pool.Name, pool.Description, total, available, assigned);
+        return new(pool.Id, pool.Name, pool.Description, total, available, assigned);
     }
 }

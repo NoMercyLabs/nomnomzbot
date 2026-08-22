@@ -40,7 +40,7 @@ public sealed class RewardServiceUpdateTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Rewards.Add(
-            new Reward
+            new()
             {
                 Id = RewardId,
                 BroadcasterId = Channel,
@@ -69,13 +69,13 @@ public sealed class RewardServiceUpdateTests
             Prompt: "redeem me",
             Cost: 750,
             Image: null,
-            DefaultImage: new TwitchCustomRewardImage("1x", "2x", "4x"),
+            DefaultImage: new("1x", "2x", "4x"),
             BackgroundColor: "#000000",
             IsEnabled: true,
             IsUserInputRequired: false,
-            MaxPerStreamSetting: new TwitchCustomRewardMaxPerStreamSetting(false, 0),
-            MaxPerUserPerStreamSetting: new TwitchCustomRewardMaxPerUserPerStreamSetting(false, 0),
-            GlobalCooldownSetting: new TwitchCustomRewardGlobalCooldownSetting(false, 0),
+            MaxPerStreamSetting: new(false, 0),
+            MaxPerUserPerStreamSetting: new(false, 0),
+            GlobalCooldownSetting: new(false, 0),
             IsPaused: false,
             IsInStock: true,
             ShouldRedemptionsSkipRequestQueue: false,
@@ -103,7 +103,7 @@ public sealed class RewardServiceUpdateTests
         Result<RewardDetail> result = await sut.UpdateAsync(
             Channel.ToString(),
             RewardId.ToString(),
-            new UpdateRewardRequest
+            new()
             {
                 Title = "Luckier Feather",
                 Cost = 750,
@@ -147,7 +147,7 @@ public sealed class RewardServiceUpdateTests
         Result<RewardDetail> result = await sut.UpdateAsync(
             Channel.ToString(),
             RewardId.ToString(),
-            new UpdateRewardRequest
+            new()
             {
                 IsUserInputRequired = true,
                 MaxPerStream = 5,
@@ -195,7 +195,7 @@ public sealed class RewardServiceUpdateTests
         Result<RewardDetail> result = await sut.UpdateAsync(
             Channel.ToString(),
             RewardId.ToString(),
-            new UpdateRewardRequest { Cost = 750 }
+            new() { Cost = 750 }
         );
 
         result.IsFailure.Should().BeTrue();
@@ -216,7 +216,7 @@ public sealed class RewardServiceUpdateTests
         Result<RewardDetail> result = await sut.UpdateAsync(
             Channel.ToString(),
             RewardId.ToString(),
-            new UpdateRewardRequest { Cost = 750 }
+            new() { Cost = 750 }
         );
 
         result.IsFailure.Should().BeTrue();
@@ -239,7 +239,7 @@ public sealed class RewardServiceUpdateTests
         Result<RewardDetail> result = await sut.UpdateAsync(
             Channel.ToString(),
             RewardId.ToString(),
-            new UpdateRewardRequest { PipelineId = pipelineId, TimerDurationSeconds = 60 }
+            new() { PipelineId = pipelineId, TimerDurationSeconds = 60 }
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -262,7 +262,7 @@ public sealed class RewardServiceUpdateTests
         Result<RewardDetail> result = await sut.UpdateAsync(
             Channel.ToString(),
             RewardId.ToString(),
-            new UpdateRewardRequest { Title = "Renamed", Cost = 100 }
+            new() { Title = "Renamed", Cost = 100 }
         );
 
         result.IsSuccess.Should().BeTrue();

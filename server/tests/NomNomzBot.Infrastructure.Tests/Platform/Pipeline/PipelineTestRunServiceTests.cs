@@ -10,7 +10,6 @@
 
 using System.Text.RegularExpressions;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Pipeline;
@@ -83,8 +82,8 @@ public sealed class PipelineTestRunServiceTests
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);
 
-        return new Harness(
-            new PipelineTestRunService(
+        return new(
+            new(
                 db,
                 tenant,
                 actions,
@@ -112,7 +111,7 @@ public sealed class PipelineTestRunServiceTests
     )
     {
         db.Pipelines.Add(
-            new NomNomzBot.Domain.Commands.Entities.Pipeline
+            new()
             {
                 Id = PipelineId,
                 BroadcasterId = Channel,
@@ -168,7 +167,7 @@ public sealed class PipelineTestRunServiceTests
         PipelineTestRunDbContext db = NewDb();
         Harness h = Build(db);
         db.Pipelines.Add(
-            new NomNomzBot.Domain.Commands.Entities.Pipeline
+            new()
             {
                 Id = PipelineId,
                 BroadcasterId = Channel,

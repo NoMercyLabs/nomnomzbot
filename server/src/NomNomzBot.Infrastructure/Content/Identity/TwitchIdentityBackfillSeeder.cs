@@ -55,7 +55,7 @@ public sealed class TwitchIdentityBackfillSeeder : ISeeder
         foreach (User user in missing)
         {
             _db.UserIdentities.Add(
-                new UserIdentity
+                new()
                 {
                     UserId = user.Id,
                     Provider = AuthEnums.Platform.Twitch,

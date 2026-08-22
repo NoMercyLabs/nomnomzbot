@@ -202,7 +202,7 @@ public sealed class DiscordNotificationRoleService : IDiscordNotificationRoleSer
         Result<string> posted = await _gateway.PostButtonMessageAsync(
             broadcasterId,
             buttonChannelId,
-            new DiscordOptInButton(
+            new(
                 $"Click to toggle the **{role.RoleName ?? "notify"}** role.",
                 role.Id,
                 roleLabel
@@ -246,7 +246,7 @@ public sealed class DiscordNotificationRoleService : IDiscordNotificationRoleSer
 
         if (optIn is null)
         {
-            optIn = new DiscordMemberOptIn
+            optIn = new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = broadcasterId,

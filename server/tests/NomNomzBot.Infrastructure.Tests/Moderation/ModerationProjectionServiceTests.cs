@@ -16,13 +16,11 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
-using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
 
@@ -53,10 +51,10 @@ public sealed class ModerationProjectionServiceTests
             .Returns(
                 Result.Success(
                     new AutomodConfigDto(
-                        new AutomodLinkFilterDto(false, []),
-                        new AutomodCapsFilterDto(false, 0),
-                        new AutomodBannedPhrasesDto(false, []),
-                        new AutomodEmoteSpamDto(false, 0),
+                        new(false, []),
+                        new(false, 0),
+                        new(false, []),
+                        new(false, 0),
                         threshold
                     )
                 )
@@ -66,7 +64,7 @@ public sealed class ModerationProjectionServiceTests
             db,
             moderation,
             bus,
-            new FakeTimeProvider(new DateTimeOffset(T0)),
+            new FakeTimeProvider(new(T0)),
             NullLogger<ModerationProjectionService>.Instance
         );
         return (sut, db, bus);
@@ -75,7 +73,7 @@ public sealed class ModerationProjectionServiceTests
     private static async Task SeedSubjectAsync(ModerationServiceTestDbContext db)
     {
         db.Users.Add(
-            new User
+            new()
             {
                 Id = Subject,
                 TwitchUserId = SubjectTwitchId,
@@ -91,7 +89,7 @@ public sealed class ModerationProjectionServiceTests
     /// <summary>The clean-slate score for the same tenure the seeded subject has.</summary>
     private static double CleanScoreAt(DateTime nowUtc) =>
         Infrastructure.Music.TrustScoreCalculator.Calculate(
-            new Infrastructure.Music.TrustContext
+            new()
             {
                 AccountAgeMonths = (nowUtc - T0.AddYears(-2)).TotalDays / 30.44,
             }
@@ -192,11 +190,11 @@ public sealed class ModerationProjectionServiceTests
 
         ModerationService moderation = new(
             db,
-            NSubstitute.Substitute.For<Application.Contracts.Twitch.ITwitchModerationApi>(),
-            NSubstitute.Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            Substitute.For<Application.Contracts.Twitch.ITwitchModerationApi>(),
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
             TimeProvider.System,
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<ModerationService>.Instance,
-            NSubstitute.Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IEventBus>()
+            NullLogger<ModerationService>.Instance,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IEventBus>()
         );
         Result<UserModerationContextDto> context = await moderation.GetUserContextAsync(
             Channel.ToString(),
@@ -220,7 +218,7 @@ public sealed class ModerationProjectionServiceTests
         // ...and the durable record rows exist (one ban + one timeout).
         foreach (string action in new[] { "ban", "timeout" })
             db.Records.Add(
-                new RecordEntity
+                new()
                 {
                     BroadcasterId = Channel,
                     RecordType = "moderation_action",

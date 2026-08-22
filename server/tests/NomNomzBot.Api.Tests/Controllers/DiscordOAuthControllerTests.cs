@@ -81,12 +81,12 @@ public sealed class DiscordOAuthControllerTests
     public async Task Callback_WithLoopback_Success_RedirectsToLoopbackWithConnectedMarker()
     {
         (DiscordOAuthController controller, FakeDiscordGuildService discord, _) = Build(
-            new StubHandler
+            new()
             {
                 TokenJson =
                     """{"access_token":"bot-token","refresh_token":"r","expires_in":604800,"guild":{"id":"99","name":"Cool Guild"}}""",
             },
-            new DiscordOAuthFlowState(ChannelId, Loopback)
+            new(ChannelId, Loopback)
         );
 
         IActionResult result = await controller.HandleDiscordCallback("the-code", "nonce", default);
@@ -103,8 +103,8 @@ public sealed class DiscordOAuthControllerTests
     public async Task Callback_WithLoopback_TokenExchangeFails_RedirectsToLoopbackWithError()
     {
         (DiscordOAuthController controller, FakeDiscordGuildService discord, _) = Build(
-            new StubHandler { TokenStatus = HttpStatusCode.BadRequest },
-            new DiscordOAuthFlowState(ChannelId, Loopback)
+            new() { TokenStatus = HttpStatusCode.BadRequest },
+            new(ChannelId, Loopback)
         );
 
         IActionResult result = await controller.HandleDiscordCallback("bad-code", "nonce", default);
@@ -120,12 +120,12 @@ public sealed class DiscordOAuthControllerTests
     public async Task Callback_NoLoopback_Success_RedirectsToOAuthRelay()
     {
         (DiscordOAuthController controller, _, _) = Build(
-            new StubHandler
+            new()
             {
                 TokenJson =
                     """{"access_token":"bot-token","refresh_token":"r","expires_in":604800,"guild":{"id":"99","name":"Cool Guild"}}""",
             },
-            new DiscordOAuthFlowState(ChannelId, RedirectUri: null)
+            new(ChannelId, RedirectUri: null)
         );
 
         IActionResult result = await controller.HandleDiscordCallback("the-code", "nonce", default);
@@ -152,7 +152,7 @@ public sealed class DiscordOAuthControllerTests
     {
         ApiTestDbContext db = ApiTestDbContext.New();
         db.Configurations.Add(
-            new NomNomzBot.Domain.Platform.Entities.Configuration
+            new()
             {
                 BroadcasterId = null,
                 Key = "discord.client_id",
@@ -160,7 +160,7 @@ public sealed class DiscordOAuthControllerTests
             }
         );
         db.Configurations.Add(
-            new NomNomzBot.Domain.Platform.Entities.Configuration
+            new()
             {
                 BroadcasterId = null,
                 Key = "discord.client_secret",
@@ -197,7 +197,7 @@ public sealed class DiscordOAuthControllerTests
             discord
         )
         {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+            ControllerContext = new() { HttpContext = new DefaultHttpContext() },
         };
         return (controller, discord, state);
     }

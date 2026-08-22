@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Templating;
-using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
@@ -59,7 +58,7 @@ public sealed class BuiltinResponseComposerTests
         // Sassy uptime HAS tone templates, but an explicit override must beat them.
         string result = await Sut()
             .ComposeAsync(
-                new BuiltinResponseRequest
+                new()
                 {
                     BroadcasterId = Channel,
                     Personality = PersonalityTone.Sassy,
@@ -85,7 +84,7 @@ public sealed class BuiltinResponseComposerTests
     {
         string result = await Sut()
             .ComposeAsync(
-                new BuiltinResponseRequest
+                new()
                 {
                     BroadcasterId = Channel,
                     Personality = PersonalityTone.Sassy,
@@ -127,7 +126,7 @@ public sealed class BuiltinResponseComposerTests
 
         string result = await Sut()
             .ComposeAsync(
-                new BuiltinResponseRequest
+                new()
                 {
                     BroadcasterId = Channel,
                     Personality = PersonalityTone.Informative,
@@ -145,7 +144,7 @@ public sealed class BuiltinResponseComposerTests
     {
         string result = await Sut()
             .ComposeAsync(
-                new BuiltinResponseRequest
+                new()
                 {
                     BroadcasterId = Channel,
                     Personality = PersonalityTone.Hype,
@@ -164,7 +163,7 @@ public sealed class BuiltinResponseComposerTests
         // Whitespace/empty override is treated as "no override" — the tone must still apply.
         string result = await Sut()
             .ComposeAsync(
-                new BuiltinResponseRequest
+                new()
                 {
                     BroadcasterId = Channel,
                     Personality = PersonalityTone.Chill,
@@ -202,7 +201,7 @@ public sealed class BuiltinResponseComposerTests
     {
         string result = await Sut()
             .ComposeAsync(
-                new BuiltinResponseRequest
+                new()
                 {
                     BroadcasterId = Channel,
                     Personality = tone,
@@ -231,7 +230,7 @@ public sealed class BuiltinResponseComposerTests
     {
         string result = await Sut()
             .ComposeAsync(
-                new BuiltinResponseRequest
+                new()
                 {
                     BroadcasterId = Channel,
                     Personality = tone,

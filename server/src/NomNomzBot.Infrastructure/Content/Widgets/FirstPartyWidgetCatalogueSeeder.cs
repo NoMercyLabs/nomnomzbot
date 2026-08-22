@@ -102,7 +102,7 @@ public sealed class FirstPartyWidgetCatalogueSeeder : ISeeder
         row.AvailableInSaaS = true;
         row.SubmitterUserId = null;
         row.SourceCode = source;
-        row.DefaultSettings = new Dictionary<string, object>(widget.DefaultSettings);
+        row.DefaultSettings = new(widget.DefaultSettings);
         row.DefaultEventSubscriptions = [.. widget.DefaultEventSubscriptions];
         row.DeletedAt = null;
     }
@@ -120,7 +120,7 @@ public sealed class FirstPartyWidgetCatalogueSeeder : ISeeder
                 $"Embedded first-party widget asset '{resourceName}' was not found in "
                     + $"{assembly.GetName().Name}."
             );
-        using System.IO.StreamReader reader = new(stream);
+        using StreamReader reader = new(stream);
         return reader.ReadToEnd();
     }
 }

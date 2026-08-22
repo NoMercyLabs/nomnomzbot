@@ -11,7 +11,6 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Moderation.Events;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -31,7 +30,7 @@ public sealed class ShieldModeBroadcastHandlersTests
         DateTimeOffset startedAt = new(2026, 7, 1, 12, 0, 0, TimeSpan.Zero);
 
         await handler.HandleAsync(
-            new ShieldModeBeganEvent
+            new()
             {
                 BroadcasterId = channel,
                 ModeratorId = "mod-1",
@@ -64,7 +63,7 @@ public sealed class ShieldModeBroadcastHandlersTests
         DateTimeOffset endedAt = new(2026, 7, 1, 12, 30, 0, TimeSpan.Zero);
 
         await handler.HandleAsync(
-            new ShieldModeEndedEvent
+            new()
             {
                 BroadcasterId = channel,
                 ModeratorId = "mod-1",
@@ -94,7 +93,7 @@ public sealed class ShieldModeBroadcastHandlersTests
         ShieldModeBeganBroadcastHandler handler = new(notifier);
 
         await handler.HandleAsync(
-            new ShieldModeBeganEvent
+            new()
             {
                 BroadcasterId = Guid.Empty,
                 ModeratorId = "mod-1",

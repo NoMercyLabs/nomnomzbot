@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;

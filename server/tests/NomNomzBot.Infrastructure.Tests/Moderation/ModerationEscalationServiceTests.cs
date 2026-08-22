@@ -36,7 +36,7 @@ public sealed class ModerationEscalationServiceTests
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         FakeTimeProvider clock = new(T0);
-        return (new ModerationEscalationService(db, clock), db, clock);
+        return (new(db, clock), db, clock);
     }
 
     private static UpsertEscalationPolicyRequest EnabledPolicy(int windowHours = 168) =>
@@ -44,9 +44,9 @@ public sealed class ModerationEscalationServiceTests
             IsEnabled: true,
             Ladder:
             [
-                new EscalationLadderStep(1, "warn", null),
-                new EscalationLadderStep(2, "timeout", 60),
-                new EscalationLadderStep(3, "ban", null),
+                new(1, "warn", null),
+                new(2, "timeout", 60),
+                new(3, "ban", null),
             ],
             OffenseWindowHours: windowHours,
             CountAutoModViolations: false
@@ -161,11 +161,11 @@ public sealed class ModerationEscalationServiceTests
         (
             await sut.UpsertPolicyAsync(
                 Channel,
-                new UpsertEscalationPolicyRequest(
+                new(
                     true,
                     [
-                        new EscalationLadderStep(2, "warn", null),
-                        new EscalationLadderStep(1, "ban", null),
+                        new(2, "warn", null),
+                        new(1, "ban", null),
                     ],
                     168,
                     false
@@ -179,9 +179,9 @@ public sealed class ModerationEscalationServiceTests
         (
             await sut.UpsertPolicyAsync(
                 Channel,
-                new UpsertEscalationPolicyRequest(
+                new(
                     true,
-                    [new EscalationLadderStep(1, "vaporize", null)],
+                    [new(1, "vaporize", null)],
                     168,
                     false
                 )
@@ -194,9 +194,9 @@ public sealed class ModerationEscalationServiceTests
         (
             await sut.UpsertPolicyAsync(
                 Channel,
-                new UpsertEscalationPolicyRequest(
+                new(
                     true,
-                    [new EscalationLadderStep(1, "timeout", null)],
+                    [new(1, "timeout", null)],
                     168,
                     false
                 )

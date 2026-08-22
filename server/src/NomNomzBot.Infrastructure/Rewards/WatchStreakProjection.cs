@@ -39,7 +39,7 @@ public sealed class WatchStreakProjection(IApplicationDbContext db) : IProjectio
         CancellationToken cancellationToken = default
     )
     {
-        if (@event.BroadcasterId is not Guid broadcasterId)
+        if (@event.BroadcasterId is not { } broadcasterId)
             return Result.Success();
 
         JObject? payload = TryParse(@event.PayloadJson);
@@ -62,7 +62,7 @@ public sealed class WatchStreakProjection(IApplicationDbContext db) : IProjectio
 
         if (row is null)
         {
-            row = new WatchStreak
+            row = new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = broadcasterId,
@@ -88,7 +88,7 @@ public sealed class WatchStreakProjection(IApplicationDbContext db) : IProjectio
     )
     {
         List<WatchStreak> rows = await (
-            broadcasterId is Guid id
+            broadcasterId is { } id
                 ? db.WatchStreaks.Where(w => w.BroadcasterId == id)
                 : db.WatchStreaks
         ).ToListAsync(cancellationToken);

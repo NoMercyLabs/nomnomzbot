@@ -54,7 +54,7 @@ public class TwitchVideosApiTests
             "en",
             "archive",
             "3h8m33s",
-            [new TwitchVideoMutedSegment(30, 120)]
+            [new(30, 120)]
         );
 
     [Fact]
@@ -71,7 +71,7 @@ public class TwitchVideosApiTests
             type: "archive",
             period: "month",
             sort: "time",
-            new TwitchPageRequest(After: "abc", PageSize: 20)
+            new(After: "abc", PageSize: 20)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -109,7 +109,7 @@ public class TwitchVideosApiTests
             type: null,
             period: null,
             sort: null,
-            new TwitchPageRequest(PageSize: 100)
+            new(PageSize: 100)
         );
 
         transport.LastRequest!.Query.Should().NotContain(q => q.Key == "type");
@@ -136,7 +136,7 @@ public class TwitchVideosApiTests
             type: null,
             period: null,
             sort: null,
-            new TwitchPageRequest()
+            new()
         );
 
         result.IsFailure.Should().BeTrue();

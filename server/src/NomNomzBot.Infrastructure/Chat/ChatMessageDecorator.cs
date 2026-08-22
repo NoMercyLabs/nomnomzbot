@@ -102,7 +102,7 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
             }
         }
 
-        return new DecoratedChatMessage
+        return new()
         {
             Fragments = context.Fragments,
             Badges = context.ResolvedBadges,

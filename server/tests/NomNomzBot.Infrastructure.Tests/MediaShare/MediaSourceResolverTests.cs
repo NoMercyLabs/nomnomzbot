@@ -67,7 +67,7 @@ public sealed class MediaSourceResolverTests
             )
             .Build();
 
-        return new MediaSourceResolver(
+        return new(
             clipsApi,
             factory,
             config,

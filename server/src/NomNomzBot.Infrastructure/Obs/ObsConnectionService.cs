@@ -58,7 +58,7 @@ public class ObsConnectionService : IObsConnectionService
         ObsConnection? connection = await FindAsync(broadcasterId, ct);
         if (connection is null)
         {
-            connection = new ObsConnection { BroadcasterId = broadcasterId };
+            connection = new() { BroadcasterId = broadcasterId };
             _db.ObsConnections.Add(connection);
         }
 
@@ -68,7 +68,7 @@ public class ObsConnectionService : IObsConnectionService
             : request.Host.Trim();
         connection.Port = request.Port ?? 4455;
         connection.IsEnabled = request.IsEnabled;
-        if (request.EventSubscriptionsMask is int mask)
+        if (request.EventSubscriptionsMask is { } mask)
             connection.EventSubscriptionsMask = mask;
 
         // Write-only password semantics: null keeps the stored secret, "" clears it, anything else re-seals.
@@ -112,7 +112,7 @@ public class ObsConnectionService : IObsConnectionService
         ObsConnection? connection = await FindAsync(broadcasterId, ct);
         if (connection is null)
         {
-            connection = new ObsConnection { BroadcasterId = broadcasterId, Mode = "bridge" };
+            connection = new() { BroadcasterId = broadcasterId, Mode = "bridge" };
             _db.ObsConnections.Add(connection);
         }
         if (connection.BridgeToken is null)

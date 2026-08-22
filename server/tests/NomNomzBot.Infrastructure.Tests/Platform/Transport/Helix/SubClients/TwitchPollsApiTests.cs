@@ -45,7 +45,7 @@ public class TwitchPollsApiTests
             "Name",
             "login",
             "Heads or Tails?",
-            [new TwitchPollChoice("choice-1", "Heads", 10, 7, 0)],
+            [new("choice-1", "Heads", 10, 7, 0)],
             false,
             10,
             true,
@@ -65,7 +65,7 @@ public class TwitchPollsApiTests
         Result<TwitchPage<TwitchPoll>> result = await api.GetPollsAsync(
             Tenant,
             null,
-            new TwitchPageRequest()
+            new()
         );
 
         result.IsFailure.Should().BeTrue();
@@ -86,7 +86,7 @@ public class TwitchPollsApiTests
         Result<TwitchPage<TwitchPoll>> result = await api.GetPollsAsync(
             Tenant,
             null,
-            new TwitchPageRequest()
+            new()
         );
 
         result.IsFailure.Should().BeTrue();
@@ -106,7 +106,7 @@ public class TwitchPollsApiTests
         Result<TwitchPage<TwitchPoll>> result = await api.GetPollsAsync(
             Tenant,
             ["poll-a", "poll-b"],
-            new TwitchPageRequest(After: "abc", PageSize: 50)
+            new(After: "abc", PageSize: 50)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -135,7 +135,7 @@ public class TwitchPollsApiTests
 
         Result<TwitchPoll> result = await api.CreatePollAsync(
             Tenant,
-            new CreatePollRequest("Q?", [new CreatePollChoiceRequest("A")], 60)
+            new("Q?", [new("A")], 60)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -150,7 +150,7 @@ public class TwitchPollsApiTests
         TwitchPollsApi api = Build(transport, TwitchScopes.ChannelManagePolls);
         CreatePollRequest request = new(
             "Heads or Tails?",
-            [new CreatePollChoiceRequest("Heads"), new CreatePollChoiceRequest("Tails")],
+            [new("Heads"), new("Tails")],
             300,
             ChannelPointsVotingEnabled: true,
             ChannelPointsPerVote: 100

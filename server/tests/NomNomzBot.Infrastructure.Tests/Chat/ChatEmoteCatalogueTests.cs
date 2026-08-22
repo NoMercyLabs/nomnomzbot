@@ -55,7 +55,7 @@ public sealed class ChatEmoteCatalogueTests
         new(
             $"{name}-id",
             name,
-            new TwitchEmoteImages("u1", "u2", "u4"),
+            new("u1", "u2", "u4"),
             formats.Length == 0 ? ["static"] : formats,
             ["1.0"],
             ["dark"]
@@ -65,7 +65,7 @@ public sealed class ChatEmoteCatalogueTests
         new(
             $"{name}-id",
             name,
-            new TwitchEmoteImages("u1", "u2", "u4"),
+            new("u1", "u2", "u4"),
             "1000",
             "subscriptions",
             setId,
@@ -100,7 +100,7 @@ public sealed class ChatEmoteCatalogueTests
         new(
             $"{name}-id",
             name,
-            new TwitchEmoteImages("u1", "u2", "u4"),
+            new("u1", "u2", "u4"),
             "1000",
             emoteType,
             setId,

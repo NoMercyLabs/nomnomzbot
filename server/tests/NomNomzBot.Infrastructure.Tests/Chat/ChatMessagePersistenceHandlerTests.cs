@@ -15,7 +15,6 @@ using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat;
 

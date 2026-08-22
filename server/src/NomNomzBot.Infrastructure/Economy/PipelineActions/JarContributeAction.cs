@@ -40,7 +40,7 @@ public sealed class JarContributeAction(ISavingsJarService jars) : ICommandActio
 
         Result<JarMovementDto> result = await jars.ContributeAsync(
             ctx.BroadcasterId,
-            new JarContributeRequest(jarId, viewer, amount),
+            new(jarId, viewer, amount),
             ctx.CancellationToken
         );
         if (result.IsFailure)

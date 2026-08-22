@@ -14,8 +14,6 @@ using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.PickLists.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.PickLists.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.PickLists;
 using NSubstitute;
@@ -37,7 +35,7 @@ public sealed class PickListsControllerPreviewTests
         tenant.BroadcasterId.Returns(Broadcaster);
 
         PickListService service = new(db, Substitute.For<IEventBus>());
-        return new PickListsController(service, tenant);
+        return new(service, tenant);
     }
 
     [Fact]
@@ -45,7 +43,7 @@ public sealed class PickListsControllerPreviewTests
     {
         PickListsControllerTestDbContext db = PickListsControllerTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Broadcaster,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -57,7 +55,7 @@ public sealed class PickListsControllerPreviewTests
         Guid listId = Guid.CreateVersion7();
         List<string> items = ["left hook", "right jab", "spinning kick"];
         db.PickLists.Add(
-            new PickList
+            new()
             {
                 Id = listId,
                 BroadcasterId = Broadcaster,
@@ -83,7 +81,7 @@ public sealed class PickListsControllerPreviewTests
     {
         PickListsControllerTestDbContext db = PickListsControllerTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Broadcaster,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -94,7 +92,7 @@ public sealed class PickListsControllerPreviewTests
         );
         Guid listId = Guid.CreateVersion7();
         db.PickLists.Add(
-            new PickList
+            new()
             {
                 Id = listId,
                 BroadcasterId = Broadcaster,
@@ -117,7 +115,7 @@ public sealed class PickListsControllerPreviewTests
     {
         PickListsControllerTestDbContext db = PickListsControllerTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Broadcaster,
                 OwnerUserId = Guid.CreateVersion7(),

@@ -63,7 +63,7 @@ public class GdprController : BaseController
         if (!TryGetCaller(out Guid callerId))
             return UnauthenticatedResponse();
         Result<DataExportDto> result = await _erasure.RequestExportAsync(
-            new RequestExportRequest(callerId, _currentTenant.BroadcasterId, SelfService),
+            new(callerId, _currentTenant.BroadcasterId, SelfService),
             ct
         );
         return ResultResponse(result);
@@ -82,7 +82,7 @@ public class GdprController : BaseController
         // Subject + requester are forced to the caller; tenant context comes from the JWT — only the
         // requested scope is honored from the body.
         Result<ErasureRequestDto> result = await _erasure.RequestErasureAsync(
-            new RequestErasureRequest(
+            new(
                 callerId,
                 _currentTenant.BroadcasterId,
                 SelfService,
@@ -101,7 +101,7 @@ public class GdprController : BaseController
         if (!TryGetCaller(out Guid callerId))
             return UnauthenticatedResponse();
         Result<ErasureRequestDto> result = await _erasure.RequestOptOutAsync(
-            new RequestOptOutRequest(callerId, _currentTenant.BroadcasterId, SelfService),
+            new(callerId, _currentTenant.BroadcasterId, SelfService),
             ct
         );
         return ResultResponse(result);

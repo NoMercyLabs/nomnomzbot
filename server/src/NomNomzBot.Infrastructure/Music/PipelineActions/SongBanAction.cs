@@ -64,7 +64,7 @@ public sealed class SongBanAction : ICommandAction
 
         Result<BlockedTrackDto> blocked = await _blockedTracks.BlockAsync(
             ctx.BroadcasterId,
-            new BlockTrackRequest(
+            new(
                 now.Provider,
                 now.TrackUri,
                 now.TrackName ?? now.TrackUri,

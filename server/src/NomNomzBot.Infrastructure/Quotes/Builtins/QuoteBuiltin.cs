@@ -121,7 +121,7 @@ public sealed class QuoteBuiltin : IBuiltinCommand
 
         Result<QuoteDto> added = await _quotes.AddAsync(
             context.BroadcasterId,
-            new AddQuoteRequest(text, attribution, null, null, invoker.Value),
+            new(text, attribution, null, null, invoker.Value),
             ct
         );
 
@@ -156,7 +156,7 @@ public sealed class QuoteBuiltin : IBuiltinCommand
         Result<QuoteDto> edited = await _quotes.EditAsync(
             context.BroadcasterId,
             number.Value,
-            new EditQuoteRequest(
+            new(
                 text.Trim(),
                 existing.Value.QuotedDisplayName,
                 existing.Value.ContextGame

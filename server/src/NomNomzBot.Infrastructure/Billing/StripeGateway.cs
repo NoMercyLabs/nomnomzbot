@@ -96,7 +96,7 @@ public sealed class StripeGateway : IStripeGateway
 
             SubscriptionUpdateOptions options = new()
             {
-                Items = [new SubscriptionItemOptions { Id = itemId, Price = newPriceId }],
+                Items = [new() { Id = itemId, Price = newPriceId }],
                 ProrationBehavior = prorate ? "create_prorations" : "none",
             };
             await subscriptions.UpdateAsync(

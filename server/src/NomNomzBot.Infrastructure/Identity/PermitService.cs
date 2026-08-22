@@ -187,7 +187,7 @@ public sealed class PermitService(
                 ToDto(
                     g,
                     usernames.GetValueOrDefault(g.UserId),
-                    g.ActionDefinitionId is Guid id ? actionKeys.GetValueOrDefault(id) : null
+                    g.ActionDefinitionId is { } id ? actionKeys.GetValueOrDefault(id) : null
                 )
             ),
         ];

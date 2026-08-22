@@ -31,7 +31,7 @@ public sealed class YouTubeLiveChatBanLedgerTests
     private static (YouTubeLiveChatBanLedger Ledger, BanLedgerTestDbContext Db) Build()
     {
         BanLedgerTestDbContext db = BanLedgerTestDbContext.New();
-        return (new YouTubeLiveChatBanLedger(db, TimeProvider.System), db);
+        return (new(db, TimeProvider.System), db);
     }
 
     [Fact]

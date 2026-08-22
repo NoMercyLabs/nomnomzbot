@@ -51,7 +51,7 @@ public sealed class SystemControllerCredentialsTests
         SystemController controller = Build(db, protector);
 
         IActionResult result = await controller.SaveTwitchCredentials(
-            new SystemController.SaveTwitchCredentialRequest("twitch-public-id", "", null),
+            new("twitch-public-id", "", null),
             default
         );
 
@@ -86,7 +86,7 @@ public sealed class SystemControllerCredentialsTests
         SystemController controller = Build(db, protector);
 
         IActionResult result = await controller.SaveTwitchCredentials(
-            new SystemController.SaveTwitchCredentialRequest("twitch-id", "the-secret", null),
+            new("twitch-id", "the-secret", null),
             default
         );
 

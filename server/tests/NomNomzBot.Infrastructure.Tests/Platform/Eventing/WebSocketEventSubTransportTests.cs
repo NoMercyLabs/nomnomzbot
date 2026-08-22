@@ -95,7 +95,7 @@ public sealed class WebSocketEventSubTransportTests
     [Fact]
     public async Task SessionWelcome_CapturesSessionId_AndSignalsSinkToRegister()
     {
-        FakeTimeProvider clock = new(new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
+        FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
         CapturingSink sink = new();
         ScriptedChannel channel = new([Welcome("session-A")]);
         ScriptedChannelFactory factory = new(channel);
@@ -117,11 +117,11 @@ public sealed class WebSocketEventSubTransportTests
     [Fact]
     public async Task Notification_IsForwardedToSink_WithTypeAndBroadcasterAndEvent()
     {
-        FakeTimeProvider clock = new(new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
+        FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
         CapturingSink sink = new();
         ScriptedChannel channel = new([Welcome("session-A"), NotificationFrame]);
         WebSocketEventSubTransport transport = NewTransport(
-            new ScriptedChannelFactory(channel),
+            new(channel),
             clock,
             sink
         );
@@ -145,11 +145,11 @@ public sealed class WebSocketEventSubTransportTests
     {
         // user.update's event has no broadcaster_user_id — the transport must fall back to user_id so the
         // notification still resolves to a tenant instead of being silently dropped as "unknown channel".
-        FakeTimeProvider clock = new(new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
+        FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
         CapturingSink sink = new();
         ScriptedChannel channel = new([Welcome("session-A"), UserUpdateNotificationFrame]);
         WebSocketEventSubTransport transport = NewTransport(
-            new ScriptedChannelFactory(channel),
+            new(channel),
             clock,
             sink
         );
@@ -169,11 +169,11 @@ public sealed class WebSocketEventSubTransportTests
     {
         // user.whisper.message names the recipient to_user_id (neither user_id nor broadcaster_user_id) — the
         // transport's fallback chain must reach it too.
-        FakeTimeProvider clock = new(new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
+        FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
         CapturingSink sink = new();
         ScriptedChannel channel = new([Welcome("session-A"), WhisperNotificationFrame]);
         WebSocketEventSubTransport transport = NewTransport(
-            new ScriptedChannelFactory(channel),
+            new(channel),
             clock,
             sink
         );
@@ -191,7 +191,7 @@ public sealed class WebSocketEventSubTransportTests
     [Fact]
     public async Task SessionReconnect_SwapsChannel_AndReRegistersOnTheNewSession()
     {
-        FakeTimeProvider clock = new(new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
+        FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
         CapturingSink sink = new();
 
         // First channel: welcome (A) then a reconnect pointing at the second channel's URL.
@@ -220,7 +220,7 @@ public sealed class WebSocketEventSubTransportTests
     [Fact]
     public async Task KeepaliveTimeout_TearsDownAndReconnects_WithBackoff()
     {
-        FakeTimeProvider clock = new(new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
+        FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
         CapturingSink sink = new();
 
         // First channel: welcome then go silent (idle) so the keepalive timer fires.
@@ -257,11 +257,11 @@ public sealed class WebSocketEventSubTransportTests
     [Fact]
     public async Task Revocation_IsForwardedToSink_WithSubscriptionIdAndStatus()
     {
-        FakeTimeProvider clock = new(new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
+        FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
         CapturingSink sink = new();
         ScriptedChannel channel = new([Welcome("session-A"), RevocationFrame]);
         WebSocketEventSubTransport transport = NewTransport(
-            new ScriptedChannelFactory(channel),
+            new(channel),
             clock,
             sink
         );
@@ -320,7 +320,7 @@ public sealed class WebSocketEventSubTransportTests
         )
         {
             _notifications.Enqueue(
-                new CapturedNotification(
+                new(
                     messageId,
                     subscriptionType,
                     subscriptionVersion,
@@ -340,7 +340,7 @@ public sealed class WebSocketEventSubTransportTests
         )
         {
             _revocations.Enqueue(
-                new CapturedRevocation(twitchSubscriptionId, subscriptionType, status)
+                new(twitchSubscriptionId, subscriptionType, status)
             );
             return Task.CompletedTask;
         }
@@ -368,7 +368,7 @@ public sealed class WebSocketEventSubTransportTests
         private int _connections;
 
         public ScriptedChannelFactory(params ScriptedChannel[] channels) =>
-            _channels = new Queue<ScriptedChannel>(channels);
+            _channels = new(channels);
 
         public IReadOnlyList<Uri> ConnectedUrls => _connected.ToList();
 
@@ -379,7 +379,7 @@ public sealed class WebSocketEventSubTransportTests
             ScriptedChannel channel =
                 _channels.Count > 0
                     ? _channels.Dequeue()
-                    : new ScriptedChannel([], idleAfterScript: true);
+                    : new([], idleAfterScript: true);
             return Task.FromResult<IWebSocketChannel>(channel);
         }
 
@@ -414,17 +414,17 @@ public sealed class WebSocketEventSubTransportTests
             {
                 byte[] payload = Encoding.UTF8.GetBytes(_frames.Dequeue());
                 payload.CopyTo(buffer.Array!, buffer.Offset);
-                return new WebSocketReceiveResult(payload.Length, WebSocketMessageType.Text, true);
+                return new(payload.Length, WebSocketMessageType.Text, true);
             }
 
             if (!idleAfterScript)
-                return new WebSocketReceiveResult(0, WebSocketMessageType.Close, true);
+                return new(0, WebSocketMessageType.Close, true);
 
             // Idle: block until the keepalive timer cancels the token (or shutdown cancels it).
             await using (cancellationToken.Register(() => _idle.TrySetResult()))
                 await _idle.Task;
             cancellationToken.ThrowIfCancellationRequested();
-            return new WebSocketReceiveResult(0, WebSocketMessageType.Close, true);
+            return new(0, WebSocketMessageType.Close, true);
         }
 
         public ValueTask DisposeAsync()

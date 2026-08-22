@@ -32,7 +32,7 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore;
 public sealed class EventJournalPortabilityServiceTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 24, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 24, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static EventJournalService NewJournal(EventStoreTestDbContext db) =>
@@ -64,7 +64,7 @@ public sealed class EventJournalPortabilityServiceTests
             Source: "domain",
             PayloadJson: $"{{\"key\":\"hits\",\"{field}\":{amount}}}",
             MetadataJson: "{}",
-            OccurredAt: new DateTime(2026, 6, 24, 11, 0, 0, DateTimeKind.Utc)
+            OccurredAt: new(2026, 6, 24, 11, 0, 0, DateTimeKind.Utc)
         );
 
     private static async Task<byte[]> ExportToBytesAsync(

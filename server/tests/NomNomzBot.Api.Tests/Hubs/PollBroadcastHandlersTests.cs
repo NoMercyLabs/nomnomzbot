@@ -53,7 +53,7 @@ public sealed class PollBroadcastHandlersTests
         DateTimeOffset endsAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero);
 
         await handler.HandleAsync(
-            new PollBeganEvent
+            new()
             {
                 BroadcasterId = channel,
                 PollId = "poll-1",
@@ -103,14 +103,14 @@ public sealed class PollBroadcastHandlersTests
         PollBeganBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new PollBeganEvent
+            new()
             {
                 BroadcasterId = channel,
                 PollId = "poll-1",
                 Title = "Cats or dogs?",
                 Choices = Choices,
                 DurationSeconds = 300,
-                EndsAt = new DateTimeOffset(2026, 7, 1, 12, 5, 0, TimeSpan.Zero),
+                EndsAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero),
             }
         );
 
@@ -150,7 +150,7 @@ public sealed class PollBroadcastHandlersTests
         DateTimeOffset endsAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero);
 
         await handler.HandleAsync(
-            new PollProgressEvent
+            new()
             {
                 BroadcasterId = channel,
                 PollId = "poll-1",
@@ -193,7 +193,7 @@ public sealed class PollBroadcastHandlersTests
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
-            new PollEndedEvent
+            new()
             {
                 BroadcasterId = channel,
                 PollId = "poll-1",
@@ -238,7 +238,7 @@ public sealed class PollBroadcastHandlersTests
         PollBeganBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new PollBeganEvent
+            new()
             {
                 BroadcasterId = Guid.Empty,
                 PollId = "poll-1",

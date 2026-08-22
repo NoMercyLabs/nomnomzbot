@@ -203,7 +203,7 @@ public sealed class DirectVtsTransport : IVtsTransport, IAsyncDisposable, IDispo
         if (_sessions.TryGetValue(broadcasterId, out VtsSession? live))
             return Result.Success(live);
 
-        SemaphoreSlim gate = _connectGates.GetOrAdd(broadcasterId, _ => new SemaphoreSlim(1, 1));
+        SemaphoreSlim gate = _connectGates.GetOrAdd(broadcasterId, _ => new(1, 1));
         await gate.WaitAsync(ct);
         try
         {
@@ -285,7 +285,7 @@ public sealed class DirectVtsTransport : IVtsTransport, IAsyncDisposable, IDispo
         CancellationToken ct
     )
     {
-        IObsSocket socket = await _socketFactory.ConnectAsync(new Uri(config.Endpoint), ct);
+        IObsSocket socket = await _socketFactory.ConnectAsync(new(config.Endpoint), ct);
         VtsSession session = new() { Socket = socket, ReceiveLoop = Task.CompletedTask };
         session.ReceiveLoop = Task.Run(
             () => ReceiveLoopAsync(broadcasterId, session),

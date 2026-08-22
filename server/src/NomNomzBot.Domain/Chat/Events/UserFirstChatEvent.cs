@@ -10,7 +10,7 @@
 
 namespace NomNomzBot.Domain.Chat.Events;
 
-using NomNomzBot.Domain.Platform;
+using Platform;
 
 public sealed class UserFirstChatEvent : DomainEventBase
 {

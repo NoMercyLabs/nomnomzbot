@@ -20,7 +20,6 @@ using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
-using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands;
 
@@ -47,7 +46,7 @@ public sealed class ScheduledPipelineServiceTests
     {
         AuthDbContext db = existing ?? AuthTestBuilder.NewContext();
         db.Pipelines.Add(
-            new PipelineEntity
+            new()
             {
                 Id = pipelineId,
                 BroadcasterId = channel,

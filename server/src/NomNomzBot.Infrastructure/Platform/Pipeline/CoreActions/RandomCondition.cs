@@ -30,14 +30,14 @@ public sealed class RandomCondition : ICommandCondition
         {
             if (
                 condition.Parameters.TryGetValue("chance", out JsonElement chance)
-                && chance.ValueKind == System.Text.Json.JsonValueKind.Number
+                && chance.ValueKind == JsonValueKind.Number
             )
             {
                 threshold = chance.GetDouble();
             }
             else if (
                 condition.Parameters.TryGetValue("percent", out JsonElement pct)
-                && pct.ValueKind == System.Text.Json.JsonValueKind.Number
+                && pct.ValueKind == JsonValueKind.Number
             )
             {
                 threshold = pct.GetDouble() / 100.0;

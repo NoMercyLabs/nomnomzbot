@@ -44,7 +44,7 @@ public sealed class TtsConfigUserVoiceTests
         foreach (string id in catalogueVoiceIds)
         {
             db.TtsVoices.Add(
-                new TtsVoice
+                new()
                 {
                     Id = id,
                     Name = id,
@@ -66,9 +66,9 @@ public sealed class TtsConfigUserVoiceTests
         Application.Services.ISubjectKeyService subjectKeys =
             Substitute.For<Application.Services.ISubjectKeyService>();
 
-        return new Harness
+        return new()
         {
-            Service = new TtsConfigService(
+            Service = new(
                 db,
                 tts,
                 bus,
@@ -123,7 +123,7 @@ public sealed class TtsConfigUserVoiceTests
     {
         Harness h = Build("voice-a", "voice-b");
         h.Db.UserTtsVoices.Add(
-            new UserTtsVoice
+            new()
             {
                 BroadcasterId = Tenant,
                 UserId = Viewer,
@@ -160,7 +160,7 @@ public sealed class TtsConfigUserVoiceTests
     {
         Harness h = Build("voice-a");
         h.Db.UserTtsVoices.Add(
-            new UserTtsVoice
+            new()
             {
                 BroadcasterId = Tenant,
                 UserId = Viewer,
@@ -181,7 +181,7 @@ public sealed class TtsConfigUserVoiceTests
     {
         Harness h = Build("voice-a");
         h.Db.UserTtsVoices.Add(
-            new UserTtsVoice
+            new()
             {
                 BroadcasterId = Tenant,
                 UserId = Viewer,

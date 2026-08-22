@@ -270,7 +270,7 @@ public sealed class ScriptHostBridgeTests
         // caps use — so a seeded trigger user comes back as a PII-free public profile.
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Users.Add(
-            new NomNomzBot.Domain.Identity.Entities.User
+            new()
             {
                 Id = Viewer,
                 Username = "cooluser",
@@ -514,7 +514,7 @@ public sealed class ScriptHostBridgeTests
             OverlayUrl: null,
             ActiveVersionId: null,
             GalleryItemId: null,
-            Settings: new Dictionary<string, object?>(),
+            Settings: new(),
             EventSubscriptions: [],
             LastRuntimeError: null,
             LastRanAt: null,
@@ -795,7 +795,7 @@ public sealed class ScriptHostBridgeTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Users.Add(
-            new NomNomzBot.Domain.Identity.Entities.User
+            new()
             {
                 Id = userId,
                 Username = login,

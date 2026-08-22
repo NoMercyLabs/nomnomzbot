@@ -20,8 +20,6 @@ using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Giveaways.Dtos;
 using NomNomzBot.Domain.Giveaways.Entities;
-using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Giveaways;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -68,7 +66,7 @@ public sealed class GiveawayCodeCustodyTests
     private static (GiveawayCodePoolService Pools, AuthDbContext Db) BuildPools()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        return (new GiveawayCodePoolService(db, new FakeProtector(), TimeProvider.System), db);
+        return (new(db, new FakeProtector(), TimeProvider.System), db);
     }
 
     [Fact]
@@ -77,12 +75,12 @@ public sealed class GiveawayCodeCustodyTests
         (GiveawayCodePoolService pools, AuthDbContext db) = BuildPools();
         Result<CodePoolDto> pool = await pools.CreatePoolAsync(
             Tenant,
-            new CreateCodePoolRequest("Steam Keys")
+            new("Steam Keys")
         );
         await pools.AddCodesAsync(
             Tenant,
             pool.Value.Id,
-            new AddCodesRequest([new CodeInput("AAAA-BBBB-CCCC")])
+            new([new("AAAA-BBBB-CCCC")])
         );
 
         // At rest: exactly the protector's output under the TENANT-BOUND context — the real
@@ -107,12 +105,12 @@ public sealed class GiveawayCodeCustodyTests
         (GiveawayCodePoolService pools, AuthDbContext db) = BuildPools();
         Result<CodePoolDto> pool = await pools.CreatePoolAsync(
             Tenant,
-            new CreateCodePoolRequest("Keys")
+            new("Keys")
         );
         await pools.AddCodesAsync(
             Tenant,
             pool.Value.Id,
-            new AddCodesRequest([new CodeInput("SECRET-1")])
+            new([new("SECRET-1")])
         );
         GiveawayCode code = db.GiveawayCodes.Single();
         GiveawayWinner winner = new()
@@ -144,10 +142,10 @@ public sealed class GiveawayCodeCustodyTests
         (GiveawayCodePoolService pools, AuthDbContext db) = BuildPools();
         Result<CodePoolDto> pool = await pools.CreatePoolAsync(
             Tenant,
-            new CreateCodePoolRequest("Keys")
+            new("Keys")
         );
         db.Giveaways.Add(
-            new Giveaway
+            new()
             {
                 BroadcasterId = Tenant,
                 Title = "Live",
@@ -373,7 +371,7 @@ public sealed class GiveawayCodeCustodyTests
         // Three PAID entries (ledger-linked) + one free-looking row that must not count.
         for (int i = 0; i < 3; i++)
             db.GiveawayEntries.Add(
-                new GiveawayEntry
+                new()
                 {
                     BroadcasterId = Tenant,
                     GiveawayId = giveaway.Id,
@@ -384,7 +382,7 @@ public sealed class GiveawayCodeCustodyTests
                 }
             );
         db.GiveawayEntries.Add(
-            new GiveawayEntry
+            new()
             {
                 BroadcasterId = Tenant,
                 GiveawayId = giveaway.Id,

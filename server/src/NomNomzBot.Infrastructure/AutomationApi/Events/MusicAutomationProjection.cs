@@ -36,7 +36,7 @@ public static class MusicAutomationProjection
     )
     {
         bool? isSaved = null;
-        if (nowPlaying.TrackUri is string trackUri)
+        if (nowPlaying.TrackUri is { } trackUri)
         {
             Application.Common.Models.Result<IReadOnlyList<bool>> savedCheck =
                 await manageApi.AreTracksSavedAsync(broadcasterId, provider, [trackUri], ct);
@@ -44,7 +44,7 @@ public static class MusicAutomationProjection
                 isSaved = savedCheck.Value[0];
         }
 
-        return new AutomationNowPlayingDto(
+        return new(
             nowPlaying.TrackName,
             nowPlaying.Artist,
             nowPlaying.DurationMs,

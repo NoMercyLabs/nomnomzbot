@@ -16,8 +16,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Music.Events;
-using NomNomzBot.Domain.Music.Interfaces;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -137,7 +135,7 @@ public sealed class MusicServicePlaybackPublishTests
                 .Options
         );
         db.Services.Add(
-            new Service
+            new()
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = "spotify",
@@ -153,7 +151,7 @@ public sealed class MusicServicePlaybackPublishTests
             db,
             new PassthroughTokenProtector(),
             new InMemoryIntegrationCapabilityStore(),
-            new NomNomzBot.Infrastructure.Music.LastActiveSpotifyDeviceTracker(),
+            new LastActiveSpotifyDeviceTracker(),
             new SingleClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance
@@ -221,7 +219,7 @@ public sealed class MusicServicePlaybackPublishTests
             if (isNowPlayingRead)
             {
                 HttpResponseMessage response = CurrentTrackJson is null
-                    ? new HttpResponseMessage(HttpStatusCode.NoContent)
+                    ? new(HttpStatusCode.NoContent)
                     : new HttpResponseMessage(HttpStatusCode.OK)
                     {
                         Content = new StringContent(

@@ -50,7 +50,7 @@ public sealed class UptimeBuiltin : IBuiltinCommand
         if (ctx is null || !ctx.IsLive)
         {
             string offline = await _composer.ComposeAsync(
-                new BuiltinResponseRequest
+                new()
                 {
                     BroadcasterId = context.BroadcasterId,
                     Personality = context.Personality,
@@ -66,7 +66,7 @@ public sealed class UptimeBuiltin : IBuiltinCommand
         string uptime = FormatUptime(_clock.GetUtcNow() - ctx.WentLiveAt);
 
         string live = await _composer.ComposeAsync(
-            new BuiltinResponseRequest
+            new()
             {
                 BroadcasterId = context.BroadcasterId,
                 Personality = context.Personality,

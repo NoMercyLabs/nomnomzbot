@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
-using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Decoration;
@@ -133,7 +132,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
         // build a fully-styled bubble. OverlayEventFilter drops the raw duplicate so the widget sees only this.
         await _widgets.BroadcastOverlayEventAsync(
             evt.BroadcasterId.ToString(),
-            new OverlayEventDto("ChatMessage", JsonSerializer.Serialize(dto, OverlayJson)),
+            new("ChatMessage", JsonSerializer.Serialize(dto, OverlayJson)),
             ct
         );
 

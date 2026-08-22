@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging;
 
 namespace NomNomzBot.Api.Hubs;
 

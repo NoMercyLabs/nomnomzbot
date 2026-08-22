@@ -158,7 +158,7 @@ public sealed class BillingTierService(IApplicationDbContext db) : IBillingTierS
             .Select(s => (Guid?)s.TierId)
             .FirstOrDefaultAsync(ct);
 
-        return tierId is Guid id
+        return tierId is { } id
             ? await db.BillingTiers.FirstOrDefaultAsync(t => t.Id == id && t.DeletedAt == null, ct)
             : await db.BillingTiers.FirstOrDefaultAsync(
                 t => t.Key == BaseTierKey && t.DeletedAt == null,

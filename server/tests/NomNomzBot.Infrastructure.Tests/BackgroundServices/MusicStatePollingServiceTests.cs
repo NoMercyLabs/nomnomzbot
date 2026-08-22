@@ -18,7 +18,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Music;
@@ -246,7 +245,7 @@ public sealed class MusicStatePollingServiceTests
         foreach (Guid channelId in connectedChannels)
         {
             db.Services.Add(
-                new Service
+                new()
                 {
                     Id = Guid.NewGuid().ToString(),
                     Name = "spotify",
@@ -260,7 +259,7 @@ public sealed class MusicStatePollingServiceTests
 
         RecordingEventBus bus = new();
         FakeMusicService music = new();
-        FakeTimeProvider clock = new(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        FakeTimeProvider clock = new(new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
 
         MusicStatePollingService sut = new(
             new PollerScopeFactory(db, music),

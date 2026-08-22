@@ -41,7 +41,7 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
 
     public CommandConfigValidator(IEnumerable<ICommandAction> actions)
     {
-        _knownActionTypes = new HashSet<string>(
+        _knownActionTypes = new(
             actions.Select(a => a.ActionType),
             StringComparer.OrdinalIgnoreCase
         );

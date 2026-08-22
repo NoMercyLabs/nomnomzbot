@@ -36,7 +36,7 @@ public sealed class SavingsJarsControllerTests
         ISavingsJarService jars = Substitute.For<ISavingsJarService>();
         ICurrentUserService user = Substitute.For<ICurrentUserService>();
         user.UserId.Returns(Caller.ToString());
-        return (new SavingsJarsController(jars, user), jars);
+        return (new(jars, user), jars);
     }
 
     private static JarMovementDto Movement() =>
@@ -52,7 +52,7 @@ public sealed class SavingsJarsControllerTests
         IActionResult result = await controller.Contribute(
             Channel.ToString(),
             Jar,
-            new JarContributeRequest(Spoofed, Spoofed, 30), // spoofed jar + contributor
+            new(Spoofed, Spoofed, 30), // spoofed jar + contributor
             default
         );
 
@@ -77,7 +77,7 @@ public sealed class SavingsJarsControllerTests
         IActionResult result = await controller.Withdraw(
             Channel.ToString(),
             Jar,
-            new JarWithdrawRequest(Spoofed, Caller, 20, Spoofed), // spoofed jar + actor
+            new(Spoofed, Caller, 20, Spoofed), // spoofed jar + actor
             default
         );
 

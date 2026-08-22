@@ -18,7 +18,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Infrastructure.Identity;
-using NomNomzBot.Infrastructure.Platform.Deployment;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
@@ -68,7 +67,7 @@ public sealed class TwitchScopeRegistryCoverageTests
             config
         );
 
-        return new AuthService(
+        return new(
             db,
             Substitute.For<ITwitchAuthService>(),
             Substitute.For<ITwitchDeviceCodeService>(),
@@ -78,7 +77,7 @@ public sealed class TwitchScopeRegistryCoverageTests
             credentials,
             Substitute.For<IHttpClientFactory>(),
             config,
-            new DeploymentContext(DeploymentMode.SelfHostLite),
+            new(DeploymentMode.SelfHostLite),
             TimeProvider.System,
             registry,
             NullLogger<AuthService>.Instance

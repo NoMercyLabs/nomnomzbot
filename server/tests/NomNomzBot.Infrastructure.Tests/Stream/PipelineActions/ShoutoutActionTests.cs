@@ -46,7 +46,7 @@ public sealed class ShoutoutActionTests
         new()
         {
             Type = "shoutout",
-            Parameters = new Dictionary<string, JsonElement>
+            Parameters = new()
             {
                 ["user_id"] = JsonSerializer.SerializeToElement(userId),
             },
@@ -240,7 +240,7 @@ public sealed class ShoutoutActionTests
             );
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
-            new NomNomzBot.Domain.Identity.Entities.Channel
+            new()
             {
                 Id = Channel,
                 Name = "stoney",
@@ -263,10 +263,10 @@ public sealed class ShoutoutActionTests
         // Manual invocation (e.g. chat-triggered !so): tts:true speaks the announcement.
         await sut.ExecuteAsync(
             Ctx(),
-            new ActionDefinition
+            new()
             {
                 Type = "shoutout",
-                Parameters = new Dictionary<string, JsonElement>
+                Parameters = new()
                 {
                     ["user_id"] = JsonSerializer.SerializeToElement("123456"),
                     ["tts"] = JsonSerializer.SerializeToElement(true),
@@ -292,10 +292,10 @@ public sealed class ShoutoutActionTests
 
         ActionResult result = await sut.ExecuteAsync(
             ctx,
-            new ActionDefinition
+            new()
             {
                 Type = "shoutout",
-                Parameters = new Dictionary<string, JsonElement>
+                Parameters = new()
                 {
                     ["user_id"] = JsonSerializer.SerializeToElement("123456"),
                     ["template"] = JsonSerializer.SerializeToElement("{line}"),

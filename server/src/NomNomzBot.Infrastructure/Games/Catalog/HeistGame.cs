@@ -102,10 +102,10 @@ public sealed class HeistGame : ILiveGame
                 ? (payout > player.Stake * 5 ? GameOutcome.Jackpot : GameOutcome.Win)
                 : GameOutcome.Lose;
             awards.Add(
-                new LiveGameAward(player.UserId, player.AccountId, player.Stake, outcome, payout)
+                new(player.UserId, player.AccountId, player.Stake, outcome, payout)
             );
             results.Add(
-                new Dictionary<string, object?>
+                new()
                 {
                     ["player"] = player.DisplayName,
                     ["stake"] = player.Stake,

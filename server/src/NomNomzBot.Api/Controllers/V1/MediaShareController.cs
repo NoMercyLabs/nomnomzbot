@@ -59,13 +59,13 @@ public class MediaShareController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result<PagedList<MediaShareRequestDto>> result = await _media.GetQueueAsync(
             broadcasterId,
-            new MediaShareFilter(status),
-            new PaginationParams(request.Page, request.Take, request.Sort, request.Order),
+            new(status),
+            new(request.Page, request.Take, request.Sort, request.Order),
             ct
         );
         if (result.IsFailure)
@@ -79,7 +79,7 @@ public class MediaShareController : BaseController
     [ProducesResponseType<StatusResponseDto<MediaShareRequestDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetNext(CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _media.GetNextAsync(broadcasterId, ct));
     }
@@ -90,7 +90,7 @@ public class MediaShareController : BaseController
     [ProducesResponseType<StatusResponseDto<MediaShareRequestDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Approve(Guid id, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         if (!TryGetActor(out Guid moderatorUserId))
             return UnauthenticatedResponse("No acting user resolved.");
@@ -103,7 +103,7 @@ public class MediaShareController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Reject(Guid id, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         if (!TryGetActor(out Guid moderatorUserId))
             return UnauthenticatedResponse("No acting user resolved.");
@@ -120,7 +120,7 @@ public class MediaShareController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Skip(Guid id, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result skipped = await _media.SkipAsync(broadcasterId, id, ct);
@@ -139,7 +139,7 @@ public class MediaShareController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result reordered = await _media.ReorderAsync(broadcasterId, id, request.Position, ct);
@@ -154,7 +154,7 @@ public class MediaShareController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> MarkPlayed(Guid id, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result played = await _media.MarkPlayedAsync(broadcasterId, id, ct);
@@ -169,7 +169,7 @@ public class MediaShareController : BaseController
     [ProducesResponseType<StatusResponseDto<MediaShareConfigDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetConfig(CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _media.GetConfigAsync(broadcasterId, ct));
     }
@@ -183,7 +183,7 @@ public class MediaShareController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _media.UpdateConfigAsync(broadcasterId, request, ct));
     }

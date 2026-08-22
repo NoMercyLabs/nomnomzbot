@@ -146,7 +146,7 @@ public sealed class TwitchAppTokenProvider : ITwitchAppTokenProvider
 
         DateTimeOffset expiresAt =
             _timeProvider.GetUtcNow().AddSeconds(json.ExpiresIn) - ExpirySkew;
-        _cache = new CachedToken(json.AccessToken, expiresAt);
+        _cache = new(json.AccessToken, expiresAt);
         _logger.LogInformation(
             "Minted Twitch app access token; valid ~{Hours}h.",
             Math.Round(json.ExpiresIn / 3600.0, 1)

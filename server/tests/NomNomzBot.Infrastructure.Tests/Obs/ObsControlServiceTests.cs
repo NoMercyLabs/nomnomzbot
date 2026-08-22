@@ -77,9 +77,9 @@ public sealed class ObsControlServiceTests
                 }
                 return Task.FromResult(Result.Success<IReadOnlyList<ObsResponse>>(responses));
             });
-        return new Harness
+        return new()
         {
-            Service = new ObsControlService(transport),
+            Service = new(transport),
             Transport = transport,
             Requests = requests,
         };
@@ -90,7 +90,7 @@ public sealed class ObsControlServiceTests
     {
         Harness h = Build(request =>
             request.RequestType == "GetSceneItemId"
-                ? new ObsResponse(
+                ? new(
                     true,
                     new Dictionary<string, object?> { ["sceneItemId"] = 42d },
                     null
@@ -151,7 +151,7 @@ public sealed class ObsControlServiceTests
     {
         Harness h = Build(request =>
             request.RequestType == "GetSceneItemId"
-                ? new ObsResponse(
+                ? new(
                     true,
                     new Dictionary<string, object?> { ["sceneItemId"] = 7d },
                     null
@@ -188,7 +188,7 @@ public sealed class ObsControlServiceTests
     [Fact]
     public async Task A_failed_obs_call_lands_in_obs_last_error()
     {
-        Harness h = Build(_ => new ObsResponse(false, null, "output already active"));
+        Harness h = Build(_ => new(false, null, "output already active"));
         ObsRecordingAction action = new(h.Service);
         PipelineExecutionContext ctx = NewContext();
 
@@ -211,7 +211,7 @@ public sealed class ObsControlServiceTests
         Harness h = Build(request =>
             request.RequestType switch
             {
-                "GetInputList" => new ObsResponse(
+                "GetInputList" => new(
                     true,
                     new Dictionary<string, object?>
                     {
@@ -220,23 +220,23 @@ public sealed class ObsControlServiceTests
                     },
                     null
                 ),
-                "GetInputMute" when Name(request) == "Mic" => new ObsResponse(
+                "GetInputMute" when Name(request) == "Mic" => new(
                     true,
                     new Dictionary<string, object?> { ["inputMuted"] = true },
                     null
                 ),
-                "GetInputVolume" when Name(request) == "Mic" => new ObsResponse(
+                "GetInputVolume" when Name(request) == "Mic" => new(
                     true,
                     new Dictionary<string, object?> { ["inputVolumeDb"] = -12.5d },
                     null
                 ),
                 // The image source has no audio — OBS rejects these two calls.
-                "GetInputMute" or "GetInputVolume" => new ObsResponse(
+                "GetInputMute" or "GetInputVolume" => new(
                     false,
                     null,
                     "input has no audio"
                 ),
-                _ => new ObsResponse(true, null, null),
+                _ => new(true, null, null),
             }
         );
 

@@ -57,7 +57,7 @@ public sealed class ChatCheermoteResolver : ICheermoteResolver
                 .FirstOrDefault()
             ?? cheermote.Tiers.OrderBy(candidate => candidate.MinBits).First();
 
-        return new CheermoteImage(
+        return new(
             matched.Images.Dark.Animated.Scales,
             Animated: true,
             matched.Color

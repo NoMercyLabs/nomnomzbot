@@ -127,11 +127,11 @@ public sealed class AuthControllerWebFlowTests
         Guid userId = Guid.NewGuid();
         Guid sessionId = Guid.NewGuid();
         auth.LogoutAsync(userId, sessionId, Arg.Any<CancellationToken>()).Returns(Result.Success());
-        controller.ControllerContext.HttpContext.User = new ClaimsPrincipal(
+        controller.ControllerContext.HttpContext.User = new(
             new ClaimsIdentity(
                 [
-                    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-                    new Claim("sid", sessionId.ToString()),
+                    new(ClaimTypes.NameIdentifier, userId.ToString()),
+                    new("sid", sessionId.ToString()),
                 ],
                 "test"
             )
@@ -155,7 +155,7 @@ public sealed class AuthControllerWebFlowTests
             access,
             refresh,
             ExpiresAt,
-            new UserDto(
+            new(
                 Guid.NewGuid().ToString(),
                 "stoney",
                 "Stoney",
@@ -186,7 +186,7 @@ public sealed class AuthControllerWebFlowTests
         DefaultHttpContext http = new();
         // ResolvePublicOrigin() falls to the request host when App:BaseUrl is loopback (the auto-set default).
         http.Request.Scheme = "https";
-        http.Request.Host = new HostString("dash.example.test");
+        http.Request.Host = new("dash.example.test");
 
         AuthController controller = new(
             userService,
@@ -202,7 +202,7 @@ public sealed class AuthControllerWebFlowTests
             Substitute.For<ISessionService>()
         )
         {
-            ControllerContext = new ControllerContext { HttpContext = http },
+            ControllerContext = new() { HttpContext = http },
         };
         return (controller, authService, state);
     }

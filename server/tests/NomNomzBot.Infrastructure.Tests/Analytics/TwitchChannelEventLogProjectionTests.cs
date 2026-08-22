@@ -38,7 +38,7 @@ namespace NomNomzBot.Infrastructure.Tests.Analytics;
 public sealed class TwitchChannelEventLogProjectionTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 22, 20, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 22, 20, 0, 0, TimeSpan.Zero)
     );
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000abc0e");
     private static readonly Guid OtherChannel = Guid.Parse("0192a000-0000-7000-8000-0000000abc0f");
@@ -171,7 +171,7 @@ public sealed class TwitchChannelEventLogProjectionTests
 
         // A foreign tenant's row that the reset must not delete.
         db.ChannelEvents.Add(
-            new ChannelEvent
+            new()
             {
                 Id = Guid.NewGuid().ToString(),
                 ChannelId = OtherChannel,
@@ -183,7 +183,7 @@ public sealed class TwitchChannelEventLogProjectionTests
         );
         // This tenant's row that the reset must delete.
         db.ChannelEvents.Add(
-            new ChannelEvent
+            new()
             {
                 Id = Guid.NewGuid().ToString(),
                 ChannelId = Channel,
@@ -258,16 +258,16 @@ public sealed class TwitchChannelEventLogProjectionTests
             new FollowEvent
             {
                 BroadcasterId = Channel,
-                OccurredAt = new DateTimeOffset(Live, TimeSpan.Zero),
+                OccurredAt = new(Live, TimeSpan.Zero),
                 UserId = "100",
                 UserDisplayName = "Alice",
                 UserLogin = "alice",
-                FollowedAt = new DateTimeOffset(Live, TimeSpan.Zero),
+                FollowedAt = new(Live, TimeSpan.Zero),
             },
             new NewSubscriptionEvent
             {
                 BroadcasterId = Channel,
-                OccurredAt = new DateTimeOffset(Live.AddSeconds(10), TimeSpan.Zero),
+                OccurredAt = new(Live.AddSeconds(10), TimeSpan.Zero),
                 UserId = "200",
                 UserDisplayName = "Bob",
                 Tier = "1000",
@@ -275,7 +275,7 @@ public sealed class TwitchChannelEventLogProjectionTests
             new GiftSubscriptionEvent
             {
                 BroadcasterId = Channel,
-                OccurredAt = new DateTimeOffset(Live.AddSeconds(20), TimeSpan.Zero),
+                OccurredAt = new(Live.AddSeconds(20), TimeSpan.Zero),
                 GifterUserId = "100",
                 GifterDisplayName = "Alice",
                 Tier = "1000",
@@ -286,7 +286,7 @@ public sealed class TwitchChannelEventLogProjectionTests
             new CheerEvent
             {
                 BroadcasterId = Channel,
-                OccurredAt = new DateTimeOffset(Live.AddSeconds(30), TimeSpan.Zero),
+                OccurredAt = new(Live.AddSeconds(30), TimeSpan.Zero),
                 UserId = "200",
                 UserDisplayName = "Bob",
                 Bits = 150,
@@ -296,7 +296,7 @@ public sealed class TwitchChannelEventLogProjectionTests
             new RaidEvent
             {
                 BroadcasterId = Channel,
-                OccurredAt = new DateTimeOffset(Live.AddSeconds(40), TimeSpan.Zero),
+                OccurredAt = new(Live.AddSeconds(40), TimeSpan.Zero),
                 FromUserId = "300",
                 FromDisplayName = "Carol",
                 FromLogin = "carol",
@@ -305,7 +305,7 @@ public sealed class TwitchChannelEventLogProjectionTests
             new RewardRedeemedEvent
             {
                 BroadcasterId = Channel,
-                OccurredAt = new DateTimeOffset(Live.AddSeconds(50), TimeSpan.Zero),
+                OccurredAt = new(Live.AddSeconds(50), TimeSpan.Zero),
                 RewardId = "reward-1",
                 RewardTitle = "Hydrate",
                 RedemptionId = "redemption-1",
@@ -317,7 +317,7 @@ public sealed class TwitchChannelEventLogProjectionTests
             new UserBannedEvent
             {
                 BroadcasterId = Channel,
-                OccurredAt = new DateTimeOffset(Live.AddSeconds(60), TimeSpan.Zero),
+                OccurredAt = new(Live.AddSeconds(60), TimeSpan.Zero),
                 TargetUserId = "400",
                 TargetDisplayName = "Mallory",
                 ModeratorUserId = "999",

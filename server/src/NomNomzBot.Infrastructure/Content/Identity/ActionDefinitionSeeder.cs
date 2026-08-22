@@ -79,7 +79,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
             else
             {
                 _db.ActionDefinitions.Add(
-                    new ActionDefinition
+                    new()
                     {
                         ActionKey = seed.Key,
                         Plane = seed.Plane,
@@ -105,7 +105,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
 
         // Default == floor: the action requires `level` and can never be lowered below it.
         void M(string key, int level, DangerTier tier = DangerTier.Low, bool grant = true) =>
-            s.Add(new ActionSeed(key, level, level, tier, grant, AuthPlane.Management));
+            s.Add(new(key, level, level, tier, grant, AuthPlane.Management));
 
         // Default ≠ floor: the action DEFAULTS to `defaultLevel` (its Twitch base role — nothing extra is
         // granted out of the box) but the broadcaster MAY lower the per-action requirement as far as
@@ -118,7 +118,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
             DangerTier tier = DangerTier.Low,
             bool grant = true
         ) =>
-            s.Add(new ActionSeed(key, defaultLevel, floorLevel, tier, grant, AuthPlane.Management));
+            s.Add(new(key, defaultLevel, floorLevel, tier, grant, AuthPlane.Management));
 
         // Commands / pipelines / responses / timers — reads (and non-mutating pipeline validation) default to
         // the Moderator base but the broadcaster may lower them to Vip.
@@ -165,7 +165,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("roles:read", Mod);
         M("roles:manage", Broadcaster, DangerTier.Critical, grant: false);
         s.Add(
-            new ActionSeed(
+            new(
                 "permit:issue",
                 Broadcaster,
                 Editor,
@@ -455,7 +455,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // ── Community plane (Default = Floor = Everyone(0), Tier = Low, Grant = true) ──
         void C(string key) =>
             s.Add(
-                new ActionSeed(key, Everyone, Everyone, DangerTier.Low, true, AuthPlane.Community)
+                new(key, Everyone, Everyone, DangerTier.Low, true, AuthPlane.Community)
             );
 
         C("music:request:submit");
@@ -481,7 +481,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // GET /accounts/{viewerUserId} route floors at Moderator. Seeding it at Everyone leaked every viewer's
         // balance to every other viewer.
         s.Add(
-            new ActionSeed(
+            new(
                 "economy:account:read",
                 Mod,
                 Mod,

@@ -12,8 +12,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.Supporters.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Supporters.Entities;
 using NomNomzBot.Domain.Supporters.Events;
@@ -45,7 +43,7 @@ public sealed class SupporterIngestServiceTests
     {
         SupporterTestDbContext db = SupporterTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Tenant,
                 TwitchChannelId = "1001",
@@ -56,7 +54,7 @@ public sealed class SupporterIngestServiceTests
         );
         if (withEnabledConnection)
             db.SupporterConnections.Add(
-                new SupporterConnection
+                new()
                 {
                     Id = Guid.CreateVersion7(),
                     BroadcasterId = Tenant,

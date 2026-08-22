@@ -101,7 +101,7 @@ public sealed class PatreonWebhookProvisioner : ISupporterProviderProvisioner
             Result<InboundWebhookEndpointDto> sealedSecret = await _endpoints.UpdateAsync(
                 broadcasterId,
                 endpointId,
-                new UpdateInboundWebhookRequest { VerificationSecret = secret },
+                new() { VerificationSecret = secret },
                 ct
             );
             if (sealedSecret.IsFailure)

@@ -52,7 +52,7 @@ public sealed class GiveawayServiceTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Tenant,
                 OwnerUserId = Owner,
@@ -90,7 +90,7 @@ public sealed class GiveawayServiceTests
             TimeProvider.System,
             NullLogger<GiveawayService>.Instance
         );
-        return new Harness(service, db, accounts, fulfillment, bus);
+        return new(service, db, accounts, fulfillment, bus);
     }
 
     private static CurrencyLedgerEntryDto LedgerEntry(long id) =>
@@ -129,7 +129,7 @@ public sealed class GiveawayServiceTests
         db.Users.Add(viewer);
         if (standing is { } s)
             db.ChannelCommunityStandings.Add(
-                new ChannelCommunityStanding
+                new()
                 {
                     BroadcasterId = Tenant,
                     UserId = viewer.Id,
@@ -182,7 +182,7 @@ public sealed class GiveawayServiceTests
 
         Result<GiveawayDto> second = await harness.Service.CreateAsync(
             Tenant,
-            new UpsertGiveawayRequest("Second", GiveawayEntryMode.Keyword, Keyword: "!two"),
+            new("Second", GiveawayEntryMode.Keyword, Keyword: "!two"),
             CancellationToken.None
         );
         Result<GiveawayDto> opened = await harness.Service.OpenAsync(
@@ -202,7 +202,7 @@ public sealed class GiveawayServiceTests
 
         Result<GiveawayDto> created = await harness.Service.CreateAsync(
             Tenant,
-            new UpsertGiveawayRequest(
+            new(
                 "Bad Config",
                 GiveawayEntryMode.Keyword,
                 Keyword: "!win",
@@ -221,7 +221,7 @@ public sealed class GiveawayServiceTests
         Harness harness = Build();
         Guid giveawayId = await SeedOpenGiveawayAsync(
             harness,
-            new UpsertGiveawayRequest(
+            new(
                 "Paid Drop",
                 GiveawayEntryMode.Keyword,
                 Keyword: "!win",
@@ -268,7 +268,7 @@ public sealed class GiveawayServiceTests
         Harness harness = Build();
         Guid giveawayId = await SeedOpenGiveawayAsync(
             harness,
-            new UpsertGiveawayRequest(
+            new(
                 "Paid Drop",
                 GiveawayEntryMode.Keyword,
                 Keyword: "!win",
@@ -302,7 +302,7 @@ public sealed class GiveawayServiceTests
         Harness harness = Build();
         Guid giveawayId = await SeedOpenGiveawayAsync(
             harness,
-            new UpsertGiveawayRequest(
+            new(
                 "Subs Only",
                 GiveawayEntryMode.Keyword,
                 Keyword: "!win",
@@ -336,7 +336,7 @@ public sealed class GiveawayServiceTests
         Harness harness = Build();
         Guid giveawayId = await SeedOpenGiveawayAsync(
             harness,
-            new UpsertGiveawayRequest(
+            new(
                 "Weighted",
                 GiveawayEntryMode.Keyword,
                 Keyword: "!win",
@@ -369,7 +369,7 @@ public sealed class GiveawayServiceTests
         Harness harness = Build();
         Guid giveawayId = await SeedOpenGiveawayAsync(
             harness,
-            new UpsertGiveawayRequest(
+            new(
                 "Two Winners",
                 GiveawayEntryMode.Keyword,
                 Keyword: "!win",
@@ -434,7 +434,7 @@ public sealed class GiveawayServiceTests
         Guid poolId = Guid.CreateVersion7();
         Guid giveawayId = await SeedOpenGiveawayAsync(
             harness,
-            new UpsertGiveawayRequest(
+            new(
                 "Keys",
                 GiveawayEntryMode.Keyword,
                 Keyword: "!win",

@@ -44,7 +44,7 @@ internal static class PrimaryIdentityWriter
         if (identity is null)
         {
             db.UserIdentities.Add(
-                new UserIdentity
+                new()
                 {
                     UserId = userId,
                     Provider = provider,

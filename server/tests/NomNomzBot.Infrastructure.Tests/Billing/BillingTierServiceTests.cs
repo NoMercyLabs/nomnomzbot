@@ -13,7 +13,6 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Enums;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.Content.Billing;
@@ -33,7 +32,7 @@ public sealed class BillingTierServiceTests
     private static (BillingTierService Sut, AuthDbContext Db) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        return (new BillingTierService(db), db);
+        return (new(db), db);
     }
 
     private static async Task SeedTiersAsync(AuthDbContext db)
@@ -45,7 +44,7 @@ public sealed class BillingTierServiceTests
     private static void SeedChannel(AuthDbContext db, string deploymentMode)
     {
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Channel,
                 TwitchChannelId = "t1",
@@ -60,7 +59,7 @@ public sealed class BillingTierServiceTests
     {
         BillingTier tier = await db.BillingTiers.FirstAsync(t => t.Key == tierKey);
         db.Subscriptions.Add(
-            new Subscription
+            new()
             {
                 BroadcasterId = Channel,
                 TierId = tier.Id,

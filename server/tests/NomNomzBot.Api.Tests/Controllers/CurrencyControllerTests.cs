@@ -41,7 +41,7 @@ public sealed class CurrencyControllerTests
         ICurrencyAccountService accounts = Substitute.For<ICurrencyAccountService>();
         ICurrentUserService user = Substitute.For<ICurrentUserService>();
         user.UserId.Returns(Caller.ToString());
-        return (new CurrencyController(config, accounts, user), config, accounts);
+        return (new(config, accounts, user), config, accounts);
     }
 
     private static CurrencyLedgerEntryDto Entry() =>
@@ -70,7 +70,7 @@ public sealed class CurrencyControllerTests
             .GetConfigAsync(Channel, Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<CurrencyConfigDto?>(
-                    new CurrencyConfigDto(
+                    new(
                         Guid.NewGuid(),
                         Channel,
                         "points",

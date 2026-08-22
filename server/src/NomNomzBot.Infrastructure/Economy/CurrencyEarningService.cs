@@ -55,7 +55,7 @@ public sealed class CurrencyEarningService(
         if (rule is null)
             return Result.Success(0L); // missing/disabled → no-op
 
-        if (rule.MinRoleLevel is int minLevel)
+        if (rule.MinRoleLevel is { } minLevel)
         {
             int level =
                 request.ViewerRoleLevel
@@ -68,7 +68,7 @@ public sealed class CurrencyEarningService(
 
         // Idempotent per (source, EventId): an EventSub-sourced earn is applied at most once.
         if (
-            request.EventId is Guid eventId
+            request.EventId is { } eventId
             && await db.CurrencyLedgerEntries.AnyAsync(
                 e =>
                     e.BroadcasterId == broadcasterId
@@ -85,7 +85,7 @@ public sealed class CurrencyEarningService(
             return Result.Success(0L);
 
         bool capped = false;
-        if (rule.PerWindowCap is long windowCap && rule.UnitWindowSeconds is int windowSeconds)
+        if (rule.PerWindowCap is { } windowCap && rule.UnitWindowSeconds is { } windowSeconds)
         {
             DateTime since = clock.GetUtcNow().UtcDateTime.AddSeconds(-windowSeconds);
             long earnedInWindow = await db
@@ -106,14 +106,14 @@ public sealed class CurrencyEarningService(
             }
         }
 
-        if (rule.PerStreamCap is long streamCap)
+        if (rule.PerStreamCap is { } streamCap)
         {
             DateTime? streamStart = await EconomyStreamWindow.CurrentStreamStartAsync(
                 db,
                 broadcasterId,
                 ct
             );
-            if (streamStart is DateTime since)
+            if (streamStart is { } since)
             {
                 long earnedThisStream = await db
                     .CurrencyLedgerEntries.Where(e =>
@@ -136,7 +136,7 @@ public sealed class CurrencyEarningService(
 
         Result<CurrencyLedgerEntryDto> posted = await accounts.PostLedgerEntryAsync(
             broadcasterId,
-            new PostLedgerEntryCommand(
+            new(
                 request.ViewerUserId,
                 amount,
                 earnType.ToString(),
@@ -182,13 +182,13 @@ public sealed class CurrencyEarningService(
                     : 0;
             if (units <= 0)
             {
-                results.Add(new EarnResultDto(viewer.ViewerUserId, 0, false));
+                results.Add(new(viewer.ViewerUserId, 0, false));
                 continue;
             }
 
             Result<long> credited = await ApplyEarningAsync(
                 broadcasterId,
-                new EarnRequest(
+                new(
                     viewer.ViewerUserId,
                     nameof(EarningSource.WatchTime),
                     units,
@@ -199,7 +199,7 @@ public sealed class CurrencyEarningService(
                 ct
             );
             results.Add(
-                new EarnResultDto(
+                new(
                     viewer.ViewerUserId,
                     credited.IsSuccess ? credited.Value : 0,
                     false

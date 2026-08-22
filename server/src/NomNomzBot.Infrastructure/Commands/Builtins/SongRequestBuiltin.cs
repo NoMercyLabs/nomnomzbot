@@ -60,7 +60,7 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
             if (requested.ErrorCode == "NOT_FOUND")
             {
                 string notFound = await _composer.ComposeAsync(
-                    new BuiltinResponseRequest
+                    new()
                     {
                         BroadcasterId = context.BroadcasterId,
                         Personality = context.Personality,
@@ -97,7 +97,7 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
         MusicTrack track = requested.Value;
 
         string message = await _composer.ComposeAsync(
-            new BuiltinResponseRequest
+            new()
             {
                 BroadcasterId = context.BroadcasterId,
                 Personality = context.Personality,

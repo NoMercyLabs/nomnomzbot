@@ -12,7 +12,6 @@ using System.Text.Json;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -52,13 +51,13 @@ public sealed class SrQueueBroadcastHandlerTests
         SrQueueBroadcastHandler handler = new(db, widgets);
 
         await handler.HandleAsync(
-            new SongRequestQueueChangedEvent
+            new()
             {
                 BroadcasterId = channel,
                 Items =
                 [
-                    new SongRequestQueueSnapshotItem("Song A", "viewer1", 210),
-                    new SongRequestQueueSnapshotItem("Song B", "viewer2", 185),
+                    new("Song A", "viewer1", 210),
+                    new("Song B", "viewer2", 185),
                 ],
             }
         );

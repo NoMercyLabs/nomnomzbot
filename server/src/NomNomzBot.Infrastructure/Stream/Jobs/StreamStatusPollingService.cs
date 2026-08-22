@@ -134,7 +134,7 @@ public sealed class StreamStatusPollingService : BackgroundService
 
                     // Fold the same sample into THIS stream's peak (the per-stream analytics read it) —
                     // written only when the count actually exceeds the stored peak.
-                    if (result.IsSuccess && ctx.CurrentStreamId is string currentStreamId)
+                    if (result.IsSuccess && ctx.CurrentStreamId is { } currentStreamId)
                     {
                         Domain.Stream.Entities.Stream? streamRow = await db.Streams.FindAsync(
                             [currentStreamId],

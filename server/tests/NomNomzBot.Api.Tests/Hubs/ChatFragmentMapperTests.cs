@@ -31,7 +31,7 @@ public sealed class ChatFragmentMapperTests
         {
             Type = "emote",
             Text = "PepeLaugh",
-            Emote = new ChatEmote(
+            Emote = new(
                 EmoteProvider.SevenTv,
                 "7tv-1",
                 "PepeLaugh",
@@ -66,7 +66,7 @@ public sealed class ChatFragmentMapperTests
             CheermotePrefix = "Cheer",
             CheermoteBits = 100,
             CheermoteTier = 1,
-            CheermoteImage = new CheermoteImage(
+            CheermoteImage = new(
                 new Dictionary<string, string> { ["1"] = "https://cdn/cheer1.gif" },
                 Animated: true,
                 ColorHex: "#979797"
@@ -114,7 +114,7 @@ public sealed class ChatFragmentMapperTests
             Type = "link",
             Text = "https://example.com",
             LinkUrl = "https://example.com",
-            LinkPreview = new LinkPreview(
+            LinkPreview = new(
                 "example.com",
                 "Example Domain",
                 "An example",

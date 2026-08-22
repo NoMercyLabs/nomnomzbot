@@ -36,7 +36,7 @@ public sealed class CommandServiceTests
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         RecordingEventBus bus = new();
         return (
-            new CommandService(db, pipelineEngine, registry, bus, Billing.TestTiers.Unlimited()),
+            new(db, pipelineEngine, registry, bus, Billing.TestTiers.Unlimited()),
             bus
         );
     }
@@ -83,7 +83,7 @@ public sealed class CommandServiceTests
         await sut.UpdateAsync(
             Channel.ToString(),
             created.Name,
-            new UpdateCommandDto { CooldownSeconds = 30 }
+            new() { CooldownSeconds = 30 }
         );
 
         bus.Published.OfType<ChannelConfigChangedEvent>()
@@ -103,7 +103,7 @@ public sealed class CommandServiceTests
         Result<CommandDto> result = await sut.UpdateAsync(
             Channel.ToString(),
             "missing",
-            new UpdateCommandDto()
+            new()
         );
 
         result.IsSuccess.Should().BeFalse();
@@ -190,7 +190,7 @@ public sealed class CommandServiceTests
         await sut.UpdateAsync(
             Channel.ToString(),
             "greet",
-            new UpdateCommandDto
+            new()
             {
                 PrefixMode = "None",
                 MatchMode = "Regex",
@@ -214,7 +214,7 @@ public sealed class CommandServiceTests
         (CommandService sut, _) = Build();
         await sut.CreateAsync(
             Channel.ToString(),
-            new CreateCommandDto
+            new()
             {
                 Name = "greet",
                 PrefixMode = "Custom",
@@ -225,7 +225,7 @@ public sealed class CommandServiceTests
         await sut.UpdateAsync(
             Channel.ToString(),
             "greet",
-            new UpdateCommandDto { PrefixMode = "Default", CustomPrefix = "" }
+            new() { PrefixMode = "Default", CustomPrefix = "" }
         );
 
         CommandDto fetched = (await sut.GetAsync(Channel.ToString(), "greet")).Value;

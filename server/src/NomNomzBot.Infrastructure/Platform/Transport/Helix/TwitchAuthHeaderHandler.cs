@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Net.Http.Headers;
 using Microsoft.Extensions.Options;
 
 namespace NomNomzBot.Infrastructure.Platform.Transport.Helix;
@@ -46,7 +45,7 @@ public sealed class TwitchAuthHeaderHandler(IOptions<TwitchOptions> options) : D
 
         if (request.Options.TryGetValue(HelixRequestOptions.AccessToken, out string? token))
         {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Authorization = new("Bearer", token);
         }
 
         return await base.SendAsync(request, cancellationToken);

@@ -346,7 +346,7 @@ public sealed class ProjectionRunner : IProjectionRunner
         if (checkpoint is not null)
             return checkpoint;
 
-        checkpoint = new ProjectionCheckpoint
+        checkpoint = new()
         {
             ProjectionName = projectionName,
             BroadcasterId = broadcasterId,

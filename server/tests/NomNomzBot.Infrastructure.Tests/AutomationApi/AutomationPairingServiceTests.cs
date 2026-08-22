@@ -84,7 +84,7 @@ public sealed class AutomationPairingServiceTests
     {
         AutomationTestDbContext db = AutomationTestDbContext.New();
         FakeCache cache = new();
-        FakeTimeProvider clock = new(new DateTimeOffset(T0));
+        FakeTimeProvider clock = new(new(T0));
 
         AutomationApiTokenService tokens = new(
             db,
@@ -103,13 +103,13 @@ public sealed class AutomationPairingServiceTests
             )
             .Returns(
                 rateLimited
-                    ? new RateLimitLease(false, 0, TimeSpan.FromSeconds(42))
+                    ? new(false, 0, TimeSpan.FromSeconds(42))
                     : new RateLimitLease(true, 4, TimeSpan.Zero)
             );
 
-        return new Harness
+        return new()
         {
-            Service = new AutomationPairingService(
+            Service = new(
                 cache,
                 tokens,
                 limiter,
@@ -144,7 +144,7 @@ public sealed class AutomationPairingServiceTests
         Result<PairingCodeDto> minted = await h.Service.MintCodeAsync(
             Channel,
             Operator,
-            new MintPairingCodeRequest { DeviceLabel = "Studio Deck" }
+            new() { DeviceLabel = "Studio Deck" }
         );
         minted.IsSuccess.Should().BeTrue(minted.ErrorMessage);
         minted.Value.Code.Should().HaveLength(8);
@@ -192,7 +192,7 @@ public sealed class AutomationPairingServiceTests
         Result<PairingCodeDto> minted = await h.Service.MintCodeAsync(
             Channel,
             Operator,
-            new MintPairingCodeRequest { DeviceLabel = "Chatty Deck", Scopes = ["invoke", "chat"] }
+            new() { DeviceLabel = "Chatty Deck", Scopes = ["invoke", "chat"] }
         );
 
         Result<PairingRedemptionDto> redeemed = await h.Service.RedeemCodeAsync(
@@ -230,7 +230,7 @@ public sealed class AutomationPairingServiceTests
         Result<PairingCodeDto> minted = await h.Service.MintCodeAsync(
             Channel,
             Operator,
-            new MintPairingCodeRequest { DeviceLabel = "Deck" }
+            new() { DeviceLabel = "Deck" }
         );
 
         Result<PairingRedemptionDto> denied = await h.Service.RedeemCodeAsync(
@@ -257,7 +257,7 @@ public sealed class AutomationPairingServiceTests
         Result<PairingCodeDto> badScope = await h.Service.MintCodeAsync(
             Channel,
             Operator,
-            new MintPairingCodeRequest { DeviceLabel = "Deck", Scopes = ["admin"] }
+            new() { DeviceLabel = "Deck", Scopes = ["admin"] }
         );
         badScope.IsFailure.Should().BeTrue();
         badScope.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -265,7 +265,7 @@ public sealed class AutomationPairingServiceTests
         Result<PairingCodeDto> blankLabel = await h.Service.MintCodeAsync(
             Channel,
             Operator,
-            new MintPairingCodeRequest { DeviceLabel = "  " }
+            new() { DeviceLabel = "  " }
         );
         blankLabel.IsFailure.Should().BeTrue();
         h.Cache.Ttls.Should().BeEmpty("nothing was cached for rejected mints");
@@ -280,7 +280,7 @@ public sealed class AutomationPairingServiceTests
         Result<PairingCodeDto> minted = await h.Service.MintCodeAsync(
             Channel,
             Operator,
-            new MintPairingCodeRequest { DeviceLabel = "Studio Deck" }
+            new() { DeviceLabel = "Studio Deck" }
         );
 
         await h.Service.RedeemCodeAsync(
@@ -305,7 +305,7 @@ public sealed class AutomationPairingServiceTests
         Result<PairingCodeDto> minted = await h.Service.MintCodeAsync(
             Channel,
             Operator,
-            new MintPairingCodeRequest { DeviceLabel = "Touch Portal" }
+            new() { DeviceLabel = "Touch Portal" }
         );
 
         await h.Service.RedeemCodeAsync(minted.Value.Code, Deck(), "203.0.113.7", Backend);
@@ -320,7 +320,7 @@ public sealed class AutomationPairingServiceTests
         Result<PairingCodeDto> first = await h.Service.MintCodeAsync(
             Channel,
             Operator,
-            new MintPairingCodeRequest { DeviceLabel = "Studio Deck" }
+            new() { DeviceLabel = "Studio Deck" }
         );
         await h.Service.RedeemCodeAsync(
             first.Value.Code,
@@ -332,7 +332,7 @@ public sealed class AutomationPairingServiceTests
         Result<PairingCodeDto> second = await h.Service.MintCodeAsync(
             Channel,
             Operator,
-            new MintPairingCodeRequest { DeviceLabel = "Second Deck" }
+            new() { DeviceLabel = "Second Deck" }
         );
         await h.Service.RedeemCodeAsync(
             second.Value.Code,

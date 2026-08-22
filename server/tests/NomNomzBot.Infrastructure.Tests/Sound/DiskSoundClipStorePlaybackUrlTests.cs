@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Infrastructure.Sound;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Sound;
 
@@ -36,7 +35,7 @@ public class DiskSoundClipStorePlaybackUrlTests
 
         DefaultHttpContext httpContext = new();
         httpContext.Request.Scheme = "http";
-        httpContext.Request.Host = new HostString("dev.nomnomz.bot");
+        httpContext.Request.Host = new("dev.nomnomz.bot");
         FakeHttpContextAccessor accessor = new(httpContext);
 
         DiskSoundClipStore store = new(accessor, configuration);
@@ -56,7 +55,7 @@ public class DiskSoundClipStorePlaybackUrlTests
 
         DefaultHttpContext httpContext = new();
         httpContext.Request.Scheme = "http";
-        httpContext.Request.Host = new HostString("localhost:5080");
+        httpContext.Request.Host = new("localhost:5080");
         FakeHttpContextAccessor accessor = new(httpContext);
 
         DiskSoundClipStore store = new(accessor, configuration);

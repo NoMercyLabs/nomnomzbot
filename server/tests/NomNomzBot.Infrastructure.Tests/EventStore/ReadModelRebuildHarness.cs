@@ -216,7 +216,7 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
 
     // ── Everything else on IApplicationDbContext is unused by this proof ──
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Identity.Entities.ErasureRequest> ErasureRequests =>
+    public DbSet<ErasureRequest> ErasureRequests =>
         throw new NotSupportedException();
     public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
@@ -284,9 +284,9 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
     public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationToken> IntegrationTokens =>
         throw new NotSupportedException();
     public DbSet<CryptoKey> CryptoKeys => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Identity.Entities.KeyUsageBinding> KeyUsageBindings =>
+    public DbSet<KeyUsageBinding> KeyUsageBindings =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey> EventSubjectKeys =>
+    public DbSet<EventSubjectKey> EventSubjectKeys =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection> DiscordGuildConnections =>
         throw new NotSupportedException();
@@ -303,8 +303,8 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
         Set<NomNomzBot.Domain.Vts.Entities.VtsConnection>();
     public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
         Set<NomNomzBot.Domain.Obs.Entities.ObsConnection>();
-    public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
-        Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
+    public DbSet<Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
+        Set<Domain.Automation.Entities.AutomationApiToken>();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsConfig> TtsConfigs =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsVoice> TtsVoices =>
@@ -322,7 +322,7 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
     public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog> DeletionAuditLogs =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Identity.Entities.ComplianceAuditLog> ComplianceAuditLogs =>
+    public DbSet<ComplianceAuditLog> ComplianceAuditLogs =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         throw new NotSupportedException();
@@ -476,7 +476,7 @@ internal sealed class ReadModelRebuildDatabase : IDisposable
     {
         DbContextOptions<ReadModelRebuildDbContext> options =
             new DbContextOptionsBuilder<ReadModelRebuildDbContext>().UseSqlite(_connection).Options;
-        return new ReadModelRebuildDbContext(options);
+        return new(options);
     }
 
     public void Dispose() => _connection.Dispose();

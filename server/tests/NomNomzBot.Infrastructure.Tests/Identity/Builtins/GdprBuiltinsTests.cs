@@ -124,10 +124,10 @@ public sealed class GdprBuiltinsTests
         ErasureConfirmationTracker tracker = new(clock);
         GdprSelfServiceExecutor executor = new(erasure, users, composer, tracker);
 
-        return new Harness(
-            new ForgetMeBuiltin(executor),
-            new MyDataBuiltin(executor),
-            new GdprBuiltin(executor),
+        return new(
+            new(executor),
+            new(executor),
+            new(executor),
             erasure,
             users,
             clock

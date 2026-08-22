@@ -10,7 +10,7 @@
 
 namespace NomNomzBot.Domain.Identity.Events;
 
-using NomNomzBot.Domain.Platform;
+using Platform;
 
 public sealed class ChannelLeftEvent : DomainEventBase
 {

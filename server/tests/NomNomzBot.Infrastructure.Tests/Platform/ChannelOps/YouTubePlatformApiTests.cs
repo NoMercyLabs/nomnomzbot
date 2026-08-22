@@ -47,7 +47,7 @@ public sealed class YouTubePlatformApiTests
             )
             .Returns(call => Result.Success(call.ArgAt<string>(1)));
 
-        return (new YouTubePlatformApi(sessions, tokens, client), sessions, client);
+        return (new(sessions, tokens, client), sessions, client);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class YouTubePlatformApiTests
 
         Result<PlatformStreamInfoApplied> result = await api.UpdateStreamInfoAsync(
             Tenant,
-            new PlatformStreamInfoUpdate(Title: "fresh title")
+            new(Title: "fresh title")
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -83,7 +83,7 @@ public sealed class YouTubePlatformApiTests
 
         Result<PlatformStreamInfoApplied> result = await api.UpdateStreamInfoAsync(
             Tenant,
-            new PlatformStreamInfoUpdate(Title: "t")
+            new(Title: "t")
         );
 
         result.IsFailure.Should().BeTrue();
@@ -107,11 +107,11 @@ public sealed class YouTubePlatformApiTests
 
         Result<PlatformStreamInfoApplied> withCategory = await api.UpdateStreamInfoAsync(
             Tenant,
-            new PlatformStreamInfoUpdate(Title: "t", CategoryName: "Just Chatting")
+            new(Title: "t", CategoryName: "Just Chatting")
         );
         Result<PlatformStreamInfoApplied> withTags = await api.UpdateStreamInfoAsync(
             Tenant,
-            new PlatformStreamInfoUpdate(Tags: ["chill"])
+            new(Tags: ["chill"])
         );
 
         withCategory.IsFailure.Should().BeTrue();
@@ -135,7 +135,7 @@ public sealed class YouTubePlatformApiTests
 
         Result<PlatformStreamInfoApplied> result = await api.UpdateStreamInfoAsync(
             Tenant,
-            new PlatformStreamInfoUpdate(Title: "t")
+            new(Title: "t")
         );
 
         result.IsFailure.Should().BeTrue();

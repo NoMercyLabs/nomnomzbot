@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -48,7 +47,7 @@ public sealed class EngagementEarningHandler(
 
         await earning.ApplyEarningAsync(
             @event.BroadcasterId,
-            new EarnRequest(viewerUserId.Value, "Follow", 1, @event.EventId, null, null),
+            new(viewerUserId.Value, "Follow", 1, @event.EventId, null, null),
             cancellationToken
         );
     }
@@ -69,7 +68,7 @@ public sealed class EngagementEarningHandler(
 
         await earning.ApplyEarningAsync(
             @event.BroadcasterId,
-            new EarnRequest(viewerUserId.Value, "Subscription", 1, @event.EventId, null, null),
+            new(viewerUserId.Value, "Subscription", 1, @event.EventId, null, null),
             cancellationToken
         );
     }
@@ -88,7 +87,7 @@ public sealed class EngagementEarningHandler(
         // Cheer units = actual bits cheered so the rate multiplier is applied against the real donation size.
         await earning.ApplyEarningAsync(
             @event.BroadcasterId,
-            new EarnRequest(viewerUserId.Value, "Cheer", @event.Bits, @event.EventId, null, null),
+            new(viewerUserId.Value, "Cheer", @event.Bits, @event.EventId, null, null),
             cancellationToken
         );
     }
@@ -110,7 +109,7 @@ public sealed class EngagementEarningHandler(
         // Raid units = viewer count — lets the rate scale with raid size if desired.
         await earning.ApplyEarningAsync(
             @event.BroadcasterId,
-            new EarnRequest(
+            new(
                 viewerUserId.Value,
                 "Raid",
                 @event.ViewerCount,

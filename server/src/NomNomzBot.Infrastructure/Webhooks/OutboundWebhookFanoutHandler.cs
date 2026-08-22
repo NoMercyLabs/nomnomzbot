@@ -39,7 +39,7 @@ public sealed class OutboundWebhookFanoutHandler(
         CancellationToken cancellationToken = default
     )
     {
-        if (committed.BroadcasterId is not Guid broadcasterId)
+        if (committed.BroadcasterId is not { } broadcasterId)
             return Result.Success();
 
         // Fast-skip: bail out immediately if there are no enabled endpoints for this tenant. The dispatcher
@@ -86,7 +86,7 @@ public sealed class OutboundWebhookFanoutHandler(
             ["event.occurred_at"] = committed.OccurredAt.ToString("O"),
         };
 
-        if (committed.BroadcasterId is Guid bid)
+        if (committed.BroadcasterId is { } bid)
             vars["event.broadcaster_id"] = bid.ToString();
 
         // Flatten top-level payload properties as event.{key} variables.

@@ -15,7 +15,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
-using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Music.Entities;
@@ -296,9 +295,9 @@ public sealed class MusicPipelineActionsTests
                 new MusicQueue(
                     null,
                     [
-                        new MusicQueueItem("First Pick", "A", null, 100, "Bamo"),
-                        new MusicQueueItem("Other Pick", "B", null, 100, "SomeoneElse"),
-                        new MusicQueueItem("Newest Pick", "C", null, 100, "Bamo"),
+                        new("First Pick", "A", null, 100, "Bamo"),
+                        new("Other Pick", "B", null, 100, "SomeoneElse"),
+                        new("Newest Pick", "C", null, 100, "Bamo"),
                     ]
                 )
             );
@@ -337,7 +336,7 @@ public sealed class MusicPipelineActionsTests
             .Returns(
                 new MusicQueue(
                     null,
-                    [new MusicQueueItem("Other Pick", "B", null, 100, "SomeoneElse")]
+                    [new("Other Pick", "B", null, 100, "SomeoneElse")]
                 )
             );
         IChatProvider chat = Substitute.For<IChatProvider>();

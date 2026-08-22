@@ -43,7 +43,7 @@ public sealed class AutomationApiTokenServiceTests
     {
         AutomationTestDbContext db = AutomationTestDbContext.New();
         RecordingEventBus bus = new();
-        FakeTimeProvider clock = new(new DateTimeOffset(T0));
+        FakeTimeProvider clock = new(new(T0));
         AutomationApiTokenService sut = new(
             db,
             bus,
@@ -88,7 +88,7 @@ public sealed class AutomationApiTokenServiceTests
         // Nothing retrievable later carries the secret — the list DTO has only the display prefix.
         Result<PagedList<AutomationTokenDto>> list = await sut.ListAsync(
             Channel,
-            new PaginationParams(1, 25, null, null)
+            new(1, 25, null, null)
         );
         list.Value.Items.Single().TokenPrefix.Should().Be(secret[..12]);
 
@@ -225,7 +225,7 @@ public sealed class AutomationApiTokenServiceTests
         // Another channel neither lists it nor may revoke it.
         Result<PagedList<AutomationTokenDto>> otherList = await sut.ListAsync(
             otherChannel,
-            new PaginationParams(1, 25, null, null)
+            new(1, 25, null, null)
         );
         otherList.Value.TotalCount.Should().Be(0);
         Result<bool> foreignRevoke = await sut.RevokeAsync(
@@ -256,7 +256,7 @@ public sealed class AutomationApiTokenServiceTests
         );
         string oldSecret = created.Value.Secret;
 
-        clock.SetUtcNow(new DateTimeOffset(T0.AddHours(12)));
+        clock.SetUtcNow(new(T0.AddHours(12)));
         Result<IssuedAutomationTokenDto> refreshed = await sut.RefreshSelfAsync(
             Channel,
             created.Value.Token.Id,
@@ -309,7 +309,7 @@ public sealed class AutomationApiTokenServiceTests
             CancellationToken.None
         );
 
-        clock.SetUtcNow(new DateTimeOffset(T0.AddDays(2)));
+        clock.SetUtcNow(new(T0.AddDays(2)));
         Result<IssuedAutomationTokenDto> refreshed = await sut.RefreshSelfAsync(
             Channel,
             created.Value.Token.Id,

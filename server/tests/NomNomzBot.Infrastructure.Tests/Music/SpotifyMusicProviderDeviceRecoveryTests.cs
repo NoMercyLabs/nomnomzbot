@@ -12,9 +12,6 @@ using System.Net;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Domain.Platform.Entities;
-using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 
@@ -60,7 +57,7 @@ public sealed class LastActiveSpotifyDeviceTrackerTests
         LastActiveSpotifyDeviceStreamOfflineHandler handler = new(tracker);
 
         await handler.HandleAsync(
-            new ChannelOfflineEvent
+            new()
             {
                 BroadcasterId = endingChannel,
                 BroadcasterDisplayName = "Stoney_Eagle",
@@ -171,7 +168,7 @@ public sealed class SpotifyMusicProviderDeviceRecoveryTests
                 .Options
         );
         db.Services.Add(
-            new Service
+            new()
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = "spotify",

@@ -273,7 +273,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
             string givenName = DeriveGivenName(shortName, locale);
             string region = locale[(locale.LastIndexOf('-') + 1)..];
             voices.Add(
-                new TtsVoiceInfo
+                new()
                 {
                     Id = shortName,
                     Name = givenName,

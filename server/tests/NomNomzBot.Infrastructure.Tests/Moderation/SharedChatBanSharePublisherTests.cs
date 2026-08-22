@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
@@ -41,11 +40,11 @@ public sealed class SharedChatBanSharePublisherTests
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         db.SharedBanSettings.Add(
-            new SharedBanSettings { BroadcasterId = Origin, ShareOutgoingBans = true }
+            new() { BroadcasterId = Origin, ShareOutgoingBans = true }
         );
         await db.SaveChangesAsync();
         SharedChatSessionTracker sessions = new();
-        sessions.SetSession(Origin, new SharedChatSessionInfo("session-9", "host-1", []));
+        sessions.SetSession(Origin, new("session-9", "host-1", []));
         RecordingEventBus bus = new();
 
         await new SharedChatBanSharePublisher(db, sessions, bus).HandleAsync(Ban());
@@ -71,7 +70,7 @@ public sealed class SharedChatBanSharePublisherTests
         bus.Published.Should().BeEmpty();
 
         // In a session, but the channel never opted in to sharing (no settings row = share OFF).
-        sessions.SetSession(Origin, new SharedChatSessionInfo("session-9", "host-1", []));
+        sessions.SetSession(Origin, new("session-9", "host-1", []));
         await sut.HandleAsync(Ban());
         bus.Published.Should().BeEmpty();
     }

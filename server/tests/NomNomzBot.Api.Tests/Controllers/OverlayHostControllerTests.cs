@@ -8,11 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System;
-using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers;
@@ -40,12 +36,12 @@ public sealed class OverlayHostControllerTests
         OverlayManifest manifest = new(
             Guid.NewGuid(),
             "nonce",
-            new List<OverlayWidgetEntry>(widgets)
+            new(widgets)
         );
         service
             .GetOverlayManifestAsync(Token, Arg.Any<CancellationToken>())
             .Returns(Result<OverlayManifest>.Success(manifest));
-        return new OverlayHostController(service);
+        return new(service);
     }
 
     private static OverlayWidgetEntry VueEntry(Dictionary<string, object?> settings) =>
@@ -56,7 +52,7 @@ public sealed class OverlayHostControllerTests
             "unverified",
             $"/api/v1/overlay/bundle/{WidgetId}",
             "hash123",
-            new List<string> { "twitch.chat.message" },
+            new() { "twitch.chat.message" },
             settings
         );
 
@@ -73,7 +69,7 @@ public sealed class OverlayHostControllerTests
     {
         OverlayHostController sut = WithManifest(
             VueEntry(
-                new Dictionary<string, object?> { ["maxMessages"] = 5, ["accentColor"] = "#abcdef" }
+                new() { ["maxMessages"] = 5, ["accentColor"] = "#abcdef" }
             )
         );
 
@@ -146,7 +142,7 @@ public sealed class OverlayHostControllerTests
     [Fact]
     public async Task Serves_a_strict_csp_whose_nonce_gates_the_only_inline_script()
     {
-        OverlayHostController sut = WithManifest(VueEntry(new Dictionary<string, object?>()));
+        OverlayHostController sut = WithManifest(VueEntry(new()));
 
         string html = await BodyOf(
             await sut.Get(WidgetId.ToString(), Token, CancellationToken.None)
@@ -179,7 +175,7 @@ public sealed class OverlayHostControllerTests
     {
         OverlayHostController sut = WithManifest(
             VueEntry(
-                new Dictionary<string, object?> { ["evil"] = "</script><script>alert(1)</script>" }
+                new() { ["evil"] = "</script><script>alert(1)</script>" }
             )
         );
 

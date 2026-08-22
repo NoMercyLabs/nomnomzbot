@@ -36,7 +36,7 @@ public sealed class NnzSdkBootstrapTests
         public HostImportDelegate Resolve(string capabilityKey) =>
             (key, args, ct) =>
             {
-                Calls.Add(new HostCall(key, args));
+                Calls.Add(new(key, args));
                 return handler(key, args);
             };
     }
@@ -55,7 +55,7 @@ public sealed class NnzSdkBootstrapTests
             "exec-1",
             js,
             "hash",
-            new ScriptInputs("u1", "User", [], new Dictionary<string, string>()),
+            new("u1", "User", [], new Dictionary<string, string>()),
             Generous
         );
 

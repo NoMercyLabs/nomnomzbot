@@ -35,7 +35,7 @@ public sealed class EconomyLeaderboardsControllerTests
     ) Build()
     {
         IEconomyLeaderboardService service = Substitute.For<IEconomyLeaderboardService>();
-        return (new EconomyLeaderboardsController(service), service);
+        return (new(service), service);
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public sealed class EconomyLeaderboardsControllerTests
             .GetRankingAsync(Channel, Config, 3, Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<IReadOnlyList<LeaderboardEntryDto>>([
-                    new LeaderboardEntryDto(1, Viewer, Guid.NewGuid(), "top", 100),
+                    new(1, Viewer, Guid.NewGuid(), "top", 100),
                 ])
             );
 

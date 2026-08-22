@@ -66,7 +66,7 @@ public sealed class ChatPollServiceTests
     ) =>
         service.OpenAsync(
             Tenant.ToString(),
-            new OpenChatPollRequest
+            new()
             {
                 Question = "Next game?",
                 Options = ["Factorio", "Peak", "Satisfactory"],
@@ -186,7 +186,7 @@ public sealed class ChatPollServiceTests
 
         Result<ChatPollDto> opened = await service.OpenAsync(
             Tenant.ToString(),
-            new OpenChatPollRequest { Question = "hm?", Options = ["only", "   "] }
+            new() { Question = "hm?", Options = ["only", "   "] }
         );
 
         opened.IsFailure.Should().BeTrue();

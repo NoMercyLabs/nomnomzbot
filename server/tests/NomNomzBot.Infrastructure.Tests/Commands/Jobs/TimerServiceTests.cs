@@ -16,7 +16,6 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Domain.Chat.Interfaces;
-using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands.Jobs;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -95,7 +94,7 @@ public sealed class TimerServiceTests
             NullLogger<TimerService>.Instance
         );
 
-        return new Harness(service, db, chat, engine);
+        return new(service, db, chat, engine);
     }
 
     private static Timer SeedTimer(
@@ -126,7 +125,7 @@ public sealed class TimerServiceTests
     private static void SeedPipeline(AuthDbContext db, string? graphJson)
     {
         db.Pipelines.Add(
-            new Pipeline
+            new()
             {
                 Id = PipelineId,
                 BroadcasterId = Channel,

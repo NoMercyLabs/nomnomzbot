@@ -48,7 +48,7 @@ public sealed class ProcessRunner : IProcessRunner
         {
             // The executable could not be launched (not found / not executable) — a distinct outcome from a
             // process that ran and failed, so the caller can surface an "install the tool" message.
-            return new ProcessRunResult(false, -1, string.Empty, ex.Message);
+            return new(false, -1, string.Empty, ex.Message);
         }
 
         if (request.StandardInput is not null)
@@ -75,7 +75,7 @@ public sealed class ProcessRunner : IProcessRunner
 
         string outputText = await stdout;
         string errorText = await stderr;
-        return new ProcessRunResult(true, process.ExitCode, outputText, errorText);
+        return new(true, process.ExitCode, outputText, errorText);
     }
 
     private static void TryKill(Process process)

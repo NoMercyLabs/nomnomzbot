@@ -9,13 +9,11 @@
 // -----------------------------------------------------------------------------
 
 using System.Collections.Concurrent;
-using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Obs.Dtos;
 using NomNomzBot.Application.Obs.Services;
 using NomNomzBot.Domain.Obs.Entities;
 using NomNomzBot.Domain.Obs.Events;
@@ -127,7 +125,7 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
     {
         if (!ConnectionChannels.ContainsKey(Context.ConnectionId))
             return Task.CompletedTask; // never authenticated — ignore
-        _commands.Complete(commandId, new ObsBridgeAck(ok, responseDataJson, error));
+        _commands.Complete(commandId, new(ok, responseDataJson, error));
         return Task.CompletedTask;
     }
 
@@ -159,7 +157,7 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
             return;
 
         await _eventBus.PublishAsync(
-            new NomNomzBot.Domain.Vts.Events.VtsEventReceived
+            new Domain.Vts.Events.VtsEventReceived
             {
                 BroadcasterId = broadcasterId,
                 OccurredAt = _clock.GetUtcNow(),

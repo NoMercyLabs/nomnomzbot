@@ -61,7 +61,7 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         List<CustomDataSourceDto> dtos = rows.Select(ToDto).ToList();
 
         return Result<PagedList<CustomDataSourceDto>>.Success(
-            new PagedList<CustomDataSourceDto>(dtos, total, pagination.Page, pagination.PageSize)
+            new(dtos, total, pagination.Page, pagination.PageSize)
         );
     }
 
@@ -156,7 +156,7 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         {
             source.AuthSecretCipher = await _tokenProtector.ProtectAsync(
                 request.AuthSecret,
-                new TokenProtectionContext(
+                new(
                     broadcasterId.ToString(),
                     "customdata",
                     source.Id.ToString()
@@ -219,7 +219,7 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         {
             source.AuthSecretCipher = await _tokenProtector.ProtectAsync(
                 request.AuthSecret,
-                new TokenProtectionContext(
+                new(
                     broadcasterId.ToString(),
                     "customdata",
                     source.Id.ToString()
@@ -301,7 +301,7 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
             // Return empty on malformed JSON
         }
 
-        return new CustomDataSourceDto(
+        return new(
             source.Id,
             source.Name,
             source.DisplayName,

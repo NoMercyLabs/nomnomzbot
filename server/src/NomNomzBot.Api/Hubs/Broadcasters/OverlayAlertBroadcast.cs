@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
-using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -48,7 +47,7 @@ internal static class OverlayAlertBroadcast
         // (a) Generic overlay feed — one decorated event, replacing the raw journaled form the filter now drops.
         await notifier.BroadcastOverlayEventAsync(
             broadcasterId.ToString(),
-            new OverlayEventDto(eventType, JsonSerializer.Serialize(decoratedData, OverlayJson)),
+            new(eventType, JsonSerializer.Serialize(decoratedData, OverlayJson)),
             cancellationToken
         );
 

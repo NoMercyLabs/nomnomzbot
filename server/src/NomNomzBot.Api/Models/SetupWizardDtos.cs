@@ -72,7 +72,7 @@ public static class SetupWizard
         string root = baseUrl.TrimEnd('/');
         List<SetupStepDto> steps =
         [
-            new SetupStepDto(
+            new(
                 "twitch_app",
                 "Connect your Twitch application",
                 "The bot talks to Twitch through a Twitch app. Paste a Client ID to get going — a Client Secret is optional and only adds one-tap redirect sign-in.",
@@ -90,7 +90,7 @@ public static class SetupWizard
                     "Choose the \"Chat Bot\" category, create it, then copy the Client ID.",
                     "A Client Secret is optional — the bot signs in with the secret-free device-code flow without one. Add it only if you want the smoother one-tap redirect sign-in.",
                 ],
-                Action: new SetupActionDto(
+                Action: new(
                     "save_credentials",
                     "PUT",
                     "/api/v1/system/setup/credentials/twitch",
@@ -98,14 +98,14 @@ public static class SetupWizard
                 ),
                 Fields:
                 [
-                    new SetupFieldDto(
+                    new(
                         "clientId",
                         "Client ID",
                         "text",
                         true,
                         "From your Twitch app's settings page."
                     ),
-                    new SetupFieldDto(
+                    new(
                         "clientSecret",
                         "Client Secret (optional)",
                         "password",
@@ -114,7 +114,7 @@ public static class SetupWizard
                     ),
                 ]
             ),
-            new SetupStepDto(
+            new(
                 "platform_bot",
                 "Authorize the bot account",
                 "Sign in as the Twitch account the bot posts chat from, and approve its chat permissions.",
@@ -126,7 +126,7 @@ public static class SetupWizard
                     "Log into Twitch as the bot's own account in this browser first.",
                     "Start the authorization, then approve the requested chat scopes.",
                 ],
-                Action: new SetupActionDto(
+                Action: new(
                     "oauth_redirect",
                     "GET",
                     "/api/v1/system/setup/bot/oauth-url",
@@ -134,7 +134,7 @@ public static class SetupWizard
                 ),
                 Fields: []
             ),
-            new SetupStepDto(
+            new(
                 "spotify",
                 "Spotify (optional)",
                 "Connect a Spotify app to enable song requests.",
@@ -147,7 +147,7 @@ public static class SetupWizard
                     $"Add the Redirect URI: {root}/api/v1/integrations/spotify/callback",
                     "Copy the Client ID and Client Secret.",
                 ],
-                Action: new SetupActionDto(
+                Action: new(
                     "save_credentials",
                     "PUT",
                     "/api/v1/system/setup/credentials/spotify",
@@ -155,11 +155,11 @@ public static class SetupWizard
                 ),
                 Fields:
                 [
-                    new SetupFieldDto("clientId", "Client ID", "text", true, null),
-                    new SetupFieldDto("clientSecret", "Client Secret", "password", true, null),
+                    new("clientId", "Client ID", "text", true, null),
+                    new("clientSecret", "Client Secret", "password", true, null),
                 ]
             ),
-            new SetupStepDto(
+            new(
                 "discord",
                 "Discord (optional)",
                 "Connect a Discord app for notifications and guild sync.",
@@ -172,7 +172,7 @@ public static class SetupWizard
                     $"Add the OAuth2 Redirect: {root}/api/v1/integrations/discord/callback",
                     "Copy the Client ID and Client Secret from the OAuth2 page.",
                 ],
-                Action: new SetupActionDto(
+                Action: new(
                     "save_credentials",
                     "PUT",
                     "/api/v1/system/setup/credentials/discord",
@@ -180,11 +180,11 @@ public static class SetupWizard
                 ),
                 Fields:
                 [
-                    new SetupFieldDto("clientId", "Client ID", "text", true, null),
-                    new SetupFieldDto("clientSecret", "Client Secret", "password", true, null),
+                    new("clientId", "Client ID", "text", true, null),
+                    new("clientSecret", "Client Secret", "password", true, null),
                 ]
             ),
-            new SetupStepDto(
+            new(
                 "youtube",
                 "YouTube (optional)",
                 "Connect a Google app to enable the YouTube music provider.",
@@ -197,7 +197,7 @@ public static class SetupWizard
                     $"Add the Authorized redirect URI: {root}/api/v1/integrations/youtube/callback",
                     "Copy the Client ID and Client Secret.",
                 ],
-                Action: new SetupActionDto(
+                Action: new(
                     "save_credentials",
                     "PUT",
                     "/api/v1/system/setup/credentials/youtube",
@@ -205,12 +205,12 @@ public static class SetupWizard
                 ),
                 Fields:
                 [
-                    new SetupFieldDto("clientId", "Client ID", "text", true, null),
-                    new SetupFieldDto("clientSecret", "Client Secret", "password", true, null),
+                    new("clientId", "Client ID", "text", true, null),
+                    new("clientSecret", "Client Secret", "password", true, null),
                 ]
             ),
         ];
 
-        return new SetupWizardDto(hasTwitchClientId && hasPlatformBot, steps);
+        return new(hasTwitchClientId && hasPlatformBot, steps);
     }
 }

@@ -16,7 +16,6 @@ using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.EventStore;
 
 namespace NomNomzBot.Infrastructure.Tests.EventStore;
@@ -34,7 +33,7 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore;
 public sealed class ImportReplayProjectionTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static EventJournalService NewJournal(EventStoreTestDbContext db) =>
@@ -63,7 +62,7 @@ public sealed class ImportReplayProjectionTests
             Source: "import",
             PayloadJson: JsonPayload(eventId, tenant, userId),
             MetadataJson: "{}",
-            OccurredAt: new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc)
+            OccurredAt: new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc)
         );
     }
 
@@ -73,11 +72,11 @@ public sealed class ImportReplayProjectionTests
             {
                 EventId = eventId,
                 BroadcasterId = tenant,
-                OccurredAt = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
+                OccurredAt = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
                 UserId = userId,
                 UserDisplayName = "Viewer " + userId,
                 UserLogin = "viewer" + userId,
-                FollowedAt = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
+                FollowedAt = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
             }
         );
 
@@ -95,7 +94,7 @@ public sealed class ImportReplayProjectionTests
         RecordingEventBus bus = new();
         ImportReplayProjection projection = new(
             bus,
-            new DomainEventTypeRegistry(),
+            new(),
             NullLogger<ImportReplayProjection>.Instance
         );
         ProjectionRunner runner = NewRunner(db, journal, projection);
@@ -126,7 +125,7 @@ public sealed class ImportReplayProjectionTests
         RecordingEventBus bus = new();
         ImportReplayProjection projection = new(
             bus,
-            new DomainEventTypeRegistry(),
+            new(),
             NullLogger<ImportReplayProjection>.Instance
         );
         ProjectionRunner runner = NewRunner(db, journal, projection);
@@ -158,7 +157,7 @@ public sealed class ImportReplayProjectionTests
         RecordingEventBus bus = new();
         ImportReplayProjection projection = new(
             bus,
-            new DomainEventTypeRegistry(),
+            new(),
             NullLogger<ImportReplayProjection>.Instance
         );
         ProjectionRunner runner = NewRunner(db, journal, projection);
@@ -184,7 +183,7 @@ public sealed class ImportReplayProjectionTests
         RecordingEventBus bus = new();
         ImportReplayProjection projection = new(
             bus,
-            new DomainEventTypeRegistry(),
+            new(),
             NullLogger<ImportReplayProjection>.Instance
         );
         ProjectionRunner runner = NewRunner(db, journal, projection);
@@ -214,7 +213,7 @@ public sealed class ImportReplayProjectionTests
         RecordingEventBus bus = new();
         ImportReplayProjection projection = new(
             bus,
-            new DomainEventTypeRegistry(),
+            new(),
             NullLogger<ImportReplayProjection>.Instance
         );
         ProjectionRunner runner = NewRunner(db, journal, projection);

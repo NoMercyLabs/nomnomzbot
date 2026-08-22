@@ -14,10 +14,8 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -46,7 +44,7 @@ public sealed class MusicServiceBlockedAdmissionTests
         );
         await blocks.BlockAsync(
             ChannelA,
-            new BlockTrackRequest("spotify", "spotify:track:q1", "Song Q", "banned on stream")
+            new("spotify", "spotify:track:q1", "Song Q", "banned on stream")
         );
 
         Result admitted = await sut.AddToQueueAsync(
@@ -90,7 +88,7 @@ public sealed class MusicServiceBlockedAdmissionTests
         (MusicService sut, _, BlockedTrackService blocks) = Build(ChannelA, ChannelB);
         await blocks.BlockAsync(
             ChannelA,
-            new BlockTrackRequest("spotify", "spotify:track:q1", "Song Q")
+            new("spotify", "spotify:track:q1", "Song Q")
         );
 
         Result admittedB = await sut.AddToQueueAsync(
@@ -110,7 +108,7 @@ public sealed class MusicServiceBlockedAdmissionTests
         (MusicService sut, _, BlockedTrackService blocks) = Build(ChannelA, ChannelB);
         await blocks.BlockAsync(
             ChannelA,
-            new BlockTrackRequest("spotify", "spotify:track:q1", "Song Q")
+            new("spotify", "spotify:track:q1", "Song Q")
         );
 
         Result admitted = await sut.AddToQueueAsync(
@@ -137,7 +135,7 @@ public sealed class MusicServiceBlockedAdmissionTests
         foreach (Guid channel in connectedChannels)
         {
             db.Services.Add(
-                new Service
+                new()
                 {
                     Id = Guid.NewGuid().ToString(),
                     Name = "spotify",
@@ -153,7 +151,7 @@ public sealed class MusicServiceBlockedAdmissionTests
             db,
             new PassthroughProtector(),
             new InMemoryIntegrationCapabilityStore(),
-            new NomNomzBot.Infrastructure.Music.LastActiveSpotifyDeviceTracker(),
+            new LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(new SearchFakeSpotifyHandler()),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance
@@ -183,7 +181,7 @@ public sealed class MusicServiceBlockedAdmissionTests
             );
 
             HttpResponseMessage response = isSearch
-                ? new HttpResponseMessage(HttpStatusCode.OK)
+                ? new(HttpStatusCode.OK)
                 {
                     Content = new StringContent(SearchJson, Encoding.UTF8, "application/json"),
                 }

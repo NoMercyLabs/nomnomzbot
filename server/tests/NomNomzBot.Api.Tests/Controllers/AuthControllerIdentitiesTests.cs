@@ -10,7 +10,6 @@
 
 using System.Security.Claims;
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Api.Controllers.V1;
@@ -19,7 +18,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NSubstitute;
-using Xunit;
 
 namespace NomNomzBot.Api.Tests.Controllers;
 
@@ -44,7 +42,7 @@ public sealed class AuthControllerIdentitiesTests
             Substitute.For<ISessionService>()
         )
         {
-            ControllerContext = new ControllerContext
+            ControllerContext = new()
             {
                 HttpContext = new DefaultHttpContext { User = user },
             },
@@ -69,7 +67,7 @@ public sealed class AuthControllerIdentitiesTests
             .Returns(Result.Success<IReadOnlyList<UserIdentityDto>>([identity]));
 
         ClaimsPrincipal user = new(
-            new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.ToString())], "test")
+            new ClaimsIdentity([new(ClaimTypes.NameIdentifier, userId.ToString())], "test")
         );
 
         IActionResult result = await Build(svc, user).GetMyIdentities(default);
@@ -87,7 +85,7 @@ public sealed class AuthControllerIdentitiesTests
     {
         AuthController controller = Build(
             Substitute.For<IUserIdentityService>(),
-            new ClaimsPrincipal(new ClaimsIdentity())
+            new(new ClaimsIdentity())
         );
 
         IActionResult result = await controller.GetMyIdentities(default);
@@ -172,5 +170,5 @@ public sealed class AuthControllerIdentitiesTests
     }
 
     private static ClaimsPrincipal Principal(Guid userId) =>
-        new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.ToString())], "test"));
+        new(new ClaimsIdentity([new(ClaimTypes.NameIdentifier, userId.ToString())], "test"));
 }

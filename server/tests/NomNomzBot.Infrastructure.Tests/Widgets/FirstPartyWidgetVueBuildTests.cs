@@ -40,7 +40,7 @@ public sealed class FirstPartyWidgetVueBuildTests : IClassFixture<VueSfcCompiler
         string resourceName = $"NomNomzBot.Infrastructure.Content.Widgets.Assets.{key}.vue";
         using System.IO.Stream? stream = assembly.GetManifestResourceStream(resourceName);
         stream.Should().NotBeNull($"the embedded asset '{resourceName}' should exist");
-        using System.IO.StreamReader reader = new(stream!);
+        using StreamReader reader = new(stream!);
         return reader.ReadToEnd();
     }
 

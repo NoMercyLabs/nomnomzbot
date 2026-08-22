@@ -333,7 +333,7 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
 
         string? plaintext = await _tokenProtector.TryUnprotectAsync(
             token.CipherText,
-            new TokenProtectionContext(
+            new(
                 SubjectId(connection.BroadcasterId),
                 connection.Provider,
                 tokenType
@@ -365,7 +365,7 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
     {
         string sealedEnvelope = await _tokenProtector.ProtectAsync(
             plaintext,
-            new TokenProtectionContext(
+            new(
                 SubjectId(connection.BroadcasterId),
                 connection.Provider,
                 tokenType

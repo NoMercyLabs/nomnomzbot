@@ -58,7 +58,7 @@ public sealed class CurrencyConfigService(
                 "Starting balance cannot be negative.",
                 "VALIDATION_FAILED"
             );
-        if (request.MaxBalance is long max && max < request.StartingBalance)
+        if (request.MaxBalance is { } max && max < request.StartingBalance)
             return Result.Failure<CurrencyConfigDto>(
                 "Max balance must be at least the starting balance.",
                 "VALIDATION_FAILED"
@@ -71,7 +71,7 @@ public sealed class CurrencyConfigService(
         bool isNew = config is null;
         if (config is null)
         {
-            config = new CurrencyConfig { BroadcasterId = broadcasterId };
+            config = new() { BroadcasterId = broadcasterId };
             db.CurrencyConfigs.Add(config);
         }
         config.CurrencyName = request.CurrencyName;
@@ -132,7 +132,7 @@ public sealed class CurrencyConfigService(
         bool isNew = rule is null;
         if (rule is null)
         {
-            rule = new EarningRule
+            rule = new()
             {
                 BroadcasterId = broadcasterId,
                 Source = source,

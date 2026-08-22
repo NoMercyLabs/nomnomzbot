@@ -19,7 +19,6 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity.Login;
 using NSubstitute;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -151,7 +150,7 @@ public sealed class KickLoginProviderTests
             )
             .Returns(Result.Success());
 
-        return new KickLoginProvider(
+        return new(
             new SingleClientFactory(handler),
             credentials,
             vault,
@@ -182,7 +181,7 @@ public sealed class KickLoginProviderTests
                 _lastAuthorization[endpoint] = string.Join(' ', values);
 
             (HttpStatusCode status, string body) = _responses[endpoint];
-            return new HttpResponseMessage(status)
+            return new(status)
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json"),
             };

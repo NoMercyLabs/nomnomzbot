@@ -53,7 +53,7 @@ public sealed class HubUserEnrichmentStoreTests
         await db.SaveChangesAsync();
 
         db.Users.Add(
-            new User
+            new()
             {
                 Id = userId,
                 TwitchUserId = "u1",
@@ -66,7 +66,7 @@ public sealed class HubUserEnrichmentStoreTests
             }
         );
         db.ChannelCommunityStandings.Add(
-            new ChannelCommunityStanding
+            new()
             {
                 BroadcasterId = broadcasterId,
                 UserId = userId,
@@ -95,7 +95,7 @@ public sealed class HubUserEnrichmentStoreTests
         HubUserEnrichmentTestDbContext db = HubUserEnrichmentTestDbContext.New();
         Guid userId = Guid.CreateVersion7();
         db.Users.Add(
-            new User
+            new()
             {
                 Id = userId,
                 TwitchUserId = "u2",

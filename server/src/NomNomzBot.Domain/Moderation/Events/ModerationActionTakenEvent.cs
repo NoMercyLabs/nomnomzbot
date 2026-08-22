@@ -10,7 +10,7 @@
 
 namespace NomNomzBot.Domain.Moderation.Events;
 
-using NomNomzBot.Domain.Platform;
+using Platform;
 
 public sealed class ModerationActionTakenEvent : DomainEventBase
 {

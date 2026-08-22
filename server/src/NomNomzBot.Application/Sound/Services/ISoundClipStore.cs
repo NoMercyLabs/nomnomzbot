@@ -23,13 +23,13 @@ public interface ISoundClipStore
     Task<Result<string>> PutAsync(
         Guid broadcasterId,
         string fileName,
-        System.IO.Stream content,
+        Stream content,
         string mimeType,
         CancellationToken ct = default
     );
 
     /// <summary>Opens the clip stream for reading (e.g. to serve a direct download).</summary>
-    Task<Result<System.IO.Stream>> OpenAsync(string storageKey, CancellationToken ct = default);
+    Task<Result<Stream>> OpenAsync(string storageKey, CancellationToken ct = default);
 
     /// <summary>Permanently removes the blob. Call only after the DB row is soft-deleted.</summary>
     Task<Result> DeleteAsync(string storageKey, CancellationToken ct = default);

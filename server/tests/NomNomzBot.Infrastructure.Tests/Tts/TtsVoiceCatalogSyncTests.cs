@@ -14,7 +14,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Tts.Interfaces;
 using NomNomzBot.Infrastructure.Tts;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Tts;
 
@@ -149,7 +148,7 @@ public sealed class TtsVoiceCatalogSyncTests
         TtsTestDbContext db = TtsTestDbContext.New();
         // A pre-existing (seeded) Edge voice marked default.
         db.TtsVoices.Add(
-            new TtsVoice
+            new()
             {
                 Id = "en-US-AriaNeural",
                 Name = "AriaNeural",
@@ -184,7 +183,7 @@ public sealed class TtsVoiceCatalogSyncTests
     {
         TtsTestDbContext db = TtsTestDbContext.New();
         db.TtsVoices.Add(
-            new TtsVoice
+            new()
             {
                 Id = "en-US-AriaNeural",
                 Name = "AriaNeural",

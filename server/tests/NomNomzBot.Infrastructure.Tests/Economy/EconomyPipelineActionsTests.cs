@@ -208,7 +208,7 @@ public sealed class EconomyPipelineActionsTests
             .ListGamesAsync(Channel, Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<IReadOnlyList<GameConfigDto>>([
-                    new GameConfigDto(
+                    new(
                         gameId,
                         "coinflip",
                         "Gambling",

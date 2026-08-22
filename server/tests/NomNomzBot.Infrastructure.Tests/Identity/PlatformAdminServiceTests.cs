@@ -83,7 +83,7 @@ public sealed class PlatformAdminServiceTests
         Guid principalId = Guid.NewGuid();
         Guid roleId = Guid.NewGuid();
         db.IamPrincipals.Add(
-            new IamPrincipal
+            new()
             {
                 Id = principalId,
                 PrincipalType = IamPrincipalType.Employee,
@@ -92,12 +92,12 @@ public sealed class PlatformAdminServiceTests
                 IsActive = true,
             }
         );
-        db.IamRoles.Add(new IamRole { Id = roleId, Name = $"role-{roleId}" });
+        db.IamRoles.Add(new() { Id = roleId, Name = $"role-{roleId}" });
         foreach (string key in keys)
         {
             Guid permissionId = Guid.NewGuid();
             db.IamPermissions.Add(
-                new IamPermission
+                new()
                 {
                     Id = permissionId,
                     Key = key,
@@ -105,11 +105,11 @@ public sealed class PlatformAdminServiceTests
                 }
             );
             db.IamRolePermissions.Add(
-                new IamRolePermission { RoleId = roleId, PermissionId = permissionId }
+                new() { RoleId = roleId, PermissionId = permissionId }
             );
         }
         db.IamRoleAssignments.Add(
-            new IamRoleAssignment
+            new()
             {
                 PrincipalId = principalId,
                 RoleId = roleId,
@@ -123,7 +123,7 @@ public sealed class PlatformAdminServiceTests
     {
         Guid userId = Guid.NewGuid();
         db.Users.Add(
-            new User
+            new()
             {
                 Id = userId,
                 Username = name,
@@ -141,7 +141,7 @@ public sealed class PlatformAdminServiceTests
         Guid principalId = Guid.NewGuid();
         Guid roleId = Guid.NewGuid();
         db.IamPrincipals.Add(
-            new IamPrincipal
+            new()
             {
                 Id = principalId,
                 PrincipalType = IamPrincipalType.Employee,
@@ -149,12 +149,12 @@ public sealed class PlatformAdminServiceTests
                 IsActive = true,
             }
         );
-        db.IamRoles.Add(new IamRole { Id = roleId, Name = $"role-{roleId}" });
+        db.IamRoles.Add(new() { Id = roleId, Name = $"role-{roleId}" });
         foreach (string key in permissionKeys)
         {
             Guid permissionId = Guid.NewGuid();
             db.IamPermissions.Add(
-                new IamPermission
+                new()
                 {
                     Id = permissionId,
                     Key = key,
@@ -162,11 +162,11 @@ public sealed class PlatformAdminServiceTests
                 }
             );
             db.IamRolePermissions.Add(
-                new IamRolePermission { RoleId = roleId, PermissionId = permissionId }
+                new() { RoleId = roleId, PermissionId = permissionId }
             );
         }
         db.IamRoleAssignments.Add(
-            new IamRoleAssignment
+            new()
             {
                 PrincipalId = principalId,
                 RoleId = roleId,
@@ -181,7 +181,7 @@ public sealed class PlatformAdminServiceTests
         Guid ownerId = Guid.NewGuid();
         Guid channelId = Guid.NewGuid();
         db.Users.Add(
-            new User
+            new()
             {
                 Id = ownerId,
                 Username = name,
@@ -190,7 +190,7 @@ public sealed class PlatformAdminServiceTests
             }
         );
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = ownerId,
@@ -213,7 +213,7 @@ public sealed class PlatformAdminServiceTests
         Result result = await sut.SuspendTenantAsync(
             principal,
             tenant,
-            new SuspendTenantRequest("suspended", "ToS violation")
+            new("suspended", "ToS violation")
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -249,7 +249,7 @@ public sealed class PlatformAdminServiceTests
             await sut.SuspendTenantAsync(
                 unpermitted,
                 tenant,
-                new SuspendTenantRequest("active", "nope")
+                new("active", "nope")
             )
         )
             .ErrorCode.Should()
@@ -258,7 +258,7 @@ public sealed class PlatformAdminServiceTests
         Result denied = await sut.SuspendTenantAsync(
             unpermitted,
             tenant,
-            new SuspendTenantRequest("suspended", "nope")
+            new("suspended", "nope")
         );
         denied.ErrorCode.Should().Be("FORBIDDEN");
         (await db.Channels.SingleAsync(c => c.Id == tenant)).Status.Should().Be("active");
@@ -278,7 +278,7 @@ public sealed class PlatformAdminServiceTests
         await sut.SuspendTenantAsync(
             principal,
             tenant,
-            new SuspendTenantRequest("platform_banned", "spam")
+            new("platform_banned", "spam")
         );
 
         Result result = await sut.ReinstateTenantAsync(principal, tenant, "appeal accepted");
@@ -297,14 +297,14 @@ public sealed class PlatformAdminServiceTests
         (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus) = Build();
         Guid principal = SeedPrincipal(db, "tenant:access");
         Guid tenant = SeedTenant(db);
-        db.IamRoles.Add(new IamRole { Id = Guid.NewGuid(), Name = "platform-support" });
+        db.IamRoles.Add(new() { Id = Guid.NewGuid(), Name = "platform-support" });
         await db.SaveChangesAsync();
         DateTime expires = Now.UtcDateTime.AddHours(4);
 
         Result<TenantAccessGrantDto> result = await sut.BeginTenantAccessAsync(
             principal,
             tenant,
-            new BeginTenantAccessRequest("support ticket 99", BreakGlass: false, expires)
+            new("support ticket 99", BreakGlass: false, expires)
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -337,7 +337,7 @@ public sealed class PlatformAdminServiceTests
         Result<TenantAccessGrantDto> result = await sut.BeginTenantAccessAsync(
             principal,
             tenant,
-            new BeginTenantAccessRequest("  ", BreakGlass: false, null)
+            new("  ", BreakGlass: false, null)
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -350,12 +350,12 @@ public sealed class PlatformAdminServiceTests
         Guid principal = SeedPrincipal(db, "tenant:access");
         Guid other = SeedPrincipal(db, "tenant:access");
         Guid tenant = SeedTenant(db);
-        db.IamRoles.Add(new IamRole { Id = Guid.NewGuid(), Name = "platform-support" });
+        db.IamRoles.Add(new() { Id = Guid.NewGuid(), Name = "platform-support" });
         await db.SaveChangesAsync();
         Result<TenantAccessGrantDto> grant = await sut.BeginTenantAccessAsync(
             principal,
             tenant,
-            new BeginTenantAccessRequest("ticket", BreakGlass: false, null)
+            new("ticket", BreakGlass: false, null)
         );
 
         // Someone else cannot end my grant.
@@ -388,12 +388,12 @@ public sealed class PlatformAdminServiceTests
         await sut.SuspendTenantAsync(
             principal,
             banned,
-            new SuspendTenantRequest("platform_banned", "spam")
+            new("platform_banned", "spam")
         );
 
         Result<PagedList<AdminTenantDto>> suspendedOnly = await sut.ListTenantsAsync(
             principal,
-            new AdminTenantQuery(null, "platform_banned", null),
+            new(null, "platform_banned", null),
             Page
         );
         suspendedOnly.Value.Items.Should().ContainSingle();
@@ -414,11 +414,11 @@ public sealed class PlatformAdminServiceTests
         Guid tenant = SeedTenant(db);
         await db.SaveChangesAsync();
         // Produce real audit rows through the real path.
-        await sut.SuspendTenantAsync(principal, tenant, new SuspendTenantRequest("suspended", "x"));
+        await sut.SuspendTenantAsync(principal, tenant, new("suspended", "x"));
 
         Result<PagedList<IamAuditEntryDto>> result = await sut.SearchAuditAsync(
             principal,
-            new AuditSearchQuery(null, tenant, "tenant:suspend", null, null, null),
+            new(null, tenant, "tenant:suspend", null, null, null),
             Page
         );
 

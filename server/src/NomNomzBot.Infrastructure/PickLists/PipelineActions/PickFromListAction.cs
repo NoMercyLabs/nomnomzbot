@@ -50,7 +50,7 @@ public sealed class PickFromListAction : ICommandAction
             );
 
         string variable =
-            action.GetString("variable") is string v && !string.IsNullOrWhiteSpace(v)
+            action.GetString("variable") is { } v && !string.IsNullOrWhiteSpace(v)
                 ? v.Trim()
                 : "pick";
 

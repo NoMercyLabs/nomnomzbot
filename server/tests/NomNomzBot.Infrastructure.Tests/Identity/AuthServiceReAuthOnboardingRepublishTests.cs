@@ -20,10 +20,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Enums.Deployment;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.Identity;
-using NomNomzBot.Infrastructure.Platform.Deployment;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
@@ -50,7 +48,7 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
         Guid channelId = Guid.Parse("0192a000-0000-7000-8000-00000000e002");
 
         db.Users.Add(
-            new User
+            new()
             {
                 Id = ownerId,
                 TwitchUserId = TwitchUserId,
@@ -60,7 +58,7 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
             }
         );
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = ownerId,
@@ -175,11 +173,11 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
         httpClientFactory
             .CreateClient(Arg.Any<string>())
-            .Returns(_ => new HttpClient(new FakeTwitchHelixHandler()));
+            .Returns(_ => new(new FakeTwitchHelixHandler()));
 
         IConfiguration config = new ConfigurationBuilder().Build();
 
-        return new AuthService(
+        return new(
             db,
             twitchAuth,
             Substitute.For<ITwitchDeviceCodeService>(),
@@ -189,9 +187,9 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
             credentials,
             httpClientFactory,
             config,
-            new DeploymentContext(DeploymentMode.SelfHostFull),
+            new(DeploymentMode.SelfHostFull),
             TimeProvider.System,
-            new TwitchScopeRegistry(),
+            new(),
             NullLogger<AuthService>.Instance
         );
     }

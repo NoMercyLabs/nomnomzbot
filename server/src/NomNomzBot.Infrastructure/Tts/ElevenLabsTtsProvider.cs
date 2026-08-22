@@ -137,7 +137,7 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
         string? useCase =
             labels.GetValueOrDefault("use_case") ?? labels.GetValueOrDefault("use case");
 
-        return new TtsVoiceInfo
+        return new()
         {
             Id = v.VoiceId,
             Name = v.Name,

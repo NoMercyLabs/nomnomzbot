@@ -74,7 +74,7 @@ public sealed class TwitchModerationApi(
             TwitchHelixAuth.User,
             broadcasterId,
             Query: [new("broadcaster_id", channel.Value), new("moderator_id", channel.Value)],
-            Body: new BanUserBody(new BanUserData(targetTwitchUserId, durationSeconds, reason)),
+            Body: new BanUserBody(new(targetTwitchUserId, durationSeconds, reason)),
             Priority: TwitchCallPriority.UserInteractive
         );
 
@@ -109,7 +109,7 @@ public sealed class TwitchModerationApi(
                 new("broadcaster_id", broadcasterTwitchId),
                 new("moderator_id", operatorTwitchId),
             ],
-            Body: new BanUserBody(new BanUserData(targetTwitchUserId, null, reason)),
+            Body: new BanUserBody(new(targetTwitchUserId, null, reason)),
             Priority: TwitchCallPriority.UserInteractive,
             OperatorUserId: operatorUserId
         );
@@ -145,7 +145,7 @@ public sealed class TwitchModerationApi(
                 new("broadcaster_id", broadcasterTwitchId),
                 new("moderator_id", operatorTwitchId),
             ],
-            Body: new BanUserBody(new BanUserData(targetTwitchUserId, durationSeconds, reason)),
+            Body: new BanUserBody(new(targetTwitchUserId, durationSeconds, reason)),
             Priority: TwitchCallPriority.UserInteractive,
             OperatorUserId: operatorUserId
         );
@@ -879,7 +879,7 @@ public sealed class TwitchModerationApi(
             TwitchHelixAuth.User,
             broadcasterId,
             Query: [new("broadcaster_id", channel.Value), new("moderator_id", channel.Value)],
-            Body: new WarnUserBody(new WarnUserData(targetTwitchUserId, reason)),
+            Body: new WarnUserBody(new(targetTwitchUserId, reason)),
             Priority: TwitchCallPriority.UserInteractive
         );
 
@@ -914,7 +914,7 @@ public sealed class TwitchModerationApi(
                 new("broadcaster_id", broadcasterTwitchId),
                 new("moderator_id", operatorTwitchId),
             ],
-            Body: new WarnUserBody(new WarnUserData(targetTwitchUserId, reason)),
+            Body: new WarnUserBody(new(targetTwitchUserId, reason)),
             Priority: TwitchCallPriority.UserInteractive,
             OperatorUserId: operatorUserId
         );
@@ -1086,7 +1086,7 @@ public sealed class TwitchModerationApi(
 
         List<CheckAutoModData> data = [];
         foreach ((string msgId, string msgText) in messages)
-            data.Add(new CheckAutoModData(msgId, msgText));
+            data.Add(new(msgId, msgText));
 
         TwitchHelixRequest request = new(
             HttpMethod.Post,

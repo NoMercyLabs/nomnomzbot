@@ -47,7 +47,7 @@ public sealed class LegacySqliteChannelEventSource : ILegacyChannelEventSource
         await using SqliteDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            yield return new LegacyChannelEventRow(
+            yield return new(
                 Id: reader.GetString(0),
                 ChannelId: reader.IsDBNull(1) ? null : reader.GetString(1),
                 UserId: reader.IsDBNull(2) ? null : reader.GetString(2),

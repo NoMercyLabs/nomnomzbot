@@ -15,7 +15,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Tts.Interfaces;
 using NomNomzBot.Infrastructure.Tts;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Tts;
 
@@ -142,7 +141,7 @@ public sealed class EdgeTtsProviderVoiceCatalogTests
     [Fact]
     public async Task GetVoicesAsync_ReturnsTheLiveList_FetchedFromTheReadAloudEndpoint()
     {
-        StubHandler handler = new(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        StubHandler handler = new(_ => new(HttpStatusCode.OK)
         {
             Content = new StringContent(SamplePayload),
         });
@@ -186,7 +185,7 @@ public sealed class EdgeTtsProviderVoiceCatalogTests
     [Fact]
     public async Task GetVoicesAsync_MalformedPayload_ReturnsTheCuratedFallback()
     {
-        StubHandler handler = new(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        StubHandler handler = new(_ => new(HttpStatusCode.OK)
         {
             Content = new StringContent("<html>maintenance</html>"),
         });
@@ -199,7 +198,7 @@ public sealed class EdgeTtsProviderVoiceCatalogTests
     [Fact]
     public async Task GetVoicesAsync_ErrorStatus_ReturnsTheCuratedFallback()
     {
-        StubHandler handler = new(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        StubHandler handler = new(_ => new(HttpStatusCode.ServiceUnavailable));
 
         IReadOnlyList<TtsVoiceInfo> voices = await Build(handler).GetVoicesAsync();
 
@@ -212,7 +211,7 @@ public sealed class EdgeTtsProviderVoiceCatalogTests
         TtsTestDbContext db = TtsTestDbContext.New();
         // Another provider's voice already in the catalogue, plus a seeded Edge default the fetch refreshes.
         db.TtsVoices.Add(
-            new TtsVoice
+            new()
             {
                 Id = "el-rachel",
                 Name = "Rachel",
@@ -223,7 +222,7 @@ public sealed class EdgeTtsProviderVoiceCatalogTests
             }
         );
         db.TtsVoices.Add(
-            new TtsVoice
+            new()
             {
                 Id = "en-US-AnaNeural",
                 Name = "Ana",
@@ -236,7 +235,7 @@ public sealed class EdgeTtsProviderVoiceCatalogTests
         );
         await db.SaveChangesAsync();
 
-        StubHandler handler = new(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        StubHandler handler = new(_ => new(HttpStatusCode.OK)
         {
             Content = new StringContent(SamplePayload),
         });

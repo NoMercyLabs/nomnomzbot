@@ -11,7 +11,6 @@
 using FluentAssertions;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Auth;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.CustomCode.Entities;
@@ -55,7 +54,7 @@ public sealed class ScriptTestRunServiceTests
             Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>(),
             Substitute.For<NomNomzBot.Application.Economy.Services.ICurrencyAccountService>(),
             Substitute.For<NomNomzBot.Application.Music.Services.IMusicService>(),
-            Substitute.For<System.Net.Http.IHttpClientFactory>(),
+            Substitute.For<IHttpClientFactory>(),
             storage,
             Substitute.For<NomNomzBot.Application.Contracts.Tts.ITtsDispatchService>(),
             Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetService>(),
@@ -68,7 +67,7 @@ public sealed class ScriptTestRunServiceTests
         );
 
         return (
-            new ScriptTestRunService(db, tenant, new JintScriptExecutor(), broker, bridgeFactory),
+            new(db, tenant, new JintScriptExecutor(), broker, bridgeFactory),
             db,
             storage
         );

@@ -28,13 +28,13 @@ public sealed class ChatBadgeCacheWarmerTests
     private static readonly Guid Broadcaster = Guid.Parse("0197b2c0-0000-7000-8000-0000000000bb");
 
     private static TwitchChatBadgeSet Set(string setId) =>
-        new(setId, [new TwitchChatBadgeVersion("0", "u1", "u2", "u4", "T", "D", "", "")]);
+        new(setId, [new("0", "u1", "u2", "u4", "T", "D", "", "")]);
 
     private static ChatBadgeCacheWarmer Warmer(ICacheService cache, ITwitchChatAssetsApi assets)
     {
         ITwitchHelixClient helix = Substitute.For<ITwitchHelixClient>();
         helix.ChatAssets.Returns(assets);
-        return new ChatBadgeCacheWarmer(helix, cache, NullLogger<ChatBadgeCacheWarmer>.Instance);
+        return new(helix, cache, NullLogger<ChatBadgeCacheWarmer>.Instance);
     }
 
     [Fact]

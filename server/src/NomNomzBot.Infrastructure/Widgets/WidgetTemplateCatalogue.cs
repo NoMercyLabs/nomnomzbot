@@ -136,21 +136,21 @@ public static class WidgetTemplateCatalogue
 
     public static readonly IReadOnlyList<WidgetTemplate> All =
     [
-        new WidgetTemplate(
+        new(
             "blank",
             "Blank widget",
             "A minimal starting point that greets your newest follower — the place to build anything from.",
             "vanilla",
             Blank
         ),
-        new WidgetTemplate(
+        new(
             "alerts",
             "Alert box",
             "A centered, animated alert card for follows, subs, resubs, gifts, cheers, and raids.",
             "vanilla",
             Alerts
         ),
-        new WidgetTemplate(
+        new(
             "label",
             "Stat label",
             "A small corner label — shows your latest follower out of the box; retarget it to any stat.",

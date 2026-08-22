@@ -179,7 +179,7 @@ public class AutomationApiTokenService : IAutomationApiTokenService
                 "This token has been revoked.",
                 "TOKEN_REVOKED"
             );
-        if (token.ExpiresAt is DateTime expiresAt && expiresAt <= _clock.GetUtcNow().UtcDateTime)
+        if (token.ExpiresAt is { } expiresAt && expiresAt <= _clock.GetUtcNow().UtcDateTime)
             return Result.Failure<IssuedAutomationTokenDto>(
                 "This token has expired — pair the device again.",
                 "TOKEN_EXPIRED"

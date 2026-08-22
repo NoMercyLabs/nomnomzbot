@@ -54,7 +54,7 @@ public sealed class VtsConnectionServiceTests
                     ? envelope["sealed(".Length..^1]
                     : null;
             });
-        return (new VtsConnectionService(db, protector), db);
+        return (new(db, protector), db);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public sealed class VtsConnectionServiceTests
 
         Result<VtsConnectionDto> upserted = await sut.UpsertAsync(
             Channel,
-            new UpsertVtsConnectionRequest
+            new()
             {
                 Mode = "direct",
                 Endpoint = "ws://192.168.2.50:8001",
@@ -119,7 +119,7 @@ public sealed class VtsConnectionServiceTests
         (VtsConnectionService sut, VtsTestDbContext db) = Build();
         await sut.UpsertAsync(
             Channel,
-            new UpsertVtsConnectionRequest { Mode = "bridge", IsEnabled = true }
+            new() { Mode = "bridge", IsEnabled = true }
         );
 
         Result<VtsConnectionDto> first = await sut.RotateBridgeTokenAsync(Channel);

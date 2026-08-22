@@ -255,7 +255,7 @@ public class CommunityController : BaseController
             Result<TwitchPage<TwitchChannelFollower>> followerPage =
                 await _channels.GetChannelFollowersAsync(
                     broadcasterId,
-                    new TwitchPageRequest(After: cursor, PageSize: request.Take),
+                    new(After: cursor, PageSize: request.Take),
                     ct
                 );
             IReadOnlyList<TwitchChannelFollower> followers = followerPage.IsSuccess
@@ -333,7 +333,7 @@ public class CommunityController : BaseController
         {
             Result<TwitchPage<TwitchVip>> vipPage = await _moderators.GetVipsAsync(
                 broadcasterId,
-                new TwitchPageRequest(),
+                new(),
                 ct
             );
             IReadOnlyList<TwitchVip> vips = vipPage.IsSuccess ? vipPage.Value.Items : [];
@@ -560,7 +560,7 @@ public class CommunityController : BaseController
 
         Result<TwitchPage<TwitchVip>> vipResult = await _moderators.GetVipsAsync(
             broadcasterId,
-            new TwitchPageRequest(),
+            new(),
             ct
         );
         int vipCount = vipResult.IsSuccess ? vipResult.Value.Items.Count : 0;
@@ -575,7 +575,7 @@ public class CommunityController : BaseController
         return Ok(
             new StatusResponseDto<CommunityStatsDto>
             {
-                Data = new CommunityStatsDto(followers, subscribers, vipCount, moderatorCount),
+                Data = new(followers, subscribers, vipCount, moderatorCount),
             }
         );
     }
@@ -737,7 +737,7 @@ public class CommunityController : BaseController
             if (entry is not null)
             {
                 banHistory.Add(
-                    new BanRecordDto(
+                    new(
                         $"ban:{userId}",
                         entry.BannedBy,
                         entry.Reason,
@@ -748,7 +748,7 @@ public class CommunityController : BaseController
             }
         }
 
-        UserDetailDto detail = new UserDetailDto(
+        UserDetailDto detail = new(
             user.TwitchUserId!,
             user.Id,
             user.Username,
@@ -791,7 +791,7 @@ public class CommunityController : BaseController
         if (config is null)
         {
             _db.Configurations.Add(
-                new ConfigEntity
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     Key = $"trust:{userId}",
@@ -839,7 +839,7 @@ public class CommunityController : BaseController
 
         User? user = await _db.Users.FirstOrDefaultAsync(u => u.TwitchUserId == userId, ct);
 
-        BanEntry entry = new BanEntry(
+        BanEntry entry = new(
             userId,
             user?.Username ?? "",
             user?.DisplayName ?? "",
@@ -859,7 +859,7 @@ public class CommunityController : BaseController
         if (existing is null)
         {
             _db.Configurations.Add(
-                new ConfigEntity
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     Key = $"ban:{userId}",
@@ -960,13 +960,12 @@ public class CommunityController : BaseController
         if (!Guid.TryParse(_currentUser.UserId, out Guid callerId))
             return UnauthorizedResponse("Invalid user id.");
 
-        NomNomzBot.Domain.Identity.Enums.CommunityStanding standing = NomNomzBot
-            .Domain
+        Domain.Identity.Enums.CommunityStanding standing = Domain
             .Identity
             .Enums
             .CommunityStanding
             .Everyone;
-        Result<NomNomzBot.Domain.Identity.Enums.CommunityStanding> standingResult =
+        Result<Domain.Identity.Enums.CommunityStanding> standingResult =
             await _communityStanding.GetStandingAsync(broadcasterId, callerId, ct);
         if (standingResult.IsSuccess)
             standing = standingResult.Value;
@@ -974,7 +973,7 @@ public class CommunityController : BaseController
         return Ok(
             new StatusResponseDto<SelfStandingDto>
             {
-                Data = new SelfStandingDto(standing.ToString(), (int)standing),
+                Data = new(standing.ToString(), (int)standing),
             }
         );
     }

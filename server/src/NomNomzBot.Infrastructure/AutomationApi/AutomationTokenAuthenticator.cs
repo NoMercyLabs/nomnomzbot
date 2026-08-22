@@ -57,7 +57,7 @@ public class AutomationTokenAuthenticator : IAutomationTokenAuthenticator
         DateTime now = _clock.GetUtcNow().UtcDateTime;
         if (token.RevokedAt is not null)
             return Unauthorized();
-        if (token.ExpiresAt is DateTime expiry && expiry <= now)
+        if (token.ExpiresAt is { } expiry && expiry <= now)
             return Unauthorized();
 
         if (token.LastUsedAt is null || now - token.LastUsedAt >= LastUsedWriteInterval)

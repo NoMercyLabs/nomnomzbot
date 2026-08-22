@@ -358,7 +358,7 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.KeyUsageBinding> KeyUsageBindings =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey> EventSubjectKeys =>
+    public DbSet<EventSubjectKey> EventSubjectKeys =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection> DiscordGuildConnections =>
         throw new NotSupportedException();
@@ -376,8 +376,8 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Vts.Entities.VtsConnection>();
     public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
         Set<NomNomzBot.Domain.Obs.Entities.ObsConnection>();
-    public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
-        Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
+    public DbSet<Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
+        Set<Domain.Automation.Entities.AutomationApiToken>();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsConfig> TtsConfigs =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsVoice> TtsVoices =>
@@ -493,7 +493,7 @@ internal sealed class SqliteTestDatabase : IDisposable
     {
         DbContextOptions<EventStoreTestDbContext> options =
             new DbContextOptionsBuilder<EventStoreTestDbContext>().UseSqlite(_connection).Options;
-        return new EventStoreTestDbContext(options);
+        return new(options);
     }
 
     public void Dispose() => _connection.Dispose();

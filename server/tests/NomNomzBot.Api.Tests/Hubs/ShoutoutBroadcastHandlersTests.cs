@@ -11,7 +11,6 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -35,7 +34,7 @@ public sealed class ShoutoutBroadcastHandlersTests
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
-            new ShoutoutSentEvent
+            new()
             {
                 BroadcasterId = channel,
                 ToUserId = "target-1",
@@ -80,7 +79,7 @@ public sealed class ShoutoutBroadcastHandlersTests
         ShoutoutSentBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new ShoutoutSentEvent
+            new()
             {
                 BroadcasterId = channel,
                 ToUserId = "target-1",
@@ -121,7 +120,7 @@ public sealed class ShoutoutBroadcastHandlersTests
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
-            new ShoutoutReceivedEvent
+            new()
             {
                 BroadcasterId = channel,
                 FromBroadcasterId = "source-1",
@@ -164,7 +163,7 @@ public sealed class ShoutoutBroadcastHandlersTests
         ShoutoutReceivedBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
         await handler.HandleAsync(
-            new ShoutoutReceivedEvent
+            new()
             {
                 BroadcasterId = channel,
                 FromBroadcasterId = "source-1",
@@ -216,7 +215,7 @@ public sealed class ShoutoutBroadcastHandlersTests
         ShoutoutReceivedBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
         await handler.HandleAsync(
-            new ShoutoutReceivedEvent
+            new()
             {
                 BroadcasterId = channel,
                 FromBroadcasterId = "source-1",
@@ -258,7 +257,7 @@ public sealed class ShoutoutBroadcastHandlersTests
         ShoutoutSentBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new ShoutoutSentEvent
+            new()
             {
                 BroadcasterId = Guid.Empty,
                 ToUserId = "target-1",

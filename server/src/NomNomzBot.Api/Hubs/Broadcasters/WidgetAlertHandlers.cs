@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
-using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -48,7 +47,7 @@ internal static class WidgetAlertDispatch
             await notifier.SendWidgetEventAsync(
                 broadcasterId.ToString(),
                 widget.Id.ToString(),
-                new WidgetEventDto(widget.Id.ToString(), eventType, data),
+                new(widget.Id.ToString(), eventType, data),
                 cancellationToken
             );
     }

@@ -49,7 +49,7 @@ public sealed class JintScriptExecutorTests
             "exec-1",
             js,
             "hash",
-            new ScriptInputs("u1", "User", args, new Dictionary<string, string>()),
+            new("u1", "User", args, new Dictionary<string, string>()),
             Generous
         );
 

@@ -14,7 +14,6 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
-using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Enums;
@@ -59,7 +58,7 @@ public sealed class PlatformBotReadinessGateTests
             Substitute.For<ITwitchAppTokenProvider>(),
             new RecordingEventBus()
         );
-        return (new PlatformBotReadinessGate(resolver), vault);
+        return (new(resolver), vault);
     }
 
     [Fact]
@@ -139,7 +138,7 @@ public sealed class PlatformBotReadinessGateTests
     {
         Guid connectionId = (
             await vault.UpsertConnectionAsync(
-                new UpsertConnectionDto(
+                new(
                     broadcasterId,
                     provider,
                     accountId,
@@ -157,7 +156,7 @@ public sealed class PlatformBotReadinessGateTests
 
         await vault.StoreTokensAsync(
             connectionId,
-            new StoreTokensDto(accessToken, "refresh", AppToken: null, DateTime.UtcNow.AddHours(1)),
+            new(accessToken, "refresh", AppToken: null, DateTime.UtcNow.AddHours(1)),
             []
         );
     }

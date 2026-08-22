@@ -16,11 +16,9 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
-using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.Identity;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -48,7 +46,7 @@ public sealed class UserIdentityServiceTests
     }
 
     private static UserIdentityService NewService(IServiceScope scope) =>
-        NewService(scope, new RecordingEventBus());
+        NewService(scope, new());
 
     private static UserIdentityService NewService(IServiceScope scope, RecordingEventBus events) =>
         new(
@@ -165,7 +163,7 @@ public sealed class UserIdentityServiceTests
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         db.UserIdentities.Add(
-            new UserIdentity
+            new()
             {
                 UserId = userId,
                 Provider = "youtube",
@@ -225,7 +223,7 @@ public sealed class UserIdentityServiceTests
         Result<UserIdentityDto> result = await NewService(scope, events)
             .LinkAsync(
                 userId,
-                new ExternalIdentityProof(
+                new(
                     "Kick",
                     "k-1",
                     "kicker",
@@ -269,11 +267,11 @@ public sealed class UserIdentityServiceTests
 
         await svc.LinkAsync(
             userId,
-            new ExternalIdentityProof("kick", "k-1", "kicker", null, null, null)
+            new("kick", "k-1", "kicker", null, null, null)
         );
         Result<UserIdentityDto> second = await svc.LinkAsync(
             userId,
-            new ExternalIdentityProof("kick", "k-1", "kicker-renamed", null, null, null)
+            new("kick", "k-1", "kicker-renamed", null, null, null)
         );
 
         second.IsSuccess.Should().BeTrue();
@@ -296,7 +294,7 @@ public sealed class UserIdentityServiceTests
         Result<UserIdentityDto> result = await NewService(scope)
             .LinkAsync(
                 otherId,
-                new ExternalIdentityProof("kick", "k-1", "kicker", null, null, null)
+                new("kick", "k-1", "kicker", null, null, null)
             );
 
         result.IsFailure.Should().BeTrue();
@@ -318,12 +316,12 @@ public sealed class UserIdentityServiceTests
         UserIdentityService svc = NewService(scope);
         await svc.LinkAsync(
             userId,
-            new ExternalIdentityProof("kick", "k-1", "kicker", null, null, null)
+            new("kick", "k-1", "kicker", null, null, null)
         );
 
         Result<UserIdentityDto> result = await svc.LinkAsync(
             userId,
-            new ExternalIdentityProof("kick", "k-2", "other-kick", null, null, null)
+            new("kick", "k-2", "other-kick", null, null, null)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -346,7 +344,7 @@ public sealed class UserIdentityServiceTests
         UserIdentityService svc = NewService(scope);
         await svc.LinkAsync(
             userId,
-            new ExternalIdentityProof("kick", "k-1", "kicker", null, null, null)
+            new("kick", "k-1", "kicker", null, null, null)
         );
         Guid primaryId = (await db.UserIdentities.SingleAsync(i => i.IsPrimary)).Id;
 
@@ -405,7 +403,7 @@ public sealed class UserIdentityServiceTests
         UserIdentityService svc = NewService(scope, events);
         await svc.LinkAsync(
             userId,
-            new ExternalIdentityProof("kick", "k-1", "kicker", null, null, null)
+            new("kick", "k-1", "kicker", null, null, null)
         );
         Guid kickId = (await db.UserIdentities.SingleAsync(i => i.Provider == "kick")).Id;
 
@@ -454,7 +452,7 @@ public sealed class UserIdentityServiceTests
         UserIdentityService svc = NewService(scope, events);
         await svc.LinkAsync(
             userId,
-            new ExternalIdentityProof("kick", "k-1", "kicker", null, null, null)
+            new("kick", "k-1", "kicker", null, null, null)
         );
         Guid kickId = (await db.UserIdentities.SingleAsync(i => i.Provider == "kick")).Id;
 
@@ -507,7 +505,7 @@ public sealed class UserIdentityServiceTests
         Guid survivor = await SeedUserWithPrimaryAsync(db, "twitch", "100");
         Guid absorbed = await SeedUserWithPrimaryAsync(db, "kick", "k-1");
         db.UserIdentities.Add(
-            new UserIdentity
+            new()
             {
                 UserId = absorbed,
                 Provider = "youtube",
@@ -608,7 +606,7 @@ public sealed class UserIdentityServiceTests
         };
         db.Users.Add(user);
         db.UserIdentities.Add(
-            new UserIdentity
+            new()
             {
                 UserId = user.Id,
                 Provider = provider,

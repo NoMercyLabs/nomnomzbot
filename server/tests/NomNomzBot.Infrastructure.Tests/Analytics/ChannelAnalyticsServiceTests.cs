@@ -31,13 +31,13 @@ public sealed class ChannelAnalyticsServiceTests
     private static (ChannelAnalyticsService Sut, AuthDbContext Db) Build(TimeProvider? clock = null)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        return (new ChannelAnalyticsService(db, clock ?? TimeProvider.System), db);
+        return (new(db, clock ?? TimeProvider.System), db);
     }
 
     private static async Task SeedDailyAsync(AuthDbContext db, DateOnly date, long messages)
     {
         db.ChannelAnalyticsDailies.Add(
-            new ChannelAnalyticsDaily
+            new()
             {
                 BroadcasterId = Channel,
                 ActivityDate = date,
@@ -51,15 +51,15 @@ public sealed class ChannelAnalyticsServiceTests
     public async Task GetDailySeries_returns_the_in_range_rows_ordered()
     {
         (ChannelAnalyticsService sut, AuthDbContext db) = Build();
-        await SeedDailyAsync(db, new DateOnly(2026, 6, 22), 30);
-        await SeedDailyAsync(db, new DateOnly(2026, 6, 20), 10);
-        await SeedDailyAsync(db, new DateOnly(2026, 6, 21), 20);
+        await SeedDailyAsync(db, new(2026, 6, 22), 30);
+        await SeedDailyAsync(db, new(2026, 6, 20), 10);
+        await SeedDailyAsync(db, new(2026, 6, 21), 20);
 
         IReadOnlyList<ChannelAnalyticsDailyDto> series = (
             await sut.GetDailySeriesAsync(
                 Channel,
-                new DateOnly(2026, 6, 20),
-                new DateOnly(2026, 6, 22)
+                new(2026, 6, 20),
+                new(2026, 6, 22)
             )
         ).Value;
 
@@ -71,13 +71,13 @@ public sealed class ChannelAnalyticsServiceTests
     {
         (ChannelAnalyticsService sut, AuthDbContext db) = Build();
         // Current window 6/20–6/22 = 60; preceding equal window 6/17–6/19 = 10.
-        await SeedDailyAsync(db, new DateOnly(2026, 6, 20), 10);
-        await SeedDailyAsync(db, new DateOnly(2026, 6, 21), 20);
-        await SeedDailyAsync(db, new DateOnly(2026, 6, 22), 30);
-        await SeedDailyAsync(db, new DateOnly(2026, 6, 18), 10);
+        await SeedDailyAsync(db, new(2026, 6, 20), 10);
+        await SeedDailyAsync(db, new(2026, 6, 21), 20);
+        await SeedDailyAsync(db, new(2026, 6, 22), 30);
+        await SeedDailyAsync(db, new(2026, 6, 18), 10);
 
         ChannelAnalyticsSummaryDto summary = (
-            await sut.GetSummaryAsync(Channel, new DateOnly(2026, 6, 20), new DateOnly(2026, 6, 22))
+            await sut.GetSummaryAsync(Channel, new(2026, 6, 20), new(2026, 6, 22))
         ).Value;
 
         summary.TotalMessages.Should().Be(60);
@@ -93,19 +93,19 @@ public sealed class ChannelAnalyticsServiceTests
             {
                 BroadcasterId = Channel,
                 ViewerUserId = ViewerA,
-                ActivityDate = new DateOnly(2026, 6, 21),
+                ActivityDate = new(2026, 6, 21),
                 MessageCount = 50,
             },
             new ViewerEngagementDaily
             {
                 BroadcasterId = Channel,
                 ViewerUserId = ViewerB,
-                ActivityDate = new DateOnly(2026, 6, 21),
+                ActivityDate = new(2026, 6, 21),
                 MessageCount = 100,
             }
         );
         db.ViewerProfiles.Add(
-            new ViewerProfile
+            new()
             {
                 BroadcasterId = Channel,
                 ViewerUserId = ViewerB,
@@ -119,8 +119,8 @@ public sealed class ChannelAnalyticsServiceTests
             await sut.GetTopViewersAsync(
                 Channel,
                 TopViewerMetric.Messages,
-                new DateOnly(2026, 6, 20),
-                new DateOnly(2026, 6, 22),
+                new(2026, 6, 20),
+                new(2026, 6, 22),
                 10
             )
         ).Value;
@@ -137,8 +137,8 @@ public sealed class ChannelAnalyticsServiceTests
 
         Result<IReadOnlyList<ChannelAnalyticsDailyDto>> result = await sut.GetDailySeriesAsync(
             Channel,
-            new DateOnly(2026, 6, 22),
-            new DateOnly(2026, 6, 20)
+            new(2026, 6, 22),
+            new(2026, 6, 20)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -179,7 +179,7 @@ public sealed class ChannelAnalyticsServiceTests
         await db.SaveChangesAsync();
 
         PagedList<StreamListItemDto> page = (
-            await sut.ListStreamsAsync(Channel, new PaginationParams(1, 25, null, null))
+            await sut.ListStreamsAsync(Channel, new(1, 25, null, null))
         ).Value;
 
         page.TotalCount.Should().Be(3);
@@ -261,7 +261,7 @@ public sealed class ChannelAnalyticsServiceTests
     {
         (ChannelAnalyticsService sut, AuthDbContext db) = Build();
         db.Streams.Add(
-            new NomNomzBot.Domain.Stream.Entities.Stream
+            new()
             {
                 Id = "s-foreign",
                 ChannelId = Guid.NewGuid(),

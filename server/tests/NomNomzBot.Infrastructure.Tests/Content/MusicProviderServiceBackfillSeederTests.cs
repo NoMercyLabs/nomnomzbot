@@ -14,16 +14,13 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
-using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Content.Music;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Content;
 
@@ -80,7 +77,7 @@ public sealed class MusicProviderServiceBackfillSeederTests
             mirror,
             NullLogger<MusicProviderServiceBackfillSeeder>.Instance
         );
-        return new Harness(db, protector, vault, seeder);
+        return new(db, protector, vault, seeder);
     }
 
     /// <summary>Seeds the pre-mirror state: a connected Spotify connection whose tokens are vaulted but which has no Service row.</summary>
@@ -88,7 +85,7 @@ public sealed class MusicProviderServiceBackfillSeederTests
     {
         Guid connectionId = (
             await h.Vault.UpsertConnectionAsync(
-                new UpsertConnectionDto(
+                new(
                     Tenant,
                     Provider,
                     ProviderAccountId: "spotify-user-1",
@@ -106,7 +103,7 @@ public sealed class MusicProviderServiceBackfillSeederTests
 
         Result store = await h.Vault.StoreTokensAsync(
             connectionId,
-            new StoreTokensDto(AccessPlaintext, RefreshPlaintext, AppToken: null, Expiry)
+            new(AccessPlaintext, RefreshPlaintext, AppToken: null, Expiry)
         );
         store.IsSuccess.Should().BeTrue();
         return connectionId;
@@ -183,7 +180,7 @@ public sealed class MusicProviderServiceBackfillSeederTests
     private static Task<string?> Unseal(Harness h, string cipherText, string field) =>
         h.Protector.TryUnprotectAsync(
             cipherText,
-            new TokenProtectionContext(Tenant.ToString(), Provider, field)
+            new(Tenant.ToString(), Provider, field)
         );
 
     /// <summary>A fixed app-credentials resolver — the backfill needs the client id/secret the mirror seals for refresh.</summary>
@@ -194,7 +191,7 @@ public sealed class MusicProviderServiceBackfillSeederTests
             CancellationToken cancellationToken = default
         ) =>
             Task.FromResult<SystemAppCredentials?>(
-                new SystemAppCredentials(ClientId, ClientSecret)
+                new(ClientId, ClientSecret)
             );
 
         public Task<string?> GetClientIdAsync(

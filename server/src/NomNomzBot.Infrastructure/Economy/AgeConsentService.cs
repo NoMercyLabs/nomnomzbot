@@ -69,7 +69,7 @@ public sealed class AgeConsentService(
             return Result.Success(false); // fail-closed
 
         if (
-            user.AccountCreatedAt is DateTime created
+            user.AccountCreatedAt is { } created
             && (clock.GetUtcNow().UtcDateTime - created).TotalDays >= Age18AccountYears * 365.25
         )
         {
@@ -107,7 +107,7 @@ public sealed class AgeConsentService(
         );
         if (cache is null)
         {
-            cache = new ViewerAgeConsent
+            cache = new()
             {
                 BroadcasterId = broadcasterId,
                 ViewerUserId = request.ViewerUserId,
@@ -202,7 +202,7 @@ public sealed class AgeConsentService(
             );
         if (record is null)
         {
-            record = new ConsentRecord
+            record = new()
             {
                 BroadcasterId = broadcasterId,
                 SubjectUserId = request.ViewerUserId,
@@ -242,7 +242,7 @@ public sealed class AgeConsentService(
         if (cache is null)
         {
             db.ViewerAgeConsents.Add(
-                new ViewerAgeConsent
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     ViewerUserId = user.Id,

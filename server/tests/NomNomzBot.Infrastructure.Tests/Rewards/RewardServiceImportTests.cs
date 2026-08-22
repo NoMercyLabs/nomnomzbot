@@ -14,7 +14,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Rewards.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -38,7 +37,7 @@ public sealed class RewardServiceImportTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Channel,
                 OwnerUserId = Guid.Parse("0192a000-0000-7000-8000-00000000d200"),
@@ -69,13 +68,13 @@ public sealed class RewardServiceImportTests
             Prompt: "redeem me",
             Cost: cost,
             Image: null,
-            DefaultImage: new TwitchCustomRewardImage("1x", "2x", "4x"),
+            DefaultImage: new("1x", "2x", "4x"),
             BackgroundColor: "#000000",
             IsEnabled: enabled,
             IsUserInputRequired: false,
-            MaxPerStreamSetting: new TwitchCustomRewardMaxPerStreamSetting(false, 0),
-            MaxPerUserPerStreamSetting: new TwitchCustomRewardMaxPerUserPerStreamSetting(false, 0),
-            GlobalCooldownSetting: new TwitchCustomRewardGlobalCooldownSetting(false, 0),
+            MaxPerStreamSetting: new(false, 0),
+            MaxPerUserPerStreamSetting: new(false, 0),
+            GlobalCooldownSetting: new(false, 0),
             IsPaused: false,
             IsInStock: true,
             ShouldRedemptionsSkipRequestQueue: false,
@@ -243,7 +242,7 @@ public sealed class RewardServiceImportTests
         (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
         Guid externalId = Guid.Parse("0192a000-0000-7000-8000-00000000e001");
         db.Rewards.Add(
-            new Reward
+            new()
             {
                 Id = externalId,
                 BroadcasterId = Channel,
@@ -319,7 +318,7 @@ public sealed class RewardServiceImportTests
         (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
         Guid managedId = Guid.Parse("0192a000-0000-7000-8000-00000000e002");
         db.Rewards.Add(
-            new Reward
+            new()
             {
                 Id = managedId,
                 BroadcasterId = Channel,
@@ -361,7 +360,7 @@ public sealed class RewardServiceImportTests
         (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
         Guid externalId = Guid.Parse("0192a000-0000-7000-8000-00000000e003");
         db.Rewards.Add(
-            new Reward
+            new()
             {
                 Id = externalId,
                 BroadcasterId = Channel,

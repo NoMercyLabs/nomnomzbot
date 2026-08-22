@@ -46,12 +46,12 @@ public class GiveawayCodePoolsController : BaseController
     [ProducesResponseType<PaginatedResponse<CodePoolDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> List([FromQuery] PageRequestDto request, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result<PagedList<CodePoolDto>> result = await _pools.ListPoolsAsync(
             broadcasterId,
-            new PaginationParams(request.Page, request.Take, request.Sort, request.Order),
+            new(request.Page, request.Take, request.Sort, request.Order),
             ct
         );
         if (result.IsFailure)
@@ -68,7 +68,7 @@ public class GiveawayCodePoolsController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _pools.CreatePoolAsync(broadcasterId, request, ct));
     }
@@ -79,7 +79,7 @@ public class GiveawayCodePoolsController : BaseController
     [ProducesResponseType<StatusResponseDto<CodePoolDetailDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Get(Guid poolId, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _pools.GetPoolAsync(broadcasterId, poolId, ct));
     }
@@ -94,7 +94,7 @@ public class GiveawayCodePoolsController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _pools.AddCodesAsync(broadcasterId, poolId, request, ct));
     }
@@ -105,7 +105,7 @@ public class GiveawayCodePoolsController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Delete(Guid poolId, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _pools.DeletePoolAsync(broadcasterId, poolId, ct));
     }
@@ -117,7 +117,7 @@ public class GiveawayCodePoolsController : BaseController
     [ProducesResponseType<StatusResponseDto<string>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> RevealWinnerCode(Guid id, Guid winnerId, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _pools.RevealAssignedCodeAsync(broadcasterId, winnerId, ct));
     }

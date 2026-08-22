@@ -164,7 +164,7 @@ public sealed class GoogleYouTubeLoginProvider : ILoginIdentityProvider
             );
 
         Result<IntegrationConnectionDto> connection = await _vault.UpsertConnectionAsync(
-            new UpsertConnectionDto(
+            new(
                 BroadcasterId: null,
                 Provider: AuthEnums.LoginProvider.YouTube,
                 ProviderAccountId: identity.Sub,
@@ -182,7 +182,7 @@ public sealed class GoogleYouTubeLoginProvider : ILoginIdentityProvider
 
         Result store = await _vault.StoreTokensAsync(
             connection.Value.Id,
-            new StoreTokensDto(
+            new(
                 token.AccessToken,
                 token.RefreshToken,
                 AppToken: null,

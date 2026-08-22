@@ -108,9 +108,9 @@ public class SystemController : BaseController
         // only adds the one-tap redirect sign-in. A missing client id is still not-ready; a missing secret is not.
         bool ready = hasTwitchClientId && hasPlatformBot;
 
-        SystemChecks checks = new SystemChecks(
+        SystemChecks checks = new(
             // Ok = redirect-capable (secret present); Ready = usable now (client id present → device-code works).
-            TwitchApp: new CheckItem(
+            TwitchApp: new(
                 Ok: hasTwitchSecret,
                 Ready: hasTwitchClientId,
                 Status: !hasTwitchClientId ? "missing"
@@ -126,7 +126,7 @@ public class SystemController : BaseController
                         ? "Client ID and secret are set — one-tap redirect sign-in is available"
                     : "Ready via the secret-free device-code flow — add a client secret to also enable one-tap redirect sign-in"
             ),
-            PlatformBot: new CheckItem(
+            PlatformBot: new(
                 Ok: hasPlatformBot,
                 Ready: hasPlatformBot,
                 Status: hasPlatformBot ? "connected" : "disconnected",
@@ -134,7 +134,7 @@ public class SystemController : BaseController
                     ? "Bot account is authorized"
                     : "Authorize the bot's Twitch account"
             ),
-            Spotify: new CheckItem(
+            Spotify: new(
                 Ok: hasSpotify,
                 Ready: hasSpotify,
                 Status: hasSpotify ? "configured" : "not configured",
@@ -142,7 +142,7 @@ public class SystemController : BaseController
                     ? "Client ID and secret are set"
                     : "Optional — configure to enable song requests"
             ),
-            Discord: new CheckItem(
+            Discord: new(
                 Ok: hasDiscord,
                 Ready: hasDiscord,
                 Status: hasDiscord ? "configured" : "not configured",
@@ -150,7 +150,7 @@ public class SystemController : BaseController
                     ? "Client ID and secret are set"
                     : "Optional — configure to enable Discord integration"
             ),
-            YouTube: new CheckItem(
+            YouTube: new(
                 Ok: hasYouTube,
                 Ready: hasYouTube,
                 Status: hasYouTube ? "configured" : "not configured",
@@ -161,7 +161,7 @@ public class SystemController : BaseController
         );
 
         return Ok(
-            new StatusResponseDto<SystemStatusDto> { Data = new SystemStatusDto(ready, checks) }
+            new StatusResponseDto<SystemStatusDto> { Data = new(ready, checks) }
         );
     }
 
@@ -222,7 +222,7 @@ public class SystemController : BaseController
         Result<BotStatusDto> botStatus = await _authService.GetBotStatusAsync(ct);
         bool hasPlatformBot = botStatus is { IsSuccess: true, Value.Connected: true };
 
-        return new SetupState(
+        return new(
             hasTwitchClientId,
             hasTwitchSecret,
             hasPlatformBot,
@@ -260,7 +260,7 @@ public class SystemController : BaseController
 
         // Issue a single-use bot-flow CSRF state nonce so the callback routes the setup-wizard bot auth
         // correctly and cannot be triggered by a forged state (§5).
-        string state = await _oauthState.IssueAsync(new TwitchOAuthFlowState("bot"), ct);
+        string state = await _oauthState.IssueAsync(new("bot"), ct);
         Result<string> url = await _authService.GetTwitchBotOAuthUrl(
             state,
             baseUrl: publicBaseUrl,
@@ -442,7 +442,7 @@ public class SystemController : BaseController
 
         if (cfg is null)
         {
-            cfg = new ConfigEntity { BroadcasterId = null, Key = key };
+            cfg = new() { BroadcasterId = null, Key = key };
             _db.Configurations.Add(cfg);
         }
 
@@ -473,7 +473,7 @@ public class SystemController : BaseController
 
     // Reuse the provider's AAD shape so seal (here) and open (provider) agree exactly — one definition.
     private static TokenProtectionContext SystemCredentialsProviderContext(string key) =>
-        NomNomzBot.Infrastructure.Platform.Configuration.SystemCredentialsProvider.ContextFor(key);
+        Infrastructure.Platform.Configuration.SystemCredentialsProvider.ContextFor(key);
 
     /// <summary>
     /// Returns the full pronoun catalogue. Anonymous — the participant Me screen shows pronouns before login

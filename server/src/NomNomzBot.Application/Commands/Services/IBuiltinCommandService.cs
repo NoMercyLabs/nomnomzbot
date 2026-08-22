@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Application.Commands.Services;

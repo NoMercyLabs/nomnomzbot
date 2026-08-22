@@ -49,7 +49,7 @@ public sealed partial class NamedCounterService : INamedCounterService
             NamedCounter? row = await FindLiveRowAsync(broadcasterId, normalized.Value, ct);
             if (row is null)
                 await _db.NamedCounters.AddAsync(
-                    new NamedCounter
+                    new()
                     {
                         BroadcasterId = broadcasterId,
                         Key = normalized.Value,
@@ -96,7 +96,7 @@ public sealed partial class NamedCounterService : INamedCounterService
             {
                 next = delta;
                 await _db.NamedCounters.AddAsync(
-                    new NamedCounter
+                    new()
                     {
                         BroadcasterId = broadcasterId,
                         Key = normalized.Value,

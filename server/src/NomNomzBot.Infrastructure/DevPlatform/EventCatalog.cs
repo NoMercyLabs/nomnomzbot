@@ -40,7 +40,7 @@ public sealed partial class EventCatalog : IEventCatalog
             EventAttribute? attribute = type.GetCustomAttribute<EventAttribute>(inherit: false);
             string wireName = attribute?.WireName ?? DeriveWireName(type);
             EventVisibility visibility = attribute?.Visibility ?? EventVisibility.Broadcaster;
-            discovered.Add(new EventDescriptor(wireName, visibility, type));
+            discovered.Add(new(wireName, visibility, type));
         }
 
         List<string> duplicateNames =

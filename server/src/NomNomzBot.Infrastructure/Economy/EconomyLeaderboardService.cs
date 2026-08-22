@@ -77,7 +77,7 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
             );
 
         LeaderboardConfig config;
-        if (request.Id is Guid id)
+        if (request.Id is { } id)
         {
             LeaderboardConfig? existing = await db.LeaderboardConfigs.FirstOrDefaultAsync(
                 c => c.Id == id && c.BroadcasterId == broadcasterId && c.DeletedAt == null,
@@ -89,7 +89,7 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
         }
         else
         {
-            config = new LeaderboardConfig { BroadcasterId = broadcasterId };
+            config = new() { BroadcasterId = broadcasterId };
             db.LeaderboardConfigs.Add(config);
         }
 
@@ -186,7 +186,7 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
         foreach ((CurrencyAccount account, long value) in ranked)
         {
             db.LeaderboardSnapshots.Add(
-                new LeaderboardSnapshot
+                new()
                 {
                     LeaderboardConfigId = config.Id,
                     BroadcasterId = broadcasterId,
@@ -201,7 +201,7 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
                 }
             );
             entries.Add(
-                new LeaderboardEntryDto(
+                new(
                     rank,
                     account.ViewerUserId,
                     account.Id,
@@ -230,7 +230,7 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
         DateTime now = clock.GetUtcNow().UtcDateTime;
         if (existing is null)
             db.LeaderboardOptOuts.Add(
-                new LeaderboardOptOut
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     ViewerUserId = viewerUserId,
@@ -287,7 +287,7 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
         string metric = config.Metric.ToLowerInvariant();
         // Balance is point-in-time (no window); earned/spent over a BOUNDED period fold the ledger.
         DateTime? windowStart = metric == "balance" ? null : PeriodStart(config.Period);
-        if (windowStart is DateTime since)
+        if (windowStart is { } since)
             return await RankByLedgerWindowAsync(broadcasterId, metric, since, optedOut, take, ct);
 
         IQueryable<CurrencyAccount> query = db.CurrencyAccounts.Where(a =>

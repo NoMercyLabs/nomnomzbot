@@ -105,7 +105,7 @@ public sealed class StripeWebhookHandler(
     )
     {
         JObject? firstItem = sub["items"]?["data"]?.FirstOrDefault() as JObject;
-        return new StripeSubscriptionEventDto(
+        return new(
             eventId,
             eventType,
             sub.Value<string>("customer") ?? "",
@@ -126,7 +126,7 @@ public sealed class StripeWebhookHandler(
         string? subscriptionId =
             AsId(inv["subscription"])
             ?? AsId(inv["parent"]?["subscription_details"]?["subscription"]);
-        return new StripeInvoiceEventDto(
+        return new(
             eventId,
             eventType,
             inv.Value<string>("id") ?? "",

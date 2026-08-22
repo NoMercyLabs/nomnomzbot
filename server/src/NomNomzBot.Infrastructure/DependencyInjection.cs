@@ -228,7 +228,7 @@ public static class DependencyInjection
         services.AddImplementationsOf<ICommandAction>(
             infrastructure,
             ServiceLifetime.Transient,
-            typeof(Platform.Pipeline.CapturingCommandAction)
+            typeof(CapturingCommandAction)
         );
         services.AddImplementationsOf<ICommandCondition>(infrastructure, ServiceLifetime.Transient);
 
@@ -238,8 +238,8 @@ public static class DependencyInjection
         // Remembers each channel's last active Spotify device across the (scoped, per-request) provider
         // instances that observe it — must outlive a single request to be useful.
         services.AddSingleton<
-            Music.ILastActiveSpotifyDeviceTracker,
-            Music.LastActiveSpotifyDeviceTracker
+            ILastActiveSpotifyDeviceTracker,
+            LastActiveSpotifyDeviceTracker
         >();
 
         // Federation inbound handlers (scoped — multi-binding consumed as IEnumerable<IFederationInboundHandler>).
@@ -323,7 +323,7 @@ public static class DependencyInjection
         // Per-channel pre-mute volume memory so unmute restores the real prior level (cache-only). Stateless → singleton.
         services.AddSingleton<
             Application.Music.Services.IMuteVolumeMemory,
-            Music.MuteVolumeMemory
+            MuteVolumeMemory
         >();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
@@ -364,14 +364,14 @@ public static class DependencyInjection
         services.ConfigureHttpClientDefaults(builder =>
             builder.ConfigureHttpClient(client =>
                 client.DefaultRequestHeaders.UserAgent.ParseAdd(
-                    NomNomzBot.Infrastructure.Platform.Http.AppUserAgent.Value
+                    Platform.Http.AppUserAgent.Value
                 )
             )
         );
 
         services
             .AddHttpClient(
-                NomNomzBot.Infrastructure.Chat.ChatEmoteHttpClient.Name,
+                ChatEmoteHttpClient.Name,
                 // Generous overall ceiling; the resilience pipeline owns the per-attempt 10s timeout + retries.
                 client => client.Timeout = TimeSpan.FromSeconds(30)
             )
@@ -385,7 +385,7 @@ public static class DependencyInjection
         >();
         services
             .AddHttpClient(
-                NomNomzBot.Infrastructure.Identity.AlejoHttpClient.Name,
+                Identity.AlejoHttpClient.Name,
                 client => client.Timeout = TimeSpan.FromSeconds(30)
             )
             .AddAlejoResilienceHandler();
@@ -425,8 +425,8 @@ public static class DependencyInjection
         // No-op fallback; the API host replaces this with the SignalR-backed TtsOverlayNotifierAdapter
         // (drives the client_edge TTS dispatch push — tts.md §3.4).
         services.AddScoped<
-            Application.Tts.Services.ITtsOverlayNotifier,
-            Tts.NullTtsOverlayNotifier
+            ITtsOverlayNotifier,
+            NullTtsOverlayNotifier
         >();
         // No-op fallback; the API host replaces this with the SignalR-backed WidgetEventNotifierAdapter
         // (drives the widget_event pipeline action's overlay push — widgets-overlays.md §6).
@@ -579,9 +579,9 @@ public static class DependencyInjection
 
         // The single SSRF-hardened egress client (sandbox + outbound webhooks): resolve-then-pin + https-only.
         services
-            .AddHttpClient(NomNomzBot.Infrastructure.Sandbox.EgressHttpClient.Name)
+            .AddHttpClient(Sandbox.EgressHttpClient.Name)
             .ConfigurePrimaryHttpMessageHandler(
-                NomNomzBot.Infrastructure.Sandbox.EgressHttpClient.CreateHandler
+                Sandbox.EgressHttpClient.CreateHandler
             )
             .AddHttpMessageHandler(() => new Sandbox.EgressSchemeHandler());
 
@@ -1367,7 +1367,7 @@ public static class DependencyInjection
         // WebSocket session silently missed, deterministically deduped, then replayed through the ordinary
         // IEventBus path. Scoped — touches the scoped Helix sub-clients and the scoped journal.
         services.AddScoped<
-            Application.Contracts.Twitch.IEventSubGapBackfillService,
+            IEventSubGapBackfillService,
             EventSubGapBackfillService
         >();
 

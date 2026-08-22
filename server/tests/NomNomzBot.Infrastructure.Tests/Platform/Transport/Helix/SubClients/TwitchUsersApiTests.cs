@@ -138,7 +138,7 @@ public class TwitchUsersApiTests
 
         Result<TwitchPage<TwitchBlockedUser>> result = await api.GetBlockListAsync(
             Tenant,
-            new TwitchPageRequest()
+            new()
         );
 
         result.IsFailure.Should().BeTrue();
@@ -152,7 +152,7 @@ public class TwitchUsersApiTests
         CapturingHelixTransport transport = new()
         {
             PageResult = new TwitchPage<TwitchBlockedUser>(
-                [new TwitchBlockedUser("9", "troll", "Troll")],
+                [new("9", "troll", "Troll")],
                 "cursor",
                 0
             ),
@@ -161,7 +161,7 @@ public class TwitchUsersApiTests
 
         Result<TwitchPage<TwitchBlockedUser>> result = await api.GetBlockListAsync(
             Tenant,
-            new TwitchPageRequest(After: "abc", PageSize: 50)
+            new(After: "abc", PageSize: 50)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -287,14 +287,14 @@ public class TwitchUsersApiTests
             ListResult =
                 (IReadOnlyList<TwitchInstalledExtension>)
                     [
-                        new TwitchInstalledExtension(
+                        new(
                             "wi08ebtatdc7oj83wtl9uxwz807l8b",
                             "1.1.8",
                             "Streamlabs Leaderboard",
                             true,
                             ["panel"]
                         ),
-                        new TwitchInstalledExtension(
+                        new(
                             "rh6jq1q334hqc2rr1qlzqbvwlfl3x0",
                             "1.1.0",
                             "TopClip",
@@ -404,7 +404,7 @@ public class TwitchUsersApiTests
 
         Result<TwitchActiveExtensions> result = await api.UpdateActiveExtensionsAsync(
             Tenant,
-            new UpdateUserExtensionsRequest(new UpdateUserExtensionsData())
+            new(new())
         );
 
         result.IsFailure.Should().BeTrue();
@@ -428,7 +428,7 @@ public class TwitchUsersApiTests
         };
         TwitchUsersApi api = Build(transport, TwitchScopes.UserEditBroadcast);
         UpdateUserExtensionsRequest request = new(
-            new UpdateUserExtensionsData(
+            new(
                 Panel: new Dictionary<string, TwitchExtensionSlotUpdate>
                 {
                     ["1"] = new(true, "rh6jq1q334hqc2rr1qlzqbvwlfl3x0", "1.1.0"),

@@ -37,7 +37,7 @@ public sealed class SkipBuiltin(IMusicService music, IBuiltinResponseComposer co
             return Result.Success(skipped.ErrorMessage ?? "Nothing to skip or skip failed.");
 
         string message = await composer.ComposeAsync(
-            new BuiltinResponseRequest
+            new()
             {
                 BroadcasterId = context.BroadcasterId,
                 Personality = context.Personality,
@@ -68,7 +68,7 @@ public sealed class QueueBuiltin(IMusicService music, IBuiltinResponseComposer c
         if (queue.Queue.Count == 0)
         {
             string empty = await composer.ComposeAsync(
-                new BuiltinResponseRequest
+                new()
                 {
                     BroadcasterId = context.BroadcasterId,
                     Personality = context.Personality,
@@ -89,7 +89,7 @@ public sealed class QueueBuiltin(IMusicService music, IBuiltinResponseComposer c
         MusicQueueItem first = queue.Queue[0];
 
         string message = await composer.ComposeAsync(
-            new BuiltinResponseRequest
+            new()
             {
                 BroadcasterId = context.BroadcasterId,
                 Personality = context.Personality,
@@ -158,7 +158,7 @@ public sealed class CurrentSongBuiltin(IMusicService music, IBuiltinResponseComp
         if (now is null || string.IsNullOrEmpty(now.TrackName))
         {
             string nothing = await composer.ComposeAsync(
-                new BuiltinResponseRequest
+                new()
                 {
                     BroadcasterId = context.BroadcasterId,
                     Personality = context.Personality,
@@ -173,7 +173,7 @@ public sealed class CurrentSongBuiltin(IMusicService music, IBuiltinResponseComp
 
         string status = now.IsPlaying ? "▶" : "⏸";
         string message = await composer.ComposeAsync(
-            new BuiltinResponseRequest
+            new()
             {
                 BroadcasterId = context.BroadcasterId,
                 Personality = context.Personality,

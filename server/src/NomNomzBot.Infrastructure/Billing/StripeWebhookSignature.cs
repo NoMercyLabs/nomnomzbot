@@ -51,7 +51,7 @@ public static class StripeWebhookSignature
                 candidates.Add(value);
         }
 
-        if (timestamp is not long ts || candidates.Count == 0)
+        if (timestamp is not { } ts || candidates.Count == 0)
             return false;
         if (Math.Abs(nowUnix - ts) > toleranceSeconds)
             return false; // outside the replay window

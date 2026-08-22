@@ -61,7 +61,7 @@ public class UsersController : BaseController
             return true;
         if (
             !Guid.TryParse(callerId, out Guid callerGuid)
-            || _currentTenant.BroadcasterId is not Guid tenantId
+            || _currentTenant.BroadcasterId is not { } tenantId
             || tenantId == Guid.Empty
         )
             return false;
@@ -147,7 +147,7 @@ public class UsersController : BaseController
     /// <summary>Get all channels a user appears in (as broadcaster or moderation role).</summary>
     [HttpGet("{userId}/channels")]
     [ProducesResponseType<
-        StatusResponseDto<List<NomNomzBot.Application.Identity.Dtos.UserChannelAppearanceDto>>
+        StatusResponseDto<List<UserChannelAppearanceDto>>
     >(
         StatusCodes.Status200OK
     )]
@@ -158,7 +158,7 @@ public class UsersController : BaseController
         if (callerId != userId && !isAdmin)
             return UnauthorizedResponse("You may only view your own channel list.");
 
-        Result<List<NomNomzBot.Application.Identity.Dtos.UserChannelAppearanceDto>> result =
+        Result<List<UserChannelAppearanceDto>> result =
             await _userService.GetUserChannelsAsync(userId, ct);
         return ResultResponse(result);
     }

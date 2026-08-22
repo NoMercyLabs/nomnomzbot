@@ -15,7 +15,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Infrastructure.Tts;
 using NSubstitute;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Tts;
 

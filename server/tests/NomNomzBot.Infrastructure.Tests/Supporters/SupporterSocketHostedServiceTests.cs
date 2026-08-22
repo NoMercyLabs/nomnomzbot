@@ -20,7 +20,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Supporters.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Supporters.Entities;
 using NomNomzBot.Infrastructure.Platform.Deployment;
@@ -61,7 +60,7 @@ public sealed class SupporterSocketHostedServiceTests
     {
         SupporterTestDbContext db = SupporterTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Tenant,
                 TwitchChannelId = "1001",
@@ -71,7 +70,7 @@ public sealed class SupporterSocketHostedServiceTests
             }
         );
         db.SupporterConnections.Add(
-            new SupporterConnection
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = Tenant,

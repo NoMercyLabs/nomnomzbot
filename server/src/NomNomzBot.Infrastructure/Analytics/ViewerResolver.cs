@@ -56,7 +56,7 @@ public sealed class ViewerResolver(IApplicationDbContext db, IUserService userSe
         );
         if (profile is null)
         {
-            profile = new ViewerProfile
+            profile = new()
             {
                 BroadcasterId = broadcasterId,
                 ViewerUserId = viewerUserId,

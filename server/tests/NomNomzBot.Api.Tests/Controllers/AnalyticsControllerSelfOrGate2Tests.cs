@@ -63,7 +63,7 @@ public sealed class AnalyticsControllerSelfOrGate2Tests
         currentUser.UserId.Returns(Caller.ToString());
 
         AnalyticsController controller = new(channelAnalytics, viewerAnalytics, gate2, currentUser);
-        return new Fixture(controller, viewerAnalytics, gate2);
+        return new(controller, viewerAnalytics, gate2);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public sealed class AnalyticsControllerSelfOrGate2Tests
         IActionResult result = await f.Controller.SetViewerOptOut(
             Channel,
             OtherViewer,
-            new SetAnalyticsOptOutRequest(true),
+            new(true),
             CancellationToken.None
         );
 
@@ -97,7 +97,7 @@ public sealed class AnalyticsControllerSelfOrGate2Tests
         IActionResult result = await f.Controller.SetViewerOptOut(
             Channel,
             Caller,
-            new SetAnalyticsOptOutRequest(true),
+            new(true),
             CancellationToken.None
         );
 
@@ -123,7 +123,7 @@ public sealed class AnalyticsControllerSelfOrGate2Tests
         IActionResult result = await f.Controller.SetViewerOptOut(
             Channel,
             OtherViewer,
-            new SetAnalyticsOptOutRequest(false),
+            new(false),
             CancellationToken.None
         );
 

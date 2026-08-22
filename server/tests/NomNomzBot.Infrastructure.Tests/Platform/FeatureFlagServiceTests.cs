@@ -41,7 +41,7 @@ public sealed class FeatureFlagServiceTests
         tiers
             .IsTierAtLeastAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(tierMet));
-        return (new FeatureFlagService(db, tenant, cache, tiers, new FakeTimeProvider(Now)), db);
+        return (new(db, tenant, cache, tiers, new FakeTimeProvider(Now)), db);
     }
 
     private static async Task<FeatureFlag> SeedFlagAsync(
@@ -97,7 +97,7 @@ public sealed class FeatureFlagServiceTests
         (FeatureFlagService sut, AuthDbContext db) = Build();
         FeatureFlag flag = await SeedFlagAsync(db, global: false, rollout: 0);
         db.FeatureFlagOverrides.Add(
-            new FeatureFlagOverride
+            new()
             {
                 FeatureFlagId = flag.Id,
                 BroadcasterId = Channel,
@@ -117,7 +117,7 @@ public sealed class FeatureFlagServiceTests
         (FeatureFlagService sut, AuthDbContext db) = Build();
         FeatureFlag flag = await SeedFlagAsync(db, global: false, rollout: 0);
         db.FeatureFlagOverrides.Add(
-            new FeatureFlagOverride
+            new()
             {
                 FeatureFlagId = flag.Id,
                 BroadcasterId = Channel,

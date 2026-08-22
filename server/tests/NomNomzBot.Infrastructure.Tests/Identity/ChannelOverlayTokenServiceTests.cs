@@ -32,7 +32,7 @@ public sealed class ChannelOverlayTokenServiceTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Users.Add(
-            new User
+            new()
             {
                 Id = OwnerId,
                 Username = "stoney",

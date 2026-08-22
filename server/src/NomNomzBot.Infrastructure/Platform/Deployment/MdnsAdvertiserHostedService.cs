@@ -91,8 +91,8 @@ public sealed class MdnsAdvertiserHostedService : IHostedService, IDisposable
                 port
             );
 
-            _mdns = new MulticastService();
-            _discovery = new ServiceDiscovery(_mdns);
+            _mdns = new();
+            _discovery = new(_mdns);
 
             // Re-announce when a network interface appears (Wi-Fi reconnect, VPN up/down), so the bot stays findable.
             _mdns.NetworkInterfaceDiscovered += (_, _) =>

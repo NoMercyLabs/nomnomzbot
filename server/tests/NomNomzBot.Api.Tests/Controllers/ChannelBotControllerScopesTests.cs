@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Api.Controllers.V1;
@@ -215,7 +214,7 @@ public sealed class ChannelBotControllerScopesTests
             Substitute.For<ITwitchOAuthStateService>()
         )
         {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+            ControllerContext = new() { HttpContext = new DefaultHttpContext() },
         };
         return controller;
     }

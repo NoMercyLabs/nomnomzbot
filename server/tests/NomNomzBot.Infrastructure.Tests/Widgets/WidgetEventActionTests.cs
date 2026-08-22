@@ -64,7 +64,7 @@ public sealed class WidgetEventActionTests
                         null,
                         null,
                         null,
-                        new Dictionary<string, object?>(),
+                        new(),
                         [],
                         null,
                         null,

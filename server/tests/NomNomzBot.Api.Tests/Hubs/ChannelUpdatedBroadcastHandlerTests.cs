@@ -11,7 +11,6 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Stream.Events;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -31,7 +30,7 @@ public sealed class ChannelUpdatedBroadcastHandlerTests
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
-            new ChannelUpdatedEvent
+            new()
             {
                 BroadcasterId = channel,
                 BroadcasterDisplayName = "Stoney",
@@ -61,7 +60,7 @@ public sealed class ChannelUpdatedBroadcastHandlerTests
         ChannelUpdatedBroadcastHandler handler = new(notifier);
 
         await handler.HandleAsync(
-            new ChannelUpdatedEvent
+            new()
             {
                 BroadcasterId = Guid.Empty,
                 BroadcasterDisplayName = "x",

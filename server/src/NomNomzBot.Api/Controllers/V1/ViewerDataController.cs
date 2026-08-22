@@ -56,10 +56,10 @@ public class ViewerDataController : BaseController
     )]
     public async Task<IActionResult> List(string viewerId, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
-        if (await ResolveViewerUserIdAsync(viewerId, ct) is not Guid viewerUserId)
+        if (await ResolveViewerUserIdAsync(viewerId, ct) is not { } viewerUserId)
             return NotFoundResponse("Viewer not found.");
 
         return ResultResponse(
@@ -78,10 +78,10 @@ public class ViewerDataController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
-        if (await ResolveViewerUserIdAsync(viewerId, ct) is not Guid viewerUserId)
+        if (await ResolveViewerUserIdAsync(viewerId, ct) is not { } viewerUserId)
             return NotFoundResponse("Viewer not found.");
 
         Result set = await _viewerData.SetAsync(
@@ -102,10 +102,10 @@ public class ViewerDataController : BaseController
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Delete(string viewerId, string key, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
-        if (await ResolveViewerUserIdAsync(viewerId, ct) is not Guid viewerUserId)
+        if (await ResolveViewerUserIdAsync(viewerId, ct) is not { } viewerUserId)
             return NotFoundResponse("Viewer not found.");
 
         Result deleted = await _viewerData.DeleteAsync(broadcasterId, viewerUserId, key, ct);

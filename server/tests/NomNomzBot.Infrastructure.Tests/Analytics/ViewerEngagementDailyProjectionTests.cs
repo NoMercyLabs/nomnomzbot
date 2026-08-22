@@ -17,7 +17,6 @@ using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Infrastructure.Analytics;
-using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -43,7 +42,7 @@ public sealed class ViewerEngagementDailyProjectionTests
         ServiceProvider provider = services.BuildServiceProvider();
         IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
         IUserService userService = AuthTestBuilder.UserService(db, currentUser, scopeFactory);
-        return (new ViewerEngagementDailyProjection(db, new ViewerResolver(db, userService)), db);
+        return (new(db, new(db, userService)), db);
     }
 
     private static EventRecord Event(string type, object payload, DateTime at) =>
@@ -131,7 +130,7 @@ public sealed class ViewerEngagementDailyProjectionTests
         );
 
         ViewerEngagementDaily row = db.ViewerEngagementDailies.Single();
-        row.ActivityDate.Should().Be(new DateOnly(2026, 6, 22));
+        row.ActivityDate.Should().Be(new(2026, 6, 22));
         row.MessageCount.Should().Be(2);
         row.CommandCount.Should().Be(1);
         row.RedemptionCount.Should().Be(1);

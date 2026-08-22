@@ -8,15 +8,12 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Rewards.Services;
-using NomNomzBot.Domain.Commands.Entities;
-using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Rewards.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -74,7 +71,7 @@ public sealed class RewardRedeemedHandlerTests
             NullLogger<RewardRedeemedHandler>.Instance
         );
 
-        return new Harness(handler, db, engine, executor);
+        return new(handler, db, engine, executor);
     }
 
     private static RewardRedeemedEvent Redemption(string twitchRewardId) =>
@@ -95,7 +92,7 @@ public sealed class RewardRedeemedHandlerTests
         Harness h = Build();
         const string graph = """{"actions":[{"type":"play_sound","clip":"airhorn"}]}""";
         h.Db.Pipelines.Add(
-            new Pipeline
+            new()
             {
                 Id = BoundPipelineId,
                 BroadcasterId = Channel,
@@ -105,7 +102,7 @@ public sealed class RewardRedeemedHandlerTests
             }
         );
         h.Db.Rewards.Add(
-            new Reward
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = Channel,
@@ -142,7 +139,7 @@ public sealed class RewardRedeemedHandlerTests
     {
         Harness h = Build();
         h.Db.Rewards.Add(
-            new Reward
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = Channel,
@@ -181,7 +178,7 @@ public sealed class RewardRedeemedHandlerTests
         Harness h = Build();
         const string graph = """{"actions":[{"type":"play_sound","clip":"airhorn"}]}""";
         h.Db.Pipelines.Add(
-            new Pipeline
+            new()
             {
                 Id = BoundPipelineId,
                 BroadcasterId = Channel,
@@ -191,7 +188,7 @@ public sealed class RewardRedeemedHandlerTests
             }
         );
         h.Db.Rewards.Add(
-            new Reward
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = Channel,

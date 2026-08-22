@@ -44,7 +44,7 @@ public sealed class CurrencyBalanceProjection(IApplicationDbContext db) : IProje
         CancellationToken cancellationToken = default
     )
     {
-        if (@event.BroadcasterId is not Guid broadcasterId)
+        if (@event.BroadcasterId is not { } broadcasterId)
             return Result.Success();
 
         JObject? payload = TryParse(@event.PayloadJson);
@@ -52,7 +52,7 @@ public sealed class CurrencyBalanceProjection(IApplicationDbContext db) : IProje
             return Result.Success();
 
         Guid? accountId =
-            payload["AccountId"]?.Value<string>() is string s && Guid.TryParse(s, out Guid aid)
+            payload["AccountId"]?.Value<string>() is { } s && Guid.TryParse(s, out Guid aid)
                 ? aid
                 : (Guid?)null;
         long? balanceAfter = payload["BalanceAfter"]?.Value<long?>();
@@ -94,7 +94,7 @@ public sealed class CurrencyBalanceProjection(IApplicationDbContext db) : IProje
         // Balance is NOT purely replay-safe — resetting it would leave accounts at 0 until replay completes.
         // We zero the columns here so replay can rebuild from the full event history.
         List<CurrencyAccount> accounts = await (
-            broadcasterId is Guid id
+            broadcasterId is { } id
                 ? db.CurrencyAccounts.Where(a => a.BroadcasterId == id)
                 : db.CurrencyAccounts
         ).ToListAsync(cancellationToken);

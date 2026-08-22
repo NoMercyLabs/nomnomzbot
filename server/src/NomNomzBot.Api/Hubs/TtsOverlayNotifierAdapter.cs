@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Tts.Services;
 
 namespace NomNomzBot.Api.Hubs;
@@ -34,7 +33,7 @@ internal sealed class TtsOverlayNotifierAdapter : ITtsOverlayNotifier
     ) =>
         _notifier.TtsSpeakAsync(
             broadcasterId.ToString(),
-            new TtsSpeakPayload(
+            new(
                 broadcasterId,
                 payload.Text,
                 payload.VoiceId,

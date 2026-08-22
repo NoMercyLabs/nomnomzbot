@@ -16,8 +16,6 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.ViewerData.Services;
-using NomNomzBot.Domain.Commands.Entities;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.ViewerData.Entities;
 using NomNomzBot.Infrastructure.Commands;
@@ -49,7 +47,7 @@ public sealed class TemplateResolverViewerDataTests
     {
         _db = ViewerDataTestDbContext.New();
         _db.Users.Add(
-            new User
+            new()
             {
                 Id = Alice,
                 TwitchUserId = "111",
@@ -59,7 +57,7 @@ public sealed class TemplateResolverViewerDataTests
             }
         );
         _db.Users.Add(
-            new User
+            new()
             {
                 Id = Bob,
                 TwitchUserId = "222",
@@ -69,7 +67,7 @@ public sealed class TemplateResolverViewerDataTests
             }
         );
         _db.Users.Add(
-            new User
+            new()
             {
                 Id = YtViewer,
                 TwitchUserId = null,
@@ -79,7 +77,7 @@ public sealed class TemplateResolverViewerDataTests
             }
         );
         _db.UserIdentities.Add(
-            new UserIdentity
+            new()
             {
                 Id = Guid.NewGuid(),
                 UserId = YtViewer,
@@ -112,7 +110,7 @@ public sealed class TemplateResolverViewerDataTests
             }
         );
         _db.NamedCounters.Add(
-            new NamedCounter
+            new()
             {
                 BroadcasterId = Channel,
                 Key = "wins",
@@ -135,7 +133,7 @@ public sealed class TemplateResolverViewerDataTests
         services.AddSingleton(_analytics);
         ServiceProvider provider = services.BuildServiceProvider();
 
-        _resolver = new TemplateResolver(
+        _resolver = new(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<TemplateResolver>.Instance,

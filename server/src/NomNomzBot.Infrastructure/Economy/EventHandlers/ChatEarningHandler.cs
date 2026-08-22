@@ -10,7 +10,6 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -76,7 +75,7 @@ public sealed class ChatEarningHandler(
 
         await earning.ApplyEarningAsync(
             @event.BroadcasterId,
-            new EarnRequest(viewerUserId, "ChatMessage", 1, eventId, roleLevel, Context: null),
+            new(viewerUserId, "ChatMessage", 1, eventId, roleLevel, Context: null),
             cancellationToken
         );
     }

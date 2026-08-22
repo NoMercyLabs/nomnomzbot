@@ -50,7 +50,7 @@ public sealed class LinkPreviewAdapterTests
     public async Task Converts_a_url_to_a_link_fragment_with_its_preview()
     {
         ILinkPreviewService previews = PreviewReturning(
-            new LinkPreview("example.com", "Title", "Desc", "https://img/x.png")
+            new("example.com", "Title", "Desc", "https://img/x.png")
         );
         ChatDecorationContext context = Context(
             standing: true,

@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.IO;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -53,7 +52,7 @@ internal sealed partial class ChannelAssetService : IChannelAssetService
         int total = await _db.ChannelAssets.CountAsync(a => a.BroadcasterId == broadcasterId, ct);
 
         return Result<PagedList<ChannelAssetDto>>.Success(
-            new PagedList<ChannelAssetDto>(items, pagination.Page, pagination.PageSize, total)
+            new(items, pagination.Page, pagination.PageSize, total)
         );
     }
 
@@ -220,7 +219,7 @@ internal sealed partial class ChannelAssetService : IChannelAssetService
             return Result<ChannelAssetContent>.Failure(open.ErrorMessage, open.ErrorCode);
 
         return Result<ChannelAssetContent>.Success(
-            new ChannelAssetContent(open.Value, asset.MimeType, asset.Kind, asset.SizeBytes)
+            new(open.Value, asset.MimeType, asset.Kind, asset.SizeBytes)
         );
     }
 

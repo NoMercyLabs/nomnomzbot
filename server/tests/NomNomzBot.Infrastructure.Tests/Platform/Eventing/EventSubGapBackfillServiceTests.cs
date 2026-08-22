@@ -68,7 +68,7 @@ public sealed class EventSubGapBackfillServiceTests
             .Returns(Result.Success(new TwitchPage<TwitchChannelFollower>([], null, 0)));
 
         return (
-            new EventSubGapBackfillService(
+            new(
                 points,
                 channels,
                 journal,
@@ -162,13 +162,13 @@ public sealed class EventSubGapBackfillServiceTests
             Prompt: "",
             Cost: 7500,
             Image: null,
-            DefaultImage: new TwitchCustomRewardImage("1x", "2x", "4x"),
+            DefaultImage: new("1x", "2x", "4x"),
             BackgroundColor: "#000",
             IsEnabled: true,
             IsUserInputRequired: false,
-            MaxPerStreamSetting: new TwitchCustomRewardMaxPerStreamSetting(false, 0),
-            MaxPerUserPerStreamSetting: new TwitchCustomRewardMaxPerUserPerStreamSetting(false, 0),
-            GlobalCooldownSetting: new TwitchCustomRewardGlobalCooldownSetting(false, 0),
+            MaxPerStreamSetting: new(false, 0),
+            MaxPerUserPerStreamSetting: new(false, 0),
+            GlobalCooldownSetting: new(false, 0),
             IsPaused: false,
             IsInStock: true,
             ShouldRedemptionsSkipRequestQueue: false,
@@ -191,7 +191,7 @@ public sealed class EventSubGapBackfillServiceTests
             UserId: "u1",
             UserName: "Viewer1",
             UserLogin: "viewer1",
-            Reward: new TwitchRedemptionReward("reward-1", "BSOD", "", 7500),
+            Reward: new("reward-1", "BSOD", "", 7500),
             UserInput: "",
             Status: "UNFULFILLED",
             RedeemedAt: GapStart.AddMinutes(5)
@@ -255,13 +255,13 @@ public sealed class EventSubGapBackfillServiceTests
             Prompt: "",
             Cost: 7500,
             Image: null,
-            DefaultImage: new TwitchCustomRewardImage("1x", "2x", "4x"),
+            DefaultImage: new("1x", "2x", "4x"),
             BackgroundColor: "#000",
             IsEnabled: true,
             IsUserInputRequired: false,
-            MaxPerStreamSetting: new TwitchCustomRewardMaxPerStreamSetting(false, 0),
-            MaxPerUserPerStreamSetting: new TwitchCustomRewardMaxPerUserPerStreamSetting(false, 0),
-            GlobalCooldownSetting: new TwitchCustomRewardGlobalCooldownSetting(false, 0),
+            MaxPerStreamSetting: new(false, 0),
+            MaxPerUserPerStreamSetting: new(false, 0),
+            GlobalCooldownSetting: new(false, 0),
             IsPaused: false,
             IsInStock: true,
             ShouldRedemptionsSkipRequestQueue: false,
@@ -284,7 +284,7 @@ public sealed class EventSubGapBackfillServiceTests
             UserId: "u1",
             UserName: "Viewer1",
             UserLogin: "viewer1",
-            Reward: new TwitchRedemptionReward("reward-1", "BSOD", "", 7500),
+            Reward: new("reward-1", "BSOD", "", 7500),
             UserInput: "",
             Status: "UNFULFILLED",
             RedeemedAt: GapStart.AddMinutes(5)

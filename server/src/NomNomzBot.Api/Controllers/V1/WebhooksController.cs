@@ -31,7 +31,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class WebhooksController(
     IInboundWebhookEndpointService inbound,
     IOutboundWebhookEndpointService outbound,
-    NomNomzBot.Application.Abstractions.Auth.ICurrentUserService currentUser
+    Application.Abstractions.Auth.ICurrentUserService currentUser
 ) : BaseController
 {
     /// <summary>List the channel's inbound webhook endpoints, paginated.</summary>

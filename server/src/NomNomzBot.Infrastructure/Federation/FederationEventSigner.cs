@@ -81,7 +81,7 @@ public sealed class FederationEventSigner(
             return Result.Failure("Key algorithm unsupported.", "algorithm_unsupported");
 
         DateTime now = clock.GetUtcNow().UtcDateTime;
-        if (key.ValidFrom > now || (key.ValidTo is DateTime validTo && validTo < now))
+        if (key.ValidFrom > now || (key.ValidTo is { } validTo && validTo < now))
             return Result.Failure("Signing key outside its validity window.", "key_unknown");
 
         byte[] signatureBytes;

@@ -15,7 +15,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Discord.Events;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Discord;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -29,7 +28,7 @@ namespace NomNomzBot.Infrastructure.Tests.Discord;
 public sealed class DiscordNotificationRoleServiceTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 22, 14, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 22, 14, 0, 0, TimeSpan.Zero)
     );
 
     [Fact]
@@ -44,7 +43,7 @@ public sealed class DiscordNotificationRoleServiceTests
         DiscordNotificationRoleDto created;
         await using (DiscordTestDbContext db = database.NewContext())
         {
-            Result<DiscordNotificationRoleDto> result = await NewService(db, new RecordingGateway())
+            Result<DiscordNotificationRoleDto> result = await NewService(db, new())
                 .CreateRoleAsync(channel, connectionId, request);
             result.IsSuccess.Should().BeTrue(result.ErrorMessage);
             created = result.Value;
@@ -61,7 +60,7 @@ public sealed class DiscordNotificationRoleServiceTests
 
         await using (DiscordTestDbContext db = database.NewContext())
         {
-            Result<DiscordNotificationRoleDto> dup = await NewService(db, new RecordingGateway())
+            Result<DiscordNotificationRoleDto> dup = await NewService(db, new())
                 .CreateRoleAsync(channel, connectionId, request);
             dup.IsFailure.Should().BeTrue();
             dup.ErrorCode.Should().Be("ALREADY_EXISTS");
@@ -118,7 +117,7 @@ public sealed class DiscordNotificationRoleServiceTests
 
         // Opt in first.
         await using (DiscordTestDbContext db = database.NewContext())
-            await NewService(db, gateway, new RecordingEventBus())
+            await NewService(db, gateway, new())
                 .OptInMemberAsync(channel, roleId, "member-1", "button");
 
         // Then opt out.
@@ -153,7 +152,7 @@ public sealed class DiscordNotificationRoleServiceTests
         await using (DiscordTestDbContext db = database.NewContext())
         {
             db.DiscordNotificationConfigs.Add(
-                new DiscordNotificationConfig
+                new()
                 {
                     Id = configId,
                     BroadcasterId = channel,
@@ -169,7 +168,7 @@ public sealed class DiscordNotificationRoleServiceTests
         }
 
         await using (DiscordTestDbContext db = database.NewContext())
-            (await NewService(db, new RecordingGateway()).DeleteRoleAsync(channel, roleId))
+            (await NewService(db, new()).DeleteRoleAsync(channel, roleId))
                 .IsSuccess.Should()
                 .BeTrue();
 
@@ -196,7 +195,7 @@ public sealed class DiscordNotificationRoleServiceTests
         Guid channelId = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -218,7 +217,7 @@ public sealed class DiscordNotificationRoleServiceTests
         Guid id = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.DiscordGuildConnections.Add(
-            new DiscordGuildConnection
+            new()
             {
                 Id = id,
                 BroadcasterId = channel,
@@ -242,7 +241,7 @@ public sealed class DiscordNotificationRoleServiceTests
         Guid id = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.DiscordNotificationRoles.Add(
-            new DiscordNotificationRole
+            new()
             {
                 Id = id,
                 BroadcasterId = channel,

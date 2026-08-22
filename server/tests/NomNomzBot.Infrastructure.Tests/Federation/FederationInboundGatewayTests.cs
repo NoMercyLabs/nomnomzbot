@@ -71,7 +71,7 @@ public sealed class FederationInboundGatewayTests
         };
         db.FederationPeers.Add(peer);
         db.FederationPeerKeys.Add(
-            new FederationPeerKey
+            new()
             {
                 PeerId = peer.Id,
                 PublicKey = publicPem,
@@ -96,7 +96,7 @@ public sealed class FederationInboundGatewayTests
 
         FederationInboundGateway sut = new(db, signer, optIns, translator, journal, bus, [handler]);
 
-        return new Harness
+        return new()
         {
             Db = db,
             Sut = sut,

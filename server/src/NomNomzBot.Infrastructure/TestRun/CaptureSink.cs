@@ -30,11 +30,11 @@ public sealed class CaptureSink
 
     /// <summary>Record one captured effect from its host-call/action name and its argument list.</summary>
     public void Record(string name, IReadOnlyList<string> args) =>
-        _effects.Add(new CapturedEffectDto(name, Preview(string.Join(" | ", args))));
+        _effects.Add(new(name, Preview(string.Join(" | ", args))));
 
     /// <summary>Record one captured effect from its name and an already-rendered argument preview.</summary>
     public void Record(string name, string argsPreview) =>
-        _effects.Add(new CapturedEffectDto(name, Preview(argsPreview)));
+        _effects.Add(new(name, Preview(argsPreview)));
 
     public void AddChatOutput(string text) => _chatOutput.Add(text);
 

@@ -18,7 +18,6 @@ using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Infrastructure.Analytics;
-using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -53,7 +52,7 @@ public sealed class WatchSessionProjectionTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(streamId);
-        return (new WatchSessionProjection(db, new ViewerResolver(db, userService), live), db);
+        return (new(db, new(db, userService), live), db);
     }
 
     private static EventRecord Chat(string twitchId, DateTime at) =>

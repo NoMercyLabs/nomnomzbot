@@ -46,15 +46,15 @@ public class TwitchPredictionsApiTests
             "Who wins?",
             status == "RESOLVED" ? "out-1" : null,
             [
-                new TwitchPredictionOutcome(
+                new(
                     "out-1",
                     "Blue team",
                     10,
                     5000,
-                    [new TwitchPredictionTopPredictor("u1", "U1", "u1", 1000, 0)],
+                    [new("u1", "U1", "u1", 1000, 0)],
                     "BLUE"
                 ),
-                new TwitchPredictionOutcome("out-2", "Pink team", 3, 1200, null, "PINK"),
+                new("out-2", "Pink team", 3, 1200, null, "PINK"),
             ],
             120,
             status,
@@ -72,7 +72,7 @@ public class TwitchPredictionsApiTests
         Result<TwitchPage<TwitchPrediction>> result = await api.GetPredictionsAsync(
             Tenant,
             null,
-            new TwitchPageRequest()
+            new()
         );
 
         result.IsFailure.Should().BeTrue();
@@ -93,7 +93,7 @@ public class TwitchPredictionsApiTests
         Result<TwitchPage<TwitchPrediction>> result = await api.GetPredictionsAsync(
             Tenant,
             null,
-            new TwitchPageRequest()
+            new()
         );
 
         result.IsFailure.Should().BeTrue();
@@ -113,7 +113,7 @@ public class TwitchPredictionsApiTests
         Result<TwitchPage<TwitchPrediction>> result = await api.GetPredictionsAsync(
             Tenant,
             ["pred-1", "pred-2"],
-            new TwitchPageRequest(After: "abc", PageSize: 20)
+            new(After: "abc", PageSize: 20)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -150,9 +150,9 @@ public class TwitchPredictionsApiTests
 
         Result<TwitchPrediction> result = await api.CreatePredictionAsync(
             Tenant,
-            new CreatePredictionRequest(
+            new(
                 "Who wins?",
-                [new CreatePredictionOutcome("Blue"), new CreatePredictionOutcome("Pink")],
+                [new("Blue"), new("Pink")],
                 120
             )
         );
@@ -169,7 +169,7 @@ public class TwitchPredictionsApiTests
         TwitchPredictionsApi api = Build(transport, TwitchScopes.ChannelManagePredictions);
         CreatePredictionRequest request = new(
             "Who wins?",
-            [new CreatePredictionOutcome("Blue"), new CreatePredictionOutcome("Pink")],
+            [new("Blue"), new("Pink")],
             120
         );
 

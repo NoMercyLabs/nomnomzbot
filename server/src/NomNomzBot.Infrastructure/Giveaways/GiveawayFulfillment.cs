@@ -122,7 +122,7 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
 
         Result<CurrencyLedgerEntryDto> credit = await _accounts.PostLedgerEntryAsync(
             giveaway.BroadcasterId,
-            new PostLedgerEntryCommand(
+            new(
                 winner.ViewerUserId,
                 amount,
                 nameof(CurrencyEntryType.EarnGiveaway),
@@ -165,7 +165,7 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
         {
             IPipelineEngine pipelines = _services.GetRequiredService<IPipelineEngine>();
             await pipelines.ExecuteAsync(
-                new PipelineRequest
+                new()
                 {
                     BroadcasterId = giveaway.BroadcasterId,
                     PipelineId = pipelineId,

@@ -13,7 +13,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Domain.Chat.Interfaces;
-using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Tests.Supporters;
 using NSubstitute;
@@ -76,7 +75,7 @@ public sealed class EventResponseExecutorTests
     )
     {
         db.EventResponses.Add(
-            new EventResponse
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = Tenant,
@@ -120,7 +119,7 @@ public sealed class EventResponseExecutorTests
         ) = Build();
         Guid pipelineId = Guid.CreateVersion7();
         db.Pipelines.Add(
-            new NomNomzBot.Domain.Commands.Entities.Pipeline
+            new()
             {
                 Id = pipelineId,
                 BroadcasterId = Tenant,

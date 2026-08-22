@@ -18,7 +18,6 @@ using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
-using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -383,7 +382,7 @@ public sealed class TwitchEventSubReconnectTests
 
         await bus.Received(1)
             .PublishAsync(
-                Arg.Any<NomNomzBot.Domain.Twitch.Events.EventSubSubscriptionStatusChangedEvent>(),
+                Arg.Any<Domain.Twitch.Events.EventSubSubscriptionStatusChangedEvent>(),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -558,7 +557,7 @@ public sealed class TwitchEventSubReconnectTests
     private static void SeedPlatformBot(EventSubTestDbContext db, string botTwitchUserId)
     {
         db.IntegrationConnections.Add(
-            new IntegrationConnection
+            new()
             {
                 BroadcasterId = null,
                 Provider = "twitch_bot",
@@ -577,7 +576,7 @@ public sealed class TwitchEventSubReconnectTests
     )
     {
         db.IntegrationConnections.Add(
-            new IntegrationConnection
+            new()
             {
                 BroadcasterId = tenant,
                 Provider = "twitch",

@@ -59,7 +59,7 @@ public sealed class ObsConnectionServiceTests
                     : null;
             });
 
-        return (new ObsConnectionService(db, protector), db);
+        return (new(db, protector), db);
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public sealed class ObsConnectionServiceTests
 
         Result<ObsConnectionDto> upserted = await sut.UpsertAsync(
             Channel,
-            new UpsertObsConnectionRequest
+            new()
             {
                 Mode = "direct",
                 Password = "obs-ws-secret",
@@ -112,13 +112,13 @@ public sealed class ObsConnectionServiceTests
         (ObsConnectionService sut, ObsTestDbContext db) = Build();
         await sut.UpsertAsync(
             Channel,
-            new UpsertObsConnectionRequest { Mode = "direct", Password = "keep-me" }
+            new() { Mode = "direct", Password = "keep-me" }
         );
 
         // Null = leave the secret alone (an ordinary settings save never wipes it).
         await sut.UpsertAsync(
             Channel,
-            new UpsertObsConnectionRequest { Mode = "direct", Host = "192.168.2.50" }
+            new() { Mode = "direct", Host = "192.168.2.50" }
         );
         ObsConnection afterKeep = await db.ObsConnections.SingleAsync();
         afterKeep.PasswordCipher.Should().Be("sealed(keep-me)");
@@ -127,7 +127,7 @@ public sealed class ObsConnectionServiceTests
         // Empty string = deliberate clear.
         await sut.UpsertAsync(
             Channel,
-            new UpsertObsConnectionRequest { Mode = "direct", Password = "" }
+            new() { Mode = "direct", Password = "" }
         );
         (await db.ObsConnections.SingleAsync()).PasswordCipher.Should().BeNull();
         (await sut.GetPasswordForTransportAsync(Channel)).Should().BeNull();

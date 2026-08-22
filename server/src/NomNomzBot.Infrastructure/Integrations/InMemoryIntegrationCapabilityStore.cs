@@ -29,7 +29,7 @@ public sealed class InMemoryIntegrationCapabilityStore : IIntegrationCapabilityS
     {
         ConcurrentDictionary<string, bool> forProvider = _observations.GetOrAdd(
             (broadcasterId, Normalize(provider)),
-            _ => new ConcurrentDictionary<string, bool>(StringComparer.Ordinal)
+            _ => new(StringComparer.Ordinal)
         );
         forProvider[capability] = supported;
     }

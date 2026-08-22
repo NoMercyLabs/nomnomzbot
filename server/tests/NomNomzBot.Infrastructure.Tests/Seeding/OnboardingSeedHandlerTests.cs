@@ -18,7 +18,6 @@ using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
-using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
@@ -286,7 +285,7 @@ public sealed class OnboardingSeedHandlerTests
                 Result.Success(
                     new TwitchPage<TwitchBannedUser>(
                         [
-                            new TwitchBannedUser(
+                            new(
                                 "tw-ban-1",
                                 "banone",
                                 "BanOne",
@@ -313,7 +312,7 @@ public sealed class OnboardingSeedHandlerTests
                 Result.Success(
                     new TwitchPage<TwitchBannedUser>(
                         [
-                            new TwitchBannedUser(
+                            new(
                                 "tw-ban-2",
                                 "bantwo",
                                 "BanTwo",
@@ -366,7 +365,7 @@ public sealed class OnboardingSeedHandlerTests
                 Result.Success(
                     new TwitchPage<TwitchBannedUser>(
                         [
-                            new TwitchBannedUser(
+                            new(
                                 "tw-ban-1",
                                 "banone",
                                 "BanOne",
@@ -406,7 +405,7 @@ public sealed class OnboardingSeedHandlerTests
                 Result.Success(
                     new TwitchPage<TwitchBannedUser>(
                         [
-                            new TwitchBannedUser(
+                            new(
                                 "tw-ban-1",
                                 "banone",
                                 "BanOne",
@@ -614,7 +613,7 @@ public sealed class OnboardingSeedHandlerTests
         BotModGrantOnBotAuthorizedHandler sut = new(db, moderators, log);
 
         await sut.HandleAsync(
-            new BotAccountAuthorizedEvent
+            new()
             {
                 BroadcasterId = Guid.Empty,
                 BotAccountId = bot.Id,

@@ -27,16 +27,16 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing.Translators;
 public sealed class ChannelFollowTranslatorTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static EventSubNotification Notification(Guid tenant, string payload)
     {
         using JsonDocument doc = JsonDocument.Parse(payload);
-        return new EventSubNotification
+        return new()
         {
             MessageId = "msg-follow-1",
-            MessageTimestamp = new DateTimeOffset(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
+            MessageTimestamp = new(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
             SubscriptionType = "channel.follow",
             SubscriptionVersion = "2",
             BroadcasterId = tenant,
@@ -77,7 +77,7 @@ public sealed class ChannelFollowTranslatorTests
         published
             .FollowedAt.Should()
             .Be(
-                new DateTimeOffset(2026, 6, 20, 11, 29, 0, TimeSpan.Zero),
+                new(2026, 6, 20, 11, 29, 0, TimeSpan.Zero),
                 "followed_at is parsed from the payload"
             );
         published

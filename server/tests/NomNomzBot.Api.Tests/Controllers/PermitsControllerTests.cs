@@ -35,7 +35,7 @@ public sealed class PermitsControllerTests
         IPermitService service = Substitute.For<IPermitService>();
         ICurrentUserService user = Substitute.For<ICurrentUserService>();
         user.UserId.Returns(Caller.ToString());
-        return (new PermitsController(service, user), service);
+        return (new(service, user), service);
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public sealed class PermitsControllerTests
 
         IActionResult result = await controller.GrantRole(
             Channel.ToString(),
-            new PermitsController.GrantRoleBody(Target, ManagementRole.Editor, null, "guest"),
+            new(Target, ManagementRole.Editor, null, "guest"),
             default
         );
 
@@ -105,7 +105,7 @@ public sealed class PermitsControllerTests
 
         IActionResult result = await controller.GrantCapability(
             Channel.ToString(),
-            new PermitsController.GrantCapabilityBody(Target, "roles:manage", null, null),
+            new(Target, "roles:manage", null, null),
             default
         );
 

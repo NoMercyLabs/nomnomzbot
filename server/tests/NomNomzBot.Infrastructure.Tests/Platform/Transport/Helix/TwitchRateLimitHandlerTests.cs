@@ -43,7 +43,7 @@ public class TwitchRateLimitHandlerTests
     )
     {
         TwitchRateLimitHandler handler = new(limiter, bus, clock) { InnerHandler = wire };
-        return new HttpClient(handler);
+        return new(handler);
     }
 
     [Fact]

@@ -56,7 +56,7 @@ public sealed class SystemCredentialsProvider(
         if (string.IsNullOrWhiteSpace(clientSecret))
             return null;
 
-        return new SystemAppCredentials(clientId, clientSecret);
+        return new(clientId, clientSecret);
     }
 
     public async Task<string?> GetClientIdAsync(
@@ -114,7 +114,7 @@ public sealed class SystemCredentialsProvider(
     public static TokenProtectionContext ContextFor(string key)
     {
         int dot = key.IndexOf('.');
-        return new TokenProtectionContext(
+        return new(
             "system",
             dot > 0 ? key[..dot] : "system",
             dot > 0 ? key[(dot + 1)..] : key

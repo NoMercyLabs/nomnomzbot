@@ -48,7 +48,7 @@ public sealed class VipStandingSeedOnOnboardingHandler(
         {
             Result<TwitchPage<TwitchVip>> result = await moderators.GetVipsAsync(
                 @event.BroadcasterId,
-                new TwitchPageRequest(),
+                new(),
                 ct
             );
 

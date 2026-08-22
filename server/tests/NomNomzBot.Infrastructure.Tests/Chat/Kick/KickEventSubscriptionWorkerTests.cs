@@ -8,16 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Kick;
 using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Chat.Kick;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -67,7 +64,7 @@ public sealed class KickEventSubscriptionWorkerTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = PrimaryChannel,
                 OwnerUserId = Owner,
@@ -131,7 +128,7 @@ public sealed class KickEventSubscriptionWorkerTests
     private static void SeedConnection(AuthDbContext db, Guid? broadcasterId)
     {
         db.IntegrationConnections.Add(
-            new IntegrationConnection
+            new()
             {
                 BroadcasterId = broadcasterId,
                 Provider = AuthEnums.IntegrationProvider.Kick,
@@ -232,7 +229,7 @@ public sealed class KickEventSubscriptionWorkerTests
         // A channel subscribed before the newer events shipped self-heals: only the missing events
         // are created — the existing chat leg is never duplicated.
         (KickEventSubscriptionWorker worker, AuthDbContext db, _, IKickApiClient client) = Build(
-            existing: [new KickEventSubscription("s1", "chat.message.sent", 1, "webhook", 12345)]
+            existing: [new("s1", "chat.message.sent", 1, "webhook", 12345)]
         );
         SeedConnection(db, PrimaryChannel);
 

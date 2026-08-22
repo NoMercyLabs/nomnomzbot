@@ -54,7 +54,7 @@ internal static class ChatPayload
         JsonElement? cheermote = fragment.GetObject("cheermote");
         JsonElement? mention = fragment.GetObject("mention");
 
-        return new ChatMessageFragment
+        return new()
         {
             Type = fragment.GetString("type") ?? "text",
             Text = fragment.GetRequiredString("text"),
@@ -110,7 +110,7 @@ internal static class ChatPayload
         foreach (JsonElement badge in array.EnumerateArray())
         {
             badges.Add(
-                new ChatBadge(
+                new(
                     badge.GetRequiredString("set_id"),
                     badge.GetRequiredString("id"),
                     badge.GetString("info")
@@ -202,7 +202,7 @@ public sealed class ChannelChatMessageTranslator(
             registry
                 .Get(notification.BroadcasterId)
                 ?.ModerationStandings.GetValueOrDefault($"twitch:{chatterUserId}")
-            == NomNomzBot.Domain.Moderation.Entities.ModerationStanding.Blacklisted
+            == Domain.Moderation.Entities.ModerationStanding.Blacklisted
         )
             return Task.CompletedTask;
 
@@ -226,7 +226,7 @@ public sealed class ChannelChatMessageTranslator(
             // as a moderator too (the role gate then promotes them to LeadModerator via the lead_moderator badge).
             IsModerator =
                 ChatPayload.HasBadge(badges, "moderator")
-                || NomNomzBot.Domain.Identity.ChatRole.IsLeadModerator(badges),
+                || Domain.Identity.ChatRole.IsLeadModerator(badges),
             IsBroadcaster = ChatPayload.HasBadge(badges, "broadcaster"),
             Bits = cheer is { } c ? c.GetInt("bits") : 0,
             ReplyParentMessageId = reply?.GetString("parent_message_id"),
@@ -358,7 +358,7 @@ public sealed class ChannelChatNotificationTranslator(IEventBus bus, TimeProvide
         // A watch_streak notice also carries the milestone — surface it as the WatchStreakReceivedEvent the
         // WatchStreak read model folds. This is the EventSub source for watch streaks (the IRC service no longer
         // parses inbound events). watch_streak.streak_count = consecutive broadcasts watched.
-        if (noticeType == "watch_streak" && payload.GetObject("watch_streak") is JsonElement streak)
+        if (noticeType == "watch_streak" && payload.GetObject("watch_streak") is { } streak)
             await PublishAsync(
                 new WatchStreakReceivedEvent
                 {

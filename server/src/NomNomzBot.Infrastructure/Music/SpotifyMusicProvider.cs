@@ -1239,7 +1239,7 @@ public sealed class SpotifyMusicProvider
         return service.AccessToken is not null
             ? await _tokenProtector.TryUnprotectAsync(
                 service.AccessToken,
-                new TokenProtectionContext(
+                new(
                     service.BroadcasterId?.ToString() ?? "_platform",
                     ProviderName,
                     "access"
@@ -1261,7 +1261,7 @@ public sealed class SpotifyMusicProvider
 
         string? refreshToken = await _tokenProtector.TryUnprotectAsync(
             service.RefreshToken,
-            new TokenProtectionContext(subjectId, ProviderName, "refresh"),
+            new(subjectId, ProviderName, "refresh"),
             cancellationToken
         );
         if (refreshToken is null)
@@ -1271,14 +1271,14 @@ public sealed class SpotifyMusicProvider
         string? clientId = service.ClientId is not null
             ? await _tokenProtector.TryUnprotectAsync(
                 service.ClientId,
-                new TokenProtectionContext(subjectId, ProviderName, "client_id"),
+                new(subjectId, ProviderName, "client_id"),
                 cancellationToken
             )
             : null;
         string? clientSecret = service.ClientSecret is not null
             ? await _tokenProtector.TryUnprotectAsync(
                 service.ClientSecret,
-                new TokenProtectionContext(subjectId, ProviderName, "client_secret"),
+                new(subjectId, ProviderName, "client_secret"),
                 cancellationToken
             )
             : null;
@@ -1328,7 +1328,7 @@ public sealed class SpotifyMusicProvider
 
             service.AccessToken = await _tokenProtector.ProtectAsync(
                 json.AccessToken,
-                new TokenProtectionContext(subjectId, ProviderName, "access"),
+                new(subjectId, ProviderName, "access"),
                 cancellationToken
             );
             service.TokenExpiry = _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(json.ExpiresIn);
@@ -1337,7 +1337,7 @@ public sealed class SpotifyMusicProvider
             if (!string.IsNullOrEmpty(json.RefreshToken))
                 service.RefreshToken = await _tokenProtector.ProtectAsync(
                     json.RefreshToken,
-                    new TokenProtectionContext(subjectId, ProviderName, "refresh"),
+                    new(subjectId, ProviderName, "refresh"),
                     cancellationToken
                 );
 

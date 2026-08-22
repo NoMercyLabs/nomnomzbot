@@ -12,7 +12,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.Common.Models.Crypto;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Tts.Entities;
@@ -92,7 +91,7 @@ public sealed class ByokTtsProviderFactory : IByokTtsProviderFactory
         };
 
         if (
-            config?.SubjectKeyId is not Guid keyId
+            config?.SubjectKeyId is not { } keyId
             || cipher is null
             || nonce is null
             || keyVersion is null
@@ -101,8 +100,8 @@ public sealed class ByokTtsProviderFactory : IByokTtsProviderFactory
 
         Result<string> apiKey = await _subjectKeys.UnprotectAsync(
             keyId,
-            new CipherPayload(CipherText: cipher, Nonce: nonce),
-            new CipherAad(
+            new(CipherText: cipher, Nonce: nonce),
+            new(
                 TenantId: broadcasterId.ToString(),
                 Provider: provider,
                 TokenType: "api_key",

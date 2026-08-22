@@ -65,7 +65,7 @@ public class TwitchDiagnosticsController : BaseController
     [ProducesResponseType<StatusResponseDto<TwitchScopeDiagnosticsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetScopeDiagnostics(CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result<TwitchScopeDiagnosticsDto> result = await _diagnostics.GetScopeDiagnosticsAsync(
@@ -86,7 +86,7 @@ public class TwitchDiagnosticsController : BaseController
     [ProducesResponseType<StatusResponseDto<MissingScopesDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMissingScopes(CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result<MissingScopesDto> result = await _scopeNotifications.GetMissingScopesAsync(
@@ -108,7 +108,7 @@ public class TwitchDiagnosticsController : BaseController
     [ProducesResponseType<StatusResponseDto<ScopeRegrantStartDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> StartScopeRegrant(CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result<IReadOnlyList<string>> scopeSet =
@@ -127,7 +127,7 @@ public class TwitchDiagnosticsController : BaseController
         return Ok(
             new StatusResponseDto<ScopeRegrantStartDto>
             {
-                Data = new ScopeRegrantStartDto(
+                Data = new(
                     code.DeviceCode,
                     code.UserCode,
                     code.VerificationUri,

@@ -16,7 +16,6 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.ViewerData.Entities;
 using NomNomzBot.Infrastructure.ViewerData;
 using NomNomzBot.Infrastructure.ViewerData.PipelineActions;
@@ -48,7 +47,7 @@ public sealed class ViewerDataActionsTests
     {
         _db = ViewerDataTestDbContext.New();
         _db.Users.Add(
-            new User
+            new()
             {
                 Id = Alice,
                 TwitchUserId = "111",
@@ -58,7 +57,7 @@ public sealed class ViewerDataActionsTests
             }
         );
         _db.Users.Add(
-            new User
+            new()
             {
                 Id = Bob,
                 TwitchUserId = "222",
@@ -68,7 +67,7 @@ public sealed class ViewerDataActionsTests
             }
         );
         _db.SaveChanges();
-        _service = new ViewerDataService(_db, TimeProvider.System);
+        _service = new(_db, TimeProvider.System);
 
         _users = Substitute.For<IUserService>();
         _users

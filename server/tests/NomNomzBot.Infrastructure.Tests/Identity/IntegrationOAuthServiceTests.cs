@@ -135,7 +135,7 @@ public sealed class IntegrationOAuthServiceTests
 
         Result<OAuthCallbackResultDto> callback = await service.HandleCallbackAsync(
             AuthEnums.IntegrationProvider.Patreon,
-            new OAuthCallbackParams("the-auth-code", start.Value.State, null, null)
+            new("the-auth-code", start.Value.State, null, null)
         );
 
         callback.IsSuccess.Should().BeTrue();
@@ -179,7 +179,7 @@ public sealed class IntegrationOAuthServiceTests
 
         Result<OAuthCallbackResultDto> callback = await service.HandleCallbackAsync(
             AuthEnums.IntegrationProvider.Treatstream,
-            new OAuthCallbackParams("the-auth-code", start.Value.State, null, null)
+            new("the-auth-code", start.Value.State, null, null)
         );
 
         callback.IsSuccess.Should().BeTrue(callback.ErrorMessage);
@@ -197,7 +197,7 @@ public sealed class IntegrationOAuthServiceTests
     [Fact]
     public async Task StartConnect_BuildsAuthorizeUrl_WithScopeSetStateAndPkce()
     {
-        (IntegrationOAuthService service, _, _, FakeCache cache) = Build(new StubHandler());
+        (IntegrationOAuthService service, _, _, FakeCache cache) = Build(new());
 
         Result<OAuthStartDto> start = await service.StartConnectAsync(
             Tenant,
@@ -233,7 +233,7 @@ public sealed class IntegrationOAuthServiceTests
     [Fact]
     public async Task StartConnect_UnknownScopeSet_Fails()
     {
-        (IntegrationOAuthService service, _, _, _) = Build(new StubHandler());
+        (IntegrationOAuthService service, _, _, _) = Build(new());
 
         Result<OAuthStartDto> start = await service.StartConnectAsync(
             Tenant,
@@ -251,7 +251,7 @@ public sealed class IntegrationOAuthServiceTests
     [Fact]
     public async Task StartConnect_CompositeScopeSetKey_RequestsTheUnionOfBothSets()
     {
-        (IntegrationOAuthService service, _, _, _) = Build(new StubHandler());
+        (IntegrationOAuthService service, _, _, _) = Build(new());
 
         Result<OAuthStartDto> start = await service.StartConnectAsync(
             Tenant,
@@ -272,7 +272,7 @@ public sealed class IntegrationOAuthServiceTests
     [Fact]
     public async Task StartConnect_CompositeScopeSetKey_WithOneUnknownMember_Fails()
     {
-        (IntegrationOAuthService service, _, _, _) = Build(new StubHandler());
+        (IntegrationOAuthService service, _, _, _) = Build(new());
 
         Result<OAuthStartDto> start = await service.StartConnectAsync(
             Tenant,
@@ -326,7 +326,7 @@ public sealed class IntegrationOAuthServiceTests
 
         Result<OAuthCallbackResultDto> callback = await service.HandleCallbackAsync(
             AuthEnums.IntegrationProvider.Shopify,
-            new OAuthCallbackParams("the-auth-code", start.Value.State, null, null)
+            new("the-auth-code", start.Value.State, null, null)
         );
 
         callback.IsSuccess.Should().BeTrue(callback.ErrorMessage);
@@ -349,7 +349,7 @@ public sealed class IntegrationOAuthServiceTests
     [Fact]
     public async Task ShopifyConnect_WithoutAShop_FailsActionably()
     {
-        (IntegrationOAuthService service, _, _, _) = Build(new StubHandler());
+        (IntegrationOAuthService service, _, _, _) = Build(new());
 
         Result<OAuthStartDto> start = await service.StartConnectAsync(
             Tenant,
@@ -367,7 +367,7 @@ public sealed class IntegrationOAuthServiceTests
     public async Task ShopifyConnect_WithAUrlAsShop_IsRejected_NeverSubstituted()
     {
         // The {shop} substitution must never become an SSRF vector — a URL/host injection is invalid input.
-        (IntegrationOAuthService service, _, _, _) = Build(new StubHandler());
+        (IntegrationOAuthService service, _, _, _) = Build(new());
 
         Result<OAuthStartDto> start = await service.StartConnectAsync(
             Tenant,
@@ -407,7 +407,7 @@ public sealed class IntegrationOAuthServiceTests
 
         Result<OAuthCallbackResultDto> callback = await service.HandleCallbackAsync(
             AuthEnums.IntegrationProvider.Spotify,
-            new OAuthCallbackParams("the-auth-code", start.Value.State, null, null)
+            new("the-auth-code", start.Value.State, null, null)
         );
 
         callback.IsSuccess.Should().BeTrue();
@@ -463,7 +463,7 @@ public sealed class IntegrationOAuthServiceTests
         );
         Result<OAuthCallbackResultDto> callback = await service.HandleCallbackAsync(
             AuthEnums.IntegrationProvider.Spotify,
-            new OAuthCallbackParams("the-auth-code", start.Value.State, null, null)
+            new("the-auth-code", start.Value.State, null, null)
         );
         callback.IsSuccess.Should().BeTrue();
 
@@ -492,7 +492,7 @@ public sealed class IntegrationOAuthServiceTests
         (
             await reader.TryUnprotectAsync(
                 row.AccessToken,
-                new TokenProtectionContext(Tenant.ToString(), "spotify", "access")
+                new(Tenant.ToString(), "spotify", "access")
             )
         )
             .Should()
@@ -500,7 +500,7 @@ public sealed class IntegrationOAuthServiceTests
         (
             await reader.TryUnprotectAsync(
                 row.RefreshToken,
-                new TokenProtectionContext(Tenant.ToString(), "spotify", "refresh")
+                new(Tenant.ToString(), "spotify", "refresh")
             )
         )
             .Should()
@@ -508,7 +508,7 @@ public sealed class IntegrationOAuthServiceTests
         (
             await reader.TryUnprotectAsync(
                 row.ClientId,
-                new TokenProtectionContext(Tenant.ToString(), "spotify", "client_id")
+                new(Tenant.ToString(), "spotify", "client_id")
             )
         )
             .Should()
@@ -516,7 +516,7 @@ public sealed class IntegrationOAuthServiceTests
         (
             await reader.TryUnprotectAsync(
                 row.ClientSecret,
-                new TokenProtectionContext(Tenant.ToString(), "spotify", "client_secret")
+                new(Tenant.ToString(), "spotify", "client_secret")
             )
         )
             .Should()
@@ -544,7 +544,7 @@ public sealed class IntegrationOAuthServiceTests
         );
         Result<OAuthCallbackResultDto> callback = await service.HandleCallbackAsync(
             AuthEnums.IntegrationProvider.YouTube,
-            new OAuthCallbackParams("the-auth-code", start.Value.State, null, null)
+            new("the-auth-code", start.Value.State, null, null)
         );
         callback.IsSuccess.Should().BeTrue();
 
@@ -558,7 +558,7 @@ public sealed class IntegrationOAuthServiceTests
         (
             await reader.TryUnprotectAsync(
                 row.AccessToken,
-                new TokenProtectionContext(Tenant.ToString(), "youtube", "access")
+                new(Tenant.ToString(), "youtube", "access")
             )
         )
             .Should()
@@ -601,11 +601,11 @@ public sealed class IntegrationOAuthServiceTests
     [Fact]
     public async Task HandleCallback_ProviderError_FailsClosed()
     {
-        (IntegrationOAuthService service, _, _, _) = Build(new StubHandler());
+        (IntegrationOAuthService service, _, _, _) = Build(new());
 
         Result<OAuthCallbackResultDto> result = await service.HandleCallbackAsync(
             AuthEnums.IntegrationProvider.Spotify,
-            new OAuthCallbackParams(null, "state", "access_denied", "user said no")
+            new(null, "state", "access_denied", "user said no")
         );
 
         result.ErrorCode.Should().Be("PROVIDER_ERROR");
@@ -618,7 +618,7 @@ public sealed class IntegrationOAuthServiceTests
     {
         // No Discord connection seeded; the generic providers also unconnected (vault empty).
         (IntegrationOAuthService service, _, _, _) = Build(
-            new StubHandler(),
+            new(),
             new FakeDiscordGuildService()
         );
 
@@ -666,7 +666,7 @@ public sealed class IntegrationOAuthServiceTests
             UpdatedAt: DateTime.UtcNow
         );
         (IntegrationOAuthService service, _, _, _) = Build(
-            new StubHandler(),
+            new(),
             new FakeDiscordGuildService(link)
         );
 
@@ -808,7 +808,7 @@ public sealed class IntegrationOAuthServiceTests
             }
 
             string body = isToken ? TokenJson : IdentityJson;
-            return new HttpResponseMessage(HttpStatusCode.OK)
+            return new(HttpStatusCode.OK)
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json"),
             };

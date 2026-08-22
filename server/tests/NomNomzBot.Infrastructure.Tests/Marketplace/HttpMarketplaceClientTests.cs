@@ -41,7 +41,7 @@ public sealed class HttpMarketplaceClientTests
         tokens
             .GetPublisherTokenAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(publisherToken);
-        return new HttpMarketplaceClient(
+        return new(
             new SingleHandlerFactory(handler),
             tokens,
             Options.Create(new MarketplaceOptions { Url = url }),
@@ -82,8 +82,8 @@ public sealed class HttpMarketplaceClientTests
         HttpMarketplaceClient client = Build(handler);
 
         Result<PagedList<MarketplaceItemDto>> result = await client.SearchAsync(
-            new MarketplaceQuery("greet", "command", ["fun"]),
-            new PaginationParams(2, 10)
+            new("greet", "command", ["fun"]),
+            new(2, 10)
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -114,7 +114,7 @@ public sealed class HttpMarketplaceClientTests
     public async Task Download_streams_the_bundle_bytes()
     {
         byte[] payload = Encoding.UTF8.GetBytes("PK-this-is-the-bundle");
-        ScriptedHandler handler = new(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        ScriptedHandler handler = new(_ => new(HttpStatusCode.OK)
         {
             Content = new ByteArrayContent(payload),
         });
@@ -147,7 +147,7 @@ public sealed class HttpMarketplaceClientTests
         Result<PublishSubmissionDto> result = await client.PublishAsync(
             Channel,
             zip,
-            new PublishMetadata("Starter Pack", "1.2.0", "greets people", ["fun"])
+            new("Starter Pack", "1.2.0", "greets people", ["fun"])
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -176,7 +176,7 @@ public sealed class HttpMarketplaceClientTests
         Result<PublishSubmissionDto> result = await client.PublishAsync(
             Channel,
             zip,
-            new PublishMetadata("x", "1.0.0", null, null)
+            new("x", "1.0.0", null, null)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -218,7 +218,7 @@ public sealed class HttpMarketplaceClientTests
         HttpMarketplaceClient client = Build(handler);
 
         Result<PagedList<MarketplaceItemDto>> search = await client.SearchAsync(
-            new MarketplaceQuery()
+            new()
         );
         Result<System.IO.Stream> download = await client.DownloadAsync("itm_1");
 

@@ -12,7 +12,6 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using NomNomzBot.Api.Authorization;
-using NomNomzBot.Domain.Identity;
 
 namespace NomNomzBot.Api.Tests.Authorization;
 

@@ -42,7 +42,7 @@ public sealed class YouTubeLiveChatBanLedger : IYouTubeLiveChatBanLedger
     )
     {
         await _db.YouTubeLiveChatBans.AddAsync(
-            new YouTubeLiveChatBan
+            new()
             {
                 BroadcasterId = broadcasterId,
                 PrimaryBroadcasterId = primaryBroadcasterId,
@@ -81,6 +81,6 @@ public sealed class YouTubeLiveChatBanLedger : IYouTubeLiveChatBanLedger
 
         latest.DeletedAt = _clock.GetUtcNow().UtcDateTime;
         await _db.SaveChangesAsync(cancellationToken);
-        return new YouTubeConsumedBan(latest.BanId, latest.PrimaryBroadcasterId);
+        return new(latest.BanId, latest.PrimaryBroadcasterId);
     }
 }

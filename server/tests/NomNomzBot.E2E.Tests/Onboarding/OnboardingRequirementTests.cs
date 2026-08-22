@@ -53,7 +53,7 @@ public sealed class OnboardingRequirementTests : PageTest
         // 1. A fresh instance with no streamer account routes to the setup wizard.
         await Page.GotoAsync(
             $"{E2ESettings.BaseUrl}/",
-            new PageGotoOptions { WaitUntil = WaitUntilState.Load }
+            new() { WaitUntil = WaitUntilState.Load }
         );
         await Page.WaitForFunctionAsync(
             "() => { const b = document.getElementById('nnz-boot'); return b !== null && b.style.display === 'none'; }"
@@ -62,7 +62,7 @@ public sealed class OnboardingRequirementTests : PageTest
         // 2. The wizard's first step offers to connect the streamer's Twitch account (device-code flow).
         ILocator connect = Page.GetByRole(
             AriaRole.Button,
-            new PageGetByRoleOptions { Name = "Connect Twitch account" }
+            new() { Name = "Connect Twitch account" }
         );
         await Assertions.Expect(connect).ToBeVisibleAsync();
         await connect.ClickAsync();
@@ -71,17 +71,17 @@ public sealed class OnboardingRequirementTests : PageTest
         //    >>> An unattended-auth fixture completes the approval here. <<<
         ILocator deviceCode = Page.GetByRole(
             AriaRole.Heading,
-            new PageGetByRoleOptions { Name = "Activate on Twitch" }
+            new() { Name = "Activate on Twitch" }
         );
         await Assertions.Expect(deviceCode).ToBeVisibleAsync();
 
         // 4. After approval the app lands on the dashboard home — assert a home landmark is rendered.
         ILocator dashboardHome = Page.GetByRole(
             AriaRole.Heading,
-            new PageGetByRoleOptions { Name = "Dashboard" }
+            new() { Name = "Dashboard" }
         );
         await Assertions
             .Expect(dashboardHome)
-            .ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 30_000 });
+            .ToBeVisibleAsync(new() { Timeout = 30_000 });
     }
 }

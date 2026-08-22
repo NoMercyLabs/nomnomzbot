@@ -176,7 +176,7 @@ public class TwitchChatApiTests
 
         Result<TwitchChatSettings> result = await api.UpdateChatSettingsAsync(
             Tenant,
-            new UpdateChatSettingsRequest(SlowMode: true)
+            new(SlowMode: true)
         );
 
         result.IsFailure.Should().BeTrue();

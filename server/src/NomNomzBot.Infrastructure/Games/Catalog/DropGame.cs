@@ -108,7 +108,7 @@ public sealed class DropGame : ILiveGame
             bool won = distance <= radius;
             long payout = won ? (long)Math.Round(player.Stake * (double)multiplier) : 0;
             awards.Add(
-                new LiveGameAward(
+                new(
                     player.UserId,
                     player.AccountId,
                     player.Stake,
@@ -117,7 +117,7 @@ public sealed class DropGame : ILiveGame
                 )
             );
             results.Add(
-                new Dictionary<string, object?>
+                new()
                 {
                     ["player"] = player.DisplayName,
                     ["landed"] = double.IsNaN(landed) ? null : landed,

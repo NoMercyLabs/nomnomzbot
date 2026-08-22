@@ -73,7 +73,7 @@ public class TwitchHypeTrainApiTests
         CapturingHelixTransport transport = new()
         {
             SingleResult = new TwitchHypeTrainStatus(
-                new TwitchHypeTrain(
+                new(
                     "1b0AsbInCHZW2SQFQkCzqN07Ib2",
                     "1337",
                     "cool_user",
@@ -83,8 +83,8 @@ public class TwitchHypeTrainApiTests
                     200,
                     1000,
                     [
-                        new TwitchHypeTrainContribution("123", "pogchamp", "PogChamp", "bits", 50),
-                        new TwitchHypeTrainContribution(
+                        new("123", "pogchamp", "PogChamp", "bits", 50),
+                        new(
                             "456",
                             "kappa",
                             "Kappa",
@@ -92,18 +92,18 @@ public class TwitchHypeTrainApiTests
                             45
                         ),
                     ],
-                    [new TwitchHypeTrainParticipant("456", "pogchamp", "PogChamp")],
+                    [new("456", "pogchamp", "PogChamp")],
                     DateTimeOffset.Parse("2020-07-15T17:16:03.17106713Z"),
                     DateTimeOffset.Parse("2020-07-15T17:16:11.17106713Z"),
                     "golden_kappa",
                     true
                 ),
-                new TwitchHypeTrainRecord(
+                new(
                     6,
                     2850,
                     DateTimeOffset.Parse("2020-04-24T20:12:21.003802269Z")
                 ),
-                new TwitchHypeTrainRecord(
+                new(
                     16,
                     23850,
                     DateTimeOffset.Parse("2020-04-27T20:12:21.003802269Z")
@@ -145,7 +145,7 @@ public class TwitchHypeTrainApiTests
         {
             SingleResult = new TwitchHypeTrainStatus(
                 null,
-                new TwitchHypeTrainRecord(
+                new(
                     6,
                     2850,
                     DateTimeOffset.Parse("2020-04-24T20:12:21.003802269Z")

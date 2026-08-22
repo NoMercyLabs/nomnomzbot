@@ -92,7 +92,7 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
             return response;
         }
 
-        return new HttpResponseMessage(HttpStatusCode.NotFound);
+        return new(HttpStatusCode.NotFound);
     }
 }
 
@@ -136,7 +136,7 @@ internal static class YouTubeProviderFactory
             NullLogger<YouTubeAccessTokenProvider>.Instance
         );
 
-        return new YouTubeMusicProvider(
+        return new(
             factory,
             configuration,
             accessTokens,

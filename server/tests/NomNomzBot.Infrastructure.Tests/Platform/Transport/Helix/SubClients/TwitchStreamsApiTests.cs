@@ -64,14 +64,14 @@ public class TwitchStreamsApiTests
         TwitchStreamsApi api = Build(transport);
 
         Result<TwitchPage<TwitchStream>> result = await api.GetStreamsAsync(
-            new TwitchStreamsFilter(
+            new(
                 UserIds: ["1", "2"],
                 UserLogins: ["a"],
                 GameIds: ["509658"],
                 Languages: ["en"],
                 Type: "live"
             ),
-            new TwitchPageRequest(After: "abc", PageSize: 40)
+            new(After: "abc", PageSize: 40)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -105,7 +105,7 @@ public class TwitchStreamsApiTests
         };
         TwitchStreamsApi api = Build(transport);
 
-        await api.GetStreamsAsync(new TwitchStreamsFilter(), new TwitchPageRequest(PageSize: 100));
+        await api.GetStreamsAsync(new(), new(PageSize: 100));
 
         transport.LastRequest!.Query.Should().Contain(q => q.Key == "first" && q.Value == "100");
         transport.LastRequest.Query.Should().NotContain(q => q.Key == "user_id");
@@ -190,7 +190,7 @@ public class TwitchStreamsApiTests
 
         Result<TwitchPage<TwitchStream>> result = await api.GetFollowedStreamsAsync(
             Tenant,
-            new TwitchPageRequest(PageSize: 20)
+            new(PageSize: 20)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -209,7 +209,7 @@ public class TwitchStreamsApiTests
 
         Result<TwitchPage<TwitchStream>> result = await api.GetFollowedStreamsAsync(
             Tenant,
-            new TwitchPageRequest(After: "cur", PageSize: 25)
+            new(After: "cur", PageSize: 25)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -269,7 +269,7 @@ public class TwitchStreamsApiTests
         Result<TwitchPage<TwitchStreamMarkerGroup>> result = await api.GetStreamMarkersAsync(
             Tenant,
             null,
-            new TwitchPageRequest(PageSize: 20)
+            new(PageSize: 20)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -284,15 +284,15 @@ public class TwitchStreamsApiTests
         {
             PageResult = new TwitchPage<TwitchStreamMarkerGroup>(
                 [
-                    new TwitchStreamMarkerGroup(
+                    new(
                         TwitchId,
                         "Name",
                         "login",
                         [
-                            new TwitchMarkedVideo(
+                            new(
                                 "v1",
                                 [
-                                    new TwitchVideoMarker(
+                                    new(
                                         "m1",
                                         DateTimeOffset.UnixEpoch,
                                         "clip it",
@@ -313,7 +313,7 @@ public class TwitchStreamsApiTests
         Result<TwitchPage<TwitchStreamMarkerGroup>> result = await api.GetStreamMarkersAsync(
             Tenant,
             null,
-            new TwitchPageRequest(PageSize: 10)
+            new(PageSize: 10)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -341,7 +341,7 @@ public class TwitchStreamsApiTests
         await api.GetStreamMarkersAsync(
             Tenant,
             "987",
-            new TwitchPageRequest(After: "p", PageSize: 5)
+            new(After: "p", PageSize: 5)
         );
 
         transport.LastRequest!.Query.Should().Contain(q => q.Key == "video_id" && q.Value == "987");

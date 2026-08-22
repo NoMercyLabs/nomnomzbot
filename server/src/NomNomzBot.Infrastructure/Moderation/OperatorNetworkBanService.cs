@@ -117,7 +117,7 @@ public sealed class OperatorNetworkBanService : IOperatorNetworkBanService
             Result outcome = await perChannel(channel);
 
             outcomes.Add(
-                new ChannelBanOutcome(
+                new(
                     channel.BroadcasterLogin,
                     outcome.IsSuccess,
                     outcome.IsSuccess ? null : outcome.ErrorMessage
@@ -152,7 +152,7 @@ public sealed class OperatorNetworkBanService : IOperatorNetworkBanService
             Result<TwitchPage<TwitchModeratedChannel>> page =
                 await _moderators.GetModeratedChannelsAsync(
                     operatorChannelId,
-                    new TwitchPageRequest(After: cursor),
+                    new(After: cursor),
                     ct
                 );
             if (page.IsFailure)

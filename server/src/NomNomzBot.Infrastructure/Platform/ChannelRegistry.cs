@@ -286,14 +286,14 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
     {
         try
         {
-            using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(
+            using JsonDocument doc = JsonDocument.Parse(
                 optionsJson
             );
-            return doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array
+            return doc.RootElement.ValueKind == JsonValueKind.Array
                 ? doc.RootElement.GetArrayLength()
                 : 0;
         }
-        catch (System.Text.Json.JsonException)
+        catch (JsonException)
         {
             return 0;
         }
@@ -323,7 +323,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         {
             // TriggerWord is stored already lower-cased; the dictionary's OrdinalIgnoreCase comparer makes the
             // lookup case-insensitive against whatever case the chatter typed.
-            ctx.SoundTriggers[clip.TriggerWord!] = new CachedSoundTrigger
+            ctx.SoundTriggers[clip.TriggerWord!] = new()
             {
                 ClipId = clip.Id,
                 TriggerWord = clip.TriggerWord!,
@@ -353,7 +353,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 {
                     // Compiled once per cache load; the hard timeout bounds any pathological pattern
                     // to milliseconds per message instead of a hot-path hang.
-                    compiled = new System.Text.RegularExpressions.Regex(
+                    compiled = new(
                         trigger.Pattern,
                         trigger.CaseSensitive
                             ? System.Text.RegularExpressions.RegexOptions.None
@@ -373,7 +373,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 }
             }
 
-            ctx.ChatTriggers[trigger.Id] = new CachedChatTrigger
+            ctx.ChatTriggers[trigger.Id] = new()
             {
                 Id = trigger.Id,
                 Pattern = trigger.Pattern,

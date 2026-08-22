@@ -53,7 +53,7 @@ public sealed class PredictionBroadcastHandlersTests
         DateTimeOffset locksAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero);
 
         await handler.HandleAsync(
-            new PredictionBeganEvent
+            new()
             {
                 BroadcasterId = channel,
                 PredictionId = "pred-1",
@@ -101,14 +101,14 @@ public sealed class PredictionBroadcastHandlersTests
         PredictionBeganBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new PredictionBeganEvent
+            new()
             {
                 BroadcasterId = channel,
                 PredictionId = "pred-1",
                 Title = "Will it rain?",
                 Outcomes = Outcomes,
                 WindowSeconds = 300,
-                LocksAt = new DateTimeOffset(2026, 7, 1, 12, 5, 0, TimeSpan.Zero),
+                LocksAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero),
             }
         );
 
@@ -148,7 +148,7 @@ public sealed class PredictionBroadcastHandlersTests
         DateTimeOffset locksAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero);
 
         await handler.HandleAsync(
-            new PredictionProgressEvent
+            new()
             {
                 BroadcasterId = channel,
                 PredictionId = "pred-1",
@@ -192,7 +192,7 @@ public sealed class PredictionBroadcastHandlersTests
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
-            new PredictionLockedEvent
+            new()
             {
                 BroadcasterId = channel,
                 PredictionId = "pred-1",
@@ -234,7 +234,7 @@ public sealed class PredictionBroadcastHandlersTests
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
-            new PredictionEndedEvent
+            new()
             {
                 BroadcasterId = channel,
                 PredictionId = "pred-1",
@@ -279,7 +279,7 @@ public sealed class PredictionBroadcastHandlersTests
         PredictionBeganBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new PredictionBeganEvent
+            new()
             {
                 BroadcasterId = Guid.Empty,
                 PredictionId = "pred-1",

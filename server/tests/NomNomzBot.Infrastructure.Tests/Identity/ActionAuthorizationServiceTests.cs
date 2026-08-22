@@ -65,7 +65,7 @@ public sealed class ActionAuthorizationServiceTests
     private static void SeedModerator(AuthDbContext db)
     {
         db.ChannelMemberships.Add(
-            new ChannelMembership
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,
@@ -84,7 +84,7 @@ public sealed class ActionAuthorizationServiceTests
     )
     {
         db.PermitGrants.Add(
-            new PermitGrant
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,

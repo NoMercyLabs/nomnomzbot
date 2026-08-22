@@ -61,7 +61,7 @@ public sealed class FederationOptInService(
         );
         if (optIn is null)
         {
-            optIn = new ChannelFederationOptIn
+            optIn = new()
             {
                 BroadcasterId = broadcasterId,
                 PeerId = request.PeerId,

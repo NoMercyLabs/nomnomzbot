@@ -36,13 +36,13 @@ public sealed class EconomyLeaderboardServiceTests
     private static (EconomyLeaderboardService Sut, AuthDbContext Db) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        return (new EconomyLeaderboardService(db, new FakeTimeProvider(Now)), db);
+        return (new(db, new FakeTimeProvider(Now)), db);
     }
 
     private static void SeedAccount(AuthDbContext db, Guid viewer, long balance)
     {
         db.CurrencyAccounts.Add(
-            new CurrencyAccount
+            new()
             {
                 BroadcasterId = Channel,
                 ViewerUserId = viewer,
@@ -58,7 +58,7 @@ public sealed class EconomyLeaderboardServiceTests
     private static void SeedLedger(AuthDbContext db, Guid viewer, long amount, DateTime createdAt)
     {
         db.CurrencyLedgerEntries.Add(
-            new CurrencyLedgerEntry
+            new()
             {
                 BroadcasterId = Channel,
                 TenantPosition = ++_ledgerSeq,
@@ -86,7 +86,7 @@ public sealed class EconomyLeaderboardServiceTests
 
         Result<LeaderboardConfigDto> updated = await sut.UpsertConfigAsync(
             Channel,
-            new UpsertLeaderboardConfigRequest(
+            new(
                 created.Value.Id,
                 "earned",
                 "channel",
@@ -111,7 +111,7 @@ public sealed class EconomyLeaderboardServiceTests
 
         Result<LeaderboardConfigDto> result = await sut.UpsertConfigAsync(
             Channel,
-            new UpsertLeaderboardConfigRequest(null, "karma", "channel", "alltime", true, 10, null)
+            new(null, "karma", "channel", "alltime", true, 10, null)
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -187,14 +187,14 @@ public sealed class EconomyLeaderboardServiceTests
         (EconomyLeaderboardService sut, AuthDbContext db) = Build();
         SeedAccount(db, V1, 0);
         SeedAccount(db, V2, 0);
-        SeedLedger(db, V1, 100, new DateTime(2026, 6, 10)); // this month — counts
-        SeedLedger(db, V1, 500, new DateTime(2026, 5, 1)); // last month — excluded
-        SeedLedger(db, V2, 50, new DateTime(2026, 6, 15)); // this month — counts
+        SeedLedger(db, V1, 100, new(2026, 6, 10)); // this month — counts
+        SeedLedger(db, V1, 500, new(2026, 5, 1)); // last month — excluded
+        SeedLedger(db, V2, 50, new(2026, 6, 15)); // this month — counts
         await db.SaveChangesAsync();
         Guid configId = (
             await sut.UpsertConfigAsync(
                 Channel,
-                new UpsertLeaderboardConfigRequest(
+                new(
                     null,
                     "earned",
                     "channel",

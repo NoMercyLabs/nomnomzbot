@@ -123,7 +123,7 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
     public DbSet<User> Users => throw new NotSupportedException();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Identity.Entities.ErasureRequest> ErasureRequests =>
+    public DbSet<ErasureRequest> ErasureRequests =>
         throw new NotSupportedException();
     public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
@@ -161,11 +161,11 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<Widget> Widgets => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetVersion> WidgetVersions =>
+    public DbSet<WidgetVersion> WidgetVersions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem> WidgetGalleryItems =>
+    public DbSet<WidgetGalleryItem> WidgetGalleryItems =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
+    public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
     public DbSet<RecordEntity> Records => throw new NotSupportedException();
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
@@ -200,11 +200,11 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
     public DbSet<RefreshToken> RefreshTokens => throw new NotSupportedException();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => throw new NotSupportedException();
     public DbSet<IntegrationToken> IntegrationTokens => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Identity.Entities.CryptoKey> CryptoKeys =>
+    public DbSet<CryptoKey> CryptoKeys =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Identity.Entities.KeyUsageBinding> KeyUsageBindings =>
+    public DbSet<KeyUsageBinding> KeyUsageBindings =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey> EventSubjectKeys =>
+    public DbSet<EventSubjectKey> EventSubjectKeys =>
         throw new NotSupportedException();
     public DbSet<DiscordGuildConnection> DiscordGuildConnections =>
         throw new NotSupportedException();
@@ -220,8 +220,8 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Vts.Entities.VtsConnection>();
     public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
         Set<NomNomzBot.Domain.Obs.Entities.ObsConnection>();
-    public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
-        Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
+    public DbSet<Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
+        Set<Domain.Automation.Entities.AutomationApiToken>();
     public DbSet<TtsConfig> TtsConfigs => throw new NotSupportedException();
     public DbSet<TtsVoice> TtsVoices => throw new NotSupportedException();
     public DbSet<UserTtsVoice> UserTtsVoices => throw new NotSupportedException();
@@ -232,25 +232,25 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Identity.Entities.ComplianceAuditLog> ComplianceAuditLogs =>
+    public DbSet<ComplianceAuditLog> ComplianceAuditLogs =>
         throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask> ScheduledPipelineTasks =>
+    public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStep> PipelineSteps =>
+    public DbSet<PipelineStep> PipelineSteps =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition> PipelineStepConditions =>
+    public DbSet<PipelineStepCondition> PipelineStepConditions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineExecution> PipelineExecutions =>
+    public DbSet<PipelineExecution> PipelineExecutions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand> ChannelBuiltinCommands =>
+    public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.CommandCooldownState> CommandCooldownStates =>
+    public DbSet<CommandCooldownState> CommandCooldownStates =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.NamedCounter> NamedCounters =>
+    public DbSet<NamedCounter> NamedCounters =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>
         throw new NotSupportedException();
@@ -262,7 +262,7 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareRequest> MediaShareRequests =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.CommandUsage> CommandUsages =>
+    public DbSet<CommandUsage> CommandUsages =>
         throw new NotSupportedException();
     public DbSet<EventJournal> EventJournals => throw new NotSupportedException();
     public DbSet<TenantSequence> TenantSequences => throw new NotSupportedException();
@@ -273,7 +273,7 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
     public DbSet<ActionDefinition> ActionDefinitions => throw new NotSupportedException();
     public DbSet<ChannelActionOverride> ChannelActionOverrides => throw new NotSupportedException();
     public DbSet<PermitGrant> PermitGrants => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelMissingScope> ChannelMissingScopes =>
+    public DbSet<ChannelMissingScope> ChannelMissingScopes =>
         throw new NotSupportedException();
     public DbSet<IamPermission> IamPermissions => throw new NotSupportedException();
     public DbSet<IamRole> IamRoles => throw new NotSupportedException();
@@ -291,7 +291,7 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
     public DbSet<GamePlay> GamePlays => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.GameSession> GameSessions =>
+    public DbSet<GameSession> GameSessions =>
         throw new NotSupportedException();
     public DbSet<ViewerAgeConsent> ViewerAgeConsents => throw new NotSupportedException();
     public DbSet<SavingsJar> SavingsJars => throw new NotSupportedException();

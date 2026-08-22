@@ -39,7 +39,7 @@ public sealed class GrantCurrencyAction(ICurrencyAccountService accounts) : ICom
 
         Result<CurrencyLedgerEntryDto> result = await accounts.PostLedgerEntryAsync(
             ctx.BroadcasterId,
-            new PostLedgerEntryCommand(
+            new(
                 viewer,
                 amount,
                 nameof(CurrencyEntryType.EarnPipeline),

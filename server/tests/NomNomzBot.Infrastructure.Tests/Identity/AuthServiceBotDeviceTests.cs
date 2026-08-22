@@ -19,7 +19,6 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Infrastructure.Identity;
-using NomNomzBot.Infrastructure.Platform.Deployment;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
@@ -134,7 +133,7 @@ public sealed class AuthServiceBotDeviceTests
             config
         );
 
-        return new AuthService(
+        return new(
             db,
             Substitute.For<ITwitchAuthService>(),
             deviceCode,
@@ -144,9 +143,9 @@ public sealed class AuthServiceBotDeviceTests
             credentials,
             Substitute.For<IHttpClientFactory>(),
             config,
-            new DeploymentContext(DeploymentMode.SelfHostLite),
+            new(DeploymentMode.SelfHostLite),
             TimeProvider.System,
-            new TwitchScopeRegistry(),
+            new(),
             NullLogger<AuthService>.Instance
         );
     }

@@ -48,9 +48,9 @@ public sealed class DashboardAccessibilityTests
     [E2EFact]
     public async Task Compose_dashboard_mounts_and_we_probe_its_accessibility_tree()
     {
-        using IPlaywright playwright = await Microsoft.Playwright.Playwright.CreateAsync();
+        using IPlaywright playwright = await Playwright.CreateAsync();
         await using IBrowser browser = await playwright.Chromium.LaunchAsync(
-            new BrowserTypeLaunchOptions
+            new()
             {
                 // Force the engine to compute the accessibility tree — the trigger that makes a
                 // canvas-based UI publish its semantics. Without it Chromium builds the AX tree lazily.
@@ -61,7 +61,7 @@ public sealed class DashboardAccessibilityTests
 
         await page.GotoAsync(
             $"{E2ESettings.BaseUrl}/",
-            new PageGotoOptions { WaitUntil = WaitUntilState.Load }
+            new() { WaitUntil = WaitUntilState.Load }
         );
 
         // App-ready signal baked into the boot page: the #nnz-boot overlay hides itself (display:none)
@@ -70,7 +70,7 @@ public sealed class DashboardAccessibilityTests
         await page.WaitForFunctionAsync(
             "() => { const b = document.getElementById('nnz-boot'); return b !== null && b.style.display === 'none'; }",
             null,
-            new PageWaitForFunctionOptions { Timeout = 30_000 }
+            new() { Timeout = 30_000 }
         );
 
         // PROOF 1 — Playwright observes the Compose render surface. The dashboard mounts into a <canvas>;
@@ -78,7 +78,7 @@ public sealed class DashboardAccessibilityTests
         ILocator canvas = page.Locator("canvas");
         await Assertions
             .Expect(canvas.First)
-            .ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 15_000 });
+            .ToBeVisibleAsync(new() { Timeout = 15_000 });
 
         // PROOF 2 (experiment) — does Compose publish role-bearing accessibility nodes?
         // Count common interactive/landmark roles. Note the boot overlay itself declares role="status";
@@ -92,7 +92,7 @@ public sealed class DashboardAccessibilityTests
 
         // Screenshot artifact either way, so the run is inspectable when a11y is inconclusive.
         string artifact = Path.Combine(AppContext.BaseDirectory, "dashboard-a11y-probe.png");
-        await page.ScreenshotAsync(new PageScreenshotOptions { Path = artifact, FullPage = false });
+        await page.ScreenshotAsync(new() { Path = artifact, FullPage = false });
 
         _output.WriteLine(
             $"A11Y PROBE against {E2ESettings.BaseUrl}/ — "

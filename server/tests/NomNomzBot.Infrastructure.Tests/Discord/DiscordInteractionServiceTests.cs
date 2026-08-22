@@ -16,7 +16,6 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Discord.Events;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Discord;
 using NomNomzBot.Infrastructure.Discord.Interactions;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -33,7 +32,7 @@ namespace NomNomzBot.Infrastructure.Tests.Discord;
 public sealed class DiscordInteractionServiceTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 7, 5, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 7, 5, 12, 0, 0, TimeSpan.Zero)
     );
 
     [Fact]
@@ -42,7 +41,7 @@ public sealed class DiscordInteractionServiceTests
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
         await using DiscordTestDbContext db = database.NewContext();
 
-        Result<string> reply = await NewService(db, new RecordingGateway(), new RecordingEventBus())
+        Result<string> reply = await NewService(db, new(), new())
             .HandleAsync("""{"type":1}""");
 
         reply.IsSuccess.Should().BeTrue(reply.ErrorMessage);
@@ -107,7 +106,7 @@ public sealed class DiscordInteractionServiceTests
         RecordingGateway gateway = new();
 
         await using (DiscordTestDbContext db = database.NewContext())
-            await NewService(db, gateway, new RecordingEventBus())
+            await NewService(db, gateway, new())
                 .HandleAsync(ComponentPayload(roleId, "member-42"));
 
         RecordingEventBus bus = new();
@@ -147,7 +146,7 @@ public sealed class DiscordInteractionServiceTests
                 roleId.ToString("N")
             );
         await using DiscordTestDbContext db = database.NewContext();
-        Result<string> reply = await NewService(db, gateway, new RecordingEventBus())
+        Result<string> reply = await NewService(db, gateway, new())
             .HandleAsync(payload);
 
         reply.IsSuccess.Should().BeTrue(reply.ErrorMessage);
@@ -164,7 +163,7 @@ public sealed class DiscordInteractionServiceTests
 
         Result<string> reply;
         await using (DiscordTestDbContext db = database.NewContext())
-            reply = await NewService(db, gateway, new RecordingEventBus())
+            reply = await NewService(db, gateway, new())
                 .HandleAsync(ComponentPayload(roleId, "member-42"));
 
         reply.IsSuccess.Should().BeTrue(reply.ErrorMessage);
@@ -201,7 +200,7 @@ public sealed class DiscordInteractionServiceTests
 
         Result<string> reply;
         await using (DiscordTestDbContext db = database.NewContext())
-            reply = await NewService(db, gateway, new RecordingEventBus()).HandleAsync(payload);
+            reply = await NewService(db, gateway, new()).HandleAsync(payload);
 
         reply.IsSuccess.Should().BeTrue(reply.ErrorMessage);
         using JsonDocument document = JsonDocument.Parse(reply.Value);
@@ -223,7 +222,7 @@ public sealed class DiscordInteractionServiceTests
 
         Result<string> reply;
         await using (DiscordTestDbContext db = database.NewContext())
-            reply = await NewService(db, gateway, new RecordingEventBus())
+            reply = await NewService(db, gateway, new())
                 .HandleAsync(ComponentPayload(Guid.CreateVersion7(), "member-42"));
 
         reply.IsSuccess.Should().BeTrue(reply.ErrorMessage);
@@ -246,7 +245,7 @@ public sealed class DiscordInteractionServiceTests
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
         await using DiscordTestDbContext db = database.NewContext();
 
-        Result<string> reply = await NewService(db, new RecordingGateway(), new RecordingEventBus())
+        Result<string> reply = await NewService(db, new(), new())
             .HandleAsync(body);
 
         reply.IsFailure.Should().BeTrue();
@@ -288,7 +287,7 @@ public sealed class DiscordInteractionServiceTests
         Guid roleId = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -298,7 +297,7 @@ public sealed class DiscordInteractionServiceTests
             }
         );
         db.DiscordGuildConnections.Add(
-            new DiscordGuildConnection
+            new()
             {
                 Id = connectionId,
                 BroadcasterId = channelId,
@@ -309,7 +308,7 @@ public sealed class DiscordInteractionServiceTests
             }
         );
         db.DiscordNotificationRoles.Add(
-            new DiscordNotificationRole
+            new()
             {
                 Id = roleId,
                 BroadcasterId = channelId,

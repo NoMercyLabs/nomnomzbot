@@ -105,7 +105,7 @@ public sealed class SetPronounAction : ICommandAction
         {
             await _pronouns.SetAsync(
                 targetUserId,
-                new SetPronounRequest
+                new()
                 {
                     PronounId = 0,
                     AltPronounId = 0,
@@ -130,7 +130,7 @@ public sealed class SetPronounAction : ICommandAction
 
         UserPronounDto? result = await _pronouns.SetAsync(
             targetUserId,
-            new SetPronounRequest { PronounId = pronoun.Id, ManualOverride = true },
+            new() { PronounId = pronoun.Id, ManualOverride = true },
             ctx.CancellationToken
         );
         if (result is null)

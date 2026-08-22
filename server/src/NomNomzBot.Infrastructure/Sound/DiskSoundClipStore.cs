@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.IO;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Common.Models;

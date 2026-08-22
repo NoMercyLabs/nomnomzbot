@@ -35,7 +35,7 @@ public sealed class BlockedTrackServiceTests
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
-        return (new BlockedTrackService(db), db);
+        return (new(db), db);
     }
 
     private static BlockTrackRequest Rickroll(string? reason = "never again") =>
@@ -111,14 +111,14 @@ public sealed class BlockedTrackServiceTests
 
         Result<PagedList<BlockedTrackDto>> listB = await sut.ListAsync(
             ChannelB,
-            new PaginationParams(1, 25)
+            new(1, 25)
         );
         listB.Value.Items.Should().BeEmpty();
 
         // And channel B cannot unblock channel A's row.
         Result<PagedList<BlockedTrackDto>> listA = await sut.ListAsync(
             ChannelA,
-            new PaginationParams(1, 25)
+            new(1, 25)
         );
         Guid rowId = listA.Value.Items.Single().Id;
         (await sut.UnblockAsync(ChannelB, rowId)).ErrorCode.Should().Be("NOT_FOUND");
@@ -131,16 +131,16 @@ public sealed class BlockedTrackServiceTests
         (BlockedTrackService sut, _) = Build();
         await sut.BlockAsync(
             ChannelA,
-            new BlockTrackRequest("spotify", "spotify:track:one", "One")
+            new("spotify", "spotify:track:one", "One")
         );
         await sut.BlockAsync(
             ChannelA,
-            new BlockTrackRequest("youtube", "yt:video:two", "Two", "loud", "twitch-9")
+            new("youtube", "yt:video:two", "Two", "loud", "twitch-9")
         );
 
         Result<PagedList<BlockedTrackDto>> page = await sut.ListAsync(
             ChannelA,
-            new PaginationParams(1, 25)
+            new(1, 25)
         );
 
         page.Value.TotalCount.Should().Be(2);
@@ -166,7 +166,7 @@ public sealed class BlockedTrackServiceTests
 
         Result<BlockedTrackDto> blocked = await sut.BlockAsync(
             ChannelA,
-            new BlockTrackRequest(provider, trackUri, title)
+            new(provider, trackUri, title)
         );
 
         blocked.ErrorCode.Should().Be("VALIDATION_FAILED");

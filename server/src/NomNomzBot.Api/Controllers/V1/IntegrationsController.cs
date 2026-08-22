@@ -98,7 +98,7 @@ public class IntegrationsController : BaseController
             .ToList();
 
         return Ok(
-            new StatusResponseDto<IntegrationsResponse> { Data = new IntegrationsResponse(result) }
+            new StatusResponseDto<IntegrationsResponse> { Data = new(result) }
         );
     }
 

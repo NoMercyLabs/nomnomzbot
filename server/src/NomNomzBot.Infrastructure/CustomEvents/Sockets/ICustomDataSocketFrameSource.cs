@@ -59,7 +59,7 @@ internal sealed class ClientWebSocketDataFrameSource : ICustomDataSocketFrameSou
             while (socket.State == WebSocketState.Open && !ct.IsCancellationRequested)
             {
                 WebSocketReceiveResult result = await socket.ReceiveAsync(
-                    new ArraySegment<byte>(buffer),
+                    new(buffer),
                     ct
                 );
                 if (result.MessageType == WebSocketMessageType.Close)

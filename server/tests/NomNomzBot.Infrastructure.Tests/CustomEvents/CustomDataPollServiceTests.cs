@@ -16,8 +16,6 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.CustomEvents.Services;
-using NomNomzBot.Domain.CustomEvents.Entities;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.CustomEvents;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -88,7 +86,7 @@ public sealed class CustomDataPollServiceTests
 
         RecordingHandler handler = new(status, body);
         IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
-        factory.CreateClient(Arg.Any<string>()).Returns(_ => new HttpClient(handler));
+        factory.CreateClient(Arg.Any<string>()).Returns(_ => new(handler));
 
         FakeTimeProvider clock = new(Now);
         CustomDataPollService sut = new(
@@ -111,7 +109,7 @@ public sealed class CustomDataPollServiceTests
     )
     {
         db.CustomDataSources.Add(
-            new CustomDataSource
+            new()
             {
                 BroadcasterId = Channel,
                 Name = "heartrate",
@@ -132,7 +130,7 @@ public sealed class CustomDataPollServiceTests
     private static async Task SeedAllowlistAsync(AuthDbContext db, string fqdn = "api.example.com")
     {
         db.HttpEgressAllowlists.Add(
-            new HttpEgressAllowlist
+            new()
             {
                 BroadcasterId = Channel,
                 Fqdn = fqdn,

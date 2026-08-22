@@ -125,7 +125,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
                 && expiresAt <= _clock.GetUtcNow().UtcDateTime.Add(RefreshMargin)
             );
         if (!expiring)
-            return new KickAccess(access.Value.Value, kickUserId);
+            return new(access.Value.Value, kickUserId);
 
         string? refreshed = await RefreshAsync(connectionId, cancellationToken);
         return refreshed is null ? null : new KickAccess(refreshed, kickUserId);
@@ -183,7 +183,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
             // OAuth 2.1 rotation: the OLD refresh token is now dead — vault the NEW pair atomically.
             await _vault.StoreTokensAsync(
                 connectionId,
-                new StoreTokensDto(
+                new(
                     token.AccessToken,
                     token.RefreshToken,
                     AppToken: null,

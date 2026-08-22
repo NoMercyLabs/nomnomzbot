@@ -16,7 +16,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
@@ -83,7 +82,7 @@ public sealed class ChatFilterExecutionHandlerTests
             users,
             NullLogger<ChatFilterExecutionHandler>.Instance
         );
-        return new Harness(handler, db, moderation, escalation);
+        return new(handler, db, moderation, escalation);
     }
 
     private static ChatMessageReceivedEvent Message(string text, bool isVip = false) =>
@@ -134,13 +133,13 @@ public sealed class ChatFilterExecutionHandlerTests
         Harness h = Build();
         await h.Escalation.UpsertPolicyAsync(
             Channel,
-            new UpsertEscalationPolicyRequest(
+            new(
                 IsEnabled: true,
                 Ladder:
                 [
-                    new EscalationLadderStep(1, "warn", null),
-                    new EscalationLadderStep(2, "timeout", 60),
-                    new EscalationLadderStep(3, "ban", null),
+                    new(1, "warn", null),
+                    new(2, "timeout", 60),
+                    new(3, "ban", null),
                 ],
                 OffenseWindowHours: 168,
                 CountAutoModViolations: false
@@ -191,12 +190,12 @@ public sealed class ChatFilterExecutionHandlerTests
         Harness h = Build();
         await h.Escalation.UpsertPolicyAsync(
             Channel,
-            new UpsertEscalationPolicyRequest(
+            new(
                 IsEnabled: true,
                 Ladder:
                 [
-                    new EscalationLadderStep(1, "warn", null),
-                    new EscalationLadderStep(2, "timeout", 60),
+                    new(1, "warn", null),
+                    new(2, "timeout", 60),
                 ],
                 OffenseWindowHours: 168,
                 CountAutoModViolations: false

@@ -56,7 +56,7 @@ public sealed class ChatBadgeResolver : IChatBadgeResolver
             )
                 ? found
                 : NoUrls;
-            resolved.Add(new ResolvedChatBadge(badge.SetId, badge.Id, badge.Info, urls));
+            resolved.Add(new(badge.SetId, badge.Id, badge.Info, urls));
         }
 
         return resolved;

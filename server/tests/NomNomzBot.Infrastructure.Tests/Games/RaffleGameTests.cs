@@ -54,7 +54,7 @@ public sealed class RaffleGameTests
         {
             SessionId = Guid.CreateVersion7(),
             BroadcasterId = Guid.CreateVersion7(),
-            Config = new GameConfigView(1, 1000, null, null),
+            Config = new(1, 1000, null, null),
             Participants = participants,
             Phase = LiveGamePhase.Lobby,
             Data = data,

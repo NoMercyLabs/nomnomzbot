@@ -10,7 +10,7 @@
 
 namespace NomNomzBot.Domain.Stream.Events;
 
-using NomNomzBot.Domain.Platform;
+using Platform;
 
 public sealed class StreamStatusChangedEvent : DomainEventBase
 {

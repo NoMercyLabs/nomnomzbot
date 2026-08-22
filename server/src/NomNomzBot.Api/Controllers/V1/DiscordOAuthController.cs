@@ -96,7 +96,7 @@ public class DiscordOAuthController : BaseController
         // server-side, never in the query string) so a forged callback cannot bind a Discord guild to a
         // channel the caller did not choose, nor bounce the result to an unvetted target.
         string state = await _oauthState.IssueAsync(
-            new DiscordOAuthFlowState(channelId, redirect_uri),
+            new(channelId, redirect_uri),
             ct
         );
 

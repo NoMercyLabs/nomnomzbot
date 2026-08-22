@@ -129,7 +129,7 @@ public sealed class ObsRequestAction(IObsControlService obs) : ObsActionBase(obs
             return failure;
         Result<ObsResponse> response = await Obs.RequestAsync(
             ctx.BroadcasterId,
-            new ObsRequest(type, ReadDataObject(action, "request_data")),
+            new(type, ReadDataObject(action, "request_data")),
             ctx.CancellationToken
         );
         if (response.IsFailure)
@@ -200,7 +200,7 @@ public sealed class ObsRequestBatchAction(IObsControlService obs) : ObsActionBas
                 && dataEl.ValueKind == JsonValueKind.Object
             )
             {
-                data = new Dictionary<string, object?>();
+                data = new();
                 foreach (JsonProperty property in dataEl.EnumerateObject())
                     data[property.Name] = property.Value.ValueKind switch
                     {
@@ -212,7 +212,7 @@ public sealed class ObsRequestBatchAction(IObsControlService obs) : ObsActionBas
                         _ => property.Value.GetRawText(),
                     };
             }
-            requests.Add(new ObsRequest(typeEl.GetString() ?? "", data));
+            requests.Add(new(typeEl.GetString() ?? "", data));
         }
 
         string execution = Param(ctx, action, "execution")?.Trim().ToLowerInvariant() ?? "serial";
@@ -225,7 +225,7 @@ public sealed class ObsRequestBatchAction(IObsControlService obs) : ObsActionBas
 
         Result<IReadOnlyList<ObsResponse>> result = await Obs.RequestBatchAsync(
             ctx.BroadcasterId,
-            new ObsRequestBatch(requests, executionType, GetBool(action, "halt_on_failure")),
+            new(requests, executionType, GetBool(action, "halt_on_failure")),
             ctx.CancellationToken
         );
         if (result.IsFailure)

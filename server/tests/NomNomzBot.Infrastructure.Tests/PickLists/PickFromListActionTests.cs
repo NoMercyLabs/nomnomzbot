@@ -17,15 +17,12 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.PickLists.Services;
-using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.PickLists.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.PickLists;
 using NomNomzBot.Infrastructure.PickLists.PipelineActions;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
-using Xunit;
 using ActionDefinition = NomNomzBot.Application.Abstractions.Pipeline.ActionDefinition;
 
 namespace NomNomzBot.Infrastructure.Tests.PickLists;
@@ -55,7 +52,7 @@ public sealed class PickFromListActionTests : IDisposable
         _db = _database.NewContext();
 
         _db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Channel,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -71,7 +68,7 @@ public sealed class PickFromListActionTests : IDisposable
         _db.SaveChanges();
 
         RecordingEventBus bus = new();
-        _lists = new PickListService(_db, bus);
+        _lists = new(_db, bus);
 
         // The resolver resolves IPickListService from a fresh scope per call; register the focused SQLite
         // context as the singleton IApplicationDbContext the scoped service reads through (mirrors
@@ -81,19 +78,19 @@ public sealed class PickFromListActionTests : IDisposable
         services.AddSingleton<IEventBus>(bus);
         services.AddScoped<IPickListService, PickListService>();
         ServiceProvider provider = services.BuildServiceProvider();
-        _resolver = new TemplateResolver(
+        _resolver = new(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<TemplateResolver>.Instance,
             TimeProvider.System
         );
 
-        _action = new PickFromListAction(_lists, _resolver);
+        _action = new(_lists, _resolver);
     }
 
     private void AddList(string name, List<string> items) =>
         _db.PickLists.Add(
-            new PickList
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = Channel,

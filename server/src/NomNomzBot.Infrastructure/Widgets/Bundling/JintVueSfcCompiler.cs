@@ -69,7 +69,7 @@ public sealed class JintVueSfcCompiler : IVueSfcCompiler, IDisposable
             ? parsed
             : 2;
         _maxEngines = Math.Clamp(configured, 1, 8);
-        _gate = new SemaphoreSlim(_maxEngines, _maxEngines);
+        _gate = new(_maxEngines, _maxEngines);
 
         string bundleJs = ReadEmbeddedResource(BundleResourceName);
         string wrapperJs = ReadEmbeddedResource(WrapperResourceName);
@@ -168,7 +168,7 @@ public sealed class JintVueSfcCompiler : IVueSfcCompiler, IDisposable
             throw new InvalidOperationException(
                 $"Embedded resource '{name}' was not found in '{assembly.GetName().Name}'."
             );
-        using System.IO.StreamReader reader = new(stream, Encoding.UTF8);
+        using StreamReader reader = new(stream, Encoding.UTF8);
         return reader.ReadToEnd();
     }
 
@@ -190,7 +190,7 @@ public sealed class JintVueSfcCompiler : IVueSfcCompiler, IDisposable
             VueCompileError error = errors[i];
             if (i > 0)
                 builder.Append('\n');
-            if (error.Line is int line)
+            if (error.Line is { } line)
                 builder
                     .Append(filename)
                     .Append(':')

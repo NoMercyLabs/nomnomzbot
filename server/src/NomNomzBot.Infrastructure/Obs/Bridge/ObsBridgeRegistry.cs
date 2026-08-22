@@ -47,7 +47,7 @@ public sealed class ObsBridgeRegistry : IObsBridgeRegistry
     {
         List<BridgeEntry> entries = await LoadAsync(broadcasterId, ct);
         entries.RemoveAll(e => e.ConnectionId == connectionId);
-        entries.Add(new BridgeEntry(connectionId, connectedAt));
+        entries.Add(new(connectionId, connectedAt));
         await SaveAsync(broadcasterId, entries, ct);
         await PublishStateAsync(broadcasterId, entries, ct);
     }
@@ -78,7 +78,7 @@ public sealed class ObsBridgeRegistry : IObsBridgeRegistry
     {
         List<BridgeEntry> entries = await LoadAsync(broadcasterId, ct);
         BridgeEntry? leader = entries.OrderBy(e => e.ConnectedAt).FirstOrDefault();
-        return new ObsBridgeStatusDto(entries.Count, leader is not null, leader?.ConnectedAt);
+        return new(entries.Count, leader is not null, leader?.ConnectedAt);
     }
 
     private async Task<List<BridgeEntry>> LoadAsync(Guid broadcasterId, CancellationToken ct) =>

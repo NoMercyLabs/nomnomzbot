@@ -149,7 +149,7 @@ public sealed class IamCatalogSeeder : ISeeder
         {
             if (!rolesByName.TryGetValue(roleName, out IamRole? role))
             {
-                role = new IamRole { Name = roleName, IsSystem = true };
+                role = new() { Name = roleName, IsSystem = true };
                 _db.IamRoles.Add(role);
                 rolesByName[roleName] = role;
             }
@@ -163,7 +163,7 @@ public sealed class IamCatalogSeeder : ISeeder
                 );
                 if (!joined)
                     _db.IamRolePermissions.Add(
-                        new IamRolePermission { RoleId = role.Id, PermissionId = permission.Id }
+                        new() { RoleId = role.Id, PermissionId = permission.Id }
                     );
             }
         }

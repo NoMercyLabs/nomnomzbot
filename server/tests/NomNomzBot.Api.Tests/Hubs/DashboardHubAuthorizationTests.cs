@@ -106,7 +106,7 @@ public sealed class DashboardHubAuthorizationTests
             Context = context,
             Groups = groups,
         };
-        return new Fixture(hub, chat, operatorSender, gate2, groups);
+        return new(hub, chat, operatorSender, gate2, groups);
     }
 
     [Fact]

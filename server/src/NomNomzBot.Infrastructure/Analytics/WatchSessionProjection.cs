@@ -49,7 +49,7 @@ public sealed class WatchSessionProjection(
         CancellationToken cancellationToken = default
     )
     {
-        if (@event.BroadcasterId is not Guid broadcasterId)
+        if (@event.BroadcasterId is not { } broadcasterId)
             return Result.Success();
 
         // Presence is only counted inside a live window — no covering stream, no session (§1.1).
@@ -114,7 +114,7 @@ public sealed class WatchSessionProjection(
     )
     {
         List<WatchSession> rows = await (
-            broadcasterId is Guid id
+            broadcasterId is { } id
                 ? db.WatchSessions.Where(s => s.BroadcasterId == id)
                 : db.WatchSessions
         ).ToListAsync(cancellationToken);
@@ -123,7 +123,7 @@ public sealed class WatchSessionProjection(
         // This projection OWNS ViewerProfile.TotalWatchSeconds (it folds it in ApplyAsync), so it also zeroes it on a
         // rebuild — ViewerProfileProjection must not, or a partial rebuild of either projection would desync the field.
         List<ViewerProfile> profiles = await (
-            broadcasterId is Guid pid
+            broadcasterId is { } pid
                 ? db.ViewerProfiles.Where(p => p.BroadcasterId == pid)
                 : db.ViewerProfiles
         ).ToListAsync(cancellationToken);
@@ -155,7 +155,7 @@ public sealed class WatchSessionProjection(
             );
         if (session is null)
         {
-            session = new WatchSession
+            session = new()
             {
                 BroadcasterId = broadcasterId,
                 ViewerProfileId = profile.Id,

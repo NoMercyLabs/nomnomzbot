@@ -39,7 +39,7 @@ public sealed class ChatMessageDecoratorTests
         await cache.SetAsync<IReadOnlyList<ChatEmote>>(
             ChatEmoteCacheKeys.Global(EmoteProvider.SevenTv),
             [
-                new ChatEmote(
+                new(
                     EmoteProvider.SevenTv,
                     "7tv-1",
                     "PepeLaugh",
@@ -74,7 +74,7 @@ public sealed class ChatMessageDecoratorTests
         await cache.SetAsync<IReadOnlyList<ChatEmote>>(
             ChatEmoteCacheKeys.Global(EmoteProvider.SevenTv),
             [
-                new ChatEmote(
+                new(
                     EmoteProvider.SevenTv,
                     "7tv-1",
                     "PepeLaugh",
@@ -147,7 +147,7 @@ public sealed class ChatMessageDecoratorTests
             .GetFeaturesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(Result.Success(dtos)));
 
-        return new ChatMessageDecorator(
+        return new(
             adapters,
             features,
             cache,
@@ -164,7 +164,7 @@ public sealed class ChatMessageDecoratorTests
             UserDisplayName = "Stoney",
             UserLogin = "stoney_eagle",
             Message = text,
-            Fragments = [new ChatMessageFragment { Type = "text", Text = text }],
+            Fragments = [new() { Type = "text", Text = text }],
             Badges = [],
             IsSubscriber = false,
             IsVip = false,

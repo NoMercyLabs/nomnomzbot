@@ -64,7 +64,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
     )
     {
         Result<UserTtsVoiceDto?> own = await _tts.GetOwnVoiceAsync(broadcasterId, viewerId, ct);
-        if (own.IsSuccess && own.Value is UserTtsVoiceDto voice)
+        if (own.IsSuccess && own.Value is { } voice)
             return Result.Success(
                 $"Your TTS voice is {voice.VoiceId}. Change it with !voice <search>, or !voice clear to use the channel default."
             );
@@ -96,7 +96,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
     )
     {
         Result<PagedList<TtsVoiceDto>> matches = await _tts.SearchVoicesAsync(
-            new TtsVoiceQuery(Q: query, PageSize: 10),
+            new(Q: query, PageSize: 10),
             ct
         );
         if (matches.IsFailure || matches.Value.Items.Count == 0)
@@ -108,7 +108,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         Result<UserTtsVoiceDto> set = await _tts.SetOwnVoiceAsync(
             broadcasterId,
             viewerId,
-            new SetUserVoiceDto { VoiceId = pick.Id },
+            new() { VoiceId = pick.Id },
             ct
         );
         if (set.IsFailure)

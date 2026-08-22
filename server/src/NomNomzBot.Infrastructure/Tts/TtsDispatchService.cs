@@ -14,7 +14,6 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Contracts.Tts;
-using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
@@ -104,7 +103,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             );
 
         // Bits gate (P.1 MinBitsToTts): when set, only messages carrying at least that many bits are read.
-        if (config.MinBitsToTts is int minBits && request.BitsAmount < minBits)
+        if (config.MinBitsToTts is { } minBits && request.BitsAmount < minBits)
             return await RejectRequestAsync(
                 request,
                 "bits_gate",
@@ -451,12 +450,12 @@ public sealed class TtsDispatchService : ITtsDispatchService
 
         await _ttsOverlay.SpeakAsync(
             broadcasterId,
-            new TtsOverlaySpeakDto(text, voiceId, provider, CueId: null),
+            new(text, voiceId, provider, CueId: null),
             ct
         );
 
         _db.TtsUsageRecords.Add(
-            new TtsUsageRecord
+            new()
             {
                 BroadcasterId = broadcasterId,
                 UserId = requestedByTwitchUserId,
@@ -519,7 +518,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             // mode synthesizes through the shared operator-configured service.
             if (config.Mode == "byok")
             {
-                Result<Domain.Tts.Interfaces.ITtsProvider> provider =
+                Result<ITtsProvider> provider =
                     await _byokProviders.CreateForChannelAsync(
                         broadcasterId,
                         config.DefaultProvider,
@@ -534,9 +533,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
                         "SERVICE_UNAVAILABLE",
                         ct
                     );
-                Domain.Tts.Interfaces.TtsSynthesisResult byokSynth =
+                TtsSynthesisResult byokSynth =
                     await provider.Value.SynthesizeAsync(text, voiceId, ct);
-                synth = new TtsResult(
+                synth = new(
                     byokSynth.AudioData,
                     byokSynth.DurationMs,
                     byokSynth.VoiceId,
@@ -590,7 +589,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         string dataUri = $"data:audio/mpeg;base64,{Convert.ToBase64String(synth.AudioData)}";
 
         _db.TtsUsageRecords.Add(
-            new TtsUsageRecord
+            new()
             {
                 BroadcasterId = broadcasterId,
                 UserId = requestedByTwitchUserId,

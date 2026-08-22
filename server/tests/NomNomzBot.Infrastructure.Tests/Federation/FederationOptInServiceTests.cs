@@ -34,7 +34,7 @@ public sealed class FederationOptInServiceTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         RecordingEventBus bus = new();
-        return (new FederationOptInService(db, bus, new FakeTimeProvider(Now)), db, bus);
+        return (new(db, bus, new FakeTimeProvider(Now)), db, bus);
     }
 
     private static async Task<Guid> SeedTrustedPeerAsync(AuthDbContext db, string trust = "trusted")
@@ -59,7 +59,7 @@ public sealed class FederationOptInServiceTests
         ChannelFederationOptInDto dto = (
             await sut.UpsertAsync(
                 Channel,
-                new UpsertChannelFederationOptInRequest(
+                new(
                     null,
                     FederationOptInType.SharedChatBans,
                     FederationDirection.Both,
@@ -84,7 +84,7 @@ public sealed class FederationOptInServiceTests
         Guid peer = await SeedTrustedPeerAsync(db);
         await sut.UpsertAsync(
             Channel,
-            new UpsertChannelFederationOptInRequest(
+            new(
                 peer,
                 FederationOptInType.SharedChatBans,
                 FederationDirection.Both,
@@ -123,7 +123,7 @@ public sealed class FederationOptInServiceTests
         Guid peer = await SeedTrustedPeerAsync(db, FederationTrustState.Revoked);
         await sut.UpsertAsync(
             Channel,
-            new UpsertChannelFederationOptInRequest(
+            new(
                 null, // any trusted peer
                 FederationOptInType.SharedChatBans,
                 FederationDirection.Both,
@@ -151,7 +151,7 @@ public sealed class FederationOptInServiceTests
         ChannelFederationOptInDto created = (
             await sut.UpsertAsync(
                 Channel,
-                new UpsertChannelFederationOptInRequest(
+                new(
                     null,
                     FederationOptInType.SharedChatBans,
                     FederationDirection.Both,

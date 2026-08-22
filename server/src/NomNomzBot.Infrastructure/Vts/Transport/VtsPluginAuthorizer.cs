@@ -72,7 +72,7 @@ public sealed class VtsPluginAuthorizer : IVtsPluginAuthorizer
         IObsSocket socket;
         try
         {
-            socket = await _socketFactory.ConnectAsync(new Uri(config.Endpoint), ct);
+            socket = await _socketFactory.ConnectAsync(new(config.Endpoint), ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

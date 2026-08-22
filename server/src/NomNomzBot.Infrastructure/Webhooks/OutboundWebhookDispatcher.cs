@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using System.Diagnostics;
-using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
@@ -144,7 +143,7 @@ public sealed class OutboundWebhookDispatcher(
 
         WebhookDeliveryStatus status = await AttemptCoreAsync(endpoint, delivery, ct);
         await db.SaveChangesAsync(ct);
-        return new OutboundEnqueueResult(endpoint.Id, webhookMessageId, delivery.Id, status);
+        return new(endpoint.Id, webhookMessageId, delivery.Id, status);
     }
 
     private async Task<WebhookDeliveryStatus> AttemptCoreAsync(
@@ -219,7 +218,7 @@ public sealed class OutboundWebhookDispatcher(
         {
             Content = new ByteArrayContent(body),
         };
-        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Content.Headers.ContentType = new("application/json");
         request.Headers.TryAddWithoutValidation("webhook-id", signature.WebhookId);
         request.Headers.TryAddWithoutValidation("webhook-timestamp", signature.Timestamp);
         request.Headers.TryAddWithoutValidation("webhook-signature", signature.Signature);

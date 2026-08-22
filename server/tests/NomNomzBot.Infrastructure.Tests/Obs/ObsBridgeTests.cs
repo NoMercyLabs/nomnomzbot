@@ -99,14 +99,14 @@ public sealed class ObsBridgeTests
         BridgeObsTransport transport = new(
             new ObsBridgeRegistry(new FakeCache(), new RecordingEventBus(), new FakeTimeProvider()),
             pusher,
-            new ObsBridgeCommandBook(),
+            new(),
             new FakeTimeProvider()
         );
 
         Result<ObsResponse> result = await transport.SendAsync(
             Channel,
             Guid.CreateVersion7(),
-            new ObsRequest("GetVersion", null)
+            new("GetVersion", null)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -148,7 +148,7 @@ public sealed class ObsBridgeTests
                 // The bridge acks out-of-band, like the hub would — the raw wire shape.
                 commands.Complete(
                     pushedCommand,
-                    new ObsBridgeAck(true, """{ "ok": true }""", null)
+                    new(true, """{ "ok": true }""", null)
                 );
                 return Task.CompletedTask;
             });
@@ -157,7 +157,7 @@ public sealed class ObsBridgeTests
         Result<ObsResponse> result = await transport.SendAsync(
             Channel,
             Guid.CreateVersion7(),
-            new ObsRequest("GetVersion", null)
+            new("GetVersion", null)
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -171,7 +171,7 @@ public sealed class ObsBridgeTests
                 Arg.Any<CancellationToken>()
             );
         // A duplicate ack for a settled id is a no-op (idempotent CommandId).
-        commands.Complete(pushedCommand, new ObsBridgeAck(false, null, "late")).Should().BeFalse();
+        commands.Complete(pushedCommand, new(false, null, "late")).Should().BeFalse();
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public sealed class ObsBridgeTests
         );
 
         await source.HandleAsync(
-            new ObsEventReceivedEvent
+            new()
             {
                 BroadcasterId = Channel,
                 ObsEventType = "CurrentProgramSceneChanged",

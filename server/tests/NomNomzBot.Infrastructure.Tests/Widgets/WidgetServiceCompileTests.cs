@@ -17,7 +17,6 @@ using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Domain.Widgets.Events;
@@ -37,7 +36,7 @@ namespace NomNomzBot.Infrastructure.Tests.Widgets;
 public sealed class WidgetServiceCompileTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
@@ -78,7 +77,7 @@ public sealed class WidgetServiceCompileTests
         Guid channelId = Guid.CreateVersion7();
         await using WidgetTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -101,7 +100,7 @@ public sealed class WidgetServiceCompileTests
         Guid widgetId = Guid.CreateVersion7();
         await using WidgetTestDbContext db = database.NewContext();
         db.Widgets.Add(
-            new Widget
+            new()
             {
                 Id = widgetId,
                 BroadcasterId = channelId,
@@ -129,7 +128,7 @@ public sealed class WidgetServiceCompileTests
         Result<WidgetVersionDetail> result = await service.CompileAsync(
             channel.ToString(),
             widget.ToString(),
-            new CompileWidgetRequest { SourceCode = source }
+            new() { SourceCode = source }
         );
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         return result.Value;
@@ -151,7 +150,7 @@ public sealed class WidgetServiceCompileTests
             Result<WidgetVersionDetail> result = await service.CompileAsync(
                 channel.ToString(),
                 widget.ToString(),
-                new CompileWidgetRequest { SourceCode = "export const x = 1;" }
+                new() { SourceCode = "export const x = 1;" }
             );
 
             result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -209,7 +208,7 @@ public sealed class WidgetServiceCompileTests
             result = await service.CompileAsync(
                 channel.ToString(),
                 widget.ToString(),
-                new CompileWidgetRequest { SourceCode = "bad(" }
+                new() { SourceCode = "bad(" }
             );
         }
 
@@ -287,7 +286,7 @@ public sealed class WidgetServiceCompileTests
         Result<PagedList<WidgetVersionSummary>> result = await service.ListVersionsAsync(
             channel.ToString(),
             widget.ToString(),
-            new PaginationParams()
+            new()
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -311,7 +310,7 @@ public sealed class WidgetServiceCompileTests
         Result<PagedList<WidgetVersionSummary>> unknown = await service.ListVersionsAsync(
             channel.ToString(),
             Guid.NewGuid().ToString(),
-            new PaginationParams()
+            new()
         );
         unknown.IsFailure.Should().BeTrue();
         unknown.ErrorCode.Should().Be("NOT_FOUND");
@@ -320,7 +319,7 @@ public sealed class WidgetServiceCompileTests
         Result<PagedList<WidgetVersionSummary>> wrongTenant = await service.ListVersionsAsync(
             otherChannel.ToString(),
             widget.ToString(),
-            new PaginationParams()
+            new()
         );
         wrongTenant.IsFailure.Should().BeTrue();
         wrongTenant.ErrorCode.Should().Be("NOT_FOUND");

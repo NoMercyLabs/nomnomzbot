@@ -14,7 +14,6 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Models.Crypto;
 using NomNomzBot.Application.Services;
-using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Tts.Interfaces;
 using NomNomzBot.Infrastructure.Tts;
 using NSubstitute;
@@ -61,7 +60,7 @@ public sealed class ByokTtsProviderFactoryTests
     private static async Task SeedAzureKeyAsync(TtsTestDbContext db)
     {
         db.TtsConfigs.Add(
-            new TtsConfig
+            new()
             {
                 BroadcasterId = Channel,
                 SubjectKeyId = DekId,

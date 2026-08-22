@@ -25,7 +25,6 @@ using NomNomzBot.Domain.Chat.Enums;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Chat.ValueObjects;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NSubstitute;
 
@@ -76,7 +75,7 @@ public sealed class ChatControllerTests
     {
         ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Broadcaster,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -86,7 +85,7 @@ public sealed class ChatControllerTests
             }
         );
         db.ChatMessages.Add(
-            new ChatMessage
+            new()
             {
                 Id = "msg-1",
                 BroadcasterId = Broadcaster,
@@ -97,9 +96,9 @@ public sealed class ChatControllerTests
                 Message = "PepeLaugh hi",
                 // The RAW, un-enriched persisted shape — no Emote, no badge Urls. If GetMessages ever regresses
                 // to returning this untouched, the assertions below (which expect the DECORATOR's output) fail.
-                Fragments = [new ChatMessageFragment { Type = "text", Text = "PepeLaugh hi" }],
-                Badges = [new ChatBadge("subscriber", "6")],
-                CreatedAt = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc),
+                Fragments = [new() { Type = "text", Text = "PepeLaugh hi" }],
+                Badges = [new("subscriber", "6")],
+                CreatedAt = new(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc),
             }
         );
         await db.SaveChangesAsync();
@@ -108,7 +107,7 @@ public sealed class ChatControllerTests
         {
             Type = "emote",
             Text = "PepeLaugh",
-            Emote = new ChatEmote(
+            Emote = new(
                 EmoteProvider.SevenTv,
                 "7tv-1",
                 "PepeLaugh",
@@ -157,7 +156,7 @@ public sealed class ChatControllerTests
     {
         ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Broadcaster,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -177,9 +176,9 @@ public sealed class ChatControllerTests
                 DisplayName = "Viewer1",
                 UserType = "viewer",
                 Message = "from twitch",
-                Fragments = [new ChatMessageFragment { Type = "text", Text = "from twitch" }],
+                Fragments = [new() { Type = "text", Text = "from twitch" }],
                 Badges = [],
-                CreatedAt = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc),
+                CreatedAt = new(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc),
             },
             new ChatMessage
             {
@@ -191,9 +190,9 @@ public sealed class ChatControllerTests
                 DisplayName = "Viewer2",
                 UserType = "viewer",
                 Message = "from kick",
-                Fragments = [new ChatMessageFragment { Type = "text", Text = "from kick" }],
+                Fragments = [new() { Type = "text", Text = "from kick" }],
                 Badges = [],
-                CreatedAt = new DateTime(2026, 7, 1, 12, 0, 1, DateTimeKind.Utc),
+                CreatedAt = new(2026, 7, 1, 12, 0, 1, DateTimeKind.Utc),
             }
         );
         await db.SaveChangesAsync();
@@ -218,7 +217,7 @@ public sealed class ChatControllerTests
     {
         ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Broadcaster,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -237,9 +236,9 @@ public sealed class ChatControllerTests
                 DisplayName = "Viewer1",
                 UserType = "viewer",
                 Message = "first",
-                Fragments = [new ChatMessageFragment { Type = "text", Text = "first" }],
+                Fragments = [new() { Type = "text", Text = "first" }],
                 Badges = [],
-                CreatedAt = new DateTime(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc),
+                CreatedAt = new(2026, 7, 1, 12, 0, 0, DateTimeKind.Utc),
             },
             new ChatMessage
             {
@@ -250,9 +249,9 @@ public sealed class ChatControllerTests
                 DisplayName = "Mod1",
                 UserType = "moderator",
                 Message = "second",
-                Fragments = [new ChatMessageFragment { Type = "text", Text = "second" }],
+                Fragments = [new() { Type = "text", Text = "second" }],
                 Badges = [],
-                CreatedAt = new DateTime(2026, 7, 1, 12, 0, 1, DateTimeKind.Utc),
+                CreatedAt = new(2026, 7, 1, 12, 0, 1, DateTimeKind.Utc),
             }
         );
         await db.SaveChangesAsync();
@@ -303,7 +302,7 @@ public sealed class ChatControllerTests
         ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
         // No Channel row seeded at all.
         db.ChatMessages.Add(
-            new ChatMessage
+            new()
             {
                 Id = "msg-1",
                 BroadcasterId = Broadcaster,
@@ -312,7 +311,7 @@ public sealed class ChatControllerTests
                 DisplayName = "Viewer1",
                 UserType = "viewer",
                 Message = "hi",
-                Fragments = [new ChatMessageFragment { Type = "text", Text = "hi" }],
+                Fragments = [new() { Type = "text", Text = "hi" }],
                 Badges = [],
                 CreatedAt = DateTime.UtcNow,
             }
@@ -356,7 +355,7 @@ public sealed class ChatControllerTests
     {
         ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Broadcaster,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -367,7 +366,7 @@ public sealed class ChatControllerTests
         );
         DateTime created = new(2026, 7, 2, 9, 30, 15, DateTimeKind.Utc);
         db.ChatMessages.Add(
-            new ChatMessage
+            new()
             {
                 Id = "msg-1",
                 BroadcasterId = Broadcaster,
@@ -376,7 +375,7 @@ public sealed class ChatControllerTests
                 DisplayName = "Viewer1",
                 UserType = "vip",
                 Message = "hi",
-                Fragments = [new ChatMessageFragment { Type = "text", Text = "hi" }],
+                Fragments = [new() { Type = "text", Text = "hi" }],
                 Badges = [],
                 CreatedAt = created,
             }
@@ -418,7 +417,7 @@ public sealed class ChatControllerTests
 
         IActionResult result = await controller.SendMessage(
             Broadcaster.ToString(),
-            new ChatController.SendChatMessageRequest("hello chat", SenderIdentity: "bot")
+            new("hello chat", SenderIdentity: "bot")
         );
 
         result.Should().BeOfType<OkObjectResult>();
@@ -439,7 +438,7 @@ public sealed class ChatControllerTests
 
         IActionResult result = await controller.SendMessage(
             Broadcaster.ToString(),
-            new ChatController.SendChatMessageRequest("hello chat", SenderIdentity: "bot")
+            new("hello chat", SenderIdentity: "bot")
         );
 
         ObjectResult response = result.Should().BeOfType<ObjectResult>().Subject;
@@ -471,7 +470,7 @@ public sealed class ChatControllerTests
 
         IActionResult result = await controller.SendMessage(
             Broadcaster.ToString(),
-            new ChatController.SendChatMessageRequest("hey there", ReplyToMessageId: "parent-99")
+            new("hey there", ReplyToMessageId: "parent-99")
         );
 
         result.Should().BeOfType<OkObjectResult>();
@@ -518,7 +517,7 @@ public sealed class ChatControllerTests
 
         IActionResult result = await controller.SendMessage(
             Broadcaster.ToString(),
-            new ChatController.SendChatMessageRequest("hey there")
+            new("hey there")
         );
 
         result.Should().NotBeOfType<OkObjectResult>();
@@ -540,7 +539,7 @@ public sealed class ChatControllerTests
 
         IActionResult result = await controller.SendMessage(
             Broadcaster.ToString(),
-            new ChatController.SendChatMessageRequest("hey there")
+            new("hey there")
         );
 
         ObjectResult response = result.Should().BeAssignableTo<ObjectResult>().Subject;
@@ -722,7 +721,7 @@ public sealed class ChatControllerTests
             )
             .Returns(
                 Result.Success<IReadOnlyList<ChatEmote>>([
-                    new ChatEmote(
+                    new(
                         EmoteProvider.SevenTv,
                         "7tv-1",
                         "catJAM",
@@ -805,7 +804,7 @@ public sealed class ChatControllerTests
             )
             .Returns(
                 Result.Success<IReadOnlyList<ChatEmote>>([
-                    new ChatEmote(
+                    new(
                         EmoteProvider.Twitch,
                         "global-1",
                         "Kappa",

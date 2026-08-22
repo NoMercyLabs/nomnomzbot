@@ -30,7 +30,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Tags("Automation")]
 public class AutomationTokensController(
     IAutomationApiTokenService tokens,
-    NomNomzBot.Application.Abstractions.Auth.ICurrentUserService currentUser
+    Application.Abstractions.Auth.ICurrentUserService currentUser
 ) : BaseController
 {
     private bool TryGetCaller(out Guid caller) => Guid.TryParse(currentUser.UserId, out caller);

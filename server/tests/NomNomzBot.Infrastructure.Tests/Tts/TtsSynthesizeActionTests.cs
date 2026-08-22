@@ -74,7 +74,7 @@ public sealed class TtsSynthesizeActionTests
         ITtsConfigService config = Substitute.For<ITtsConfigService>();
         ISoundClipStore store = Substitute.For<ISoundClipStore>();
 
-        return (new TtsSynthesizeAction(resolver, tts, config, store), tts, config, store);
+        return (new(resolver, tts, config, store), tts, config, store);
     }
 
     private static TtsConfigDto DefaultConfig(string? defaultVoiceId) =>

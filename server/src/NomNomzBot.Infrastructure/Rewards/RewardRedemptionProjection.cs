@@ -42,7 +42,7 @@ public sealed class RewardRedemptionProjection(IApplicationDbContext db) : IProj
         CancellationToken cancellationToken = default
     )
     {
-        if (@event.BroadcasterId is not Guid broadcasterId)
+        if (@event.BroadcasterId is not { } broadcasterId)
             return Result.Success();
 
         JObject? payload = TryParse(@event.PayloadJson);
@@ -58,7 +58,7 @@ public sealed class RewardRedemptionProjection(IApplicationDbContext db) : IProj
         {
             // The status update can arrive before the add was journaled (or after a partial import) — create the
             // row either way so a fulfilled/canceled redemption is never lost just because its add is missing.
-            row = new Redemption
+            row = new()
             {
                 BroadcasterId = broadcasterId,
                 RedemptionId = redemptionId,
@@ -101,7 +101,7 @@ public sealed class RewardRedemptionProjection(IApplicationDbContext db) : IProj
     )
     {
         List<Redemption> rows = await (
-            broadcasterId is Guid id
+            broadcasterId is { } id
                 ? db.Redemptions.Where(r => r.BroadcasterId == id)
                 : db.Redemptions
         ).ToListAsync(cancellationToken);

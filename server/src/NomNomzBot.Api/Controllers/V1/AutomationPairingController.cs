@@ -47,7 +47,7 @@ public class AutomationPairingController(
         CancellationToken ct
     )
     {
-        if (currentTenant.BroadcasterId is not Guid broadcasterId)
+        if (currentTenant.BroadcasterId is not { } broadcasterId)
             return BadRequestResponse("No channel resolved for this request.");
         if (!TryGetCaller(out Guid caller))
             return UnauthenticatedResponse();
@@ -77,7 +77,7 @@ public class AutomationPairingController(
         CancellationToken ct
     )
     {
-        if (currentTenant.BroadcasterId is not Guid broadcasterId)
+        if (currentTenant.BroadcasterId is not { } broadcasterId)
             return BadRequestResponse("No channel resolved for this request.");
         if (!TryGetCaller(out Guid caller))
             return UnauthenticatedResponse();

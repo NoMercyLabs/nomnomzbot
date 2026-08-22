@@ -37,7 +37,7 @@ public sealed class AutomationEventRegistry : IAutomationEventRegistry
                 $"Duplicate automation event name(s): {string.Join(", ", duplicateNames)}."
             );
 
-        _byType = new Dictionary<Type, IAutomationEventDescriptor>();
+        _byType = new();
         foreach (IAutomationEventDescriptor descriptor in all)
         {
             if (!_byType.TryAdd(descriptor.DomainEventType, descriptor))

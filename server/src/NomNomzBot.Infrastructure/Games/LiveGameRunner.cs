@@ -50,7 +50,7 @@ public sealed class LiveGameRunner(
                     bool lobbyDue =
                         runtime.Phase == Application.Games.LiveGamePhase.Lobby
                         && now >= runtime.JoinClosesAt;
-                    bool tickDue = runtime.NextTickAt is DateTime due && now >= due;
+                    bool tickDue = runtime.NextTickAt is { } due && now >= due;
                     if (runtime.Terminal || (!lobbyDue && !tickDue))
                         continue;
                     try

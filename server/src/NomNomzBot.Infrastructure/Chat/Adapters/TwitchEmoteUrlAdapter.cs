@@ -61,7 +61,7 @@ public sealed class TwitchEmoteUrlAdapter : IChatDecorationAdapter
             urls[key] =
                 $"https://static-cdn.jtvnw.net/emoticons/v2/{fragment.EmoteId}/{format}/dark/{scale}";
 
-        return new ChatEmote(
+        return new(
             EmoteProvider.Twitch,
             fragment.EmoteId!,
             fragment.Text,

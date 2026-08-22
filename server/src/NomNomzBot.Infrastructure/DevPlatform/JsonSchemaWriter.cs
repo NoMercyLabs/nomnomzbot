@@ -56,24 +56,24 @@ internal sealed class JsonSchemaWriter
         JsonNode node = classified.Category switch
         {
             SdkReflection.TypeCategory.StringLike => StringSchema(classified.Underlying),
-            SdkReflection.TypeCategory.IntegerLike => new JsonObject { ["type"] = "integer" },
-            SdkReflection.TypeCategory.NumberLike => new JsonObject { ["type"] = "number" },
-            SdkReflection.TypeCategory.BoolLike => new JsonObject { ["type"] = "boolean" },
+            SdkReflection.TypeCategory.IntegerLike => new() { ["type"] = "integer" },
+            SdkReflection.TypeCategory.NumberLike => new() { ["type"] = "number" },
+            SdkReflection.TypeCategory.BoolLike => new() { ["type"] = "boolean" },
             SdkReflection.TypeCategory.Enum => EnumSchema(classified.Underlying),
-            SdkReflection.TypeCategory.Collection => new JsonObject
+            SdkReflection.TypeCategory.Collection => new()
             {
                 ["type"] = "array",
                 ["items"] = SchemaFor(classified.ElementType!, false, ancestors),
             },
-            SdkReflection.TypeCategory.Dictionary => new JsonObject
+            SdkReflection.TypeCategory.Dictionary => new()
             {
                 ["type"] = "object",
                 ["additionalProperties"] = SchemaFor(classified.DictValueType!, false, ancestors),
             },
             SdkReflection.TypeCategory.Object => ancestors.Contains(classified.Underlying)
-                ? new JsonObject { ["type"] = "object" }
+                ? new() { ["type"] = "object" }
                 : BuildObjectSchema(classified.Underlying, ancestors),
-            _ => new JsonObject(),
+            _ => new(),
         };
 
         return nullable ? MakeNullable(node) : node;
@@ -98,7 +98,7 @@ internal sealed class JsonSchemaWriter
         JsonArray values = [];
         foreach (string name in Enum.GetNames(enumType))
             values.Add(name);
-        return new JsonObject { ["type"] = "string", ["enum"] = values };
+        return new() { ["type"] = "string", ["enum"] = values };
     }
 
     // A nullable property widens its "type" to include "null"; an untyped (any) schema is left untouched.

@@ -178,7 +178,7 @@ public sealed class AuthService : IAuthService
         CancellationToken cancellationToken = default
     ) =>
         await BuildAuthorizeUrlAsync(
-            broadcasterHint is Guid channel
+            broadcasterHint is { } channel
                 ? await WidenedStreamerScopesAsync(channel, cancellationToken)
                 : _requiredScopes,
             state,
@@ -405,7 +405,7 @@ public sealed class AuthService : IAuthService
 
         // Vault the user's Twitch tokens (replaces the flat Service row).
         Result<IntegrationConnectionDto> connection = await _vault.UpsertConnectionAsync(
-            new UpsertConnectionDto(
+            new(
                 broadcasterId,
                 AuthEnums.IntegrationProvider.Twitch,
                 twitchUser.Id,
@@ -421,7 +421,7 @@ public sealed class AuthService : IAuthService
         if (connection.IsSuccess)
             await _vault.StoreTokensAsync(
                 connection.Value.Id,
-                new StoreTokensDto(
+                new(
                     tokens.AccessToken,
                     tokens.RefreshToken,
                     AppToken: null,
@@ -715,7 +715,7 @@ public sealed class AuthService : IAuthService
 
         // Platform connection: BroadcasterId=null (shared across all channels).
         Result<IntegrationConnectionDto> connection = await _vault.UpsertConnectionAsync(
-            new UpsertConnectionDto(
+            new(
                 BroadcasterId: null,
                 PlatformBotProvider,
                 botUser.Id,
@@ -736,7 +736,7 @@ public sealed class AuthService : IAuthService
 
         await _vault.StoreTokensAsync(
             connection.Value.Id,
-            new StoreTokensDto(
+            new(
                 tokens.AccessToken,
                 tokens.RefreshToken,
                 AppToken: null,
@@ -861,7 +861,7 @@ public sealed class AuthService : IAuthService
             );
 
         Result<IntegrationConnectionDto> connection = await _vault.UpsertConnectionAsync(
-            new UpsertConnectionDto(
+            new(
                 broadcasterId,
                 PlatformBotProvider,
                 botUser.Id,
@@ -906,7 +906,7 @@ public sealed class AuthService : IAuthService
 
         await _vault.StoreTokensAsync(
             connection.Value.Id,
-            new StoreTokensDto(
+            new(
                 tokens.AccessToken,
                 tokens.RefreshToken,
                 AppToken: null,
@@ -1122,7 +1122,7 @@ public sealed class AuthService : IAuthService
             user.CreatedAt,
             user.UpdatedAt
         );
-        return new AuthResultDto(
+        return new(
             session.AccessToken,
             session.RawRefreshToken,
             session.AccessExpiresAt,

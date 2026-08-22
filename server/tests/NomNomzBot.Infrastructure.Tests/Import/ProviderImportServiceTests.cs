@@ -14,7 +14,6 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Import.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.EventStore;
@@ -37,7 +36,7 @@ namespace NomNomzBot.Infrastructure.Tests.Import;
 public sealed class ProviderImportServiceTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 7, 17, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 7, 17, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static ProviderImportService NewService(ImportTestDbContext db)
@@ -58,7 +57,7 @@ public sealed class ProviderImportServiceTests
             Clock
         );
         TimerManagementService timers = new(db, bus, TestTiers.Unlimited());
-        return new ProviderImportService(db, commands, quotes, timers);
+        return new(db, commands, quotes, timers);
     }
 
     private static async Task<Guid> SeedChannelAsync(ImportSqliteTestDatabase database)
@@ -66,7 +65,7 @@ public sealed class ProviderImportServiceTests
         Guid channelId = Guid.CreateVersion7();
         await using ImportTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -89,7 +88,7 @@ public sealed class ProviderImportServiceTests
         {
             Commands =
             [
-                new SeCommand
+                new()
                 {
                     Command = "!discord",
                     Response = "Join at discord.gg/nomnomz",
@@ -97,7 +96,7 @@ public sealed class ProviderImportServiceTests
                     Cooldown = 30,
                     Aliases = ["!disc"],
                 },
-                new SeCommand
+                new()
                 {
                     Command = "!so",
                     Response = "Check out {{args.1}}",
@@ -107,17 +106,17 @@ public sealed class ProviderImportServiceTests
             ],
             Quotes =
             [
-                new SeQuote
+                new()
                 {
                     Text = "blame the lag",
                     AddedBy = "Stoney_Eagle",
                     Game = "Just Chatting",
                 },
-                new SeQuote { Text = "clip it and ship it", AddedBy = "aaoa-dev" },
+                new() { Text = "clip it and ship it", AddedBy = "aaoa-dev" },
             ],
             Timers =
             [
-                new SeTimer
+                new()
                 {
                     Name = "follow-reminder",
                     Message = "Don't forget to follow!",
@@ -184,17 +183,17 @@ public sealed class ProviderImportServiceTests
         {
             Commands =
             [
-                new SeCommand
+                new()
                 {
                     Command = "!hello",
                     Response = "hi",
                     AccessLevel = 0,
                 },
             ],
-            Quotes = [new SeQuote { Text = "first blood", AddedBy = "Stoney_Eagle" }],
+            Quotes = [new() { Text = "first blood", AddedBy = "Stoney_Eagle" }],
             Timers =
             [
-                new SeTimer
+                new()
                 {
                     Name = "promo",
                     Message = "Subscribe!",
@@ -245,8 +244,8 @@ public sealed class ProviderImportServiceTests
         {
             Quotes =
             [
-                new SeQuote { Text = "GG well played" },
-                new SeQuote { Text = "gg well played" },
+                new() { Text = "GG well played" },
+                new() { Text = "gg well played" },
             ],
         };
 
@@ -280,7 +279,7 @@ public sealed class ProviderImportServiceTests
         {
             Commands =
             [
-                new SeCommand
+                new()
                 {
                     Command = "!lvl",
                     Response = "x",

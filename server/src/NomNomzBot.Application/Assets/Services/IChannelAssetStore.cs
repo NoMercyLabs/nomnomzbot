@@ -24,13 +24,13 @@ public interface IChannelAssetStore
     Task<Result<string>> PutAsync(
         Guid broadcasterId,
         string fileName,
-        System.IO.Stream content,
+        Stream content,
         string mimeType,
         CancellationToken ct = default
     );
 
     /// <summary>Opens the asset stream for reading (the public serving route and bundle export).</summary>
-    Task<Result<System.IO.Stream>> OpenAsync(string storageKey, CancellationToken ct = default);
+    Task<Result<Stream>> OpenAsync(string storageKey, CancellationToken ct = default);
 
     /// <summary>Permanently removes the blob. Call only after the DB row is soft-deleted or re-pointed.</summary>
     Task<Result> DeleteAsync(string storageKey, CancellationToken ct = default);

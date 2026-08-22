@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 
 namespace NomNomzBot.Api.Hubs;
@@ -37,7 +36,7 @@ internal sealed class WidgetEventNotifierAdapter : IWidgetEventNotifier
         _notifier.SendWidgetEventAsync(
             broadcasterId.ToString(),
             widgetId.ToString(),
-            new WidgetEventDto(widgetId.ToString(), eventType, data),
+            new(widgetId.ToString(), eventType, data),
             ct
         );
 }

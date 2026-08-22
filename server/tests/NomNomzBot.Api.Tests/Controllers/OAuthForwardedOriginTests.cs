@@ -180,10 +180,10 @@ public sealed class OAuthForwardedOriginTests
     {
         DefaultHttpContext http = new();
         http.Request.Scheme = "http";
-        http.Request.Host = new HostString("localhost", 5080);
+        http.Request.Host = new("localhost", 5080);
         http.Request.Headers["X-Forwarded-Host"] = "bot-dev.nomercy.tv";
         http.Request.Headers["X-Forwarded-Proto"] = "https";
-        return new ControllerContext { HttpContext = http };
+        return new() { HttpContext = http };
     }
 
     private static (
@@ -193,7 +193,7 @@ public sealed class OAuthForwardedOriginTests
     {
         ApiTestDbContext db = ApiTestDbContext.New();
         db.Configurations.Add(
-            new NomNomzBot.Domain.Platform.Entities.Configuration
+            new()
             {
                 BroadcasterId = null,
                 Key = "discord.client_id",

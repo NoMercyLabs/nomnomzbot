@@ -27,7 +27,7 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing.Translators;
 public sealed class ShoutoutTranslatorsTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static readonly Guid Tenant = Guid.NewGuid();
@@ -35,10 +35,10 @@ public sealed class ShoutoutTranslatorsTests
     private static EventSubNotification Notification(string subscriptionType, string payload)
     {
         using JsonDocument doc = JsonDocument.Parse(payload);
-        return new EventSubNotification
+        return new()
         {
             MessageId = "msg-1",
-            MessageTimestamp = new DateTimeOffset(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
+            MessageTimestamp = new(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
             SubscriptionType = subscriptionType,
             SubscriptionVersion = "1",
             BroadcasterId = Tenant,

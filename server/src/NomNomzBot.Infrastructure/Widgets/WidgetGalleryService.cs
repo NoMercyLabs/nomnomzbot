@@ -396,7 +396,7 @@ public partial class WidgetGalleryService(
             i.InstallCount,
             i.AvailableInSaaS,
             i.SourceKind,
-            new Dictionary<string, object>(i.DefaultSettings),
+            new(i.DefaultSettings),
             [.. i.DefaultEventSubscriptions],
             i.SourceCode,
             i.GitHubRepoUrl,

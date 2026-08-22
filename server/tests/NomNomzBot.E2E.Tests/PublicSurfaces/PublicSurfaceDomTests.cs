@@ -29,7 +29,7 @@ public sealed class PublicSurfaceDomTests : PageTest
     {
         await Page.GotoAsync(
             $"{E2ESettings.BaseUrl}/overlay",
-            new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded }
+            new() { WaitUntil = WaitUntilState.DOMContentLoaded }
         );
 
         // The placeholder page carries a single #m element with a fixed message — a stable DOM anchor.

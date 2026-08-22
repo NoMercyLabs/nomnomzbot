@@ -62,7 +62,7 @@ public class RolesController(
             return ResultResponse(result);
         return GetPaginatedResponse(
             result.Value,
-            new PageRequestDto { Page = page, Take = pageSize }
+            new() { Page = page, Take = pageSize }
         );
     }
 

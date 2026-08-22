@@ -13,8 +13,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.PickLists.Services;
-using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.PickLists.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.PickLists;
 using NomNomzBot.Infrastructure.Platform.Templating;
@@ -43,7 +41,7 @@ public sealed class PickListTemplateResolverTests : IDisposable
         _db = _database.NewContext();
 
         _db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Channel,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -53,7 +51,7 @@ public sealed class PickListTemplateResolverTests : IDisposable
             }
         );
         _db.PickLists.Add(
-            new PickList
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = Channel,
@@ -62,7 +60,7 @@ public sealed class PickListTemplateResolverTests : IDisposable
             }
         );
         _db.PickLists.Add(
-            new PickList
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = Channel,
@@ -80,7 +78,7 @@ public sealed class PickListTemplateResolverTests : IDisposable
         services.AddScoped<IPickListService, PickListService>();
         ServiceProvider provider = services.BuildServiceProvider();
 
-        _resolver = new TemplateResolver(
+        _resolver = new(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<TemplateResolver>.Instance,

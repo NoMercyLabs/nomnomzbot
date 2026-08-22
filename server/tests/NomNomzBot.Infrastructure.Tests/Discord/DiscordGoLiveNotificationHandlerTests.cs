@@ -46,13 +46,13 @@ public sealed class DiscordGoLiveNotificationHandlerTests
         );
 
         await handler.HandleAsync(
-            new ChannelOnlineEvent
+            new()
             {
                 BroadcasterId = channel,
                 BroadcasterDisplayName = "Stoney",
                 StreamTitle = "blame the lag",
                 GameName = "Just Chatting",
-                StartedAt = new DateTimeOffset(2026, 6, 22, 20, 0, 0, TimeSpan.Zero),
+                StartedAt = new(2026, 6, 22, 20, 0, 0, TimeSpan.Zero),
             }
         );
 
@@ -93,7 +93,7 @@ public sealed class DiscordGoLiveNotificationHandlerTests
         // Must not throw — go-live posting is best-effort.
         Func<Task> act = () =>
             handler.HandleAsync(
-                new ChannelOnlineEvent
+                new()
                 {
                     BroadcasterId = Guid.CreateVersion7(),
                     BroadcasterDisplayName = "Stoney",
@@ -117,7 +117,7 @@ public sealed class DiscordGoLiveNotificationHandlerTests
         );
 
         await handler.HandleAsync(
-            new ChannelOnlineEvent
+            new()
             {
                 BroadcasterId = Guid.Empty, // platform sentinel — not a real tenant
                 BroadcasterDisplayName = "x",

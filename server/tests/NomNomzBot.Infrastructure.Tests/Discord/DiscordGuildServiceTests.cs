@@ -15,7 +15,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Discord.Events;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Discord;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -29,7 +28,7 @@ namespace NomNomzBot.Infrastructure.Tests.Discord;
 public sealed class DiscordGuildServiceTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
     );
 
     [Fact]
@@ -46,7 +45,7 @@ public sealed class DiscordGuildServiceTests
             DiscordGuildService service = NewService(db, vault, bus);
             Result<DiscordGuildConnectionDto> result = await service.UpsertFromOAuthAsync(
                 channel,
-                new DiscordGuildOAuthResult(
+                new(
                     "guild-123",
                     "Cool Server",
                     "bot-access-token",
@@ -98,7 +97,7 @@ public sealed class DiscordGuildServiceTests
 
         await using (DiscordTestDbContext db = database.NewContext())
         {
-            DiscordGuildService service = NewService(db, new RecordingVault(), bus);
+            DiscordGuildService service = NewService(db, new(), bus);
             Result result = await service.SetStreamerEnabledAsync(channel, connectionId, true);
             result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         }
@@ -114,8 +113,8 @@ public sealed class DiscordGuildServiceTests
         {
             DiscordGuildService service = NewService(
                 db,
-                new RecordingVault(),
-                new RecordingEventBus()
+                new(),
+                new()
             );
             Result<bool> active = await service.IsLinkActiveAsync(channel, connectionId);
             active.Value.Should().BeTrue();
@@ -136,7 +135,7 @@ public sealed class DiscordGuildServiceTests
         RecordingEventBus bus = new();
 
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordGuildService service = NewService(db, new RecordingVault(), bus);
+        DiscordGuildService service = NewService(db, new(), bus);
         await service.SetStreamerEnabledAsync(channel, connectionId, false);
 
         DiscordGuildUnlinkedEvent unlinked = bus
@@ -210,7 +209,7 @@ public sealed class DiscordGuildServiceTests
         );
 
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordGuildService service = NewService(db, new RecordingVault(), new RecordingEventBus());
+        DiscordGuildService service = NewService(db, new(), new());
 
         (await service.IsLinkActiveAsync(channel, pendingOnly)).Value.Should().BeFalse();
         (await service.IsLinkActiveAsync(channel, enabledNotApproved)).Value.Should().BeFalse();
@@ -229,7 +228,7 @@ public sealed class DiscordGuildServiceTests
         Guid channelId = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -253,7 +252,7 @@ public sealed class DiscordGuildServiceTests
         Guid id = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.DiscordGuildConnections.Add(
-            new DiscordGuildConnection
+            new()
             {
                 Id = id,
                 BroadcasterId = channel,
@@ -276,7 +275,7 @@ public sealed class DiscordGuildServiceTests
     {
         await using DiscordTestDbContext db = database.NewContext();
         db.IntegrationConnections.Add(
-            new NomNomzBot.Domain.Integrations.Entities.IntegrationConnection
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = channel,

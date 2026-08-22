@@ -67,7 +67,7 @@ public sealed class InboundWebhookDispatcher(
 
         string? secret = await tokenProtector.TryUnprotectAsync(
             endpoint.VerificationSecretEnvelope,
-            new TokenProtectionContext(
+            new(
                 endpoint.BroadcasterId.ToString(),
                 "webhook:in",
                 endpoint.Id.ToString()
@@ -125,7 +125,7 @@ public sealed class InboundWebhookDispatcher(
             );
 
         Result<EventRecord> appended = await journal.AppendAsync(
-            new AppendEventRequest(
+            new(
                 eventId,
                 endpoint.BroadcasterId,
                 eventType,
@@ -252,7 +252,7 @@ public sealed class InboundWebhookDispatcher(
         hash.AsSpan(0, 16).CopyTo(guidBytes);
         guidBytes[6] = (byte)((guidBytes[6] & 0x0F) | 0x50); // version 5
         guidBytes[8] = (byte)((guidBytes[8] & 0x3F) | 0x80); // RFC 4122 variant
-        return new Guid(guidBytes, bigEndian: true);
+        return new(guidBytes, bigEndian: true);
     }
 
     private static string ProviderLabel(WebhookAdapterKind kind) =>

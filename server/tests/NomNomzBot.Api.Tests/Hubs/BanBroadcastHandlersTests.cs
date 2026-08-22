@@ -11,7 +11,6 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -41,7 +40,7 @@ public sealed class BanBroadcastHandlersTests
         UserBannedBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
         await handler.HandleAsync(
-            new UserBannedEvent
+            new()
             {
                 BroadcasterId = channel,
                 TargetUserId = "target1",
@@ -81,7 +80,7 @@ public sealed class BanBroadcastHandlersTests
         UserTimedOutBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
         await handler.HandleAsync(
-            new UserTimedOutEvent
+            new()
             {
                 BroadcasterId = channel,
                 TargetUserId = "target2",
@@ -121,7 +120,7 @@ public sealed class BanBroadcastHandlersTests
         UserUnbannedBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
         await handler.HandleAsync(
-            new UserUnbannedEvent
+            new()
             {
                 BroadcasterId = channel,
                 TargetUserId = "target1",
@@ -170,7 +169,7 @@ public sealed class BanBroadcastHandlersTests
         UserBannedBroadcastHandler handler = new(notifier, enricher, db, widgets);
 
         await handler.HandleAsync(
-            new UserBannedEvent
+            new()
             {
                 BroadcasterId = channel,
                 TargetUserId = "target1",

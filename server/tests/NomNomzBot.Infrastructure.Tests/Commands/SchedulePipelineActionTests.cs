@@ -22,7 +22,6 @@ using NomNomzBot.Infrastructure.Commands.PipelineActions;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 using ActionDefinition = NomNomzBot.Application.Abstractions.Pipeline.ActionDefinition;
-using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands;
 
@@ -43,7 +42,7 @@ public sealed class SchedulePipelineActionTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Pipelines.Add(
-            new PipelineEntity
+            new()
             {
                 Id = PipelineId,
                 BroadcasterId = Channel,
@@ -76,7 +75,7 @@ public sealed class SchedulePipelineActionTests
             p => p.Item1,
             p => JsonSerializer.SerializeToElement(p.Item2)
         );
-        return new ActionDefinition { Type = "schedule_pipeline", Parameters = map };
+        return new() { Type = "schedule_pipeline", Parameters = map };
     }
 
     private static (SchedulePipelineAction Action, ScheduledPipelineService Service) Build(
@@ -95,7 +94,7 @@ public sealed class SchedulePipelineActionTests
             new FakeTimeProvider(Start),
             NullLogger<ScheduledPipelineService>.Instance
         );
-        return (new SchedulePipelineAction(service, resolver), service);
+        return (new(service, resolver), service);
     }
 
     [Fact]

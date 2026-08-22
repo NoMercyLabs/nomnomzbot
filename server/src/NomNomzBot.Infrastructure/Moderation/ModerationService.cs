@@ -690,22 +690,22 @@ public class ModerationService : IModerationService
             (
                 "link_filter",
                 config.LinkFilter.Enabled,
-                new Dictionary<string, object?> { ["whitelist"] = config.LinkFilter.Whitelist }
+                new() { ["whitelist"] = config.LinkFilter.Whitelist }
             ),
             (
                 "caps_filter",
                 config.CapsFilter.Enabled,
-                new Dictionary<string, object?> { ["threshold"] = config.CapsFilter.Threshold }
+                new() { ["threshold"] = config.CapsFilter.Threshold }
             ),
             (
                 "banned_phrases",
                 config.BannedPhrases.Enabled,
-                new Dictionary<string, object?> { ["phrases"] = config.BannedPhrases.Phrases }
+                new() { ["phrases"] = config.BannedPhrases.Phrases }
             ),
             (
                 "emote_spam",
                 config.EmoteSpam.Enabled,
-                new Dictionary<string, object?> { ["maxEmotes"] = config.EmoteSpam.MaxEmotes }
+                new() { ["maxEmotes"] = config.EmoteSpam.MaxEmotes }
             ),
         ];
 
@@ -723,7 +723,7 @@ public class ModerationService : IModerationService
             ModerationRuleData ruleData = existing is not null
                 ? JsonSerializer.Deserialize<ModerationRuleData>(existing.Data)
                     ?? new ModerationRuleData()
-                : new ModerationRuleData
+                : new()
                 {
                     Name = type,
                     Type = type,
@@ -785,7 +785,7 @@ public class ModerationService : IModerationService
         {
             Result<TwitchPage<TwitchBannedUser>> page = await _moderation.GetBannedUsersAsync(
                 tenantId,
-                new TwitchPageRequest(After: cursor),
+                new(After: cursor),
                 cancellationToken
             );
             if (page.IsFailure)
@@ -802,7 +802,7 @@ public class ModerationService : IModerationService
                     continue;
 
                 banned.Add(
-                    new BannedUserDto(
+                    new(
                         user.UserId,
                         string.IsNullOrEmpty(user.UserName) ? user.UserLogin : user.UserName,
                         string.IsNullOrEmpty(user.Reason) ? null : user.Reason,
@@ -1062,7 +1062,7 @@ public class ModerationService : IModerationService
                     operatorUserId,
                     broadcaster.Value,
                     status,
-                    new TwitchPageRequest(After: cursor),
+                    new(After: cursor),
                     cancellationToken
                 );
             if (page.IsFailure)
@@ -1439,7 +1439,7 @@ public class ModerationService : IModerationService
         );
         if (row is null)
         {
-            row = new ChannelModerationStanding
+            row = new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = tenantId,
@@ -1528,7 +1528,7 @@ public class ModerationService : IModerationService
         Result<UserNoteDto> note = await AddUserNoteAsync(
             broadcasterId,
             targetUserId,
-            new CreateUserNoteRequest { Content = text },
+            new() { Content = text },
             operatorUserId.ToString(),
             ct
         );
@@ -1760,7 +1760,7 @@ public class ModerationService : IModerationService
                 await _moderation.GetBlockedTermsAsOperatorAsync(
                     operatorUserId,
                     broadcasterTwitchId,
-                    new TwitchPageRequest(After: cursor),
+                    new(After: cursor),
                     cancellationToken
                 );
             if (page.IsFailure)

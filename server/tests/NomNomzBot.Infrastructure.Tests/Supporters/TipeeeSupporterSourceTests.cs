@@ -135,7 +135,7 @@ public sealed class TipeeeSupporterSourceTests
         ) =>
             Task.FromResult(
                 body is null
-                    ? new HttpResponseMessage(HttpStatusCode.InternalServerError)
+                    ? new(HttpStatusCode.InternalServerError)
                     : new HttpResponseMessage(HttpStatusCode.OK)
                     {
                         Content = new StringContent(body, Encoding.UTF8, "application/json"),

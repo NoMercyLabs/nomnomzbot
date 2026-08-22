@@ -77,7 +77,7 @@ public sealed class PronounSelfService : IPronounSelfService
         string? altName = user.AltPronoun?.Name;
         string? badge = BuildBadge(user.Pronoun, user.AltPronoun);
 
-        return new UserPronounDto(
+        return new(
             PronounId: user.PronounId,
             PronounName: primaryName,
             PronounBadge: badge,

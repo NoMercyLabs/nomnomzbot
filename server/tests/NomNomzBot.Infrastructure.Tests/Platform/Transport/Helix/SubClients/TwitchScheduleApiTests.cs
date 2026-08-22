@@ -47,7 +47,7 @@ public class TwitchScheduleApiTests
             DateTimeOffset.UnixEpoch.AddHours(2),
             "Coding stream",
             null,
-            new TwitchScheduleCategory("509658", "Software & Game Development"),
+            new("509658", "Software & Game Development"),
             true
         );
 
@@ -58,7 +58,7 @@ public class TwitchScheduleApiTests
         {
             SingleResult = Schedule(Segment()) with
             {
-                Vacation = new TwitchScheduleVacation(
+                Vacation = new(
                     DateTimeOffset.UnixEpoch,
                     DateTimeOffset.UnixEpoch.AddDays(7)
                 ),
@@ -68,7 +68,7 @@ public class TwitchScheduleApiTests
 
         Result<TwitchSchedule> result = await api.GetScheduleAsync(
             Tenant,
-            new TwitchPageRequest(After: "abc", PageSize: 25)
+            new(After: "abc", PageSize: 25)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -99,7 +99,7 @@ public class TwitchScheduleApiTests
         // bug that made the page 502). The sub-client must clamp `first` to 25 so the request succeeds.
         Result<TwitchSchedule> result = await api.GetScheduleAsync(
             Tenant,
-            new TwitchPageRequest(PageSize: 100)
+            new(PageSize: 100)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -116,7 +116,7 @@ public class TwitchScheduleApiTests
             new StubScopeTokenResolver()
         );
 
-        Result<TwitchSchedule> result = await api.GetScheduleAsync(Tenant, new TwitchPageRequest());
+        Result<TwitchSchedule> result = await api.GetScheduleAsync(Tenant, new());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.NotFound);
@@ -253,7 +253,7 @@ public class TwitchScheduleApiTests
 
         Result<TwitchSchedule> result = await api.CreateSegmentAsync(
             Tenant,
-            new CreateScheduleSegmentRequest(DateTimeOffset.UnixEpoch, "America/New_York", "240")
+            new(DateTimeOffset.UnixEpoch, "America/New_York", "240")
         );
 
         result.IsFailure.Should().BeTrue();
@@ -319,7 +319,7 @@ public class TwitchScheduleApiTests
         Result<TwitchSchedule> result = await api.UpdateSegmentAsync(
             Tenant,
             "seg-1",
-            new UpdateScheduleSegmentRequest(Title: "Renamed")
+            new(Title: "Renamed")
         );
 
         result.IsFailure.Should().BeTrue();

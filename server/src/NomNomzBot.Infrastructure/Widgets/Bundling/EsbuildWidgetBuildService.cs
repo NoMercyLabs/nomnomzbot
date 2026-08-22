@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -254,7 +253,7 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
     )
     {
         ProcessRunResult run = await _process.RunAsync(
-            new ProcessRunRequest(
+            new(
                 _esbuildPath,
                 arguments,
                 StandardInput: null,

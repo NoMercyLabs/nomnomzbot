@@ -154,8 +154,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<KeyUsageBinding> KeyUsageBindings => Set<KeyUsageBinding>();
 
     // Automation API (external tokens — automation-api.md P.17)
-    public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
-        Set<NomNomzBot.Domain.Automation.Entities.AutomationApiToken>();
+    public DbSet<Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
+        Set<Domain.Automation.Entities.AutomationApiToken>();
 
     // OBS control (per-channel connection config — obs-control.md P.14)
     public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>

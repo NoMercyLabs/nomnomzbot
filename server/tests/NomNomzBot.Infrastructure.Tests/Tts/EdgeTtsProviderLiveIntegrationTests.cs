@@ -12,7 +12,6 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Infrastructure.Tts;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Tts;
 

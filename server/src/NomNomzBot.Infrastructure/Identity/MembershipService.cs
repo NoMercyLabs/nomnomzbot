@@ -47,7 +47,7 @@ public sealed class MembershipService(
         CancellationToken cancellationToken = default
     )
     {
-        if (grantedByUserId is Guid grantor)
+        if (grantedByUserId is { } grantor)
         {
             Result<int> grantorLevel = await roleResolver.ResolveEffectiveLevelAsync(
                 grantor,
@@ -195,7 +195,7 @@ public sealed class MembershipService(
             else
             {
                 db.ChannelMemberships.Add(
-                    new ChannelMembership
+                    new()
                     {
                         BroadcasterId = broadcasterId,
                         UserId = member.UserId,

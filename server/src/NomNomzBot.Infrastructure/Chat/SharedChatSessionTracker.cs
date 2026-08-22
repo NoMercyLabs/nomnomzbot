@@ -34,7 +34,7 @@ public sealed class SharedChatSessionTracker : ISharedChatSessionTracker
             && current.SessionId == sessionId
         )
             _sessions.TryRemove(
-                new KeyValuePair<Guid, SharedChatSessionInfo>(broadcasterId, current)
+                new(broadcasterId, current)
             );
     }
 }

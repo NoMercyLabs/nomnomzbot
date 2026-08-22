@@ -15,7 +15,6 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Content.Identity;
 using NomNomzBot.Infrastructure.Tests.Identity;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Content;
 
@@ -70,7 +69,7 @@ public sealed class TwitchIdentityBackfillSeederTests
     {
         using AuthDbContext ctx = NewContext(Guid.NewGuid().ToString());
         ctx.Users.Add(
-            new User
+            new()
             {
                 TwitchUserId = "1",
                 Username = "a",

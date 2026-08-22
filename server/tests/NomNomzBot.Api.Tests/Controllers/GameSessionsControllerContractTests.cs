@@ -45,7 +45,7 @@ public sealed class GameSessionsControllerContractTests
         ILiveGameEngine engine = Substitute.For<ILiveGameEngine>();
         ILiveGameCatalog catalog = Substitute.For<ILiveGameCatalog>();
         ICurrentUserService user = Substitute.For<ICurrentUserService>();
-        return (new GameSessionsController(engine, catalog, user), engine, catalog);
+        return (new(engine, catalog, user), engine, catalog);
     }
 
     private static Type? ProducedTypeFor(string methodName, int statusCode)

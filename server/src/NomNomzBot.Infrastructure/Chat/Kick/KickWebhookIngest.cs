@@ -15,7 +15,6 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Contracts.Kick;
 using NomNomzBot.Domain.Chat.Events;
-using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -157,7 +156,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
                 Message = payload.Content ?? string.Empty,
                 Fragments =
                 [
-                    new ChatMessageFragment
+                    new()
                     {
                         Type = "text",
                         Text = payload.Content ?? string.Empty,

@@ -305,7 +305,7 @@ public sealed class GiveawayService : IGiveawayService
         {
             Result<CurrencyLedgerEntryDto> debit = await _accounts.PostLedgerEntryAsync(
                 broadcasterId,
-                new PostLedgerEntryCommand(
+                new(
                     viewerUserId,
                     -giveaway.EntryCost.Value,
                     nameof(CurrencyEntryType.SpendGiveaway),
@@ -610,7 +610,7 @@ public sealed class GiveawayService : IGiveawayService
                 if (eligible.IsFailure)
                     continue;
                 candidates.Add(
-                    new WeightedCandidate(
+                    new(
                         viewer.Id,
                         viewer.TwitchUserId!,
                         ComputeTickets(giveaway.WeightingJson, standing)

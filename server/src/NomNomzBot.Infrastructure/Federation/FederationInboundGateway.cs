@@ -107,7 +107,7 @@ public sealed class FederationInboundGateway(
         // Gate 5 — a DIRECTED envelope must land on a channel that explicitly opted in; otherwise no_opt_in
         // (before journaling). A broadcast envelope (null target) fans out in the translator and a zero-match
         // is an accepted noop, never a rejection.
-        if (envelope.TargetBroadcasterId is Guid directed)
+        if (envelope.TargetBroadcasterId is { } directed)
         {
             bool permitted = (
                 await optIns.IsActionPermittedAsync(
@@ -130,7 +130,7 @@ public sealed class FederationInboundGateway(
 
         // Append the claim to the immutable journal (Source=federation) — the audit + dedupe record.
         Result<EventRecord> appended = await journal.AppendAsync(
-            new AppendEventRequest(
+            new(
                 envelope.EventId,
                 envelope.TargetBroadcasterId,
                 envelope.FederatedEventType,

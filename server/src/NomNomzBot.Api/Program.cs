@@ -172,31 +172,31 @@ try
     builder.Services.AddScoped<IWidgetNotifier, WidgetNotifier>();
     builder.Services.AddScoped<
         NomNomzBot.Application.Sound.Services.ISoundClipOverlayNotifier,
-        NomNomzBot.Api.Hubs.SoundClipOverlayNotifierAdapter
+        SoundClipOverlayNotifierAdapter
     >();
     builder.Services.AddScoped<
-        NomNomzBot.Application.Tts.Services.ITtsOverlayNotifier,
-        NomNomzBot.Api.Hubs.TtsOverlayNotifierAdapter
+        ITtsOverlayNotifier,
+        TtsOverlayNotifierAdapter
     >();
     builder.Services.AddScoped<
         NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier,
-        NomNomzBot.Api.Hubs.WidgetEventNotifierAdapter
+        WidgetEventNotifierAdapter
     >();
     // The generic overlay event feed — the hub-backed impl the OverlayEventFeedHook fans every event through.
     builder.Services.AddScoped<
         NomNomzBot.Application.Overlays.Services.IOverlayEventFeed,
-        NomNomzBot.Api.Hubs.OverlayEventFeedAdapter
+        OverlayEventFeedAdapter
     >();
 
     // Hub broadcast-layer viewer enrichment (avatar/pronouns/community standing) — the store does the DB read,
     // the enricher cache-gates it so a burst of hub events for the same viewer is one DB read, not N.
     builder.Services.AddScoped<
-        NomNomzBot.Api.Hubs.IHubUserEnrichmentStore,
-        NomNomzBot.Api.Hubs.HubUserEnrichmentStore
+        IHubUserEnrichmentStore,
+        HubUserEnrichmentStore
     >();
     builder.Services.AddScoped<
-        NomNomzBot.Api.Hubs.IHubUserEnricher,
-        NomNomzBot.Api.Hubs.HubUserEnricher
+        IHubUserEnricher,
+        HubUserEnricher
     >();
 
     // Register event handlers declared in the API layer (e.g. ChatMessageBroadcastHandler)
@@ -206,9 +206,9 @@ try
     // bridge through this host-side adapter over the relay hub (replacing the standalone fallback).
     Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.Replace(
         builder.Services,
-        Microsoft.Extensions.DependencyInjection.ServiceDescriptor.Singleton<
+        ServiceDescriptor.Singleton<
             NomNomzBot.Application.Obs.Services.IObsBridgePusher,
-            NomNomzBot.Api.Hubs.ObsBridgePusher
+            ObsBridgePusher
         >()
     );
 
@@ -461,7 +461,7 @@ try
     bool bootUsesDurableTier =
         DeploymentModeResolver.DbProviderFor(bootMode) == DbProviderKind.Postgres;
 
-    Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder healthChecks =
+    IHealthChecksBuilder healthChecks =
         builder.Services.AddHealthChecks();
 
     if (bootUsesDurableTier)
@@ -481,7 +481,7 @@ try
                         builder.Configuration.GetConnectionString("Redis")
                         ?? builder.Configuration["Redis:ConnectionString"];
                     if (string.IsNullOrWhiteSpace(redisCs))
-                        return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(
+                        return HealthCheckResult.Healthy(
                             "Redis not configured — using in-memory cache"
                         );
                     try
@@ -491,11 +491,11 @@ try
                                 redisCs + ",connectTimeout=2000,syncTimeout=2000"
                             );
                         conn.GetDatabase().Ping();
-                        return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy();
+                        return HealthCheckResult.Healthy();
                     }
                     catch (Exception ex)
                     {
-                        return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Unhealthy(
+                        return HealthCheckResult.Unhealthy(
                             ex.Message
                         );
                     }
@@ -508,14 +508,14 @@ try
         // Lite: the readiness DB probe is a SQLite reachability check via the bound AppDbContext, and the
         // cache/bus are in-process (always healthy — nothing external to reach).
         healthChecks
-            .AddDbContextCheck<NomNomzBot.Infrastructure.Platform.Persistence.AppDbContext>(
+            .AddDbContextCheck<AppDbContext>(
                 name: "sqlite",
                 tags: ["db", "ready"]
             )
             .AddCheck(
                 "cache",
                 () =>
-                    Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(
+                    HealthCheckResult.Healthy(
                         "In-process cache/bus (no external dependency)"
                     ),
                 tags: ["cache", "ready"]
@@ -824,9 +824,9 @@ try
             "/health/version",
             () =>
             {
-                System.Reflection.Assembly asm = typeof(Program).Assembly;
+                Assembly asm = typeof(Program).Assembly;
                 string version =
-                    asm.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                    asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
                     ?? asm.GetName().Version?.ToString()
                     ?? "unknown";
                 return Results.Ok(new { version });

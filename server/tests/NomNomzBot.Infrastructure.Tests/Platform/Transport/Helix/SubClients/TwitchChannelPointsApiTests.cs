@@ -45,14 +45,14 @@ public class TwitchChannelPointsApiTests
             "Hydrate",
             "Make me drink water",
             cost,
-            new TwitchCustomRewardImage("1x", "2x", "4x"),
-            new TwitchCustomRewardImage("d1x", "d2x", "d4x"),
+            new("1x", "2x", "4x"),
+            new("d1x", "d2x", "d4x"),
             "#9146FF",
             true, // IsEnabled
             true, // IsUserInputRequired
-            new TwitchCustomRewardMaxPerStreamSetting(false, 0),
-            new TwitchCustomRewardMaxPerUserPerStreamSetting(false, 0),
-            new TwitchCustomRewardGlobalCooldownSetting(true, 60),
+            new(false, 0),
+            new(false, 0),
+            new(true, 60),
             false,
             true,
             false,
@@ -72,7 +72,7 @@ public class TwitchChannelPointsApiTests
             "9999",
             "Viewer",
             "viewer",
-            new TwitchRedemptionReward("reward-1", "Hydrate", "Make me drink water", 500),
+            new("reward-1", "Hydrate", "Make me drink water", 500),
             "please",
             status,
             DateTimeOffset.UnixEpoch
@@ -86,7 +86,7 @@ public class TwitchChannelPointsApiTests
 
         Result<TwitchCustomReward> result = await api.CreateCustomRewardAsync(
             Tenant,
-            new CreateCustomRewardRequest("Hydrate", 500)
+            new("Hydrate", 500)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -149,7 +149,7 @@ public class TwitchChannelPointsApiTests
         Result<TwitchCustomReward> result = await api.UpdateCustomRewardAsync(
             Tenant,
             "reward-1",
-            new UpdateCustomRewardRequest(Cost: 100)
+            new(Cost: 100)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -260,7 +260,7 @@ public class TwitchChannelPointsApiTests
                 "UNFULFILLED",
                 null,
                 null,
-                new TwitchPageRequest()
+                new()
             );
 
         result.IsFailure.Should().BeTrue();
@@ -288,7 +288,7 @@ public class TwitchChannelPointsApiTests
                 "UNFULFILLED",
                 null,
                 "NEWEST",
-                new TwitchPageRequest(After: "abc", PageSize: 25)
+                new(After: "abc", PageSize: 25)
             );
 
         result.IsSuccess.Should().BeTrue();
@@ -332,7 +332,7 @@ public class TwitchChannelPointsApiTests
                 null,
                 ["r1", "r2"],
                 null,
-                new TwitchPageRequest()
+                new()
             );
 
         result.IsSuccess.Should().BeTrue();
@@ -353,7 +353,7 @@ public class TwitchChannelPointsApiTests
                 Tenant,
                 "reward-1",
                 ["r1"],
-                new UpdateRedemptionStatusRequest("FULFILLED")
+                new("FULFILLED")
             );
 
         result.IsFailure.Should().BeTrue();

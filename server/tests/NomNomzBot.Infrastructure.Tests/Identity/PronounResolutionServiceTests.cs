@@ -38,7 +38,7 @@ public sealed class PronounResolutionServiceTests
         await harness.SeedPronounAsync("theythem", "they/them", "they", "them");
         await harness.SeedPronounAsync("sheher", "she/her", "she", "her");
 
-        CountingProvider provider = new(new ResolvedPronounRef("theythem", "sheher"));
+        CountingProvider provider = new(new("theythem", "sheher"));
         PronounResolutionService service = harness.NewService(provider);
 
         await service.ResolveAndApplyAsync(userId, "stoney_eagle");
@@ -63,7 +63,7 @@ public sealed class PronounResolutionServiceTests
         Guid userId = await harness.SeedUserAsync("stoney_eagle", manualOverride: false);
         await harness.SeedPronounAsync("theythem", "they/them", "they", "them");
 
-        CountingProvider provider = new(new ResolvedPronounRef("theythem", null));
+        CountingProvider provider = new(new("theythem", null));
 
         // Two separate PronounResolutionService instances (fresh DbContext each — mirrors two separate
         // chat messages, each dispatched in its own EventBus scope) sharing the SAME IMemoryCache
@@ -83,7 +83,7 @@ public sealed class PronounResolutionServiceTests
         Guid userId = await harness.SeedUserAsync("stoney_eagle", manualOverride: true);
         await harness.SeedPronounAsync("theythem", "they/them", "they", "them");
 
-        CountingProvider provider = new(new ResolvedPronounRef("theythem", null));
+        CountingProvider provider = new(new("theythem", null));
         PronounResolutionService service = harness.NewService(provider);
 
         await service.ResolveAndApplyAsync(userId, "stoney_eagle");
@@ -141,7 +141,7 @@ public sealed class PronounResolutionServiceTests
             await using (AppDbContext seedContext = new(options))
                 await seedContext.Database.EnsureCreatedAsync();
 
-            return new Harness(connection, new MemoryCache(new MemoryCacheOptions()));
+            return new(connection, new MemoryCache(new MemoryCacheOptions()));
         }
 
         public AppDbContext NewDbContext() =>
@@ -155,7 +155,7 @@ public sealed class PronounResolutionServiceTests
             Guid id = Guid.CreateVersion7();
             await using AppDbContext db = NewDbContext();
             db.Users.Add(
-                new User
+                new()
                 {
                     Id = id,
                     TwitchUserId = Guid.NewGuid().ToString("N"),
@@ -173,7 +173,7 @@ public sealed class PronounResolutionServiceTests
         {
             await using AppDbContext db = NewDbContext();
             db.Pronouns.Add(
-                new Pronoun
+                new()
                 {
                     Key = key,
                     Name = name,

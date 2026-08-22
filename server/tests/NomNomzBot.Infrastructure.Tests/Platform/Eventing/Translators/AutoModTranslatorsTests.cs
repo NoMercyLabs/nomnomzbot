@@ -27,16 +27,16 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing.Translators;
 public sealed class AutoModTranslatorsTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static EventSubNotification Notification(Guid tenant, string type, string payload)
     {
         using JsonDocument doc = JsonDocument.Parse(payload);
-        return new EventSubNotification
+        return new()
         {
             MessageId = "msg-automod-1",
-            MessageTimestamp = new DateTimeOffset(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
+            MessageTimestamp = new(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
             SubscriptionType = type,
             SubscriptionVersion = "2",
             BroadcasterId = tenant,
@@ -103,7 +103,7 @@ public sealed class AutoModTranslatorsTests
         published.Level.Should().Be(4, "level is read from the nested automod object");
         published
             .HeldAt.Should()
-            .Be(new DateTimeOffset(2026, 6, 20, 11, 29, 30, TimeSpan.Zero), "held_at is parsed");
+            .Be(new(2026, 6, 20, 11, 29, 30, TimeSpan.Zero), "held_at is parsed");
         published
             .OccurredAt.Should()
             .Be(Clock.GetUtcNow(), "the publisher stamps the injected clock for determinism");

@@ -70,7 +70,7 @@ internal sealed class TreatstreamSocketProfile : ISocketIoProfile
         if (string.IsNullOrWhiteSpace(socketToken))
             throw new HttpRequestException("TreatStream returned no socket_token.");
 
-        return new Uri($"{SocketBase}?token={Uri.EscapeDataString(socketToken)}");
+        return new($"{SocketBase}?token={Uri.EscapeDataString(socketToken)}");
     }
 
     public SocketIoEmit? BuildConnectEmit(string secret) => null;

@@ -11,7 +11,6 @@
 using System.Text.Json;
 using System.Threading.Channels;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -20,7 +19,6 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Obs.Dtos;
 using NomNomzBot.Application.Obs.Services;
-using NomNomzBot.Domain.Obs.Entities;
 using NomNomzBot.Domain.Obs.Events;
 using NomNomzBot.Infrastructure.Obs;
 using NomNomzBot.Infrastructure.Obs.Transport;
@@ -93,7 +91,7 @@ public sealed class DirectObsTransportTests
     {
         ObsTestDbContext db = ObsTestDbContext.New();
         db.ObsConnections.Add(
-            new ObsConnection
+            new()
             {
                 BroadcasterId = Channel,
                 Mode = mode,
@@ -135,7 +133,7 @@ public sealed class DirectObsTransportTests
             new FakeTimeProvider(),
             NullLogger<DirectObsTransport>.Instance
         );
-        return new Harness
+        return new()
         {
             Transport = transport,
             Socket = socket,
@@ -164,7 +162,7 @@ public sealed class DirectObsTransportTests
         Task<Result<ObsResponse>> send = h.Transport.SendAsync(
             Channel,
             Guid.CreateVersion7(),
-            new ObsRequest("GetVersion", null)
+            new("GetVersion", null)
         );
         await ReplyToFirstRequestAsync(h.Socket, ok: true);
         Result<ObsResponse> result = await send.WaitAsync(TimeSpan.FromSeconds(5));
@@ -193,7 +191,7 @@ public sealed class DirectObsTransportTests
         Task<Result<ObsResponse>> send = h.Transport.SendAsync(
             Channel,
             Guid.CreateVersion7(),
-            new ObsRequest(
+            new(
                 "SetCurrentProgramScene",
                 new Dictionary<string, object?> { ["sceneName"] = "BRB" }
             )
@@ -228,7 +226,7 @@ public sealed class DirectObsTransportTests
         Task<Result<ObsResponse>> send = h.Transport.SendAsync(
             Channel,
             Guid.CreateVersion7(),
-            new ObsRequest("GetVersion", null)
+            new("GetVersion", null)
         );
         await ReplyToFirstRequestAsync(h.Socket, ok: true);
         await send.WaitAsync(TimeSpan.FromSeconds(5));
@@ -252,7 +250,7 @@ public sealed class DirectObsTransportTests
         Result<ObsResponse> offResult = await disabled.Transport.SendAsync(
             Channel,
             Guid.CreateVersion7(),
-            new ObsRequest("GetVersion", null)
+            new("GetVersion", null)
         );
         offResult.IsFailure.Should().BeTrue();
         offResult.ErrorCode.Should().Be("OBS_DISABLED");
@@ -262,7 +260,7 @@ public sealed class DirectObsTransportTests
         Result<ObsResponse> bridgeResult = await bridge.Transport.SendAsync(
             Channel,
             Guid.CreateVersion7(),
-            new ObsRequest("GetVersion", null)
+            new("GetVersion", null)
         );
         bridgeResult.IsFailure.Should().BeTrue();
         bridgeResult.ErrorCode.Should().Be("OBS_WRONG_MODE");
@@ -297,7 +295,7 @@ public sealed class DirectObsTransportTests
     {
         for (int i = 0; i < 150; i++)
         {
-            if (probe() is T hit)
+            if (probe() is { } hit)
                 return hit;
             await Task.Delay(20);
         }

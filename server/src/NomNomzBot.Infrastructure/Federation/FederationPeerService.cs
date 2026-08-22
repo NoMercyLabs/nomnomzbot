@@ -102,7 +102,7 @@ public sealed class FederationPeerService(
         };
         db.FederationPeers.Add(peer);
         db.FederationPeerKeys.Add(
-            new FederationPeerKey
+            new()
             {
                 PeerId = peer.Id,
                 PublicKey = request.PublicKey,

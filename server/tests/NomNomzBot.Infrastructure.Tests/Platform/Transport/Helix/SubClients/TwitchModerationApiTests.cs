@@ -171,7 +171,7 @@ public class TwitchModerationApiTests
 
         Result<TwitchPage<TwitchBannedUser>> result = await api.GetBannedUsersAsync(
             Tenant,
-            new TwitchPageRequest()
+            new()
         );
 
         result.IsFailure.Should().BeTrue();
@@ -186,7 +186,7 @@ public class TwitchModerationApiTests
         {
             PageResult = new TwitchPage<TwitchBannedUser>(
                 [
-                    new TwitchBannedUser(
+                    new(
                         TargetId,
                         "target",
                         "Target",
@@ -206,7 +206,7 @@ public class TwitchModerationApiTests
 
         Result<TwitchPage<TwitchBannedUser>> result = await api.GetBannedUsersAsync(
             Tenant,
-            new TwitchPageRequest(After: "abc", PageSize: 50)
+            new(After: "abc", PageSize: 50)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -235,7 +235,7 @@ public class TwitchModerationApiTests
         Result<TwitchPage<TwitchUnbanRequest>> result = await api.GetUnbanRequestsAsync(
             Tenant,
             "pending",
-            new TwitchPageRequest(PageSize: 25)
+            new(PageSize: 25)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -262,7 +262,7 @@ public class TwitchModerationApiTests
         Result<TwitchPage<TwitchUnbanRequest>> result = await api.GetUnbanRequestsAsync(
             Tenant,
             "pending",
-            new TwitchPageRequest()
+            new()
         );
 
         result.IsFailure.Should().BeTrue();
@@ -370,7 +370,7 @@ public class TwitchModerationApiTests
 
         Result<TwitchPage<TwitchBlockedTerm>> result = await api.GetBlockedTermsAsync(
             Tenant,
-            new TwitchPageRequest(After: "c", PageSize: 10)
+            new(After: "c", PageSize: 10)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -875,7 +875,7 @@ public class TwitchModerationApiTests
 
         Result<TwitchAutoModSettings> result = await api.UpdateAutoModSettingsAsync(
             Tenant,
-            new UpdateAutoModSettingsRequest(OverallLevel: 2)
+            new(OverallLevel: 2)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -962,7 +962,7 @@ public class TwitchModerationApiTests
             Tenant,
             OperatorChannel,
             "pending",
-            new TwitchPageRequest(PageSize: 25)
+            new(PageSize: 25)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -1045,7 +1045,7 @@ public class TwitchModerationApiTests
         Result<TwitchPage<TwitchBlockedTerm>> result = await api.GetBlockedTermsAsOperatorAsync(
             Tenant,
             OperatorChannel,
-            new TwitchPageRequest(After: "c", PageSize: 10)
+            new(After: "c", PageSize: 10)
         );
 
         result.IsSuccess.Should().BeTrue();

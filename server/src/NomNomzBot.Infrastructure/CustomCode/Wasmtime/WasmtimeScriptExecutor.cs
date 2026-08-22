@@ -151,7 +151,7 @@ public sealed partial class WasmtimeScriptExecutor : IScriptExecutor, IDisposabl
         config.WithSIMD(false); // CVE-2026-34944 history
         config.WithMultiMemory(false);
         config.WithBulkMemory(false);
-        return new Engine(config);
+        return new(config);
     }
 
     [GeneratedRegex("""bot\.call\(\s*["']([a-zA-Z][a-zA-Z0-9.]*)["']""")]

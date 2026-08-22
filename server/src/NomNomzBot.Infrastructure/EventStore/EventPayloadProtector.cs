@@ -56,7 +56,7 @@ public sealed class EventPayloadProtector : IEventPayloadProtector
     {
         // A payload is treated as PII-bearing exactly when the event is attributed to an internal subject. That
         // is the safe, shred-correct trigger: only then can we seal under a DEK the erasure pipeline will reach.
-        if (request.ActorUserId is not Guid subjectUserId || subjectUserId == Guid.Empty)
+        if (request.ActorUserId is not { } subjectUserId || subjectUserId == Guid.Empty)
             return Result.Success(
                 new ProtectedPayload(request.PayloadJson, IsEncrypted: false, SubjectKeyId: null)
             );
@@ -100,7 +100,7 @@ public sealed class EventPayloadProtector : IEventPayloadProtector
         if (!record.PayloadIsEncrypted)
             return Result.Success(record.PayloadJson);
 
-        if (record.SubjectKeyId is not Guid keyId)
+        if (record.SubjectKeyId is not { } keyId)
             return Result.Failure<string>(
                 "An encrypted journal row carries no subject key.",
                 "SUBJECT_KEY_MISSING"
@@ -134,7 +134,7 @@ public sealed class EventPayloadProtector : IEventPayloadProtector
         if (parts.Length != 3 || parts[0] != EnvelopeVersion)
             return false;
 
-        payload = new CipherPayload(CipherText: parts[2], Nonce: parts[1]);
+        payload = new(CipherText: parts[2], Nonce: parts[1]);
         return true;
     }
 }

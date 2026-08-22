@@ -204,7 +204,7 @@ public sealed class DeploymentProfileService : IDeploymentProfileService
         bool isFull = mode == DeploymentMode.SelfHostFull;
         bool usesDurableTier = isSaas || isFull;
 
-        return new DeploymentProfileSnapshot(
+        return new(
             InstanceId: Guid.CreateVersion7(),
             Mode: mode,
             WasAutoDetected: wasAutoDetected,

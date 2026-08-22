@@ -18,7 +18,6 @@ using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Economy.Entities;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.ViewerData.Builtins;
 using NSubstitute;
@@ -47,7 +46,7 @@ public sealed class StatsBuiltinTests
     {
         _db = ViewerDataTestDbContext.New();
         _db.Users.Add(
-            new User
+            new()
             {
                 Id = Alice,
                 TwitchUserId = "111",
@@ -57,7 +56,7 @@ public sealed class StatsBuiltinTests
             }
         );
         _db.Users.Add(
-            new User
+            new()
             {
                 Id = Bob,
                 TwitchUserId = "222",
@@ -148,7 +147,7 @@ public sealed class StatsBuiltinTests
             );
         _analytics
             .GetStreakAsync(Channel, Alice, Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new WatchStreakDto(3, 6, new DateOnly(2026, 7, 11))));
+            .Returns(Result.Success(new WatchStreakDto(3, 6, new(2026, 7, 11))));
         _wallets
             .GetBalanceAsync(Channel, Alice, Arg.Any<CancellationToken>())
             .Returns(Result.Success(500L));

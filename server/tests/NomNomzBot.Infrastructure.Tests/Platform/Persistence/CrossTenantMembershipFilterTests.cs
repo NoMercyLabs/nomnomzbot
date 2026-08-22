@@ -48,7 +48,7 @@ public sealed class CrossTenantMembershipFilterTests
     {
         db.Tenant = null; // seed outside any tenant scope
         db.ChannelMemberships.Add(
-            new ChannelMembership
+            new()
             {
                 BroadcasterId = ChannelB,
                 UserId = User,

@@ -44,14 +44,14 @@ public sealed class PatreonInboundWebhookAdapterTests
         };
         if (signature is not null)
             headers["X-Patreon-Signature"] = signature;
-        return new InboundWebhookRequest
+        return new()
         {
             Token = "tok",
             Method = "POST",
             ContentType = "application/json",
             Headers = headers,
             RawBody = Body,
-            ReceivedAtUtc = new DateTime(2026, 7, 16, 0, 0, 0, DateTimeKind.Utc),
+            ReceivedAtUtc = new(2026, 7, 16, 0, 0, 0, DateTimeKind.Utc),
             RemoteIpHash = "iphash",
         };
     }

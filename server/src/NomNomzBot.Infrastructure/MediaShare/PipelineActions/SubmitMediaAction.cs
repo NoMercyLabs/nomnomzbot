@@ -61,7 +61,7 @@ public sealed class SubmitMediaAction(
         Result<MediaShareRequestDto> result = await media.SubmitAsync(
             ctx.BroadcasterId,
             viewerUserId,
-            new SubmitMediaRequest(url),
+            new(url),
             ctx.CancellationToken
         );
         return result.IsSuccess

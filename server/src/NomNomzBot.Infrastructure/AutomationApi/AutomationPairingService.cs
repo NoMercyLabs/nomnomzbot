@@ -18,7 +18,6 @@ using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
-using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.AutomationApi;
 
@@ -324,8 +323,8 @@ public class AutomationPairingService : IAutomationPairingService
                 "NOT_FOUND"
             );
         if (
-            envelope.BroadcasterId is not Guid broadcasterId
-            || envelope.ActorUserId is not Guid actorUserId
+            envelope.BroadcasterId is not { } broadcasterId
+            || envelope.ActorUserId is not { } actorUserId
         )
             return Result.Success(new DevicePollDto("pending"));
 
@@ -383,7 +382,7 @@ public class AutomationPairingService : IAutomationPairingService
         Result<IssuedAutomationTokenDto> issued = await _tokens.CreateAsync(
             broadcasterId,
             actorUserId,
-            new CreateAutomationTokenRequest
+            new()
             {
                 Name = tokenName,
                 Scopes = scopes,
@@ -398,7 +397,7 @@ public class AutomationPairingService : IAutomationPairingService
             issued = await _tokens.CreateAsync(
                 broadcasterId,
                 actorUserId,
-                new CreateAutomationTokenRequest
+                new()
                 {
                     Name = $"{tokenName} ({disambiguator})",
                     Scopes = scopes,
@@ -452,7 +451,7 @@ public class AutomationPairingService : IAutomationPairingService
                 continue;
 
             _db.Pipelines.Add(
-                new PipelineEntity
+                new()
                 {
                     Id = Guid.CreateVersion7(),
                     BroadcasterId = broadcasterId,
@@ -465,9 +464,9 @@ public class AutomationPairingService : IAutomationPairingService
                         {
                             Steps =
                             [
-                                new PipelineStepDefinition
+                                new()
                                 {
-                                    Action = new ActionDefinition { Type = actionType },
+                                    Action = new() { Type = actionType },
                                 },
                             ],
                         }
@@ -485,6 +484,6 @@ public class AutomationPairingService : IAutomationPairingService
         byte[] bytes = RandomNumberGenerator.GetBytes(CodeLength);
         for (int i = 0; i < CodeLength; i++)
             chars[i] = CodeAlphabet[bytes[i] % CodeAlphabet.Length];
-        return new string(chars);
+        return new(chars);
     }
 }

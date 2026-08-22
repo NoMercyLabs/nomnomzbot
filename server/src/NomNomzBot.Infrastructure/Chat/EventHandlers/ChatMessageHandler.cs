@@ -138,7 +138,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             // Open chat poll: a bare option number is a VOTE and is consumed — it never doubles as a
             // trigger match while the poll runs.
             if (
-                channelCtx?.ActiveChatPoll is CachedChatPoll poll
+                channelCtx?.ActiveChatPoll is { } poll
                 && int.TryParse(text, out int optionIndex)
                 && optionIndex >= 1
                 && optionIndex <= poll.OptionCount
@@ -575,7 +575,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         // badge < floor here, so MAX(badge, resolved) >= floor reduces to resolved >= floor.
         int? resolved = await TryResolveEffectiveLevelAsync(@event, ct);
-        return resolved is int level && level >= minPermissionLevel;
+        return resolved is { } level && level >= minPermissionLevel;
     }
 
     /// <summary>

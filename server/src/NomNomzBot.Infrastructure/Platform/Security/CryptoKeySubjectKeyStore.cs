@@ -13,7 +13,6 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models.Crypto;
-using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 
 namespace NomNomzBot.Infrastructure.Platform.Security;
@@ -115,7 +114,7 @@ public sealed class CryptoKeySubjectKeyStore : ISubjectKeyStore
             return;
 
         _db.KeyUsageBindings.Add(
-            new KeyUsageBinding
+            new()
             {
                 CryptoKeyId = cryptoKeyId,
                 BroadcasterId = broadcasterId,
@@ -152,7 +151,7 @@ public sealed class CryptoKeySubjectKeyStore : ISubjectKeyStore
         foreach (KeyUsageBinding binding in bindings)
         {
             _db.KeyUsageBindings.Add(
-                new KeyUsageBinding
+                new()
                 {
                     CryptoKeyId = successor.Id,
                     BroadcasterId = binding.BroadcasterId,

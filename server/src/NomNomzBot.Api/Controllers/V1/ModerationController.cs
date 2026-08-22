@@ -107,7 +107,7 @@ public class ModerationController : BaseController
         }
 
         // this_channel — a permanent ban, or a timeout when a duration is supplied.
-        Result<ModerationActionResult> single = request.DurationSeconds is int seconds
+        Result<ModerationActionResult> single = request.DurationSeconds is { } seconds
             ? await _moderationService.TimeoutAsync(
                 channelId,
                 operatorUserId,
@@ -127,7 +127,7 @@ public class ModerationController : BaseController
             return ResultResponse(single);
 
         string login = await ResolveChannelLoginAsync(channelId, ct);
-        NetworkBanResultDto oneRow = new(1, 1, [new ChannelBanOutcomeDto(login, true, null)]);
+        NetworkBanResultDto oneRow = new(1, 1, [new(login, true, null)]);
         return Ok(new StatusResponseDto<NetworkBanResultDto> { Data = oneRow });
     }
 
@@ -175,7 +175,7 @@ public class ModerationController : BaseController
             return ResultResponse(single);
 
         string login = await ResolveChannelLoginAsync(channelId, ct);
-        NetworkBanResultDto oneRow = new(1, 1, [new ChannelBanOutcomeDto(login, true, null)]);
+        NetworkBanResultDto oneRow = new(1, 1, [new(login, true, null)]);
         return Ok(new StatusResponseDto<NetworkBanResultDto> { Data = oneRow });
     }
 
@@ -1227,7 +1227,7 @@ public class ModerationController : BaseController
             .Select(c => c.ShoutoutTemplate)
             .FirstOrDefaultAsync(ct);
         return Ok(
-            new StatusResponseDto<ShoutoutTemplateDto> { Data = new ShoutoutTemplateDto(template) }
+            new StatusResponseDto<ShoutoutTemplateDto> { Data = new(template) }
         );
     }
 

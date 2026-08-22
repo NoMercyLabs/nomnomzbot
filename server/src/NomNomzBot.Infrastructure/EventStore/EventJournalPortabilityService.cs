@@ -219,7 +219,7 @@ public sealed class EventJournalPortabilityService : IEventJournalPortabilitySer
             // Re-tenant to the target: the source file's BroadcasterId/StreamPosition/Id are advisory; the import
             // stamps the caller's tenant and lets the journal allocate a fresh position. This is the isolation wall.
             requests.Add(
-                new AppendEventRequest(
+                new(
                     EventId: line.EventId,
                     BroadcasterId: targetBroadcasterId,
                     EventType: line.EventType,

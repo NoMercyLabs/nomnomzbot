@@ -44,7 +44,7 @@ public sealed class ViewerEngagementDailyProjection(
         CancellationToken cancellationToken = default
     )
     {
-        if (@event.BroadcasterId is not Guid broadcasterId)
+        if (@event.BroadcasterId is not { } broadcasterId)
             return Result.Success();
         (string Provider, string ExternalUserId, string Login, string Display)? identity =
             ViewerResolver.ParseIdentity(@event.PayloadJson);
@@ -99,7 +99,7 @@ public sealed class ViewerEngagementDailyProjection(
     )
     {
         List<ViewerEngagementDaily> rows = await (
-            broadcasterId is Guid id
+            broadcasterId is { } id
                 ? db.ViewerEngagementDailies.Where(r => r.BroadcasterId == id)
                 : db.ViewerEngagementDailies
         ).ToListAsync(cancellationToken);
@@ -129,7 +129,7 @@ public sealed class ViewerEngagementDailyProjection(
             );
         if (row is null)
         {
-            row = new ViewerEngagementDaily
+            row = new()
             {
                 BroadcasterId = broadcasterId,
                 ViewerUserId = viewerUserId,

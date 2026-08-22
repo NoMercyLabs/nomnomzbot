@@ -11,7 +11,6 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
@@ -42,7 +41,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class IpcDevModeController(
     IIpcDevModeService ipc,
     IDeploymentProfileService profile,
-    NomNomzBot.Application.Abstractions.Auth.ICurrentUserService currentUser
+    Application.Abstractions.Auth.ICurrentUserService currentUser
 ) : BaseController
 {
     private const string SaasRefusal = "IPC dev mode is a self-host feature.";

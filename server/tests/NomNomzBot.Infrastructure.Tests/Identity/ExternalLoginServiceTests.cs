@@ -21,7 +21,6 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
 using NSubstitute;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -91,7 +90,7 @@ public sealed class ExternalLoginServiceTests
 
         Result<AuthResultDto> result = await svc.LoginAsync(
             proof,
-            new AuthContextDto("web", null, null)
+            new("web", null, null)
         );
 
         result.IsSuccess.Should().BeTrue();

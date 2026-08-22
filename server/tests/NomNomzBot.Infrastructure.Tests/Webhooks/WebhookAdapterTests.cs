@@ -29,7 +29,7 @@ public sealed class WebhookAdapterTests
     private static readonly DateTime Now = new(2026, 6, 22, 12, 0, 0, DateTimeKind.Utc);
 
     private static InboundSignatureVerifier Verifier() =>
-        new(new FakeTimeProvider(new DateTimeOffset(Now, TimeSpan.Zero)));
+        new(new FakeTimeProvider(new(Now, TimeSpan.Zero)));
 
     private static InboundWebhookRequest Request(
         byte[] body,
@@ -78,7 +78,7 @@ public sealed class WebhookAdapterTests
         string signature = "sha256=" + Convert.ToHexStringLower(HMACSHA256.HashData(secret, body));
         InboundWebhookRequest req = Request(
             body,
-            headers: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            headers: new(StringComparer.OrdinalIgnoreCase)
             {
                 ["X-Hub-Signature-256"] = signature,
                 ["X-GitHub-Event"] = "pull_request",
@@ -121,7 +121,7 @@ public sealed class WebhookAdapterTests
             );
         InboundWebhookRequest req = Request(
             body,
-            headers: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            headers: new(StringComparer.OrdinalIgnoreCase)
             {
                 ["X-Signature"] = signature,
                 ["X-Timestamp"] = ts.ToString(),

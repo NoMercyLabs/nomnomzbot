@@ -64,7 +64,7 @@ public sealed partial class SystemTrayHostedService : IHostedService
         {
             // A dedicated STA-style background thread owns the message-only window and pumps the loop until
             // WM_QUIT. It is background so it can never keep the process alive past host shutdown.
-            _uiThread = new Thread(RunMessageLoop) { IsBackground = true, Name = "nomnomz-tray" };
+            _uiThread = new(RunMessageLoop) { IsBackground = true, Name = "nomnomz-tray" };
             _uiThread.Start();
         }
         catch (Exception ex)
@@ -317,16 +317,16 @@ public sealed partial class SystemTrayHostedService : IHostedService
         // The self-host single-exe bundles the native desktop app under desktop\ next to the bot exe; launch it.
         // When it isn't present (e.g. a bare Docker image with no GUI), degrade to opening the web dashboard so a
         // double-click always does something useful.
-        string? botDir = System.IO.Path.GetDirectoryName(Environment.ProcessPath);
+        string? botDir = Path.GetDirectoryName(Environment.ProcessPath);
         string? appPath = botDir is null
             ? null
-            : System.IO.Path.Combine(
+            : Path.Combine(
                 botDir,
                 SystemTrayMenu.DesktopAppFolder,
                 SystemTrayMenu.DesktopAppExeName
             );
 
-        if (appPath is null || !System.IO.File.Exists(appPath))
+        if (appPath is null || !File.Exists(appPath))
         {
             _logger.LogInformation(
                 "System-tray: bundled desktop app not found at {AppPath}; opening the web dashboard instead.",
@@ -343,7 +343,7 @@ public sealed partial class SystemTrayHostedService : IHostedService
                 new ProcessStartInfo(appPath)
                 {
                     UseShellExecute = true,
-                    WorkingDirectory = System.IO.Path.GetDirectoryName(appPath),
+                    WorkingDirectory = Path.GetDirectoryName(appPath),
                 }
             );
         }

@@ -74,7 +74,7 @@ public sealed record UploadSoundClipRequest(
     string DisplayName,
     string FileName,
     string MimeType,
-    System.IO.Stream Content,
+    Stream Content,
     int DefaultVolume,
     int CooldownSeconds = 0,
     int MinPermissionLevel = 0,

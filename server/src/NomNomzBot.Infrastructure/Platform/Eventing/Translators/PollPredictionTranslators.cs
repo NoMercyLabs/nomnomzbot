@@ -38,7 +38,7 @@ internal static class PollPredictionPayload
         foreach (JsonElement choice in choices.EnumerateArray())
         {
             result.Add(
-                new PollChoice(
+                new(
                     choice.GetRequiredString("id"),
                     choice.GetRequiredString("title"),
                     choice.GetInt("votes"),
@@ -80,7 +80,7 @@ internal static class PollPredictionPayload
         foreach (JsonElement outcome in outcomes.EnumerateArray())
         {
             result.Add(
-                new PredictionOutcome(
+                new(
                     outcome.GetRequiredString("id"),
                     outcome.GetRequiredString("title"),
                     outcome.GetInt("channel_points"),

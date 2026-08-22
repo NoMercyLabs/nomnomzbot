@@ -32,7 +32,7 @@ public sealed class FederationPeerServiceTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         RecordingEventBus bus = new();
-        return (new FederationPeerService(db, bus, new FakeTimeProvider(Now)), db, bus);
+        return (new(db, bus, new FakeTimeProvider(Now)), db, bus);
     }
 
     private static RegisterFederationPeerRequest Req(
@@ -100,7 +100,7 @@ public sealed class FederationPeerServiceTests
         (
             await sut.RevokePeerAsync(
                 registered.Id,
-                new RevokeFederationPeerRequest("manual", Blocked: false),
+                new("manual", Blocked: false),
                 Actor
             )
         )
@@ -124,7 +124,7 @@ public sealed class FederationPeerServiceTests
         (
             await sut.AddPeerKeyAsync(
                 registered.Id,
-                new AddFederationPeerKeyRequest(
+                new(
                     "PUB2",
                     "k1",
                     FederationKeyAlgorithm.RsaSha256,

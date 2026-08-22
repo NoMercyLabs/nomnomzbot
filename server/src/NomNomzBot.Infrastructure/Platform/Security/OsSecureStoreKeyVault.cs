@@ -52,7 +52,7 @@ public sealed class OsSecureStoreKeyVault : IKeyVault
     )
     {
         EncryptionOptions opts = options.Value;
-        _kek = new Lazy<byte[]>(
+        _kek = new(
             () => ResolveKek(opts, logger),
             LazyThreadSafetyMode.ExecutionAndPublication
         );

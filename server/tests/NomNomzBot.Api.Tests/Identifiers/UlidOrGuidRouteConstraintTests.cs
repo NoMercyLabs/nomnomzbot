@@ -29,7 +29,7 @@ public sealed class UlidOrGuidRouteConstraintTests
             httpContext: null,
             route: null,
             routeKey: "id",
-            values: new RouteValueDictionary { ["id"] = value },
+            values: new() { ["id"] = value },
             routeDirection: RouteDirection.IncomingRequest
         );
 
@@ -52,7 +52,7 @@ public sealed class UlidOrGuidRouteConstraintTests
     [Fact]
     public void Rejects_a_missing_route_key() =>
         Constraint
-            .Match(null, null, "id", new RouteValueDictionary(), RouteDirection.IncomingRequest)
+            .Match(null, null, "id", new(), RouteDirection.IncomingRequest)
             .Should()
             .BeFalse();
 }

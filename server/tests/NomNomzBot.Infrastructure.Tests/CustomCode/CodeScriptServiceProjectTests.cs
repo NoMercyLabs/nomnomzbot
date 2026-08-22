@@ -41,7 +41,7 @@ public sealed class CodeScriptServiceProjectTests
     {
         ICurrentTenantService tenantService = Substitute.For<ICurrentTenantService>();
         tenantService.BroadcasterId.Returns(tenant);
-        return new CodeScriptService(
+        return new(
             db,
             tenantService,
             new JintScriptExecutor(),
@@ -55,12 +55,12 @@ public sealed class CodeScriptServiceProjectTests
         Dictionary<string, string> files,
         string entry,
         params string[] deps
-    ) => new(files, new ProjectManifestDto(entry, "script", "typescript", deps));
+    ) => new(files, new(entry, "script", "typescript", deps));
 
     private static async Task<Guid> SeedScriptAsync(CodeScriptService sut)
     {
         Result<CodeScriptDetailDto> created = await sut.CreateAsync(
-            new CreateCodeScriptRequest("greeter", "desc", "var x = bot.args[0];")
+            new("greeter", "desc", "var x = bot.args[0];")
         );
         created.IsSuccess.Should().BeTrue(created.ErrorMessage);
         return created.Value.Id;

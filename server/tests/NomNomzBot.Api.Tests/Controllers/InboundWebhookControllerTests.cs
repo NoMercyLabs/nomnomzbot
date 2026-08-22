@@ -37,7 +37,7 @@ public sealed class InboundWebhookControllerTests
         httpContext.Request.ContentType = contentType;
         httpContext.Request.Body = new MemoryStream(body);
         httpContext.Request.ContentLength = body.Length;
-        sut.ControllerContext = new ControllerContext { HttpContext = httpContext };
+        sut.ControllerContext = new() { HttpContext = httpContext };
         return (sut, dispatcher);
     }
 
@@ -84,7 +84,7 @@ public sealed class InboundWebhookControllerTests
         );
         dispatcher
             .DispatchAsync(Arg.Any<InboundWebhookRequest>(), Arg.Any<CancellationToken>())
-            .Returns(NomNomzBot.Application.Common.Models.Result.Success(Outcome(200)));
+            .Returns(Application.Common.Models.Result.Success(Outcome(200)));
 
         IActionResult result = await sut.Receive("tok123", default);
 
@@ -100,7 +100,7 @@ public sealed class InboundWebhookControllerTests
         );
         dispatcher
             .DispatchAsync(Arg.Any<InboundWebhookRequest>(), Arg.Any<CancellationToken>())
-            .Returns(NomNomzBot.Application.Common.Models.Result.Success(Outcome(404)));
+            .Returns(Application.Common.Models.Result.Success(Outcome(404)));
 
         IActionResult result = await sut.Receive("nope", default);
 

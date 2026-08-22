@@ -10,7 +10,7 @@
 
 namespace NomNomzBot.Domain.Commands.Events;
 
-using NomNomzBot.Domain.Platform;
+using Platform;
 
 /// <summary>
 /// Published by the chat hot path after every command execution — builtin, template response, and

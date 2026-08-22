@@ -14,7 +14,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Moderation;
@@ -45,7 +44,7 @@ public sealed class ModerationStandingTests
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Tenant,
                 OwnerUserId = Guid.NewGuid(),
@@ -65,7 +64,7 @@ public sealed class ModerationStandingTests
             registry,
             TimeProvider.System,
             NullLogger<ModerationService>.Instance,
-            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IEventBus>()
+            Substitute.For<IEventBus>()
         );
         return (service, db, registry, twitch);
     }

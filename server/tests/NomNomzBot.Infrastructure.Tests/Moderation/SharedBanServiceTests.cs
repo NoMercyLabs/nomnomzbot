@@ -64,7 +64,7 @@ public sealed class SharedBanServiceTests
                     new TwitchBanResult("b", "b", "troll-42", DateTimeOffset.UnixEpoch, null)
                 )
             );
-        return (new SharedBanService(db, roles, sessions, twitch), db, sessions, twitch);
+        return (new(db, roles, sessions, twitch), db, sessions, twitch);
     }
 
     private static async Task SeedChannelsAsync(ModerationServiceTestDbContext db)
@@ -107,14 +107,14 @@ public sealed class SharedBanServiceTests
         Result<SharedBanSettingsDto> first = await sut.SaveSettingsAsync(
             Channel,
             Actor,
-            new SaveSharedBanSettingsRequest(AcceptSharedChatBans: true, ShareOutgoingBans: false)
+            new(AcceptSharedChatBans: true, ShareOutgoingBans: false)
         );
         first.Value.AcceptSharedChatBans.Should().BeTrue();
 
         Result<SharedBanSettingsDto> second = await sut.SaveSettingsAsync(
             Channel,
             Actor,
-            new SaveSharedBanSettingsRequest(AcceptSharedChatBans: false, ShareOutgoingBans: true)
+            new(AcceptSharedChatBans: false, ShareOutgoingBans: true)
         );
         second.Value.AcceptSharedChatBans.Should().BeFalse();
         second.Value.ShareOutgoingBans.Should().BeTrue();
@@ -201,7 +201,7 @@ public sealed class SharedBanServiceTests
         await sut.SaveSettingsAsync(
             Channel,
             Actor,
-            new SaveSharedBanSettingsRequest(AcceptSharedChatBans: true, ShareOutgoingBans: false)
+            new(AcceptSharedChatBans: true, ShareOutgoingBans: false)
         );
         await sut.AddTrustedChannelAsync(Channel, Actor, Partner);
     }
@@ -217,7 +217,7 @@ public sealed class SharedBanServiceTests
         ) = Build();
         await SeedChannelsAsync(db);
         await OptInAndTrustAsync(sut);
-        sessions.SetSession(Channel, new SharedChatSessionInfo("session-1", "host-1", ["a", "b"]));
+        sessions.SetSession(Channel, new("session-1", "host-1", ["a", "b"]));
 
         Result<SharedBanApplicationResult> result = await sut.ApplyInboundSharedBanAsync(
             Channel,
@@ -259,7 +259,7 @@ public sealed class SharedBanServiceTests
             .Be("not_accepting");
 
         // 2. Accepting, but the origin is not on the trust list.
-        await sut.SaveSettingsAsync(Channel, Actor, new SaveSharedBanSettingsRequest(true, false));
+        await sut.SaveSettingsAsync(Channel, Actor, new(true, false));
         (await sut.ApplyInboundSharedBanAsync(Channel, Inbound()))
             .Value.SkippedReason.Should()
             .Be("origin_not_trusted");
@@ -269,7 +269,7 @@ public sealed class SharedBanServiceTests
         (await sut.ApplyInboundSharedBanAsync(Channel, Inbound()))
             .Value.SkippedReason.Should()
             .Be("no_shared_session");
-        sessions.SetSession(Channel, new SharedChatSessionInfo("OTHER-session", "host-1", []));
+        sessions.SetSession(Channel, new("OTHER-session", "host-1", []));
         (await sut.ApplyInboundSharedBanAsync(Channel, Inbound()))
             .Value.SkippedReason.Should()
             .Be("no_shared_session");
@@ -297,7 +297,7 @@ public sealed class SharedBanServiceTests
         ) = Build();
         await SeedChannelsAsync(db);
         await OptInAndTrustAsync(sut);
-        sessions.SetSession(Channel, new SharedChatSessionInfo("session-1", "host-1", []));
+        sessions.SetSession(Channel, new("session-1", "host-1", []));
         twitch
             .BanUserAsync(
                 Arg.Any<Guid>(),
@@ -390,7 +390,7 @@ public sealed class SharedBanServiceTests
         Result<SharedBanSettingsDto> save = await sut.SaveSettingsAsync(
             Channel,
             Actor,
-            new SaveSharedBanSettingsRequest(true, true)
+            new(true, true)
         );
         save.ErrorCode.Should().Be("FORBIDDEN");
         (await sut.AddTrustedChannelAsync(Channel, Actor, Partner))

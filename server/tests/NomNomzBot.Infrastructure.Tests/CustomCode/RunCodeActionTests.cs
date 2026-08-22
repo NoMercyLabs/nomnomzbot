@@ -33,7 +33,7 @@ public sealed class RunCodeActionTests
         new()
         {
             Type = "run_code",
-            Parameters = id is Guid g
+            Parameters = id is { } g
                 ? new Dictionary<string, JsonElement>
                 {
                     ["code_script_id"] = JsonSerializer.SerializeToElement(g.ToString()),
@@ -65,7 +65,7 @@ public sealed class RunCodeActionTests
     {
         RunCodeAction sut = new(
             RunnerReturning(
-                new ScriptRunResult(
+                new(
                     ScriptExecutionOutcome.Success,
                     new Dictionary<string, string> { ["x"] = "1" },
                     "hello",
@@ -89,7 +89,7 @@ public sealed class RunCodeActionTests
     {
         RunCodeAction sut = new(
             RunnerReturning(
-                new ScriptRunResult(
+                new(
                     ScriptExecutionOutcome.Success,
                     new Dictionary<string, string>(),
                     null,
@@ -121,7 +121,7 @@ public sealed class RunCodeActionTests
     {
         RunCodeAction sut = new(
             RunnerReturning(
-                new ScriptRunResult(
+                new(
                     ScriptExecutionOutcome.Faulted,
                     new Dictionary<string, string>(),
                     null,

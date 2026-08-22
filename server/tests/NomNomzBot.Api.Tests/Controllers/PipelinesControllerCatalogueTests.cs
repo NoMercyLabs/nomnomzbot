@@ -16,7 +16,6 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NSubstitute;
-using Xunit;
 
 namespace NomNomzBot.Api.Tests.Controllers;
 

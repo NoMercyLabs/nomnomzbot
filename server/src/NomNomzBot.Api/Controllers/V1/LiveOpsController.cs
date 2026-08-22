@@ -81,7 +81,7 @@ public class LiveOpsController : BaseController
         Result<TwitchPage<TwitchPoll>> result = await _polls.GetPollsAsync(
             broadcasterId,
             null,
-            new TwitchPageRequest(After: null, PageSize: 10),
+            new(After: null, PageSize: 10),
             ct
         );
         return result.IsFailure
@@ -172,7 +172,7 @@ public class LiveOpsController : BaseController
         Result<TwitchPage<TwitchPrediction>> result = await _predictions.GetPredictionsAsync(
             broadcasterId,
             null,
-            new TwitchPageRequest(After: null, PageSize: 10),
+            new(After: null, PageSize: 10),
             ct
         );
         return result.IsFailure
@@ -399,7 +399,7 @@ public class LiveOpsController : BaseController
 
         Result<TwitchSchedule> result = await _schedule.GetScheduleAsync(
             broadcasterId,
-            new TwitchPageRequest(after, pageSize <= 0 ? 100 : pageSize),
+            new(after, pageSize <= 0 ? 100 : pageSize),
             ct
         );
         return result.IsFailure

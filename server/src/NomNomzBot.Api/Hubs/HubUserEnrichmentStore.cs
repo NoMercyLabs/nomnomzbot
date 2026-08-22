@@ -47,7 +47,7 @@ public sealed class HubUserEnrichmentStore(IApplicationDbContext db) : IHubUserE
             .Select(s => (CommunityStanding?)s.Standing)
             .FirstOrDefaultAsync(ct);
 
-        return new HubUserEnrichment(
+        return new(
             user.DisplayName,
             user.ProfileImageUrl,
             UserPronounDisplay.Format(user.Pronoun, user.AltPronoun),

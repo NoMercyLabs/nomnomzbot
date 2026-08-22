@@ -12,7 +12,6 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Templating;
@@ -93,7 +92,7 @@ public sealed class DerivedGrammarTemplateResolverTests
         ServiceProvider provider = services.BuildServiceProvider();
 
         _registry = Substitute.For<IChannelRegistry>();
-        _resolver = new TemplateResolver(
+        _resolver = new(
             provider.GetRequiredService<IServiceScopeFactory>(),
             _registry,
             NullLogger<TemplateResolver>.Instance,
@@ -284,7 +283,7 @@ public sealed class DerivedGrammarTemplateResolverTests
     )
     {
         _db.ChatMessages.Add(
-            new ChatMessage
+            new()
             {
                 Id = id,
                 BroadcasterId = Channel,
@@ -303,10 +302,10 @@ public sealed class DerivedGrammarTemplateResolverTests
     [Fact]
     public async Task LastMessage_ReturnsTheMostRecentNonCommandLine_PerSide()
     {
-        SeedChat("m1", "111", "alice", "older line", false, new DateTime(2026, 7, 1));
-        SeedChat("m2", "111", "alice", "latest alice line", false, new DateTime(2026, 7, 2));
-        SeedChat("m3", "111", "alice", "!sr commands excluded", true, new DateTime(2026, 7, 3));
-        SeedChat("m4", "444", "dave", "dave says hi", false, new DateTime(2026, 7, 2));
+        SeedChat("m1", "111", "alice", "older line", false, new(2026, 7, 1));
+        SeedChat("m2", "111", "alice", "latest alice line", false, new(2026, 7, 2));
+        SeedChat("m3", "111", "alice", "!sr commands excluded", true, new(2026, 7, 3));
+        SeedChat("m4", "444", "dave", "dave says hi", false, new(2026, 7, 2));
 
         string resolved = await _resolver.ResolveAsync(
             "[{user.lastmessage}] [{target.lastmessage}]",

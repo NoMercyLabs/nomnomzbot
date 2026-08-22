@@ -19,7 +19,6 @@ using NomNomzBot.Application.Giveaways.Services;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Events;
-using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Giveaways.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Giveaways;
@@ -52,7 +51,7 @@ public sealed class GiveawayChatFlowTests
             UserDisplayName = "Chatter",
             UserLogin = "chatter",
             Message = message,
-            Fragments = [new ChatMessageFragment { Type = "text", Text = message }],
+            Fragments = [new() { Type = "text", Text = message }],
             Badges = [],
             IsSubscriber = false,
             IsVip = false,

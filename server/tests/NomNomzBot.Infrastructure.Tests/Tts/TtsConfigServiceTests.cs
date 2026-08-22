@@ -72,7 +72,7 @@ public sealed class TtsConfigServiceTests
             );
 
         return (
-            new TtsConfigService(
+            new(
                 db,
                 ttsService,
                 bus,
@@ -108,7 +108,7 @@ public sealed class TtsConfigServiceTests
 
         Result<TtsConfigDto> result = await sut.UpdateConfigAsync(
             Channel,
-            new UpdateTtsConfigDto
+            new()
             {
                 IsEnabled = false,
                 MaxCharacters = 120,
@@ -141,10 +141,10 @@ public sealed class TtsConfigServiceTests
         (TtsConfigService sut, TtsTestDbContext db, _) = Build();
         await sut.UpdateConfigAsync(
             Channel,
-            new UpdateTtsConfigDto { MaxCharacters = 120, DefaultVoiceId = "en-GB-SoniaNeural" }
+            new() { MaxCharacters = 120, DefaultVoiceId = "en-GB-SoniaNeural" }
         );
 
-        await sut.UpdateConfigAsync(Channel, new UpdateTtsConfigDto { ModApprovalRequired = true });
+        await sut.UpdateConfigAsync(Channel, new() { ModApprovalRequired = true });
 
         TtsConfig row = await db.TtsConfigs.SingleAsync();
         row.ModApprovalRequired.Should().BeTrue();
@@ -163,7 +163,7 @@ public sealed class TtsConfigServiceTests
         Result<TtsConfigDto> result = await sut.SetByokKeyAsync(
             Channel,
             "azure",
-            new SetTtsByokKeyDto { ApiKey = "azure-secret-key", Region = "westus2" }
+            new() { ApiKey = "azure-secret-key", Region = "westus2" }
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -188,7 +188,7 @@ public sealed class TtsConfigServiceTests
         await sut.SetByokKeyAsync(
             Channel,
             "elevenlabs",
-            new SetTtsByokKeyDto { ApiKey = "el-secret" }
+            new() { ApiKey = "el-secret" }
         );
 
         Result<TtsConfigDto> result = await sut.ClearByokKeyAsync(Channel, "elevenlabs");
@@ -209,7 +209,7 @@ public sealed class TtsConfigServiceTests
         Result<TtsConfigDto> result = await sut.SetByokKeyAsync(
             Channel,
             "edge",
-            new SetTtsByokKeyDto { ApiKey = "whatever" }
+            new() { ApiKey = "whatever" }
         );
 
         result.IsFailure.Should().BeTrue("edge needs no key; only azure/elevenlabs are BYOK");
@@ -220,11 +220,11 @@ public sealed class TtsConfigServiceTests
     public async Task MinBitsToTts_zero_clears_the_bits_gate()
     {
         (TtsConfigService sut, TtsTestDbContext db, _) = Build();
-        await sut.UpdateConfigAsync(Channel, new UpdateTtsConfigDto { MinBitsToTts = 100 });
+        await sut.UpdateConfigAsync(Channel, new() { MinBitsToTts = 100 });
 
         Result<TtsConfigDto> result = await sut.UpdateConfigAsync(
             Channel,
-            new UpdateTtsConfigDto { MinBitsToTts = 0 }
+            new() { MinBitsToTts = 0 }
         );
 
         result.Value.MinBitsToTts.Should().BeNull();

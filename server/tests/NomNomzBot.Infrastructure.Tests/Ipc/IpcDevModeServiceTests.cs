@@ -55,7 +55,7 @@ public sealed class IpcDevModeServiceTests
                 default
             )
         );
-        return new IpcDevModeService(db, profile, clock);
+        return new(db, profile, clock);
     }
 
     private static string Sha256Hex(string value) =>
@@ -70,7 +70,7 @@ public sealed class IpcDevModeServiceTests
 
         Result<IpcDevModeKeyDto> created = await service.CreateKeyAsync(
             Actor,
-            new CreateIpcKeyRequest("dev laptop", ExpiresAt: null)
+            new("dev laptop", ExpiresAt: null)
         );
 
         created.IsSuccess.Should().BeTrue(created.ErrorMessage);
@@ -118,7 +118,7 @@ public sealed class IpcDevModeServiceTests
         IpcDevModeService service = NewService(db, DeploymentMode.SelfHostLite, clock);
         Result<IpcDevModeKeyDto> created = await service.CreateKeyAsync(
             Actor,
-            new CreateIpcKeyRequest(null, null)
+            new(null, null)
         );
 
         Result accepted = await service.AuthenticateConnectionAsync(created.Value!.PlaintextKey!);
@@ -139,7 +139,7 @@ public sealed class IpcDevModeServiceTests
         IpcDevModeService service = NewService(db, DeploymentMode.SelfHostLite, clock);
         Result<IpcDevModeKeyDto> created = await service.CreateKeyAsync(
             Actor,
-            new CreateIpcKeyRequest("to revoke", null)
+            new("to revoke", null)
         );
 
         Result revoked = await service.RevokeKeyAsync(created.Value!.Id);
@@ -169,7 +169,7 @@ public sealed class IpcDevModeServiceTests
         IpcDevModeService service = NewService(
             db,
             DeploymentMode.SelfHostLite,
-            new FakeTimeProvider()
+            new()
         );
 
         Result result = await service.RevokeKeyAsync(Guid.CreateVersion7());
@@ -187,7 +187,7 @@ public sealed class IpcDevModeServiceTests
         DateTime expiry = clock.GetUtcNow().UtcDateTime.AddHours(1);
         Result<IpcDevModeKeyDto> created = await service.CreateKeyAsync(
             Actor,
-            new CreateIpcKeyRequest("short-lived", expiry)
+            new("short-lived", expiry)
         );
 
         (await service.IsEnabledAsync()).Value.Should().BeTrue("the key is still live");
@@ -212,7 +212,7 @@ public sealed class IpcDevModeServiceTests
 
         Result<IpcDevModeKeyDto> result = await service.CreateKeyAsync(
             Actor,
-            new CreateIpcKeyRequest(null, clock.GetUtcNow().UtcDateTime.AddMinutes(-1))
+            new(null, clock.GetUtcNow().UtcDateTime.AddMinutes(-1))
         );
 
         result.IsFailure.Should().BeTrue();
@@ -227,7 +227,7 @@ public sealed class IpcDevModeServiceTests
         IpcDevModeService selfHost = NewService(db, DeploymentMode.SelfHostFull, clock);
         Result<IpcDevModeKeyDto> created = await selfHost.CreateKeyAsync(
             Actor,
-            new CreateIpcKeyRequest(null, null)
+            new(null, null)
         );
 
         IpcDevModeService saas = NewService(db, DeploymentMode.Saas, clock);
@@ -240,7 +240,7 @@ public sealed class IpcDevModeServiceTests
 
         Result<IpcDevModeKeyDto> refusedCreate = await saas.CreateKeyAsync(
             Actor,
-            new CreateIpcKeyRequest(null, null)
+            new(null, null)
         );
         refusedCreate.IsFailure.Should().BeTrue();
         refusedCreate.ErrorCode.Should().Be("SERVICE_UNAVAILABLE");

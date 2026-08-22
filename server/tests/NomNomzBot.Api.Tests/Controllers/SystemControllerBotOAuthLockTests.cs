@@ -10,7 +10,6 @@
 
 using System.Security.Claims;
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -57,11 +56,11 @@ public sealed class SystemControllerBotOAuthLockTests
             .IssueAsync(Arg.Any<TwitchOAuthFlowState>(), Arg.Any<CancellationToken>())
             .Returns("state-nonce");
 
-        List<Claim> claims = [new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString())];
+        List<Claim> claims = [new(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString())];
         if (asAdmin)
-            claims.Add(new Claim(ClaimTypes.Role, "admin"));
+            claims.Add(new(ClaimTypes.Role, "admin"));
 
-        return new SystemController(
+        return new(
             authService,
             ApiTestDbContext.New(),
             new ConfigurationBuilder().Build(),
@@ -71,11 +70,11 @@ public sealed class SystemControllerBotOAuthLockTests
             oauthState
         )
         {
-            ControllerContext = new ControllerContext
+            ControllerContext = new()
             {
                 HttpContext = new DefaultHttpContext
                 {
-                    User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth")),
+                    User = new(new ClaimsIdentity(claims, "TestAuth")),
                 },
             },
         };

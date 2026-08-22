@@ -49,7 +49,7 @@ public sealed class LinkPreviewAdapter : IChatDecorationAdapter
                 continue;
 
             Result<LinkPreview?> preview = await _previews.FetchAsync(url, ct);
-            context.Fragments[i] = new ChatMessageFragment
+            context.Fragments[i] = new()
             {
                 Type = "link",
                 Text = fragment.Text,

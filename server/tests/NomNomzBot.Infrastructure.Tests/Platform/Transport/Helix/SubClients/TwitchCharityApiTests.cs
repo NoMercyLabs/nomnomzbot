@@ -50,8 +50,8 @@ public class TwitchCharityApiTests
                 "Helping people",
                 "https://logo",
                 "https://charity.example",
-                new TwitchCharityAmount(50000, 2, "USD"),
-                new TwitchCharityAmount(1000000, 2, "USD")
+                new(50000, 2, "USD"),
+                new(1000000, 2, "USD")
             ),
         };
         TwitchCharityApi api = Build(transport, TwitchScopes.ChannelReadCharity);
@@ -109,7 +109,7 @@ public class TwitchCharityApiTests
         TwitchCharityApi api = Build(transport); // no scopes granted
 
         Result<TwitchPage<TwitchCharityDonation>> result =
-            await api.GetCharityCampaignDonationsAsync(Tenant, new TwitchPageRequest());
+            await api.GetCharityCampaignDonationsAsync(Tenant, new());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);
@@ -123,13 +123,13 @@ public class TwitchCharityApiTests
         {
             PageResult = new TwitchPage<TwitchCharityDonation>(
                 [
-                    new TwitchCharityDonation(
+                    new(
                         "d-1",
                         "c-1",
                         "9001",
                         "donor",
                         "Donor",
-                        new TwitchCharityAmount(2500, 2, "USD")
+                        new(2500, 2, "USD")
                     ),
                 ],
                 "cursor",
@@ -141,7 +141,7 @@ public class TwitchCharityApiTests
         Result<TwitchPage<TwitchCharityDonation>> result =
             await api.GetCharityCampaignDonationsAsync(
                 Tenant,
-                new TwitchPageRequest(After: "abc", PageSize: 50)
+                new(After: "abc", PageSize: 50)
             );
 
         result.IsSuccess.Should().BeTrue();

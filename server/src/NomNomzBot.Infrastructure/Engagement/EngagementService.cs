@@ -72,7 +72,7 @@ public sealed class EngagementService : IEngagementService
 
         if (state is null)
         {
-            state = new ViewerEngagementState
+            state = new()
             {
                 BroadcasterId = broadcasterId,
                 ViewerUserId = signal.ViewerUserId,
@@ -200,7 +200,7 @@ public sealed class EngagementService : IEngagementService
         );
         if (config is null)
         {
-            config = new EngagementConfig { BroadcasterId = broadcasterId };
+            config = new() { BroadcasterId = broadcasterId };
             await _db.EngagementConfigs.AddAsync(config, ct);
         }
 

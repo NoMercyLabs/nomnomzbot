@@ -34,7 +34,7 @@ public sealed class GameServiceTests
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000b1");
     private static readonly Guid Player = Guid.Parse("0192a000-0000-7000-8000-0000000000b2");
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
     );
 
     private sealed class FixedRandomizer(double value) : IGameRandomizer
@@ -50,7 +50,7 @@ public sealed class GameServiceTests
     {
         EventStoreTestDbContext db = database.NewContext();
         db.CurrencyConfigs.Add(
-            new CurrencyConfig
+            new()
             {
                 BroadcasterId = Channel,
                 CurrencyName = "points",
@@ -109,7 +109,7 @@ public sealed class GameServiceTests
 
     private static void SeedStream(EventStoreTestDbContext db) =>
         db.Streams.Add(
-            new NomNomzBot.Domain.Stream.Entities.Stream
+            new()
             {
                 Id = "s1",
                 ChannelId = Channel,
@@ -129,7 +129,7 @@ public sealed class GameServiceTests
 
         Result<GamePlayResultDto> result = await sut.PlayAsync(
             Channel,
-            new PlayGameRequest(game, Player, 20, 0)
+            new(game, Player, 20, 0)
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -150,7 +150,7 @@ public sealed class GameServiceTests
 
         Result<GamePlayResultDto> result = await sut.PlayAsync(
             Channel,
-            new PlayGameRequest(game, Player, 20, 0)
+            new(game, Player, 20, 0)
         );
 
         result.Value.Outcome.Should().Be("Lose");
@@ -166,10 +166,10 @@ public sealed class GameServiceTests
         (GameService sut, EventStoreTestDbContext db, _) = New(database, roll: 0.1);
         Guid game = SeedGame(db, min: 10, max: 50);
 
-        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 5, 0)))
+        (await sut.PlayAsync(Channel, new(game, Player, 5, 0)))
             .ErrorCode.Should()
             .Be("BET_OUT_OF_RANGE");
-        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 100, 0)))
+        (await sut.PlayAsync(Channel, new(game, Player, 100, 0)))
             .ErrorCode.Should()
             .Be("BET_OUT_OF_RANGE");
     }
@@ -181,7 +181,7 @@ public sealed class GameServiceTests
         (GameService sut, EventStoreTestDbContext db, _) = New(database, roll: 0.1);
         Guid game = SeedGame(db, enabled: false);
 
-        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 20, 0)))
+        (await sut.PlayAsync(Channel, new(game, Player, 20, 0)))
             .ErrorCode.Should()
             .Be("GAMBLING_DISABLED");
     }
@@ -197,7 +197,7 @@ public sealed class GameServiceTests
         );
         Guid game = SeedGame(db, requires18: true);
 
-        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 20, 0)))
+        (await sut.PlayAsync(Channel, new(game, Player, 20, 0)))
             .ErrorCode.Should()
             .Be("AGE_CONSENT_REQUIRED");
     }
@@ -210,7 +210,7 @@ public sealed class GameServiceTests
 
         Result<GameConfigDto> result = await sut.UpsertGameAsync(
             Channel,
-            new UpsertGameConfigRequest(
+            new(
                 "dice",
                 "gambling",
                 IsEnabled: true, // requested on, but a new gambling game is forced off
@@ -247,10 +247,10 @@ public sealed class GameServiceTests
             category: GameCategory.Minigame
         );
 
-        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 10, 0)))
+        (await sut.PlayAsync(Channel, new(game, Player, 10, 0)))
             .IsSuccess.Should()
             .BeTrue();
-        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 10, 0)))
+        (await sut.PlayAsync(Channel, new(game, Player, 10, 0)))
             .ErrorCode.Should()
             .Be("PER_STREAM_LIMIT");
     }
@@ -263,10 +263,10 @@ public sealed class GameServiceTests
         // Gambling, cooldown explicitly 0 — the floor must still bite so !coinflip can't be machine-gunned.
         Guid game = SeedGame(db, category: GameCategory.Gambling, cooldown: 0);
 
-        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 10, 0)))
+        (await sut.PlayAsync(Channel, new(game, Player, 10, 0)))
             .IsSuccess.Should()
             .BeTrue();
-        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 10, 0)))
+        (await sut.PlayAsync(Channel, new(game, Player, 10, 0)))
             .ErrorCode.Should()
             .Be("ON_COOLDOWN");
     }
@@ -279,10 +279,10 @@ public sealed class GameServiceTests
         // A minigame has no economy-loop abuse to guard, so a 0 cooldown means back-to-back plays are allowed.
         Guid game = SeedGame(db, category: GameCategory.Minigame, cooldown: 0);
 
-        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 10, 0)))
+        (await sut.PlayAsync(Channel, new(game, Player, 10, 0)))
             .IsSuccess.Should()
             .BeTrue();
-        (await sut.PlayAsync(Channel, new PlayGameRequest(game, Player, 10, 0)))
+        (await sut.PlayAsync(Channel, new(game, Player, 10, 0)))
             .IsSuccess.Should()
             .BeTrue();
     }
@@ -295,7 +295,7 @@ public sealed class GameServiceTests
 
         Result<GameConfigDto> result = await sut.UpsertGameAsync(
             Channel,
-            new UpsertGameConfigRequest(
+            new(
                 "dice",
                 "gambling",
                 IsEnabled: false,

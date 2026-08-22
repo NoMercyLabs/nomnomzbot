@@ -46,7 +46,7 @@ public sealed class BuiltinResponseComposer : IBuiltinResponseComposer
         // ITemplateResolver takes a mutable IDictionary; copy the caller's read-only bag into one. The
         // resolver treats these as precedence seeds (never mutates them), and copies again internally.
         Dictionary<string, string> variables = request.Variables is null
-            ? new Dictionary<string, string>()
+            ? new()
             : new Dictionary<string, string>(request.Variables, StringComparer.OrdinalIgnoreCase);
 
         return await _templates.ResolveAsync(

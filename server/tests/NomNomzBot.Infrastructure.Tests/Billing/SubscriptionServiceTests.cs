@@ -18,7 +18,6 @@ using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Enums;
 using NomNomzBot.Domain.Billing.Events;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.Content.Billing;
@@ -64,7 +63,7 @@ public sealed class SubscriptionServiceTests
     {
         await new BillingTierSeeder(db).SeedAsync();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Channel,
                 TwitchChannelId = "t1",
@@ -120,7 +119,7 @@ public sealed class SubscriptionServiceTests
 
         Result<SubscriptionDto> canceled = await sut.CancelAsync(
             Channel,
-            new CancelSubscriptionRequest(AtPeriodEnd: true, null)
+            new(AtPeriodEnd: true, null)
         );
         canceled.Value.CancelAtPeriodEnd.Should().BeTrue();
         bus.Published.OfType<SubscriptionCanceledEvent>()
@@ -138,7 +137,7 @@ public sealed class SubscriptionServiceTests
         await SeedAsync(db);
         BillingTier pro = await db.BillingTiers.FirstAsync(t => t.Key == "pro");
         db.Subscriptions.Add(
-            new Subscription
+            new()
             {
                 BroadcasterId = Channel,
                 TierId = pro.Id,
@@ -149,7 +148,7 @@ public sealed class SubscriptionServiceTests
         await db.SaveChangesAsync();
 
         Result result = await sut.ApplyStripeSubscriptionEventAsync(
-            new StripeSubscriptionEventDto(
+            new(
                 "evt_1",
                 "customer.subscription.updated",
                 "cus_1",
@@ -217,7 +216,7 @@ public sealed class SubscriptionServiceTests
 
         Result<SubscriptionDto> result = await sut.ChangeTierAsync(
             Channel,
-            new ChangeTierRequest("pro", AtPeriodEnd: false)
+            new("pro", AtPeriodEnd: false)
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -258,7 +257,7 @@ public sealed class SubscriptionServiceTests
         await MakePurchasableAsync(db, "pro", "price_pro");
         await SeedStripeSubscriptionAsync(db, tierKey: "base");
 
-        await sut.ChangeTierAsync(Channel, new ChangeTierRequest("pro", AtPeriodEnd: true));
+        await sut.ChangeTierAsync(Channel, new("pro", AtPeriodEnd: true));
 
         await stripe
             .Received(1)
@@ -280,7 +279,7 @@ public sealed class SubscriptionServiceTests
         // A grant-style subscription: local row, no Stripe id — nothing to reprice.
         BillingTier baseTier = await db.BillingTiers.FirstAsync(t => t.Key == "base");
         db.Subscriptions.Add(
-            new Subscription
+            new()
             {
                 BroadcasterId = Channel,
                 TierId = baseTier.Id,
@@ -291,7 +290,7 @@ public sealed class SubscriptionServiceTests
 
         Result<SubscriptionDto> result = await sut.ChangeTierAsync(
             Channel,
-            new ChangeTierRequest("pro", AtPeriodEnd: false)
+            new("pro", AtPeriodEnd: false)
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -325,7 +324,7 @@ public sealed class SubscriptionServiceTests
 
         Result<SubscriptionDto> result = await sut.ChangeTierAsync(
             Channel,
-            new ChangeTierRequest("pro", AtPeriodEnd: false)
+            new("pro", AtPeriodEnd: false)
         );
 
         result.ErrorCode.Should().Be("SERVICE_UNAVAILABLE");
@@ -344,7 +343,7 @@ public sealed class SubscriptionServiceTests
 
         Result<SubscriptionDto> result = await sut.ChangeTierAsync(
             Channel,
-            new ChangeTierRequest("base", AtPeriodEnd: false)
+            new("base", AtPeriodEnd: false)
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -365,10 +364,10 @@ public sealed class SubscriptionServiceTests
         await SeedAsync(db); // seeded tiers carry no Stripe price id by default
         await SeedStripeSubscriptionAsync(db, tierKey: "base");
 
-        (await sut.ChangeTierAsync(Channel, new ChangeTierRequest("pro", false)))
+        (await sut.ChangeTierAsync(Channel, new("pro", false)))
             .ErrorCode.Should()
             .Be("VALIDATION_FAILED");
-        (await sut.ChangeTierAsync(Channel, new ChangeTierRequest("nope", false)))
+        (await sut.ChangeTierAsync(Channel, new("nope", false)))
             .ErrorCode.Should()
             .Be("NOT_FOUND");
     }
@@ -381,7 +380,7 @@ public sealed class SubscriptionServiceTests
 
         Result<CheckoutSessionDto> result = await sut.StartCheckoutAsync(
             Channel,
-            new StartCheckoutRequest("pro", null, null)
+            new("pro", null, null)
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -408,7 +407,7 @@ public sealed class SubscriptionServiceTests
 
         Result<CheckoutSessionDto> result = await sut.StartCheckoutAsync(
             Channel,
-            new StartCheckoutRequest("pro", null, null)
+            new("pro", null, null)
         );
 
         result.IsSuccess.Should().BeTrue();

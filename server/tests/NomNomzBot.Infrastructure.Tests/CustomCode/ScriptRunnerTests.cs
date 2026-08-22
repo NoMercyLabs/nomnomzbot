@@ -58,7 +58,7 @@ public sealed class ScriptRunnerTests
             Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>(),
             Substitute.For<NomNomzBot.Application.Economy.Services.ICurrencyAccountService>(),
             Substitute.For<NomNomzBot.Application.Music.Services.IMusicService>(),
-            Substitute.For<System.Net.Http.IHttpClientFactory>(),
+            Substitute.For<IHttpClientFactory>(),
             Substitute.For<IScriptStorageService>(),
             Substitute.For<NomNomzBot.Application.Contracts.Tts.ITtsDispatchService>(),
             Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetService>(),
@@ -70,7 +70,7 @@ public sealed class ScriptRunnerTests
             db
         );
         return (
-            new ScriptRunner(
+            new(
                 db,
                 new JintScriptExecutor(),
                 broker,

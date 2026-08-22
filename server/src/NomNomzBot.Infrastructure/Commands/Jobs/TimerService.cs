@@ -165,7 +165,7 @@ public sealed class TimerService : BackgroundService
             }
         }
 
-        bool fired = timer.PipelineId is Guid pipelineId
+        bool fired = timer.PipelineId is { } pipelineId
             ? await FirePipelineAsync(db, pipelineEngine, timer, pipelineId, channelCtx, ct)
             : await FireMessageAsync(chat, timer, channelCtx, ct);
         if (!fired)

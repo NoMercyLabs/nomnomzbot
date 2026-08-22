@@ -16,8 +16,6 @@ using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Obs.Services;
-using NomNomzBot.Application.Vts.Services;
-using NomNomzBot.Domain.Vts.Entities;
 using NomNomzBot.Infrastructure.Obs.Bridge;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Vts.Transport;
@@ -89,7 +87,7 @@ public sealed class VtsBridgeTests
                 pushedPayload = ci.ArgAt<string>(2);
                 commands.Complete(
                     ci.ArgAt<Guid>(1),
-                    new ObsBridgeAck(true, """{ "modelID": "m1" }""", null)
+                    new(true, """{ "modelID": "m1" }""", null)
                 );
                 return Task.CompletedTask;
             });
@@ -115,7 +113,7 @@ public sealed class VtsBridgeTests
         BridgeVtsTransport transport = new(
             new ObsBridgeRegistry(new FakeCache(), new RecordingEventBus(), new FakeTimeProvider()),
             pusher,
-            new ObsBridgeCommandBook(),
+            new(),
             new FakeTimeProvider()
         );
 
@@ -145,7 +143,7 @@ public sealed class VtsBridgeTests
 
         // Bridge mode with no leader: the router reaches the BRIDGE transport (its offline code).
         db.VtsConnections.Add(
-            new VtsConnection
+            new()
             {
                 BroadcasterId = Channel,
                 Mode = "bridge",
@@ -157,7 +155,7 @@ public sealed class VtsBridgeTests
         BridgeVtsTransport bridge = new(
             new ObsBridgeRegistry(new FakeCache(), new RecordingEventBus(), new FakeTimeProvider()),
             Substitute.For<IObsBridgePusher>(),
-            new ObsBridgeCommandBook(),
+            new(),
             new FakeTimeProvider()
         );
         DirectVtsTransport direct = new(

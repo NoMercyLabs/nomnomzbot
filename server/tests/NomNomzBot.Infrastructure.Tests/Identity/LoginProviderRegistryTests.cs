@@ -16,7 +16,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Infrastructure.Identity;
 using NSubstitute;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -37,7 +36,7 @@ public sealed class LoginProviderRegistryTests
         services.AddSingleton(flags);
         services.AddSingleton(credentials ?? Substitute.For<ISystemCredentialsProvider>());
         ServiceProvider provider = services.BuildServiceProvider();
-        return new LoginProviderRegistry(provider.GetRequiredService<IServiceScopeFactory>());
+        return new(provider.GetRequiredService<IServiceScopeFactory>());
     }
 
     [Fact]

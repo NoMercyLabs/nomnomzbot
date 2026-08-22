@@ -12,7 +12,6 @@ using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Domain.Analytics.Entities;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Services.Analytics;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -31,14 +30,14 @@ public sealed class PlatformAnalyticsServiceTests
     private static (PlatformAnalyticsService Sut, AuthDbContext Db) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        return (new PlatformAnalyticsService(db), db);
+        return (new(db), db);
     }
 
     private static ChannelAnalyticsDaily Daily(Guid channel, long messages) =>
         new()
         {
             BroadcasterId = channel,
-            ActivityDate = new DateOnly(2026, 6, 22),
+            ActivityDate = new(2026, 6, 22),
             TotalMessages = messages,
         };
 
@@ -59,7 +58,7 @@ public sealed class PlatformAnalyticsServiceTests
     {
         (PlatformAnalyticsService sut, AuthDbContext db) = Build();
         db.IamPrincipals.Add(
-            new IamPrincipal
+            new()
             {
                 Name = "operator",
                 PrincipalType = IamPrincipalType.Employee,

@@ -25,7 +25,7 @@ public sealed class LiveGameCatalog : ILiveGameCatalog
 
     public LiveGameCatalog(IEnumerable<ILiveGame> games)
     {
-        _games = new Dictionary<string, ILiveGame>(StringComparer.OrdinalIgnoreCase);
+        _games = new(StringComparer.OrdinalIgnoreCase);
         foreach (ILiveGame game in games)
         {
             if (!_games.TryAdd(game.GameKey, game))

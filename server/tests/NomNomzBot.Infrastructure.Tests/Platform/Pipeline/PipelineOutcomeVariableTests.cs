@@ -61,7 +61,7 @@ public sealed class PipelineOutcomeVariableTests
         NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext db =
             Substitute.For<NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext>();
 
-        return new PipelineEngine(
+        return new(
             db,
             registry,
             actions,

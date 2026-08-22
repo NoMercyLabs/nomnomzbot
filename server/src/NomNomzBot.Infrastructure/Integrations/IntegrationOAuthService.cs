@@ -238,7 +238,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         IReadOnlyList<string> grantedScopes = SplitScopes(tokens.Scope);
 
         Result<IntegrationConnectionDto> connection = await _vault.UpsertConnectionAsync(
-            new UpsertConnectionDto(
+            new(
                 entry.BroadcasterId,
                 provider,
                 accountId,
@@ -260,7 +260,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
 
         Result store = await _vault.StoreTokensAsync(
             connection.Value.Id,
-            new StoreTokensDto(
+            new(
                 tokens.AccessToken,
                 tokens.RefreshToken,
                 AppToken: null,
@@ -351,7 +351,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                     : [];
 
             statuses.Add(
-                new IntegrationStatusDto(
+                new(
                     provider,
                     Connected: c is not null && c.Status == AuthEnums.IntegrationStatus.Connected,
                     AccountName: c?.ProviderAccountName,
@@ -375,7 +375,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
 
         DiscordGuildConnectionDto? discord = discordConnections.Value.FirstOrDefault();
         statuses.Add(
-            new IntegrationStatusDto(
+            new(
                 AuthEnums.IntegrationProvider.Discord,
                 Connected: discord is not null,
                 AccountName: discord?.GuildName,
@@ -501,7 +501,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             json.ExpiresIn > 0
                 ? _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(json.ExpiresIn)
                 : null;
-        return new TokenExchangeResult(json.AccessToken, json.RefreshToken, expiresAt, json.Scope);
+        return new(json.AccessToken, json.RefreshToken, expiresAt, json.Scope);
     }
 
     private async Task<(string? Id, string? Name)> FetchAccountIdentityAsync(
@@ -523,7 +523,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             );
             // Most providers take the token as a Bearer; a provider with its own header (Shopify's
             // X-Shopify-Access-Token) names it on the descriptor.
-            if (descriptor.IdentityTokenHeader is string headerName)
+            if (descriptor.IdentityTokenHeader is { } headerName)
                 request.Headers.Add(headerName, accessToken);
             else
                 request.Headers.Add("Authorization", $"Bearer {accessToken}");

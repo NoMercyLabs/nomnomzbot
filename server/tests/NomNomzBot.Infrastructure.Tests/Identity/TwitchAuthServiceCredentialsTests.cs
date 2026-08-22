@@ -21,7 +21,6 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Configuration;
-using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -66,7 +65,7 @@ public sealed class TwitchAuthServiceCredentialsTests
     )
     {
         db.Configurations.Add(
-            new ConfigEntity
+            new()
             {
                 BroadcasterId = null,
                 Key = "twitch.client_id",
@@ -74,7 +73,7 @@ public sealed class TwitchAuthServiceCredentialsTests
             }
         );
         db.Configurations.Add(
-            new ConfigEntity
+            new()
             {
                 BroadcasterId = null,
                 Key = "twitch.client_secret",
@@ -194,7 +193,7 @@ public sealed class TwitchAuthServiceCredentialsTests
             if (request.Content is not null)
                 LastBody = await request.Content.ReadAsStringAsync(cancellationToken);
 
-            return new HttpResponseMessage(HttpStatusCode.OK)
+            return new(HttpStatusCode.OK)
             {
                 Content = new StringContent(
                     """{"access_token":"issued-access","refresh_token":"issued-refresh","expires_in":3600,"scope":["user:read:chat"],"token_type":"bearer"}""",

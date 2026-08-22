@@ -81,7 +81,7 @@ public class TtsConfigService : ITtsConfigService
         );
         if (config is null)
         {
-            config = new TtsConfig { BroadcasterId = broadcasterId };
+            config = new() { BroadcasterId = broadcasterId };
             _db.TtsConfigs.Add(config);
         }
 
@@ -136,7 +136,7 @@ public class TtsConfigService : ITtsConfigService
         );
         if (config is null)
         {
-            config = new TtsConfig { BroadcasterId = broadcasterId };
+            config = new() { BroadcasterId = broadcasterId };
             _db.TtsConfigs.Add(config);
         }
 
@@ -152,7 +152,7 @@ public class TtsConfigService : ITtsConfigService
         Result<CipherPayload> sealedKey = await _subjectKeys.ProtectAsync(
             config.SubjectKeyId.Value,
             request.ApiKey,
-            new CipherAad(
+            new(
                 TenantId: broadcasterId.ToString(),
                 Provider: provider,
                 TokenType: "api_key",
@@ -337,7 +337,7 @@ public class TtsConfigService : ITtsConfigService
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToList();
-        return new PagedList<TtsVoiceDto>(pageItems, page, pageSize, ordered.Count);
+        return new(pageItems, page, pageSize, ordered.Count);
     }
 
     private static IEnumerable<TtsVoiceDto> ApplyInMemoryFilter(
@@ -506,7 +506,7 @@ public class TtsConfigService : ITtsConfigService
         else
         {
             _db.UserTtsVoices.Add(
-                new UserTtsVoice
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     UserId = userId,
@@ -584,7 +584,7 @@ public class TtsConfigService : ITtsConfigService
             // viewer User for an assignment that would be dropped anyway.
             if (!knownVoices.Contains(row.VoiceId))
             {
-                skipped.Add(new TtsVoiceImportSkipDto(row.TwitchUserId, "unknown_voice"));
+                skipped.Add(new(row.TwitchUserId, "unknown_voice"));
                 continue;
             }
             if (!knownUsers.Contains(row.TwitchUserId))
@@ -595,7 +595,7 @@ public class TtsConfigService : ITtsConfigService
                 // to create from, so the row still skips.
                 if (!createMissing || string.IsNullOrWhiteSpace(row.Username))
                 {
-                    skipped.Add(new TtsVoiceImportSkipDto(row.TwitchUserId, "unknown_user"));
+                    skipped.Add(new(row.TwitchUserId, "unknown_user"));
                     continue;
                 }
 
@@ -608,7 +608,7 @@ public class TtsConfigService : ITtsConfigService
                 );
                 if (created.IsFailure)
                 {
-                    skipped.Add(new TtsVoiceImportSkipDto(row.TwitchUserId, "unknown_user"));
+                    skipped.Add(new(row.TwitchUserId, "unknown_user"));
                     continue;
                 }
                 knownUsers.Add(row.TwitchUserId);

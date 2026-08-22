@@ -130,7 +130,7 @@ public sealed class GameService(
                 "Category must be minigame or gambling.",
                 "VALIDATION_FAILED"
             );
-        if (request.MinBet is long min && request.MaxBet is long max && min > max)
+        if (request.MinBet is { } min && request.MaxBet is { } max && min > max)
             return Result.Failure<GameConfigDto>(
                 "MinBet cannot exceed MaxBet.",
                 "VALIDATION_FAILED"
@@ -157,7 +157,7 @@ public sealed class GameService(
             ct
         );
         bool isNew = game is null;
-        game ??= new GameConfig { BroadcasterId = broadcasterId, GameType = request.GameType };
+        game ??= new() { BroadcasterId = broadcasterId, GameType = request.GameType };
         if (isNew)
             db.GameConfigs.Add(game);
 
@@ -233,8 +233,8 @@ public sealed class GameService(
 
         if (
             request.BetAmount <= 0
-            || (game.MinBet is long minBet && request.BetAmount < minBet)
-            || (game.MaxBet is long maxBet && request.BetAmount > maxBet)
+            || (game.MinBet is { } minBet && request.BetAmount < minBet)
+            || (game.MaxBet is { } maxBet && request.BetAmount > maxBet)
         )
             return Result.Failure<GamePlayResultDto>(
                 "Bet is outside the allowed range.",
@@ -257,14 +257,14 @@ public sealed class GameService(
                 return Result.Failure<GamePlayResultDto>("Game is on cooldown.", "ON_COOLDOWN");
         }
 
-        if (game.MaxPlaysPerStream is int maxPlays)
+        if (game.MaxPlaysPerStream is { } maxPlays)
         {
             DateTime? streamStart = await EconomyStreamWindow.CurrentStreamStartAsync(
                 db,
                 broadcasterId,
                 ct
             );
-            if (streamStart is DateTime since)
+            if (streamStart is { } since)
             {
                 int played = await db.GamePlays.CountAsync(
                     p =>
@@ -284,7 +284,7 @@ public sealed class GameService(
 
         Result<CurrencyLedgerEntryDto> debit = await accounts.PostLedgerEntryAsync(
             broadcasterId,
-            new PostLedgerEntryCommand(
+            new(
                 request.PlayerUserId,
                 -request.BetAmount,
                 nameof(CurrencyEntryType.SpendGame),
@@ -313,7 +313,7 @@ public sealed class GameService(
         {
             Result<CurrencyLedgerEntryDto> credit = await accounts.PostLedgerEntryAsync(
                 broadcasterId,
-                new PostLedgerEntryCommand(
+                new(
                     request.PlayerUserId,
                     payout,
                     nameof(CurrencyEntryType.EarnGame),
@@ -388,9 +388,9 @@ public sealed class GameService(
     )
     {
         IQueryable<GamePlay> query = db.GamePlays.Where(p => p.BroadcasterId == broadcasterId);
-        if (filter.GameConfigId is Guid configId)
+        if (filter.GameConfigId is { } configId)
             query = query.Where(p => p.GameConfigId == configId);
-        if (filter.PlayerUserId is Guid player)
+        if (filter.PlayerUserId is { } player)
             query = query.Where(p => p.PlayerUserId == player);
         if (
             filter.Outcome is not null
@@ -460,7 +460,7 @@ public sealed class GameService(
 
         Result<CurrencyLedgerEntryDto> debit = await accounts.PostLedgerEntryAsync(
             broadcasterId,
-            new PostLedgerEntryCommand(
+            new(
                 command.ViewerUserId,
                 -command.Stake,
                 nameof(CurrencyEntryType.SpendGame),
@@ -522,7 +522,7 @@ public sealed class GameService(
             {
                 Result<CurrencyLedgerEntryDto> credit = await accounts.PostLedgerEntryAsync(
                     broadcasterId,
-                    new PostLedgerEntryCommand(
+                    new(
                         award.ViewerUserId,
                         award.Payout,
                         nameof(CurrencyEntryType.EarnGame),
@@ -551,7 +551,7 @@ public sealed class GameService(
             }
 
             pendingPlays.Add(
-                new GamePlay
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     GameConfigId = settlement.GameConfigId,
@@ -640,7 +640,7 @@ public sealed class GameService(
             // ledger and a later idempotent re-run picks it up.
             await accounts.PostLedgerEntryAsync(
                 broadcasterId,
-                new PostLedgerEntryCommand(
+                new(
                     stake.ViewerUserId,
                     -stake.Amount,
                     nameof(CurrencyEntryType.RefundGame),

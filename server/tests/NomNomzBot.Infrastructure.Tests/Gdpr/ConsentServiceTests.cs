@@ -43,7 +43,7 @@ public sealed class ConsentServiceTests
         GdprSqliteDatabase database = GdprSqliteDatabase.Open();
         GdprTestDbContext db = database.NewContext();
         db.Users.Add(
-            new User
+            new()
             {
                 Id = Subject,
                 TwitchUserId = "tw-subject",
@@ -55,7 +55,7 @@ public sealed class ConsentServiceTests
         await db.SaveChangesAsync();
         RecordingEventBus bus = new();
         ConsentService sut = new(db, bus, TimeProvider.System, NullLogger<ConsentService>.Instance);
-        return new Harness(sut, db, bus, database);
+        return new(sut, db, bus, database);
     }
 
     private static GrantConsentRequest Grant(
@@ -175,7 +175,7 @@ public sealed class ConsentServiceTests
         // Platform-wide ToS row (null broadcaster).
         (
             await h.Sut.GrantAsync(
-                new GrantConsentRequest(Subject, null, "tos_privacy", "contract", null, null, null)
+                new(Subject, null, "tos_privacy", "contract", null, null, null)
             )
         )
             .IsSuccess.Should()

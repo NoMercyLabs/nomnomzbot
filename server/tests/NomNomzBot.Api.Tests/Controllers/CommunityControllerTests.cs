@@ -17,8 +17,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Analytics.Entities;
-using NomNomzBot.Domain.Chat.Entities;
-using NomNomzBot.Domain.Identity.Entities;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -55,7 +53,7 @@ public sealed class CommunityControllerTests
 
         // A followed viewer WITH analytics: 7200 watch seconds (= 2 whole hours) and 5 commands used.
         db.Users.Add(
-            new User
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 TwitchUserId = "twitch-777",
@@ -65,7 +63,7 @@ public sealed class CommunityControllerTests
             }
         );
         db.ViewerProfiles.Add(
-            new ViewerProfile
+            new()
             {
                 BroadcasterId = Broadcaster,
                 ViewerUserId = Guid.CreateVersion7(),
@@ -77,7 +75,7 @@ public sealed class CommunityControllerTests
         );
         // A followed viewer with NO profile row — must stay 0/0 (truthful: no analytics yet).
         db.Users.Add(
-            new User
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 TwitchUserId = "twitch-888",
@@ -99,17 +97,17 @@ public sealed class CommunityControllerTests
                 Result.Success(
                     new TwitchPage<TwitchChannelFollower>(
                         [
-                            new TwitchChannelFollower(
+                            new(
                                 "twitch-777",
                                 "regular_raider",
                                 "Regular_Raider",
-                                new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero)
+                                new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero)
                             ),
-                            new TwitchChannelFollower(
+                            new(
                                 "twitch-888",
                                 "fresh_follow",
                                 "Fresh_Follow",
-                                new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero)
+                                new(2026, 7, 1, 0, 0, 0, TimeSpan.Zero)
                             ),
                         ],
                         NextCursor: null,
@@ -122,7 +120,7 @@ public sealed class CommunityControllerTests
 
         IActionResult result = await controller.ListMembers(
             Broadcaster.ToString(),
-            new PageRequestDto { Take = 25 },
+            new() { Take = 25 },
             role: "follower",
             cursor: null,
             CancellationToken.None
@@ -153,7 +151,7 @@ public sealed class CommunityControllerTests
         // A follower WITH a local User row — its User.Id is the guid the analytics viewer endpoint keys on.
         Guid knownUserId = Guid.CreateVersion7();
         db.Users.Add(
-            new User
+            new()
             {
                 Id = knownUserId,
                 TwitchUserId = "twitch-777",
@@ -175,18 +173,18 @@ public sealed class CommunityControllerTests
                 Result.Success(
                     new TwitchPage<TwitchChannelFollower>(
                         [
-                            new TwitchChannelFollower(
+                            new(
                                 "twitch-777",
                                 "regular_raider",
                                 "Regular_Raider",
-                                new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero)
+                                new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero)
                             ),
                             // A follower with NO local User row — no internal identity to key on yet.
-                            new TwitchChannelFollower(
+                            new(
                                 "twitch-999",
                                 "ghost_follow",
                                 "Ghost_Follow",
-                                new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero)
+                                new(2026, 7, 1, 0, 0, 0, TimeSpan.Zero)
                             ),
                         ],
                         NextCursor: null,
@@ -199,7 +197,7 @@ public sealed class CommunityControllerTests
 
         IActionResult result = await controller.ListMembers(
             Broadcaster.ToString(),
-            new PageRequestDto { Take = 25 },
+            new() { Take = 25 },
             role: "follower",
             cursor: null,
             CancellationToken.None
@@ -238,7 +236,7 @@ public sealed class CommunityControllerTests
         AddChat(db, "twitch-1");
         AddUser(db, "twitch-2", "alicia", "Alicia");
         db.ViewerProfiles.Add(
-            new ViewerProfile
+            new()
             {
                 BroadcasterId = Broadcaster,
                 ViewerUserId = Guid.CreateVersion7(),
@@ -311,7 +309,7 @@ public sealed class CommunityControllerTests
         string displayName
     ) =>
         db.Users.Add(
-            new User
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 TwitchUserId = twitchId,
@@ -323,7 +321,7 @@ public sealed class CommunityControllerTests
 
     private static void AddChat(CommunityControllerTestDbContext db, string twitchId) =>
         db.ChatMessages.Add(
-            new ChatMessage
+            new()
             {
                 Id = Guid.CreateVersion7().ToString(),
                 BroadcasterId = Broadcaster,

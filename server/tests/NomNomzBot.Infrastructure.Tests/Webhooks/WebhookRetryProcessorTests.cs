@@ -41,7 +41,7 @@ public sealed class WebhookRetryProcessorTests
             .AttemptDeliveryAsync(Arg.Any<OutboundWebhookDelivery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(WebhookDeliveryStatus.Delivered));
         return (
-            new WebhookRetryProcessor(db, dispatcher, new FakeTimeProvider(Now)),
+            new(db, dispatcher, new FakeTimeProvider(Now)),
             db,
             dispatcher
         );
@@ -54,7 +54,7 @@ public sealed class WebhookRetryProcessorTests
     )
     {
         db.OutboundWebhookDeliveries.Add(
-            new OutboundWebhookDelivery
+            new()
             {
                 BroadcasterId = Channel,
                 EndpointId = Guid.Parse("0192a000-0000-7000-8000-0000000000ee"),

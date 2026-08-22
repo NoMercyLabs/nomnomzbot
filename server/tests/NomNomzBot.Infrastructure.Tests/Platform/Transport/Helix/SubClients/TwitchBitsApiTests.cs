@@ -133,13 +133,13 @@ public class TwitchBitsApiTests
             ["1.5"] = "https://cdn/1.5.png",
         };
         TwitchCheermoteImages images = new(
-            new TwitchCheermoteImageFormats(
-                new TwitchCheermoteImageScales(animatedScales),
-                new TwitchCheermoteImageScales(staticScales)
+            new(
+                new(animatedScales),
+                new(staticScales)
             ),
-            new TwitchCheermoteImageFormats(
-                new TwitchCheermoteImageScales(animatedScales),
-                new TwitchCheermoteImageScales(staticScales)
+            new(
+                new(animatedScales),
+                new(staticScales)
             )
         );
         CapturingHelixTransport transport = new()
@@ -148,10 +148,10 @@ public class TwitchBitsApiTests
             {
                 new(
                     "Cheer",
-                    [new TwitchCheermoteTier(1, "1", "#979797", images, true, true)],
+                    [new(1, "1", "#979797", images, true, true)],
                     "global_first_party",
                     1,
-                    new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                    new(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
                     false
                 ),
             },
@@ -243,16 +243,16 @@ public class TwitchBitsApiTests
                     "Gigantify",
                     "Make it big",
                     500,
-                    new TwitchCustomPowerUpImage("1x", "2x", "4x"),
-                    new TwitchCustomPowerUpImage("d1x", "d2x", "d4x"),
+                    new("1x", "2x", "4x"),
+                    new("d1x", "d2x", "d4x"),
                     "#9146FF",
                     true,
                     false,
                     false,
                     true,
-                    new TwitchCustomPowerUpMaxPerStreamSetting(true, 10),
-                    new TwitchCustomPowerUpMaxPerUserPerStreamSetting(false, 0),
-                    new TwitchCustomPowerUpGlobalCooldownSetting(true, 60),
+                    new(true, 10),
+                    new(false, 0),
+                    new(true, 60),
                     3,
                     new DateTimeOffset(2026, 2, 2, 0, 0, 0, TimeSpan.Zero)
                 ),

@@ -47,7 +47,7 @@ public sealed class TwitchPlatformApi : IPlatformApi
         {
             Result<TwitchPage<TwitchSearchCategory>> search = await _search.SearchCategoriesAsync(
                 update.CategoryName,
-                new TwitchPageRequest(),
+                new(),
                 cancellationToken
             );
             IReadOnlyList<TwitchSearchCategory> categories = search.IsSuccess
@@ -67,7 +67,7 @@ public sealed class TwitchPlatformApi : IPlatformApi
 
         Result applied = await _channels.ModifyChannelInformationAsync(
             broadcasterId,
-            new ModifyChannelInformationRequest(
+            new(
                 Title: update.Title,
                 GameId: gameId,
                 Tags: update.Tags

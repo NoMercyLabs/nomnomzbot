@@ -20,7 +20,6 @@ using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Infrastructure.Tts;
 using NomNomzBot.Infrastructure.Tts.Builtins;
 using NSubstitute;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Tts;
 
@@ -64,7 +63,7 @@ public sealed class TtsViewerSelfServiceTests
             }
         );
         db.TtsConfigs.Add(
-            new TtsConfig
+            new()
             {
                 BroadcasterId = Channel,
                 IsEnabled = ttsEnabled,
@@ -101,7 +100,7 @@ public sealed class TtsViewerSelfServiceTests
         Result<UserTtsVoiceDto> set = await config.SetOwnVoiceAsync(
             Channel,
             ViewerId,
-            new SetUserVoiceDto { VoiceId = "en-GB-SoniaNeural" }
+            new() { VoiceId = "en-GB-SoniaNeural" }
         );
 
         set.IsSuccess.Should().BeTrue();
@@ -120,7 +119,7 @@ public sealed class TtsViewerSelfServiceTests
         Result<UserTtsVoiceDto> set = await config.SetOwnVoiceAsync(
             Channel,
             ViewerId,
-            new SetUserVoiceDto { VoiceId = "en-GB-SoniaNeural" }
+            new() { VoiceId = "en-GB-SoniaNeural" }
         );
 
         set.IsFailure.Should().BeTrue();
@@ -136,7 +135,7 @@ public sealed class TtsViewerSelfServiceTests
         Result<UserTtsVoiceDto> set = await config.SetOwnVoiceAsync(
             Channel,
             ViewerId,
-            new SetUserVoiceDto { VoiceId = "en-GB-SoniaNeural" }
+            new() { VoiceId = "en-GB-SoniaNeural" }
         );
 
         set.IsFailure.Should().BeTrue();
@@ -153,7 +152,7 @@ public sealed class TtsViewerSelfServiceTests
         await config.SetOwnVoiceAsync(
             Channel,
             ViewerId,
-            new SetUserVoiceDto { VoiceId = "en-US-GuyNeural" }
+            new() { VoiceId = "en-US-GuyNeural" }
         );
 
         Result<UserTtsVoiceDto?> after = await config.GetOwnVoiceAsync(Channel, ViewerId);

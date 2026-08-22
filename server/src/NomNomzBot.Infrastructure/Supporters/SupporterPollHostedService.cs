@@ -194,7 +194,7 @@ public sealed class SupporterPollHostedService : BackgroundService
                     );
             }
 
-            if (response.Headers.ETag is { Tag: string newTag })
+            if (response.Headers.ETag is { Tag: { } newTag })
                 _etagsByConnection[connection.Id] = newTag;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -219,6 +219,6 @@ public sealed class SupporterPollHostedService : BackgroundService
             foreach (JProperty property in obj.Properties())
                 if (property.Value is JArray nested)
                     return nested;
-        return new JArray();
+        return new();
     }
 }

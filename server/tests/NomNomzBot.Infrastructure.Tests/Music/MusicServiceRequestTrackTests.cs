@@ -13,9 +13,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -147,7 +145,7 @@ public sealed class MusicServiceRequestTrackTests
         );
         await blocks.BlockAsync(
             ChannelId,
-            new BlockTrackRequest("spotify", $"spotify:track:{TrackId}", "Never Gonna Give You Up")
+            new("spotify", $"spotify:track:{TrackId}", "Never Gonna Give You Up")
         );
 
         Result<MusicTrack> result = await sut.RequestTrackAsync(
@@ -174,7 +172,7 @@ public sealed class MusicServiceRequestTrackTests
                 .Options
         );
         db.Services.Add(
-            new Service
+            new()
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = "spotify",
@@ -190,7 +188,7 @@ public sealed class MusicServiceRequestTrackTests
             db,
             new PassthroughProtector(),
             new InMemoryIntegrationCapabilityStore(),
-            new NomNomzBot.Infrastructure.Music.LastActiveSpotifyDeviceTracker(),
+            new LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance

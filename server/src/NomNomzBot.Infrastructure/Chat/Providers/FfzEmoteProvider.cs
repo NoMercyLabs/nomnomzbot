@@ -98,7 +98,7 @@ public sealed class FfzEmoteProvider : IThirdPartyEmoteProvider
                 urls[entry.Key] = Normalize(entry.Value);
 
             result.Add(
-                new ChatEmote(
+                new(
                     EmoteProvider.Ffz,
                     emoticon.Id.ToString(),
                     emoticon.Name,

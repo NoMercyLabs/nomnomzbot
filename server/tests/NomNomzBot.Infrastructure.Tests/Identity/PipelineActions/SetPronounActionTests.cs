@@ -15,7 +15,6 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Infrastructure.Identity.PipelineActions;
-using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity.PipelineActions;
@@ -93,7 +92,7 @@ public sealed class SetPronounActionTests
             .Returns(new UserPronounDto(null, null, null, null, null, false));
 
         db.Pronouns.Add(
-            new NomNomzBot.Domain.Identity.Entities.Pronoun
+            new()
             {
                 Id = 3,
                 Name = "they/them",
@@ -117,10 +116,10 @@ public sealed class SetPronounActionTests
 
         ActionResult result = await sut.ExecuteAsync(
             Ctx(),
-            new ActionDefinition
+            new()
             {
                 Type = "set_pronoun",
-                Parameters = new Dictionary<string, System.Text.Json.JsonElement>
+                Parameters = new()
                 {
                     ["username"] = System.Text.Json.JsonSerializer.SerializeToElement(
                         "@CoolStreamer"
@@ -148,10 +147,10 @@ public sealed class SetPronounActionTests
 
         ActionResult result = await sut.ExecuteAsync(
             Ctx(),
-            new ActionDefinition
+            new()
             {
                 Type = "set_pronoun",
-                Parameters = new Dictionary<string, System.Text.Json.JsonElement>
+                Parameters = new()
                 {
                     ["username"] = System.Text.Json.JsonSerializer.SerializeToElement(
                         "coolstreamer"
@@ -179,10 +178,10 @@ public sealed class SetPronounActionTests
 
         ActionResult result = await sut.ExecuteAsync(
             Ctx(),
-            new ActionDefinition
+            new()
             {
                 Type = "set_pronoun",
-                Parameters = new Dictionary<string, System.Text.Json.JsonElement>
+                Parameters = new()
                 {
                     ["username"] = System.Text.Json.JsonSerializer.SerializeToElement(
                         "coolstreamer"

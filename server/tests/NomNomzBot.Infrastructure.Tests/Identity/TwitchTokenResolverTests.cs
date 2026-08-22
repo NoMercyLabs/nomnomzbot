@@ -14,7 +14,6 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
-using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Enums;
@@ -77,7 +76,7 @@ public sealed class TwitchTokenResolverTests
     {
         Guid connectionId = (
             await vault.UpsertConnectionAsync(
-                new UpsertConnectionDto(
+                new(
                     broadcasterId,
                     provider,
                     accountId,
@@ -95,7 +94,7 @@ public sealed class TwitchTokenResolverTests
 
         await vault.StoreTokensAsync(
             connectionId,
-            new StoreTokensDto(accessToken, "refresh", AppToken: null, DateTime.UtcNow.AddHours(1)),
+            new(accessToken, "refresh", AppToken: null, DateTime.UtcNow.AddHours(1)),
             scopes
         );
     }

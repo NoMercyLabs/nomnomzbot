@@ -37,7 +37,7 @@ public sealed class YouTubeLiveChatSessionRegistry : IYouTubeLiveChatSessionRegi
     private readonly ConcurrentDictionary<Guid, YouTubeLiveChatSession> _sessions = new();
 
     public void SetLive(Guid tenantId, Guid primaryBroadcasterId, string liveChatId) =>
-        _sessions[tenantId] = new YouTubeLiveChatSession(primaryBroadcasterId, liveChatId);
+        _sessions[tenantId] = new(primaryBroadcasterId, liveChatId);
 
     public void SetOffline(Guid tenantId) => _sessions.TryRemove(tenantId, out _);
 

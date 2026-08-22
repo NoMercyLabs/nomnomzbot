@@ -128,7 +128,7 @@ public sealed class LiveGameEngine(
                 manifest.OverlayWidgetKey,
                 ct
             ),
-            NextTickAt = manifest.TickInterval is TimeSpan tick ? now + tick : null,
+            NextTickAt = manifest.TickInterval is { } tick ? now + tick : null,
         };
 
         LiveGameTransition opening = await game.OnStartAsync(BuildState(runtime), ct);
@@ -307,7 +307,7 @@ public sealed class LiveGameEngine(
                     stakeAmount = ResolveStake(tokens, runtime.Config);
                     Result<LiveGameStakeResult> staked = await games.StakeLiveGameEntryAsync(
                         broadcasterId,
-                        new LiveGameStakeCommand(
+                        new(
                             runtime.SessionId,
                             runtime.GameConfigId,
                             viewerUserId,
@@ -322,13 +322,13 @@ public sealed class LiveGameEngine(
                     runtime.Stakes[viewerUserId] = staked.Value;
                     accountId = staked.Value.AccountId;
                 }
-                player = new LiveGameParticipant(viewerUserId, accountId, displayName, stakeAmount);
+                player = new(viewerUserId, accountId, displayName, stakeAmount);
                 runtime.Participants.Add(player);
             }
 
             LiveGameTransition transition = await runtime.Game.OnInputAsync(
                 BuildState(runtime),
-                new LiveGameInput(player, keyword, [.. tokens.Skip(1)], message),
+                new(player, keyword, [.. tokens.Skip(1)], message),
                 ct
             );
             bool maxReached =
@@ -386,8 +386,8 @@ public sealed class LiveGameEngine(
 
             if (
                 !runtime.Terminal
-                && manifest.TickInterval is TimeSpan interval
-                && runtime.NextTickAt is DateTime due
+                && manifest.TickInterval is { } interval
+                && runtime.NextTickAt is { } due
                 && now >= due
             )
             {
@@ -447,7 +447,7 @@ public sealed class LiveGameEngine(
         {
             runtime.Stakes.TryGetValue(award.UserId, out LiveGameStakeResult? stake);
             awards.Add(
-                new LiveGameSettlementAward(
+                new(
                     award.UserId,
                     award.AccountId,
                     award.Stake,
@@ -463,7 +463,7 @@ public sealed class LiveGameEngine(
         long totalPaidOut = 0;
         Result<LiveGameSettlementResult> settled = await games.SettleLiveGameAsync(
             runtime.BroadcasterId,
-            new LiveGameSettlement(
+            new(
                 runtime.SessionId,
                 runtime.GameConfigId,
                 session.GameType,
@@ -562,7 +562,7 @@ public sealed class LiveGameEngine(
         CancellationToken ct
     )
     {
-        if (runtime.OverlayWidgetId is not Guid widgetId)
+        if (runtime.OverlayWidgetId is not { } widgetId)
             return;
         string phase = runtime.Terminal
             ? "resolved"

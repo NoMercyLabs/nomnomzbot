@@ -23,7 +23,6 @@ using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Analytics;
 using NomNomzBot.Infrastructure.EventStore;
-using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -42,7 +41,7 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore;
 public sealed class ReadModelRebuildFromJournalTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 22, 20, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 22, 20, 0, 0, TimeSpan.Zero)
     );
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000abc01");
     private static readonly DateTime Live = new(2026, 6, 22, 20, 0, 0, DateTimeKind.Utc);
@@ -113,16 +112,16 @@ public sealed class ReadModelRebuildFromJournalTests
             new FollowEvent
             {
                 BroadcasterId = Channel,
-                OccurredAt = new DateTimeOffset(Live, TimeSpan.Zero),
+                OccurredAt = new(Live, TimeSpan.Zero),
                 UserId = "100",
                 UserDisplayName = "Alice",
                 UserLogin = "alice",
-                FollowedAt = new DateTimeOffset(Live, TimeSpan.Zero),
+                FollowedAt = new(Live, TimeSpan.Zero),
             },
             new NewSubscriptionEvent
             {
                 BroadcasterId = Channel,
-                OccurredAt = new DateTimeOffset(Live, TimeSpan.Zero),
+                OccurredAt = new(Live, TimeSpan.Zero),
                 UserId = "200",
                 UserDisplayName = "Bob",
                 Tier = "1000",
@@ -130,7 +129,7 @@ public sealed class ReadModelRebuildFromJournalTests
             new GiftSubscriptionEvent
             {
                 BroadcasterId = Channel,
-                OccurredAt = new DateTimeOffset(Live, TimeSpan.Zero),
+                OccurredAt = new(Live, TimeSpan.Zero),
                 GifterUserId = "100",
                 GifterDisplayName = "Alice",
                 Tier = "1000",
@@ -141,7 +140,7 @@ public sealed class ReadModelRebuildFromJournalTests
             new CheerEvent
             {
                 BroadcasterId = Channel,
-                OccurredAt = new DateTimeOffset(Live, TimeSpan.Zero),
+                OccurredAt = new(Live, TimeSpan.Zero),
                 UserId = "200",
                 UserDisplayName = "Bob",
                 Bits = 150,
@@ -253,7 +252,7 @@ public sealed class ReadModelRebuildFromJournalTests
             .Select(u => $"{u.TwitchUserId}|{u.DisplayName}")
             .ToListAsync();
 
-        return new ReadModelSnapshot(
+        return new(
             channelDaily,
             messageDaily,
             engagement,
@@ -290,7 +289,7 @@ public sealed class ReadModelRebuildFromJournalTests
         new NomNomzBot.Domain.Chat.Events.ChatMessageReceivedEvent
         {
             BroadcasterId = Channel,
-            OccurredAt = new DateTimeOffset(at, TimeSpan.Zero),
+            OccurredAt = new(at, TimeSpan.Zero),
             MessageId = Guid.NewGuid().ToString(),
             TwitchBroadcasterId = "39863651",
             UserId = id,
@@ -309,7 +308,7 @@ public sealed class ReadModelRebuildFromJournalTests
         new NomNomzBot.Domain.Commands.Events.CommandExecutedEvent
         {
             BroadcasterId = Channel,
-            OccurredAt = new DateTimeOffset(at, TimeSpan.Zero),
+            OccurredAt = new(at, TimeSpan.Zero),
             CommandName = "!hello",
             UserId = id,
             Username = login,
@@ -321,7 +320,7 @@ public sealed class ReadModelRebuildFromJournalTests
         new RewardRedeemedEvent
         {
             BroadcasterId = Channel,
-            OccurredAt = new DateTimeOffset(at, TimeSpan.Zero),
+            OccurredAt = new(at, TimeSpan.Zero),
             RewardId = "reward-1",
             RewardTitle = "Hydrate",
             RedemptionId = Guid.NewGuid().ToString(),

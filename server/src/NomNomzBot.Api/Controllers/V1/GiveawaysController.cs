@@ -51,13 +51,13 @@ public class GiveawaysController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result<PagedList<GiveawayDto>> result = await _giveaways.ListAsync(
             broadcasterId,
-            new GiveawayFilter(status),
-            new PaginationParams(request.Page, request.Take, request.Sort, request.Order),
+            new(status),
+            new(request.Page, request.Take, request.Sort, request.Order),
             ct
         );
         if (result.IsFailure)
@@ -74,7 +74,7 @@ public class GiveawaysController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _giveaways.CreateAsync(broadcasterId, request, ct));
     }
@@ -85,7 +85,7 @@ public class GiveawaysController : BaseController
     [ProducesResponseType<StatusResponseDto<GiveawayDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _giveaways.GetAsync(broadcasterId, id, ct));
     }
@@ -100,7 +100,7 @@ public class GiveawaysController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _giveaways.UpdateAsync(broadcasterId, id, request, ct));
     }
@@ -111,7 +111,7 @@ public class GiveawaysController : BaseController
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _giveaways.DeleteAsync(broadcasterId, id, ct));
     }
@@ -122,7 +122,7 @@ public class GiveawaysController : BaseController
     [ProducesResponseType<StatusResponseDto<GiveawayDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Open(Guid id, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _giveaways.OpenAsync(broadcasterId, id, ct));
     }
@@ -133,7 +133,7 @@ public class GiveawaysController : BaseController
     [ProducesResponseType<StatusResponseDto<GiveawayDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Close(Guid id, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _giveaways.CloseAsync(broadcasterId, id, ct));
     }
@@ -146,7 +146,7 @@ public class GiveawaysController : BaseController
     )]
     public async Task<IActionResult> Draw(Guid id, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _giveaways.DrawAsync(broadcasterId, id, ct));
     }
@@ -157,7 +157,7 @@ public class GiveawaysController : BaseController
     [ProducesResponseType<StatusResponseDto<GiveawayWinnerDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Redraw(Guid id, Guid winnerId, CancellationToken ct)
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
         return ResultResponse(await _giveaways.RedrawAsync(broadcasterId, id, winnerId, ct));
     }
@@ -172,13 +172,13 @@ public class GiveawaysController : BaseController
         CancellationToken ct
     )
     {
-        if (_tenant.BroadcasterId is not Guid broadcasterId)
+        if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
         Result<PagedList<GiveawayWinnerDto>> result = await _giveaways.GetWinnersAsync(
             broadcasterId,
             id,
-            new PaginationParams(request.Page, request.Take, request.Sort, request.Order),
+            new(request.Page, request.Take, request.Sort, request.Order),
             ct
         );
         if (result.IsFailure)

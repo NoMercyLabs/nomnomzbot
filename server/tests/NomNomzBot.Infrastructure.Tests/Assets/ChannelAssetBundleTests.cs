@@ -76,7 +76,7 @@ public sealed class ChannelAssetBundleTests
             tenant,
             new RecordingEventBus()
         );
-        return new Harness(db, actingChannel, assets, store, export, import);
+        return new(db, actingChannel, assets, store, export, import);
     }
 
     private static async Task<Guid> SeedAssetAsync(Harness h, string name, byte[] payload)
@@ -84,7 +84,7 @@ public sealed class ChannelAssetBundleTests
         Result<ChannelAssetDto> uploaded = await h.Assets.UploadAsync(
             h.ActingChannel,
             Actor,
-            new UploadChannelAssetRequest(name, name, $"{name}.png", new MemoryStream(payload))
+            new(name, name, $"{name}.png", new MemoryStream(payload))
         );
         uploaded.IsSuccess.Should().BeTrue(uploaded.ErrorMessage);
         return uploaded.Value.Id;
@@ -94,9 +94,9 @@ public sealed class ChannelAssetBundleTests
     {
         Result<System.IO.Stream> zip = await h.Export.ExportAsync(
             h.ActingChannel,
-            new ExportRequest(
-                [new ExportItemRef(BundleFormat.AssetType, assetId)],
-                new BundleMetadata("Asset Pack", "1.0.0", "stoney", "MIT", "media")
+            new(
+                [new(BundleFormat.AssetType, assetId)],
+                new("Asset Pack", "1.0.0", "stoney", "MIT", "media")
             )
         );
         zip.IsSuccess.Should().BeTrue(zip.ErrorMessage);

@@ -76,7 +76,7 @@ public sealed class EventResponseSeedOnOnboardingHandler(
                     continue;
 
                 db.EventResponses.Add(
-                    new EventResponse
+                    new()
                     {
                         BroadcasterId = @event.BroadcasterId,
                         EventType = eventType,

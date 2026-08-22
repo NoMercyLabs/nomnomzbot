@@ -17,8 +17,6 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Domain.Integrations.Entities;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Twitch.Events;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Identity.EventHandlers;
@@ -56,7 +54,7 @@ public sealed class MissingScopeRecordingHandlerTests
         ScopeNotificationService notifications = new(
             db,
             provider,
-            new TwitchScopeRegistry(),
+            new(),
             TimeProvider.System,
             NullLogger<ScopeNotificationService>.Instance
         );
@@ -72,7 +70,7 @@ public sealed class MissingScopeRecordingHandlerTests
     {
         // A connection that does NOT hold the missing scope, so the gap is real.
         db.IntegrationConnections.Add(
-            new IntegrationConnection
+            new()
             {
                 BroadcasterId = Tenant,
                 Provider = AuthEnums.IntegrationProvider.Twitch,

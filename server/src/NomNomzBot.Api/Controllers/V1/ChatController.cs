@@ -184,7 +184,7 @@ public class ChatController : BaseController
             );
 
             messages.Add(
-                new DashboardChatMessageDto(
+                new(
                     Id: row.Id,
                     ChannelId: channelId,
                     UserId: row.UserId,
@@ -229,7 +229,7 @@ public class ChatController : BaseController
             row.UserType
         );
 
-        return new ChatMessageReceivedEvent
+        return new()
         {
             BroadcasterId = row.BroadcasterId,
             MessageId = row.Id,
@@ -513,7 +513,7 @@ public class ChatController : BaseController
             ? fod.GetInt32()
             : current.FollowersOnlyDuration;
 
-        ChatSettingsDto merged = new ChatSettingsDto(
+        ChatSettingsDto merged = new(
             slowMode,
             slowModeDelay,
             subscriberOnly,
@@ -542,7 +542,7 @@ public class ChatController : BaseController
         if (config is null)
         {
             _db.Configurations.Add(
-                new ConfigEntity
+                new()
                 {
                     BroadcasterId = broadcasterId,
                     Key = "chat.settings",

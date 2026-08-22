@@ -43,7 +43,7 @@ public sealed class CodeScriptService(
         CancellationToken cancellationToken = default
     )
     {
-        if (tenant.BroadcasterId is not Guid bid)
+        if (tenant.BroadcasterId is not { } bid)
             return Result.Failure<PagedList<CodeScriptSummaryDto>>("No tenant.", "NO_TENANT");
 
         IQueryable<CodeScript> query = db.CodeScripts.Where(s =>
@@ -71,7 +71,7 @@ public sealed class CodeScriptService(
             .. scripts.Select(s =>
             {
                 CodeScriptVersion? v =
-                    s.CurrentVersionId is Guid id
+                    s.CurrentVersionId is { } id
                     && current.TryGetValue(id, out CodeScriptVersion? cv)
                         ? cv
                         : null;
@@ -110,7 +110,7 @@ public sealed class CodeScriptService(
         CancellationToken cancellationToken = default
     )
     {
-        if (tenant.BroadcasterId is not Guid bid)
+        if (tenant.BroadcasterId is not { } bid)
             return Result.Failure<CodeScriptDetailDto>("No tenant.", "NO_TENANT");
         if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 100)
             return Result.Failure<CodeScriptDetailDto>(
@@ -288,7 +288,7 @@ public sealed class CodeScriptService(
 
         // The editor opens the live (current) version, falling back to the newest saved version for a script that was
         // created but never published a valid version.
-        CodeScriptVersion? version = script.CurrentVersionId is Guid currentId
+        CodeScriptVersion? version = script.CurrentVersionId is { } currentId
             ? await db.CodeScriptVersions.FirstOrDefaultAsync(
                 v => v.Id == currentId,
                 cancellationToken
@@ -393,7 +393,7 @@ public sealed class CodeScriptService(
     }
 
     private async Task<CodeScript?> LoadAsync(Guid id, CancellationToken ct) =>
-        tenant.BroadcasterId is Guid bid
+        tenant.BroadcasterId is { } bid
             ? await db.CodeScripts.FirstOrDefaultAsync(
                 s => s.Id == id && s.BroadcasterId == bid && s.DeletedAt == null,
                 ct
@@ -490,10 +490,10 @@ public sealed class CodeScriptService(
 
     private async Task<CodeScriptDetailDto> ToDetailAsync(CodeScript script, CancellationToken ct)
     {
-        CodeScriptVersion? current = script.CurrentVersionId is Guid id
+        CodeScriptVersion? current = script.CurrentVersionId is { } id
             ? await db.CodeScriptVersions.FirstOrDefaultAsync(v => v.Id == id, ct)
             : null;
-        return new CodeScriptDetailDto(
+        return new(
             script.Id,
             script.Name,
             script.Description,
@@ -519,7 +519,7 @@ public sealed class CodeScriptService(
                 version.SourceCode
             );
 
-        return new ProjectDto(files, ProjectManifestDto.FromManifest(manifest));
+        return new(files, ProjectManifestDto.FromManifest(manifest));
     }
 
     // The reason a just-compiled (not-yet-persisted) version was rejected — the first validation error's message.

@@ -57,7 +57,7 @@ public sealed class SavingsJarService(
         };
         db.SavingsJars.Add(jar);
         db.SavingsJarMemberships.Add(
-            new SavingsJarMembership
+            new()
             {
                 JarId = jar.Id,
                 MemberBroadcasterId = broadcasterId,
@@ -245,14 +245,14 @@ public sealed class SavingsJarService(
             return Result.Failure<JarMovementDto>("Jar not found.", "NOT_FOUND");
         if (!jar.IsOpen)
             return Result.Failure<JarMovementDto>("Jar is not open.", "JAR_NOT_OPEN");
-        if (membership.ContributionCapPerStream is long cap)
+        if (membership.ContributionCapPerStream is { } cap)
         {
             DateTime? streamStart = await EconomyStreamWindow.CurrentStreamStartAsync(
                 db,
                 broadcasterId,
                 ct
             );
-            long alreadyThisStream = streamStart is DateTime since
+            long alreadyThisStream = streamStart is { } since
                 ? await db
                     .JarContributions.Where(c =>
                         c.JarId == request.JarId
@@ -272,7 +272,7 @@ public sealed class SavingsJarService(
 
         Result<CurrencyLedgerEntryDto> debit = await accounts.PostLedgerEntryAsync(
             broadcasterId,
-            new PostLedgerEntryCommand(
+            new(
                 request.ContributorUserId,
                 -request.Amount,
                 nameof(CurrencyEntryType.JarContribute),
@@ -289,7 +289,7 @@ public sealed class SavingsJarService(
             return Result.Failure<JarMovementDto>(debit.ErrorMessage, debit.ErrorCode);
 
         bool crossedGoal =
-            jar.GoalAmount is long goal
+            jar.GoalAmount is { } goal
             && jar.Balance < goal
             && jar.Balance + request.Amount >= goal;
         jar.Balance += request.Amount;
@@ -356,12 +356,12 @@ public sealed class SavingsJarService(
         SavingsJar? jar = await FindJarAsync(request.JarId, ct);
         if (jar is null)
             return Result.Failure<JarMovementDto>("Jar not found.", "NOT_FOUND");
-        if (membership.WithdrawalCap is long wcap && request.Amount > wcap)
+        if (membership.WithdrawalCap is { } wcap && request.Amount > wcap)
             return Result.Failure<JarMovementDto>(
                 "Withdrawal exceeds the membership cap.",
                 "JAR_CAP_EXCEEDED"
             );
-        if (jar.MaxWithdrawalPerChannel is long mcap && request.Amount > mcap)
+        if (jar.MaxWithdrawalPerChannel is { } mcap && request.Amount > mcap)
             return Result.Failure<JarMovementDto>(
                 "Withdrawal exceeds the jar's per-channel cap.",
                 "JAR_CAP_EXCEEDED"
@@ -374,7 +374,7 @@ public sealed class SavingsJarService(
 
         Result<CurrencyLedgerEntryDto> credit = await accounts.PostLedgerEntryAsync(
             broadcasterId,
-            new PostLedgerEntryCommand(
+            new(
                 request.TargetViewerUserId,
                 request.Amount,
                 nameof(CurrencyEntryType.JarWithdraw),

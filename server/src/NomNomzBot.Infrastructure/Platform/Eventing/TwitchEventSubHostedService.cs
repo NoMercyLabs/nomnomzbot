@@ -441,7 +441,7 @@ public sealed class TwitchEventSubHostedService
             DateTimeOffset? lastReconnect = (
                 _transport as WebSocketEventSubTransport
             )?.LastReconnectAt;
-            return new EventSourceHealth(
+            return new(
                 connected,
                 _transport.Kind,
                 _activeSubscriptionCount,
@@ -533,13 +533,13 @@ public sealed class TwitchEventSubHostedService
 
         if (row is null)
         {
-            row = new EventSubSubscription
+            row = new()
             {
                 BroadcasterId = broadcasterId,
                 Provider = "twitch",
                 EventType = eventType,
                 Version = version,
-                Condition = new Dictionary<string, string>(condition),
+                Condition = new(condition),
                 Transport = _transport.Kind.ToString().ToLowerInvariant(),
                 Status = "pending",
                 Enabled = true,
@@ -549,7 +549,7 @@ public sealed class TwitchEventSubHostedService
         else
         {
             row.Enabled = true;
-            row.Condition = new Dictionary<string, string>(condition);
+            row.Condition = new(condition);
         }
 
         await db.SaveChangesAsync(ct);

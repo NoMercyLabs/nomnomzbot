@@ -48,7 +48,7 @@ public sealed class SendWebhookAction : ICommandAction
         // The event type is metadata the receiver sees + the endpoint's subscription can match; default it so a
         // bare send_webhook still carries a stable, self-describing type.
         string eventType =
-            action.GetString("event_type") is string et && !string.IsNullOrWhiteSpace(et)
+            action.GetString("event_type") is { } et && !string.IsNullOrWhiteSpace(et)
                 ? et
                 : "pipeline.send_webhook";
 

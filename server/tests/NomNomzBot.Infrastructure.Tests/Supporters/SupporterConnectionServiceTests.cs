@@ -16,7 +16,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Supporters.Dtos;
 using NomNomzBot.Application.Supporters.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Supporters.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
@@ -48,7 +47,7 @@ public sealed class SupporterConnectionServiceTests
     {
         SupporterTestDbContext db = SupporterTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Tenant,
                 TwitchChannelId = "1001",
@@ -84,7 +83,7 @@ public sealed class SupporterConnectionServiceTests
         );
 
         return (
-            new SupporterConnectionService(
+            new(
                 db,
                 [
                     new KofiSupporterSource(),
@@ -132,7 +131,7 @@ public sealed class SupporterConnectionServiceTests
         Result<SupporterConnectionDto> result = await service.UpsertAsync(
             Tenant,
             Actor,
-            new UpsertSupporterConnectionRequest("kofi", "webhook", null, null, IsEnabled: true)
+            new("kofi", "webhook", null, null, IsEnabled: true)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -154,7 +153,7 @@ public sealed class SupporterConnectionServiceTests
         Result<SupporterConnectionDto> result = await service.UpsertAsync(
             Tenant,
             Actor,
-            new UpsertSupporterConnectionRequest("kofi", "webhook", "kofi-verify-token", null, true)
+            new("kofi", "webhook", "kofi-verify-token", null, true)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -183,13 +182,13 @@ public sealed class SupporterConnectionServiceTests
         await service.UpsertAsync(
             Tenant,
             Actor,
-            new UpsertSupporterConnectionRequest("kofi", "webhook", "first-token", null, true)
+            new("kofi", "webhook", "first-token", null, true)
         );
 
         Result<SupporterConnectionDto> rotated = await service.UpsertAsync(
             Tenant,
             Actor,
-            new UpsertSupporterConnectionRequest("kofi", "webhook", "second-token", null, true)
+            new("kofi", "webhook", "second-token", null, true)
         );
 
         rotated.IsSuccess.Should().BeTrue();
@@ -209,7 +208,7 @@ public sealed class SupporterConnectionServiceTests
         Result<SupporterConnectionDto> result = await service.UpsertAsync(
             Tenant,
             Actor,
-            new UpsertSupporterConnectionRequest(
+            new(
                 "patreon",
                 "webhook",
                 null, // no manual secret — the PROVIDER mints it
@@ -245,7 +244,7 @@ public sealed class SupporterConnectionServiceTests
         Result<SupporterConnectionDto> result = await service.UpsertAsync(
             Tenant,
             Actor,
-            new UpsertSupporterConnectionRequest(
+            new(
                 "patreon",
                 "webhook",
                 null,
@@ -281,7 +280,7 @@ public sealed class SupporterConnectionServiceTests
             CancellationToken ct = default
         )
         {
-            Calls.Add(new Call(integrationConnectionId, endpointId, ingestUrl));
+            Calls.Add(new(integrationConnectionId, endpointId, ingestUrl));
             return Task.FromResult(
                 Fail ? Result.Failure("Patreon said no.", "PROVISIONING_FAILED") : Result.Success()
             );
@@ -295,7 +294,7 @@ public sealed class SupporterConnectionServiceTests
         await service.UpsertAsync(
             Tenant,
             Actor,
-            new UpsertSupporterConnectionRequest("kofi", "webhook", "kofi-verify-token", null, true)
+            new("kofi", "webhook", "kofi-verify-token", null, true)
         );
 
         Result deleted = await service.DeleteAsync(Tenant, Actor, "kofi");
@@ -315,7 +314,7 @@ public sealed class SupporterConnectionServiceTests
         Result<SupporterConnectionDto> unknown = await service.UpsertAsync(
             Tenant,
             Actor,
-            new UpsertSupporterConnectionRequest("bogus", "webhook", null, null, true)
+            new("bogus", "webhook", null, null, true)
         );
         unknown.IsFailure.Should().BeTrue();
         unknown.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -324,7 +323,7 @@ public sealed class SupporterConnectionServiceTests
         Result<SupporterConnectionDto> wrongMode = await service.UpsertAsync(
             Tenant,
             Actor,
-            new UpsertSupporterConnectionRequest("kofi", "socket", null, null, true)
+            new("kofi", "socket", null, null, true)
         );
         wrongMode.IsFailure.Should().BeTrue();
         wrongMode.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -338,7 +337,7 @@ public sealed class SupporterConnectionServiceTests
         Result<SupporterConnectionDto> created = await service.UpsertAsync(
             Tenant,
             Actor,
-            new UpsertSupporterConnectionRequest(
+            new(
                 "donordrive",
                 "poll",
                 "https://www.extra-life.org/api/participants/12345/donations",
@@ -359,7 +358,7 @@ public sealed class SupporterConnectionServiceTests
         Result<SupporterConnectionDto> toggled = await service.UpsertAsync(
             Tenant,
             Actor,
-            new UpsertSupporterConnectionRequest("donordrive", "poll", null, null, IsEnabled: false)
+            new("donordrive", "poll", null, null, IsEnabled: false)
         );
 
         toggled.IsSuccess.Should().BeTrue();
@@ -376,7 +375,7 @@ public sealed class SupporterConnectionServiceTests
         await service.UpsertAsync(
             Tenant,
             Actor,
-            new UpsertSupporterConnectionRequest("kofi", "webhook", null, null, true)
+            new("kofi", "webhook", null, null, true)
         );
 
         Result deleted = await service.DeleteAsync(Tenant, Actor, "kofi");
@@ -385,7 +384,7 @@ public sealed class SupporterConnectionServiceTests
         Result<SupporterConnectionDto> reconnected = await service.UpsertAsync(
             Tenant,
             Actor,
-            new UpsertSupporterConnectionRequest("kofi", "webhook", null, null, true)
+            new("kofi", "webhook", null, null, true)
         );
         reconnected.IsSuccess.Should().BeTrue();
 
@@ -409,7 +408,7 @@ public sealed class SupporterConnectionServiceTests
 
         Result<PagedList<SupporterEventDto>> tips = await service.ListEventsAsync(
             Tenant,
-            new SupporterEventQuery(1, 25, "tip", null)
+            new(1, 25, "tip", null)
         );
 
         tips.IsSuccess.Should().BeTrue();

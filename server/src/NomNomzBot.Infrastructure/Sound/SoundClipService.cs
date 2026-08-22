@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.IO;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -69,7 +68,7 @@ internal sealed class SoundClipService : ISoundClipService
         int total = await _db.SoundClips.CountAsync(c => c.BroadcasterId == broadcasterId, ct);
 
         return Result<PagedList<SoundClipDto>>.Success(
-            new PagedList<SoundClipDto>(items, pagination.Page, pagination.PageSize, total)
+            new(items, pagination.Page, pagination.PageSize, total)
         );
     }
 
@@ -293,7 +292,7 @@ internal sealed class SoundClipService : ISoundClipService
             : clip.DefaultVolume;
 
         return Result<SoundPlaybackDto>.Success(
-            new SoundPlaybackDto(clip.Id, urlResult.Value, volume, clip.DurationMs)
+            new(clip.Id, urlResult.Value, volume, clip.DurationMs)
         );
     }
 

@@ -35,7 +35,7 @@ public sealed class ActionAuthorizationHandler(
         if (!currentUser.IsAuthenticated || !Guid.TryParse(currentUser.UserId, out Guid userId))
             return;
 
-        if (currentTenant.BroadcasterId is not Guid broadcasterId || broadcasterId == Guid.Empty)
+        if (currentTenant.BroadcasterId is not { } broadcasterId || broadcasterId == Guid.Empty)
             return;
 
         Result<bool> result = await authorization.AuthorizeActionAsync(

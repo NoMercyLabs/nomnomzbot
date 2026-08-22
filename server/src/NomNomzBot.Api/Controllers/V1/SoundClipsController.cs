@@ -71,7 +71,7 @@ public sealed class SoundClipsController : BaseController
 
         Result<PagedList<SoundClipDto>> result = await _service.ListAsync(
             broadcasterId,
-            new PaginationParams(pagination.Page, pagination.Take),
+            new(pagination.Page, pagination.Take),
             ct
         );
 

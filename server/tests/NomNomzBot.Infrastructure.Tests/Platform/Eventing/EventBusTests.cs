@@ -149,7 +149,7 @@ public class EventBusTests
         (InfraEventBus bus, _) = BuildBus();
 
         // Should return essentially instantly — fire-and-forget
-        Stopwatch sw = System.Diagnostics.Stopwatch.StartNew();
+        Stopwatch sw = Stopwatch.StartNew();
         bus.PublishFireAndForget(new TestEvent { Payload = "async" });
         sw.Stop();
 

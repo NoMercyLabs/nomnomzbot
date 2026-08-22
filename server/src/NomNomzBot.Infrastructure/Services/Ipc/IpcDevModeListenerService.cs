@@ -93,7 +93,7 @@ public sealed class IpcDevModeListenerService : IHostedService, IDisposable
             return Task.CompletedTask;
         }
 
-        _stopCts = new CancellationTokenSource();
+        _stopCts = new();
         _acceptLoop = Task.Run(() => AcceptLoopAsync(_stopCts.Token), CancellationToken.None);
         _logger.LogInformation(
             "IPC dev-mode listener bound to local endpoint {Endpoint}.",

@@ -321,7 +321,7 @@ public sealed class PronounSeeder : ISeeder
             ? known
             : ("their", "person");
 
-        return new Pronoun
+        return new()
         {
             Name = name,
             Subject = subject,

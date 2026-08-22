@@ -45,7 +45,7 @@ public class TwitchChatAssetsApiTests
 
         Result<TwitchPage<TwitchChatter>> result = await api.GetChattersAsync(
             Tenant,
-            new TwitchPageRequest()
+            new()
         );
 
         result.IsFailure.Should().BeTrue();
@@ -59,7 +59,7 @@ public class TwitchChatAssetsApiTests
         CapturingHelixTransport transport = new()
         {
             PageResult = new TwitchPage<TwitchChatter>(
-                [new TwitchChatter("123", "viewer", "Viewer")],
+                [new("123", "viewer", "Viewer")],
                 "cursor",
                 42
             ),
@@ -68,7 +68,7 @@ public class TwitchChatAssetsApiTests
 
         Result<TwitchPage<TwitchChatter>> result = await api.GetChattersAsync(
             Tenant,
-            new TwitchPageRequest(After: "abc", PageSize: 50)
+            new(After: "abc", PageSize: 50)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -115,7 +115,7 @@ public class TwitchChatAssetsApiTests
                 new(
                     "301",
                     "modCheck",
-                    new TwitchEmoteImages("u1", "u2", "u4"),
+                    new("u1", "u2", "u4"),
                     "1000",
                     "subscriptions",
                     "set-1",
@@ -155,7 +155,7 @@ public class TwitchChatAssetsApiTests
                 new(
                     "555",
                     "Kappa",
-                    new TwitchEmoteImages("g1", "g2", "g4"),
+                    new("g1", "g2", "g4"),
                     ["static"],
                     ["1.0"],
                     ["light"]
@@ -183,7 +183,7 @@ public class TwitchChatAssetsApiTests
                 new(
                     "9",
                     "PogChamp",
-                    new TwitchEmoteImages("s1", "s2", "s4"),
+                    new("s1", "s2", "s4"),
                     "subscriptions",
                     "301",
                     "owner-1",
@@ -232,7 +232,7 @@ public class TwitchChatAssetsApiTests
         {
             PageResult = new TwitchPage<TwitchUserEmote>(
                 [
-                    new TwitchUserEmote(
+                    new(
                         "777",
                         "prime",
                         "prime",
@@ -283,7 +283,7 @@ public class TwitchChatAssetsApiTests
         {
             PageResult = new TwitchPage<TwitchUserEmote>(
                 [
-                    new TwitchUserEmote(
+                    new(
                         "777",
                         "subFromFriend",
                         "subscriptions",
@@ -380,7 +380,7 @@ public class TwitchChatAssetsApiTests
                 new(
                     "subscriber",
                     [
-                        new TwitchChatBadgeVersion(
+                        new(
                             "0",
                             "b1",
                             "b2",
@@ -425,7 +425,7 @@ public class TwitchChatAssetsApiTests
             {
                 new(
                     "admin",
-                    [new TwitchChatBadgeVersion("1", "a1", "a2", "a4", "Admin", "", "", "")]
+                    [new("1", "a1", "a2", "a4", "Admin", "", "", "")]
                 ),
             },
         };
@@ -449,8 +449,8 @@ public class TwitchChatAssetsApiTests
                 "359bce59-fa4e-41a5-bd6f-9bc0c8360485",
                 TwitchId,
                 [
-                    new TwitchSharedChatParticipant(TwitchId),
-                    new TwitchSharedChatParticipant("487263401"),
+                    new(TwitchId),
+                    new("487263401"),
                 ],
                 DateTimeOffset.Parse("2024-09-29T19:45:37Z"),
                 DateTimeOffset.Parse("2024-09-29T19:45:37Z")

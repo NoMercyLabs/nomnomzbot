@@ -40,7 +40,7 @@ public sealed class FeatureFlagService(
     private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(60);
 
     public Task<bool> IsEnabledAsync(string flagKey, CancellationToken ct = default) =>
-        tenant.BroadcasterId is Guid broadcasterId
+        tenant.BroadcasterId is { } broadcasterId
             ? IsEnabledForAsync(flagKey, broadcasterId, ct)
             : EvaluateGlobalOnlyAsync(flagKey, ct);
 
@@ -52,7 +52,7 @@ public sealed class FeatureFlagService(
     {
         string cacheKey = $"ff:{flagKey}:{broadcasterId}";
         bool? cached = await cache.GetAsync<bool?>(cacheKey, ct);
-        if (cached is bool hit)
+        if (cached is { } hit)
             return hit;
 
         FeatureFlagEvaluation eval = await EvaluateAsync(flagKey, broadcasterId, ct);
@@ -68,7 +68,7 @@ public sealed class FeatureFlagService(
     {
         FeatureFlag? flag = await db.FeatureFlags.FirstOrDefaultAsync(f => f.Key == flagKey, ct);
         if (flag is null)
-            return new FeatureFlagEvaluation(
+            return new(
                 Exists: false,
                 Enabled: false,
                 Reason: null,
@@ -83,7 +83,7 @@ public sealed class FeatureFlagService(
         );
         if (over is not null && (over.ExpiresAt is null || over.ExpiresAt > now))
             return over.IsEnabled
-                ? new FeatureFlagEvaluation(true, true, null, null)
+                ? new(true, true, null, null)
                 : new FeatureFlagEvaluation(
                     true,
                     false,
@@ -93,7 +93,7 @@ public sealed class FeatureFlagService(
 
         // 2. Global toggle.
         if (!flag.IsEnabledGlobally)
-            return new FeatureFlagEvaluation(
+            return new(
                 true,
                 false,
                 FeatureEntitlementReason.Unavailable,
@@ -105,7 +105,7 @@ public sealed class FeatureFlagService(
             flag.RolloutPercentage < 100
             && Bucket(broadcasterId, flagKey) >= flag.RolloutPercentage
         )
-            return new FeatureFlagEvaluation(
+            return new(
                 true,
                 false,
                 FeatureEntitlementReason.Unavailable,
@@ -117,7 +117,7 @@ public sealed class FeatureFlagService(
             flag.DeploymentMode is not null
             && !await DeploymentModeMatchesAsync(flag, broadcasterId, ct)
         )
-            return new FeatureFlagEvaluation(
+            return new(
                 true,
                 false,
                 FeatureEntitlementReason.Deployment,
@@ -133,7 +133,7 @@ public sealed class FeatureFlagService(
                 ct
             );
             if (atLeast.IsFailure || !atLeast.Value)
-                return new FeatureFlagEvaluation(
+                return new(
                     true,
                     false,
                     FeatureEntitlementReason.RequiresTier,
@@ -141,7 +141,7 @@ public sealed class FeatureFlagService(
                 );
         }
 
-        return new FeatureFlagEvaluation(true, true, null, null);
+        return new(true, true, null, null);
     }
 
     private async Task<bool> EvaluateGlobalOnlyAsync(string flagKey, CancellationToken ct)

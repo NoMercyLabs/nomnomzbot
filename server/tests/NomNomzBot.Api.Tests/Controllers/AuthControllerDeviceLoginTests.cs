@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Api.Controllers.V1;
@@ -18,7 +17,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NSubstitute;
-using Xunit;
 
 namespace NomNomzBot.Api.Tests.Controllers;
 
@@ -44,7 +42,7 @@ public sealed class AuthControllerDeviceLoginTests
             .EnabledAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<LoginProviderDescriptor>>([yt]));
 
-        return new AuthController(
+        return new(
             Substitute.For<IUserService>(),
             Substitute.For<IAuthService>(),
             new ConfigurationBuilder().Build(),
@@ -58,7 +56,7 @@ public sealed class AuthControllerDeviceLoginTests
             Substitute.For<ISessionService>()
         )
         {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+            ControllerContext = new() { HttpContext = new DefaultHttpContext() },
         };
     }
 
@@ -86,7 +84,7 @@ public sealed class AuthControllerDeviceLoginTests
             "acc",
             "ref",
             DateTime.UtcNow.AddHours(1),
-            new UserDto("id", "creator", "Creator", null, null, DateTime.UtcNow, DateTime.UtcNow)
+            new("id", "creator", "Creator", null, null, DateTime.UtcNow, DateTime.UtcNow)
         );
         ext.LoginAsync(
                 Arg.Any<ExternalIdentityProof>(),
@@ -96,7 +94,7 @@ public sealed class AuthControllerDeviceLoginTests
             .Returns(Result.Success(auth));
 
         IActionResult result = await Build(impl, ext)
-            .PollDeviceLogin("youtube", new DevicePollRequest("dc"), null, default);
+            .PollDeviceLogin("youtube", new("dc"), null, default);
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         StatusResponseDto<DeviceLoginPollDto> body = ok
@@ -116,7 +114,7 @@ public sealed class AuthControllerDeviceLoginTests
             .Returns(Result.Failure<ExternalIdentityProof>("pending", DeviceLoginStatus.Pending));
 
         IActionResult result = await Build(impl, Substitute.For<IExternalLoginService>())
-            .PollDeviceLogin("youtube", new DevicePollRequest("dc"), null, default);
+            .PollDeviceLogin("youtube", new("dc"), null, default);
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         StatusResponseDto<DeviceLoginPollDto> body = ok

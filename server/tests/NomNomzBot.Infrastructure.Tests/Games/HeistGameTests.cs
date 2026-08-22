@@ -58,7 +58,7 @@ public sealed class HeistGameTests
         {
             SessionId = Guid.CreateVersion7(),
             BroadcasterId = Guid.CreateVersion7(),
-            Config = new GameConfigView(10, 100, multiplier, config),
+            Config = new(10, 100, multiplier, config),
             Participants = participants,
             Phase = LiveGamePhase.Lobby,
             Data = new Dictionary<string, object?>(),

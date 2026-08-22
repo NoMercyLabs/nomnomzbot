@@ -17,7 +17,6 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Quotes.Dtos;
 using NomNomzBot.Application.Quotes.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Quotes;
 using NomNomzBot.Infrastructure.Quotes.Builtins;
@@ -36,7 +35,7 @@ namespace NomNomzBot.Infrastructure.Tests.Quotes;
 public sealed class QuoteBuiltinTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static readonly Guid InvokerId = Guid.Parse("0192b000-0000-7000-8000-0000000000c1");
@@ -45,7 +44,7 @@ public sealed class QuoteBuiltinTests
     {
         QuoteTestUnitOfWork uow = new(db);
         TenantSequenceAllocator allocator = new(db);
-        return new QuoteService(db, allocator, uow, new RecordingEventBus(), Clock);
+        return new(db, allocator, uow, new RecordingEventBus(), Clock);
     }
 
     /// <summary>The built-in over a real quote service, with the caller resolvable and the capabilities toggled.</summary>
@@ -84,7 +83,7 @@ public sealed class QuoteBuiltinTests
             )
             .Returns(Result.Success(mayDelete));
 
-        return new QuoteBuiltin(quotes, users, roles);
+        return new(quotes, users, roles);
     }
 
     private static async Task<Guid> SeedChannelAsync(QuoteSqliteTestDatabase database)
@@ -92,7 +91,7 @@ public sealed class QuoteBuiltinTests
         Guid channelId = Guid.CreateVersion7();
         await using QuoteTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -143,10 +142,10 @@ public sealed class QuoteBuiltinTests
 
         await using QuoteTestDbContext db = database.NewContext();
         IQuoteService quotes = NewQuoteService(db);
-        await quotes.AddAsync(channel, new AddQuoteRequest("first", null, null, null, null));
+        await quotes.AddAsync(channel, new("first", null, null, null, null));
         await quotes.AddAsync(
             channel,
-            new AddQuoteRequest("blame the lag", "Stoney_Eagle", "Just Chatting", null, null)
+            new("blame the lag", "Stoney_Eagle", "Just Chatting", null, null)
         );
 
         QuoteBuiltin builtin = NewBuiltin(quotes);
@@ -165,7 +164,7 @@ public sealed class QuoteBuiltinTests
 
         await using QuoteTestDbContext db = database.NewContext();
         IQuoteService quotes = NewQuoteService(db);
-        await quotes.AddAsync(channel, new AddQuoteRequest("only one", null, null, null, null));
+        await quotes.AddAsync(channel, new("only one", null, null, null, null));
 
         QuoteBuiltin builtin = NewBuiltin(quotes);
 
@@ -183,7 +182,7 @@ public sealed class QuoteBuiltinTests
 
         await using QuoteTestDbContext db = database.NewContext();
         IQuoteService quotes = NewQuoteService(db);
-        await quotes.AddAsync(channel, new AddQuoteRequest("only one", null, null, null, null));
+        await quotes.AddAsync(channel, new("only one", null, null, null, null));
 
         QuoteBuiltin builtin = NewBuiltin(quotes);
 
@@ -286,7 +285,7 @@ public sealed class QuoteBuiltinTests
         IQuoteService quotes = NewQuoteService(db);
         await quotes.AddAsync(
             channel,
-            new AddQuoteRequest("typo heer", "Stoney_Eagle", "Just Chatting", null, null)
+            new("typo heer", "Stoney_Eagle", "Just Chatting", null, null)
         );
         QuoteBuiltin builtin = NewBuiltin(quotes, mayWrite: true);
 
@@ -307,7 +306,7 @@ public sealed class QuoteBuiltinTests
 
         await using QuoteTestDbContext db = database.NewContext();
         IQuoteService quotes = NewQuoteService(db);
-        await quotes.AddAsync(channel, new AddQuoteRequest("before", null, null, null, null));
+        await quotes.AddAsync(channel, new("before", null, null, null, null));
         QuoteBuiltin builtin = NewBuiltin(quotes, mayWrite: true);
 
         Result<string> reply = await builtin.ExecuteAsync(Context(channel, "update 1 after"));
@@ -327,7 +326,7 @@ public sealed class QuoteBuiltinTests
 
         await using QuoteTestDbContext db = database.NewContext();
         IQuoteService quotes = NewQuoteService(db);
-        await quotes.AddAsync(channel, new AddQuoteRequest("delete me", null, null, null, null));
+        await quotes.AddAsync(channel, new("delete me", null, null, null, null));
         QuoteBuiltin builtin = NewBuiltin(quotes, mayDelete: true);
 
         Result<string> reply = await builtin.ExecuteAsync(Context(channel, "remove 1"));
@@ -345,7 +344,7 @@ public sealed class QuoteBuiltinTests
 
         await using QuoteTestDbContext db = database.NewContext();
         IQuoteService quotes = NewQuoteService(db);
-        await quotes.AddAsync(channel, new AddQuoteRequest("keep me", null, null, null, null));
+        await quotes.AddAsync(channel, new("keep me", null, null, null, null));
         QuoteBuiltin builtin = NewBuiltin(quotes, mayDelete: false);
 
         Result<string> reply = await builtin.ExecuteAsync(Context(channel, "del 1"));

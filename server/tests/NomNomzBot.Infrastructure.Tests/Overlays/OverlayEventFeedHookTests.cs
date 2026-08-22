@@ -32,7 +32,7 @@ public sealed class OverlayEventFeedHookTests
     {
         IOverlayEventFeed feed = Substitute.For<IOverlayEventFeed>();
         return (
-            new OverlayEventFeedHook(
+            new(
                 feed,
                 Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
                 NullLogger<OverlayEventFeedHook>.Instance

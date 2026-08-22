@@ -35,7 +35,7 @@ public sealed class BuymeacoffeeInboundWebhookAdapterTests
 
     private readonly BuymeacoffeeInboundWebhookAdapter _adapter = new(
         new InboundSignatureVerifier(
-            new FakeTimeProvider(new DateTimeOffset(2026, 7, 16, 12, 0, 0, TimeSpan.Zero))
+            new FakeTimeProvider(new(2026, 7, 16, 12, 0, 0, TimeSpan.Zero))
         )
     );
 
@@ -44,14 +44,14 @@ public sealed class BuymeacoffeeInboundWebhookAdapterTests
         Dictionary<string, string> headers = new(StringComparer.OrdinalIgnoreCase);
         if (signature is not null)
             headers["X-Signature-Sha256"] = signature;
-        return new InboundWebhookRequest
+        return new()
         {
             Token = "tok",
             Method = "POST",
             ContentType = "application/json",
             Headers = headers,
             RawBody = Body,
-            ReceivedAtUtc = new DateTime(2026, 7, 16, 0, 0, 0, DateTimeKind.Utc),
+            ReceivedAtUtc = new(2026, 7, 16, 0, 0, 0, DateTimeKind.Utc),
             RemoteIpHash = "iphash",
         };
     }

@@ -29,7 +29,7 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore;
 public sealed class JournalingEventBusDecoratorTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private sealed class CapturableEvent : DomainEventBase

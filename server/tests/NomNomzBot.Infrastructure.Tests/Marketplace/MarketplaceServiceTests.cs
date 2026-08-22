@@ -100,7 +100,7 @@ public sealed class MarketplaceServiceTests
             Substitute.For<ICurrentTenantService>(),
             bus
         );
-        return new Harness(db, import, export, commands, pipelines);
+        return new(db, import, export, commands, pipelines);
     }
 
     /// <summary>Seeds a command + pipeline on the source channel and exports them as real bundle bytes.</summary>
@@ -109,7 +109,7 @@ public sealed class MarketplaceServiceTests
         PipelineDto pipeline = (
             await h.Pipelines.CreateAsync(
                 SourceChannel.ToString(),
-                new CreatePipelineDto
+                new()
                 {
                     Name = "Greeting Flow",
                     Description = "greets",
@@ -124,7 +124,7 @@ public sealed class MarketplaceServiceTests
         CommandDto command = (
             await h.Commands.CreateAsync(
                 SourceChannel.ToString(),
-                new CreateCommandDto
+                new()
                 {
                     Name = "hello",
                     Tier = "pipeline",
@@ -137,9 +137,9 @@ public sealed class MarketplaceServiceTests
 
         Result<System.IO.Stream> zip = await h.Export.ExportAsync(
             SourceChannel,
-            new ExportRequest(
-                [new ExportItemRef(BundleFormat.CommandType, command.Id)],
-                new BundleMetadata("Starter Pack", version, "stoney", "MIT", "test bundle")
+            new(
+                [new(BundleFormat.CommandType, command.Id)],
+                new("Starter Pack", version, "stoney", "MIT", "test bundle")
             )
         );
         zip.IsSuccess.Should().BeTrue(zip.ErrorMessage);
@@ -256,7 +256,7 @@ public sealed class MarketplaceServiceTests
         Result<PublishSubmissionDto> result = await service.PublishAsync(
             InstallChannel,
             garbage,
-            new PublishMetadata("Starter Pack", "1.0.0", null, null)
+            new("Starter Pack", "1.0.0", null, null)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -327,7 +327,7 @@ public sealed class MarketplaceServiceTests
             _counts[partitionKey] = count;
             return Task.FromResult(
                 count <= permitLimit
-                    ? new RateLimitLease(true, permitLimit - count, TimeSpan.Zero)
+                    ? new(true, permitLimit - count, TimeSpan.Zero)
                     : new RateLimitLease(false, 0, TimeSpan.FromMinutes(30))
             );
         }

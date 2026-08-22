@@ -50,7 +50,7 @@ public sealed class LegacyChannelImportService(
                 headBefore.ErrorCode
             );
 
-        LegacyChannelEventImporter importer = new(journal, new LegacyChannelEventMapper(), logger);
+        LegacyChannelEventImporter importer = new(journal, new(), logger);
         LegacySqliteChannelEventSource source = new(path.Value);
 
         Result<LegacyImportSummary> imported = await importer.ImportAsync(
@@ -104,7 +104,7 @@ public sealed class LegacyChannelImportService(
                     rebuilt.ErrorCode
                 );
 
-            results.Add(new ProjectionRebuildResult(projection.Name, rebuilt.Value));
+            results.Add(new(projection.Name, rebuilt.Value));
         }
 
         // After the channel-event-log projection has rebuilt every row (with the actor's Twitch id snapshotted in
@@ -121,7 +121,7 @@ public sealed class LegacyChannelImportService(
                 backfilled.ErrorCode
             );
 
-        results.Add(new ProjectionRebuildResult("channel-event-actor-backfill", backfilled.Value));
+        results.Add(new("channel-event-actor-backfill", backfilled.Value));
 
         return Result.Success<IReadOnlyList<ProjectionRebuildResult>>(results);
     }

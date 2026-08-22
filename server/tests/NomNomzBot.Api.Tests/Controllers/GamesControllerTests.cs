@@ -44,7 +44,7 @@ public sealed class GamesControllerTests
         IRoleResolver roles = Substitute.For<IRoleResolver>();
         ICurrentUserService user = Substitute.For<ICurrentUserService>();
         user.UserId.Returns(Caller.ToString());
-        return (new GamesController(games, age, roles, user), games, age, roles);
+        return (new(games, age, roles, user), games, age, roles);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class GamesControllerTests
         IActionResult result = await controller.Play(
             Channel.ToString(),
             Game,
-            new PlayGameRequest(Spoofed, Spoofed, 10, 999), // spoofed game, player, level
+            new(Spoofed, Spoofed, 10, 999), // spoofed game, player, level
             default
         );
 
@@ -92,7 +92,7 @@ public sealed class GamesControllerTests
 
         IActionResult result = await controller.GrantConsent(
             Channel.ToString(),
-            new GrantAgeConsentRequest(Spoofed, "self_confirm", null, null), // spoofed subject
+            new(Spoofed, "self_confirm", null, null), // spoofed subject
             default
         );
 

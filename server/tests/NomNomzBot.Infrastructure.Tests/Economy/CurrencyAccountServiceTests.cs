@@ -13,7 +13,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
-using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Events;
 using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.EventStore;
@@ -34,7 +33,7 @@ public sealed class CurrencyAccountServiceTests
     private static readonly Guid Viewer = Guid.Parse("0192a000-0000-7000-8000-0000000000a2");
     private static readonly Guid Viewer2 = Guid.Parse("0192a000-0000-7000-8000-0000000000a3");
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static (
@@ -59,7 +58,7 @@ public sealed class CurrencyAccountServiceTests
     )
     {
         db.CurrencyConfigs.Add(
-            new CurrencyConfig
+            new()
             {
                 BroadcasterId = Channel,
                 CurrencyName = "points",
@@ -200,7 +199,7 @@ public sealed class CurrencyAccountServiceTests
 
         Result<TransferResultDto> result = await sut.TransferAsync(
             Channel,
-            new TransferCommand(Viewer, Viewer2, 40, "gift", null)
+            new(Viewer, Viewer2, 40, "gift", null)
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);

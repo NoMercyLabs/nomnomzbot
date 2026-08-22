@@ -42,7 +42,7 @@ public sealed class ScriptTestRunService(
         CancellationToken cancellationToken = default
     )
     {
-        if (tenant.BroadcasterId is not Guid broadcasterId)
+        if (tenant.BroadcasterId is not { } broadcasterId)
             return Result.Failure<TestRunResultDto>("No tenant.", "NO_TENANT");
 
         CodeScript? script = await db.CodeScripts.FirstOrDefaultAsync(
@@ -52,7 +52,7 @@ public sealed class ScriptTestRunService(
         if (script is null)
             return Result.Failure<TestRunResultDto>("Script not found.", "NOT_FOUND");
 
-        CodeScriptVersion? version = script.CurrentVersionId is Guid versionId
+        CodeScriptVersion? version = script.CurrentVersionId is { } versionId
             ? await db.CodeScriptVersions.FirstOrDefaultAsync(
                 v => v.Id == versionId,
                 cancellationToken
@@ -90,7 +90,7 @@ public sealed class ScriptTestRunService(
             Guid.NewGuid().ToString("N")[..12],
             version.CompiledJs,
             version.CompiledHash ?? string.Empty,
-            new ScriptInputs(
+            new(
                 broadcasterId.ToString(),
                 "Test Run",
                 request.Args,

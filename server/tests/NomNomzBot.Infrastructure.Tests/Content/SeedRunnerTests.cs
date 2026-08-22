@@ -47,7 +47,7 @@ public sealed class SeedRunnerTests
                 .UseInMemoryDatabase(databaseName)
                 .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
                 .Options;
-        return new SeedTestDbContext(options);
+        return new(options);
     }
 
     private static SeedRunner BuildRunner(SeedTestDbContext context) =>

@@ -155,7 +155,7 @@ public sealed class EventSubGapBackfillService : IEventSubGapBackfillService
                         status,
                         redemptionIds: null,
                         sort: "NEWEST",
-                        new TwitchPageRequest(cursor),
+                        new(cursor),
                         ct
                     );
                 if (page.IsFailure)
@@ -177,7 +177,7 @@ public sealed class EventSubGapBackfillService : IEventSubGapBackfillService
                             eventId,
                             r.RedeemedAt,
                             () =>
-                                new RewardRedeemedEvent
+                                new()
                                 {
                                     EventId = eventId,
                                     BroadcasterId = broadcasterId,
@@ -222,7 +222,7 @@ public sealed class EventSubGapBackfillService : IEventSubGapBackfillService
             Result<TwitchPage<TwitchChannelFollower>> page =
                 await _channels.GetChannelFollowersAsync(
                     broadcasterId,
-                    new TwitchPageRequest(cursor),
+                    new(cursor),
                     ct
                 );
             if (page.IsFailure)
@@ -256,7 +256,7 @@ public sealed class EventSubGapBackfillService : IEventSubGapBackfillService
                         eventId,
                         f.FollowedAt,
                         () =>
-                            new FollowEvent
+                            new()
                             {
                                 EventId = eventId,
                                 BroadcasterId = broadcasterId,
@@ -287,6 +287,6 @@ public sealed class EventSubGapBackfillService : IEventSubGapBackfillService
     {
         string key = string.Join('|', new[] { "eventsub-backfill", kind }.Concat(parts));
         byte[] hash = MD5.HashData(Encoding.UTF8.GetBytes(key));
-        return new Guid(hash);
+        return new(hash);
     }
 }

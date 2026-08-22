@@ -194,7 +194,7 @@ public sealed class MusicStatePollingService : BackgroundService
     )
     {
         ChannelPlaybackSnapshot next = nowPlaying is null
-            ? new ChannelPlaybackSnapshot(
+            ? new(
                 false,
                 null,
                 0,
@@ -316,7 +316,7 @@ public sealed class MusicStatePollingService : BackgroundService
         );
         TimeSpan delay = TimeSpan.FromMilliseconds(cappedDelayMs);
 
-        _backoff[channelId] = new ChannelBackoff(failures, now + delay);
+        _backoff[channelId] = new(failures, now + delay);
 
         _logger.LogWarning(
             ex,

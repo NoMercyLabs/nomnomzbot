@@ -54,6 +54,6 @@ public sealed class RedisRateLimiterPartitionStore : IRateLimiterPartitionStore
             retryAfter = ttl ?? window;
         }
 
-        return new RateLimitLease(acquired, remaining, retryAfter);
+        return new(acquired, remaining, retryAfter);
     }
 }

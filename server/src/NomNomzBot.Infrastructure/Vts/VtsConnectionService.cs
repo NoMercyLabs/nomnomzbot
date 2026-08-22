@@ -57,7 +57,7 @@ public class VtsConnectionService : IVtsConnectionService
         VtsConnection? connection = await FindAsync(broadcasterId, ct);
         if (connection is null)
         {
-            connection = new VtsConnection { BroadcasterId = broadcasterId };
+            connection = new() { BroadcasterId = broadcasterId };
             _db.VtsConnections.Add(connection);
         }
 
@@ -66,7 +66,7 @@ public class VtsConnectionService : IVtsConnectionService
             ? "ws://localhost:8001"
             : request.Endpoint.Trim();
         connection.IsEnabled = request.IsEnabled;
-        if (request.EventSubscriptionsMask is int mask)
+        if (request.EventSubscriptionsMask is { } mask)
             connection.EventSubscriptionsMask = mask;
 
         await _db.SaveChangesAsync(ct);
@@ -114,7 +114,7 @@ public class VtsConnectionService : IVtsConnectionService
         VtsConnection? connection = await FindAsync(broadcasterId, ct);
         if (connection is null)
         {
-            connection = new VtsConnection { BroadcasterId = broadcasterId };
+            connection = new() { BroadcasterId = broadcasterId };
             _db.VtsConnections.Add(connection);
         }
 

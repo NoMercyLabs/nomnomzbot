@@ -47,7 +47,7 @@ public sealed class SupporterEconomyRewardHandler : IEventHandler<SupporterEvent
     )
     {
         // A reward can only be credited to a resolved viewer; an unmatched supporter has no account.
-        if (@event.BroadcasterId == Guid.Empty || @event.SupporterUserId is not Guid viewerId)
+        if (@event.BroadcasterId == Guid.Empty || @event.SupporterUserId is not { } viewerId)
             return;
 
         try

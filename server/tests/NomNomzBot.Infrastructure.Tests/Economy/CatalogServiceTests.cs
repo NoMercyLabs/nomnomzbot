@@ -11,7 +11,6 @@
 using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
-using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Events;
 using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.EventStore;
@@ -32,7 +31,7 @@ public sealed class CatalogServiceTests
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000d1");
     private static readonly Guid Buyer = Guid.Parse("0192a000-0000-7000-8000-0000000000d2");
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static (CatalogService Sut, EventStoreTestDbContext Db, RecordingEventBus Bus) New(
@@ -42,7 +41,7 @@ public sealed class CatalogServiceTests
     {
         EventStoreTestDbContext db = database.NewContext();
         db.CurrencyConfigs.Add(
-            new CurrencyConfig
+            new()
             {
                 BroadcasterId = Channel,
                 CurrencyName = "points",
@@ -70,7 +69,7 @@ public sealed class CatalogServiceTests
     {
         Result<CatalogItemDto> r = await sut.CreateItemAsync(
             Channel,
-            new CreateCatalogItemRequest(
+            new(
                 name,
                 null,
                 "pipeline",
@@ -101,7 +100,7 @@ public sealed class CatalogServiceTests
         await CreateAsync(sut, name: "Sound Alert");
         Result<CatalogItemDto> dup = await sut.CreateItemAsync(
             Channel,
-            new CreateCatalogItemRequest(
+            new(
                 "sound alert",
                 null,
                 "pipeline",
@@ -206,7 +205,7 @@ public sealed class CatalogServiceTests
         Result<CatalogPurchaseDto> refund = await sut.RefundPurchaseAsync(
             Channel,
             purchase.Value.Id,
-            new RefundRequest("changed mind", Buyer)
+            new("changed mind", Buyer)
         );
 
         refund.IsSuccess.Should().BeTrue(refund.ErrorMessage);
@@ -232,7 +231,7 @@ public sealed class CatalogServiceTests
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         (CatalogService sut, EventStoreTestDbContext db, _) = New(database);
         db.Streams.Add(
-            new NomNomzBot.Domain.Stream.Entities.Stream
+            new()
             {
                 Id = "s1",
                 ChannelId = Channel,
@@ -242,7 +241,7 @@ public sealed class CatalogServiceTests
         db.SaveChanges();
         Result<CatalogItemDto> created = await sut.CreateItemAsync(
             Channel,
-            new CreateCatalogItemRequest(
+            new(
                 "Hydrate",
                 null,
                 "pipeline",

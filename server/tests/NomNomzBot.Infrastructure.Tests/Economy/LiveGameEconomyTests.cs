@@ -39,7 +39,7 @@ public sealed class LiveGameEconomyTests
     private static readonly Guid PlayerB = Guid.Parse("0192a000-0000-7000-8000-0000000000c3");
     private static readonly Guid Session = Guid.Parse("0192a000-0000-7000-8000-0000000000c9");
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 7, 17, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 7, 17, 12, 0, 0, TimeSpan.Zero)
     );
 
     private sealed class FixedRandomizer : IGameRandomizer
@@ -56,7 +56,7 @@ public sealed class LiveGameEconomyTests
         if (!db.CurrencyConfigs.Any(c => c.BroadcasterId == Channel))
         {
             db.CurrencyConfigs.Add(
-                new CurrencyConfig
+                new()
                 {
                     BroadcasterId = Channel,
                     CurrencyName = "points",
@@ -110,7 +110,7 @@ public sealed class LiveGameEconomyTests
 
         Result<LiveGameStakeResult> staked = await sut.StakeLiveGameEntryAsync(
             Channel,
-            new LiveGameStakeCommand(Session, game, PlayerA, 40)
+            new(Session, game, PlayerA, 40)
         );
 
         staked.IsSuccess.Should().BeTrue(staked.ErrorMessage);
@@ -141,7 +141,7 @@ public sealed class LiveGameEconomyTests
 
         Result<LiveGameStakeResult> staked = await sut.StakeLiveGameEntryAsync(
             Channel,
-            new LiveGameStakeCommand(Session, game, PlayerA, 500)
+            new(Session, game, PlayerA, 500)
         );
 
         staked.IsFailure.Should().BeTrue();
@@ -158,7 +158,7 @@ public sealed class LiveGameEconomyTests
 
         Result<LiveGameStakeResult> staked = await sut.StakeLiveGameEntryAsync(
             Channel,
-            new LiveGameStakeCommand(Session, game, PlayerA, 10)
+            new(Session, game, PlayerA, 10)
         );
 
         staked.IsFailure.Should().BeTrue();
@@ -175,25 +175,25 @@ public sealed class LiveGameEconomyTests
         LiveGameStakeResult stakeA = (
             await sut.StakeLiveGameEntryAsync(
                 Channel,
-                new LiveGameStakeCommand(Session, game, PlayerA, 40)
+                new(Session, game, PlayerA, 40)
             )
         ).Value;
         LiveGameStakeResult stakeB = (
             await sut.StakeLiveGameEntryAsync(
                 Channel,
-                new LiveGameStakeCommand(Session, game, PlayerB, 40)
+                new(Session, game, PlayerB, 40)
             )
         ).Value;
         bus.Published.Clear();
 
         Result<LiveGameSettlementResult> settled = await sut.SettleLiveGameAsync(
             Channel,
-            new LiveGameSettlement(
+            new(
                 Session,
                 game,
                 "drop_game",
                 [
-                    new LiveGameSettlementAward(
+                    new(
                         PlayerA,
                         stakeA.AccountId,
                         40,
@@ -202,7 +202,7 @@ public sealed class LiveGameEconomyTests
                         stakeA.BetLedgerEntryId,
                         stakeA.BetTenantPosition
                     ),
-                    new LiveGameSettlementAward(
+                    new(
                         PlayerB,
                         stakeB.AccountId,
                         40,
@@ -259,7 +259,7 @@ public sealed class LiveGameEconomyTests
         LiveGameStakeResult stake = (
             await sut.StakeLiveGameEntryAsync(
                 Channel,
-                new LiveGameStakeCommand(Session, game, PlayerA, 40)
+                new(Session, game, PlayerA, 40)
             )
         ).Value;
         LiveGameSettlement settlement = new(
@@ -267,7 +267,7 @@ public sealed class LiveGameEconomyTests
             game,
             "drop_game",
             [
-                new LiveGameSettlementAward(
+                new(
                     PlayerA,
                     stake.AccountId,
                     40,
@@ -302,24 +302,24 @@ public sealed class LiveGameEconomyTests
         LiveGameStakeResult stakeA = (
             await sut.StakeLiveGameEntryAsync(
                 Channel,
-                new LiveGameStakeCommand(Session, game, PlayerA, 40)
+                new(Session, game, PlayerA, 40)
             )
         ).Value;
         LiveGameStakeResult stakeB = (
             await sut.StakeLiveGameEntryAsync(
                 Channel,
-                new LiveGameStakeCommand(Session, game, PlayerB, 25)
+                new(Session, game, PlayerB, 25)
             )
         ).Value;
         // Player A settled (a crash mid-settlement left B un-settled).
         await sut.SettleLiveGameAsync(
             Channel,
-            new LiveGameSettlement(
+            new(
                 Session,
                 game,
                 "drop_game",
                 [
-                    new LiveGameSettlementAward(
+                    new(
                         PlayerA,
                         stakeA.AccountId,
                         40,

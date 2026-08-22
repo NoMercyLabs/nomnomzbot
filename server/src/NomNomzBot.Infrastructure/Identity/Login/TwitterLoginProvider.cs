@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -123,7 +122,7 @@ public sealed class TwitterLoginProvider : IAuthCodeLoginProvider
         string basic = Convert.ToBase64String(
             Encoding.UTF8.GetBytes($"{app.ClientId}:{app.ClientSecret}")
         );
-        tokenRequest.Headers.Authorization = new AuthenticationHeaderValue("Basic", basic);
+        tokenRequest.Headers.Authorization = new("Basic", basic);
 
         HttpResponseMessage response = await _http.SendAsync(tokenRequest, cancellationToken);
         if (!response.IsSuccessStatusCode)
@@ -151,7 +150,7 @@ public sealed class TwitterLoginProvider : IAuthCodeLoginProvider
         string username = identity.Username ?? identity.Id;
 
         Result<IntegrationConnectionDto> connection = await _vault.UpsertConnectionAsync(
-            new UpsertConnectionDto(
+            new(
                 BroadcasterId: null,
                 Provider: AuthEnums.LoginProvider.Twitter,
                 ProviderAccountId: identity.Id,
@@ -169,7 +168,7 @@ public sealed class TwitterLoginProvider : IAuthCodeLoginProvider
 
         Result store = await _vault.StoreTokensAsync(
             connection.Value.Id,
-            new StoreTokensDto(
+            new(
                 token.AccessToken,
                 token.RefreshToken,
                 AppToken: null,

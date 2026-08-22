@@ -17,7 +17,6 @@ using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.MediaShare.Dtos;
 using NomNomzBot.Application.MediaShare.Services;
 using NomNomzBot.Domain.Economy.Enums;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.MediaShare.Entities;
 using NomNomzBot.Domain.MediaShare.Events;
@@ -69,7 +68,7 @@ public sealed class MediaShareServiceTests
     {
         MediaShareTestDbContext db = MediaShareTestDbContext.New();
         db.Users.Add(
-            new User
+            new()
             {
                 Id = Viewer,
                 TwitchUserId = "111",
@@ -111,9 +110,9 @@ public sealed class MediaShareServiceTests
             .Returns(Result.Success(Ledger()));
 
         RecordingBus bus = new();
-        FakeTimeProvider clock = new(new DateTimeOffset(2026, 7, 11, 12, 0, 0, TimeSpan.Zero));
+        FakeTimeProvider clock = new(new(2026, 7, 11, 12, 0, 0, TimeSpan.Zero));
         MediaShareService sut = new(db, resolver, accounts, bus, clock);
-        return new Harness(sut, db, resolver, accounts, bus, clock);
+        return new(sut, db, resolver, accounts, bus, clock);
     }
 
     private static CurrencyLedgerEntryDto Ledger() =>
@@ -146,7 +145,7 @@ public sealed class MediaShareServiceTests
     )
     {
         db.MediaShareConfigs.Add(
-            new MediaShareConfig
+            new()
             {
                 BroadcasterId = Channel,
                 IsEnabled = enabled,
@@ -202,7 +201,7 @@ public sealed class MediaShareServiceTests
     public async Task Submit_OverCap_RejectsDurationExceeded_NoWrite()
     {
         Harness h = Build(
-            new ResolvedMedia(MediaShareSourceType.TwitchClip, "long", "Long", 240, null)
+            new(MediaShareSourceType.TwitchClip, "long", "Long", 240, null)
         );
         SeedConfig(h.Db, maxDuration: 180);
 
@@ -417,7 +416,7 @@ public sealed class MediaShareServiceTests
 
         // Grant Alice a sub standing → accepted.
         h.Db.ChannelCommunityStandings.Add(
-            new ChannelCommunityStanding
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = Viewer,
@@ -451,7 +450,7 @@ public sealed class MediaShareServiceTests
 
         await h.Sut.UpdateConfigAsync(
             Channel,
-            new UpdateMediaShareConfigRequest(true, false, true, false, 90, 250, 10, 30)
+            new(true, false, true, false, 90, 250, 10, 30)
         );
 
         MediaShareConfigDto dto = (await h.Sut.GetConfigAsync(Channel)).Value;

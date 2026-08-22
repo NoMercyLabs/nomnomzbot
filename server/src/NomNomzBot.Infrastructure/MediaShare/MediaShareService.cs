@@ -141,7 +141,7 @@ public sealed class MediaShareService : IMediaShareService
         {
             Result<CurrencyLedgerEntryDto> debit = await _accounts.PostLedgerEntryAsync(
                 broadcasterId,
-                new PostLedgerEntryCommand(
+                new(
                     requesterUserId,
                     -config.EntryCost.Value,
                     nameof(CurrencyEntryType.SpendMedia),
@@ -444,7 +444,7 @@ public sealed class MediaShareService : IMediaShareService
         );
         if (config is null)
         {
-            config = new MediaShareConfig { BroadcasterId = broadcasterId };
+            config = new() { BroadcasterId = broadcasterId };
             await _db.MediaShareConfigs.AddAsync(config, ct);
         }
 
@@ -495,7 +495,7 @@ public sealed class MediaShareService : IMediaShareService
 
         Result<CurrencyLedgerEntryDto> refund = await _accounts.PostLedgerEntryAsync(
             broadcasterId,
-            new PostLedgerEntryCommand(
+            new(
                 entity.RequesterUserId,
                 Math.Abs(await OriginalCostAsync(broadcasterId, ct)),
                 nameof(CurrencyEntryType.RefundMedia),

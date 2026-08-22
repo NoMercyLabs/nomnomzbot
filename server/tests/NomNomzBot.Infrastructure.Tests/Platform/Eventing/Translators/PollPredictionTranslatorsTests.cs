@@ -27,16 +27,16 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing.Translators;
 public sealed class PollPredictionTranslatorsTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static EventSubNotification Notification(Guid tenant, string type, string payload)
     {
         using JsonDocument doc = JsonDocument.Parse(payload);
-        return new EventSubNotification
+        return new()
         {
             MessageId = "msg-1",
-            MessageTimestamp = new DateTimeOffset(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
+            MessageTimestamp = new(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
             SubscriptionType = type,
             SubscriptionVersion = "1",
             BroadcasterId = tenant,
@@ -77,7 +77,7 @@ public sealed class PollPredictionTranslatorsTests
         published.PollId.Should().Be("poll-1");
         published.Title.Should().Be("Pineapple on pizza?");
         published.DurationSeconds.Should().Be(120);
-        published.EndsAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 32, 0, TimeSpan.Zero));
+        published.EndsAt.Should().Be(new(2026, 6, 20, 11, 32, 0, TimeSpan.Zero));
         published.Choices.Should().HaveCount(2);
         published.Choices[0].Should().Be(new PollChoice("c1", "Yes", 10, 10));
         published.OccurredAt.Should().Be(Clock.GetUtcNow());
@@ -116,7 +116,7 @@ public sealed class PollPredictionTranslatorsTests
         published.Choices[0].Votes.Should().Be(30);
         published.Choices[0].ChannelPointsVotes.Should().Be(25);
         published.Choices[1].Votes.Should().Be(12);
-        published.EndsAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 32, 0, TimeSpan.Zero));
+        published.EndsAt.Should().Be(new(2026, 6, 20, 11, 32, 0, TimeSpan.Zero));
     }
 
     [Fact]
@@ -211,7 +211,7 @@ public sealed class PollPredictionTranslatorsTests
         published.BroadcasterId.Should().Be(tenant);
         published.PredictionId.Should().Be("pred-1");
         published.WindowSeconds.Should().Be(90);
-        published.LocksAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 31, 30, TimeSpan.Zero));
+        published.LocksAt.Should().Be(new(2026, 6, 20, 11, 31, 30, TimeSpan.Zero));
         published.Outcomes.Should().HaveCount(2);
         published.Outcomes[0].Should().Be(new PredictionOutcome("o1", "Yes", 0, 0, "blue"));
     }
@@ -247,7 +247,7 @@ public sealed class PollPredictionTranslatorsTests
         published.Outcomes.Should().HaveCount(2);
         published.Outcomes[0].Users.Should().Be(12);
         published.Outcomes[0].ChannelPoints.Should().Be(5000);
-        published.LocksAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 31, 30, TimeSpan.Zero));
+        published.LocksAt.Should().Be(new(2026, 6, 20, 11, 31, 30, TimeSpan.Zero));
     }
 
     [Fact]

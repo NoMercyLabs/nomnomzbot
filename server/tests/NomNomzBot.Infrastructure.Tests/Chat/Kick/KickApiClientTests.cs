@@ -33,7 +33,7 @@ public sealed class KickApiClientTests
     {
         IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient("kick").Returns(new HttpClient(handler));
-        return new KickApiClient(factory, NullLogger<KickApiClient>.Instance);
+        return new(factory, NullLogger<KickApiClient>.Instance);
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class KickApiClientTests
         StubHttpMessageHandler handler = new((HttpStatusCode.OK, "{}"));
         KickApiClient sut = Build(handler);
 
-        Result<string> result = await sut.SendMessageAsync(Token, 12345, new string('k', 501));
+        Result<string> result = await sut.SendMessageAsync(Token, 12345, new('k', 501));
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -114,7 +114,7 @@ public sealed class KickApiClientTests
         await sut.BanUserAsync(Token, 12345, 678, longReason);
 
         string body = await handler.LastRequest!.Content!.ReadAsStringAsync();
-        body.Should().Contain(new string('r', 100)).And.NotContain(new string('r', 101));
+        body.Should().Contain(new('r', 100)).And.NotContain(new('r', 101));
     }
 
     [Fact]
@@ -185,7 +185,7 @@ public sealed class KickApiClientTests
 
         Result result = await sut.SubscribeAsync(
             Token,
-            [new KickEventRequest("chat.message.sent", 1), new("livestream.status.updated", 1)]
+            [new("chat.message.sent", 1), new("livestream.status.updated", 1)]
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -224,7 +224,7 @@ public sealed class KickApiClientTests
 
         Result result = await sut.SubscribeAsync(
             Token,
-            [new KickEventRequest("chat.message.sent", 1)]
+            [new("chat.message.sent", 1)]
         );
 
         result.IsFailure.Should().BeTrue();
@@ -265,7 +265,7 @@ public sealed class KickApiClientTests
             (HttpStatusCode status, string json) = responses[
                 Math.Min(_index++, responses.Length - 1)
             ];
-            return new HttpResponseMessage(status)
+            return new(status)
             {
                 Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
             };

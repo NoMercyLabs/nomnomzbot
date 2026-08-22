@@ -14,7 +14,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Music.Events;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -213,7 +212,7 @@ public sealed class SpotifyMusicProviderTransportTests
                 .Options
         );
         db.Services.Add(
-            new Service
+            new()
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = "spotify",
@@ -230,7 +229,7 @@ public sealed class SpotifyMusicProviderTransportTests
             db,
             new PassthroughProtector(),
             store,
-            new NomNomzBot.Infrastructure.Music.LastActiveSpotifyDeviceTracker(),
+            new LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance

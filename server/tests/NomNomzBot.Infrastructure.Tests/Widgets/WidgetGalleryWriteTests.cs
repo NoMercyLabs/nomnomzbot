@@ -12,7 +12,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Domain.Widgets.Events;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -35,7 +34,7 @@ public sealed class WidgetGalleryWriteTests
     private static readonly Guid Reviewer = Guid.Parse("0192a000-0000-7000-8000-0000000000f2");
     private static readonly PaginationParams FirstPage = new(1, 25);
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 7, 17, 16, 0, 0, TimeSpan.Zero)
+        new(2026, 7, 17, 16, 0, 0, TimeSpan.Zero)
     );
 
     private static SubmitGalleryItemRequest Submission(
@@ -62,7 +61,7 @@ public sealed class WidgetGalleryWriteTests
         if (!db.Users.Any(u => u.Id == Submitter))
         {
             db.Users.Add(
-                new User
+                new()
                 {
                     Id = Submitter,
                     TwitchUserId = "12345",
@@ -74,7 +73,7 @@ public sealed class WidgetGalleryWriteTests
             db.SaveChanges();
         }
         RecordingEventBus bus = new();
-        return (new WidgetGalleryService(db, bus, Clock), db, bus);
+        return (new(db, bus, Clock), db, bus);
     }
 
     [Fact]
@@ -112,12 +111,12 @@ public sealed class WidgetGalleryWriteTests
 
         // A submission never leaks onto the public surface; the reviewer's queue read sees it.
         Result<PagedList<GalleryItemSummary>> publicList = await service.ListAsync(
-            new GalleryListRequest(),
+            new(),
             FirstPage
         );
         publicList.Value.Items.Should().BeEmpty();
         Result<PagedList<GalleryItemSummary>> queue = await service.ListAsync(
-            new GalleryListRequest { ReviewStatus = "submitted" },
+            new() { ReviewStatus = "submitted" },
             FirstPage,
             privileged: true
         );
@@ -159,7 +158,7 @@ public sealed class WidgetGalleryWriteTests
         Result<GalleryItemDetail> reviewed = await service.ReviewAsync(
             Reviewer,
             itemId,
-            new ReviewGalleryItemRequest
+            new()
             {
                 ReviewStatus = "verified",
                 ReviewNotes = "Clean source, no network calls.",
@@ -195,7 +194,7 @@ public sealed class WidgetGalleryWriteTests
 
         // ...and the widget is now installable: it appears on the anonymous public list.
         Result<PagedList<GalleryItemSummary>> publicList = await service.ListAsync(
-            new GalleryListRequest(),
+            new(),
             FirstPage
         );
         publicList.Value.Items.Should().ContainSingle(i => i.Id == itemId);
@@ -211,7 +210,7 @@ public sealed class WidgetGalleryWriteTests
         Result<GalleryItemDetail> rejected = await service.ReviewAsync(
             Reviewer,
             itemId,
-            new ReviewGalleryItemRequest
+            new()
             {
                 ReviewStatus = "rejected",
                 ReviewNotes = "Loads remote script.",
@@ -223,7 +222,7 @@ public sealed class WidgetGalleryWriteTests
         rejected.Value.TrustTier.Should().Be("unverified");
         rejected.Value.AvailableInSaaS.Should().BeFalse("a rejected item is never SaaS-served");
         Result<PagedList<GalleryItemSummary>> publicList = await service.ListAsync(
-            new GalleryListRequest(),
+            new(),
             FirstPage
         );
         publicList.Value.Items.Should().BeEmpty();
@@ -240,14 +239,14 @@ public sealed class WidgetGalleryWriteTests
         await service.ReviewAsync(
             Reviewer,
             itemId,
-            new ReviewGalleryItemRequest { ReviewStatus = "verified", AvailableInSaaS = true }
+            new() { ReviewStatus = "verified", AvailableInSaaS = true }
         );
         string newSha = "fedcba9876543210fedcba9876543210fedcba98";
 
         Result<GalleryItemDetail> pinned = await service.UpdatePinAsync(
             Reviewer,
             itemId,
-            new UpdatePinRequest
+            new()
             {
                 PinnedCommitSha = newSha,
                 PinnedTag = "v1.1.0",
@@ -273,7 +272,7 @@ public sealed class WidgetGalleryWriteTests
 
         // The previously-verified item left the public catalogue with the re-pin.
         Result<PagedList<GalleryItemSummary>> publicList = await service.ListAsync(
-            new GalleryListRequest(),
+            new(),
             FirstPage
         );
         publicList.Value.Items.Should().BeEmpty();
@@ -300,12 +299,12 @@ public sealed class WidgetGalleryWriteTests
         Result<GalleryItemDetail> reviewed = await service.ReviewAsync(
             Reviewer,
             firstParty.Id,
-            new ReviewGalleryItemRequest { ReviewStatus = "rejected" }
+            new() { ReviewStatus = "rejected" }
         );
         Result<GalleryItemDetail> pinned = await service.UpdatePinAsync(
             Reviewer,
             firstParty.Id,
-            new UpdatePinRequest { PinnedCommitSha = "0123456789abcdef0123456789abcdef01234567" }
+            new() { PinnedCommitSha = "0123456789abcdef0123456789abcdef01234567" }
         );
 
         reviewed.ErrorCode.Should().Be("FIRST_PARTY_IMMUTABLE");

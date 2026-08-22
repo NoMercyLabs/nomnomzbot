@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
-using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Identity.Entities;
@@ -64,7 +63,7 @@ public sealed class KickWebhookIngestTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Tenant,
                 OwnerUserId = Owner,
@@ -148,7 +147,7 @@ public sealed class KickWebhookIngestTests
     {
         (KickWebhookIngest ingest, AuthDbContext db, RecordingEventBus bus) = Build();
         db.ChatMessages.Add(
-            new ChatMessage
+            new()
             {
                 Id = "kick-msg-1",
                 BroadcasterId = Tenant,
@@ -382,7 +381,7 @@ public sealed class KickWebhookIngestTests
         gifted
             .Recipients.Should()
             .Equal(
-                [new GiftRecipient("901", "LuckyOne"), new GiftRecipient("902", "LuckyTwo")],
+                [new("901", "LuckyOne"), new("902", "LuckyTwo")],
                 "Kick enumerates the recipients on the event itself"
             );
     }

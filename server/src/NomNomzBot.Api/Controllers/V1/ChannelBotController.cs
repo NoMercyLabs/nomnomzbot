@@ -176,7 +176,7 @@ public class ChannelBotController : BaseController
         return Ok(
             new StatusResponseDto<ScopesResponseDto>
             {
-                Data = new ScopesResponseDto(permissions, grantedCount, totalCount),
+                Data = new(permissions, grantedCount, totalCount),
             }
         );
     }
@@ -200,7 +200,7 @@ public class ChannelBotController : BaseController
         // Issue a single-use, server-side CSRF state nonce holding the flow + tenant id, so the channel-bot
         // association cannot be forged by tampering with the state (§5). Only the opaque nonce leaves us.
         string state = await _oauthState.IssueAsync(
-            new TwitchOAuthFlowState("channel_bot", ChannelId: channelId),
+            new("channel_bot", ChannelId: channelId),
             ct
         );
 
@@ -213,7 +213,7 @@ public class ChannelBotController : BaseController
         if (authUrl.IsFailure)
             return ResultResponse(authUrl);
         return Ok(
-            new StatusResponseDto<OAuthStartDto> { Data = new OAuthStartDto(authUrl.Value, state) }
+            new StatusResponseDto<OAuthStartDto> { Data = new(authUrl.Value, state) }
         );
     }
 

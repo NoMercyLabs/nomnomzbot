@@ -95,7 +95,7 @@ public class TwitchChannelsApiTests
 
         Result result = await api.ModifyChannelInformationAsync(
             Tenant,
-            new ModifyChannelInformationRequest(Title: "new")
+            new(Title: "new")
         );
 
         result.IsFailure.Should().BeTrue();
@@ -143,7 +143,7 @@ public class TwitchChannelsApiTests
         CapturingHelixTransport transport = new()
         {
             PageResult = new TwitchPage<TwitchChannelFollower>(
-                [new TwitchChannelFollower("1", "a", "A", DateTimeOffset.UnixEpoch)],
+                [new("1", "a", "A", DateTimeOffset.UnixEpoch)],
                 "cursor",
                 5
             ),
@@ -152,7 +152,7 @@ public class TwitchChannelsApiTests
 
         Result<TwitchPage<TwitchChannelFollower>> result = await api.GetChannelFollowersAsync(
             Tenant,
-            new TwitchPageRequest(After: "abc", PageSize: 50)
+            new(After: "abc", PageSize: 50)
         );
 
         result.IsSuccess.Should().BeTrue();

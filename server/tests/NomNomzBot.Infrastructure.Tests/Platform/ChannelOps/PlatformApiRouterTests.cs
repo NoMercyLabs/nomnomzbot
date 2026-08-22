@@ -96,7 +96,7 @@ public sealed class PlatformApiRouterTests
     {
         (PlatformApiRouter router, IPlatformApi twitch, IPlatformApi youtube) = await BuildAsync();
 
-        await router.UpdateStreamInfoAsync(TwitchTenant, new PlatformStreamInfoUpdate("t"));
+        await router.UpdateStreamInfoAsync(TwitchTenant, new("t"));
 
         await twitch
             .Received(1)
@@ -116,7 +116,7 @@ public sealed class PlatformApiRouterTests
         // Kick has a Channel row but no registered platform API yet — same fallback as the chat seam.
         (PlatformApiRouter router, IPlatformApi twitch, _) = await BuildAsync();
 
-        await router.UpdateStreamInfoAsync(KickTenant, new PlatformStreamInfoUpdate("t"));
+        await router.UpdateStreamInfoAsync(KickTenant, new("t"));
 
         await twitch
             .Received(1)

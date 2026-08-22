@@ -61,7 +61,7 @@ public sealed class PlatformIamService(
         IamOutcome outcome = allowed ? IamOutcome.Allowed : IamOutcome.Denied;
 
         db.IamAuditLogs.Add(
-            new IamAuditLog
+            new()
             {
                 PrincipalId = principalId,
                 PrincipalType = principal?.PrincipalType ?? IamPrincipalType.Employee,
@@ -156,7 +156,7 @@ public sealed class PlatformIamService(
 
         foreach (Guid roleId in request.RoleIds.Distinct())
             db.IamRoleAssignments.Add(
-                new IamRoleAssignment
+                new()
                 {
                     PrincipalId = principal.Id,
                     RoleId = roleId,

@@ -24,7 +24,7 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore;
 public sealed class ProjectionRunnerTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static EventJournalService NewJournal(EventStoreTestDbContext db) =>
@@ -50,7 +50,7 @@ public sealed class ProjectionRunnerTests
             Source: "domain",
             PayloadJson: $"{{\"key\":\"hits\",\"{field}\":{amount}}}",
             MetadataJson: "{}",
-            OccurredAt: new DateTime(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc)
+            OccurredAt: new(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc)
         );
 
     [Fact]

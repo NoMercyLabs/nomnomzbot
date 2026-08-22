@@ -51,7 +51,7 @@ public sealed class RewardLifecycleHandlerTests
             provider.GetRequiredService<IServiceScopeFactory>(),
             NullLogger<RewardLifecycleHandler>.Instance
         );
-        return new Harness(handler, db, executor);
+        return new(handler, db, executor);
     }
 
     private static async Task SeedRewardAsync(
@@ -61,7 +61,7 @@ public sealed class RewardLifecycleHandlerTests
     )
     {
         db.Rewards.Add(
-            new Reward
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = Channel,

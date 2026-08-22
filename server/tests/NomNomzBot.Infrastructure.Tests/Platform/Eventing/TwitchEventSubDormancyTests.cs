@@ -39,7 +39,7 @@ public sealed class TwitchEventSubDormancyTests
             .AddScoped<IPlatformBotReadinessGate>(_ => new FakeReadinessGate(botConfigured))
             .BuildServiceProvider();
 
-        return new TwitchEventSubHostedService(
+        return new(
             provider.GetRequiredService<IServiceScopeFactory>(),
             transport,
             new EventSubConditionBuilder(),

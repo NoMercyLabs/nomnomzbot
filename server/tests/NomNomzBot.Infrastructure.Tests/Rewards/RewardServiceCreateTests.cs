@@ -13,8 +13,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Rewards.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -38,7 +36,7 @@ public sealed class RewardServiceCreateTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Channel,
                 OwnerUserId = Guid.Parse("0192a000-0000-7000-8000-00000000d200"),
@@ -64,13 +62,13 @@ public sealed class RewardServiceCreateTests
             Prompt: "already here",
             Cost: 7500,
             Image: null,
-            DefaultImage: new TwitchCustomRewardImage("1x", "2x", "4x"),
+            DefaultImage: new("1x", "2x", "4x"),
             BackgroundColor: "#000000",
             IsEnabled: true,
             IsUserInputRequired: false,
-            MaxPerStreamSetting: new TwitchCustomRewardMaxPerStreamSetting(false, 0),
-            MaxPerUserPerStreamSetting: new TwitchCustomRewardMaxPerUserPerStreamSetting(false, 0),
-            GlobalCooldownSetting: new TwitchCustomRewardGlobalCooldownSetting(false, 0),
+            MaxPerStreamSetting: new(false, 0),
+            MaxPerUserPerStreamSetting: new(false, 0),
+            GlobalCooldownSetting: new(false, 0),
             IsPaused: false,
             IsInStock: true,
             ShouldRedemptionsSkipRequestQueue: false,
@@ -97,7 +95,7 @@ public sealed class RewardServiceCreateTests
 
         Result<RewardDetail> result = await sut.CreateAsync(
             Channel.ToString(),
-            new CreateRewardRequest { Title = "windows says nope", Cost = 7500 }
+            new() { Title = "windows says nope", Cost = 7500 }
         );
 
         result.IsFailure.Should().BeTrue();
@@ -125,7 +123,7 @@ public sealed class RewardServiceCreateTests
 
         Result<RewardDetail> result = await sut.CreateAsync(
             Channel.ToString(),
-            new CreateRewardRequest { Title = "Brand New Reward", Cost = 100 }
+            new() { Title = "Brand New Reward", Cost = 100 }
         );
 
         result.IsFailure.Should().BeTrue();
@@ -151,7 +149,7 @@ public sealed class RewardServiceCreateTests
 
         Result<RewardDetail> result = await sut.CreateAsync(
             Channel.ToString(),
-            new CreateRewardRequest { Title = "Brand New Reward", Cost = 100 }
+            new() { Title = "Brand New Reward", Cost = 100 }
         );
 
         result.IsSuccess.Should().BeTrue();

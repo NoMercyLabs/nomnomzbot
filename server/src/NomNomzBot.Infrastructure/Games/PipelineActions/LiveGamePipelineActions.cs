@@ -37,7 +37,7 @@ public sealed class StartLiveGameAction(ILiveGameEngine engine) : ICommandAction
         Guid? startedBy = Guid.TryParse(ctx.TriggeredByUserId, out Guid trigger) ? trigger : null;
         Result<GameSessionDto> started = await engine.StartAsync(
             ctx.BroadcasterId,
-            new StartLiveGameCommand(gameType, startedBy),
+            new(gameType, startedBy),
             ctx.CancellationToken
         );
         if (started.IsFailure)

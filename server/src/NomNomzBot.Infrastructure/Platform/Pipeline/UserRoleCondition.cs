@@ -41,7 +41,7 @@ public sealed class UserRoleCondition : ICommandCondition
             return null;
         if (!c.Parameters.TryGetValue(key, out JsonElement elem))
             return null;
-        return elem.ValueKind == System.Text.Json.JsonValueKind.String ? elem.GetString() : null;
+        return elem.ValueKind == JsonValueKind.String ? elem.GetString() : null;
     }
 
     // Compare on the canonical ladder value so lead_moderator/editor/artist all rank correctly (the same parser the chat

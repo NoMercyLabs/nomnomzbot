@@ -34,7 +34,7 @@ public sealed class LegacyChannelEventMapperTests
             UserId: "42660213",
             Type: type,
             Data: data,
-            CreatedAt: new DateTime(2025, 8, 14, 17, 0, 0, DateTimeKind.Utc)
+            CreatedAt: new(2025, 8, 14, 17, 0, 0, DateTimeKind.Utc)
         );
 
     [Fact]

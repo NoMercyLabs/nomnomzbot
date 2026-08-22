@@ -55,7 +55,7 @@ public sealed class TwitchStandingSnapshotBuilder(
                 await subscriptions.GetBroadcasterSubscriptionsAsync(
                     broadcasterId,
                     filterTwitchUserIds: null,
-                    new TwitchPageRequest(After: cursor),
+                    new(After: cursor),
                     ct
                 );
             if (page.IsFailure)
@@ -82,8 +82,8 @@ public sealed class TwitchStandingSnapshotBuilder(
                     sub.UserName ?? sub.UserLogin,
                     ct
                 );
-                if (userId is Guid id)
-                    byUser[id] = new TwitchStandingMember(
+                if (userId is { } id)
+                    byUser[id] = new(
                         id,
                         CommunityStanding.Subscriber,
                         sub.Tier
@@ -103,7 +103,7 @@ public sealed class TwitchStandingSnapshotBuilder(
         {
             Result<TwitchPage<TwitchVip>> page = await moderators.GetVipsAsync(
                 broadcasterId,
-                new TwitchPageRequest(After: cursor),
+                new(After: cursor),
                 ct
             );
             if (page.IsFailure)
@@ -126,8 +126,8 @@ public sealed class TwitchStandingSnapshotBuilder(
                     vip.UserName ?? vip.UserLogin,
                     ct
                 );
-                if (userId is Guid id)
-                    byUser[id] = new TwitchStandingMember(id, CommunityStanding.Vip, SubTier: null);
+                if (userId is { } id)
+                    byUser[id] = new(id, CommunityStanding.Vip, SubTier: null);
                 else
                     vipsComplete = false;
             }
@@ -135,7 +135,7 @@ public sealed class TwitchStandingSnapshotBuilder(
             cursor = page.Value.NextCursor;
         } while (!string.IsNullOrEmpty(cursor) && ++pageGuard < 100);
 
-        return new CommunityStandingSnapshot([.. byUser.Values], subsComplete, vipsComplete);
+        return new([.. byUser.Values], subsComplete, vipsComplete);
     }
 
     private async Task<Guid?> ResolveUserIdAsync(

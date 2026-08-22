@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Domain.Obs.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -33,7 +32,7 @@ public sealed class ObsBridgeStateBroadcastHandler : IEventHandler<ObsBridgeStat
 
         return _notifier.SendObsBridgeStateAsync(
             @event.BroadcasterId.ToString(),
-            new ObsBridgeStateDto(
+            new(
                 @event.BroadcasterId.ToString(),
                 @event.InstanceCount,
                 @event.HasLeader,

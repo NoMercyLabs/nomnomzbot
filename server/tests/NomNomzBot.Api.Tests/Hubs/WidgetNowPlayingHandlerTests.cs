@@ -12,7 +12,6 @@ using System.Text.Json;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -44,7 +43,7 @@ public sealed class WidgetNowPlayingHandlerTests
         WidgetNowPlayingHandler handler = new(db, widgets);
 
         await handler.HandleAsync(
-            new PlaybackStateChangedEvent
+            new()
             {
                 BroadcasterId = channel,
                 IsPlaying = true,

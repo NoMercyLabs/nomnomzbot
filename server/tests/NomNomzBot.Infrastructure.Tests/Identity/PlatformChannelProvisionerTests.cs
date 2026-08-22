@@ -29,7 +29,7 @@ public sealed class PlatformChannelProvisionerTests
     private static void SeedOwnerTwitchChannel(AuthDbContext db, string tier)
     {
         db.Channels.Add(
-            new Channel
+            new()
             {
                 OwnerUserId = Owner,
                 Provider = AuthEnums.Platform.Twitch,

@@ -97,7 +97,7 @@ public sealed class GameBuiltinsTests
                 )
             );
 
-        return (new CoinflipBuiltin(games, users), games);
+        return (new(games, users), games);
     }
 
     [Fact]

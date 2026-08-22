@@ -24,7 +24,7 @@ public static class JintEngineFactory
 {
     public static Engine CreateHardened(ScriptResourceBudget budget, CancellationToken ct)
     {
-        return new Engine(options =>
+        return new(options =>
         {
             // Resource constraints (best-effort, between-statement; the OS worker is the real bound).
             options.MaxStatements((int)budget.MaxFuelOrStatements);

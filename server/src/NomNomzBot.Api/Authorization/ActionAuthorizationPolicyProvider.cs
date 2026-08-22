@@ -28,7 +28,7 @@ public sealed class ActionAuthorizationPolicyProvider : IAuthorizationPolicyProv
     private readonly DefaultAuthorizationPolicyProvider _fallback;
 
     public ActionAuthorizationPolicyProvider(IOptions<AuthorizationOptions> options) =>
-        _fallback = new DefaultAuthorizationPolicyProvider(options);
+        _fallback = new(options);
 
     public Task<AuthorizationPolicy> GetDefaultPolicyAsync() => _fallback.GetDefaultPolicyAsync();
 

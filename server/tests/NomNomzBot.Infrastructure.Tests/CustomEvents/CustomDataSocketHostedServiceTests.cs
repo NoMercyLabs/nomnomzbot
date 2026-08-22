@@ -20,7 +20,6 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.CustomEvents.Services;
 using NomNomzBot.Domain.CustomEvents.Entities;
 using NomNomzBot.Domain.CustomEvents.Events;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.CustomEvents;
 using NomNomzBot.Infrastructure.CustomEvents.Sockets;
 using NomNomzBot.Infrastructure.Platform.Deployment;

@@ -69,8 +69,8 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
     public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
     public DbSet<CryptoKey> CryptoKeys => Set<CryptoKey>();
-    public DbSet<NomNomzBot.Domain.Identity.Entities.KeyUsageBinding> KeyUsageBindings =>
-        Set<NomNomzBot.Domain.Identity.Entities.KeyUsageBinding>();
+    public DbSet<KeyUsageBinding> KeyUsageBindings =>
+        Set<KeyUsageBinding>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey> EventSubjectKeys =>
         Set<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
@@ -184,7 +184,7 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
+    public DbSet<Configuration> Configurations =>
         throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
     public DbSet<Permission> Permissions => throw new NotSupportedException();
@@ -204,7 +204,7 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch> DiscordNotificationDispatches =>
         throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
+    public DbSet<Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
         throw new NotSupportedException();
@@ -425,7 +425,7 @@ internal sealed class GdprSqliteDatabase : IDisposable
     {
         DbContextOptions<GdprTestDbContext> options =
             new DbContextOptionsBuilder<GdprTestDbContext>().UseSqlite(_connection).Options;
-        return new GdprTestDbContext(options);
+        return new(options);
     }
 
     public void Dispose() => _connection.Dispose();

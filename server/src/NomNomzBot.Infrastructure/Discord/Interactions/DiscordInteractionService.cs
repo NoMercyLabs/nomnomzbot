@@ -82,7 +82,7 @@ public sealed class DiscordInteractionService : IDiscordInteractionService
         return payload.Type switch
         {
             InteractionTypePing => Result.Success(
-                Serialize(new InteractionReply(CallbackTypePong))
+                Serialize(new(CallbackTypePong))
             ),
             InteractionTypeMessageComponent => await HandleComponentAsync(payload, ct),
             _ => Result.Success(Ephemeral("This interaction isn't supported.")),
@@ -151,9 +151,9 @@ public sealed class DiscordInteractionService : IDiscordInteractionService
 
     private static string Ephemeral(string content) =>
         Serialize(
-            new InteractionReply(
+            new(
                 CallbackTypeChannelMessageWithSource,
-                new InteractionReplyData(content, MessageFlagEphemeral)
+                new(content, MessageFlagEphemeral)
             )
         );
 

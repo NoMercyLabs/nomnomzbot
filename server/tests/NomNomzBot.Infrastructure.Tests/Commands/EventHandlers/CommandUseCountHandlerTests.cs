@@ -31,7 +31,7 @@ public sealed class CommandUseCountHandlerTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         FakeTimeProvider clock = new(Now);
-        return (new CommandUseCountHandler(db, clock), db);
+        return (new(db, clock), db);
     }
 
     private static Command SeedCommand(AuthDbContext db, long useCount = 0)

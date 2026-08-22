@@ -27,14 +27,14 @@ public class TwitchAuthHeaderHandlerTests
 
     private static (HttpClient Client, RecordingHelixHandler Wire) BuildClient()
     {
-        RecordingHelixHandler wire = new([() => new HttpResponseMessage(HttpStatusCode.OK)]);
+        RecordingHelixHandler wire = new([() => new(HttpStatusCode.OK)]);
         TwitchAuthHeaderHandler auth = new(
             Options.Create(new TwitchOptions { ClientId = "client-id-xyz" })
         )
         {
             InnerHandler = wire,
         };
-        return (new HttpClient(auth), wire);
+        return (new(auth), wire);
     }
 
     [Fact]

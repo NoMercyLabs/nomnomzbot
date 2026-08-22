@@ -38,7 +38,7 @@ internal static class HypeCharityPayload
         foreach (JsonElement contribution in contributions.EnumerateArray())
         {
             result.Add(
-                new HypeTrainContribution(
+                new(
                     contribution.GetRequiredString("user_id"),
                     contribution.GetRequiredString("user_login"),
                     contribution.GetRequiredString("user_name"),
@@ -56,7 +56,7 @@ internal static class HypeCharityPayload
     {
         JsonElement? amount = payload.GetObject(name);
         return amount is null
-            ? new Money(0, 0, string.Empty)
+            ? new(0, 0, string.Empty)
             : new Money(
                 amount.Value.GetInt("value"),
                 amount.Value.GetInt("decimal_places"),

@@ -40,7 +40,7 @@ public class ObsControlService : IObsControlService
         SendStatusAsync(
             broadcasterId,
             "SetCurrentProgramScene",
-            new Dictionary<string, object?> { ["sceneName"] = sceneName },
+            new() { ["sceneName"] = sceneName },
             ct
         );
 
@@ -52,7 +52,7 @@ public class ObsControlService : IObsControlService
         SendStatusAsync(
             broadcasterId,
             "SetCurrentPreviewScene",
-            new Dictionary<string, object?> { ["sceneName"] = sceneName },
+            new() { ["sceneName"] = sceneName },
             ct
         );
 
@@ -68,7 +68,7 @@ public class ObsControlService : IObsControlService
         Result<ObsResponse> item = await _transport.SendAsync(
             broadcasterId,
             Guid.CreateVersion7(),
-            new ObsRequest(
+            new(
                 "GetSceneItemId",
                 new Dictionary<string, object?>
                 {
@@ -94,7 +94,7 @@ public class ObsControlService : IObsControlService
         return await SendStatusAsync(
             broadcasterId,
             "SetSceneItemEnabled",
-            new Dictionary<string, object?>
+            new()
             {
                 ["sceneName"] = sceneName,
                 ["sceneItemId"] = (int)Convert.ToDouble(idValue),
@@ -115,7 +115,7 @@ public class ObsControlService : IObsControlService
         SendStatusAsync(
             broadcasterId,
             "SetInputMute",
-            new Dictionary<string, object?> { ["inputName"] = inputName, ["inputMuted"] = muted },
+            new() { ["inputName"] = inputName, ["inputMuted"] = muted },
             ct
         );
 
@@ -127,7 +127,7 @@ public class ObsControlService : IObsControlService
         SendStatusAsync(
             broadcasterId,
             "ToggleInputMute",
-            new Dictionary<string, object?> { ["inputName"] = inputName },
+            new() { ["inputName"] = inputName },
             ct
         );
 
@@ -145,7 +145,7 @@ public class ObsControlService : IObsControlService
                 Errors.ValidationFailed("Provide exactly one of volume_db or volume_mul.")
             );
         Dictionary<string, object?> data = new() { ["inputName"] = inputName };
-        if (volumeDb is double db)
+        if (volumeDb is { } db)
             data["inputVolumeDb"] = db;
         else
             data["inputVolumeMul"] = volumeMul;
@@ -164,7 +164,7 @@ public class ObsControlService : IObsControlService
         SendStatusAsync(
             broadcasterId,
             "SetSourceFilterEnabled",
-            new Dictionary<string, object?>
+            new()
             {
                 ["sourceName"] = sourceName,
                 ["filterName"] = filterName,
@@ -235,7 +235,7 @@ public class ObsControlService : IObsControlService
         SendStatusAsync(
             broadcasterId,
             "SetCurrentSceneTransition",
-            new Dictionary<string, object?> { ["transitionName"] = transitionName },
+            new() { ["transitionName"] = transitionName },
             ct
         );
 
@@ -245,12 +245,12 @@ public class ObsControlService : IObsControlService
         CancellationToken ct = default
     )
     {
-        if (durationMs is int duration)
+        if (durationMs is { } duration)
         {
             Result setDuration = await SendStatusAsync(
                 broadcasterId,
                 "SetCurrentSceneTransitionDuration",
-                new Dictionary<string, object?> { ["transitionDuration"] = duration },
+                new() { ["transitionDuration"] = duration },
                 ct
             );
             if (setDuration.IsFailure)
@@ -268,7 +268,7 @@ public class ObsControlService : IObsControlService
         SendStatusAsync(
             broadcasterId,
             "TriggerMediaInputAction",
-            new Dictionary<string, object?>
+            new()
             {
                 ["inputName"] = inputName,
                 ["mediaAction"] = action switch
@@ -292,7 +292,7 @@ public class ObsControlService : IObsControlService
         SendStatusAsync(
             broadcasterId,
             "TriggerHotkeyByName",
-            new Dictionary<string, object?> { ["hotkeyName"] = hotkeyName },
+            new() { ["hotkeyName"] = hotkeyName },
             ct
         );
 
@@ -304,7 +304,7 @@ public class ObsControlService : IObsControlService
         SendStatusAsync(
             broadcasterId,
             "PressInputPropertiesButton",
-            new Dictionary<string, object?>
+            new()
             {
                 ["inputName"] = inputName,
                 ["propertyName"] = "refreshnocache",
@@ -322,7 +322,7 @@ public class ObsControlService : IObsControlService
         Result<ObsResponse> response = await _transport.SendAsync(
             broadcasterId,
             Guid.CreateVersion7(),
-            new ObsRequest(
+            new(
                 "GetSourceScreenshot",
                 new Dictionary<string, object?>
                 {
@@ -365,7 +365,7 @@ public class ObsControlService : IObsControlService
         _transport.SendAsync(
             broadcasterId,
             Guid.CreateVersion7(),
-            new ObsRequest(
+            new(
                 "CallVendorRequest",
                 new Dictionary<string, object?>
                 {
@@ -387,11 +387,11 @@ public class ObsControlService : IObsControlService
         Result<IReadOnlyList<ObsResponse>> batch = await _transport.SendBatchAsync(
             broadcasterId,
             Guid.CreateVersion7(),
-            new ObsRequestBatch([
-                new ObsRequest("GetCurrentProgramScene", null),
-                new ObsRequest("GetStreamStatus", null),
-                new ObsRequest("GetRecordStatus", null),
-                new ObsRequest("GetReplayBufferStatus", null),
+            new([
+                new("GetCurrentProgramScene", null),
+                new("GetStreamStatus", null),
+                new("GetRecordStatus", null),
+                new("GetReplayBufferStatus", null),
             ]),
             ct
         );
@@ -425,7 +425,7 @@ public class ObsControlService : IObsControlService
         Result<ObsResponse> response = await _transport.SendAsync(
             broadcasterId,
             Guid.CreateVersion7(),
-            new ObsRequest("GetSceneList", null),
+            new("GetSceneList", null),
             ct
         );
         Result status = ToStatus(response);
@@ -447,7 +447,7 @@ public class ObsControlService : IObsControlService
                 if (item.TryGetProperty("sceneName", out System.Text.Json.JsonElement nameEl))
                 {
                     string name = nameEl.GetString() ?? "";
-                    scenes.Add(new ObsSceneDto(name, name == current));
+                    scenes.Add(new(name, name == current));
                 }
         }
         return Result.Success<IReadOnlyList<ObsSceneDto>>(scenes);
@@ -461,7 +461,7 @@ public class ObsControlService : IObsControlService
         Result<ObsResponse> response = await _transport.SendAsync(
             broadcasterId,
             Guid.CreateVersion7(),
-            new ObsRequest("GetInputList", null),
+            new("GetInputList", null),
             ct
         );
         Result status = ToStatus(response);
@@ -505,13 +505,13 @@ public class ObsControlService : IObsControlService
         foreach ((string Name, string Kind) input in raw)
         {
             probes.Add(
-                new ObsRequest(
+                new(
                     "GetInputMute",
                     new Dictionary<string, object?> { ["inputName"] = input.Name }
                 )
             );
             probes.Add(
-                new ObsRequest(
+                new(
                     "GetInputVolume",
                     new Dictionary<string, object?> { ["inputName"] = input.Name }
                 )
@@ -521,7 +521,7 @@ public class ObsControlService : IObsControlService
         Result<IReadOnlyList<ObsResponse>> probeBatch = await _transport.SendBatchAsync(
             broadcasterId,
             Guid.CreateVersion7(),
-            new ObsRequestBatch(probes, HaltOnFailure: false),
+            new(probes, HaltOnFailure: false),
             ct
         );
         IReadOnlyList<ObsResponse>? probeResults = probeBatch.IsSuccess ? probeBatch.Value : null;
@@ -544,7 +544,7 @@ public class ObsControlService : IObsControlService
                 )
                     volumeDb = db;
             }
-            inputs.Add(new ObsInputDto(raw[i].Name, raw[i].Kind, muted, volumeDb));
+            inputs.Add(new(raw[i].Name, raw[i].Kind, muted, volumeDb));
         }
         return Result.Success<IReadOnlyList<ObsInputDto>>(inputs);
     }
@@ -561,7 +561,7 @@ public class ObsControlService : IObsControlService
             await _transport.SendAsync(
                 broadcasterId,
                 Guid.CreateVersion7(),
-                new ObsRequest(requestType, data),
+                new(requestType, data),
                 ct
             )
         );

@@ -64,7 +64,7 @@ public sealed class InviteCodeService(
         InviteCode? invite = await FindByCodeAsync(code, ct);
         if (invite is null)
             return Result.Failure<RedeemInviteCodeResultDto>("Unknown invite code.", "NOT_FOUND");
-        if (invite.ExpiresAt is DateTime expiry && expiry <= clock.GetUtcNow().UtcDateTime)
+        if (invite.ExpiresAt is { } expiry && expiry <= clock.GetUtcNow().UtcDateTime)
             return Result.Failure<RedeemInviteCodeResultDto>(
                 "Invite code has expired.",
                 "VALIDATION_FAILED"
@@ -91,7 +91,7 @@ public sealed class InviteCodeService(
         FoundersBadge? badge = null;
         if (invite.GrantsFoundersBadge)
         {
-            badge = new FoundersBadge
+            badge = new()
             {
                 BroadcasterId = broadcasterId,
                 GrantedAt = clock.GetUtcNow().UtcDateTime,
@@ -102,7 +102,7 @@ public sealed class InviteCodeService(
         }
 
         string? grantedTierKey = null;
-        if (invite.GrantsTierId is Guid tierId)
+        if (invite.GrantsTierId is { } tierId)
         {
             Result<SubscriptionDto> grant = await subscriptions.GrantTierAsync(
                 broadcasterId,
@@ -170,7 +170,7 @@ public sealed class InviteCodeService(
                 "VALIDATION_FAILED"
             );
         if (
-            request.GrantsTierId is Guid tierId
+            request.GrantsTierId is { } tierId
             && !await db.BillingTiers.AnyAsync(t => t.Id == tierId && t.DeletedAt == null, ct)
         )
             return Result.Failure<InviteCodeDto>("Granted tier not found.", "VALIDATION_FAILED");
@@ -236,7 +236,7 @@ public sealed class InviteCodeService(
         );
         if (badge is null)
         {
-            badge = new FoundersBadge
+            badge = new()
             {
                 BroadcasterId = broadcasterId,
                 GrantedAt = clock.GetUtcNow().UtcDateTime,
@@ -262,10 +262,10 @@ public sealed class InviteCodeService(
 
     private bool IsRedeemable(InviteCode invite) =>
         invite.RedemptionCount < invite.MaxRedemptions
-        && (invite.ExpiresAt is not DateTime e || e > clock.GetUtcNow().UtcDateTime);
+        && (invite.ExpiresAt is not { } e || e > clock.GetUtcNow().UtcDateTime);
 
     private async Task<string?> TierKeyAsync(Guid? tierId, CancellationToken ct) =>
-        tierId is Guid id
+        tierId is { } id
             ? await db
                 .BillingTiers.Where(t => t.Id == id)
                 .Select(t => t.Key)
@@ -289,13 +289,13 @@ public sealed class InviteCodeService(
             ? null
             : new FoundersBadgeDto(
                 badge.Id,
-                new DateTimeOffset(badge.GrantedAt, TimeSpan.Zero),
+                new(badge.GrantedAt, TimeSpan.Zero),
                 badge.IsActive,
                 badge.InviteCode
             );
 
     private static DateTimeOffset? ToOffset(DateTime? value) =>
-        value is DateTime d ? new DateTimeOffset(d, TimeSpan.Zero) : null;
+        value is { } d ? new DateTimeOffset(d, TimeSpan.Zero) : null;
 
     private static string GenerateCode() => Convert.ToHexString(RandomNumberGenerator.GetBytes(5)); // 10 uppercase hex chars
 }

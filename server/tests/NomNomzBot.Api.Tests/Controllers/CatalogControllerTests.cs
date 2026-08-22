@@ -42,7 +42,7 @@ public sealed class CatalogControllerTests
         IRoleResolver roles = Substitute.For<IRoleResolver>();
         ICurrentUserService user = Substitute.For<ICurrentUserService>();
         user.UserId.Returns(Caller.ToString());
-        return (new CatalogController(catalog, roles, user), catalog, roles);
+        return (new(catalog, roles, user), catalog, roles);
     }
 
     private static CatalogPurchaseDto Purchase() =>
@@ -94,7 +94,7 @@ public sealed class CatalogControllerTests
         IActionResult result = await controller.Refund(
             Channel.ToString(),
             7,
-            new RefundRequest("oops", Spoofed),
+            new("oops", Spoofed),
             default
         );
 

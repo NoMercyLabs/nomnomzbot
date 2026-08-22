@@ -78,7 +78,7 @@ public sealed class HtmlFragmentAdapter : IChatDecorationAdapter
             }
 
             string sanitised = ChatHtmlSanitizer.Sanitize(BuildCombinedHtml(span));
-            rebuilt.Add(new ChatMessageFragment { Type = "html", Text = sanitised });
+            rebuilt.Add(new() { Type = "html", Text = sanitised });
             anySpan = true;
             i = nextIndex;
         }
@@ -153,7 +153,7 @@ public sealed class HtmlFragmentAdapter : IChatDecorationAdapter
             if (fragment.Type != "text" || !IsRealHtml(fragment.Text))
                 continue;
 
-            context.Fragments[i] = new ChatMessageFragment
+            context.Fragments[i] = new()
             {
                 Type = "html",
                 Text = ChatHtmlSanitizer.Sanitize(fragment.Text),

@@ -12,10 +12,8 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Quotes.Dtos;
 using NomNomzBot.Application.Quotes.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Quotes;
 using NomNomzBot.Infrastructure.Quotes.PipelineActions;
@@ -32,7 +30,7 @@ namespace NomNomzBot.Infrastructure.Tests.Quotes;
 public sealed class PostQuoteActionTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     /// <summary>A chat provider that records exactly what was sent so the test can assert the real side effect.</summary>
@@ -89,7 +87,7 @@ public sealed class PostQuoteActionTests
     {
         QuoteTestUnitOfWork uow = new(db);
         TenantSequenceAllocator allocator = new(db);
-        return new QuoteService(db, allocator, uow, new RecordingEventBus(), Clock);
+        return new(db, allocator, uow, new RecordingEventBus(), Clock);
     }
 
     private static async Task<Guid> SeedChannelAsync(QuoteSqliteTestDatabase database)
@@ -97,7 +95,7 @@ public sealed class PostQuoteActionTests
         Guid channelId = Guid.CreateVersion7();
         await using QuoteTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -125,7 +123,7 @@ public sealed class PostQuoteActionTests
         Dictionary<string, JsonElement>? parameters = number is null
             ? null
             : new() { ["number"] = JsonSerializer.SerializeToElement(number.Value) };
-        return new ActionDefinition { Type = "post_quote", Parameters = parameters };
+        return new() { Type = "post_quote", Parameters = parameters };
     }
 
     [Fact]
@@ -138,7 +136,7 @@ public sealed class PostQuoteActionTests
         IQuoteService quotes = NewQuoteService(db);
         await quotes.AddAsync(
             channel,
-            new AddQuoteRequest("blame the lag", "Stoney_Eagle", "Just Chatting", null, null)
+            new("blame the lag", "Stoney_Eagle", "Just Chatting", null, null)
         );
 
         RecordingChatProvider chat = new();
@@ -169,7 +167,7 @@ public sealed class PostQuoteActionTests
 
         await using QuoteTestDbContext db = database.NewContext();
         IQuoteService quotes = NewQuoteService(db);
-        await quotes.AddAsync(channel, new AddQuoteRequest("only one", null, null, null, null));
+        await quotes.AddAsync(channel, new("only one", null, null, null, null));
 
         RecordingChatProvider chat = new();
         PostQuoteAction action = new(quotes, chat);
@@ -190,8 +188,8 @@ public sealed class PostQuoteActionTests
 
         await using QuoteTestDbContext db = database.NewContext();
         IQuoteService quotes = NewQuoteService(db);
-        await quotes.AddAsync(channel, new AddQuoteRequest("first", null, null, null, null));
-        await quotes.AddAsync(channel, new AddQuoteRequest("second", null, null, null, null));
+        await quotes.AddAsync(channel, new("first", null, null, null, null));
+        await quotes.AddAsync(channel, new("second", null, null, null, null));
 
         RecordingChatProvider chat = new();
         PostQuoteAction action = new(quotes, chat);

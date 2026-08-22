@@ -13,7 +13,6 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord.Entities;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Discord;
 using NomNomzBot.Infrastructure.Platform.Templating;
 
@@ -40,7 +39,7 @@ public sealed class DiscordNotificationConfigServiceTests
             "https://img/thumb.png",
             null,
             "footer text",
-            [new DiscordEmbedFieldDto("Game", "Just Chatting", true)]
+            [new("Game", "Just Chatting", true)]
         );
 
         DiscordNotificationConfigDto created;
@@ -50,7 +49,7 @@ public sealed class DiscordNotificationConfigServiceTests
             Result<DiscordNotificationConfigDto> result = await service.CreateConfigAsync(
                 channel,
                 connectionId,
-                new CreateDiscordNotificationConfigRequest(
+                new(
                     "go_live",
                     true,
                     "chan-123",
@@ -126,7 +125,7 @@ public sealed class DiscordNotificationConfigServiceTests
             .CreateConfigAsync(
                 channel,
                 connectionId,
-                new CreateDiscordNotificationConfigRequest(
+                new(
                     "milestone",
                     true,
                     "chan-1",
@@ -156,7 +155,7 @@ public sealed class DiscordNotificationConfigServiceTests
                 .CreateConfigAsync(
                     channel,
                     connectionId,
-                    new CreateDiscordNotificationConfigRequest(
+                    new(
                         "go_live",
                         true,
                         "chan-1",
@@ -190,7 +189,7 @@ public sealed class DiscordNotificationConfigServiceTests
         Guid channelId = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -211,7 +210,7 @@ public sealed class DiscordNotificationConfigServiceTests
         Guid id = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.DiscordGuildConnections.Add(
-            new DiscordGuildConnection
+            new()
             {
                 Id = id,
                 BroadcasterId = channel,

@@ -65,7 +65,7 @@ public sealed class FeatureFlagAdminService(
         );
         if (flag is null)
         {
-            flag = new FeatureFlag { Key = request.Key, CreatedAt = now };
+            flag = new() { Key = request.Key, CreatedAt = now };
             db.FeatureFlags.Add(flag);
         }
 
@@ -118,7 +118,7 @@ public sealed class FeatureFlagAdminService(
         );
         if (over is null)
         {
-            over = new FeatureFlagOverride
+            over = new()
             {
                 FeatureFlagId = flag.Id,
                 BroadcasterId = broadcasterId,

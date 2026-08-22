@@ -14,7 +14,6 @@ using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.Contracts.Marketplace;
 using NomNomzBot.Application.Marketplace.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;

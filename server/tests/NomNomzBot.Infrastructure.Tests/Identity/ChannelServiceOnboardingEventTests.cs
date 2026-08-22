@@ -13,7 +13,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
@@ -40,7 +39,7 @@ public sealed class ChannelServiceOnboardingEventTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         Guid ownerId = Guid.Parse("0192a000-0000-7000-8000-00000000c101");
         db.Users.Add(
-            new User
+            new()
             {
                 Id = ownerId,
                 TwitchUserId = "tw-owner-1",
@@ -61,7 +60,7 @@ public sealed class ChannelServiceOnboardingEventTests
 
         Result<ChannelDto> result = await sut.OnboardAsync(
             ownerId.ToString(),
-            new CreateChannelRequest { BroadcasterId = ownerId.ToString() }
+            new() { BroadcasterId = ownerId.ToString() }
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -85,7 +84,7 @@ public sealed class ChannelServiceOnboardingEventTests
         Guid ownerId = Guid.Parse("0192a000-0000-7000-8000-00000000c102");
         Guid channelId = Guid.Parse("0192a000-0000-7000-8000-00000000c103");
         db.Users.Add(
-            new User
+            new()
             {
                 Id = ownerId,
                 TwitchUserId = "tw-owner-2",
@@ -95,7 +94,7 @@ public sealed class ChannelServiceOnboardingEventTests
             }
         );
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = ownerId,
@@ -117,7 +116,7 @@ public sealed class ChannelServiceOnboardingEventTests
 
         Result<ChannelDto> result = await sut.OnboardAsync(
             ownerId.ToString(),
-            new CreateChannelRequest { BroadcasterId = ownerId.ToString() }
+            new() { BroadcasterId = ownerId.ToString() }
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -141,7 +140,7 @@ public sealed class ChannelServiceOnboardingEventTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         Guid ownerId = Guid.Parse("0192a000-0000-7000-8000-00000000c104");
         db.Users.Add(
-            new User
+            new()
             {
                 Id = ownerId,
                 TwitchUserId = "tw-owner-3",

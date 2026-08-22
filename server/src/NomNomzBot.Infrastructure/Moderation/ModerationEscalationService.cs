@@ -67,7 +67,7 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
         );
         if (state is null)
         {
-            state = new ModerationEscalationState
+            state = new()
             {
                 BroadcasterId = broadcasterId,
                 SubjectUserId = subjectUserId,
@@ -108,7 +108,7 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
             );
         return Result.Success(
             policy is null
-                ? new ModerationEscalationPolicyDto(false, DefaultLadder, 168, false)
+                ? new(false, DefaultLadder, 168, false)
                 : ToDto(policy)
         );
     }
@@ -157,7 +157,7 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
             );
         if (policy is null)
         {
-            policy = new ModerationEscalationPolicy { BroadcasterId = broadcasterId };
+            policy = new() { BroadcasterId = broadcasterId };
             db.ModerationEscalationPolicies.Add(policy);
         }
         policy.IsEnabled = request.IsEnabled;

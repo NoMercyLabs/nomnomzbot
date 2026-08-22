@@ -156,7 +156,7 @@ public class RewardService : IRewardService
             Result<TwitchCustomReward> pushed = await _channelPoints.UpdateCustomRewardAsync(
                 broadcaster,
                 reward.TwitchRewardId,
-                new UpdateCustomRewardRequest(
+                new(
                     Title: request.Title,
                     Prompt: request.Prompt,
                     Cost: request.Cost,
@@ -329,7 +329,7 @@ public class RewardService : IRewardService
                 broadcaster,
                 row.RewardId,
                 [redemptionId],
-                new UpdateRedemptionStatusRequest(twitchStatus),
+                new(twitchStatus),
                 cancellationToken
             );
         if (helix.IsFailure)
@@ -575,7 +575,7 @@ public class RewardService : IRewardService
         // under the bot's client. The new reward gets its own Twitch id and IS manageable.
         Result<TwitchCustomReward> created = await _channelPoints.CreateCustomRewardAsync(
             broadcaster,
-            new CreateCustomRewardRequest(
+            new(
                 Title: external.Title,
                 Cost: external.Cost ?? 0,
                 Prompt: external.Description,
@@ -705,7 +705,7 @@ public class RewardService : IRewardService
 
     /// <summary>Clamps a requested countdown to sane bounds: 0/negative clears it; the ceiling is 24h.</summary>
     private static int? NormalizeTimerDuration(int? requested) =>
-        requested is int seconds && seconds > 0 ? Math.Min(seconds, 86_400) : null;
+        requested is { } seconds && seconds > 0 ? Math.Min(seconds, 86_400) : null;
 
     private static RewardDetail ToDetail(Reward r) =>
         new(

@@ -61,7 +61,7 @@ public sealed class TtsProfanityCensor : ITtsProfanityCensor
     public TtsCensorResult Censor(string text)
     {
         if (string.IsNullOrEmpty(text))
-            return new TtsCensorResult(text ?? string.Empty, false);
+            return new(text ?? string.Empty, false);
 
         bool masked = false;
         string result = Matcher.Replace(
@@ -73,10 +73,10 @@ public sealed class TtsProfanityCensor : ITtsProfanityCensor
             }
         );
 
-        return new TtsCensorResult(result, masked);
+        return new(result, masked);
     }
 
     /// <summary>Keeps the first character (preserving its case) and replaces the rest with asterisks.</summary>
     private static string Mask(string word) =>
-        string.Concat(word[..1], new string('*', word.Length - 1));
+        string.Concat(word[..1], new('*', word.Length - 1));
 }

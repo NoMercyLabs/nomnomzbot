@@ -178,7 +178,7 @@ public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) :
             : managementLevel == effective ? "management"
             : "community";
 
-        return new AccessFacts(
+        return new(
             standing?.Standing ?? CommunityStanding.Everyone,
             communityLevel,
             managementRole,

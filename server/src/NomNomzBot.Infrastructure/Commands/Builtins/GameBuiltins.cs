@@ -85,7 +85,7 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
 
         Result<GamePlayResultDto> played = await _games.PlayAsync(
             context.BroadcasterId,
-            new PlayGameRequest(game.Id, playerUserId, bet, context.RoleLevel),
+            new(game.Id, playerUserId, bet, context.RoleLevel),
             ct
         );
 

@@ -51,7 +51,7 @@ public sealed class TwitchPlatformApiTests
             )
             .Returns(Result.Success(new TwitchPage<TwitchSearchCategory>(categories, null, 0)));
 
-        return (new TwitchPlatformApi(channels, search), channels, search);
+        return (new(channels, search), channels, search);
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public sealed class TwitchPlatformApiTests
 
         Result<PlatformStreamInfoApplied> result = await api.UpdateStreamInfoAsync(
             Tenant,
-            new PlatformStreamInfoUpdate(CategoryName: "rust")
+            new(CategoryName: "rust")
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -85,7 +85,7 @@ public sealed class TwitchPlatformApiTests
 
         Result<PlatformStreamInfoApplied> result = await api.UpdateStreamInfoAsync(
             Tenant,
-            new PlatformStreamInfoUpdate(Title: "new title", CategoryName: "no such game")
+            new(Title: "new title", CategoryName: "no such game")
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -109,7 +109,7 @@ public sealed class TwitchPlatformApiTests
 
         Result<PlatformStreamInfoApplied> result = await api.UpdateStreamInfoAsync(
             Tenant,
-            new PlatformStreamInfoUpdate(Title: "t", Tags: tags)
+            new(Title: "t", Tags: tags)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -142,7 +142,7 @@ public sealed class TwitchPlatformApiTests
 
         Result<PlatformStreamInfoApplied> result = await api.UpdateStreamInfoAsync(
             Tenant,
-            new PlatformStreamInfoUpdate(Title: "t")
+            new(Title: "t")
         );
 
         result.IsFailure.Should().BeTrue();

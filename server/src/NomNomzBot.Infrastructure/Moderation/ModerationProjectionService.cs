@@ -15,7 +15,6 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -173,7 +172,7 @@ public sealed class ModerationProjectionService(
                 )
             )
             {
-                history = new UserModerationHistory
+                history = new()
                 {
                     BroadcasterId = broadcasterId,
                     SubjectUserId = subjectUserId.Value,
@@ -231,7 +230,7 @@ public sealed class ModerationProjectionService(
         );
         if (history is null)
         {
-            history = new UserModerationHistory
+            history = new()
             {
                 BroadcasterId = broadcasterId,
                 SubjectUserId = subjectUserId,
@@ -287,7 +286,7 @@ public sealed class ModerationProjectionService(
         );
         if (score is null)
         {
-            score = new UserTrustScore
+            score = new()
             {
                 BroadcasterId = broadcasterId,
                 SubjectUserId = subjectUserId,
@@ -307,7 +306,7 @@ public sealed class ModerationProjectionService(
         double tenureMonths =
             firstKnown == default ? 0.0 : Math.Max(0.0, (nowUtc - firstKnown).TotalDays / 30.44);
         double trust = TrustScoreCalculator.Calculate(
-            new TrustContext
+            new()
             {
                 AccountAgeMonths = tenureMonths,
                 TimeoutCount = history.TimeoutCount,
@@ -318,7 +317,7 @@ public sealed class ModerationProjectionService(
 
         // Heat: exponential decay since the last heat event, then the delta, clamped to [0, 100].
         decimal decayed =
-            score.LastHeatEventAt is DateTime last && score.HeatScore > 0m
+            score.LastHeatEventAt is { } last && score.HeatScore > 0m
                 ? score.HeatScore
                     * (decimal)Math.Pow(0.5, (nowUtc - last).TotalHours / HeatHalfLifeHours)
                 : 0m;

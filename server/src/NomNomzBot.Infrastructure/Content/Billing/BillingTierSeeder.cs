@@ -53,7 +53,7 @@ public sealed class BillingTierSeeder : ISeeder
                 foreach ((string limitKey, long limitValue) in seed.Limits)
                     if (!existingKeys.Contains(limitKey))
                         _db.TierLimits.Add(
-                            new TierLimit
+                            new()
                             {
                                 TierId = existing.Id,
                                 LimitKey = limitKey,
@@ -78,7 +78,7 @@ public sealed class BillingTierSeeder : ISeeder
 
             foreach ((string limitKey, long limitValue) in seed.Limits)
                 _db.TierLimits.Add(
-                    new TierLimit
+                    new()
                     {
                         TierId = tier.Id,
                         LimitKey = limitKey,

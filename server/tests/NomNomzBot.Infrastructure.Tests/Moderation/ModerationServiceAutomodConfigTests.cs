@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -38,7 +37,7 @@ public sealed class ModerationServiceAutomodConfigTests
         new(
             db,
             Substitute.For<ITwitchModerationApi>(), // never touched by the read path
-            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            Substitute.For<IChannelRegistry>(),
             TimeProvider.System,
             NullLogger<ModerationService>.Instance,
             Substitute.For<IEventBus>() // never touched by the read path

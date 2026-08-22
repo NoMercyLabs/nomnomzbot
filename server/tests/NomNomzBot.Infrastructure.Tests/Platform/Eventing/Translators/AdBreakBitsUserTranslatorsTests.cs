@@ -31,16 +31,16 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing.Translators;
 public sealed class AdBreakBitsUserTranslatorsTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static EventSubNotification Notification(Guid tenant, string type, string payload)
     {
         using JsonDocument doc = JsonDocument.Parse(payload);
-        return new EventSubNotification
+        return new()
         {
             MessageId = "msg-1",
-            MessageTimestamp = new DateTimeOffset(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
+            MessageTimestamp = new(2026, 6, 20, 11, 30, 0, TimeSpan.Zero),
             SubscriptionType = type,
             SubscriptionVersion = "1",
             BroadcasterId = tenant,
@@ -85,7 +85,7 @@ public sealed class AdBreakBitsUserTranslatorsTests
             .DurationSeconds.Should()
             .Be(180, "the break length is parsed from duration_seconds");
         published.IsAutomatic.Should().BeFalse("this break was started manually by a requester");
-        published.StartedAt.Should().Be(new DateTimeOffset(2026, 6, 20, 11, 29, 0, TimeSpan.Zero));
+        published.StartedAt.Should().Be(new(2026, 6, 20, 11, 29, 0, TimeSpan.Zero));
         published.RequesterUserId.Should().Be("req-1");
         published.RequesterDisplayName.Should().Be("Mod_User");
         published.OccurredAt.Should().Be(Clock.GetUtcNow());

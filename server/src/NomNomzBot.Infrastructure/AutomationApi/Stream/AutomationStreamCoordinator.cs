@@ -291,7 +291,7 @@ public sealed class AutomationStreamCoordinator
             && varsEl.ValueKind == JsonValueKind.Object
         )
         {
-            variables = new Dictionary<string, string>();
+            variables = new();
             foreach (JsonProperty property in varsEl.EnumerateObject())
                 variables[property.Name] = property.Value.ToString();
         }

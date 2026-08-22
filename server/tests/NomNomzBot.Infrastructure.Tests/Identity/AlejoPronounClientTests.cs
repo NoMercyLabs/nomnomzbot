@@ -37,8 +37,8 @@ public sealed class AlejoPronounClientTests
     private static AlejoPronounClient Client(StubHandler handler)
     {
         IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
-        factory.CreateClient(AlejoHttpClient.Name).Returns(_ => new HttpClient(handler));
-        return new AlejoPronounClient(factory, NullLogger<AlejoPronounClient>.Instance);
+        factory.CreateClient(AlejoHttpClient.Name).Returns(_ => new(handler));
+        return new(factory, NullLogger<AlejoPronounClient>.Instance);
     }
 
     // ── Mapping (the Parse contract, exercised through the real HTTP path) ────
@@ -47,7 +47,7 @@ public sealed class AlejoPronounClientTests
     public async Task Parses_the_keyed_payload_into_records()
     {
         IReadOnlyList<PronounRecord>? records = await Client(
-                new StubHandler(HttpStatusCode.OK, Payload)
+                new(HttpStatusCode.OK, Payload)
             )
             .FetchAsync();
 
@@ -87,7 +87,7 @@ public sealed class AlejoPronounClientTests
     public async Task Returns_null_on_a_non_success_status()
     {
         IReadOnlyList<PronounRecord>? records = await Client(
-                new StubHandler(HttpStatusCode.ServiceUnavailable, "nope")
+                new(HttpStatusCode.ServiceUnavailable, "nope")
             )
             .FetchAsync();
 

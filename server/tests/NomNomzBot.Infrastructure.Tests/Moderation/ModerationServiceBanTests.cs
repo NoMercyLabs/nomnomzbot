@@ -14,7 +14,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Moderation;
 using NSubstitute;
@@ -50,7 +49,7 @@ public sealed class ModerationServiceBanTests
         new(
             db,
             moderation,
-            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            Substitute.For<IChannelRegistry>(),
             TimeProvider.System,
             NullLogger<ModerationService>.Instance,
             Substitute.For<IEventBus>()
@@ -60,7 +59,7 @@ public sealed class ModerationServiceBanTests
     private static async Task SeedChannelAsync(ModerationServiceTestDbContext db)
     {
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Tenant,
                 TwitchChannelId = BroadcasterTwitchId,

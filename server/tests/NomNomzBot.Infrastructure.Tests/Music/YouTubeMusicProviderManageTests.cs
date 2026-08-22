@@ -14,7 +14,6 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Domain.Music.Interfaces;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Music;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -158,7 +157,7 @@ public sealed class YouTubeMusicProviderManageTests
         Result<MusicPlaylistDto> result = await api.CreatePlaylistAsync(
             ChannelId,
             "youtube",
-            new CreateMusicPlaylistDto
+            new()
             {
                 Name = "Stream Bangers",
                 Description = "Hype tracks",
@@ -200,7 +199,7 @@ public sealed class YouTubeMusicProviderManageTests
         Result<MusicPlaylistDto> result = await api.CreatePlaylistAsync(
             ChannelId,
             "youtube",
-            new CreateMusicPlaylistDto { Name = "Public", IsPublic = true }
+            new() { Name = "Public", IsPublic = true }
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -230,7 +229,7 @@ public sealed class YouTubeMusicProviderManageTests
             ChannelId,
             "youtube",
             "PL1",
-            new UpdateMusicPlaylistDto { Name = "Renamed" }
+            new() { Name = "Renamed" }
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -255,7 +254,7 @@ public sealed class YouTubeMusicProviderManageTests
             ChannelId,
             "youtube",
             "PL1",
-            new UpdateMusicPlaylistDto()
+            new()
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -276,7 +275,7 @@ public sealed class YouTubeMusicProviderManageTests
             ChannelId,
             "youtube",
             "PLmissing",
-            new UpdateMusicPlaylistDto { Name = "X" }
+            new() { Name = "X" }
         );
 
         result.ErrorCode.Should().Be("NOT_FOUND");
@@ -647,7 +646,7 @@ public sealed class YouTubeMusicProviderManageTests
         if (connectYouTube)
         {
             db.Services.Add(
-                new Service
+                new()
                 {
                     Id = Guid.NewGuid().ToString(),
                     Name = "youtube",

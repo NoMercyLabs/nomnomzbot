@@ -23,7 +23,6 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Obs.Dtos;
 using NomNomzBot.Application.Obs.Services;
-using NomNomzBot.Domain.Obs.Entities;
 using NomNomzBot.Infrastructure.Obs;
 using NomNomzBot.Infrastructure.Obs.Transport;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -55,7 +54,7 @@ public sealed class ObsRealSocketIntegrationTests
             .SendAsync(
                 Channel,
                 Guid.CreateVersion7(),
-                new ObsRequest(
+                new(
                     "SetCurrentProgramScene",
                     new Dictionary<string, object?> { ["sceneName"] = "Starting Soon" }
                 )
@@ -80,7 +79,7 @@ public sealed class ObsRealSocketIntegrationTests
     {
         ObsTestDbContext db = ObsTestDbContext.New();
         db.ObsConnections.Add(
-            new ObsConnection
+            new()
             {
                 BroadcasterId = Channel,
                 Mode = "direct",
@@ -110,7 +109,7 @@ public sealed class ObsRealSocketIntegrationTests
             .BuildServiceProvider()
             .GetRequiredService<IServiceScopeFactory>();
 
-        return new DirectObsTransport(
+        return new(
             new ClientObsSocketFactory(),
             scopeFactory,
             new RecordingEventBus(),
@@ -207,7 +206,7 @@ public sealed class ObsRealSocketIntegrationTests
                         JsonElement data = d.TryGetProperty("requestData", out JsonElement rd)
                             ? rd.Clone()
                             : default;
-                        _firstRequest.TrySetResult(new ObsWireRequest(requestType, data));
+                        _firstRequest.TrySetResult(new(requestType, data));
                         await SendJsonAsync(
                             ws,
                             $$"""

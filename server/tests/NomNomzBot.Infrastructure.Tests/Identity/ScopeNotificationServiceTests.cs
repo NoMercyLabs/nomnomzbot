@@ -18,7 +18,6 @@ using NomNomzBot.Application.DTOs.Twitch;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Identity;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
@@ -53,7 +52,7 @@ public sealed class ScopeNotificationServiceTests
         ScopeNotificationService service = new(
             db,
             provider,
-            new TwitchScopeRegistry(),
+            new(),
             TimeProvider.System,
             NullLogger<ScopeNotificationService>.Instance
         );
@@ -63,7 +62,7 @@ public sealed class ScopeNotificationServiceTests
     private static async Task SeedTwitchConnectionAsync(AuthDbContext db, params string[] scopes)
     {
         db.IntegrationConnections.Add(
-            new IntegrationConnection
+            new()
             {
                 BroadcasterId = Tenant,
                 Provider = AuthEnums.IntegrationProvider.Twitch,

@@ -53,7 +53,7 @@ public sealed class HypeTrainBroadcastHandlersTests
         DateTimeOffset expiresAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero);
 
         await handler.HandleAsync(
-            new HypeTrainBeganEvent
+            new()
             {
                 BroadcasterId = channel,
                 HypeTrainId = "ht-1",
@@ -98,7 +98,7 @@ public sealed class HypeTrainBroadcastHandlersTests
         DateTimeOffset expiresAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero);
 
         await handler.HandleAsync(
-            new HypeTrainProgressEvent
+            new()
             {
                 BroadcasterId = channel,
                 HypeTrainId = "ht-1",
@@ -138,7 +138,7 @@ public sealed class HypeTrainBroadcastHandlersTests
         DateTimeOffset endedAt = new(2026, 7, 1, 12, 10, 0, TimeSpan.Zero);
 
         await handler.HandleAsync(
-            new HypeTrainEndedEvent
+            new()
             {
                 BroadcasterId = channel,
                 HypeTrainId = "ht-1",
@@ -174,7 +174,7 @@ public sealed class HypeTrainBroadcastHandlersTests
         HypeTrainBeganBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new HypeTrainBeganEvent
+            new()
             {
                 BroadcasterId = Guid.Empty,
                 HypeTrainId = "ht-1",
@@ -214,7 +214,7 @@ public sealed class HypeTrainBroadcastHandlersTests
         HypeTrainBeganBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new HypeTrainBeganEvent
+            new()
             {
                 BroadcasterId = channel,
                 HypeTrainId = "ht-1",
@@ -269,7 +269,7 @@ public sealed class HypeTrainBroadcastHandlersTests
         HypeTrainBeganBroadcastHandler handler = new(notifier, db, widgets);
 
         await handler.HandleAsync(
-            new HypeTrainBeganEvent
+            new()
             {
                 BroadcasterId = channel,
                 HypeTrainId = "ht-1",

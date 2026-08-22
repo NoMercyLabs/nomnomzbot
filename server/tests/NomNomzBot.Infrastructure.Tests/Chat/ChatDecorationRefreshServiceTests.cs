@@ -101,7 +101,7 @@ public sealed class ChatDecorationRefreshServiceTests
         ) =>
             Task.FromResult(
                 Result.Success<IReadOnlyList<ChatEmote>>([
-                    new ChatEmote(
+                    new(
                         EmoteProvider.SevenTv,
                         $"e-{twitchBroadcasterId}",
                         "channelPog",

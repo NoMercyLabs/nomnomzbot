@@ -166,7 +166,7 @@ public sealed partial class PickListService : IPickListService
         }
         else
         {
-            list = new PickList
+            list = new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = broadcasterId,

@@ -13,7 +13,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
-using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -51,7 +50,7 @@ public sealed class ModerationAlertHandlersTests
         );
 
         await handler.HandleAsync(
-            new UserBannedEvent
+            new()
             {
                 BroadcasterId = Channel,
                 OccurredAt = DateTimeOffset.UtcNow,
@@ -91,7 +90,7 @@ public sealed class ModerationAlertHandlersTests
         );
 
         await handler.HandleAsync(
-            new UserTimedOutEvent
+            new()
             {
                 BroadcasterId = Channel,
                 OccurredAt = DateTimeOffset.UtcNow,
@@ -131,7 +130,7 @@ public sealed class ModerationAlertHandlersTests
         );
 
         await handler.HandleAsync(
-            new UserUnbannedEvent
+            new()
             {
                 BroadcasterId = Channel,
                 OccurredAt = DateTimeOffset.UtcNow,

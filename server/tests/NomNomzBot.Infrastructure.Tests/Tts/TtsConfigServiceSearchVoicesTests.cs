@@ -18,7 +18,6 @@ using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Tts.Interfaces;
 using NomNomzBot.Infrastructure.Tts;
 using NSubstitute;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Tts;
 
@@ -112,7 +111,7 @@ public sealed class TtsConfigServiceSearchVoicesTests
         TtsConfigService sut = Build(db);
 
         Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(
-            new TtsVoiceQuery(Q: "gaming")
+            new(Q: "gaming")
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -126,7 +125,7 @@ public sealed class TtsConfigServiceSearchVoicesTests
         TtsConfigService sut = Build(db);
 
         Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(
-            new TtsVoiceQuery(Q: "aria")
+            new(Q: "aria")
         );
 
         result
@@ -144,7 +143,7 @@ public sealed class TtsConfigServiceSearchVoicesTests
         TtsConfigService sut = Build(db);
 
         Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(
-            new TtsVoiceQuery(Locale: "en-US", Gender: "Male")
+            new(Locale: "en-US", Gender: "Male")
         );
 
         result.Value.Items.Should().ContainSingle().Which.Id.Should().Be("en-US-GuyNeural");
@@ -157,7 +156,7 @@ public sealed class TtsConfigServiceSearchVoicesTests
         TtsConfigService sut = Build(db);
 
         Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(
-            new TtsVoiceQuery(Accent: "british")
+            new(Accent: "british")
         );
 
         result.Value.Items.Should().ContainSingle().Which.Id.Should().Be("en-GB-SoniaNeural");
@@ -170,7 +169,7 @@ public sealed class TtsConfigServiceSearchVoicesTests
         TtsConfigService sut = Build(db);
 
         Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(
-            new TtsVoiceQuery(Provider: "elevenlabs")
+            new(Provider: "elevenlabs")
         );
 
         TtsVoiceDto voice = result.Value.Items.Should().ContainSingle().Subject;
@@ -188,7 +187,7 @@ public sealed class TtsConfigServiceSearchVoicesTests
         TtsConfigService sut = Build(db);
 
         Result<PagedList<TtsVoiceDto>> firstPage = await sut.SearchVoicesAsync(
-            new TtsVoiceQuery(Page: 1, PageSize: 2)
+            new(Page: 1, PageSize: 2)
         );
 
         firstPage.Value.TotalCount.Should().Be(5);
@@ -219,7 +218,7 @@ public sealed class TtsConfigServiceSearchVoicesTests
             );
         TtsConfigService sut = Build(db, ttsService);
 
-        Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(new TtsVoiceQuery());
+        Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(new());
 
         result.Value.Items.Should().ContainSingle().Which.Id.Should().Be("live-1");
     }

@@ -514,7 +514,7 @@ public sealed class ScriptHostBridge(
             .SetUserVoiceAsync(
                 broadcasterId,
                 platformUserId,
-                new SetUserVoiceDto { VoiceId = voiceId },
+                new() { VoiceId = voiceId },
                 ct
             )
             .GetAwaiter()
@@ -598,7 +598,7 @@ public sealed class ScriptHostBridge(
     private string? ResolveViewerPlatformId(string subject, CancellationToken ct)
     {
         User? viewer = ResolveViewerUser(subject, ct);
-        if (viewer?.TwitchUserId is string twitchId && !string.IsNullOrEmpty(twitchId))
+        if (viewer?.TwitchUserId is { } twitchId && !string.IsNullOrEmpty(twitchId))
             return twitchId;
         return !Guid.TryParse(subject, out _) && subject.All(char.IsAsciiDigit) ? subject : null;
     }
@@ -607,7 +607,7 @@ public sealed class ScriptHostBridge(
     private string ResolveVoiceDisplayName(string voiceId, CancellationToken ct)
     {
         Result<PagedList<TtsVoiceDto>> matches = ttsConfig
-            .SearchVoicesAsync(new TtsVoiceQuery(Q: voiceId, PageSize: 10), ct)
+            .SearchVoicesAsync(new(Q: voiceId, PageSize: 10), ct)
             .GetAwaiter()
             .GetResult();
         if (matches.IsFailure)
@@ -633,7 +633,7 @@ public sealed class ScriptHostBridge(
         for (int page = 1; page <= MaxLookupPages; page++)
         {
             Result<PagedList<WidgetDetail>> listed = widgetService
-                .ListAsync(broadcasterId.ToString(), new PaginationParams(page, 100), ct)
+                .ListAsync(broadcasterId.ToString(), new(page, 100), ct)
                 .GetAwaiter()
                 .GetResult();
             if (listed.IsFailure)
@@ -664,7 +664,7 @@ public sealed class ScriptHostBridge(
         for (int page = 1; page <= MaxLookupPages; page++)
         {
             Result<PagedList<RewardDetail>> listed = rewardService
-                .ListAsync(broadcasterId.ToString(), new PaginationParams(page, 100), ct)
+                .ListAsync(broadcasterId.ToString(), new(page, 100), ct)
                 .GetAwaiter()
                 .GetResult();
             if (listed.IsFailure)
@@ -723,7 +723,7 @@ public sealed class ScriptHostBridge(
             return null;
         }
 
-        return new UpdateRewardRequest
+        return new()
         {
             Title = patch.Value<string?>("title"),
             Cost = patch.Value<int?>("cost"),

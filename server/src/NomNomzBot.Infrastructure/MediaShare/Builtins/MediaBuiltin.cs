@@ -59,7 +59,7 @@ public sealed class MediaBuiltin : IBuiltinCommand
         Result<MediaShareRequestDto> result = await _media.SubmitAsync(
             context.BroadcasterId,
             viewerUserId,
-            new SubmitMediaRequest(url),
+            new(url),
             ct
         );
         if (result.IsFailure)

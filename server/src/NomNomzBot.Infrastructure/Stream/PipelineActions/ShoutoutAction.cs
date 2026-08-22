@@ -230,7 +230,7 @@ public sealed class ShoutoutAction : ICommandAction
         if (action.GetBool("tts", false) && channel is not null)
         {
             Result<TtsDispatchOutcome> speakResult = await _tts.RequestSpeakAsync(
-                new TtsSpeakRequest(
+                new(
                     BroadcasterId: ctx.BroadcasterId,
                     RequestedByUserId: channel.OwnerUserId,
                     RequestedByTwitchUserId: channel.TwitchChannelId ?? string.Empty,

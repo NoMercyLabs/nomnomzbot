@@ -24,7 +24,7 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore;
 public sealed class EventJournalServiceTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static AppendEventRequest Request(
@@ -41,14 +41,14 @@ public sealed class EventJournalServiceTests
             Source: "domain",
             PayloadJson: payload,
             MetadataJson: "{}",
-            OccurredAt: new DateTime(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc)
+            OccurredAt: new(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc)
         );
 
     private static EventJournalService NewJournal(EventStoreTestDbContext db)
     {
         EventStoreTestUnitOfWork uow = new(db);
         TenantSequenceAllocator allocator = new(db);
-        return new EventJournalService(
+        return new(
             db,
             allocator,
             uow,
@@ -132,7 +132,7 @@ public sealed class EventJournalServiceTests
         record.ActorProvider.Should().Be("twitch");
         record.PayloadIsEncrypted.Should().BeFalse();
         record.RecordedAt.Should().Be(Clock.GetUtcNow().UtcDateTime);
-        record.OccurredAt.Should().Be(new DateTime(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc));
+        record.OccurredAt.Should().Be(new(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc));
     }
 
     [Fact]

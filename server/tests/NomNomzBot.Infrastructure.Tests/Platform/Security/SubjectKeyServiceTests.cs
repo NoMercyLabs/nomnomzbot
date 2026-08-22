@@ -16,7 +16,6 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Models.Crypto;
 using NomNomzBot.Application.Services;
-using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Security;
@@ -493,7 +492,7 @@ public class SubjectKeyServiceTests
         ISubjectKeyService next = BuildOver(database);
         Result<string> opened = await next.UnprotectAsync(
             Guid.CreateVersion7(), // an id that was never minted
-            new CipherPayload(Convert.ToBase64String([1, 2, 3]), Convert.ToBase64String([4, 5, 6])),
+            new(Convert.ToBase64String([1, 2, 3]), Convert.ToBase64String([4, 5, 6])),
             Aad()
         );
 
@@ -548,7 +547,7 @@ public class SubjectKeyServiceTests
         (ISubjectKeyService service, _) = Build();
 
         (await service.GetOrCreatePlatformKeyAsync("")).ErrorCode.Should().Be("VALIDATION_FAILED");
-        (await service.GetOrCreatePlatformKeyAsync(new string('x', 65)))
+        (await service.GetOrCreatePlatformKeyAsync(new('x', 65)))
             .ErrorCode.Should()
             .Be("VALIDATION_FAILED", "the purpose occupies the string(64) SubjectIdHash slot");
     }
@@ -704,7 +703,7 @@ public class SubjectKeyServiceTests
         };
         db.CryptoKeys.Add(fkKey);
         db.Users.Add(
-            new User
+            new()
             {
                 Id = subjectUserId,
                 TwitchUserId = "tw-resolve",
@@ -727,7 +726,7 @@ public class SubjectKeyServiceTests
         };
         db.CryptoKeys.Add(eventKey);
         db.EventSubjectKeys.Add(
-            new EventSubjectKey
+            new()
             {
                 EventId = Guid.CreateVersion7(),
                 SubjectIdHash = subjectIdHash,

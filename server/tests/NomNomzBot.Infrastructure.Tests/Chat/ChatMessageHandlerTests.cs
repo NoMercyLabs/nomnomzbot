@@ -97,7 +97,7 @@ public sealed class ChatMessageHandlerTests
         // builtin catalog — the per-channel toggle must be honored there too, not just on the "unknown
         // command" path.
         ChannelContext ctx = NewChannelContext();
-        ctx.Commands[BuiltinKey] = new CachedCommand
+        ctx.Commands[BuiltinKey] = new()
         {
             Name = BuiltinKey,
             TemplateResponses = [],
@@ -171,7 +171,7 @@ public sealed class ChatMessageHandlerTests
 
         (ChatMessageHandler sut, _, IEventBus bus) = BuildWithGames(
             ctx,
-            new LiveGameSessionRegistry()
+            new()
         );
 
         await sut.HandleAsync(MessageEvent("?hello"), CancellationToken.None);
@@ -196,7 +196,7 @@ public sealed class ChatMessageHandlerTests
 
         (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(
             ctx,
-            new LiveGameSessionRegistry()
+            new()
         );
 
         await sut.HandleAsync(MessageEvent("!hello"), CancellationToken.None);
@@ -258,7 +258,7 @@ public sealed class ChatMessageHandlerTests
         // the effective role — a badge-less viewer holding an Editor grant would otherwise fail
         // conditions the command gate itself honors.
         ChannelContext ctx = NewChannelContext();
-        ctx.Commands["staffonly"] = new CachedCommand
+        ctx.Commands["staffonly"] = new()
         {
             Name = "staffonly",
             TemplateResponses = [],
@@ -298,8 +298,8 @@ public sealed class ChatMessageHandlerTests
                     )
                 )
             );
-        NomNomzBot.Application.Contracts.Authorization.IRoleResolver resolver =
-            Substitute.For<NomNomzBot.Application.Contracts.Authorization.IRoleResolver>();
+        Application.Contracts.Authorization.IRoleResolver resolver =
+            Substitute.For<Application.Contracts.Authorization.IRoleResolver>();
         resolver
             .ResolveEffectiveLevelAsync(viewerUser, Broadcaster, Arg.Any<CancellationToken>())
             .Returns(Result.Success(30)); // Editor
@@ -331,7 +331,7 @@ public sealed class ChatMessageHandlerTests
             Substitute.For<IBuiltinCommandCatalog>(),
             Substitute.For<ITemplateResolver>(),
             Substitute.For<IEventBus>(),
-            new LiveGameSessionRegistry(),
+            new(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );
@@ -351,7 +351,7 @@ public sealed class ChatMessageHandlerTests
         // The handler resolves the channel's tone + the per-command OverridesJson template (both cached on
         // ChannelContext) and hands them to the builtin — the seam the whole tone system hangs off.
         ChannelContext ctx = NewChannelContext();
-        ctx.Personality = NomNomzBot.Domain.Identity.Enums.PersonalityTone.Sassy;
+        ctx.Personality = PersonalityTone.Sassy;
         ctx.BuiltinResponseOverrides[BuiltinKey] = "OVERRIDE {uptime}";
 
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
@@ -370,7 +370,7 @@ public sealed class ChatMessageHandlerTests
             builtins,
             Substitute.For<ITemplateResolver>(),
             Substitute.For<IEventBus>(),
-            new LiveGameSessionRegistry(),
+            new(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );
@@ -380,7 +380,7 @@ public sealed class ChatMessageHandlerTests
         builtin.Captured.Should().NotBeNull();
         builtin
             .Captured!.Personality.Should()
-            .Be(NomNomzBot.Domain.Identity.Enums.PersonalityTone.Sassy);
+            .Be(PersonalityTone.Sassy);
         builtin.Captured!.CustomResponseTemplate.Should().Be("OVERRIDE {uptime}");
     }
 
@@ -406,7 +406,7 @@ public sealed class ChatMessageHandlerTests
             builtins,
             Substitute.For<ITemplateResolver>(),
             Substitute.For<IEventBus>(),
-            new LiveGameSessionRegistry(),
+            new(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );
@@ -416,7 +416,7 @@ public sealed class ChatMessageHandlerTests
         builtin.Captured.Should().NotBeNull();
         builtin
             .Captured!.Personality.Should()
-            .Be(NomNomzBot.Domain.Identity.Enums.PersonalityTone.Informative);
+            .Be(PersonalityTone.Informative);
         builtin.Captured!.CustomResponseTemplate.Should().BeNull();
     }
 
@@ -530,7 +530,7 @@ public sealed class ChatMessageHandlerTests
             Substitute.For<IBuiltinCommandCatalog>(),
             Substitute.For<ITemplateResolver>(),
             Substitute.For<IEventBus>(),
-            new LiveGameSessionRegistry(),
+            new(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );
@@ -661,13 +661,13 @@ public sealed class ChatMessageHandlerTests
             BroadcasterId = Broadcaster,
             Game = new HeistGame(),
             GameConfigId = Guid.CreateVersion7(),
-            Config = new GameConfigView(null, null, null, null),
+            Config = new(null, null, null, null),
             JoinClosesAt = DateTime.UtcNow.AddSeconds(60),
             Phase = LiveGamePhase.Lobby,
         };
 
     private static void AddTemplateCommand(ChannelContext ctx, string name, string response) =>
-        ctx.Commands[name] = new CachedCommand
+        ctx.Commands[name] = new()
         {
             Name = name,
             TemplateResponses = [response],
@@ -749,7 +749,7 @@ public sealed class ChatMessageHandlerTests
             builtins,
             Substitute.For<ITemplateResolver>(),
             bus,
-            new LiveGameSessionRegistry(),
+            new(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );

@@ -71,14 +71,14 @@ public sealed class WasmtimeScriptExecutorTests
             "exec-1",
             "bot.send('hi');",
             "hash",
-            new ScriptInputs("u1", "User", [], new Dictionary<string, string>()),
+            new("u1", "User", [], new Dictionary<string, string>()),
             ScriptResourceBudget.Baseline
         );
 
         ScriptExecutionOutcomeResult result = (
             await sut.ExecuteAsync(
                 request,
-                new ScriptCapabilityGrant(Guid.NewGuid(), []),
+                new(Guid.NewGuid(), []),
                 Substitute.For<IScriptHostBridge>()
             )
         ).Value;

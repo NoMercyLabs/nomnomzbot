@@ -51,9 +51,9 @@ public sealed class StartRaidActionTests
         {
             ["target"] = JsonSerializer.SerializeToElement(target),
         };
-        if (delaySeconds is int delay)
+        if (delaySeconds is { } delay)
             parameters["delay_seconds"] = JsonSerializer.SerializeToElement(delay);
-        return new ActionDefinition { Type = "start_raid", Parameters = parameters };
+        return new() { Type = "start_raid", Parameters = parameters };
     }
 
     private static TwitchUser User(string id, string login) =>
@@ -78,7 +78,7 @@ public sealed class StartRaidActionTests
             .Returns(Result.Success(new TwitchRaid(DateTimeOffset.UnixEpoch, false)));
         ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
         return (
-            new StartRaidAction(raids, users, NullLogger<StartRaidAction>.Instance),
+            new(raids, users, NullLogger<StartRaidAction>.Instance),
             raids,
             users
         );

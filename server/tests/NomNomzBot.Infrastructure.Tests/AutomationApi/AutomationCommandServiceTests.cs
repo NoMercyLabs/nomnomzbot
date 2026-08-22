@@ -20,13 +20,10 @@ using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
-using NomNomzBot.Domain.Commands.Entities;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.AutomationApi;
 using NSubstitute;
 using MusicPlaylistDto = NomNomzBot.Application.Music.Services.MusicPlaylistDto;
-using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Tests.AutomationApi;
 
@@ -95,7 +92,7 @@ public sealed class AutomationCommandServiceTests
             )
             .Returns(
                 rateLimited
-                    ? new RateLimitLease(false, 0, TimeSpan.FromSeconds(17))
+                    ? new(false, 0, TimeSpan.FromSeconds(17))
                     : new RateLimitLease(true, 10, TimeSpan.Zero)
             );
 
@@ -136,7 +133,7 @@ public sealed class AutomationCommandServiceTests
             TimeProvider.System,
             NullLogger<AutomationCommandService>.Instance
         );
-        return new Harness
+        return new()
         {
             Service = service,
             Db = db,
@@ -160,7 +157,7 @@ public sealed class AutomationCommandServiceTests
     private static void SeedPipeline(AutomationTestDbContext db, bool enabled = true)
     {
         db.Pipelines.Add(
-            new PipelineEntity
+            new()
             {
                 Id = PipelineId,
                 BroadcasterId = Channel,
@@ -179,7 +176,7 @@ public sealed class AutomationCommandServiceTests
 
         Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
             Principal(),
-            new AutomationInvokeRequest { PipelineId = PipelineId, Args = ["boom", "big"] }
+            new() { PipelineId = PipelineId, Args = ["boom", "big"] }
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -205,14 +202,14 @@ public sealed class AutomationCommandServiceTests
 
         Result<AutomationInvokeResult> noScope = await h.Service.InvokePipelineAsync(
             Principal(scopes: ["read"]),
-            new AutomationInvokeRequest { PipelineId = PipelineId }
+            new() { PipelineId = PipelineId }
         );
         noScope.IsFailure.Should().BeTrue();
         noScope.ErrorCode.Should().Be("FORBIDDEN");
 
         Result<AutomationInvokeResult> offList = await h.Service.InvokePipelineAsync(
             Principal(allowlist: [Guid.NewGuid()]),
-            new AutomationInvokeRequest { PipelineId = PipelineId }
+            new() { PipelineId = PipelineId }
         );
         offList.IsFailure.Should().BeTrue();
         offList.ErrorCode.Should().Be("FORBIDDEN");
@@ -231,7 +228,7 @@ public sealed class AutomationCommandServiceTests
 
         Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
             Principal(),
-            new AutomationInvokeRequest { PipelineId = PipelineId }
+            new() { PipelineId = PipelineId }
         );
 
         result.IsFailure.Should().BeTrue();
@@ -249,7 +246,7 @@ public sealed class AutomationCommandServiceTests
 
         Result message = await h.Service.SendChatAsync(
             Principal(),
-            new AutomationChatRequest { Text = "hello chat" }
+            new() { Text = "hello chat" }
         );
         message.IsSuccess.Should().BeTrue(message.ErrorMessage);
         await h
@@ -258,7 +255,7 @@ public sealed class AutomationCommandServiceTests
 
         Result whisper = await h.Service.SendChatAsync(
             Principal(),
-            new AutomationChatRequest { Text = "psst", WhisperToTwitchUserId = "viewer-9" }
+            new() { Text = "psst", WhisperToTwitchUserId = "viewer-9" }
         );
         whisper.IsSuccess.Should().BeTrue(whisper.ErrorMessage);
         await h
@@ -267,7 +264,7 @@ public sealed class AutomationCommandServiceTests
 
         Result noScope = await h.Service.SendChatAsync(
             Principal(scopes: ["read"]),
-            new AutomationChatRequest { Text = "nope" }
+            new() { Text = "nope" }
         );
         noScope.IsFailure.Should().BeTrue();
         noScope.ErrorCode.Should().Be("FORBIDDEN");
@@ -282,7 +279,7 @@ public sealed class AutomationCommandServiceTests
         Harness h = Build();
         SeedPipeline(h.Db);
         h.Db.Pipelines.Add(
-            new PipelineEntity
+            new()
             {
                 Id = Guid.NewGuid(),
                 BroadcasterId = Channel,
@@ -291,7 +288,7 @@ public sealed class AutomationCommandServiceTests
             }
         );
         h.Db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Channel,
                 OwnerUserId = Guid.NewGuid(),
@@ -400,7 +397,7 @@ public sealed class AutomationCommandServiceTests
         h.Music.GetDevicesAsync(Channel.ToString(), Arg.Any<CancellationToken>())
             .Returns(
                 (IReadOnlyList<MusicDeviceDto>)
-                    [new MusicDeviceDto("dev-1", "Laptop", "Computer", true, 80)]
+                    [new("dev-1", "Laptop", "Computer", true, 80)]
             );
 
         Result<IReadOnlyList<AutomationDeviceDto>> result = await h.Service.GetDevicesAsync(
@@ -422,7 +419,7 @@ public sealed class AutomationCommandServiceTests
         SeedPipeline(h.Db);
         Guid tokenId = Guid.NewGuid();
         h.Db.PipelineSteps.Add(
-            new PipelineStep
+            new()
             {
                 Id = Guid.NewGuid(),
                 PipelineId = PipelineId,
@@ -432,7 +429,7 @@ public sealed class AutomationCommandServiceTests
             }
         );
         h.Db.AutomationApiTokens.Add(
-            new NomNomzBot.Domain.Automation.Entities.AutomationApiToken
+            new()
             {
                 Id = tokenId,
                 BroadcasterId = Channel,
@@ -453,8 +450,8 @@ public sealed class AutomationCommandServiceTests
             .Returns(Result.Success(false));
 
         Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
-            new AutomationPrincipal(Channel, tokenId, "deck-token", ["invoke"], null),
-            new AutomationInvokeRequest { PipelineId = PipelineId }
+            new(Channel, tokenId, "deck-token", ["invoke"], null),
+            new() { PipelineId = PipelineId }
         );
 
         result.IsFailure.Should().BeTrue();
@@ -476,7 +473,7 @@ public sealed class AutomationCommandServiceTests
 
         Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
             Principal(),
-            new AutomationInvokeRequest { PipelineId = PipelineId }
+            new() { PipelineId = PipelineId }
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -489,7 +486,7 @@ public sealed class AutomationCommandServiceTests
         h.Music.GetPlaylistsAsync(Channel.ToString(), 0, 20, Arg.Any<CancellationToken>())
             .Returns(
                 (IReadOnlyList<MusicPlaylistDto>)
-                    [new MusicPlaylistDto("pl-1", "Chill", "spotify:playlist:pl-1", 12, null)]
+                    [new("pl-1", "Chill", "spotify:playlist:pl-1", 12, null)]
             );
 
         Result<IReadOnlyList<AutomationPlaylistDto>> result = await h.Service.GetPlaylistsAsync(

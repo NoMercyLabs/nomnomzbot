@@ -30,20 +30,20 @@ public sealed class ChatCheermoteResolverTests
             minBits,
             minBits.ToString(),
             color,
-            new TwitchCheermoteImages(
-                new TwitchCheermoteImageFormats(
-                    new TwitchCheermoteImageScales(
+            new(
+                new(
+                    new(
                         new Dictionary<string, string> { ["1"] = $"{baseUrl}/light-anim" }
                     ),
-                    new TwitchCheermoteImageScales(
+                    new(
                         new Dictionary<string, string> { ["1"] = $"{baseUrl}/light-static" }
                     )
                 ),
-                new TwitchCheermoteImageFormats(
-                    new TwitchCheermoteImageScales(
+                new(
+                    new(
                         new Dictionary<string, string> { ["1"] = $"{baseUrl}/dark-anim" }
                     ),
-                    new TwitchCheermoteImageScales(
+                    new(
                         new Dictionary<string, string> { ["1"] = $"{baseUrl}/dark-static" }
                     )
                 )
@@ -64,7 +64,7 @@ public sealed class ChatCheermoteResolverTests
             ChatCheermoteCacheKeys.Channel(Broadcaster),
             cheermotes
         );
-        return new ChatCheermoteResolver(cache);
+        return new(cache);
     }
 
     [Fact]

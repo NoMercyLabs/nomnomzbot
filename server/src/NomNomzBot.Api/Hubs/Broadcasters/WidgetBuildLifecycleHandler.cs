@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Events;
 
@@ -41,7 +40,7 @@ public sealed class WidgetBuildLifecycleHandler(IWidgetNotifier notifier)
         notifier.SendCompileFailedAsync(
             @event.BroadcasterId.ToString(),
             @event.WidgetId.ToString(),
-            new WidgetCompileFailedDto(
+            new(
                 @event.WidgetId.ToString(),
                 @event.VersionNumber,
                 @event.BuildError

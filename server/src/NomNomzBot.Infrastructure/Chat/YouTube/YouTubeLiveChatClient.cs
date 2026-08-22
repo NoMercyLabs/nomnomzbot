@@ -74,7 +74,7 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
             return Result.Success<YouTubeActiveChat?>(null);
 
         return Result.Success<YouTubeActiveChat?>(
-            new YouTubeActiveChat(broadcast.Id ?? string.Empty, liveChatId, broadcast.Snippet.Title)
+            new(broadcast.Id ?? string.Empty, liveChatId, broadcast.Snippet.Title)
         );
     }
 
@@ -211,7 +211,7 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
         HttpRequestMessage request = new(HttpMethod.Post, url);
         request.Headers.Authorization = new("Bearer", accessToken);
         request.Content = JsonContent.Create(
-            durationSeconds is int seconds
+            durationSeconds is { } seconds
                 ? new
                 {
                     snippet = new

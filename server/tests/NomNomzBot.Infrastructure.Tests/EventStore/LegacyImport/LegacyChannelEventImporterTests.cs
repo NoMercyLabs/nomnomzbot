@@ -27,7 +27,7 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore.LegacyImport;
 public sealed class LegacyChannelEventImporterTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
     );
     private static readonly Guid Tenant = Guid.Parse("0192a000-0000-7000-8000-00000000bb01");
 
@@ -47,7 +47,7 @@ public sealed class LegacyChannelEventImporterTests
             UserId: "42660213",
             Type: type,
             Data: data,
-            CreatedAt: new DateTime(2025, 8, 14, 17, 0, 0, DateTimeKind.Utc)
+            CreatedAt: new(2025, 8, 14, 17, 0, 0, DateTimeKind.Utc)
         );
 
     private static IReadOnlyList<LegacyChannelEventRow> Spread() =>
@@ -79,7 +79,7 @@ public sealed class LegacyChannelEventImporterTests
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         await using EventStoreTestDbContext db = database.NewContext();
         EventJournalService journal = NewJournal(db);
-        LegacyChannelEventImporter importer = new(journal, new LegacyChannelEventMapper());
+        LegacyChannelEventImporter importer = new(journal, new());
 
         Result<LegacyImportSummary> result = await importer.ImportAsync(
             Tenant,
@@ -115,7 +115,7 @@ public sealed class LegacyChannelEventImporterTests
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         await using EventStoreTestDbContext db = database.NewContext();
         EventJournalService journal = NewJournal(db);
-        LegacyChannelEventImporter importer = new(journal, new LegacyChannelEventMapper());
+        LegacyChannelEventImporter importer = new(journal, new());
 
         await importer.ImportAsync(Tenant, new InMemorySource(Spread()));
         Result<LegacyImportSummary> second = await importer.ImportAsync(

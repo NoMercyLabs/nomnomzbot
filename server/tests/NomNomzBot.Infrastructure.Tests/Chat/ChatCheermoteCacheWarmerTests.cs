@@ -40,7 +40,7 @@ public sealed class ChatCheermoteCacheWarmerTests
             .Returns(Task.FromResult(result));
         ITwitchHelixClient helix = Substitute.For<ITwitchHelixClient>();
         helix.Bits.Returns(bits);
-        return new ChatCheermoteCacheWarmer(
+        return new(
             helix,
             cache,
             NullLogger<ChatCheermoteCacheWarmer>.Instance

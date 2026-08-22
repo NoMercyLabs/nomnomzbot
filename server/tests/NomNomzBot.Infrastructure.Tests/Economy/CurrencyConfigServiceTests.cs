@@ -34,7 +34,7 @@ public sealed class CurrencyConfigServiceTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         RecordingEventBus bus = new();
-        return (new CurrencyConfigService(db, new FakeTimeProvider(Now), bus), db, bus);
+        return (new(db, new FakeTimeProvider(Now), bus), db, bus);
     }
 
     private static UpsertCurrencyConfigRequest Config(
@@ -102,11 +102,11 @@ public sealed class CurrencyConfigServiceTests
 
         Result<EarningRuleDto> created = await sut.UpsertEarningRuleAsync(
             Channel,
-            new UpsertEarningRuleRequest("ChatMessage", false, 5, 60, 100, 1000, null, null)
+            new("ChatMessage", false, 5, 60, 100, 1000, null, null)
         );
         await sut.UpsertEarningRuleAsync(
             Channel,
-            new UpsertEarningRuleRequest("ChatMessage", true, 10, 60, 100, 1000, null, null)
+            new("ChatMessage", true, 10, 60, 100, 1000, null, null)
         );
 
         created.Value.IsEnabled.Should().BeFalse(); // opt-in
@@ -129,7 +129,7 @@ public sealed class CurrencyConfigServiceTests
 
         Result<EarningRuleDto> result = await sut.UpsertEarningRuleAsync(
             Channel,
-            new UpsertEarningRuleRequest("NotASource", true, 5, null, null, null, null, null)
+            new("NotASource", true, 5, null, null, null, null, null)
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
@@ -142,7 +142,7 @@ public sealed class CurrencyConfigServiceTests
         (CurrencyConfigService sut, _, RecordingEventBus bus) = Build();
         Result<EarningRuleDto> rule = await sut.UpsertEarningRuleAsync(
             Channel,
-            new UpsertEarningRuleRequest("Cheer", true, 5, null, null, null, null, null)
+            new("Cheer", true, 5, null, null, null, null, null)
         );
         bus.Published.Clear();
 

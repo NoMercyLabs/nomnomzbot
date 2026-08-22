@@ -130,7 +130,7 @@ public class DashboardHub : Hub<IDashboardClient>
 
         ConcurrentDictionary<string, IReadOnlyList<string>> channels = _connectionChannels.GetOrAdd(
             Context.ConnectionId,
-            static _ => new ConcurrentDictionary<string, IReadOnlyList<string>>()
+            static _ => new()
         );
 
         // A re-join replaces the channel's class set — drop groups no longer wanted before adding.
@@ -264,7 +264,7 @@ public class DashboardHub : Hub<IDashboardClient>
             }
 
             return sent
-                ? new SendMessageResponse(true, null, null)
+                ? new(true, null, null)
                 : new SendMessageResponse(
                     false,
                     error ?? "The message could not be sent to Twitch.",

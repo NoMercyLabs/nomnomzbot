@@ -18,7 +18,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Events;
-using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -130,7 +129,7 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         {
             if (!_states.TryGetValue(broadcasterId, out PollState? state))
             {
-                state = new PollState();
+                state = new();
                 _states[broadcasterId] = state;
             }
 
@@ -388,7 +387,7 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
                     Message = message.DisplayText,
                     Fragments =
                     [
-                        new ChatMessageFragment { Type = "text", Text = message.DisplayText },
+                        new() { Type = "text", Text = message.DisplayText },
                     ],
                     Badges = [],
                     IsSubscriber = message.IsMember,

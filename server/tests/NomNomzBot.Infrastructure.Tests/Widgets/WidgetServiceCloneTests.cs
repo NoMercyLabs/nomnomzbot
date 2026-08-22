@@ -17,7 +17,6 @@ using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Content.Widgets;
@@ -35,7 +34,7 @@ namespace NomNomzBot.Infrastructure.Tests.Widgets;
 public sealed class WidgetServiceCloneTests
 {
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
     );
     private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
 
@@ -45,7 +44,7 @@ public sealed class WidgetServiceCloneTests
         build
             .BuildAsync(Arg.Any<WidgetBuildInput>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new WidgetBuildOutput("BUNDLE", "hash", "")));
-        return new WidgetService(
+        return new(
             db,
             EmptyConfig,
             Substitute.For<IEventBus>(),
@@ -61,7 +60,7 @@ public sealed class WidgetServiceCloneTests
     {
         await using WidgetTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -82,7 +81,7 @@ public sealed class WidgetServiceCloneTests
     {
         await using WidgetTestDbContext db = database.NewContext();
         db.Widgets.Add(
-            new Widget
+            new()
             {
                 Id = widgetId,
                 BroadcasterId = channelId,
@@ -109,7 +108,7 @@ public sealed class WidgetServiceCloneTests
             .CompileAsync(
                 channelId.ToString(),
                 widgetId.ToString(),
-                new CompileWidgetRequest { SourceCode = source }
+                new() { SourceCode = source }
             );
         r.IsSuccess.Should().BeTrue(r.ErrorMessage);
     }
@@ -130,7 +129,7 @@ public sealed class WidgetServiceCloneTests
             Result<WidgetDetail> result = await NewService(db)
                 .CloneToEditAsync(
                     channel.ToString(),
-                    new CloneWidgetRequest { InstalledWidgetId = widget }
+                    new() { InstalledWidgetId = widget }
                 );
             result.IsSuccess.Should().BeTrue(result.ErrorMessage);
             clone = result.Value;
@@ -169,7 +168,7 @@ public sealed class WidgetServiceCloneTests
         Result<WidgetDetail> result = await NewService(db)
             .CloneToEditAsync(
                 channel.ToString(),
-                new CloneWidgetRequest
+                new()
                 {
                     GalleryItemId = gallery ? Guid.CreateVersion7() : null,
                     InstalledWidgetId = installed ? Guid.CreateVersion7() : null,
@@ -189,7 +188,7 @@ public sealed class WidgetServiceCloneTests
         Guid id = Guid.CreateVersion7();
         await using WidgetTestDbContext db = database.NewContext();
         db.WidgetGalleryItems.Add(
-            new WidgetGalleryItem
+            new()
             {
                 Id = id,
                 Name = "Alerts",
@@ -202,7 +201,7 @@ public sealed class WidgetServiceCloneTests
                 ReviewStatus = reviewStatus,
                 AvailableInSaaS = true,
                 DefaultEventSubscriptions = ["follow", "cheer"],
-                DefaultSettings = new Dictionary<string, object> { ["durationMs"] = 6000 },
+                DefaultSettings = new() { ["durationMs"] = 6000 },
             }
         );
         await db.SaveChangesAsync();
@@ -223,7 +222,7 @@ public sealed class WidgetServiceCloneTests
             Result<WidgetDetail> result = await NewService(db)
                 .CloneToEditAsync(
                     channel.ToString(),
-                    new CloneWidgetRequest { GalleryItemId = galleryItem }
+                    new() { GalleryItemId = galleryItem }
                 );
             result.IsSuccess.Should().BeTrue(result.ErrorMessage);
             clone = result.Value;
@@ -314,7 +313,7 @@ public sealed class WidgetServiceCloneTests
         Result<WidgetDetail> result = await NewService(db)
             .CloneToEditAsync(
                 channel.ToString(),
-                new CloneWidgetRequest { InstalledWidgetId = widget }
+                new() { InstalledWidgetId = widget }
             );
 
         result.IsFailure.Should().BeTrue();
@@ -334,7 +333,7 @@ public sealed class WidgetServiceCloneTests
         await using (WidgetTestDbContext seed = database.NewContext())
         {
             seed.Channels.Add(
-                new Channel
+                new()
                 {
                     Id = otherChannel,
                     OwnerUserId = Guid.CreateVersion7(),
@@ -351,7 +350,7 @@ public sealed class WidgetServiceCloneTests
         Result<WidgetDetail> result = await NewService(db)
             .CloneToEditAsync(
                 otherChannel.ToString(),
-                new CloneWidgetRequest { InstalledWidgetId = widget }
+                new() { InstalledWidgetId = widget }
             );
 
         result.IsFailure.Should().BeTrue();

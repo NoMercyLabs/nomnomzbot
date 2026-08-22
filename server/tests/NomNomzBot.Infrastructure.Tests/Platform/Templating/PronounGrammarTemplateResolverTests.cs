@@ -108,7 +108,7 @@ public sealed class PronounGrammarTemplateResolverTests
         services.AddSingleton<IApplicationDbContext>(_db);
         ServiceProvider provider = services.BuildServiceProvider();
 
-        _resolver = new TemplateResolver(
+        _resolver = new(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<TemplateResolver>.Instance,

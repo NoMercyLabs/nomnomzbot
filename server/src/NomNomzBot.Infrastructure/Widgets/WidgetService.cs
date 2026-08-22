@@ -162,7 +162,7 @@ public class WidgetService : IWidgetService
             forkDescription = item.Description;
             forkFramework = item.Framework;
             forkSubscriptions = [.. item.DefaultEventSubscriptions];
-            forkSettings = new Dictionary<string, object>(item.DefaultSettings);
+            forkSettings = new(item.DefaultSettings);
             forkSource = item.SourceCode;
         }
         else
@@ -189,7 +189,7 @@ public class WidgetService : IWidgetService
             forkDescription = source.Description;
             forkFramework = source.Framework;
             forkSubscriptions = [.. source.EventSubscriptions];
-            forkSettings = new Dictionary<string, object>(source.Settings);
+            forkSettings = new(source.Settings);
             forkSource = latest.SourceCode;
         }
 
@@ -216,7 +216,7 @@ public class WidgetService : IWidgetService
         Result<WidgetVersionDetail> compiled = await CompileAsync(
             broadcasterId,
             clone.Id.ToString(),
-            new CompileWidgetRequest { SourceCode = forkSource },
+            new() { SourceCode = forkSource },
             cancellationToken
         );
         if (compiled.IsFailure)
@@ -280,7 +280,7 @@ public class WidgetService : IWidgetService
             GalleryItemId = item.Id,
             IsEnabled = true,
             EventSubscriptions = [.. item.DefaultEventSubscriptions],
-            Settings = new Dictionary<string, object>(item.DefaultSettings),
+            Settings = new(item.DefaultSettings),
         };
         _db.Widgets.Add(widget);
         await _db.SaveChangesAsync(cancellationToken);
@@ -290,7 +290,7 @@ public class WidgetService : IWidgetService
         Result<WidgetVersionDetail> compiled = await CompileAsync(
             broadcasterId,
             widget.Id.ToString(),
-            new CompileWidgetRequest { SourceCode = item.SourceCode },
+            new() { SourceCode = item.SourceCode },
             cancellationToken
         );
         if (compiled.IsFailure)
@@ -481,7 +481,7 @@ public class WidgetService : IWidgetService
         // A first-party widget is installed from a gallery item whose NaturalKey IS its widget key (alerts,
         // chat_box, …); that key selects the authored schema. A self-authored `custom` widget carries no gallery
         // link (and no first-party key), so it has no typed schema — it is configured through the code editor.
-        string? naturalKey = widget.GalleryItemId is Guid galleryItemId
+        string? naturalKey = widget.GalleryItemId is { } galleryItemId
             ? await _db
                 .WidgetGalleryItems.Where(item => item.Id == galleryItemId)
                 .Select(item => item.NaturalKey)
@@ -556,7 +556,7 @@ public class WidgetService : IWidgetService
         _db.WidgetVersions.Add(version);
 
         Result<WidgetBuildOutput> build = await _buildService.BuildAsync(
-            new WidgetBuildInput(manifest, files),
+            new(manifest, files),
             cancellationToken
         );
 
@@ -666,7 +666,7 @@ public class WidgetService : IWidgetService
         // AND the bundler — one call covers validation + compile. A failure means NOTHING is persisted (append-only
         // history stays a record of real saves, not rejected attempts), and the reason is surfaced to the editor.
         Result<WidgetBuildOutput> build = await _buildService.BuildAsync(
-            new WidgetBuildInput(manifest, project.Files),
+            new(manifest, project.Files),
             cancellationToken
         );
         if (build.IsFailure)
@@ -916,7 +916,7 @@ public class WidgetService : IWidgetService
                 continue;
 
             entries.Add(
-                new OverlayWidgetEntry(
+                new(
                     widget.Id,
                     widget.Name,
                     widget.Framework,
@@ -976,7 +976,7 @@ public class WidgetService : IWidgetService
             return Result.Success<OverlayNowPlayingSnapshot?>(null);
 
         return Result.Success<OverlayNowPlayingSnapshot?>(
-            new OverlayNowPlayingSnapshot(
+            new(
                 nowPlaying.IsPlaying,
                 nowPlaying.TrackName,
                 nowPlaying.Artist,
@@ -1128,7 +1128,7 @@ public class WidgetService : IWidgetService
                 version.SourceCode ?? string.Empty
             );
 
-        return new ProjectDto(files, ProjectManifestDto.FromManifest(manifest));
+        return new(files, ProjectManifestDto.FromManifest(manifest));
     }
 
     // A project save either persists a successful version or returns a failure — there is no `error` row. Translate

@@ -11,8 +11,6 @@
 using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
-using NomNomzBot.Domain.Discord.Entities;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Discord;
 
 namespace NomNomzBot.Infrastructure.Tests.Discord;
@@ -32,7 +30,7 @@ public sealed class DiscordGuildDirectoryServiceTests
         RecordingGateway gateway = new()
         {
             NextGuildRolesResult = Result.Success<IReadOnlyList<DiscordGuildRoleDto>>([
-                new DiscordGuildRoleDto("role-1", "Notify Squad", 0xFF00FF, 3, false),
+                new("role-1", "Notify Squad", 0xFF00FF, 3, false),
             ]),
         };
 
@@ -62,7 +60,7 @@ public sealed class DiscordGuildDirectoryServiceTests
                 new DiscordGuildInfoDto("guild-777", "The Guild", "iconhash", "About us")
             ),
             NextGuildChannelsResult = Result.Success<IReadOnlyList<DiscordGuildChannelDto>>([
-                new DiscordGuildChannelDto("chan-1", "general", 0, "cat-1", 2),
+                new("chan-1", "general", 0, "cat-1", 2),
             ]),
         };
 
@@ -123,7 +121,7 @@ public sealed class DiscordGuildDirectoryServiceTests
         Guid connectionId = Guid.CreateVersion7();
         await using DiscordTestDbContext db = database.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 OwnerUserId = Guid.CreateVersion7(),
@@ -133,7 +131,7 @@ public sealed class DiscordGuildDirectoryServiceTests
             }
         );
         db.DiscordGuildConnections.Add(
-            new DiscordGuildConnection
+            new()
             {
                 Id = connectionId,
                 BroadcasterId = channelId,

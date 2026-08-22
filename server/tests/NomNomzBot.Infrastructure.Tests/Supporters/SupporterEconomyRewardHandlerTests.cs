@@ -12,7 +12,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
-using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Domain.Supporters.Events;
 using NomNomzBot.Infrastructure.Economy;
@@ -36,7 +35,7 @@ public sealed class SupporterEconomyRewardHandlerTests
     private static readonly Guid Viewer = Guid.Parse("0192a000-0000-7000-8000-0000000000d2");
     private static readonly Guid EventRowId = Guid.Parse("0192a000-0000-7000-8000-0000000000d3");
     private static readonly FakeTimeProvider Clock = new(
-        new DateTimeOffset(2026, 7, 16, 12, 0, 0, TimeSpan.Zero)
+        new(2026, 7, 16, 12, 0, 0, TimeSpan.Zero)
     );
 
     private static (SupporterEconomyRewardHandler Handler, EventStoreTestDbContext Db) New(
@@ -59,7 +58,7 @@ public sealed class SupporterEconomyRewardHandlerTests
     private static async Task SeedSupporterRuleAsync(EventStoreTestDbContext db, long rate)
     {
         db.CurrencyConfigs.Add(
-            new CurrencyConfig
+            new()
             {
                 BroadcasterId = Channel,
                 CurrencyName = "points",
@@ -68,7 +67,7 @@ public sealed class SupporterEconomyRewardHandlerTests
             }
         );
         db.EarningRules.Add(
-            new EarningRule
+            new()
             {
                 BroadcasterId = Channel,
                 Source = EarningSource.Supporter,
@@ -134,7 +133,7 @@ public sealed class SupporterEconomyRewardHandlerTests
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         (SupporterEconomyRewardHandler handler, EventStoreTestDbContext db) = New(database);
         db.CurrencyConfigs.Add(
-            new CurrencyConfig
+            new()
             {
                 BroadcasterId = Channel,
                 CurrencyName = "points",

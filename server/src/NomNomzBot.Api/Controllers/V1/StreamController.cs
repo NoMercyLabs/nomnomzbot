@@ -141,7 +141,7 @@ public class StreamController : BaseController
                     .FirstOrDefaultAsync(ct);
             }
 
-            StreamInfoDto info = new StreamInfoDto(
+            StreamInfoDto info = new(
                 ctx.CurrentTitle ?? channelInfo?.Title,
                 ctx.CurrentGame ?? channelInfo?.GameName,
                 tags,
@@ -171,7 +171,7 @@ public class StreamController : BaseController
         // SQLite cannot ORDER BY a DateTimeOffset; materialize the ended-at values and take the latest
         // client-side so the query is provider-agnostic (Postgres + SQLite).
         List<DateTimeOffset> endedAtValues = channel.IsLive
-            ? new List<DateTimeOffset>()
+            ? new()
             : await _db
                 .Streams.Where(s => s.ChannelId == tenantId && s.EndedAt != null)
                 .Select(s => s.EndedAt!.Value)
@@ -179,7 +179,7 @@ public class StreamController : BaseController
         DateTime? lastStreamedAtFallback =
             endedAtValues.Count == 0 ? null : endedAtValues.Max().UtcDateTime;
 
-        StreamInfoDto fallback = new StreamInfoDto(
+        StreamInfoDto fallback = new(
             twitchChannel?.Title ?? channel.Title,
             twitchChannel?.GameName ?? channel.GameName,
             twitchChannel is not null ? [.. twitchChannel.Tags] : [],
@@ -222,7 +222,7 @@ public class StreamController : BaseController
         // scope) rather than swallowing it.
         Result<PlatformStreamInfoApplied> update = await _platformApi.UpdateStreamInfoAsync(
             tenantId,
-            new PlatformStreamInfoUpdate(
+            new(
                 Title: request.Title,
                 CategoryName: request.GameName,
                 Tags: request.Tags
@@ -244,7 +244,7 @@ public class StreamController : BaseController
         }
 
         ChannelDto channel = result.Value;
-        StreamInfoDto info = new StreamInfoDto(
+        StreamInfoDto info = new(
             request.Title ?? channel.Title,
             resolvedGameName ?? channel.GameName,
             request.Tags ?? [],
@@ -273,7 +273,7 @@ public class StreamController : BaseController
         if (ctx is not null)
         {
             return Ok(
-                new StatusResponseDto<StreamStatusDto> { Data = new StreamStatusDto(ctx.IsLive, 0) }
+                new StatusResponseDto<StreamStatusDto> { Data = new(ctx.IsLive, 0) }
             );
         }
 
@@ -284,7 +284,7 @@ public class StreamController : BaseController
         return Ok(
             new StatusResponseDto<StreamStatusDto>
             {
-                Data = new StreamStatusDto(result.Value.IsLive, result.Value.ViewerCount ?? 0),
+                Data = new(result.Value.IsLive, result.Value.ViewerCount ?? 0),
             }
         );
     }
@@ -306,7 +306,7 @@ public class StreamController : BaseController
 
         Result<PlatformStreamInfoApplied> update = await _platformApi.UpdateStreamInfoAsync(
             tenantId,
-            new PlatformStreamInfoUpdate(Title: request.Title),
+            new(Title: request.Title),
             ct
         );
         if (update.IsFailure)
@@ -335,7 +335,7 @@ public class StreamController : BaseController
         // The platform canonicalizes the category (Twitch resolves the name against its catalogue).
         Result<PlatformStreamInfoApplied> update = await _platformApi.UpdateStreamInfoAsync(
             tenantId,
-            new PlatformStreamInfoUpdate(CategoryName: request.GameName),
+            new(CategoryName: request.GameName),
             ct
         );
         if (update.IsFailure)
@@ -363,7 +363,7 @@ public class StreamController : BaseController
 
         Result<PlatformStreamInfoApplied> update = await _platformApi.UpdateStreamInfoAsync(
             tenantId,
-            new PlatformStreamInfoUpdate(Tags: request.Tags),
+            new(Tags: request.Tags),
             ct
         );
         if (update.IsFailure)
@@ -388,7 +388,7 @@ public class StreamController : BaseController
 
         Result<TwitchPage<TwitchSearchCategory>> search = await _search.SearchCategoriesAsync(
             query,
-            new TwitchPageRequest(),
+            new(),
             ct
         );
         List<CategoryDto> categories = search.IsSuccess
@@ -411,7 +411,7 @@ public class StreamController : BaseController
         Result<TwitchPage<TwitchSearchChannel>> search = await _search.SearchChannelsAsync(
             query,
             liveOnly: null,
-            new TwitchPageRequest(),
+            new(),
             ct
         );
         List<ChannelSearchDto> channels = search.IsSuccess

@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -22,11 +21,9 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
-using NomNomzBot.Infrastructure.Games;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -60,7 +57,7 @@ public sealed class ChatCommandEffectiveLevelTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.ChannelMemberships.Add(
-            new ChannelMembership
+            new()
             {
                 BroadcasterId = Broadcaster,
                 UserId = ViewerUser,
@@ -85,7 +82,7 @@ public sealed class ChatCommandEffectiveLevelTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.PermitGrants.Add(
-            new PermitGrant
+            new()
             {
                 BroadcasterId = Broadcaster,
                 UserId = ViewerUser,
@@ -110,7 +107,7 @@ public sealed class ChatCommandEffectiveLevelTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.PermitGrants.Add(
-            new PermitGrant
+            new()
             {
                 BroadcasterId = Broadcaster,
                 UserId = ViewerUser,
@@ -204,7 +201,7 @@ public sealed class ChatCommandEffectiveLevelTests
             TwitchChannelId = "tw-888",
             ChannelName = "stoney_eagle",
         };
-        ctx.Commands[CommandKey] = new CachedCommand
+        ctx.Commands[CommandKey] = new()
         {
             Name = CommandKey,
             TemplateResponses = [CommandResponse],
@@ -277,7 +274,7 @@ public sealed class ChatCommandEffectiveLevelTests
             Substitute.For<IBuiltinCommandCatalog>(),
             templates,
             Substitute.For<IEventBus>(),
-            new LiveGameSessionRegistry(),
+            new(),
             clock,
             NullLogger<ChatMessageHandler>.Instance
         );

@@ -94,7 +94,7 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
 
         // A time-limited reward starts its countdown the moment it's redeemed (idempotent per
         // redemption — an EventSub redelivery returns the existing timer). Orthogonal to the response.
-        if (reward?.TimerDurationSeconds is int timerSeconds and > 0)
+        if (reward?.TimerDurationSeconds is { } timerSeconds and > 0)
         {
             IRedemptionTimerService timers =
                 scope.ServiceProvider.GetRequiredService<IRedemptionTimerService>();
@@ -121,7 +121,7 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
         // A reward can bind a SAVED pipeline (the reward analogue of a timer's PipelineId): load its compiled
         // graph and run that — the path a reward-triggered play_sound takes. Takes precedence over the inline
         // PipelineJson / Response fallbacks. A binding whose graph is missing/deleted degrades to those.
-        if (reward?.PipelineId is Guid boundPipelineId)
+        if (reward?.PipelineId is { } boundPipelineId)
         {
             string? graphJson = await db
                 .Pipelines.Where(p =>

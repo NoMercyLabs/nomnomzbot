@@ -13,7 +13,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
-using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Rewards.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -52,7 +51,7 @@ public sealed class WatchStreakHandlerTests
         );
 
         await handler.HandleAsync(
-            new WatchStreakReceivedEvent
+            new()
             {
                 BroadcasterId = Channel,
                 OccurredAt = DateTimeOffset.UtcNow,

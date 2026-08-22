@@ -124,7 +124,7 @@ public class IntegrationOAuthController : BaseController
     {
         Result<OAuthCallbackResultDto> result = await _oauth.HandleCallbackAsync(
             provider,
-            new OAuthCallbackParams(code, state, error, errorDescription),
+            new(code, state, error, errorDescription),
             ct
         );
 

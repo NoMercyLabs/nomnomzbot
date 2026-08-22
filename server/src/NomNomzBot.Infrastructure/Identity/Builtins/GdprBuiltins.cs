@@ -76,7 +76,7 @@ public sealed class GdprSelfServiceExecutor
     )
     {
         Guid? subject = await ResolveSubjectAsync(context, ct);
-        if (subject is not Guid subjectId)
+        if (subject is not { } subjectId)
             return Result.Success("Could not resolve your account — try again.");
 
         if (!string.Equals(args.Trim(), "confirm", StringComparison.OrdinalIgnoreCase))
@@ -95,7 +95,7 @@ public sealed class GdprSelfServiceExecutor
             );
 
         Result<ErasureRequestDto> erased = await _erasure.RequestErasureAsync(
-            new RequestErasureRequest(subjectId, context.BroadcasterId, SelfService, ErasureScope),
+            new(subjectId, context.BroadcasterId, SelfService, ErasureScope),
             ct
         );
         if (erased.IsFailure)
@@ -106,7 +106,7 @@ public sealed class GdprSelfServiceExecutor
 
         // Part 1 (customizable copy: override → tone → default) + part 2 (the fixed clause, ALWAYS appended).
         string done = await _composer.ComposeAsync(
-            new BuiltinResponseRequest
+            new()
             {
                 BroadcasterId = context.BroadcasterId,
                 Personality = context.Personality,
@@ -131,11 +131,11 @@ public sealed class GdprSelfServiceExecutor
     )
     {
         Guid? subject = await ResolveSubjectAsync(context, ct);
-        if (subject is not Guid subjectId)
+        if (subject is not { } subjectId)
             return Result.Success("Could not resolve your account — try again.");
 
         Result<DataExportDto> export = await _erasure.RequestExportAsync(
-            new RequestExportRequest(subjectId, context.BroadcasterId, SelfService),
+            new(subjectId, context.BroadcasterId, SelfService),
             ct
         );
         if (export.IsFailure)
@@ -157,11 +157,11 @@ public sealed class GdprSelfServiceExecutor
     )
     {
         Guid? subject = await ResolveSubjectAsync(context, ct);
-        if (subject is not Guid subjectId)
+        if (subject is not { } subjectId)
             return Result.Success("Could not resolve your account — try again.");
 
         Result<PagedList<ErasureRequestDto>> page = await _erasure.ListRequestsAsync(
-            new PaginationParams(1, 1),
+            new(1, 1),
             subjectId,
             null,
             ct

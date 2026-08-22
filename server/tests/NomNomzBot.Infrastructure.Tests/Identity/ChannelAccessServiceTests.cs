@@ -34,13 +34,13 @@ public sealed class ChannelAccessServiceTests
     private static (ChannelAccessService Sut, AuthDbContext Db) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        return (new ChannelAccessService(db), db);
+        return (new(db), db);
     }
 
     private static async Task SeedChannelAsync(AuthDbContext db, Guid ownerUserId)
     {
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = Channel,
                 OwnerUserId = ownerUserId,
@@ -81,7 +81,7 @@ public sealed class ChannelAccessServiceTests
         (ChannelAccessService sut, AuthDbContext db) = Build();
         await SeedChannelAsync(db, ownerUserId: Guid.NewGuid());
         db.ChannelMemberships.Add(
-            new ChannelMembership
+            new()
             {
                 BroadcasterId = Channel,
                 UserId = User,

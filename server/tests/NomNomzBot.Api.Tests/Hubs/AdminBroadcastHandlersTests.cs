@@ -13,8 +13,6 @@ using Microsoft.AspNetCore.SignalR;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Clients;
-using NomNomzBot.Domain.Identity.Events;
-using NomNomzBot.Domain.Stream.Events;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -46,7 +44,7 @@ public sealed class AdminBroadcastHandlersTests
             .Returns(Task.CompletedTask);
 
         await new AdminChannelOnlineBroadcastHandler(hub).HandleAsync(
-            new ChannelOnlineEvent
+            new()
             {
                 BroadcasterId = Channel,
                 BroadcasterDisplayName = "Stoney",
@@ -57,7 +55,7 @@ public sealed class AdminBroadcastHandlersTests
         );
 
         payload.Should().NotBeNull();
-        System.Type t = payload!.GetType();
+        Type t = payload!.GetType();
         t.GetProperty("BroadcasterId")!.GetValue(payload).Should().Be(Channel);
         t.GetProperty("IsLive")!.GetValue(payload).Should().Be(true);
         t.GetProperty("ChannelName")!.GetValue(payload).Should().Be("Stoney");
@@ -72,7 +70,7 @@ public sealed class AdminBroadcastHandlersTests
             .Returns(Task.CompletedTask);
 
         await new AdminChannelOfflineBroadcastHandler(hub).HandleAsync(
-            new ChannelOfflineEvent
+            new()
             {
                 BroadcasterId = Channel,
                 BroadcasterDisplayName = "Stoney",
@@ -91,7 +89,7 @@ public sealed class AdminBroadcastHandlersTests
         all.ReceiveLog(Arg.Do<object>(p => log = p)).Returns(Task.CompletedTask);
 
         await new AdminTenantSuspensionBroadcastHandler(hub).HandleAsync(
-            new TenantSuspensionChangedEvent
+            new()
             {
                 BroadcasterId = Guid.Empty,
                 PrincipalId = Guid.NewGuid(),

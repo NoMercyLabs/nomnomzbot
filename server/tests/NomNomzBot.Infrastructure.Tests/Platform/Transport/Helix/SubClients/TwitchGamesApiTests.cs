@@ -32,7 +32,7 @@ public class TwitchGamesApiTests
             ListResult =
                 (IReadOnlyList<TwitchGame>)
                     [
-                        new TwitchGame(
+                        new(
                             "509658",
                             "Just Chatting",
                             "https://box-art/{width}x{height}.jpg",
@@ -109,7 +109,7 @@ public class TwitchGamesApiTests
         {
             PageResult = new TwitchPage<TwitchGame>(
                 [
-                    new TwitchGame(
+                    new(
                         "33214",
                         "Fortnite",
                         "https://box-art/fortnite-{width}x{height}.jpg",
@@ -123,7 +123,7 @@ public class TwitchGamesApiTests
         TwitchGamesApi api = new(transport);
 
         Result<TwitchPage<TwitchGame>> result = await api.GetTopGamesAsync(
-            new TwitchPageRequest(After: "cur", PageSize: 25)
+            new(After: "cur", PageSize: 25)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -151,7 +151,7 @@ public class TwitchGamesApiTests
         };
         TwitchGamesApi api = new(transport);
 
-        await api.GetTopGamesAsync(new TwitchPageRequest(PageSize: 100));
+        await api.GetTopGamesAsync(new(PageSize: 100));
 
         transport.LastRequest!.Query.Should().NotContain(q => q.Key == "after");
         transport.LastRequest.Query.Should().Contain(q => q.Key == "first" && q.Value == "100");

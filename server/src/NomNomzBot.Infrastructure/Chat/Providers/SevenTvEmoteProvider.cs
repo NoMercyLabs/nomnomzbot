@@ -110,7 +110,7 @@ public sealed class SevenTvEmoteProvider : IThirdPartyEmoteProvider
                 || (emote.Data.Flags & EmoteDataZeroWidthFlag) != 0;
 
             result.Add(
-                new ChatEmote(
+                new(
                     EmoteProvider.SevenTv,
                     emote.Id,
                     emote.Name,

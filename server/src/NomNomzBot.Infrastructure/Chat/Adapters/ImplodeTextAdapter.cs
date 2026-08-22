@@ -36,7 +36,7 @@ public sealed class ImplodeTextAdapter : IChatDecorationAdapter
         {
             if (fragment.Type == "text")
             {
-                run ??= new StringBuilder();
+                run ??= new();
                 run.Append(fragment.Text);
                 continue;
             }
@@ -57,7 +57,7 @@ public sealed class ImplodeTextAdapter : IChatDecorationAdapter
         if (run is null)
             return;
 
-        output.Add(new ChatMessageFragment { Type = "text", Text = run.ToString() });
+        output.Add(new() { Type = "text", Text = run.ToString() });
         run = null;
     }
 }

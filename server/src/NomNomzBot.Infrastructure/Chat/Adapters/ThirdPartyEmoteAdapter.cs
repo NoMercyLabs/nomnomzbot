@@ -81,7 +81,7 @@ public sealed class ThirdPartyEmoteAdapter : IChatDecorationAdapter
                 continue;
 
             if (index.TryMatch(fragment.Text, out ChatEmote? emote))
-                context.Fragments[i] = new ChatMessageFragment
+                context.Fragments[i] = new()
                 {
                     Type = "emote",
                     Text = fragment.Text,

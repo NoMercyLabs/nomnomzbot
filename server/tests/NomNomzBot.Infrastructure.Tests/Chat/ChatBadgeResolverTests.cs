@@ -12,7 +12,6 @@ using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Contracts.Twitch;
-using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Infrastructure.Chat;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat;
@@ -30,7 +29,7 @@ public sealed class ChatBadgeResolverTests
         new(
             setId,
             [
-                new TwitchChatBadgeVersion(
+                new(
                     versionId,
                     $"{baseUrl}/1",
                     $"{baseUrl}/2",
@@ -54,7 +53,7 @@ public sealed class ChatBadgeResolverTests
 
         IReadOnlyList<ResolvedChatBadge> resolved = await new ChatBadgeResolver(cache).ResolveAsync(
             Broadcaster,
-            [new ChatBadge("moderator", "1")]
+            [new("moderator", "1")]
         );
 
         ResolvedChatBadge badge = resolved.Should().ContainSingle().Subject;
@@ -79,7 +78,7 @@ public sealed class ChatBadgeResolverTests
 
         IReadOnlyList<ResolvedChatBadge> resolved = await new ChatBadgeResolver(cache).ResolveAsync(
             Broadcaster,
-            [new ChatBadge("subscriber", "0")]
+            [new("subscriber", "0")]
         );
 
         resolved
@@ -95,7 +94,7 @@ public sealed class ChatBadgeResolverTests
     {
         IReadOnlyList<ResolvedChatBadge> resolved = await new ChatBadgeResolver(
             new FakeCache()
-        ).ResolveAsync(Broadcaster, [new ChatBadge("vip", "1", "info")]);
+        ).ResolveAsync(Broadcaster, [new("vip", "1", "info")]);
 
         ResolvedChatBadge badge = resolved.Should().ContainSingle().Subject;
         badge.SetId.Should().Be("vip");
@@ -113,16 +112,16 @@ public sealed class ChatBadgeResolverTests
         await cache.SetAsync<IReadOnlyList<TwitchChatBadgeSet>>(
             ChatBadgeCacheKeys.Global,
             [
-                new TwitchChatBadgeSet(
+                new(
                     "moderator",
-                    [new TwitchChatBadgeVersion("1", null!, null!, null!, "Title", "Desc", "", "")]
+                    [new("1", null!, null!, null!, "Title", "Desc", "", "")]
                 ),
             ]
         );
 
         IReadOnlyList<ResolvedChatBadge> resolved = await new ChatBadgeResolver(cache).ResolveAsync(
             Broadcaster,
-            [new ChatBadge("moderator", "1")]
+            [new("moderator", "1")]
         );
 
         ResolvedChatBadge badge = resolved.Should().ContainSingle().Subject;
@@ -137,10 +136,10 @@ public sealed class ChatBadgeResolverTests
         await cache.SetAsync<IReadOnlyList<TwitchChatBadgeSet>>(
             ChatBadgeCacheKeys.Global,
             [
-                new TwitchChatBadgeSet(
+                new(
                     "subscriber",
                     [
-                        new TwitchChatBadgeVersion(
+                        new(
                             "0",
                             "https://badge/sub/1",
                             null!,
@@ -157,7 +156,7 @@ public sealed class ChatBadgeResolverTests
 
         IReadOnlyList<ResolvedChatBadge> resolved = await new ChatBadgeResolver(cache).ResolveAsync(
             Broadcaster,
-            [new ChatBadge("subscriber", "0")]
+            [new("subscriber", "0")]
         );
 
         IReadOnlyDictionary<string, string> urls = resolved.Should().ContainSingle().Subject.Urls;

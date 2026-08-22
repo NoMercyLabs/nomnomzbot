@@ -45,7 +45,7 @@ public class TwitchModeratorsApiTests
 
         Result<TwitchPage<TwitchModerator>> result = await api.GetModeratorsAsync(
             Tenant,
-            new TwitchPageRequest()
+            new()
         );
 
         result.IsFailure.Should().BeTrue();
@@ -59,7 +59,7 @@ public class TwitchModeratorsApiTests
         CapturingHelixTransport transport = new()
         {
             PageResult = new TwitchPage<TwitchModerator>(
-                [new TwitchModerator("1", "modlogin", "ModName")],
+                [new("1", "modlogin", "ModName")],
                 "cursor",
                 0
             ),
@@ -68,7 +68,7 @@ public class TwitchModeratorsApiTests
 
         Result<TwitchPage<TwitchModerator>> result = await api.GetModeratorsAsync(
             Tenant,
-            new TwitchPageRequest(After: "abc", PageSize: 50)
+            new(After: "abc", PageSize: 50)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -96,7 +96,7 @@ public class TwitchModeratorsApiTests
 
         Result<TwitchPage<TwitchModerator>> result = await api.GetModeratorsAsync(
             Tenant,
-            new TwitchPageRequest()
+            new()
         );
 
         result.IsFailure.Should().BeTrue();
@@ -166,7 +166,7 @@ public class TwitchModeratorsApiTests
 
         Result<TwitchPage<TwitchVip>> result = await api.GetVipsAsync(
             Tenant,
-            new TwitchPageRequest()
+            new()
         );
 
         result.IsFailure.Should().BeTrue();
@@ -180,7 +180,7 @@ public class TwitchModeratorsApiTests
         CapturingHelixTransport transport = new()
         {
             PageResult = new TwitchPage<TwitchVip>(
-                [new TwitchVip("7", "VipName", "viplogin")],
+                [new("7", "VipName", "viplogin")],
                 "next",
                 0
             ),
@@ -189,7 +189,7 @@ public class TwitchModeratorsApiTests
 
         Result<TwitchPage<TwitchVip>> result = await api.GetVipsAsync(
             Tenant,
-            new TwitchPageRequest(After: "cur", PageSize: 25)
+            new(After: "cur", PageSize: 25)
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -267,7 +267,7 @@ public class TwitchModeratorsApiTests
 
         Result<TwitchPage<TwitchModeratedChannel>> result = await api.GetModeratedChannelsAsync(
             Tenant,
-            new TwitchPageRequest()
+            new()
         );
 
         result.IsFailure.Should().BeTrue();
@@ -281,7 +281,7 @@ public class TwitchModeratorsApiTests
         CapturingHelixTransport transport = new()
         {
             PageResult = new TwitchPage<TwitchModeratedChannel>(
-                [new TwitchModeratedChannel("11", "chanlogin", "ChanName")],
+                [new("11", "chanlogin", "ChanName")],
                 "cur2",
                 0
             ),
@@ -290,7 +290,7 @@ public class TwitchModeratorsApiTests
 
         Result<TwitchPage<TwitchModeratedChannel>> result = await api.GetModeratedChannelsAsync(
             Tenant,
-            new TwitchPageRequest(After: "p", PageSize: 100)
+            new(After: "p", PageSize: 100)
         );
 
         result.IsSuccess.Should().BeTrue();

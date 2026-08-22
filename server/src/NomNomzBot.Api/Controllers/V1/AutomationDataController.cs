@@ -103,7 +103,7 @@ public class AutomationDataController(
     [ProducesResponseType<StatusResponseDto<AutomationInfo>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetInfo(CancellationToken ct)
     {
-        if (Principal is not AutomationPrincipal principal)
+        if (Principal is not { } principal)
             return UnauthenticatedResponse();
         return WithRetryAfter(await commands.GetInfoAsync(principal, ct));
     }
@@ -115,7 +115,7 @@ public class AutomationDataController(
     )]
     public async Task<IActionResult> ListPipelines(CancellationToken ct)
     {
-        if (Principal is not AutomationPrincipal principal)
+        if (Principal is not { } principal)
             return UnauthenticatedResponse();
         return WithRetryAfter(await commands.ListPipelinesAsync(principal, ct));
     }
@@ -127,7 +127,7 @@ public class AutomationDataController(
     )]
     public async Task<IActionResult> ListCommands(CancellationToken ct)
     {
-        if (Principal is not AutomationPrincipal principal)
+        if (Principal is not { } principal)
             return UnauthenticatedResponse();
         return WithRetryAfter(await commands.ListCommandsAsync(principal, ct));
     }
@@ -140,7 +140,7 @@ public class AutomationDataController(
         CancellationToken ct
     )
     {
-        if (Principal is not AutomationPrincipal principal)
+        if (Principal is not { } principal)
             return UnauthenticatedResponse();
         return WithRetryAfter(await commands.InvokePipelineAsync(principal, request, ct));
     }
@@ -153,7 +153,7 @@ public class AutomationDataController(
         CancellationToken ct
     )
     {
-        if (Principal is not AutomationPrincipal principal)
+        if (Principal is not { } principal)
             return UnauthenticatedResponse();
         Result result = await commands.SendChatAsync(principal, request, ct);
         SetRetryAfter(result.ErrorCode, result.ErrorDetail);
@@ -169,7 +169,7 @@ public class AutomationDataController(
     [ProducesResponseType<StatusResponseDto<IssuedAutomationTokenDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Refresh(CancellationToken ct)
     {
-        if (Principal is not AutomationPrincipal principal)
+        if (Principal is not { } principal)
             return UnauthenticatedResponse();
         return ResultResponse(
             await tokens.RefreshSelfAsync(principal.BroadcasterId, principal.TokenId, ct)
@@ -181,7 +181,7 @@ public class AutomationDataController(
     [ProducesResponseType<StatusResponseDto<AutomationNowPlayingDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetNowPlaying(CancellationToken ct)
     {
-        if (Principal is not AutomationPrincipal principal)
+        if (Principal is not { } principal)
             return UnauthenticatedResponse();
         return WithRetryAfter(await commands.GetNowPlayingAsync(principal, ct));
     }
@@ -193,7 +193,7 @@ public class AutomationDataController(
     )]
     public async Task<IActionResult> GetMusicDevices(CancellationToken ct)
     {
-        if (Principal is not AutomationPrincipal principal)
+        if (Principal is not { } principal)
             return UnauthenticatedResponse();
         return WithRetryAfter(await commands.GetDevicesAsync(principal, ct));
     }
@@ -209,7 +209,7 @@ public class AutomationDataController(
         CancellationToken ct
     )
     {
-        if (Principal is not AutomationPrincipal principal)
+        if (Principal is not { } principal)
             return UnauthenticatedResponse();
         return WithRetryAfter(
             await commands.GetPlaylistsAsync(

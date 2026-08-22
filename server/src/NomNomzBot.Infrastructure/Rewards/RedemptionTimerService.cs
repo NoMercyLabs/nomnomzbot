@@ -325,7 +325,7 @@ public sealed class RedemptionTimerService : IRedemptionTimerService
 
     /// <summary>The live countdown value: exact while paused/terminal, clock-derived while running.</summary>
     internal static int LiveRemaining(RedemptionTimer timer, DateTime nowUtc) =>
-        timer.Status == RedemptionTimerStatus.Running && timer.RunningSince is DateTime since
+        timer.Status == RedemptionTimerStatus.Running && timer.RunningSince is { } since
             ? Math.Max(0, timer.RemainingSeconds - (int)(nowUtc - since).TotalSeconds)
             : timer.RemainingSeconds;
 

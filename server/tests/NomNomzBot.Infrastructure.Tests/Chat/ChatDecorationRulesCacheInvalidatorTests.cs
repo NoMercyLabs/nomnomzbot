@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Caching;
-using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat;
@@ -31,7 +30,7 @@ public sealed class ChatDecorationRulesCacheInvalidatorTests
 
         ChatDecorationRulesCacheInvalidator handler = new(cache);
         await handler.HandleAsync(
-            new ChannelConfigChangedEvent
+            new()
             {
                 BroadcasterId = channel,
                 Domain = "features",
@@ -54,7 +53,7 @@ public sealed class ChatDecorationRulesCacheInvalidatorTests
 
         ChatDecorationRulesCacheInvalidator handler = new(cache);
         await handler.HandleAsync(
-            new ChannelConfigChangedEvent
+            new()
             {
                 BroadcasterId = channel,
                 Domain = "timers",
@@ -76,7 +75,7 @@ public sealed class ChatDecorationRulesCacheInvalidatorTests
         // platform-wide (non-tenant) event — it simply has nothing to invalidate.
         Func<Task> act = () =>
             handler.HandleAsync(
-                new ChannelConfigChangedEvent
+                new()
                 {
                     BroadcasterId = Guid.Empty,
                     Domain = "features",

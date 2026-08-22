@@ -40,7 +40,7 @@ public sealed class UnpermitActionTests
 
         ActionResult result = await sut.ExecuteAsync(
             Ctx(("target.id", TargetTwitchId), ("target.display", "Streamer"), ("args.1", "mod")),
-            new ActionDefinition { Type = "unpermit" }
+            new() { Type = "unpermit" }
         );
 
         result.Succeeded.Should().BeTrue();
@@ -58,7 +58,7 @@ public sealed class UnpermitActionTests
 
         ActionResult result = await sut.ExecuteAsync(
             Ctx(("target.id", TargetTwitchId)),
-            new ActionDefinition { Type = "unpermit" }
+            new() { Type = "unpermit" }
         );
 
         result.Succeeded.Should().BeTrue();
@@ -84,7 +84,7 @@ public sealed class UnpermitActionTests
 
         ActionResult result = await sut.ExecuteAsync(
             Ctx(("target.id", TargetTwitchId), ("args.1", "mod")),
-            new ActionDefinition { Type = "unpermit" }
+            new() { Type = "unpermit" }
         );
 
         result.Succeeded.Should().BeFalse();

@@ -59,7 +59,7 @@ public sealed class PipelineTestRunService(
         CancellationToken cancellationToken = default
     )
     {
-        if (tenant.BroadcasterId is not Guid broadcasterId)
+        if (tenant.BroadcasterId is not { } broadcasterId)
             return Result.Failure<TestRunResultDto>("No tenant.", "NO_TENANT");
 
         // Load the graph document, exactly like the real dispatch (reward/command/timer all read
@@ -102,7 +102,7 @@ public sealed class PipelineTestRunService(
             TriggeredByDisplayName = "Test Run",
             MessageId = null,
             RawMessage = string.Empty,
-            InitialVariables = new Dictionary<string, string>(
+            InitialVariables = new(
                 request.Variables,
                 StringComparer.OrdinalIgnoreCase
             ),

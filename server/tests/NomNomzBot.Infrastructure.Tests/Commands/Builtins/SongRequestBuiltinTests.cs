@@ -12,7 +12,6 @@ using FluentAssertions;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
-using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NSubstitute;
 
@@ -129,7 +128,7 @@ public sealed class SongRequestBuiltinTests
             .ComposeAsync(Arg.Any<BuiltinResponseRequest>(), Arg.Any<CancellationToken>())
             .Returns(ci => Task.FromResult(ci.Arg<BuiltinResponseRequest>().NeutralFallback));
 
-        return new SongRequestBuiltin(music, composer);
+        return new(music, composer);
     }
 
     private static BuiltinCommandContext Context(string args, int roleLevel) =>

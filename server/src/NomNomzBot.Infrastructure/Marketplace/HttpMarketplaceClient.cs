@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using System.Net;
-using System.Net.Http.Headers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Common.Models;
@@ -61,7 +60,7 @@ public sealed class HttpMarketplaceClient : IMarketplaceClient
         CancellationToken ct = default
     )
     {
-        if (BaseUrl() is not string baseUrl)
+        if (BaseUrl() is not { } baseUrl)
             return Unavailable<PagedList<MarketplaceItemDto>>("no marketplace URL is configured");
 
         PaginationParams page = pagination ?? new PaginationParams();
@@ -99,7 +98,7 @@ public sealed class HttpMarketplaceClient : IMarketplaceClient
         CancellationToken ct = default
     )
     {
-        if (BaseUrl() is not string baseUrl)
+        if (BaseUrl() is not { } baseUrl)
             return Unavailable<MarketplaceItemDto>("no marketplace URL is configured");
 
         try
@@ -137,7 +136,7 @@ public sealed class HttpMarketplaceClient : IMarketplaceClient
         CancellationToken ct = default
     )
     {
-        if (BaseUrl() is not string baseUrl)
+        if (BaseUrl() is not { } baseUrl)
             return Unavailable<System.IO.Stream>("no marketplace URL is configured");
 
         try
@@ -191,7 +190,7 @@ public sealed class HttpMarketplaceClient : IMarketplaceClient
         CancellationToken ct = default
     )
     {
-        if (BaseUrl() is not string baseUrl)
+        if (BaseUrl() is not { } baseUrl)
             return Unavailable<PublishSubmissionDto>("no marketplace URL is configured");
 
         string? token = await _publisherTokens.GetPublisherTokenAsync(broadcasterId, ct);
@@ -205,14 +204,14 @@ public sealed class HttpMarketplaceClient : IMarketplaceClient
         {
             using MultipartFormDataContent form = new();
             StringContent metadataPart = new(BundleConventions.Serialize(metadata));
-            metadataPart.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            metadataPart.Headers.ContentType = new("application/json");
             form.Add(metadataPart, "metadata");
             StreamContent zipPart = new(zip);
-            zipPart.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
+            zipPart.Headers.ContentType = new("application/zip");
             form.Add(zipPart, "bundle", "bundle.zip");
 
             using HttpRequestMessage request = new(HttpMethod.Post, $"{baseUrl}/v1/publish");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Authorization = new("Bearer", token);
             request.Content = form;
 
             HttpClient http = _httpClientFactory.CreateClient(TransferClientName);
@@ -231,7 +230,7 @@ public sealed class HttpMarketplaceClient : IMarketplaceClient
         CancellationToken ct = default
     )
     {
-        if (BaseUrl() is not string baseUrl)
+        if (BaseUrl() is not { } baseUrl)
             return Unavailable<PublishSubmissionDto>("no marketplace URL is configured");
 
         string? token = await _publisherTokens.GetPublisherTokenAsync(broadcasterId, ct);
@@ -247,7 +246,7 @@ public sealed class HttpMarketplaceClient : IMarketplaceClient
                 HttpMethod.Get,
                 $"{baseUrl}/v1/submissions/{Uri.EscapeDataString(submissionId)}"
             );
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Authorization = new("Bearer", token);
 
             HttpClient http = _httpClientFactory.CreateClient(BrowseClientName);
             using HttpResponseMessage response = await http.SendAsync(request, ct);

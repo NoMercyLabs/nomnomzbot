@@ -159,7 +159,7 @@ public sealed class SongRequestActionTests
         new()
         {
             Type = "song_request",
-            Parameters = new Dictionary<string, JsonElement>
+            Parameters = new()
             {
                 ["query"] = JsonSerializer.SerializeToElement(query),
             },

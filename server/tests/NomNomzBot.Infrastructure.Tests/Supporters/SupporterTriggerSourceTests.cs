@@ -14,7 +14,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Domain.Chat.Interfaces;
-using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Supporters.Events;
 using NomNomzBot.Infrastructure.Platform.Eventing;
@@ -91,7 +90,7 @@ public sealed class SupporterTriggerSourceTests
     )
     {
         db.EventResponses.Add(
-            new EventResponse
+            new()
             {
                 Id = Guid.CreateVersion7(),
                 BroadcasterId = Tenant,

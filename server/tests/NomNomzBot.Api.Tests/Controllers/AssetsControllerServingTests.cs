@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -38,7 +37,7 @@ public sealed class AssetsControllerServingTests
             Substitute.For<ICurrentTenantService>()
         )
         {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+            ControllerContext = new() { HttpContext = new DefaultHttpContext() },
         };
         return (controller, service);
     }
@@ -48,7 +47,7 @@ public sealed class AssetsControllerServingTests
             .OpenForServingAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(
                 Result<ChannelAssetContent>.Success(
-                    new ChannelAssetContent(
+                    new(
                         new MemoryStream(bytes),
                         mimeType,
                         mimeType.StartsWith("image/") ? "image" : "audio",

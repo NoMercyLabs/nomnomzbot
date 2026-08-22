@@ -135,7 +135,7 @@ public sealed class TreatstreamSupporterSourceTests
             LastBody = request.Content is null
                 ? null
                 : await request.Content.ReadAsStringAsync(cancellationToken);
-            return new HttpResponseMessage(HttpStatusCode.OK)
+            return new(HttpStatusCode.OK)
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json"),
             };

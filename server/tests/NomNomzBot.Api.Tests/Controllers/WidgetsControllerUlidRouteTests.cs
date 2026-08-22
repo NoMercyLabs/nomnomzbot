@@ -56,7 +56,7 @@ public sealed class WidgetsControllerUlidRouteTests
             .CompileWidget(
                 "chan",
                 wire,
-                new CompileWidgetRequest { SourceCode = "x" },
+                new() { SourceCode = "x" },
                 CancellationToken.None
             );
 

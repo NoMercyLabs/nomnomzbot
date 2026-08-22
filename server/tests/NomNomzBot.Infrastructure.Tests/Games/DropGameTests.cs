@@ -13,7 +13,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Games;
-using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.EventStore;
@@ -67,7 +66,7 @@ public sealed class DropGameTests
         {
             SessionId = Guid.CreateVersion7(),
             BroadcasterId = Channel,
-            Config = new GameConfigView(10, 100, multiplier, config),
+            Config = new(10, 100, multiplier, config),
             Participants = participants,
             Phase = LiveGamePhase.Lobby,
             Data = data,
@@ -178,7 +177,7 @@ public sealed class DropGameTests
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         EventStoreTestDbContext db = database.NewContext();
         RecordingEventBus bus = new();
-        FakeTimeProvider clock = new(new DateTimeOffset(2026, 7, 17, 15, 0, 0, TimeSpan.Zero));
+        FakeTimeProvider clock = new(new(2026, 7, 17, 15, 0, 0, TimeSpan.Zero));
         CurrencyAccountService accounts = new(
             db,
             new TenantSequenceAllocator(db),

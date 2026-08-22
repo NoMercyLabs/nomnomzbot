@@ -37,7 +37,7 @@ public sealed class RolesControllerTests
         IRoleResolver resolver = Substitute.For<IRoleResolver>();
         ICurrentUserService user = Substitute.For<ICurrentUserService>();
         user.UserId.Returns(Caller.ToString());
-        return (new RolesController(service, resolver, user), service);
+        return (new(service, resolver, user), service);
     }
 
     private static (RolesController Controller, IRoleResolver Resolver) BuildWithResolver()
@@ -46,7 +46,7 @@ public sealed class RolesControllerTests
         IRoleResolver resolver = Substitute.For<IRoleResolver>();
         ICurrentUserService user = Substitute.For<ICurrentUserService>();
         user.UserId.Returns(Caller.ToString());
-        return (new RolesController(service, resolver, user), resolver);
+        return (new(service, resolver, user), resolver);
     }
 
     private static ResolvedAccessDto AccessFor(Guid userId, ManagementRole? role, int level) =>
@@ -92,7 +92,7 @@ public sealed class RolesControllerTests
 
         IActionResult result = await controller.SetRole(
             Channel.ToString(),
-            new RolesController.SetRoleBody(Target, ManagementRole.Editor),
+            new(Target, ManagementRole.Editor),
             default
         );
 

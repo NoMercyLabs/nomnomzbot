@@ -13,14 +13,12 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
-using NomNomzBot.Infrastructure.Games;
 using NomNomzBot.Infrastructure.Platform.RateLimiting;
 using NSubstitute;
 
@@ -108,7 +106,7 @@ public sealed class ChatTriggerMatchingTests
             builtins,
             templates,
             Substitute.For<IEventBus>(),
-            new LiveGameSessionRegistry(),
+            new(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );
@@ -257,7 +255,7 @@ public sealed class ChatTriggerMatchingTests
     public async Task While_a_poll_is_open_a_bare_option_number_is_a_vote_not_a_trigger()
     {
         ChannelContext ctx = NewContext();
-        ctx.ActiveChatPoll = new CachedChatPoll { Id = Guid.CreateVersion7(), OptionCount = 3 };
+        ctx.ActiveChatPoll = new() { Id = Guid.CreateVersion7(), OptionCount = 3 };
         CachedChatTrigger trigger = Trigger("2"); // would match the same line
         ctx.ChatTriggers[trigger.Id] = trigger;
 
@@ -278,7 +276,7 @@ public sealed class ChatTriggerMatchingTests
             Substitute.For<IBuiltinCommandCatalog>(),
             Substitute.For<ITemplateResolver>(),
             Substitute.For<IEventBus>(),
-            new LiveGameSessionRegistry(),
+            new(),
             TimeProvider.System,
             NullLogger<ChatMessageHandler>.Instance
         );
@@ -318,8 +316,7 @@ public sealed class ChatTriggerMatchingTests
         // J.12 mute semantics: the room still sees them (message count + {chatters}), the bot doesn't.
         ChannelContext ctx = NewContext();
         ctx.IsLive = true;
-        ctx.ModerationStandings["twitch:tw-viewer-1"] = NomNomzBot
-            .Domain
+        ctx.ModerationStandings["twitch:tw-viewer-1"] = Domain
             .Moderation
             .Entities
             .ModerationStanding

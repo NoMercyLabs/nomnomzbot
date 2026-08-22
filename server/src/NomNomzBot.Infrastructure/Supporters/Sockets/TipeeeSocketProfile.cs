@@ -49,7 +49,7 @@ internal sealed class TipeeeSocketProfile : ISocketIoProfile
             string? host = parsed["datas"]?.Value<string>("host");
             string? port = parsed["datas"]?.Value<string>("port");
             if (!string.IsNullOrWhiteSpace(host))
-                return new Uri(
+                return new(
                     $"{host.TrimEnd('/')}:{(string.IsNullOrWhiteSpace(port) ? "443" : port)}"
                         + $"?access_token={Uri.EscapeDataString(secret)}"
                 );

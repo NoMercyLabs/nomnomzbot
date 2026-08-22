@@ -67,7 +67,7 @@ public sealed class ScriptRunner(
                 )
             );
 
-        CodeScriptVersion? version = script.CurrentVersionId is Guid versionId
+        CodeScriptVersion? version = script.CurrentVersionId is { } versionId
             ? await db.CodeScriptVersions.FirstOrDefaultAsync(
                 v => v.Id == versionId,
                 cancellationToken
@@ -83,7 +83,7 @@ public sealed class ScriptRunner(
             invocation.ExecutionId,
             version.CompiledJs,
             version.CompiledHash ?? string.Empty,
-            new ScriptInputs(
+            new(
                 invocation.TriggeredByUserId,
                 invocation.TriggeredByDisplayName,
                 invocation.Args,

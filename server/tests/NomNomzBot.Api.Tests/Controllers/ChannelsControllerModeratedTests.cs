@@ -10,14 +10,12 @@
 
 using System.Security.Claims;
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -56,8 +54,8 @@ public sealed class ChannelsControllerModeratedTests
                 Result.Success(
                     new TwitchPage<TwitchModeratedChannel>(
                         [
-                            new TwitchModeratedChannel("999", "coolstreamer", "CoolStreamer"),
-                            new TwitchModeratedChannel("888", "otherstreamer", "OtherStreamer"),
+                            new("999", "coolstreamer", "CoolStreamer"),
+                            new("888", "otherstreamer", "OtherStreamer"),
                         ],
                         NextCursor: null,
                         Total: 2
@@ -67,7 +65,7 @@ public sealed class ChannelsControllerModeratedTests
 
         // "999" is already onboarded in our DB; "888" is not — the DTO's IsOnboarded must reflect that.
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = OwnChannel,
                 OwnerUserId = Caller,
@@ -160,13 +158,13 @@ public sealed class ChannelsControllerModeratedTests
             Substitute.For<IUserService>()
         )
         {
-            ControllerContext = new ControllerContext
+            ControllerContext = new()
             {
                 HttpContext = new DefaultHttpContext
                 {
-                    User = new ClaimsPrincipal(
+                    User = new(
                         new ClaimsIdentity(
-                            [new Claim(ClaimTypes.NameIdentifier, Caller.ToString())],
+                            [new(ClaimTypes.NameIdentifier, Caller.ToString())],
                             "TestAuth"
                         )
                     ),

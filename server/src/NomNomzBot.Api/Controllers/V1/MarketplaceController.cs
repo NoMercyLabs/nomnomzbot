@@ -65,7 +65,7 @@ public class MarketplaceController(
         );
         Result<PagedList<MarketplaceItemDto>> result = await client.SearchAsync(
             query,
-            new PaginationParams(request.Page, request.Take),
+            new(request.Page, request.Take),
             ct
         );
         if (result.IsFailure)
