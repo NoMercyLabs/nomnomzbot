@@ -28,6 +28,9 @@ The bot **types** in chat via each platform's API (Twitch = Helix + EventSub; IR
 | D6 | **Vocabulary:** the bot **types** (chat) and **speaks** (TTS) — never "speaks" for chat. | Mixed usage. |
 | D7 | **Track split suspended for the remediation campaign.** Claude works backend + frontend; `handoff/*.md` are not used; the design bar is the Sleak skill + shadcn catalogue (the designer's own rules). | `CLAUDE.md` Team & Track Ownership + Handoff TODOs as a hard gate. |
 | D8 | **Stabilize before adding.** New feature ideas go to the tracker as ideas; code follows `SHORTCOMINGS-EXECUTION-PLAN.md` top to bottom. | Roadmap items framed as next features. |
+| D10 | **Security before features.** Shipped security defects go first in the queue (Phase 0-S). Access tokens stay 60 min but logout/impersonation-end must invalidate in-flight tokens via a `sid` revocation check. | "stability first" ordering alone. |
+| D11 | **Rate limits are tiered by task type**, never one bucket: read / write-cheap (toggles, config) / write-expensive (synthesis, uploads, fan-out) / auth / anonymous / admin. Cheap dashboard actions must never 429 a normal user. | single `"api"` policy. |
+| D12 | **Impersonation = the owner's lowest-level support tool.** Full act-as stays; it is a restricted SaaS action held by the platform owner role only, session-bound (reason, expiry), dual-actor audited, tenant owner notified; self-host exposes no impersonation route. | unscoped mint; "read-only by default" proposal. |
 | D9 | **No deferred framing.** Specs state decisions; "later / phase 2 / future / TBD" is replaced by a decided slice in the execution plan or deleted. | Scattered "later". |
 
 ## Glossary (canonical words — use these, retire the aliases)

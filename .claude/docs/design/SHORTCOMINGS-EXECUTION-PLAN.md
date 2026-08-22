@@ -12,12 +12,43 @@ work only). A slice may be split further while executing, never merged. 🔒 = n
 skip it and continue. Persona priority (owner): streamer → moderator of many → viewer.
 
 **Ordering rule (owner, 2026-08-22): stabilize the CURRENT feature set first; merge new code only
-where a fix requires it; add the new stuff after.** Phases: 0 truth-and-safety · 1 runtime stability ·
+where a fix requires it; add the new stuff after.** Phases: 0-S security first · 0 truth-and-safety · 1 runtime stability ·
 2 existing platforms made to work (minimal spine) · 3 form infrastructure · 4 existing-feature truth/
 reach · 5 new model (one channel, many platforms; any login) · 6 new features + personas · 7 polish.
 Slice IDs are stable; the order is the queue.
 
 ---
+
+## Phase 0-S — security first (owner, 2026-08-22: "security is tight" beats "features start working")
+
+- **S098** Security baseline — the 7 non-`BaseController` controllers get `[ApiController]` + a limiter; access tokens
+  stay 60 min but a cached `sid` revocation check runs per request so logout / impersonation-end invalidates in-flight
+  tokens (owner decision); `ValidAlgorithms` pinned and bearer validation built from the token-service factory; refresh
+  custody by cookie presence not `?client=`; drop the fragment refresh path; Origin/CSRF check on cookie refresh; HSTS +
+  CSP for the SPA entry; `ENCRYPTION_KEY` rotation pass that re-wraps (fail loud, never blank) (U·E6). Done-when: every
+  anonymous route is rate-limited (test enumerates controllers); logout invalidates in-flight access tokens.
+- **S114** Rate-limit tiers by task type (owner: got rate-limited toggling cheap options — the single `"api"` bucket
+  is wrong) — replace the one policy with named tiers: `read` (generous, per user), `write-cheap` (toggles/config, generous),
+  `write-expensive` (synthesis, uploads, fan-out, per channel), `auth` (strict, per IP), `anonymous` (overlay/webhook/
+  public, per IP), `admin` (per principal); assign every controller/action explicitly; 429 responses carry `Retry-After`
+  and the dashboard shows a calm "slow down" instead of an error. Done-when: 50 toggles in a minute never 429; 50 login
+  attempts do.
+- **S111** Desktop app hardening — OS keychain/DPAPI token store; saved connections + switcher + forget;
+  rescan + firewall hint; log file; session-expiry refresh; window state; icon + stamped version; macOS
+  data dir (U·E5). Done-when: tokens never on disk in plaintext.
+- **S086** IAM bootstrap truth — self-host = deployment-mode fact (not "any principal exists");
+  bootstrap mints a real principal + owner role for the self-host owner and `INITIAL_ADMIN_TWITCH_ID`;
+  acting principal never `Guid.Empty` (system principal row); resolve failure ≠ allow (U·D2).
+  Done-when: creating a service account on self-host does not lock the owner out (test).
+- **S088** Suspension enforced — `Channel.Status` checked in tenant resolution; bot parts + EventSub
+  session revoked on suspend; handler on `TenantSuspensionChangedEvent` (U·D3). Done-when: a suspended
+  tenant's dashboard and bot stop within one tick.
+- **S089** Impersonation made safe (owner decision: this is the owner's lowest-level support tool — FULL act-as stays; it is a
+  restricted SaaS action held by the platform owner role only) — requires an explicit support session (reason, expiry,
+  session id) and the token lifetime is clamped to it; `act` claim honoured only for that principal; every write journalled
+  with BOTH actors + session id and mirrored to `IamAuditLog`; mints rate-limited; refresh disabled for act-as tokens;
+  tenant owner notified on begin/end; UI confirm + justification; spec amended (U·D4). Done-when: an impersonated write
+  shows operator + subject in one audit query; self-host exposes no impersonation route.
 
 ## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
 
@@ -281,13 +312,6 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 4B — the surfaces round four found (U·Part E) — existing features, same stability-first rule
 
-- **S098** Security baseline — the 7 non-`BaseController` controllers get `[ApiController]` + a limiter
-  (dedicated per-IP policies for inbound webhooks, OAuth relay, overlay/SDK/bridge); `ValidAlgorithms`
-  pinned and bearer validation built from the token-service factory; access-token lifetime to minutes +
-  cached `sid` revocation check; refresh custody by cookie presence not `?client=`; drop the fragment
-  refresh path; Origin/CSRF check on cookie refresh; HSTS + CSP for the SPA entry; `ENCRYPTION_KEY`
-  rotation pass that re-wraps (fail loud, never blank) (U·E6). Done-when: every anonymous route is
-  rate-limited (test enumerates controllers); logout invalidates in-flight access tokens.
 - **S099** Webhooks truth — outbound backoff capped + jittered, per-delivery dead-letter, delivery off the
   publishing thread, Result checked in the drain; auto-disable + attempted events consumed (toast/hub/
   feed); UI `NextRetryAt`, error vs empty, refresh/paging/replay (U·E3).
@@ -330,9 +354,6 @@ Slice IDs are stable; the order is the queue.
   bridge unwired capability throws; desktop editor parity decision stated in-app (U·E3).
 - **S110** Automation + federation — Stream Deck run-pipeline/run-command action with picker; federation
   opt-in validated server-side, peer/capability pickers, Direction collected (U·E3).
-- **S111** Desktop app hardening — OS keychain/DPAPI token store; saved connections + switcher + forget;
-  rescan + firewall hint; log file; session-expiry refresh; window state; icon + stamped version; macOS
-  data dir (U·E5). Done-when: tokens never on disk in plaintext.
 - **S112** Self-host ops — version stamping (`/health/version` real); ready = migrations + EventSub, Degraded
   ≠ ready; update check + notice; pre-migration DB snapshot + documented rollback; backup/restore verb in
   deploy scripts; versioned image tags; firewall + log path documented, log size cap; tray parity on
@@ -346,23 +367,9 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 6A — platform admin: reliable system-level management (U·Part D) — safety items first, then reach
 
-- **S086** IAM bootstrap truth — self-host = deployment-mode fact (not "any principal exists");
-  bootstrap mints a real principal + owner role for the self-host owner and `INITIAL_ADMIN_TWITCH_ID`;
-  acting principal never `Guid.Empty` (system principal row); resolve failure ≠ allow (U·D2).
-  Done-when: creating a service account on self-host does not lock the owner out (test).
 - **S087** IAM mutation audit + guards — every assign/revoke/create/deactivate/reactivate writes an
   `IamAuditLog` row with target/role/scope; create transactional + validate-before-mutate; no duplicate
   or inactive-target assignment; last `iam:manage` holder protected; flag changes audited (U·D2).
-- **S088** Suspension enforced — `Channel.Status` checked in tenant resolution; bot parts + EventSub
-  session revoked on suspend; handler on `TenantSuspensionChangedEvent` (U·D3). Done-when: a suspended
-  tenant's dashboard and bot stop within one tick.
-- **S089** Impersonation made safe — requires an active support session (extend the `IamRoleAssignment`
-  support grant with scope read|write, consent, session id); token lifetime clamped to session; `act`
-  honoured only for principals with `support:impersonate` and an active session; read-only default,
-  writes rejected unless scope=write; secrets redacted under `act`; refresh disabled; mints rate-limited;
-  every write journalled with BOTH actors + session id and mirrored to `IamAuditLog`; owner notified on
-  begin/first write/end; UI confirm + justification; spec amended (U·D4). Done-when: an impersonated
-  write shows operator + subject in one audit query; owner receives the notice.
 - **S090** Support access that works — session grants scoped read-only Plane-B visibility (RoleResolver
   reads the session); list active grants; any `iam:manage` holder can end any grant; expiry reaper;
   "view as tenant" reuses preview-as-viewer (client downgrade) (U·D4). Done-when: support staff can read
