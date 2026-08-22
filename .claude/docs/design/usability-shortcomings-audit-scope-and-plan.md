@@ -819,7 +819,10 @@ Built (6 participant screens) but stranded:
   self-host speaks as the streamer, so bot lines re-enter as broadcaster chat and can self-trigger
   commands/sound/chat triggers.
 - `ChatMessageHandler.cs:217-218` — unknown command: bare return. **No `!help`/`!commands` builtin**
-  (21 builtins in `BuiltinCommandCatalog.cs`, none is help).
+  (21 builtins in `BuiltinCommandCatalog.cs`, none is help). This is a **regression vs the legacy
+  bot**: `nomercy-bot/.../commands/Help.cs:12,27,46` (per-command usage), `commands/Commands.cs:39`
+  (permission-filtered list) and an on-connect "Bot is online… Type !help" announcement
+  (`TwitchWebsocketHostedService.cs:935`) all exist there and none here.
 - Length/splitting: `HelixChatProvider.cs:216-254`, `YouTubeChatPlatform.cs:55-82` send whole (Twitch
   500 / YouTube 200 → 400, dropped); `KickApiClient.cs:29,49-55` fails closed at 500. Legacy chunked at
   450 (`nomercy-bot/.../TwitchChatService.cs:183,347`). `HelixChatProvider.cs:226-240` — no duplicate-
