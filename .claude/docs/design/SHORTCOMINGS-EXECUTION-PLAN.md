@@ -279,6 +279,71 @@ Slice IDs are stable; the order is the queue.
   Checkbox, Combobox, Input, Label, Popover, RadioGroup, ScrollArea, Select, Skeleton, Table, Toast,
   Avatar) or re-scope the catalogue; Patterns tier documented (spec `frontend-design-system.md`).
 
+## Phase 4B — the surfaces round four found (U·Part E) — existing features, same stability-first rule
+
+- **S098** Security baseline — the 7 non-`BaseController` controllers get `[ApiController]` + a limiter
+  (dedicated per-IP policies for inbound webhooks, OAuth relay, overlay/SDK/bridge); `ValidAlgorithms`
+  pinned and bearer validation built from the token-service factory; access-token lifetime to minutes +
+  cached `sid` revocation check; refresh custody by cookie presence not `?client=`; drop the fragment
+  refresh path; Origin/CSRF check on cookie refresh; HSTS + CSP for the SPA entry; `ENCRYPTION_KEY`
+  rotation pass that re-wraps (fail loud, never blank) (U·E6). Done-when: every anonymous route is
+  rate-limited (test enumerates controllers); logout invalidates in-flight access tokens.
+- **S099** Webhooks truth — outbound backoff capped + jittered, per-delivery dead-letter, delivery off the
+  publishing thread, Result checked in the drain; auto-disable + attempted events consumed (toast/hub/
+  feed); UI `NextRetryAt`, error vs empty, refresh/paging/replay (U·E3).
+- **S100** Custom data sources truth — persist last attempt/error/failure count, backoff + auto-disable;
+  allowlist checked at save; real JSON field-map parsing with inline errors; key picker from a test fetch;
+  drop or wire `InboundWebhookEndpointId` (U·E3).
+- **S101** Supporters — provider list + capabilities from the backend (`GET /supporters/sources`),
+  mode-correct connect forms (secret / socket token / OAuth connection), error state + reason, staleness-
+  derived status, per-connection test; resolve `SupporterUserId` where payloads allow + amount-scaled
+  earning; dedup unique-violation handled; event-type in Patreon/Treatstream dedup key; source filter;
+  ingest failure counter surfaced (U·E4). Done-when: all 11 adapters connectable and truthful.
+- **S102** Billing/usage truth — Usage panel reads real counts for count-capped keys, localized labels,
+  unlimited rendered; `UsageQuotaExceededEvent` + `SubscriptionTierChangedEvent` consumers; `free` tier
+  limits seeded; downgrade at-period-end + over-cap warning (U·E4).
+- **S103** Bundles + pick lists — export all 12 types; type filter select; semver + tags chips; installed
+  version compare/update; pick-list anti-repeat window, per-item weight/enable, ETag, bulk paste/import/
+  reorder (U·E4).
+- **S104** Media share + sound + assets — media player widget (system surface) consuming `GetNext`;
+  moderation rows with thumbnail/link/name; submitted/playback events as trigger sources; paged queue;
+  sound handle threaded end-to-end; upload dialog with volume/trigger/cooldown/floor; clip replace;
+  preview-on-overlay or remove dead endpoint; asset picker wherever a media URL is configured; used-by
+  guard; limits shown; paging (U·E2).
+- **S105** OBS + VTS truth — OBS page consumes OBS events; scene/source/input pickers in pipeline fields;
+  source-visibility + replay-buffer on the control screen; bridge error vs offline; edit-reset fix; VTS
+  probe + bridge status; inventory failure vs locked; parameter/tint control; endpoint prefilled +
+  validated; i18n of the two hardcoded errors (U·E2).
+- **S106** Stream / live-ops page — dedicated Stream destination (stream info incl. language per
+  platform connection, polls/predictions with live results + hub refresh, ad countdown + snooze, raids,
+  markers, clips, shield, hype train, goals, charity, guest star); errors not swallowed; raid-pending
+  cleared; platform badge on every control (U·E1). Done-when: an operator runs a poll and sees votes
+  move without reload.
+- **S107** Schedule + journal — pickers for start/timezone/duration, edit seeds timezone, formatted rows,
+  webcal subscribe URL surfaced; journal list/query endpoint + browse/filter/inspect UI; rebuild status
+  polling; replay/import-legacy reachable or removed (U·E1).
+- **S108** Analytics truth — failures visible, selectable window + metric, local-day boundary,
+  platform-analytics client (U·E1).
+- **S109** Code scripts developer experience — capability catalogue + per-script declared/granted/denied
+  view with links to the toggles; all failing capabilities reported at save; SDK types failure visible;
+  starter templates + capability chooser; used-by view; test-run with triggering user; execution history;
+  bridge unwired capability throws; desktop editor parity decision stated in-app (U·E3).
+- **S110** Automation + federation — Stream Deck run-pipeline/run-command action with picker; federation
+  opt-in validated server-side, peer/capability pickers, Direction collected (U·E3).
+- **S111** Desktop app hardening — OS keychain/DPAPI token store; saved connections + switcher + forget;
+  rescan + firewall hint; log file; session-expiry refresh; window state; icon + stamped version; macOS
+  data dir (U·E5). Done-when: tokens never on disk in plaintext.
+- **S112** Self-host ops — version stamping (`/health/version` real); ready = migrations + EventSub, Degraded
+  ≠ ready; update check + notice; pre-migration DB snapshot + documented rollback; backup/restore verb in
+  deploy scripts; versioned image tags; firewall + log path documented, log size cap; tray parity on
+  Linux/macOS or printed URL/PID; `.env` dev-password warning at boot; saas restriction marker on
+  `docker-compose.yml` + `.env.example` + boot notice in saas mode (U·E5).
+- **S113** Quality gates — in-process E2E host fixture so the suite runs by default; typed
+  `ProducesResponseType<T>` on the 157 schema-less operations + a regenerate-and-diff contract test; Esc
+  in the shared dialog; label the 17 icons; move the 47 literal labels to strings.xml; locale date/number
+  formatter; hub reconnect jitter; `primaryChannel()` cached (S050 dependency); Wasm optimize step with a
+  size budget; chat decoration + pronouns + engagement get a settings surface (U·E6, E4).
+
 ## Phase 6A — platform admin: reliable system-level management (U·Part D) — safety items first, then reach
 
 - **S086** IAM bootstrap truth — self-host = deployment-mode fact (not "any principal exists");

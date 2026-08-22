@@ -974,6 +974,117 @@ What must change (admin): see slices S086–S097 in `SHORTCOMINGS-EXECUTION-PLAN
 
 ---
 
+## Part E — round four: every surface not yet walked (2026-08-22). Denominator now closed.
+
+### E1. Stream / live-ops / schedule / analytics / journal
+- **No Stream page**: `feature/liveops/` = schedule only; `LiveOpsController.kt:32` consumed solely by
+  `HomeScreen.kt:236` — live-ops is a button grid on Home. Hype train, goals, charity, guest star fully
+  built server-side (`HypeTrainEvents.cs`, `GoalEvents.cs`, `CharityEvents.cs`, `GuestStarEvents.cs`,
+  Helix clients, `HypeTrainBroadcastHandlers.cs`) with **zero** dashboard consumers. Shield only on
+  Moderation. `PlatformAnalyticsController.cs:32` has no Kotlin client.
+- **No journal browse**: `EventStoreController.cs` = export/import/replay/import-legacy/rebuild only; no
+  list/query; replay + import-legacy have zero callers; three buttons in Settings (`SettingsScreen.kt:1694`);
+  rebuild shows a raw task id with no status (`:1696`).
+- Webcal subscribe built (`LiveOpsController.cs:433`) but no client builds the URL; `ScheduleController.kt:169`
+  downloads a dead snapshot. `ScheduleScreen.kt:455,462,389,468` start/timezone/duration free text; `:421`
+  edit blanks timezone; `:305` raw ISO in rows; `HomeScreen.kt:1149` tags as comma text.
+- `HomeScreen.kt:804-820` poll/prediction results never rendered (votes/outcomes fetched); no refresh of
+  poll state; ad countdown never shown (`nextAdAt` loaded, unused); `LiveOpsController.kt:54-65` poll/
+  prediction/ad failures → empty; `HomeScreen.kt:434` raid-pending never clears; `:218` errors dropped
+  unless Ready; `ScheduleController.kt:88-148` writes `channelId ?: return` silently.
+- Analytics: `AnalyticsController.kt:116-118,246-268` failures → empty; `:320` fixed 30-day window;
+  `:92-97` metric hardcoded Messages; `:376` UTC day boundary; `:115` unchecked cast.
+- Whole lane Twitch-only by construction (`StreamInfoUpdate` has no platform; language read-only).
+
+### E2. Assets · media share · sound · OBS · VTS
+- Media share: mods moderate blind (`MediaShareScreen.kt:302-325` — no thumbnail/link/name; DTO carries
+  them); **no player widget exists** (`GetNext` `MediaShareController.cs:78` has no consumer — approved
+  clips never play); `MediaShareSubmittedEvent`/`PlaybackChangedEvent` have no handler/trigger source;
+  queue unpaged at 25 (`MediaShareApi.kt:73-84`).
+- `PipelinesScreen.kt:873-965` OBS/VTS fields free text though `obs/scenes`, `obs/inputs`, `vts/inventory`
+  exist. `SoundClipOverlayNotifierAdapter.cs:34-38` passes null handle → `stop_sound` by handle never
+  matches. Assets are an island (no picker anywhere; `AssetsScreen.kt:279` copy-URL); delete has no
+  used-by guard; limits invisible (8 MB / 10 MB / types); `AssetsApi.kt:43` take=200 drops `hasMore`.
+- `SoundController.kt:57-74` upload fixed volume 80, no trigger/cooldown/floor; no clip replace; dead
+  `POST sound-clips/{id}/preview`. OBS page ignores OBS's own events (`ObsController.kt:123-129`); exposes
+  5 of ~20 verbs; bridge failures → "offline"; `ObsScreen.kt:238-242` edits reset on save. VTS: no
+  probe/bridge status (`VtsController.cs`), stored status shown as live; inventory failure → "locked";
+  parameter/tint control has no screen; endpoint unprefilled/unvalidated; hardcoded English error
+  (`ObsController.kt:260`, `VtsController.kt:177`).
+
+### E3. Code scripts · dev platform · webhooks · custom data · automation · federation
+- `OutboundWebhookDispatcher.cs:277` backoff `30×2^(n-1)` uncapped/no jitter (attempt 20 ≈ 182 days);
+  `:144,63-64` delivery runs inline on the event-bus thread; `OutboundWebhookAutoDisabledEvent` +
+  `AttemptedEvent` zero consumers; `WebhookRetryProcessor.cs:43-47` ignores Result (orphan hot row).
+  UI: `WebhooksScreen.kt:1259-1264` no `NextRetryAt`; `:1212` failure → "no deliveries"; `:1211` no
+  refresh/paging/replay (body stored for it).
+- `CustomDataPollService.cs:143-223` every failure log-only; entity has no LastError/attempt/counter;
+  `:164-173` non-allowlisted host silently never polls; no backoff/auto-disable. UI
+  `CustomEventsScreen.kt:826-837` field map parsed by string split (silently empties); `:642-648,622-627`
+  raw JSON/URL. `CustomDataSource.InboundWebhookEndpointId` dead column.
+- Stream Deck: 23 `music-*` actions, no run-pipeline/run-command although `ListPipelinesAsync`/
+  `ListCommandsAsync` exist to back a picker. Federation: opt-in `OptInType`/`Direction` unvalidated
+  (`FederationOptInService.cs:47-79`); UI `peerId` + `capability` free text, `Direction` never collected.
+- Code scripts: capability model invisible (`ScriptCapabilityBroker.cs:32-65` catalogue never shown; one
+  denial named at run time `JintScriptExecutor.cs:316`); capabilities inferred by regex (`:200-248`);
+  `fetchSdkTypes` failure → "" (no autocomplete, silently); desktop editor = plain JTextArea; create dialog
+  blank, no templates; no reverse "used by"; test-run can't set the triggering user; no execution
+  history; raw enum strings; `ScriptHostBridge.cs:96` unwired capability returns null.
+
+### E4. Supporters · billing · bundles · pick lists · decoration · pronouns · engagement
+- Supporters: 11 adapters shipped, **1 reachable** (`SupportersScreen.kt:677-678` hardcoded Ko-fi);
+  capabilities never exposed (no `GET /supporters/sources`); one "secret" field for every mode;
+  `Status="error"` rendered "Idle" (`:430-437`); status never resets (`SupporterIngestService.cs:124`);
+  `SupporterUserId=null` always → economy rewards never fire (`:110`, `SupporterEconomyRewardHandler.cs:50`),
+  and `Units:1` regardless of amount; dedup race on unique index; Patreon/Treatstream dedup key omits event
+  type; no source filter; no test/simulate; every ingest failure log-only.
+- Billing: Usage panel shows "0 of 100" for count-capped keys (only `sandbox_exec_ms` is metered;
+  `SettingsScreen.kt:1916-1936`); raw keys + literal `-1`; `UsageQuotaExceededEvent`/`SubscriptionTierChangedEvent`
+  no consumers; `free` tier seeds zero limits (uncapped); downgrade immediate, no period-end choice.
+- Bundles: export offers 4 of 12 types (`BundlesScreen.kt:307-310`); "nothing to export" computed from
+  those 4; type filter free text (`:634-639`); version unvalidated; tags CSV; no update/re-install path.
+- Pick lists: `PickListService.cs:289` repeats (no anti-repeat window); items bare strings (no weight/
+  enable); whole-list replace with no concurrency check; one-row-at-a-time editing; no tier key.
+- Decoration/pronouns/engagement: no chat-decoration settings surface (5 feature toggles only; 60 s
+  hot-path lag unsignalled; HTML fragments boolean-only); pronouns have no channel-level surface;
+  engagement milestones CSV, no watch-time config, one global cooldown, malformed milestones silently
+  reset, no engagement page.
+
+### E5. Desktop app · deploy · updates
+- **Desktop token vault is plaintext JSON** (`TokenVault.jvm.kt:22-48`); "saved connections" promised in
+  `DEPLOY.md:41` does not exist (`ActiveProfileVault` single profile; Connect shows live mDNS only); no
+  forget/switch; no rescan; mDNS errors to stderr; desktop session expiry unhandled; window state not
+  persisted; no app icon, hardcoded package version; macOS data dir wrong.
+- Updates: no update check, no rollback (migrations forward-only, no pre-migration snapshot), no backup
+  verb in deploy scripts, no prebuilt binaries; `/health/version` always 1.0.0.0 (no stamping);
+  `/health/ready` ignores migrations + EventSub and reports Degraded as 200; CI image freshness unverified
+  under the no-push rule; `latest` only, no versioned tags; dev Postgres password default survives in old
+  `.env`.
+- Self-host exe: firewall prompt from a windowless WinExe undocumented; tray Windows-only (no stop/
+  indicator on Linux/macOS); tray "Open app" path never populated; log path undocumented, no size cap.
+- **`docker-compose.yml:14-17` + `.env.example:124` mention saas with no restriction marker** (the only
+  surfaces that drop it); nothing emits the notice at boot in saas mode.
+
+### E6. Cross-cutting — security · i18n · a11y · perf · tests · contract
+- Security: bearer validation hardcodes HS256 while the token service supports RS/ES (`Program.cs:256-265`)
+  and no `ValidAlgorithms`; **7 controllers bypass `BaseController`** (no rate limit, no `[ApiController]`):
+  `DiscordInteractionsController`, `InboundWebhookController`, `OAuthRelayController`, `OverlayHost`/
+  `OverlaySdk`/`OverlayVueRuntime`/`ObsBridgeHost`; access tokens 60 min with `sid` never checked
+  (logout/impersonation-end don't revoke); `AuthController.cs:552` refresh token in URL fragment;
+  `:1079` custody decided by `?client=` query; `SameSite=Lax` is the only CSRF defence; no CSP/HSTS;
+  `ENCRYPTION_KEY` rotation silently blanks secrets (`SystemCredentialsProvider.cs:50`); keep the
+  HtmlSanitizer/AngleSharp CVE pins.
+- i18n: en/nl 3248/3248 keys, zero drift; 47 hardcoded `label=`/`placeholder=`/`contentDescription=`
+  literals; no locale date/number formatter. A11y: Esc closes ~2 of 383 dialogs; 17 null
+  contentDescriptions. Perf: `primaryChannel()` N+1 (41 sites); hub reconnect no jitter; SQLite no WAL;
+  no Wasm optimize step. Tests: E2E = 2 facts, env-gated, no in-process host; coverage inverted
+  (Infra 3074 vs Application 48 / Domain 46). Contract: 0 typed `ProducesResponseType<T>` → 157/617
+  operations with no response schema; 633 routes vs 617 in snapshot; 1 of 93 controllers contract-tested.
+
+What must change (Part E): slices S098–S113 in `SHORTCOMINGS-EXECUTION-PLAN.md`.
+
+---
+
 ## Remediation order (on top of the two existing plans)
 
 Severity first, then "unblocks the most":
