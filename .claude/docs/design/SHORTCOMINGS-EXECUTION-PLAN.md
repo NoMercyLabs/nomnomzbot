@@ -211,13 +211,100 @@ feature fictional, (3) the generic form infrastructure that every "raw text box"
 - Done-when: a fresh streamer reaches "bot is in my chat" with every status truthful and a next-steps
   Home.
 
+## Tier 6 — multi-platform simultaneous + personas (U·Part C)
+
+Sequenced so the spine lands first; the platform lanes then become mechanical. Owner call 🔒 on
+the grouping model is the only blocker, and it blocks 6.1 only.
+
+### 6.1 Platform spine (U·C0) — 🔒 first: confirm the grouping model, rewrite `platform-identity.md §9.4`
+- Registry bootstrap provider-agnostic (`ChannelRegistryBootstrapService.cs:50-51`); ensure ctx on
+  the first message of any kind on every ingest.
+- `ChatPlatformRouter`: honour `ChatMessageReceivedEvent.Provider` for replies; unknown provider =
+  honest failure, never cached as Twitch.
+- `Provider` on every canonical community/monetization event; `*TwitchUserId` → `*ExternalUserId` +
+  `*Provider` on the 18 entities; remove the `provider = Twitch` default on `IUserService`; delete
+  `PlatformType`.
+- Viewer identity: `LinkAsync` absorption (§3.1a), `IViewerMergeParticipant` + the eight participants,
+  `ViewerRowAbsorbedEvent` published; identity-link UI on Me (6.5).
+- Owner-level channel group: config domains shared with per-platform targets; per-viewer domains
+  resolve to one human (balance, trust, entries, permits, voice).
+- Done-when: a linked viewer has ONE balance across Twitch+Kick for one streamer; a Kick chatter gets
+  welcome/triggers/timers without typing a command first.
+
+### 6.2 Kick parity (U·C2)
+- Go-live publishes canonical online/offline; Kick channel read (viewer count, title/category) +
+  `KickPlatformApi` + `channel:read/write`; operator send on Kick; platform-correct error text;
+  unsubscribe on disconnect; raid event; backoff/verifier/dedupe/unknown-type/follow-time/fragments
+  fixes; moderation returns `Result`; Kick card health + login-only detection; `type: "bot"` identity.
+- Done-when: Kick-only streamer gets alerts, timers, viewer count, title change and truthful ban
+  results from the dashboard.
+
+### 6.3 YouTube parity (U·C3)
+- `youtube.force-ssl` + re-grant; 403 reason parsing + quota backoff; `IsLive` from YouTube poll;
+  YouTube event translators (super chat/sticker/member/milestone/gift) + `snippet.type` routing;
+  multi-broadcast; length chunking; own-channel cache; exponential backoff; leased poller;
+  channel-id keys; unban outcome; refresh-failure signal; connect copy + scope readout + system check
+  field + API-key wizard step; `concurrentViewers` sampler; per-platform stream-info results.
+- Done-when: YouTube-only streamer gets replies, bans, member alerts and viewer count; quota burn
+  shows as quota, not "re-grant".
+
+### 6.4 Combined management (U·C1, after 6.1)
+- Combined chat composer + targets + per-target results; badge every line; `provider` on
+  `ChannelSummary`; (provider,id) dedupe + reorder window; timers/announcements/responses platform
+  target sets with per-platform rate limit + duplicate suppression; supporter events normalised; one
+  go-live form with per-platform results; per-platform viewer breakdown + total + cross-platform
+  session; owner-scoped "ban on all my platforms"; earning credits the linked person.
+- Done-when: live on three platforms, one timer posts to all three once each; one ban bans the human
+  everywhere; Home shows per-platform viewers and a total.
+
+### 6.5 Viewer persona (U·C5)
+- Switcher source for participants ("channels I appear in"), honest empty state instead of reconnect
+  error; MyData on the participant rung; Me gets GDPR, linked accounts (identity API client), own
+  voice, standing, profile fields, per-jar contributions; own SR requests + link to public page;
+  viewer giveaway entry/my-entries (endpoint + card) or drop from IA; leaderboard opt-in read;
+  preview-as-viewer forces Everyone; channel chip shows the channel; analytics errors visible;
+  routes/deep links; Kick login path for Kick-only viewers.
+- Done-when: a viewer with no role logs in, picks a channel they chat in, sees balance/standing/voice/
+  GDPR and can link Kick — on the first run.
+
+### 6.6 Moderator of many (U·C6) — 🔒 spec the persona first (`spec/moderation.md`)
+- Per-platform moderated-channel discovery; reconcile covers moderator-mode tenants + "roles last
+  synced"; live dot bound to `isLive`; roster refresh on `StreamStatusChanged`; stale active-channel
+  pin detected + cleared + explained; `primaryChannel()` hard-fails instead of substituting; roster
+  cached; hub joins every roster channel for alert/mod classes; attributed notifications with
+  click-through; "my channels" home with per-channel queues; queues re-fetch on `ModAction`;
+  switch splash with timeout/error; active role in the sidebar header.
+- Done-when: a mod of 4 channels sees which is live, gets attributed alerts from all four, and can
+  never act on the wrong channel.
+
+### 6.7 Bot-as-a-bot quality (U·C7) — the first five ship inside Tier 1.3
+- Loop guard; `!commands`/`!help`; per-platform length chunking + duplicate variation; outbound send
+  queue/token bucket per channel per platform; reply-or-mention helper + `SendReplyAsync` result +
+  fallback; `BuiltinOutcome`; tone on every outbound surface + usage/error slots; one
+  `ParseUserMention`; permit via identity; whisper-with-fallback + inbound whisper handler;
+  `announce` action/toggle; bot-line marker.
+- Done-when: 100 simultaneous subs produce a coalesced, rate-limited chat response; no message
+  exceeds a platform limit; a self-host bot never triggers itself.
+
+### 6.8 X and a fourth platform (U·C4) — 🔒 owner: is X cross-posting in scope?
+- If yes: `IntegrationProvider.twitter`, `tweet.write`, announcement-target registry generalised from
+  the Discord go-live handler. Either way: badge every chat line incl. Twitch (in 6.4).
+
 ## Tier 5 — polish and structure
 - W·§8 items 5 (drop game redesign 🔒 mechanic), 8 (stacked-transition chat style 🔒 reference),
   10 (per-widget nits), 11 (component splits after 4.4; `WidgetGalleryItem` file-set storage first).
 - S LOW/informational list (§ "LOW / informational").
 - Remaining U·B2/B3/B5/B6 bullets not named above, batched by file.
 
+**Ordering note (2026-08-22, round two):** Tier 6.1 (platform spine) is pulled up to run right after
+Tier 1 — every Tier 2–4 fix on a per-tenant surface would otherwise be built on the per-platform
+tenant model and redone. 6.7's first five items ship inside 1.3. Tier 5 stays last.
+
 ## Owner calls blocking items above (🔒)
+- **Grouping model for a simulcast streamer (6.1):** channel group with per-domain resolution vs a
+  designated primary tenant — rewrite `platform-identity.md §9.4` accordingly. Blocks 6.1/6.4.
+- **Multi-channel moderator spec (6.6):** aggregate-queue endpoint shape + notification attribution.
+- **X cross-posting in scope? (6.8)** — spec currently says login-only.
 - SignalR/Redis backplane for multi-replica (2.1) — single-instance acceptable for now?
 - Cooldown DB write-through (2.2) — scaling investment, defer?
 - Music cost/duration/cooldown fields (4.8) — spec the economy hook.

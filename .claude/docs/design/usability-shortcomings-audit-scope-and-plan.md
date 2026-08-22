@@ -625,6 +625,237 @@ Backend:
 
 ---
 
+## Part C — round two: multi-platform simultaneous streaming + personas (2026-08-22)
+
+Owner's hard rule: streamers go live on Twitch + Kick + YouTube **at the same time** and must manage
+all of it uniformly from one place. Eight lanes. Same format.
+
+### C0. The structural root (every lane hit it)
+
+- `Domain/Identity/Entities/Channel.cs:35-37` + `Infrastructure/Identity/PlatformChannelProvisioner.cs:32-65`
+  — one `Channel` row (= one tenant/`BroadcasterId`) **per platform**. A simulcast streamer is three
+  tenants: three command sets, three timer sets, three currency ledgers, three giveaway pools, three
+  trust scores, three mod rosters. `spec/platform-identity.md §9.4` explicitly refuses grouping sibling
+  channels — that spec line is overturned by the simulcast rule and must be rewritten (🔒 owner
+  confirms the model: either a channel-group aggregation key, or a designated primary tenant that
+  per-viewer/per-config domains resolve to).
+- `Infrastructure/Chat/ChatPlatformRouter.cs:119-140` — reply platform is resolved from the *tenant's*
+  `Channel.Provider`, never from the message's origin (`ChatMessageReceivedEvent.Provider` exists,
+  `:32`). `:134-139` unknown provider silently falls back to Twitch (cached per scope `:32,121-129`).
+- `Infrastructure/Platform/ChannelRegistryBootstrapService.cs:50-51` loads only `TwitchChannelId != null`;
+  Kick/YouTube tenants have it null (`PlatformChannelProvisioner.cs:59`) → **never in the registry at
+  boot**: no chat triggers, no timers, no welcome, no blacklist, no `{chatters}` until someone types a
+  `!command` (`ChatMessageHandler.cs:102-170,999`; `KickWebhookIngest.cs:126-131`; `YouTubeLiveChatPollWorker.cs:353`).
+- Viewer identity: `User + UserIdentity(Provider, ProviderUserId)` exists (`UserIdentity.cs`,
+  `User.cs:27`) and per-viewer state keys on internal Guids — but it is **inert**: `UserIdentityService.cs:152-158`
+  `LinkAsync` returns `IDENTITY_ALREADY_LINKED` for the only real case (already chatted on Kick before
+  linking; spec §3.1a absorption unbuilt), `IViewerMergeParticipant` has zero occurrences,
+  `ViewerRowAbsorbedEvent` has no publisher. Four call sites omit the provider and default to Twitch
+  (`PronounHydrationHandler.cs:52-57`, `ViewerDataActions.cs:229-234`, `StatsBuiltins.cs:148-153`,
+  `QuoteBuiltin.cs:209-212`; default on `IUserService.cs:34`). 18 entities carry `ViewerTwitchUserId`
+  with no provider column (`CurrencyAccount.cs:25`, `UserTrustScore.cs:31`, `GiveawayEntry.cs:31`,
+  `LeaderboardSnapshot.cs:27`, … — the correct shape already exists in `ChatPoll.cs:61-66`,
+  `EventJournal.cs:72-76`, `ChannelChatterDay.cs:31`). `Domain/Platform/Enums/PlatformType.cs:13` is a
+  dead second platform enum (Twitch, Discord) contradicting `AuthEnums.Platform`.
+- Community/monetization events carry no `Provider` (`FollowEvent.cs`, `CheerEvent`, subscription
+  events) — only `ChatMessageReceivedEvent` does; alerts can't say "followed on Kick".
+
+What must change (the spine of Tier 6): one owner-level grouping of sibling channels with per-domain
+resolution (config domains: commands/timers/responses/settings shared with per-platform targets;
+per-viewer domains: one balance/trust/entry per human); registry bootstrap provider-agnostic; router
+honours message origin and fails honestly; provider on every canonical event; viewer link +
+absorption + merge participants built; `*TwitchUserId` → `*ExternalUserId + *Provider`; delete
+`PlatformType`.
+
+### C1. Combined management matrix (surface → today)
+
+| Surface | Today | Evidence |
+|---|---|---|
+| Combined chat feed | per-channel merge, read-only, no composer; Twitch lines unbadged | `MultiChatController.kt:38-144`, `MultiChatScreen.kt:64`, `ChatScreen.kt:432-435`; `ChannelSummary` has no `provider` (`IntegrationDtos.kt:38-47`); merge dedupes by id not (provider,id), sorts by ISO time across push/poll (`MultiChatController.kt:131-139`) |
+| Commands/builtins reply target | per-tenant, origin-blind; no per-platform restriction on a command | `ChatPlatformRouter.cs:119-129`, `ChatMessageHandler.cs:442-443` |
+| Timers/announcements | per-channel, single platform; author thrice | `TimerService.cs:103-108,213-214` |
+| Event responses/alerts | Twitch EventSub vocabulary only; no Kick-sub / YouTube-member translators | `SubscriptionTranslators.cs:19-26,85`; `Platform/Eventing/Translators/` 17 files all Twitch |
+| Moderation | per-tenant; "ban everywhere" only via federation-gated shared-ban/network-nuke | `ModerationService.cs:1437-1498`, `moderation.md:963-967`, `OperatorNetworkBanService.cs:44` |
+| Stream info / go-live | per-channel form; YouTube rejects category/tags, Kick has no platform API | `StreamController.cs:220-223,307,336,364`, `YouTubePlatformApi.cs:51,62`, `DependencyInjection.cs:1334-1335` |
+| Home/analytics | `platformsLive` combined; viewer count single tenant (Twitch only sampled) | `DashboardController.cs:349-368`, `HomeScreen.kt:305,556`, `StreamStatusPollingService.cs:104-143,237` |
+| Economy earning | per-message provider-aware identity, per-tenant balance | `ChatEarningHandler.cs:47-58` |
+| Song requests/TTS | per-tenant queue | `SongRequestBuiltin`/`SongRequestAction` via tenant `IChatProvider` |
+| Settings/bot identity/prefix/personality | per-channel; no owner-level surface | `ChannelBotController.kt` |
+
+What must change: composer with target selector (all watched / one) + per-target result; badge every
+line incl. Twitch; `provider` on `ChannelSummary`; timers/announcements/responses get a platform
+target set with per-platform rate limiting + duplicate-send suppression; supporter events normalised
+into the same domain events with a `Provider` discriminator (one response config, one alert queue);
+one go-live form fanning out with per-platform applied/rejected; per-platform viewer breakdown +
+summed total + cross-platform stream session; owner-scoped "apply to all my platforms" mod action
+without federation; earning credits the linked person.
+
+### C2. Kick streamer
+
+- `KickWebhookIngest.cs:194-208` — `livestream.status.updated` writes `Channel.IsLive` and publishes
+  **nothing**: no live alert, no Discord go-live, no stream session, registry ctx never live (evictable
+  `ChannelRegistry.cs:559`). `StreamStatusPollingService.cs:104-143` — Twitch-only viewer sampling;
+  `IKickApiClient` has no channel/livestream read → Kick viewer count permanently 0.
+- `OperatorChatSender.cs:53-59` — send-as-me hard-wired to Helix; dashboard composer defaults to
+  "you" (`ChatController.cs:313`) → replying in Kick chat fails "Channel is not known locally";
+  `ChatController.cs:303-305` error text hardcodes "Twitch".
+- `KickEventSubscriptionWorker.cs:43-55` + `IKickApiClient` — no unsubscribe on disconnect
+  (deliveries keep arriving); no raid/host event requested. `:63,175,222` — backoff dict unbounded and
+  checked after provisioning. `KickWebhookVerifier.cs:82-86` — every signature miss forces an
+  un-rate-limited public-key refetch (unauthenticated amplification). `KickWebhookIngest.cs:134` —
+  dedupe via DB `AnyAsync` races async persistence; `:97-99`/`KickWebhookController.cs:88-92`
+  unknown event types dropped without a log; `:270` follow time fabricated as now; `:157-165` Kick chat
+  stored as one text fragment, badges discarded.
+- `KickChatPlatform.cs:63-119` — moderation ops return `Task` not `Result`: ban/timeout on Kick is
+  log-only, UI shows success. `OAuthProviderRegistry.cs:104-110` — `kick.chat` omits `channel:read/write`;
+  no `KickPlatformApi` → no title/category from dashboard. `KickAccessTokenProvider.cs:90-102` — a
+  login-only Kick link satisfies nothing and says nothing. `IntegrationsScreen.kt:296-304` — Kick card
+  connect/disconnect only; `MISSING_SCOPE` 30-min backoff is log-only. `ChatApi.kt:263-265` — stale
+  comment + `provider="twitch"` default. Bot never uses Kick's `type: "bot"` identity.
+- Coverage: events ≈ complete (10 webhook types, send/delete/ban); **zero read side** (`GET/PATCH
+  channels`, `categories`, `livestreams`, `users`), no `DELETE events/subscriptions`.
+
+### C3. YouTube streamer
+
+- `OAuthProviderRegistry.cs:194` — never requests `youtube.force-ssl` → every reply, ban, delete on
+  YouTube **403s**. `YouTubeLiveChatClient.cs:61` — 403 mapped unconditionally to `MISSING_SCOPE`
+  (quota/rate 403s misreported, 15-min backoff). `YouTubeAccessTokenProvider.cs:157` — failed refresh
+  → null, no dashboard signal.
+- `ChannelOnlineHandler.cs:115` + `TimerService.cs:96` + `ChatMessageHandler.cs:121` — `IsLive` only
+  from Twitch `stream.online` → timers and first-message welcome never run for YouTube.
+- No YouTube translators (17 files all Twitch): super chat/sticker, membership, member milestone,
+  gifting never become events. `YouTubeLiveChatClient.cs:428` — `MapMessage` ignores `snippet.type`,
+  non-text items published as blank chat lines. `:51` — `maxResults=1`, second simultaneous broadcast
+  silently ignored. `:178` + `YouTubeChatPlatform.cs:75` — >200 chars fails closed, warning only.
+  `YouTubeLiveChatPollWorker.cs:216,243` — own-channel fetched twice per tick (quota); `:50,150` flat
+  1-min retry, no jitter/Retry-After; `:60` per-process poll state (double polling on two instances);
+  `:386` `UserLogin` = lowercased display name (not unique/stable) used as key.
+- `YouTubeChatPlatform.cs:127` — unban of a Studio-made ban is a log-only no-op reported as success.
+  `ChatPlatformRouter.cs:127` fallback can execute a YouTube tenant's moderation against Twitch.
+- UI/config: `strings.xml:57,955` connect copy says "music provider" (never mentions live chat);
+  `IntegrationsScreen.kt:127` fixed `youtube.manage`, no re-grant path; `SystemDtos.kt:36` omits the
+  `YouTube` system check the backend emits (`SystemController.cs:153`; the Kotlin comment claiming a
+  backend gap is wrong); `SystemController.cs:159` calls the credentials "optional — music provider"
+  though they power live-chat refresh; `YouTubeMusicProvider.cs:76,99` needs `YouTube:ApiKey` with no
+  wizard step/check. `StreamStatusPollingService.cs:105` — `concurrentViewers` never read.
+  `YouTubePlatformApi.cs:51,62` — combined stream-info update half-applies with one `Result`.
+- Coverage: `liveBroadcasts.list/update`, `liveChatMessages.list/insert/delete`, `liveChatBans`,
+  `channels.list(mine)` only. Missing: all event types, `liveChatModerators`, `liveStreams`/health/
+  cuepoints, broadcast transition/bind/insert/delete, `concurrentViewers`, `type` discriminator.
+
+### C4. X/Twitter and platform-neutrality
+
+- X = login only: `Identity/Login/TwitterLoginProvider.cs:30` (PKCE, tokens vaulted, never read);
+  `LoginProviderRegistry.cs:57` behind `use_twitter_login`; `AuthEnums.cs:81-94` `IntegrationProvider`
+  has no twitter; scopes read-only (no `tweet.write`); `ProviderBrand.kt:79` only X UI.
+  `spec/platform-identity.md:186-206` decides X is login-only (intentional) — there is no cross-post
+  spec at all. Go-live announce is Discord-shaped (`DiscordGoLiveNotificationHandler`), not a
+  registry of announcement targets.
+- No Trovo/TikTok/Facebook/Rumble anywhere; platform set closed at three. 92 `"twitch"|"kick"|"youtube"`
+  string literals across 68 files (mostly registration keys). `MultiChatScreen.kt:219-221` tags
+  non-Twitch only; `ProviderBrand.kt:58-80` palettes used only on the connect modal.
+- What must change before a 4th platform: C0 spine + badge every line + announcement-target registry;
+  before X specifically: `IntegrationProvider.twitter`, `tweet.write`, announcement target. 🔒 owner:
+  is X cross-posting in scope at all (spec says no).
+
+### C5. Viewer persona on SaaS
+
+Built (6 participant screens) but stranded:
+- `ChannelSwitcherController.kt:54` — switcher lists owned/modded channels only → a pure viewer's
+  switcher is empty. `ShellAccessController.kt:58-68` — `primaryChannel()` fails → `channelId = ""`
+  → all six screens show "No active channel — reconnect" with a Retry that can never succeed
+  (`ParticipantController.kt:503,506`). This is a real viewer's first-run experience.
+- `ShellNav.kt:180` — `MyData` (GDPR) floors at Moderator; `GdprController.cs:29-30` is plain
+  `[Authorize]`, `GdprApi.kt` wired — zero viewer UI for export/erase. `MeScreen.kt:113-133` — no
+  GDPR, no linked accounts, no notification prefs; `AuthController.cs:120,142,214,266,276` identity
+  link/unlink/primary API has **no client at all**. `TtsConfigController.cs:362,381,403` `me/voice` +
+  `TtsApi.kt:111,242,254,260` wired, never called (TTS page floors at Moderator `ShellNav.kt:144`).
+  `CommunityController.cs:948` `me/standing` never called. No viewer giveaway entry/my-entries
+  endpoint or page (`GiveawaysController.cs:46-167` all management). `PublicSongRequestController.cs:28-70`
+  exists but ParticipantShell never links to it and never shows the viewer's own requests
+  (`ParticipantController.kt:159`). `ShellNav.kt:126` — lowered `quotes:read` has no participant
+  destination.
+- Truthfulness: `ParticipantStates.kt:77` leaderboard `optedIn` defaults true, never read
+  (`ParticipantController.kt:200-211`); `ShellScreen.kt:294-302` "preview as viewer" uses the manager's
+  own access (previews a moderator); `ParticipantShell.kt:150,191` channel chip shows the *viewer's*
+  name; `ParticipantController.kt:431,438` analytics failures → card vanishes; `:481-486` profile
+  self-service passes `null,null` (pronoun only); `MeScreen.kt:220-252` "channels I appear in" is inert
+  (it is the missing switcher source); `:291-301` no "my contributions" per jar; `ParticipantShell.kt:126`
+  no route/deep link, refresh dumps to MyChannel.
+- Multi-platform: `ShellAccessController.kt:107` keys everything on the platform GUID; Twitch forced
+  primary sign-in (`AuthController.cs:166`); a Kick-only viewer likely cannot sign in at all; no link UI.
+
+### C6. Moderator of many channels
+
+- `ChannelsController.cs:166-212,228-314` — moderated-channel discovery is Twitch-only (Helix Get
+  Moderated Channels, `Platform.Twitch` hardcoded); Kick/YouTube mods invisible.
+  `ManagementRoleReconcileService.cs:80-83` walks `Enabled && IsOnboarded` only → moderator-mode
+  tenants (un-onboarded by design) never re-reconciled: demotion never propagates. `:35`/`ChannelsController.cs:35`
+  first tick after 10 min; reconcile runs on each broadcaster's token, dead token → skipped forever
+  silently (`:93-94`); no "roles last synced" signal.
+- `ShellScreen.kt:777-786` hardcoded green live dot; `:243` roster loaded once per session
+  (`StreamStatusChanged` hub event never fed back); `:758` active channel dropped from roster → header
+  silently renames to another channel while `SessionStore.activeChannelId` (`SessionStore.kt:85-87`
+  never cleared) keeps sending the revoked id → every page 403s (`TenantResolutionMiddleware.cs:83-89`).
+  `ChannelsApi.kt:83-98` `primaryChannel()` falls back to `channels.firstOrNull()` and controllers pass
+  that as route `channelId` (route beats header, `TenantResolutionMiddleware.cs:111-119`) → **action
+  can land on a different streamer's channel**. `ChannelsApi.kt:136-137` + 43 call sites re-fetch the
+  whole list uncached, each a live Helix moderated-channels read + membership upserts
+  (`ChannelsController.cs:84-91,100,116-163`).
+- `ShellScreen.kt:251-263` + `DashboardHubClient.kt:120-130` — hub joins exactly one channel; nothing
+  from other channels reaches the mod (hub supports multi-join `DashboardHub.cs:28-37,90-153`).
+  `ShellScreen.kt:355-367` — the only hub reaction is an unattributed error toast. No "my channels"
+  home / cross-channel queue (per-channel data exists: `ModerationApi.kt:39,141,166,191`).
+  `ModerationController.kt:219-241` — queues never re-fetched on `ModAction` (two mods double-act).
+  `ShellScreen.kt:271-278` — mid-switch blank splash with no timeout/error (stuck forever on probe
+  failure); `:1190` role badge only inside the dropdown; `:294` preview keyed on stale `access.channelId`.
+- `spec/moderation.md` / `stream-admin.md` — no multi-channel moderator section at all. 🔒 owner:
+  spec the persona (aggregate queue endpoint shape, notification attribution) before building.
+
+### C7. The bot as a chat bot
+
+- **No loop guard** on any of the three ingests (`ChatMessageHandler.cs:95-167`,
+  `ChatTranslators.cs:198-236`, `YouTubeLiveChatPollWorker.cs:365-380`, `KickWebhookIngest.cs:146`):
+  self-host speaks as the streamer, so bot lines re-enter as broadcaster chat and can self-trigger
+  commands/sound/chat triggers.
+- `ChatMessageHandler.cs:217-218` — unknown command: bare return. **No `!help`/`!commands` builtin**
+  (21 builtins in `BuiltinCommandCatalog.cs`, none is help).
+- Length/splitting: `HelixChatProvider.cs:216-254`, `YouTubeChatPlatform.cs:55-82` send whole (Twitch
+  500 / YouTube 200 → 400, dropped); `KickApiClient.cs:29,49-55` fails closed at 500. Legacy chunked at
+  450 (`nomercy-bot/.../TwitchChatService.cs:183,347`). `HelixChatProvider.cs:226-240` — no duplicate-
+  message handling (Twitch drops identical consecutive lines). **No outbound chat throttle/queue**
+  anywhere (`ChatPlatformRouter.cs:45-67`; `TwitchRateLimiter.cs:31-53` is Helix points only) — 100 subs
+  → 100 concurrent sends, most dropped by the platform.
+- Tone: `ChatMessageHandler.cs:242-268` passes personality only to builtins; custom commands
+  (`:435-444`), timers (`TimerService.cs:203-214`), event responses (`EventResponseExecutor.cs:132`),
+  chat triggers, `SendMessageAction.cs:39-45` never see it. `BuiltinResponseSlots.cs:22-97` covers 7 of
+  ~14 builtins; usage/error strings hardcoded (`PermitBuiltins.cs:145,241`, `UpdateUserInfoBuiltin.cs:71-83`,
+  `StatsBuiltins.cs:82`). `UpdateUserInfoBuiltin.cs:56,62` prefixes `@user` on top of reply threading;
+  `SongRequestAction.cs:71-95`/`SongWrongAction.cs:73-89` plain `@user` while the builtin replies —
+  same `!sr` looks like two bots.
+- Reply semantics: `YouTubeChatPlatform.cs:85-92` reply → plain send without re-adding the mention
+  (floating unaddressed lines); `SendReplyAsync` returns `Task` not `Task<bool>`, no reply→plain fallback
+  (legacy had one, `TwitchChatService.cs:216-227`). `ChatMessageHandler.cs:267-275` — builtins encode
+  user-facing errors as `Result.Success(text)` → every failure recorded as success in analytics.
+- Five independent `@`-strip/arg parsers (`ChatMessageHandler.cs:926`, `StatsBuiltins.cs:144`,
+  `PermitBuiltins.cs:76`, `UpdateUserInfoBuiltin.cs:46`, `ShoutoutAction.cs:102`). `PermitBuiltins.cs:89-101`
+  resolves via Helix only (Kick/YouTube chatter "not found"). Whispers: `ITwitchWhispersApi` used only
+  by automation + giveaway; `WhisperReceivedEvent.cs:20` has no handler; `GdprBuiltins.cs:207-239`
+  answers `!mydata` in public chat. `TwitchChatApi.cs:35-61` `SendAnnouncementAsync` reachable only
+  from shoutout — no `announce` action / toggle. Legacy `"* "` bot-line marker
+  (`TwitchChatService.cs:167-169`) has no equivalent: viewers can't tell streamer from bot on
+  self-host. `SendMessageAction.cs:35-46` — empty resolved text not checked, send bool discarded.
+
+What must change (C7): loop guard set per tenant; `!commands`/`!help` builtin; per-platform length
+constants + word-boundary chunking; duplicate-line variation; per-channel per-platform outbound
+send queue with token bucket + coalescing; tone applied to every outbound surface + tone slots for
+usage/errors; one reply-or-mention helper used by builtins and actions; `SendReplyAsync` returns a
+result with plain+mention fallback; `BuiltinOutcome {Text, Succeeded}`; one `ParseUserMention`;
+permit via identity path; whisper-with-fallback for GDPR + inbound whisper handler; `announce`
+action/toggle; configurable bot-line marker.
+
+---
+
 ## Remediation order (on top of the two existing plans)
 
 Severity first, then "unblocks the most":
