@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.economy.ui
 
+import kotlinx.coroutines.flow.SharedFlow
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -287,7 +289,7 @@ import org.jetbrains.compose.resources.stringResource
 // consequential action (it stops viewers earning), so that save routes through a ConfirmDialog. The screen loads on
 // first composition and offers a retry on failure.
 @Composable
-fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
+fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvents: SharedFlow<HubEvent>? = null) {
     val state: EconomyState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -301,6 +303,16 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?) {
         rememberManageDecision(role, ShellRoute.Economy, ManageAction.EconomyPayoutRules)
 
     LaunchedEffect(Unit) { controller.load() }
+
+    // Live config pushes: another operator (or the bot) changing this domain refetches the page
+
+    // instead of leaving stale rows on screen until a manual reload.
+
+    if (hubEvents != null) {
+
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: EconomyState = state) {

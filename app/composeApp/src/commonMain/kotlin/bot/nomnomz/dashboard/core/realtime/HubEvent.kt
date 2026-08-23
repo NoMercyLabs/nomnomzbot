@@ -44,6 +44,17 @@ sealed interface HubEvent {
 
     data class ObsBridgeStateChanged(val state: HubObsBridgeState) : HubEvent
 
+    /**
+     * A channel's configuration changed in some domain — a command added, a timer edited, a quote
+     * deleted — by ANY operator or by the bot itself. The backend has always broadcast this; the client
+     * used to drop it as [Unknown], which is why a page kept showing stale rows until it was reloaded.
+     * Feature controllers refetch when [HubConfigChanged.domain] is theirs.
+     */
+    data class ConfigChanged(val change: HubConfigChanged) : HubEvent
+
+    /** A channel-points reward changed (created / updated / deleted / redemption state moved). */
+    data class RewardChanged(val change: HubRewardChanged) : HubEvent
+
     /** A hub target not yet modelled — carry the raw argument so callers can inspect it. */
     data class Unknown(val target: String, val rawArgs: String) : HubEvent
 
@@ -66,6 +77,8 @@ sealed interface HubEvent {
                     "ChannelEvent" -> ChannelEvent(json.decodeFromString(first))
                     "PermissionChanged" -> PermissionChanged(json.decodeFromString(first))
                     "ObsBridgeStateChanged" -> ObsBridgeStateChanged(json.decodeFromString(first))
+                    "ConfigChanged" -> ConfigChanged(json.decodeFromString(first))
+                    "RewardChanged" -> RewardChanged(json.decodeFromString(first))
                     else -> Unknown(target, first)
                 }
             }.getOrNull()
@@ -259,5 +272,30 @@ data class HubObsBridgeState(
     val broadcasterId: String = "",
     val instanceCount: Int = 0,
     val hasLeader: Boolean = false,
+    val timestamp: String = "",
+)
+
+/**
+ * Mirror of the backend `ConfigChangedDto`. [domain] is the announcing module ("commands", "quotes",
+ * "timers", "pipelines", "widgets", "webhooks", "picklists", "builtins", "catalog", "features",
+ * "eventjournal"); [action] is "created" / "updated" / "deleted".
+ */
+@Serializable
+data class HubConfigChanged(
+    val broadcasterId: String = "",
+    val domain: String = "",
+    val entityId: String? = null,
+    val action: String = "",
+)
+
+/** Mirror of the backend `RewardChangedDto`. */
+@Serializable
+data class HubRewardChanged(
+    val broadcasterId: String = "",
+    val action: String = "",
+    val rewardId: String = "",
+    val title: String = "",
+    val cost: Int? = null,
+    val isEnabled: Boolean? = null,
     val timestamp: String = "",
 )

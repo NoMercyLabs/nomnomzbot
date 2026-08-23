@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.features.ui
 
+import kotlinx.coroutines.flow.SharedFlow
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -75,6 +77,7 @@ fun FeaturesScreen(
     controller: FeaturesController,
     role: ManagementRole?,
     onRegrantScopes: () -> Unit = {},
+    hubEvents: SharedFlow<HubEvent>? = null,
 ) {
     val state: FeaturesState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -85,6 +88,16 @@ fun FeaturesScreen(
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Features)
 
     LaunchedEffect(Unit) { controller.load() }
+
+    // Live config pushes: another operator (or the bot) changing this domain refetches the page
+
+    // instead of leaving stale rows on screen until a manual reload.
+
+    if (hubEvents != null) {
+
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),

@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.commands.state
 
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -25,7 +26,6 @@ import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
-import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +40,8 @@ import nomnomzbot.composeapp.generated.resources.feedback_command_save_failed
 // backend (no fabricated rows). It also drives the page's writes — create / edit / toggle / delete — each
 // of which re-lists on success so the screen always reflects the backend's truth. The screen renders
 // [state]; a retry / reconnect calls [load] again.
+private val COMMAND_DOMAINS: Set<String> = setOf("commands", "builtins")
+
 class CommandsController(
     private val channelsApi: ChannelsApi,
     private val commandsApi: CommandsApi,
@@ -152,6 +154,12 @@ class CommandsController(
      */
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
         hubEvents.collect { evt ->
+            // Any operator (or the bot) adding, editing or deleting a command/builtin refetches the list —
+            // without this the page showed whatever it fetched on open until someone reloaded it.
+            if (evt is HubEvent.ConfigChanged && evt.change.domain in COMMAND_DOMAINS) {
+                load()
+                return@collect
+            }
             if (evt !is HubEvent.CommandExecuted || !evt.event.succeeded) return@collect
             val current: CommandsState = _state.value
             if (current !is CommandsState.Ready) return@collect

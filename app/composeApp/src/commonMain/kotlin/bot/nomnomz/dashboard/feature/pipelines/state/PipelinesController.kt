@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.pipelines.state
 
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.onConfigChange
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -44,6 +46,7 @@ import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
 import bot.nomnomz.dashboard.core.network.WebhooksApi
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetsApi
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -90,6 +93,15 @@ class PipelinesController(
     private var palette: RuntimePalette = PipelineCatalogue.fallbackPalette()
 
     /** Resolve the active channel, fetch the block palette, then list its pipelines. Returns to the list view. */
+    /**
+     * Keeps this page live: the backend announces every change to pipelines on the dashboard hub, from any
+     * operator or from the bot itself, and this refetches instead of leaving whatever was on screen when
+     * the page opened. Without it the only way to see a change was a manual reload.
+     */
+    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
+        hubEvents.onConfigChange("pipelines") { load() }
+    }
+
     suspend fun load() {
         // Only show the full-page loading state on first load; a refetch after a mutation keeps
         // the current content on screen (no flash) and swaps it when the new data arrives.

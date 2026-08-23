@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.timers.ui
 
+import kotlinx.coroutines.flow.SharedFlow
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -110,7 +112,7 @@ import nomnomzbot.composeapp.generated.resources.timers_write_error
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun TimersScreen(controller: TimersController, role: ManagementRole?) {
+fun TimersScreen(controller: TimersController, role: ManagementRole?, hubEvents: SharedFlow<HubEvent>? = null) {
     val state: TimersState by controller.state.collectAsStateWithLifecycle()
     val writeError: String? by controller.writeError.collectAsStateWithLifecycle()
     val pipelines: List<PipelineSummary> by controller.pipelines.collectAsStateWithLifecycle()
@@ -121,6 +123,16 @@ fun TimersScreen(controller: TimersController, role: ManagementRole?) {
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Timers)
 
     LaunchedEffect(Unit) { controller.load() }
+
+    // Live config pushes: another operator (or the bot) changing this domain refetches the page
+
+    // instead of leaving stale rows on screen until a manual reload.
+
+    if (hubEvents != null) {
+
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+
+    }
 
     var editTarget: TimerEditTarget? by remember { mutableStateOf(null) }
     var deleteTarget: TimerSummary? by remember { mutableStateOf(null) }

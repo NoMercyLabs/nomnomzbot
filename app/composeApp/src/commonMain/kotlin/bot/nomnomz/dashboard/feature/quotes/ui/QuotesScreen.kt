@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.quotes.ui
 
+import kotlinx.coroutines.flow.SharedFlow
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -103,7 +105,7 @@ import org.jetbrains.compose.resources.stringResource
 // composition. This is the full management surface — create, edit, and delete — each routed back through the
 // controller, which re-lists after every successful write so the page reflects the backend.
 @Composable
-fun QuotesScreen(controller: QuotesController, heldActionKeys: Set<String>) {
+fun QuotesScreen(controller: QuotesController, heldActionKeys: Set<String>, hubEvents: SharedFlow<HubEvent>? = null) {
     val state: QuotesState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -126,6 +128,16 @@ fun QuotesScreen(controller: QuotesController, heldActionKeys: Set<String>) {
     var pendingDelete: Quote? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) { controller.load() }
+
+    // Live config pushes: another operator (or the bot) changing this domain refetches the page
+
+    // instead of leaving stale rows on screen until a manual reload.
+
+    if (hubEvents != null) {
+
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: QuotesState = state) {

@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.pipelines.ui
 
+import kotlinx.coroutines.flow.SharedFlow
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -268,7 +270,7 @@ import org.jetbrains.compose.resources.stringResource
 // (create / rename / enable-disable / delete) and the chain EDITOR surface (add / configure / reorder / remove
 // the ordered action blocks with an optional condition + stop flag, then save). It loads on first composition.
 @Composable
-fun PipelinesScreen(controller: PipelinesController, role: ManagementRole?) {
+fun PipelinesScreen(controller: PipelinesController, role: ManagementRole?, hubEvents: SharedFlow<HubEvent>? = null) {
     val state: PipelinesState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -280,6 +282,16 @@ fun PipelinesScreen(controller: PipelinesController, role: ManagementRole?) {
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Pipelines)
 
     LaunchedEffect(Unit) { controller.load() }
+
+    // Live config pushes: another operator (or the bot) changing this domain refetches the page
+
+    // instead of leaving stale rows on screen until a manual reload.
+
+    if (hubEvents != null) {
+
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: PipelinesState = state) {

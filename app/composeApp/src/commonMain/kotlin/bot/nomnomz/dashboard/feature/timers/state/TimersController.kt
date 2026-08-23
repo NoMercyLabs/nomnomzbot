@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.timers.state
 
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.onConfigChange
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -23,6 +25,7 @@ import bot.nomnomz.dashboard.core.network.TimerDetail
 import bot.nomnomz.dashboard.core.network.TimerSummary
 import bot.nomnomz.dashboard.core.network.TimersApi
 import bot.nomnomz.dashboard.core.network.UpdateTimerRequest
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -58,6 +61,15 @@ class TimersController(
     val writeError: StateFlow<String?> = _writeError.asStateFlow()
 
     /** Resolve the active channel, then load its scheduled timers. */
+    /**
+     * Keeps this page live: the backend announces every change to timers on the dashboard hub, from any
+     * operator or from the bot itself, and this refetches instead of leaving whatever was on screen when
+     * the page opened. Without it the only way to see a change was a manual reload.
+     */
+    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
+        hubEvents.onConfigChange("timers") { load() }
+    }
+
     suspend fun load() {
         // Only show the full-page loading state on first load; a refetch after a mutation keeps
         // the current content on screen (no flash) and swaps it when the new data arrives.

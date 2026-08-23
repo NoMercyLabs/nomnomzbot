@@ -554,10 +554,22 @@ private fun ShellContent(
             ShellRoute.ChatTriggers ->
                 ChatTriggersScreen(controller = graph.chatTriggersController, role = role)
             ShellRoute.EventResponses -> EventResponsesScreen(controller = graph.eventResponsesController, role = role)
-            ShellRoute.Quotes -> QuotesScreen(controller = graph.quotesController, heldActionKeys = heldActionKeys)
+            ShellRoute.Quotes -> QuotesScreen(
+                    controller = graph.quotesController,
+                    heldActionKeys = heldActionKeys,
+                    hubEvents = graph.dashboardHubClient.events,
+                )
             ShellRoute.PickLists ->
-                PickListsScreen(controller = graph.pickListsController, heldActionKeys = heldActionKeys)
-            ShellRoute.Timers -> TimersScreen(controller = graph.timersController, role = role)
+                PickListsScreen(
+                    controller = graph.pickListsController,
+                    heldActionKeys = heldActionKeys,
+                    hubEvents = graph.dashboardHubClient.events,
+                )
+            ShellRoute.Timers -> TimersScreen(
+                    controller = graph.timersController,
+                    role = role,
+                    hubEvents = graph.dashboardHubClient.events,
+                )
             ShellRoute.Moderation ->
                 ModerationScreen(
                     controller = graph.moderationController,
@@ -598,7 +610,11 @@ private fun ShellContent(
             ShellRoute.Giveaways ->
                 GiveawaysScreen(controller = graph.giveawaysController, heldActionKeys = heldActionKeys)
             ShellRoute.Discord -> DiscordScreen(controller = graph.discordController, role = role)
-            ShellRoute.Pipelines -> PipelinesScreen(controller = graph.pipelinesController, role = role)
+            ShellRoute.Pipelines -> PipelinesScreen(
+                    controller = graph.pipelinesController,
+                    role = role,
+                    hubEvents = graph.dashboardHubClient.events,
+                )
             ShellRoute.Schedule -> ScheduleScreen(controller = graph.scheduleController, role = role)
             ShellRoute.Roles -> RolesScreen(controller = graph.rolesController, role = role)
             ShellRoute.Integrations ->
@@ -620,12 +636,30 @@ private fun ShellContent(
                     role = role,
                     onChannelDeleted = onChannelDeleted,
                 )
-            ShellRoute.Economy -> EconomyScreen(controller = graph.economyController, role = role)
+            ShellRoute.Economy -> EconomyScreen(
+                    controller = graph.economyController,
+                    role = role,
+                    hubEvents = graph.dashboardHubClient.events,
+                )
             ShellRoute.Alerts -> AlertsScreen(controller = graph.alertsController, role = role)
             ShellRoute.Widgets ->
-                WidgetsScreen(controller = graph.widgetsController, role = role, isReviewer = isReviewer)
-            ShellRoute.Features -> FeaturesScreen(controller = graph.featuresController, role = role, onRegrantScopes = onReconnect)
-            ShellRoute.Webhooks -> WebhooksScreen(controller = graph.webhooksController, role = role)
+                WidgetsScreen(
+                    controller = graph.widgetsController,
+                    role = role,
+                    isReviewer = isReviewer,
+                    hubEvents = graph.dashboardHubClient.events,
+                )
+            ShellRoute.Features -> FeaturesScreen(
+                    controller = graph.featuresController,
+                    role = role,
+                    onRegrantScopes = onReconnect,
+                    hubEvents = graph.dashboardHubClient.events,
+                )
+            ShellRoute.Webhooks -> WebhooksScreen(
+                    controller = graph.webhooksController,
+                    role = role,
+                    hubEvents = graph.dashboardHubClient.events,
+                )
             ShellRoute.Federation -> FederationScreen(controller = graph.federationController, role = role)
             ShellRoute.CodeScripts -> CodeScriptsScreen(controller = graph.codeScriptsController, role = role)
             ShellRoute.CustomEvents -> CustomEventsScreen(controller = graph.customEventsController, role = role)

@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.widgets.state
 
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.onConfigChange
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.network.ApiError
@@ -33,6 +35,7 @@ import bot.nomnomz.dashboard.core.network.WidgetTemplate
 import bot.nomnomz.dashboard.core.network.WidgetVersionDetail
 import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
 import bot.nomnomz.dashboard.core.network.WidgetsApi
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -62,6 +65,15 @@ class WidgetsController(
     private var channelId: String? = null
 
     /** Resolve the active channel, then list its overlay widgets. */
+    /**
+     * Keeps this page live: the backend announces every change to widgets on the dashboard hub, from any
+     * operator or from the bot itself, and this refetches instead of leaving whatever was on screen when
+     * the page opened. Without it the only way to see a change was a manual reload.
+     */
+    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
+        hubEvents.onConfigChange("widgets") { load() }
+    }
+
     suspend fun load() {
         // Only show the full-page loading state on first load; a refetch after a mutation keeps
         // the current content on screen (no flash) and swaps it when the new data arrives.

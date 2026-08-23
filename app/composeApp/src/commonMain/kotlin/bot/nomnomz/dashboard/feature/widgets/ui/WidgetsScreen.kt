@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.widgets.ui
 
+import kotlinx.coroutines.flow.SharedFlow
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -166,7 +168,7 @@ import org.jetbrains.compose.resources.stringResource
 // edited (the compile-on-save code editor), rolled back to a past version, or deleted — deletion is destructive
 // (its browser-source URL stops resolving once gone), so it confirms first.
 @Composable
-fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReviewer: Boolean = false) {
+fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReviewer: Boolean = false, hubEvents: SharedFlow<HubEvent>? = null) {
     val state: WidgetsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val tokens = LocalTokens.current
@@ -196,6 +198,16 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
     var showRotateTokenConfirm: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { controller.load() }
+
+    // Live config pushes: another operator (or the bot) changing this domain refetches the page
+
+    // instead of leaving stale rows on screen until a manual reload.
+
+    if (hubEvents != null) {
+
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),

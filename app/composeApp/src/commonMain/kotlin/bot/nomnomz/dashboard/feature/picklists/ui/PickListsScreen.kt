@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.picklists.ui
 
+import kotlinx.coroutines.flow.SharedFlow
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -102,7 +104,7 @@ import org.jetbrains.compose.resources.stringResource
 // create, edit (name / description / the entries themselves), and delete — each routed back through the
 // controller, which re-lists after every successful write so the page reflects the backend.
 @Composable
-fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>) {
+fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>, hubEvents: SharedFlow<HubEvent>? = null) {
     val state: PickListsState by controller.state.collectAsStateWithLifecycle()
     val previewResult: PickListPreviewResult? by controller.preview.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -127,6 +129,16 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
     var pendingDelete: PickList? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) { controller.load() }
+
+    // Live config pushes: another operator (or the bot) changing this domain refetches the page
+
+    // instead of leaving stale rows on screen until a manual reload.
+
+    if (hubEvents != null) {
+
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: PickListsState = state) {

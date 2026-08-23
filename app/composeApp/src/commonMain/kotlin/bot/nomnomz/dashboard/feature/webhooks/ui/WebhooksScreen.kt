@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.webhooks.ui
 
+import kotlinx.coroutines.flow.SharedFlow
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -185,7 +187,7 @@ import org.jetbrains.compose.resources.stringResource
 // dialogs persist the whole endpoint (not just the enabled flag), custom (generic) inbound adapters expose
 // their signing config, and each outbound endpoint has a delivery log for debugging.
 @Composable
-fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?) {
+fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?, hubEvents: SharedFlow<HubEvent>? = null) {
     val state: WebhooksState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val tokens = LocalTokens.current
@@ -206,6 +208,16 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?) {
     var testResult: String? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) { controller.load() }
+
+    // Live config pushes: another operator (or the bot) changing this domain refetches the page
+
+    // instead of leaving stale rows on screen until a manual reload.
+
+    if (hubEvents != null) {
+
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),
