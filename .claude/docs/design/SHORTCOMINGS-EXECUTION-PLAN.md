@@ -38,11 +38,6 @@ Slice IDs are stable; the order is the queue.
   (billing writes + refund), `ComplianceController` (GDPR erasure). `AdminController:180` is the only action already on
   `SecuritySensitiveRateLimitPolicy` (added by S098e) — that policy is the pattern to spread. Run this sweep after
   S086c/S086e land, since they hold three of those files.
-- **S089c** Impersonated writes carry both actors — `EventJournal.OnBehalfOfUserId`/`ImpersonationSessionId` exist and
-  round-trip (S089a, cdabd0a7) but nothing populates them for writes made DURING an impersonated request, so the
-  plan’s literal Done-when ("an impersonated write shows operator + subject in one audit query") is not yet met.
-  Needs the ambient context through `ICurrentUserService` + `EventJournalService`, and every affected test fake updated.
-  Done-when: a normal service write on an act-as request journals operator + subject + session id; a normal request leaves them null.
 ## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
 
 - **S001** Song-request queue store — `IMusicService` queue out of the scoped instance into a singleton
