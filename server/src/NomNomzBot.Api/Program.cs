@@ -188,6 +188,10 @@ try
         NomNomzBot.Application.Overlays.Services.IOverlayEventFeed,
         OverlayEventFeedAdapter
     >();
+    builder.Services.AddScoped<
+        NomNomzBot.Application.Commands.Services.IEventResponseOverlayNotifier,
+        EventResponseOverlayNotifierAdapter
+    >();
 
     // Hub broadcast-layer viewer enrichment (avatar/pronouns/community standing) — the store does the DB read,
     // the enricher cache-gates it so a burst of hub events for the same viewer is one DB read, not N.

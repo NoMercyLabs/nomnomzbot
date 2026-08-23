@@ -427,6 +427,12 @@ public static class DependencyInjection
             Application.Widgets.Services.IWidgetEventNotifier,
             Widgets.NullWidgetEventNotifier
         >();
+        // No-op fallback; the API host replaces this with the SignalR-backed EventResponseOverlayNotifierAdapter
+        // (drives an EventResponse's `overlay` ResponseType — commands-pipelines.md §3.2.1).
+        services.AddScoped<
+            Application.Commands.Services.IEventResponseOverlayNotifier,
+            Commands.NullEventResponseOverlayNotifier
+        >();
         // No-op fallback for the generic overlay event feed; the API host replaces it with the hub-backed adapter.
         // The OverlayEventFeedHook that drives it is auto-registered by the IJournalPostCommitHook scan below.
         services.AddScoped<

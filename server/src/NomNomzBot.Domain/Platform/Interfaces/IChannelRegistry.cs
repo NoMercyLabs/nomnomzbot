@@ -270,4 +270,16 @@ public class CachedCommand
     public string? PipelineGraphJson { get; init; }
 
     public string[] Aliases { get; init; } = [];
+
+    /// <summary>How the prefix is resolved: Default (channel prefix) | Custom | None.</summary>
+    public string PrefixMode { get; init; } = "Default";
+
+    /// <summary>Custom prefix character(s) when <see cref="PrefixMode"/> is Custom.</summary>
+    public string? CustomPrefix { get; init; }
+
+    /// <summary>How the trigger input is matched: StartsWith | Exact | Contains | Regex.</summary>
+    public string MatchMode { get; init; } = "StartsWith";
+
+    /// <summary>Set only for a <see cref="MatchMode"/> of Regex (compiled, bounded by a match timeout).</summary>
+    public System.Text.RegularExpressions.Regex? CompiledRegex { get; init; }
 }

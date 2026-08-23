@@ -133,7 +133,26 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         // cached settings so this stays a no-DB hot path; a changed prefix applies once the registry reloads.
         string commandPrefix = channelCtx?.CommandPrefix ?? "!";
 
-        if (!text.StartsWith(commandPrefix, StringComparison.Ordinal))
+        bool defaultPrefixed = text.StartsWith(commandPrefix, StringComparison.Ordinal);
+
+        // Resolve the channel context up front (lazy-loading a cold registry) so a command whose own
+        // PrefixMode/MatchMode diverges from the channel default (commands-pipelines.md §3.2.1) can be
+        // matched even when the message doesn't start with the channel's default prefix.
+        ChannelContext? ctx = channelCtx;
+        if (ctx is null)
+        {
+            ctx = await EnsureChannelLoadedAsync(
+                @event.BroadcasterId,
+                @event.TwitchBroadcasterId,
+                cancellationToken
+            );
+        }
+
+        (CachedCommand? resolvedCommand, string resolvedArgs) = ctx is not null
+            ? ResolveAuthoredCommand(ctx, text, commandPrefix)
+            : (null, string.Empty);
+
+        if (resolvedCommand is null && !defaultPrefixed)
         {
             // Open chat poll: a bare option number is a VOTE and is consumed — it never doubles as a
             // trigger match while the poll runs.
@@ -176,31 +195,28 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         if (IsClaimedByActiveGame(@event.BroadcasterId, text))
             return;
 
-        // Parse: <prefix>commandname arg1 arg2 ... — strip the (already-matched) prefix, then split on the
-        // first space into command name + args.
-        string afterPrefix = text[commandPrefix.Length..];
-        int spaceIdx = afterPrefix.IndexOf(' ');
-        string commandName = (
-            spaceIdx > 0 ? afterPrefix[..spaceIdx] : afterPrefix
-        ).ToLowerInvariant();
-        string args = spaceIdx > 0 ? afterPrefix[(spaceIdx + 1)..].Trim() : string.Empty;
+        string commandName;
+        string args;
+        if (resolvedCommand is not null)
+        {
+            commandName = resolvedCommand.Name.TrimStart('!').ToLowerInvariant();
+            args = resolvedArgs;
+        }
+        else
+        {
+            // No per-command trigger matched (Custom prefix / non-default MatchMode) — fall back to the
+            // classic default-prefix parse so built-ins (which are always Default/StartsWith) still resolve.
+            string afterPrefix = text[commandPrefix.Length..];
+            int spaceIdx = afterPrefix.IndexOf(' ');
+            commandName = (spaceIdx > 0 ? afterPrefix[..spaceIdx] : afterPrefix).ToLowerInvariant();
+            args = spaceIdx > 0 ? afterPrefix[(spaceIdx + 1)..].Trim() : string.Empty;
+        }
 
         if (string.IsNullOrEmpty(commandName))
             return;
 
-        ChannelContext? ctx = _registry.Get(@event.BroadcasterId);
         if (ctx is null)
-        {
-            // Channel missed the startup bootstrap (new channel, or registry was cold).
-            // Lazy-load it now so this and subsequent messages process correctly.
-            ctx = await EnsureChannelLoadedAsync(
-                @event.BroadcasterId,
-                @event.TwitchBroadcasterId,
-                cancellationToken
-            );
-            if (ctx is null)
-                return;
-        }
+            return;
 
         ctx.LastActivityAt = _timeProvider.GetUtcNow();
 
@@ -210,8 +226,13 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         IBuiltinCommand? builtin = _builtins.Get(commandName);
         bool isReserved = builtin is { IsReserved: true };
 
-        // Look up command in in-memory cache (O(1), no DB hit)
-        if (isReserved || !ctx.Commands.TryGetValue(commandName, out CachedCommand? command))
+        // ResolveAuthoredCommand already evaluated EVERY command's own trigger model (including the
+        // Default/StartsWith case), so its result is authoritative — a plain dictionary lookup by
+        // parsed name here would bypass Exact/Contains/Regex/Custom-prefix rejections for a same-named
+        // command whose match actually failed (e.g. an Exact-mode "!hi" command must NOT also answer to
+        // "!hi there" just because "hi" is a key in the map).
+        CachedCommand? command = isReserved ? null : resolvedCommand;
+        if (isReserved || command is null)
         {
             // Fall back to built-in catalog (code-defined commands like !uptime).
             if (builtin is null)
@@ -477,6 +498,111 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             );
             await PublishExecutedAsync(@event, command.Name, false, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Resolves the first authored command whose own trigger model (commands-pipelines.md §3.2.1:
+    /// <c>PrefixMode</c>/<c>CustomPrefix</c>/<c>MatchMode</c>/<c>MatchPattern</c>) matches the raw message —
+    /// evaluated against EACH command's own effective prefix, not just the channel default, so a Custom-prefix
+    /// or non-StartsWith command fires from its own trigger and never from the channel's default prefix.
+    /// </summary>
+    private static (CachedCommand? Command, string Args) ResolveAuthoredCommand(
+        ChannelContext ctx,
+        string text,
+        string channelPrefix
+    )
+    {
+        // ctx.Commands stores the SAME CachedCommand instance under its name key AND every alias key, so
+        // iterating .Values visits a multi-alias command more than once — deduplicate by reference and, for
+        // each, test every name it answers to (canonical name + aliases) against its own trigger model.
+        HashSet<CachedCommand> visited = new(ReferenceEqualityComparer.Instance);
+        foreach (CachedCommand candidate in ctx.Commands.Values)
+        {
+            if (!visited.Add(candidate))
+                continue;
+
+            string effectivePrefix = candidate.PrefixMode switch
+            {
+                "Custom" => candidate.CustomPrefix ?? string.Empty,
+                "None" => string.Empty,
+                _ => channelPrefix,
+            };
+
+            foreach (string name in NamesOf(candidate))
+            {
+                string trigger = effectivePrefix + name;
+
+                switch (candidate.MatchMode)
+                {
+                    case "Exact":
+                        if (text.Equals(trigger, StringComparison.OrdinalIgnoreCase))
+                            return (candidate, string.Empty);
+                        break;
+
+                    case "Contains":
+                        if (ContainsWholeWord(text, trigger))
+                            return (candidate, string.Empty);
+                        break;
+
+                    case "Regex":
+                        if (candidate.CompiledRegex?.IsMatch(text) == true)
+                            return (candidate, string.Empty);
+                        break;
+
+                    default: // StartsWith
+                        if (
+                            text.StartsWith(trigger, StringComparison.OrdinalIgnoreCase)
+                            && (
+                                text.Length == trigger.Length
+                                || char.IsWhiteSpace(text[trigger.Length])
+                            )
+                        )
+                        {
+                            string args =
+                                text.Length > trigger.Length
+                                    ? text[(trigger.Length + 1)..].Trim()
+                                    : string.Empty;
+                            return (candidate, args);
+                        }
+                        break;
+                }
+
+                // Regex has one fixed pattern — trying it once per alias would just re-run the same match.
+                if (candidate.MatchMode == "Regex")
+                    break;
+            }
+        }
+
+        return (null, string.Empty);
+    }
+
+    private static IEnumerable<string> NamesOf(CachedCommand candidate)
+    {
+        yield return candidate.Name;
+        foreach (string alias in candidate.Aliases)
+            yield return alias;
+    }
+
+    /// <summary>Whole-word, case-insensitive substring match — used by <c>MatchMode=Contains</c> so a trigger
+    /// embedded inside a longer word (e.g. "cat" inside "category") never fires.</summary>
+    private static bool ContainsWholeWord(string text, string word)
+    {
+        if (word.Length == 0)
+            return false;
+
+        int idx = text.IndexOf(word, StringComparison.OrdinalIgnoreCase);
+        while (idx >= 0)
+        {
+            bool leftBoundary = idx == 0 || char.IsWhiteSpace(text[idx - 1]);
+            bool rightBoundary =
+                idx + word.Length == text.Length || char.IsWhiteSpace(text[idx + word.Length]);
+            if (leftBoundary && rightBoundary)
+                return true;
+
+            idx = text.IndexOf(word, idx + 1, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
     }
 
     /// <summary>

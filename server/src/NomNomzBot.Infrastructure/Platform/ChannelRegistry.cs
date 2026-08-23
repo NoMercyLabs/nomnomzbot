@@ -407,23 +407,66 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 c.CooldownSeconds,
                 c.MinPermissionLevel,
                 c.Tier,
-                PipelineGraphJson = c.Pipeline != null ? c.Pipeline.GraphJsonCache : null,
+                // A command bound to a DISABLED pipeline caches no graph — the chat path's existing
+                // "no executable graph" fallback (falls through to the builtin catalog / does nothing) is
+                // reused rather than adding a second disabled-check on the hot path.
+                PipelineGraphJson = c.Pipeline != null && c.Pipeline.IsEnabled
+                    ? c.Pipeline.GraphJsonCache
+                    : null,
                 c.Aliases,
+                c.PrefixMode,
+                c.CustomPrefix,
+                c.MatchMode,
+                c.MatchPattern,
             })
             .ToListAsync(ct);
 
-        List<CachedCommand> commands = rows.Select(c => new CachedCommand
+        List<CachedCommand> commands = new(rows.Count);
+        foreach (var c in rows)
+        {
+            System.Text.RegularExpressions.Regex? compiledRegex = null;
+            if (c.MatchMode == "Regex" && !string.IsNullOrEmpty(c.MatchPattern))
             {
-                Name = c.Name,
-                TemplateResponses = NormalizeResponses(c.TemplateResponses, c.TemplateResponse),
-                GlobalCooldown = c.CooldownPerUser ? 0 : c.CooldownSeconds,
-                UserCooldown = c.CooldownPerUser ? c.CooldownSeconds : 0,
-                MinPermissionLevel = c.MinPermissionLevel,
-                Tier = c.Tier,
-                PipelineGraphJson = c.PipelineGraphJson,
-                Aliases = c.Aliases.ToArray(),
-            })
-            .ToList();
+                try
+                {
+                    // Compiled once per cache load; the hard timeout bounds any pathological pattern
+                    // to milliseconds per message instead of a hot-path hang. Mirrors the chat-trigger
+                    // regex compile above — one policy, two surfaces.
+                    compiledRegex = new(
+                        c.MatchPattern,
+                        System.Text.RegularExpressions.RegexOptions.IgnoreCase,
+                        TimeSpan.FromMilliseconds(100)
+                    );
+                }
+                catch (ArgumentException ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Skipping regex match mode for command {Name} with invalid pattern for {BroadcasterId}",
+                        c.Name,
+                        ctx.BroadcasterId
+                    );
+                }
+            }
+
+            commands.Add(
+                new CachedCommand
+                {
+                    Name = c.Name,
+                    TemplateResponses = NormalizeResponses(c.TemplateResponses, c.TemplateResponse),
+                    GlobalCooldown = c.CooldownPerUser ? 0 : c.CooldownSeconds,
+                    UserCooldown = c.CooldownPerUser ? c.CooldownSeconds : 0,
+                    MinPermissionLevel = c.MinPermissionLevel,
+                    Tier = c.Tier,
+                    PipelineGraphJson = c.PipelineGraphJson,
+                    Aliases = c.Aliases.ToArray(),
+                    PrefixMode = c.PrefixMode,
+                    CustomPrefix = c.CustomPrefix,
+                    MatchMode = c.MatchMode,
+                    CompiledRegex = compiledRegex,
+                }
+            );
+        }
 
         foreach (CachedCommand cmd in commands)
         {

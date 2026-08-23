@@ -159,6 +159,208 @@ public sealed class ChatMessageHandlerTests
             );
     }
 
+    // ── per-command trigger model (Commands.PrefixMode / MatchMode — commands-pipelines.md §3.2.1) ──────
+
+    [Fact]
+    public async Task A_command_with_a_custom_prefix_responds_to_it_and_not_the_channel_default()
+    {
+        // Channel default stays "!"; this ONE command overrides its own prefix to "?" (PrefixMode=Custom).
+        ChannelContext ctx = NewChannelContext();
+        AddTriggerCommand(
+            ctx,
+            "hype",
+            "HYPE!",
+            prefixMode: "Custom",
+            customPrefix: "?",
+            matchMode: "StartsWith"
+        );
+
+        (ChatMessageHandler sut, _, IEventBus bus) = BuildWithGames(ctx, new());
+
+        await sut.HandleAsync(MessageEvent("?hype"), CancellationToken.None);
+
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.CommandName == "hype" && e.Succeeded
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task The_channel_default_prefix_does_not_trigger_a_custom_prefix_command()
+    {
+        ChannelContext ctx = NewChannelContext(); // default prefix "!"
+        AddTriggerCommand(
+            ctx,
+            "hype",
+            "HYPE!",
+            prefixMode: "Custom",
+            customPrefix: "?",
+            matchMode: "StartsWith"
+        );
+
+        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(ctx, new());
+
+        await sut.HandleAsync(MessageEvent("!hype"), CancellationToken.None);
+
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await bus.DidNotReceiveWithAnyArgs()
+            .PublishAsync(
+                Arg.Any<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Exact_match_mode_requires_the_whole_message_to_equal_the_trigger()
+    {
+        ChannelContext ctx = NewChannelContext();
+        AddTriggerCommand(
+            ctx,
+            "hi",
+            "Hey!",
+            prefixMode: "Default",
+            customPrefix: null,
+            matchMode: "Exact"
+        );
+
+        (ChatMessageHandler sut, _, IEventBus bus) = BuildWithGames(ctx, new());
+
+        // Exact: "!hi" alone fires, "!hi there" does NOT (StartsWith would have matched both).
+        await sut.HandleAsync(MessageEvent("!hi"), CancellationToken.None);
+        await sut.HandleAsync(MessageEvent("!hi there"), CancellationToken.None);
+
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.CommandName == "hi"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Contains_match_mode_fires_on_a_mid_message_whole_word_trigger()
+    {
+        ChannelContext ctx = NewChannelContext();
+        AddTriggerCommand(
+            ctx,
+            "party",
+            "Let's go!",
+            prefixMode: "None",
+            customPrefix: null,
+            matchMode: "Contains"
+        );
+
+        (ChatMessageHandler sut, _, IEventBus bus) = BuildWithGames(ctx, new());
+
+        // Contains + PrefixMode=None: the bare word appears anywhere in an ordinary chat line.
+        await sut.HandleAsync(MessageEvent("time to party tonight"), CancellationToken.None);
+
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.CommandName == "party"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task StartsWith_Exact_and_Contains_disagree_on_the_same_input()
+    {
+        // Same trigger word "go", three commands differing only in MatchMode, one input: "!go now" —
+        // proves the three modes are not interchangeable on identical input.
+        ChannelContext ctx = NewChannelContext();
+        AddTriggerCommand(
+            ctx,
+            "go",
+            "starts",
+            prefixMode: "Default",
+            customPrefix: null,
+            matchMode: "StartsWith"
+        );
+
+        (ChatMessageHandler startsWithSut, _, IEventBus startsWithBus) = BuildWithGames(ctx, new());
+        await startsWithSut.HandleAsync(MessageEvent("!go now"), CancellationToken.None);
+        await startsWithBus
+            .Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
+                Arg.Any<CancellationToken>()
+            );
+
+        ChannelContext exactCtx = NewChannelContext();
+        AddTriggerCommand(
+            exactCtx,
+            "go",
+            "exact",
+            prefixMode: "Default",
+            customPrefix: null,
+            matchMode: "Exact"
+        );
+        (ChatMessageHandler exactSut, IChatProvider exactChat, IEventBus exactBus) = BuildWithGames(
+            exactCtx,
+            new()
+        );
+        await exactSut.HandleAsync(MessageEvent("!go now"), CancellationToken.None);
+        await exactChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await exactBus
+            .DidNotReceiveWithAnyArgs()
+            .PublishAsync(
+                Arg.Any<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_command_bound_to_a_disabled_pipeline_never_runs_from_chat()
+    {
+        // ChannelRegistry caches no PipelineGraphJson for a command bound to a disabled Pipeline row —
+        // the same "no executable graph" shape the handler already falls back to the builtin catalog for.
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands["flow"] = new()
+        {
+            Name = "flow",
+            TemplateResponses = [],
+            GlobalCooldown = 0,
+            UserCooldown = 0,
+            MinPermissionLevel = 0,
+            Tier = "pipeline",
+            PipelineGraphJson = null, // disabled Pipeline.IsEnabled=false ⇒ registry caches null
+        };
+
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+        IBuiltinCommandCatalog builtins = Substitute.For<IBuiltinCommandCatalog>();
+        builtins.Get(Arg.Any<string>()).Returns((IBuiltinCommand?)null);
+        IPipelineEngine pipelineEngine = Substitute.For<IPipelineEngine>();
+        IChatProvider chat = Substitute.For<IChatProvider>();
+
+        ChatMessageHandler sut = new(
+            registry,
+            Substitute.For<IServiceScopeFactory>(),
+            Substitute.For<ICooldownManager>(),
+            chat,
+            pipelineEngine,
+            builtins,
+            Substitute.For<ITemplateResolver>(),
+            Substitute.For<IEventBus>(),
+            new(),
+            TimeProvider.System,
+            NullLogger<ChatMessageHandler>.Instance
+        );
+
+        await sut.HandleAsync(MessageEvent("!flow"), CancellationToken.None);
+
+        await pipelineEngine
+            .DidNotReceiveWithAnyArgs()
+            .ExecuteAsync(default!, Arg.Any<CancellationToken>());
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+    }
+
     // ── per-channel command prefix (Channel.CommandPrefix) ──────────────────
 
     [Fact]
@@ -1129,6 +1331,32 @@ public sealed class ChatMessageHandlerTests
             UserCooldown = 0,
             MinPermissionLevel = 0,
             Tier = "template",
+        };
+
+    /// <summary>Registers a template command with an explicit trigger model (PrefixMode/CustomPrefix/MatchMode) —
+    /// commands-pipelines.md §3.2.1 — for tests that exercise per-command trigger resolution rather than the
+    /// channel-default StartsWith path <see cref="AddTemplateCommand"/> covers.</summary>
+    private static void AddTriggerCommand(
+        ChannelContext ctx,
+        string name,
+        string response,
+        string prefixMode,
+        string? customPrefix,
+        string matchMode,
+        System.Text.RegularExpressions.Regex? compiledRegex = null
+    ) =>
+        ctx.Commands[name] = new()
+        {
+            Name = name,
+            TemplateResponses = [response],
+            GlobalCooldown = 0,
+            UserCooldown = 0,
+            MinPermissionLevel = 0,
+            Tier = "template",
+            PrefixMode = prefixMode,
+            CustomPrefix = customPrefix,
+            MatchMode = matchMode,
+            CompiledRegex = compiledRegex,
         };
 
     private static (ChatMessageHandler Sut, IChatProvider Chat, IEventBus Bus) BuildWithGames(

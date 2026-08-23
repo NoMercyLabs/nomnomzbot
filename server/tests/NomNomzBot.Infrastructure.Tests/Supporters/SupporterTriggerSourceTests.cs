@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Supporters.Events;
@@ -60,6 +61,7 @@ public sealed class SupporterTriggerSourceTests
             Substitute.For<IPipelineEngine>(),
             templates,
             chat,
+            Substitute.For<IEventResponseOverlayNotifier>(),
             NullLogger<EventResponseExecutor>.Instance
         );
         SupporterTriggerSource handler = new(

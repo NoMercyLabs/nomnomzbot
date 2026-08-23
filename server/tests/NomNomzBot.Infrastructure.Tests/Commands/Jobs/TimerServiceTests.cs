@@ -238,6 +238,32 @@ public sealed class TimerServiceTests
     }
 
     [Fact]
+    public async Task A_pipeline_timer_bound_to_a_disabled_pipeline_does_not_run_it()
+    {
+        // Pipeline.IsEnabled=false must stop the timer from dispatching it — same retry-next-interval
+        // shape as the missing-graph case above, never an error loop.
+        Harness h = Build();
+        h.Db.Pipelines.Add(
+            new()
+            {
+                Id = PipelineId,
+                BroadcasterId = Channel,
+                Name = "disabled rotation",
+                TriggerKind = "timer",
+                GraphJsonCache = """{"actions":[{"type":"shoutout"}]}""",
+                IsEnabled = false,
+            }
+        );
+        h.Db.SaveChanges();
+        Timer timer = SeedTimer(h.Db, PipelineId, ["alice"]);
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        h.Db.Timers.Single(t => t.Id == timer.Id).LastFiredAt.Should().Be(Now.UtcDateTime);
+    }
+
+    [Fact]
     public async Task A_one_shot_timer_fires_once_then_disables_itself()
     {
         // FireOnce = a single dispatch: the line still goes out, but the timer disables itself so the next

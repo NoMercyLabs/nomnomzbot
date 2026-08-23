@@ -22,9 +22,11 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// <summary>
 /// <see cref="IEventResponseExecutor"/> over the tenant's <see cref="EventResponse"/> rows:
 /// <c>chat_message</c> resolves the operator's template against the trigger's variables and sends it via
-/// the chat provider; <c>pipeline</c> runs the bound pipeline's cached graph with the variables seeded;
-/// <c>none</c> (or a disabled/absent row) does nothing. Scoped — trigger sources resolve it from their
-/// own scope (hosted-service handlers) or take it by constructor (already-scoped handlers).
+/// the chat provider; <c>overlay</c> resolves the same template and pushes it (plus the operator's metadata)
+/// to the broadcaster's overlay clients — it never also posts to chat; <c>pipeline</c> runs the bound
+/// pipeline's cached graph with the variables seeded; <c>none</c> (or a disabled/absent row) does nothing.
+/// Scoped — trigger sources resolve it from their own scope (hosted-service handlers) or take it by
+/// constructor (already-scoped handlers).
 /// </summary>
 public sealed class EventResponseExecutor : IEventResponseExecutor
 {
@@ -32,6 +34,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
     private readonly IPipelineEngine _pipeline;
     private readonly ITemplateResolver _templateResolver;
     private readonly IChatProvider _chatProvider;
+    private readonly IEventResponseOverlayNotifier _overlayNotifier;
     private readonly ILogger<EventResponseExecutor> _logger;
 
     public EventResponseExecutor(
@@ -39,6 +42,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         IPipelineEngine pipeline,
         ITemplateResolver templateResolver,
         IChatProvider chatProvider,
+        IEventResponseOverlayNotifier overlayNotifier,
         ILogger<EventResponseExecutor> logger
     )
     {
@@ -46,6 +50,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         _pipeline = pipeline;
         _templateResolver = templateResolver;
         _chatProvider = chatProvider;
+        _overlayNotifier = overlayNotifier;
         _logger = logger;
     }
 
@@ -96,6 +101,17 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                     );
                     break;
 
+                case "overlay":
+                    await SendOverlayAsync(
+                        broadcasterId,
+                        eventTypeKey,
+                        config.Message,
+                        config.MetadataJson,
+                        variables,
+                        cancellationToken
+                    );
+                    break;
+
                 // "none" or any unknown type: no action.
             }
         }
@@ -132,6 +148,28 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
             await _chatProvider.SendMessageAsync(broadcasterId, message, ct);
     }
 
+    private async Task SendOverlayAsync(
+        Guid broadcasterId,
+        string eventTypeKey,
+        string? messageTemplate,
+        Dictionary<string, string> metadata,
+        Dictionary<string, string> variables,
+        CancellationToken ct
+    )
+    {
+        string resolvedMessage = string.IsNullOrWhiteSpace(messageTemplate)
+            ? string.Empty
+            : await _templateResolver.ResolveAsync(messageTemplate, variables, broadcasterId, ct);
+
+        await _overlayNotifier.NotifyAsync(
+            broadcasterId,
+            eventTypeKey,
+            resolvedMessage,
+            metadata,
+            ct
+        );
+    }
+
     private async Task RunPipelineAsync(
         Guid broadcasterId,
         Guid? pipelineId,
@@ -148,7 +186,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
             p => p.Id == pipelineId.Value,
             ct
         );
-        if (pipeline is null)
+        if (pipeline is null || !pipeline.IsEnabled)
             return;
 
         await _pipeline.ExecuteAsync(

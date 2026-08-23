@@ -254,13 +254,24 @@ public sealed class TimerService : BackgroundService
         CancellationToken ct
     )
     {
-        string? graphJson = await db
+        var pipeline = await db
             .Pipelines.Where(p =>
                 p.Id == pipelineId && p.BroadcasterId == timer.BroadcasterId && p.DeletedAt == null
             )
-            .Select(p => p.GraphJsonCache)
+            .Select(p => new { p.GraphJsonCache, p.IsEnabled })
             .FirstOrDefaultAsync(ct);
 
+        if (pipeline is not null && !pipeline.IsEnabled)
+        {
+            _logger.LogDebug(
+                "Timer {Name} points at disabled pipeline {PipelineId} — skipping this fire",
+                timer.Name,
+                pipelineId
+            );
+            return true;
+        }
+
+        string? graphJson = pipeline?.GraphJsonCache;
         if (string.IsNullOrEmpty(graphJson))
         {
             _logger.LogWarning(

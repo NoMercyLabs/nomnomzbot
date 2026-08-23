@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Tests.Supporters;
@@ -22,9 +23,10 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
 /// <summary>
 /// Proves the ONE event-response execution path every trigger source dispatches through: an enabled
 /// <c>chat_message</c> row sends the RESOLVED template; an enabled <c>pipeline</c> row runs the bound
-/// pipeline's cached graph with the trigger's variables and attribution; a disabled row, a <c>none</c>
-/// row, a blank template, or a dangling pipeline id all do nothing — and an executor failure never
-/// escapes into the caller (the event bus must not see it).
+/// pipeline's cached graph with the trigger's variables and attribution; an <c>overlay</c> row pushes the
+/// resolved message + metadata to the overlay notifier and never posts to chat; a disabled row, a
+/// <c>none</c> row, a blank template, a disabled pipeline, or a dangling pipeline id all do nothing — and
+/// an executor failure never escapes into the caller (the event bus must not see it).
 /// </summary>
 public sealed class EventResponseExecutorTests
 {
@@ -34,7 +36,8 @@ public sealed class EventResponseExecutorTests
         EventResponseExecutor Executor,
         SupporterTestDbContext Db,
         IChatProvider Chat,
-        IPipelineEngine Engine
+        IPipelineEngine Engine,
+        IEventResponseOverlayNotifier Overlay
     ) Build()
     {
         SupporterTestDbContext db = SupporterTestDbContext.New();
@@ -54,15 +57,17 @@ public sealed class EventResponseExecutorTests
             .Returns(Task.FromResult(true));
 
         IPipelineEngine engine = Substitute.For<IPipelineEngine>();
+        IEventResponseOverlayNotifier overlay = Substitute.For<IEventResponseOverlayNotifier>();
 
         EventResponseExecutor executor = new(
             db,
             engine,
             templates,
             chat,
+            overlay,
             NullLogger<EventResponseExecutor>.Instance
         );
-        return (executor, db, chat, engine);
+        return (executor, db, chat, engine, overlay);
     }
 
     private static async Task SeedResponseAsync(
@@ -92,7 +97,7 @@ public sealed class EventResponseExecutorTests
     [Fact]
     public async Task An_enabled_chat_message_row_sends_the_resolved_template()
     {
-        (EventResponseExecutor executor, SupporterTestDbContext db, IChatProvider chat, _) =
+        (EventResponseExecutor executor, SupporterTestDbContext db, IChatProvider chat, _, _) =
             Build();
         await SeedResponseAsync(db, "stream.online", "chat_message", message: "We're live!");
 
@@ -115,7 +120,8 @@ public sealed class EventResponseExecutorTests
             EventResponseExecutor executor,
             SupporterTestDbContext db,
             IChatProvider chat,
-            IPipelineEngine engine
+            IPipelineEngine engine,
+            _
         ) = Build();
         Guid pipelineId = Guid.CreateVersion7();
         db.Pipelines.Add(
@@ -168,7 +174,8 @@ public sealed class EventResponseExecutorTests
             EventResponseExecutor executor,
             SupporterTestDbContext db,
             IChatProvider chat,
-            IPipelineEngine engine
+            IPipelineEngine engine,
+            _
         ) = Build();
         await SeedResponseAsync(db, "stream.online", responseType, "hi chat", enabled: enabled);
 
@@ -189,7 +196,8 @@ public sealed class EventResponseExecutorTests
             EventResponseExecutor executor,
             SupporterTestDbContext db,
             IChatProvider chat,
-            IPipelineEngine engine
+            IPipelineEngine engine,
+            _
         ) = Build();
         await SeedResponseAsync(db, "channel.follow", "chat_message", message: "   ");
         await SeedResponseAsync(
@@ -210,9 +218,78 @@ public sealed class EventResponseExecutorTests
     }
 
     [Fact]
+    public async Task An_enabled_overlay_row_notifies_the_overlay_and_never_posts_to_chat()
+    {
+        (
+            EventResponseExecutor executor,
+            SupporterTestDbContext db,
+            IChatProvider chat,
+            IPipelineEngine engine,
+            IEventResponseOverlayNotifier overlay
+        ) = Build();
+        await SeedResponseAsync(db, "channel.follow", "overlay", message: "{{user}} followed!");
+
+        await executor.ExecuteAsync(
+            Tenant,
+            "channel.follow",
+            userId: "9",
+            userDisplayName: "Newcomer",
+            new(StringComparer.OrdinalIgnoreCase) { ["user"] = "Newcomer" }
+        );
+
+        await overlay
+            .Received(1)
+            .NotifyAsync(
+                Tenant,
+                "channel.follow",
+                "resolved:{{user}} followed!",
+                Arg.Any<IReadOnlyDictionary<string, string>>(),
+                Arg.Any<CancellationToken>()
+            );
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+        await engine
+            .DidNotReceiveWithAnyArgs()
+            .ExecuteAsync(default!, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_disabled_pipeline_bound_to_an_enabled_event_response_does_not_run()
+    {
+        (
+            EventResponseExecutor executor,
+            SupporterTestDbContext db,
+            IChatProvider chat,
+            IPipelineEngine engine,
+            _
+        ) = Build();
+        Guid pipelineId = Guid.CreateVersion7();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = pipelineId,
+                BroadcasterId = Tenant,
+                Name = "disabled flow",
+                GraphJsonCache = """{"steps":[]}""",
+                IsEnabled = false,
+            }
+        );
+        await db.SaveChangesAsync();
+        await SeedResponseAsync(db, "stream.online", "pipeline", pipelineId: pipelineId);
+
+        await executor.ExecuteAsync(Tenant, "stream.online", null, null, []);
+
+        await engine
+            .DidNotReceiveWithAnyArgs()
+            .ExecuteAsync(default!, Arg.Any<CancellationToken>());
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task A_send_failure_is_swallowed_never_thrown_into_the_event_bus()
     {
-        (EventResponseExecutor executor, SupporterTestDbContext db, IChatProvider chat, _) =
+        (EventResponseExecutor executor, SupporterTestDbContext db, IChatProvider chat, _, _) =
             Build();
         await SeedResponseAsync(db, "stream.online", "chat_message", message: "boom");
         chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
