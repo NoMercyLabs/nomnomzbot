@@ -40,11 +40,6 @@ Slice IDs are stable; the order is the queue.
   when a command misbehaves, and the dashboard has nothing to show. Found by S008 (80e9fd58) while threading run outcomes.
   Done-when: every pipeline run persists its outcome and per-step log, and a test proves a failed run is retrievable with the
   failing step identified.
-- **S008d** Finish the discarded-send-bool sweep — S008 fixed the pipeline path, S008c the builtin and builtin-fallback paths,
-  and `Chat/EventHandlers/ChatMessageHandler.cs:461-463` (the template-response path) still does `await SendResponseAsync(...)`
-  then hardcodes `true`, so a template command whose reply never reached chat still records as successful. Treat it as a sample:
-  grep every call site that sends to chat and then reports an outcome, and fix all of them. Done-when: no send-outcome is
-  discarded anywhere in the chat handlers (report the count found/fixed), each failure recording once and telling the invoker once.
 - **S009** Chat loop guard — per-tenant "sender ids the bot types as" checked on all three ingests
   (U·C7). Done-when: a bot line containing `!cmd` does not self-trigger (test per ingest).
 - **S010** Outbound chat shaping — per-platform length chunking (Twitch 500 / YouTube 200 / Kick 500 /
