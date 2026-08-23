@@ -54,6 +54,8 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
 
     public DbSet<Command> Commands => Set<Command>();
     public DbSet<DomainTimer> Timers => Set<DomainTimer>();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
+        Set<NomNomzBot.Domain.Platform.Entities.Record>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -92,7 +94,12 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
             b.Ignore(entity);
     }
 
-    private static readonly HashSet<Type> Mapped = [typeof(Command), typeof(DomainTimer)];
+    private static readonly HashSet<Type> Mapped =
+    [
+        typeof(Command),
+        typeof(DomainTimer),
+        typeof(NomNomzBot.Domain.Platform.Entities.Record),
+    ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
         .GetProperties()
@@ -169,8 +176,6 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<Configuration> Configurations => throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
-        throw new NotSupportedException();
     public DbSet<Permission> Permissions => throw new NotSupportedException();
     public DbSet<ChannelFeature> ChannelFeatures => throw new NotSupportedException();
     public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>

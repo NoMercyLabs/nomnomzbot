@@ -6224,6 +6224,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<Guid>("OriginBroadcasterId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("RevertedAt")
                         .HasColumnType("TEXT");
 
@@ -6233,6 +6237,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetDisplayName")
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("TargetTwitchUserId")

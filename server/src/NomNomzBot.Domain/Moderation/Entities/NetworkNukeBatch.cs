@@ -33,10 +33,22 @@ public class NetworkNukeBatch : SoftDeletableEntity
     [MaxLength(500)]
     public string? MatchTerm { get; set; }
 
+    /// <summary>Why the actor nuked this target — the batch-level counterpart of each leg's own Reason.</summary>
+    [MaxLength(500)]
+    public string? Reason { get; set; }
+
     public Guid? TargetUserId { get; set; }
 
     [MaxLength(50)]
     public string? TargetTwitchUserId { get; set; }
+
+    /// <summary>
+    /// The target's display name at nuke time, resolved from the local Users table by
+    /// <see cref="TargetTwitchUserId"/> when known — so the batch history and audit trail show a name, not a
+    /// bare Twitch id, for who was actually affected.
+    /// </summary>
+    [MaxLength(100)]
+    public string? TargetDisplayName { get; set; }
 
     /// <summary>Channels actually actioned (successful legs).</summary>
     public int ChannelCount { get; set; }

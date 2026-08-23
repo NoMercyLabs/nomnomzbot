@@ -78,12 +78,21 @@ public sealed class NetworkNukeService(
             .Select(c => c.Id)
             .ToListAsync(ct);
 
+        // Resolve the target's display name up front (best-effort — a viewer the bot has never seen locally
+        // stays null) so the batch's audit trail and history show WHO was affected, not a bare Twitch id.
+        string? targetDisplayName = await db
+            .Users.Where(u => u.TwitchUserId == request.TargetTwitchUserId)
+            .Select(u => u.DisplayName)
+            .FirstOrDefaultAsync(ct);
+
         NetworkNukeBatch batch = new()
         {
             OriginBroadcasterId = originBroadcasterId,
             InitiatedByUserId = actorUserId,
             MatchTerm = request.MatchTerm,
+            Reason = request.Reason,
             TargetTwitchUserId = request.TargetTwitchUserId,
+            TargetDisplayName = targetDisplayName,
             Status = NetworkNukeStatus.Active,
         };
         db.NetworkNukeBatches.Add(batch);
@@ -281,8 +290,10 @@ public sealed class NetworkNukeService(
             b.OriginBroadcasterId,
             b.InitiatedByUserId,
             b.MatchTerm,
+            b.Reason,
             b.TargetUserId,
             b.TargetTwitchUserId,
+            b.TargetDisplayName,
             b.ChannelCount,
             b.Status,
             b.RevertedByUserId,

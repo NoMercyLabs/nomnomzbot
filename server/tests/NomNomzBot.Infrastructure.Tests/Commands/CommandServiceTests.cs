@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
@@ -126,6 +127,58 @@ public sealed class CommandServiceTests
 
         result.IsSuccess.Should().BeFalse();
         bus.Published.Should().BeEmpty();
+    }
+
+    // ─── S013: deleting a command leaves an audit trail naming the actor ──────
+
+    [Fact]
+    public async Task Delete_WithAnActor_RecordsAnAuditRowNamingThemBeforeRemovingTheCommand()
+    {
+        CommandsTestDbContext db = CommandsTestDbContext.New();
+        CommandService sut = new(
+            db,
+            Substitute.For<IPipelineEngine>(),
+            Substitute.For<IChannelRegistry>(),
+            new RecordingEventBus(),
+            Billing.TestTiers.Unlimited()
+        );
+        CommandDto created = (await sut.CreateAsync(Channel.ToString(), Req())).Value;
+        string actorId = Guid.Parse("0192a000-0000-7000-8000-0000000000ea").ToString();
+
+        Result result = await sut.DeleteAsync(Channel.ToString(), created.Name, actorId);
+
+        result.IsSuccess.Should().BeTrue();
+        List<NomNomzBot.Domain.Platform.Entities.Record> rows = await db
+            .Records.Where(r => r.RecordType == "command_action")
+            .ToListAsync();
+        rows.Should().ContainSingle();
+        NomNomzBot.Domain.Platform.Entities.Record row = rows.Single();
+        row.BroadcasterId.Should().Be(Channel);
+        row.UserId.Should().Be(actorId);
+        row.Data.Should().Contain(created.Name);
+    }
+
+    [Fact]
+    public async Task Delete_WithNoActorSupplied_StillRecordsAnAuditRow()
+    {
+        CommandsTestDbContext db = CommandsTestDbContext.New();
+        CommandService sut = new(
+            db,
+            Substitute.For<IPipelineEngine>(),
+            Substitute.For<IChannelRegistry>(),
+            new RecordingEventBus(),
+            Billing.TestTiers.Unlimited()
+        );
+        CommandDto created = (await sut.CreateAsync(Channel.ToString(), Req())).Value;
+
+        await sut.DeleteAsync(Channel.ToString(), created.Name);
+
+        // No actor was supplied — the row still exists (never silently skipped), attributed to the channel
+        // itself so an unattributed deletion is at least visible in the trail, never invisible.
+        NomNomzBot.Domain.Platform.Entities.Record row = await db.Records.SingleAsync(r =>
+            r.RecordType == "command_action"
+        );
+        row.UserId.Should().Be(Channel.ToString());
     }
 
     [Fact]

@@ -106,7 +106,10 @@ public class ModerationController : BaseController
             return Ok(new StatusResponseDto<NetworkBanResultDto> { Data = ToDto(fanOut.Value) });
         }
 
-        // this_channel — a permanent ban, or a timeout when a duration is supplied.
+        // this_channel — a permanent ban, or a timeout when a duration is supplied. The local mod-log record is
+        // attributed to the actual acting moderator (actorId), the same discipline UnbanUserScoped/WarnUser
+        // already follow — never left to default to the tenant/broadcaster id.
+        string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         Result<ModerationActionResult> single = request.DurationSeconds is { } seconds
             ? await _moderationService.TimeoutAsync(
                 channelId,
@@ -114,14 +117,16 @@ public class ModerationController : BaseController
                 request.TargetTwitchUserId,
                 seconds,
                 request.Reason,
-                cancellationToken: ct
+                actorId,
+                ct
             )
             : await _moderationService.BanAsync(
                 channelId,
                 operatorUserId,
                 request.TargetTwitchUserId,
                 request.Reason,
-                cancellationToken: ct
+                actorId,
+                ct
             );
         if (single.IsFailure)
             return ResultResponse(single);

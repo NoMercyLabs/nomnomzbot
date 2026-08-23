@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Security.Claims;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -127,7 +128,8 @@ public class CommandsController : BaseController
         CancellationToken ct
     )
     {
-        Result result = await _commandService.DeleteAsync(channelId, commandName, ct);
+        string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        Result result = await _commandService.DeleteAsync(channelId, commandName, actorId, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return NoContent();

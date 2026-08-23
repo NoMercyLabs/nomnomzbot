@@ -431,7 +431,11 @@ public class BundleImportService : IBundleImportService
                         continue;
                     if (policy == ImportConflictPolicy.Overwrite)
                     {
-                        Result deleted = await _commands.DeleteAsync(channelId, existing.Name, ct);
+                        Result deleted = await _commands.DeleteAsync(
+                            channelId,
+                            existing.Name,
+                            cancellationToken: ct
+                        );
                         if (deleted.IsFailure)
                             return await RollbackAsync(
                                 broadcasterId,
@@ -1804,7 +1808,7 @@ public class BundleImportService : IBundleImportService
                                 .Select(c => c.Name)
                                 .FirstOrDefaultAsync(ct);
                     if (commandName is not null)
-                        await _commands.DeleteAsync(channelId, commandName, ct);
+                        await _commands.DeleteAsync(channelId, commandName, cancellationToken: ct);
                     break;
                 case BundleFormat.PipelineType:
                     await _pipelines.DeleteAsync(channelId, id, ct);

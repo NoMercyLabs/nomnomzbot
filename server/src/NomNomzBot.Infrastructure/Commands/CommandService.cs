@@ -23,6 +23,11 @@ namespace NomNomzBot.Infrastructure.Commands;
 
 public class CommandService : ICommandService
 {
+    // Mirrors ModerationService's own moderation_action row, but for a destructive command-authoring event
+    // rather than a Twitch-facing viewer action — kept as its own record type so the moderation action log's
+    // Twitch-target assumptions (TargetUserId resolved as a Twitch id) are never mixed with command names.
+    private const string AuditRecordType = "command_action";
+
     private readonly IApplicationDbContext _db;
     private readonly IPipelineEngine _pipelineEngine;
     private readonly IChannelRegistry _registry;
@@ -196,6 +201,7 @@ public class CommandService : ICommandService
     public async Task<Result> DeleteAsync(
         string broadcasterId,
         string commandName,
+        string? actorId = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -213,6 +219,21 @@ public class CommandService : ICommandService
             return Result.Failure($"Command '{commandName}' was not found.", "NOT_FOUND");
 
         Guid commandId = command.Id;
+
+        // Record the deletion to the channel's audit trail BEFORE the row is removed — a destructive, no-undo
+        // action with nothing else naming who did it once the Command row is gone.
+        _db.Records.Add(
+            new Domain.Platform.Entities.Record
+            {
+                BroadcasterId = broadcaster,
+                RecordType = AuditRecordType,
+                Data = System.Text.Json.JsonSerializer.Serialize(
+                    new AuditActionData { Action = "command_deleted", Subject = command.Name }
+                ),
+                UserId = actorId ?? broadcaster.ToString(),
+            }
+        );
+
         _db.Commands.Remove(command);
         await _db.SaveChangesAsync(cancellationToken);
         await _registry.InvalidateCommandsAsync(broadcaster, cancellationToken);
@@ -412,4 +433,11 @@ public class CommandService : ICommandService
             c.CreatedAt,
             c.UpdatedAt
         );
+
+    /// <summary>The recorded shape of a <see cref="AuditRecordType"/> row — one destructive command-authoring event.</summary>
+    private sealed class AuditActionData
+    {
+        public string Action { get; set; } = string.Empty;
+        public string? Subject { get; set; }
+    }
 }

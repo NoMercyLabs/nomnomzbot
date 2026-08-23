@@ -204,6 +204,7 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
         typeof(CodeScript),
         typeof(CodeScriptVersion),
         typeof(NomNomzBot.Domain.Assets.Entities.ChannelAsset),
+        typeof(NomNomzBot.Domain.Platform.Entities.Record),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
@@ -277,7 +278,7 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<Configuration> Configurations => throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Platform.Entities.Record>();
     public DbSet<Permission> Permissions => throw new NotSupportedException();
     public DbSet<ChannelFeature> ChannelFeatures => throw new NotSupportedException();
     public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>

@@ -8,11 +8,14 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Infrastructure.Moderation;
 
@@ -27,18 +30,25 @@ namespace NomNomzBot.Infrastructure.Moderation;
 /// </summary>
 public sealed class OperatorMessageDeleter : IOperatorMessageDeleter
 {
+    // Its own record type — a deleted chat message is not a Twitch-viewer-targeted moderation_action (ban/
+    // timeout/warn), so it does not share that shape's TargetUserId-is-a-Twitch-id assumption.
+    private const string AuditRecordType = "chat_action";
+
     private readonly ITwitchModerationApi _moderation;
     private readonly ITwitchIdentityResolver _identity;
+    private readonly IApplicationDbContext _db;
     private readonly ILogger<OperatorMessageDeleter> _logger;
 
     public OperatorMessageDeleter(
         ITwitchModerationApi moderation,
         ITwitchIdentityResolver identity,
+        IApplicationDbContext db,
         ILogger<OperatorMessageDeleter> logger
     )
     {
         _moderation = moderation;
         _identity = identity;
+        _db = db;
         _logger = logger;
     }
 
@@ -76,8 +86,32 @@ public sealed class OperatorMessageDeleter : IOperatorMessageDeleter
                 operatorUserId,
                 result.ErrorMessage
             );
+            return result;
         }
 
+        // Record the deletion to the channel's audit trail only once Twitch actually deleted it — the same
+        // enforce-then-record discipline ModerationService's ban/timeout/warn follow, so a rejected delete never
+        // shows up as if it had happened.
+        _db.Records.Add(
+            new Record
+            {
+                BroadcasterId = broadcasterId,
+                RecordType = AuditRecordType,
+                Data = JsonSerializer.Serialize(
+                    new ChatAuditActionData { Action = "message_deleted", MessageId = messageId }
+                ),
+                UserId = operatorUserId.ToString(),
+            }
+        );
+        await _db.SaveChangesAsync(ct);
+
         return result;
+    }
+
+    /// <summary>The recorded shape of a <see cref="AuditRecordType"/> row — one deleted chat message.</summary>
+    private sealed class ChatAuditActionData
+    {
+        public string Action { get; set; } = string.Empty;
+        public string MessageId { get; set; } = string.Empty;
     }
 }

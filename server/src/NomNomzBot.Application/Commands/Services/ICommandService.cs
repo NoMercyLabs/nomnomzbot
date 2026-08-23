@@ -33,10 +33,15 @@ public interface ICommandService
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Delete a command by name.</summary>
+    /// <summary>
+    /// Delete a command by name. Destructive with no undo — when <paramref name="actorId"/> is supplied
+    /// (the acting user's id), the deletion is recorded to the channel's audit trail before the row is
+    /// removed, so the mod log can answer who deleted it and when.
+    /// </summary>
     Task<Result> DeleteAsync(
         string broadcasterId,
         string commandName,
+        string? actorId = null,
         CancellationToken cancellationToken = default
     );
 

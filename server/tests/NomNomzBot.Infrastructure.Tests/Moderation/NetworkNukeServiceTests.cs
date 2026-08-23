@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
+using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -158,6 +159,61 @@ public sealed class NetworkNukeServiceTests
             );
 
         bus.Published.OfType<NetworkNukeExecutedEvent>().Single().ChannelCount.Should().Be(2);
+    }
+
+    // ─── S013: the batch itself carries its Reason + MatchTerm, and the affected user's display name ─────────
+
+    [Fact]
+    public async Task Nuke_RecordsReasonAndMatchTermOnTheBatchAndResolvesTheTargetsDisplayName()
+    {
+        (NetworkNukeService sut, ModerationServiceTestDbContext db, _, _) = Build();
+        await SeedChannelsAsync(db);
+        db.Users.Add(
+            new()
+            {
+                Id = Guid.NewGuid(),
+                TwitchUserId = "troll-42",
+                Username = "troll42",
+                UsernameNormalized = "troll42",
+                DisplayName = "Troll_42",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        NetworkNukeRequest request = new()
+        {
+            TargetTwitchUserId = "troll-42",
+            Reason = "bot raid",
+            MatchTerm = "free v-bucks",
+            RequireConfirmation = true,
+        };
+
+        Result<NetworkNukeBatchDto> result = await sut.NukeAsync(Origin, Actor, request);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        // The batch DTO — not just each leg's own JSON blob — carries the reason and the match term, and the
+        // affected user is identified by DISPLAY NAME rather than a bare Twitch id.
+        result.Value.Reason.Should().Be("bot raid");
+        result.Value.MatchTerm.Should().Be("free v-bucks");
+        result.Value.TargetDisplayName.Should().Be("Troll_42");
+
+        NetworkNukeBatch persisted = await db.NetworkNukeBatches.SingleAsync(b =>
+            b.Id == result.Value.Id
+        );
+        persisted.Reason.Should().Be("bot raid");
+        persisted.TargetDisplayName.Should().Be("Troll_42");
+    }
+
+    [Fact]
+    public async Task Nuke_WhenTheTargetIsUnknownLocally_LeavesTargetDisplayNameNull()
+    {
+        (NetworkNukeService sut, ModerationServiceTestDbContext db, _, _) = Build();
+        await SeedChannelsAsync(db);
+
+        Result<NetworkNukeBatchDto> result = await sut.NukeAsync(Origin, Actor, Req());
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.TargetDisplayName.Should().BeNull();
     }
 
     [Fact]
