@@ -50,10 +50,6 @@ Slice IDs are stable; the order is the queue.
   Reason/MatchTerm and the batch history must render `TargetDisplayName` instead of a raw Twitch id; (3) Commands delete and
   Moderation "Verwijderen" need confirm dialogs — the backend audits both now, the client asks nothing. en+nl strings.
   Done-when: no destructive action in the dashboard fires without a confirm, and every reason reaches the mod log.
-- **S013d** SYSTEMIC: soft deletes record *when* but never *who* — every `SoftDeletableEntity` (widgets, sounds, assets, rewards,
-  quotes, pick lists, timers, giveaways, …) has `DeletedAt` and no `DeletedBy`, so nothing deleted in the dashboard can be
-  attributed. Dozens of entities, so scope it as one base-entity change plus a migration sweep, not per-entity edits.
-  Done-when: a soft delete records the actor, and a test proves it for at least three unrelated entity types.
 - **S014b** Frontend `afterWrite` errors are swallowed — `app/composeApp/.../feature/*/state/*Controller.kt` handlers discard a
   failed write's error, so the dashboard can show a success state for a write the backend rejected. Confirmed frontend-only by
   S014 (0805bc29) via grep; no backend equivalent exists. Done-when: a rejected write surfaces its reason in the UI and the
