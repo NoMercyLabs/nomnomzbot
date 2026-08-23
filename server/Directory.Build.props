@@ -1,5 +1,10 @@
 <Project>
   <PropertyGroup>
+    <!-- Single source of truth for the build version (S111d): the SDK derives AssemblyVersion,
+         AssemblyFileVersion, and AssemblyInformationalVersion from this for every project in the
+         solution, so /health/version (NomNomzBot.Api/Program.cs) reports the real build instead of
+         the unstamped "1.0.0.0" default. Bump this on release; nothing else needs to change. -->
+    <Version>0.1.0</Version>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
