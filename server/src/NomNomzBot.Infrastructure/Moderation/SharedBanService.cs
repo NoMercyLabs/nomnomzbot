@@ -313,18 +313,13 @@ public sealed class SharedBanService(
     ) =>
         await db
             .SharedBanTrustedChannels.Where(t => t.BroadcasterId == broadcasterId)
-            .Join(
-                db.Channels,
-                t => t.TrustedChannelId,
-                c => c.Id,
-                (t, c) =>
-                    new SharedBanTrustedChannelDto(
-                        t.TrustedChannelId,
-                        c.Name,
-                        t.AddedByUserId,
-                        t.CreatedAt
-                    )
-            )
-            .OrderBy(dto => dto.CreatedAt)
+            .Join(db.Channels, t => t.TrustedChannelId, c => c.Id, (t, c) => new { t, c })
+            .OrderBy(joined => joined.t.CreatedAt)
+            .Select(joined => new SharedBanTrustedChannelDto(
+                joined.t.TrustedChannelId,
+                joined.c.Name,
+                joined.t.AddedByUserId,
+                joined.t.CreatedAt
+            ))
             .ToListAsync(ct);
 }

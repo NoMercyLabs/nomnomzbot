@@ -15,6 +15,7 @@ using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Moderation;
@@ -33,6 +34,7 @@ public sealed class SharedBanServiceTests
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-00000000ba01");
     private static readonly Guid Partner = Guid.Parse("0192a000-0000-7000-8000-00000000ba02");
     private static readonly Guid Actor = Guid.Parse("0192a000-0000-7000-8000-00000000ba03");
+    private static readonly Guid SecondPartner = Guid.Parse("0192a000-0000-7000-8000-00000000ba04");
 
     private static (
         SharedBanService Sut,
@@ -407,5 +409,62 @@ public sealed class SharedBanServiceTests
         (await sut.GetSettingsAsync(Channel))
             .IsSuccess.Should()
             .BeTrue();
+    }
+
+    /// <summary>
+    /// S005b: <c>TrustedListAsync</c> joins <c>SharedBanTrustedChannels</c> against <c>Channels</c> then used to
+    /// order by the CLIENT-CONSTRUCTED <see cref="SharedBanTrustedChannelDto"/>'s <c>CreatedAt</c> — a
+    /// client-projecting <c>OrderBy</c> that EF's InMemory provider silently tolerated (client-eval) but that a
+    /// real relational SQLite connection refuses to translate, throwing
+    /// <c>System.InvalidOperationException: The LINQ expression '...' could not be translated.</c> at
+    /// <c>ToListAsync</c> — a production-breaking bug on every real deployment (Postgres and SQLite alike), only
+    /// masked by the test harness. The fix reorders the pipeline (join → order the JOINED row → THEN project
+    /// into the DTO), which keeps the exact same ordering semantics (ascending by the trust row's own
+    /// <c>CreatedAt</c>) while staying translatable. This test seeds two trusted-channel rows with EXPLICIT
+    /// <c>CreatedAt</c> values inserted in the REVERSE of chronological order (so insertion order cannot
+    /// accidentally satisfy the assertion) and proves the returned list comes back oldest-first.
+    /// </summary>
+    [Fact]
+    public async Task TrustedList_orders_by_CreatedAt_on_a_real_relational_provider()
+    {
+        (SharedBanService sut, ModerationServiceTestDbContext db, _, _) = Build();
+        await SeedChannelsAsync(db);
+        db.Channels.Add(NewChannel(SecondPartner, "second_partner_chan"));
+        await db.SaveChangesAsync();
+
+        DateTime older = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime newer = new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        // Inserted newest-first, so a passing assertion cannot be an accident of add order.
+        db.SharedBanTrustedChannels.Add(
+            new SharedBanTrustedChannel
+            {
+                BroadcasterId = Channel,
+                TrustedChannelId = SecondPartner,
+                AddedByUserId = Actor,
+                CreatedAt = newer,
+            }
+        );
+        db.SharedBanTrustedChannels.Add(
+            new SharedBanTrustedChannel
+            {
+                BroadcasterId = Channel,
+                TrustedChannelId = Partner,
+                AddedByUserId = Actor,
+                CreatedAt = older,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<SharedBanSettingsDto> result = await sut.GetSettingsAsync(Channel);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result
+            .Value.TrustedChannels.Select(t => t.TrustedChannelId)
+            .Should()
+            .Equal(
+                [Partner, SecondPartner],
+                "oldest trust grant first, per TrustedListAsync's CreatedAt order"
+            );
     }
 }
