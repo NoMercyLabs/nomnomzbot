@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
@@ -88,13 +89,7 @@ public sealed class WatchSessionProjection(
         long previousDuration = session.DurationSeconds;
         session.EndedAt = @event.OccurredAt;
         session.DurationSeconds = (long)(@event.OccurredAt - session.StartedAt).TotalSeconds;
-
-        // Fold the incremental watch time into the per-viewer profile total (analytics M.1) — the field !stats,
-        // {user.watchtime}, the community hours-watched, and the viewer-analytics sort all read (it was reset but
-        // never folded, so per-viewer watch time always read 0). The WatchSession is already per-(viewer, stream), so
-        // the running delta (never negative on a skewed/out-of-order event) sums to the correct cross-stream total.
-        // Owned end to end here (ResetAsync zeroes it), so ViewerProfileProjection must not touch it.
-        profile.TotalWatchSeconds += Math.Max(0, session.DurationSeconds - previousDuration);
+        long watchSecondsDelta = Math.Max(0, session.DurationSeconds - previousDuration);
 
         if (@event.EventType == "ChatMessageReceivedEvent")
             session.MessageCountInSession++;
@@ -105,6 +100,40 @@ public sealed class WatchSessionProjection(
             session.PresenceConfirmed = true;
 
         await db.SaveChangesAsync(cancellationToken);
+
+        // The per-viewer total (analytics M.1 — {user.watchtime}, community hours-watched, viewer-analytics
+        // sort) is folded via an atomic DB-side increment rather than a read-modify-write on the tracked
+        // `profile` instance: two concurrent sessions for the SAME viewer (e.g. the driver's tick racing a
+        // manual rebuild) previously both read the same stale TotalWatchSeconds and one writer's delta was
+        // silently lost when the other's SaveChangesAsync overwrote it.
+        if (watchSecondsDelta > 0)
+        {
+            Guid profileId = profile.Id;
+            await db
+                .ViewerProfiles.IgnoreQueryFilters() // tenant-less projection-driver / rebuild scope
+                .Where(p => p.Id == profileId)
+                .ExecuteUpdateAsync(
+                    setters =>
+                        setters.SetProperty(
+                            p => p.TotalWatchSeconds,
+                            p => p.TotalWatchSeconds + watchSecondsDelta
+                        ),
+                    cancellationToken
+                );
+
+            // ExecuteUpdateAsync bypasses the change tracker, so keep the tracked `profile` instance's
+            // in-memory value in sync (any later read of it in this same unit of work must not see stale
+            // data) without re-persisting it as a redundant, potentially stale overwrite on a later
+            // SaveChangesAsync in this same request.
+            profile.TotalWatchSeconds += watchSecondsDelta;
+            if (db is DbContext dbContext)
+            {
+                EntityEntry<ViewerProfile> entry = dbContext.Entry(profile);
+                entry.Property(p => p.TotalWatchSeconds).OriginalValue = profile.TotalWatchSeconds;
+                entry.Property(p => p.TotalWatchSeconds).IsModified = false;
+            }
+        }
+
         return Result.Success();
     }
 
