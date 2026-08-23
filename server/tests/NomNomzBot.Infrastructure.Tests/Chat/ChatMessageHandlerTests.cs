@@ -889,6 +889,139 @@ public sealed class ChatMessageHandlerTests
             );
     }
 
+    [Fact]
+    public async Task Builtin_whose_send_fails_records_a_failed_execution_fact_and_sends_one_failure_line()
+    {
+        // Direct builtin dispatch (S008c): before this fix, the handler discarded the chat-send bool from
+        // SendResponseAsync and always recorded success as long as the builtin's own logic didn't throw — a
+        // reply the viewer never saw was still reported as delivered.
+        ChannelContext ctx = NewChannelContext();
+        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithBus(ctx);
+        // Only the builtin's OWN reply text fails to send — the later failure-notice text still goes
+        // through via the shared "sends succeed" default, exactly like the pipeline PartiallyFailed case.
+        chat.SendReplyAsync(Broadcaster, "msg-1", BuiltinResponse, Arg.Any<CancellationToken>())
+            .Returns(false);
+        chat.SendMessageAsync(
+                Broadcaster,
+                $"@Viewer {BuiltinResponse}",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(false);
+
+        await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
+
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                "msg-1",
+                "Sorry, that command hit a snag and didn't finish.",
+                Arg.Any<CancellationToken>()
+            );
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.CommandName == BuiltinKey && !e.Succeeded
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Builtin_whose_send_succeeds_sends_no_extra_chatter()
+    {
+        // Regression guard: a builtin whose reply reaches chat fine must NOT also fire the new failure
+        // notice, and must record success — exactly one line to the invoker, not two.
+        ChannelContext ctx = NewChannelContext();
+        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithBus(ctx);
+
+        await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
+
+        await chat.Received(1)
+            .SendReplyAsync(Broadcaster, "msg-1", BuiltinResponse, Arg.Any<CancellationToken>());
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Builtin_fallback_path_whose_send_fails_records_a_failed_execution_fact_and_sends_one_failure_line()
+    {
+        // The handler's SECOND builtin call site: a Commands-table row exists for the trigger (e.g. a
+        // builtin key that also carries command metadata) but has no template responses, so it falls back
+        // to the builtin catalog (ChatMessageHandler.cs ~line 427, distinct code path from the direct
+        // dispatch above per the S008c finding). Before this fix this re-invocation also discarded the
+        // chat-send bool.
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands[BuiltinKey] = new()
+        {
+            Name = BuiltinKey,
+            TemplateResponses = [],
+            GlobalCooldown = 0,
+            UserCooldown = 0,
+            MinPermissionLevel = 0,
+            Tier = "template",
+        };
+        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithBus(ctx);
+        // Only the builtin's OWN reply text fails to send — the later failure-notice text still goes
+        // through via the shared "sends succeed" default, exactly like the pipeline PartiallyFailed case.
+        chat.SendReplyAsync(Broadcaster, "msg-1", BuiltinResponse, Arg.Any<CancellationToken>())
+            .Returns(false);
+        chat.SendMessageAsync(
+                Broadcaster,
+                $"@Viewer {BuiltinResponse}",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(false);
+
+        await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
+
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                "msg-1",
+                "Sorry, that command hit a snag and didn't finish.",
+                Arg.Any<CancellationToken>()
+            );
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.CommandName == BuiltinKey && !e.Succeeded
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Builtin_fallback_path_whose_send_succeeds_sends_no_extra_chatter()
+    {
+        // Regression guard for the fallback call site specifically.
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands[BuiltinKey] = new()
+        {
+            Name = BuiltinKey,
+            TemplateResponses = [],
+            GlobalCooldown = 0,
+            UserCooldown = 0,
+            MinPermissionLevel = 0,
+            Tier = "template",
+        };
+        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithBus(ctx);
+
+        await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
+
+        await chat.Received(1)
+            .SendReplyAsync(Broadcaster, "msg-1", BuiltinResponse, Arg.Any<CancellationToken>());
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     // ── shared scaffolding ──────────────────────────────────────────────────
 
     private static ChannelContext NewChannelContext() =>
@@ -985,6 +1118,19 @@ public sealed class ChatMessageHandlerTests
         builtins.Get(BuiltinKey).Returns(new StubBuiltinCommand());
 
         IChatProvider chat = Substitute.For<IChatProvider>();
+        // Real transport sends succeed by default — an unconfigured NSubstitute bool call defaults to
+        // false, which would silently flip every "builtin executed fine" test into a false SendFailed
+        // outcome now that the handler threads the real chat-send bool through (S008c). Tests that need
+        // to exercise a send failure override this explicitly.
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
+        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         IEventBus bus = Substitute.For<IEventBus>();
 
         ChatMessageHandler sut = new(

@@ -265,18 +265,20 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 CancellationToken = cancellationToken,
             };
 
-            Result<string> builtinResult = await builtin.ExecuteAsync(
+            BuiltinOutcome builtinOutcome = await ExecuteBuiltinAndSendAsync(
+                builtin,
                 builtinCtx,
+                @event,
                 cancellationToken
             );
 
-            if (builtinResult.IsSuccess && !string.IsNullOrEmpty(builtinResult.Value))
-                await SendResponseAsync(@event, builtinResult.Value, cancellationToken);
+            if (builtinOutcome == BuiltinOutcome.SendFailed)
+                await SendBuiltinFailureNoticeAsync(@event, cancellationToken);
 
             await PublishExecutedAsync(
                 @event,
                 commandName,
-                builtinResult.IsSuccess,
+                builtinOutcome == BuiltinOutcome.Success,
                 cancellationToken
             );
             return;
@@ -424,24 +426,20 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                         CancellationToken = cancellationToken,
                     };
 
-                    Result<string> builtinFallbackResult = await builtin.ExecuteAsync(
+                    BuiltinOutcome builtinFallbackOutcome = await ExecuteBuiltinAndSendAsync(
+                        builtin,
                         builtinFallbackCtx,
+                        @event,
                         cancellationToken
                     );
-                    if (
-                        builtinFallbackResult.IsSuccess
-                        && !string.IsNullOrEmpty(builtinFallbackResult.Value)
-                    )
-                        await SendResponseAsync(
-                            @event,
-                            builtinFallbackResult.Value,
-                            cancellationToken
-                        );
+
+                    if (builtinFallbackOutcome == BuiltinOutcome.SendFailed)
+                        await SendBuiltinFailureNoticeAsync(@event, cancellationToken);
 
                     await PublishExecutedAsync(
                         @event,
                         command.Name,
-                        builtinFallbackResult.IsSuccess,
+                        builtinFallbackOutcome == BuiltinOutcome.Success,
                         cancellationToken
                     );
                     return;
@@ -550,6 +548,56 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         ChatMessageReceivedEvent @event,
         CancellationToken ct
     ) => SendResponseAsync(@event, "Sorry, that command hit a snag and didn't finish.", ct);
+
+    /// <summary>
+    /// The single fixed notice sent to the invoker when a builtin's reply never actually reached chat
+    /// (<see cref="BuiltinOutcome.SendFailed"/>) — mirrors <see cref="SendPipelineFailureNoticeAsync"/> so a
+    /// builtin whose transport send failed is never left silent even though its logic ran fine.
+    /// </summary>
+    private Task SendBuiltinFailureNoticeAsync(
+        ChatMessageReceivedEvent @event,
+        CancellationToken ct
+    ) => SendResponseAsync(@event, "Sorry, that command hit a snag and didn't finish.", ct);
+
+    /// <summary>
+    /// Runs a builtin and, when it produced a reply, sends it — returning the REAL outcome so the caller
+    /// (direct dispatch or the template-response fallback) can record an honest <see cref="CommandExecutedEvent"/>
+    /// and, on <see cref="BuiltinOutcome.SendFailed"/>, give the invoker exactly one failure line. Before this,
+    /// both builtin call sites discarded the chat-send bool from <see cref="SendResponseAsync"/> and always
+    /// recorded success as long as the builtin's own logic didn't fail — a reply that never reached chat was
+    /// still reported as delivered.
+    /// </summary>
+    private async Task<BuiltinOutcome> ExecuteBuiltinAndSendAsync(
+        IBuiltinCommand builtin,
+        BuiltinCommandContext builtinCtx,
+        ChatMessageReceivedEvent @event,
+        CancellationToken ct
+    )
+    {
+        Result<string> result = await builtin.ExecuteAsync(builtinCtx, ct);
+        if (!result.IsSuccess)
+            return BuiltinOutcome.ExecutionFailed;
+
+        if (string.IsNullOrEmpty(result.Value))
+            return BuiltinOutcome.Success;
+
+        bool sent = await SendResponseAsync(@event, result.Value, ct);
+        return sent ? BuiltinOutcome.Success : BuiltinOutcome.SendFailed;
+    }
+
+    /// <summary>
+    /// Real outcome of a builtin invocation, distinguishing a builtin whose OWN logic failed
+    /// (<see cref="ExecutionFailed"/>) from one that ran fine but whose reply never reached chat
+    /// (<see cref="SendFailed"/>) — both must record as a failed <see cref="CommandExecutedEvent"/>, but only
+    /// <see cref="SendFailed"/> needs a failure notice (an <see cref="ExecutionFailed"/> builtin already chose
+    /// to say nothing).
+    /// </summary>
+    private enum BuiltinOutcome
+    {
+        Success,
+        ExecutionFailed,
+        SendFailed,
+    }
 
     /// <summary>
     /// Publishes the single command-execution fact (<see cref="CommandExecutedEvent"/>) the hub broadcast,
