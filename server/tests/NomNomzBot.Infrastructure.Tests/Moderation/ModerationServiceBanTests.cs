@@ -222,4 +222,79 @@ public sealed class ModerationServiceBanTests
             .Should()
             .Be(0);
     }
+
+    // ─── S012: a timeout with no usable duration must NEVER fall through to a ban ──
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(-5)]
+    public async Task TimeoutAsync_WithZeroOrNegativeDuration_IsRejectedAndNeitherCallsTwitchNorRecords(
+        int durationSeconds
+    )
+    {
+        await using ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
+        await SeedChannelAsync(db);
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+
+        Result<ModerationActionResult> result = await NewService(db, moderation)
+            .TimeoutAsync(BroadcasterId, Operator, ViewerTwitchId, durationSeconds);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+
+        // Pre-fix, this path called TimeoutAsOperatorAsync with the caller-supplied value as-is (no guard
+        // existed), forwarding 0/negative straight to Twitch. Prove NO Helix call was made at all now.
+        await moderation
+            .Received(0)
+            .TimeoutAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        (await db.Records.CountAsync()).Should().Be(0);
+    }
+
+    /// <summary>
+    /// The dashboard's <c>actions/ban</c> endpoint (chat-client.md §3.5) dispatches to
+    /// <see cref="ModerationService.BanAsync"/> when <c>DurationSeconds</c> is absent and to
+    /// <see cref="ModerationService.TimeoutAsync"/> only when it is present — an omitted duration on THIS
+    /// endpoint is the endpoint's own explicit "ban" contract (its XML doc says so), never a parse failure
+    /// reinterpreted as permanent. Prove the explicit permanent-ban path still bans with no duration threaded
+    /// through the guard added for S012.
+    /// </summary>
+    [Fact]
+    public async Task BanAsync_WithNoDurationSupplied_StillIssuesAnExplicitPermanentBan()
+    {
+        await using ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
+        await SeedChannelAsync(db);
+
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .BanAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(TwitchSuccess(ViewerTwitchId));
+
+        Result<ModerationActionResult> result = await NewService(db, moderation)
+            .BanAsync(BroadcasterId, Operator, ViewerTwitchId, reason: "explicit ban");
+
+        result.IsSuccess.Should().BeTrue();
+        await moderation
+            .Received(1)
+            .BanAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                ViewerTwitchId,
+                "explicit ban",
+                Arg.Any<CancellationToken>()
+            );
+    }
 }

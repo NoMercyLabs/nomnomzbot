@@ -36,6 +36,11 @@ public sealed class TimeoutAction : ICommandAction
             return ActionResult.Failure("timeout: user_id not resolved");
 
         int duration = action.GetInt("duration", 60);
+        if (duration <= 0)
+            return ActionResult.Failure(
+                $"timeout: duration must be a positive number of seconds, got {duration}"
+            );
+
         string? reason = action.GetString("reason");
 
         await _chat.TimeoutUserAsync(

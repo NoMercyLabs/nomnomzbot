@@ -68,6 +68,15 @@ public class ModerationService : IModerationService
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return Errors.ChannelNotFound<ModerationActionResult>(broadcasterId);
 
+        // A timeout duration is a dangerous input: silently treating a missing/zero/negative value as
+        // "forever" is exactly the fallback this guard rules out. A timeout ALWAYS needs a positive duration —
+        // no Twitch call is issued, and nothing is recorded, until the caller supplies one.
+        if (durationSeconds <= 0)
+            return Result.Failure<ModerationActionResult>(
+                "A timeout needs a positive duration in seconds.",
+                "VALIDATION_FAILED"
+            );
+
         Result guard = await EnsureTargetIsModeratableAsync(
             tenantId,
             targetUserId,
@@ -242,6 +251,13 @@ public class ModerationService : IModerationService
         if (!channelExists)
             return Errors.ChannelNotFound<ModerationRuleDetail>(broadcasterId);
 
+        Result actionGuard = ValidateRuleAction(request.Action, request.DurationSeconds);
+        if (actionGuard.IsFailure)
+            return Result.Failure<ModerationRuleDetail>(
+                actionGuard.ErrorMessage!,
+                actionGuard.ErrorCode!
+            );
+
         ModerationRuleData ruleData = new()
         {
             Name = request.Name,
@@ -343,6 +359,16 @@ public class ModerationService : IModerationService
         if (request.IsEnabled.HasValue)
             ruleData.IsEnabled = request.IsEnabled.Value;
 
+        // Validate the MERGED state — a request that only touches DurationSeconds must still be checked against
+        // whatever Action the rule already carries (and vice versa), so a two-step edit (set Action=timeout, then
+        // later add a duration) can never leave the rule armed with a timeout action and no positive duration.
+        Result actionGuard = ValidateRuleAction(ruleData.Action, ruleData.DurationSeconds);
+        if (actionGuard.IsFailure)
+            return Result.Failure<ModerationRuleDetail>(
+                actionGuard.ErrorMessage!,
+                actionGuard.ErrorCode!
+            );
+
         record.Data = JsonSerializer.Serialize(ruleData);
         // UpdatedAt stamped by AuditableEntityInterceptor on save.
 
@@ -364,6 +390,43 @@ public class ModerationService : IModerationService
                 record.UpdatedAt
             )
         );
+    }
+
+    private static readonly HashSet<string> ValidRuleActions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "timeout",
+        "ban",
+        "delete",
+    };
+
+    /// <summary>
+    /// The single gate every write to a moderation rule's Action/DurationSeconds pair passes through — used by
+    /// both <see cref="CreateRuleAsync"/> and <see cref="UpdateRuleAsync"/> (the latter on the MERGED state, so a
+    /// partial edit can't leave an invalid combination behind). An unrecognized action is rejected outright — the
+    /// enforcement switch (<c>AutoModerationHandler.ApplyActionAsync</c>) only knows timeout/ban/delete, so
+    /// anything else would silently no-op when the rule actually fires. A "timeout" action MUST carry a positive
+    /// duration: null, zero, or negative all fail here rather than reaching the enforcement path, where a missing
+    /// duration would default to a fallback timeout — never a ban — but a zero/negative value would be forwarded
+    /// to Twitch as-is.
+    /// </summary>
+    private static Result ValidateRuleAction(string action, int? durationSeconds)
+    {
+        if (!ValidRuleActions.Contains(action))
+            return Result.Failure(
+                $"Unknown moderation rule action '{action}'. Supported: timeout, ban, delete.",
+                "VALIDATION_FAILED"
+            );
+
+        if (
+            string.Equals(action, "timeout", StringComparison.OrdinalIgnoreCase)
+            && durationSeconds is not > 0
+        )
+            return Result.Failure(
+                "A timeout rule needs a positive DurationSeconds — it is never inferred from an empty value.",
+                "VALIDATION_FAILED"
+            );
+
+        return Result.Success();
     }
 
     public async Task<Result<PagedList<ModerationRuleListItem>>> ListRulesAsync(
