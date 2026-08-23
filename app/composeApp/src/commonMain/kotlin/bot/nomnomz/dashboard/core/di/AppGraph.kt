@@ -23,9 +23,7 @@ import bot.nomnomz.dashboard.core.emoji.EmojiStyleStore
 import bot.nomnomz.dashboard.core.i18n.LanguagePreferenceStore
 import bot.nomnomz.dashboard.core.i18n.LanguageStore
 import bot.nomnomz.dashboard.core.network.ApiClient
-import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthApi
-import bot.nomnomz.dashboard.core.network.AuthPayload
 import bot.nomnomz.dashboard.core.network.BotAuthApi
 import bot.nomnomz.dashboard.core.network.AlertsApi
 import bot.nomnomz.dashboard.core.network.AnalyticsApi
@@ -284,27 +282,12 @@ class AppGraph {
     // the REST 401→refresh→retry interceptor AND the SignalR hub client — a raw WebSocket has no HTTP
     // interceptor, so without a refresher of its own an expired token would 401-storm the handshake forever on
     // an idle session (no REST call fires to refresh it). One definition, two consumers.
-    val tokenRefresher: suspend () -> Boolean = {
-        when (val result: ApiResult<AuthPayload> = authApi.refresh(null)) {
-            is ApiResult.Ok -> {
-                sessionStore.updateAccessToken(result.value.accessToken)
-                true
-            }
-            is ApiResult.Failure -> {
-                // A mid-session refresh failure means the refresh token itself is dead (expired, or
-                // revoked server-side) — not just a momentarily-stale access token. Previously this
-                // returned false and left the 401 to propagate to whatever screen triggered it,
-                // stranding the operator on a broken page instead of routing back to sign-in (S111c:
-                // "desktop session expiry is unhandled"). clearActiveSession() drops ONLY the
-                // in-memory session — it leaves the vault, the remembered profile, and every OTHER
-                // saved connection untouched, so the gate (App.kt) falls through to Connect for THIS
-                // server without wiping saved connections or forcing a fresh device-code login for
-                // any other one.
-                sessionStore.clearActiveSession()
-                false
-            }
-        }
-    }
+    // A mid-session refresh failure means the refresh token itself is dead (expired, or revoked
+    // server-side) — not just a momentarily-stale access token. [SessionStore.refreshOrExpire]
+    // handles both halves: silent success updates the in-place token, and failure drops ONLY the
+    // in-memory session — the vault, the remembered profile, and every OTHER saved connection stay
+    // untouched (S111c: "desktop session expiry is unhandled").
+    val tokenRefresher: suspend () -> Boolean = { sessionStore.refreshOrExpire { authApi.refresh(null) } }
 
     init {
         // Wire the 401→refresh→retry interceptor. ApiClient and AuthApi are both ready at this point.

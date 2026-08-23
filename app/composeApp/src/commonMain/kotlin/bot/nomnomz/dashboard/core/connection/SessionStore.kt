@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.core.connection
 
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.AuthPayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -185,6 +187,28 @@ class SessionStore(
         val saved: SessionTokens? = tokenVault.read(profile.id)
         return RestorableSession(profile, saved)
     }
+
+    /**
+     * The mid-session and boot-restore 401 recovery path (S111c — "desktop session expiry is
+     * unhandled"): [refresh] is called with the currently-held refresh token; on success the new
+     * access token replaces the stale one IN PLACE and the caller's request can retry — the
+     * session, profile, and vault entry are untouched. On failure (a dead/revoked refresh token,
+     * not merely a network blip) ONLY the in-memory session is dropped via [clearActiveSession] —
+     * the vault, the remembered profile, and every OTHER saved connection's vault entry are left
+     * exactly as they were, so the gate falls through to Connect for THIS backend without wiping
+     * saved connections or forcing a fresh device-code login for any other one.
+     */
+    suspend fun refreshOrExpire(refresh: suspend () -> ApiResult<AuthPayload>): Boolean =
+        when (val result: ApiResult<AuthPayload> = refresh()) {
+            is ApiResult.Ok -> {
+                updateAccessToken(result.value.accessToken)
+                true
+            }
+            is ApiResult.Failure -> {
+                clearActiveSession()
+                false
+            }
+        }
 
     /** Attach the signed-in identity resolved from `/me` after [connect]. */
     fun setUser(sessionUser: SessionUser) {
