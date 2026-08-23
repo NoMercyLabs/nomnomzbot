@@ -278,6 +278,8 @@ public sealed class KickWebhookIngestTests
         NomNomzBot.Infrastructure.Chat.ChatPlatformRouter router = new(
             [platform],
             db,
+            new NomNomzBot.Infrastructure.Chat.OutboundChatShaper(),
+            new NomNomzBot.Infrastructure.Chat.TokenBucketChatSendQueue(),
             NullLogger<NomNomzBot.Infrastructure.Chat.ChatPlatformRouter>.Instance
         );
 

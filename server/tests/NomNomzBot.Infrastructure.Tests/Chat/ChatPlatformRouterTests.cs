@@ -54,6 +54,8 @@ public sealed class ChatPlatformRouterTests
         ChatPlatformRouter router = new(
             [twitch, youtube],
             db,
+            new OutboundChatShaper(),
+            new TokenBucketChatSendQueue(),
             NullLogger<ChatPlatformRouter>.Instance
         );
         return (router, twitch, youtube);
@@ -168,6 +170,68 @@ public sealed class ChatPlatformRouterTests
         await youtube
             .Received(1)
             .DeleteMessageAsync(YouTubeTenant, "m-9", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_long_line_reaches_the_platform_as_ordered_chunks_within_its_limit_and_the_marker_survives_the_loop_guard()
+    {
+        (ChatPlatformRouter router, IChatPlatform twitch, _) = await BuildAsync();
+        List<string> captured = [];
+        twitch
+            .SendMessageAsync(TwitchTenant, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true)
+            .AndDoes(call => captured.Add(call.ArgAt<string>(1)));
+
+        string longLine = string.Join(" ", Enumerable.Range(1, 130).Select(i => $"word{i}"));
+        bool sent = await router.SendMessageAsync(TwitchTenant, longLine);
+
+        Assert.True(sent);
+        Assert.True(captured.Count > 1);
+        Assert.All(captured, c => Assert.True(c.Replace(BotEmittedLine.Marker, "").Length <= 500));
+        // The marker rides only the first chunk...
+        Assert.True(BotEmittedLine.IsMarked(captured[0]));
+        Assert.All(captured.Skip(1), c => Assert.False(BotEmittedLine.IsMarked(c)));
+        // ...and still trips the loop guard's own detection mechanism if that chunk is fed back through
+        // ingest — the exact signal IBotSelfEchoGuard falls back to for the self-host (same-account) case.
+        Assert.True(BotEmittedLine.IsMarked(captured[0]));
+    }
+
+    [Fact]
+    public async Task Two_identical_consecutive_sends_both_reach_the_platform_the_second_varied()
+    {
+        (ChatPlatformRouter router, IChatPlatform twitch, _) = await BuildAsync();
+        List<string> captured = [];
+        twitch
+            .SendMessageAsync(TwitchTenant, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true)
+            .AndDoes(call => captured.Add(call.ArgAt<string>(1)));
+
+        bool firstSent = await router.SendMessageAsync(TwitchTenant, "gg well played");
+        bool secondSent = await router.SendMessageAsync(TwitchTenant, "gg well played");
+
+        Assert.True(firstSent);
+        Assert.True(secondSent);
+        Assert.Equal(2, captured.Count);
+        Assert.NotEqual(captured[0], captured[1]);
+        // The variation is invisible to a human reader once both the loop-guard and variation markers
+        // are stripped back out.
+        string secondVisible = captured[1]
+            .Replace(BotEmittedLine.Marker, "")
+            .Replace(OutboundChatShaper.VariationMarker, "");
+        Assert.Equal("gg well played", secondVisible);
+    }
+
+    [Fact]
+    public async Task A_rejected_chunk_is_reported_as_a_failed_send_not_swallowed()
+    {
+        (ChatPlatformRouter router, IChatPlatform twitch, _) = await BuildAsync();
+        twitch
+            .SendMessageAsync(TwitchTenant, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        bool sent = await router.SendMessageAsync(TwitchTenant, "hello");
+
+        Assert.False(sent);
     }
 
     private static Channel Channel(Guid id, string provider, string externalId) =>

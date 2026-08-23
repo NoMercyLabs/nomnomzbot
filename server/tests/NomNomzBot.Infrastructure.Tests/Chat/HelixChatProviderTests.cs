@@ -607,6 +607,8 @@ public sealed class HelixChatProviderTests
         NomNomzBot.Infrastructure.Chat.ChatPlatformRouter router = new(
             [provider],
             db,
+            new NomNomzBot.Infrastructure.Chat.OutboundChatShaper(),
+            new NomNomzBot.Infrastructure.Chat.TokenBucketChatSendQueue(),
             Microsoft
                 .Extensions
                 .Logging

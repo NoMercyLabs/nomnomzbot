@@ -1309,6 +1309,16 @@ public static class DependencyInjection
         // Live shared-chat session state (singleton): the shared-ban trust web's "active session"
         // precondition — fed by the shared_chat begin/update/end handlers, read at ban time.
         services.AddSingleton<ISharedChatSessionTracker, SharedChatSessionTracker>();
+        // Outbound line shaping + pacing (S010): both singleton — the per-queue-key "last line sent"
+        // memory and the token-bucket state must outlive the scoped ChatPlatformRouter created per request.
+        services.AddSingleton<
+            Application.Contracts.Chat.IOutboundChatShaper,
+            Chat.OutboundChatShaper
+        >();
+        services.AddSingleton<
+            Application.Contracts.Chat.IChatSendQueue,
+            Chat.TokenBucketChatSendQueue
+        >();
         services.AddScoped<IChatPlatform, HelixChatProvider>();
         services.AddScoped<IChatPlatform, YouTubeChatPlatform>();
         services.AddScoped<IChatPlatform, KickChatPlatform>();

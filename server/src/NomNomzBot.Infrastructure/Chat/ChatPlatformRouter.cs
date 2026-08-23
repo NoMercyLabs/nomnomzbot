@@ -31,22 +31,35 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// inherits the loop-guard automatically just by registering, instead of each implementation having to
 /// remember to call <see cref="BotEmittedLine.Stamp"/> itself. <see cref="OperatorChatSender"/> is a
 /// deliberately separate path (a human operator's own composer send) and is never stamped.
+///
+/// S010 (outbound shaping): every send also passes through <see cref="IOutboundChatShaper"/> — chunked to
+/// the resolved platform's visible-character budget and given a trailing invisible variation when it
+/// repeats the previous line verbatim — and through <see cref="IChatSendQueue"/>, a per-channel-per-
+/// platform token bucket that paces sends to the platform's limit and coalesces concurrent identical
+/// sends. A chunk the platform rejects is never swallowed: it is logged and folds the whole call's result
+/// to <c>false</c> (S008d) rather than reporting success for a partially-delivered line.
 /// </summary>
 public sealed class ChatPlatformRouter : IChatProvider
 {
     private readonly IReadOnlyDictionary<string, IChatPlatform> _platforms;
     private readonly IApplicationDbContext _db;
+    private readonly IOutboundChatShaper _shaper;
+    private readonly IChatSendQueue _sendQueue;
     private readonly ILogger<ChatPlatformRouter> _logger;
     private readonly Dictionary<Guid, string> _providerByTenant = [];
 
     public ChatPlatformRouter(
         IEnumerable<IChatPlatform> platforms,
         IApplicationDbContext db,
+        IOutboundChatShaper shaper,
+        IChatSendQueue sendQueue,
         ILogger<ChatPlatformRouter> logger
     )
     {
         _platforms = platforms.ToDictionary(p => p.Provider, StringComparer.Ordinal);
         _db = db;
+        _shaper = shaper;
+        _sendQueue = sendQueue;
         _logger = logger;
     }
 
@@ -54,25 +67,93 @@ public sealed class ChatPlatformRouter : IChatProvider
         Guid broadcasterId,
         string message,
         CancellationToken cancellationToken = default
-    ) =>
-        await (await ResolveAsync(broadcasterId, cancellationToken)).SendMessageAsync(
-            broadcasterId,
-            BotEmittedLine.Stamp(message),
+    )
+    {
+        IChatPlatform platform = await ResolveAsync(broadcasterId, cancellationToken);
+        string provider = platform.Provider;
+        string queueKey = $"{broadcasterId:D}:{provider}";
+        string coalesceKey = $"{queueKey}|msg|{message}";
+
+        return await _sendQueue.EnqueueAsync(
+            queueKey,
+            coalesceKey,
+            async ct =>
+            {
+                IReadOnlyList<string> chunks = _shaper.Shape(
+                    provider,
+                    queueKey,
+                    BotEmittedLine.Stamp(message)
+                );
+                bool allSucceeded = true;
+                foreach (string chunk in chunks)
+                {
+                    bool sent = await platform.SendMessageAsync(broadcasterId, chunk, ct);
+                    if (!sent)
+                    {
+                        allSucceeded = false;
+                        _logger.LogWarning(
+                            "Chat send chunk rejected by {Provider} for channel {BroadcasterId}",
+                            provider,
+                            broadcasterId
+                        );
+                    }
+                }
+                return allSucceeded;
+            },
             cancellationToken
         );
+    }
 
     public async Task<bool> SendReplyAsync(
         Guid broadcasterId,
         string replyToMessageId,
         string message,
         CancellationToken cancellationToken = default
-    ) =>
-        await (await ResolveAsync(broadcasterId, cancellationToken)).SendReplyAsync(
-            broadcasterId,
-            replyToMessageId,
-            BotEmittedLine.Stamp(message),
+    )
+    {
+        IChatPlatform platform = await ResolveAsync(broadcasterId, cancellationToken);
+        string provider = platform.Provider;
+        string queueKey = $"{broadcasterId:D}:{provider}";
+        string coalesceKey = $"{queueKey}|reply|{replyToMessageId}|{message}";
+
+        return await _sendQueue.EnqueueAsync(
+            queueKey,
+            coalesceKey,
+            async ct =>
+            {
+                IReadOnlyList<string> chunks = _shaper.Shape(
+                    provider,
+                    queueKey,
+                    BotEmittedLine.Stamp(message)
+                );
+                bool allSucceeded = true;
+                for (int i = 0; i < chunks.Count; i++)
+                {
+                    bool sent =
+                        i == 0
+                            ? await platform.SendReplyAsync(
+                                broadcasterId,
+                                replyToMessageId,
+                                chunks[i],
+                                ct
+                            )
+                            : await platform.SendMessageAsync(broadcasterId, chunks[i], ct);
+                    if (!sent)
+                    {
+                        allSucceeded = false;
+                        _logger.LogWarning(
+                            "Chat {Kind} chunk rejected by {Provider} for channel {BroadcasterId}",
+                            i == 0 ? "reply" : "reply-overflow",
+                            provider,
+                            broadcasterId
+                        );
+                    }
+                }
+                return allSucceeded;
+            },
             cancellationToken
         );
+    }
 
     public async Task TimeoutUserAsync(
         Guid broadcasterId,
