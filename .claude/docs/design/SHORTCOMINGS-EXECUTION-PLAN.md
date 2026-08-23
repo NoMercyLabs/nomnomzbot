@@ -42,9 +42,6 @@ Slice IDs are stable; the order is the queue.
   public, per IP), `admin` (per principal); assign every controller/action explicitly; 429 responses carry `Retry-After`
   and the dashboard shows a calm "slow down" instead of an error. Done-when: 50 toggles in a minute never 429; 50 login
   attempts do.
-- **S111b** Desktop saved connections — list + add + switch + forget in the Connect/profile UI, wired to the
-  committed `SavedConnectionsRepository`; rescan action; mDNS failure surfaced inline instead of stderr (U·E5).
-  Done-when: switch changes the active connection and reconnects; forget removes it and its token.
 - **S111c** Desktop app polish — firewall hint; log file with a size cap and a documented path; session-expiry
   refresh; window state persisted; app icon + stamped version (`/health/version` is hardcoded 1.0.0.0); macOS
   data dir (U·E5). Done-when: a restart restores window state and the version endpoint reports the build.
