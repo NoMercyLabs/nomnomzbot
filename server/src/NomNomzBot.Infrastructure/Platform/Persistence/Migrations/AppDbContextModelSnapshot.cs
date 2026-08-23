@@ -5000,11 +5000,17 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<Guid?>("RoleId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("SourceIpCipher")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
                     b.Property<Guid?>("TargetBroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TargetPrincipalId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("TargetResource")
@@ -5016,6 +5022,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasIndex("OccurredAt");
 
                     b.HasIndex("PrincipalId");
+
+                    b.HasIndex("TargetPrincipalId");
 
                     b.ToTable("IamAuditLogs");
                 });

@@ -26,6 +26,13 @@ public class IamAuditLog
     public string Permission { get; set; } = null!;
     public Guid? TargetBroadcasterId { get; set; }
     public string? TargetResource { get; set; }
+
+    /// <summary>The principal a management op (assign/revoke/create/deactivate/reactivate) acted upon —
+    /// distinct from <see cref="TargetBroadcasterId"/>, which names a tenant scope, not a principal.</summary>
+    public Guid? TargetPrincipalId { get; set; }
+
+    /// <summary>The role a management op (assign/revoke) granted or removed.</summary>
+    public Guid? RoleId { get; set; }
     public string? Justification { get; set; }
     public bool BreakGlass { get; set; }
     public IamOutcome Outcome { get; set; }

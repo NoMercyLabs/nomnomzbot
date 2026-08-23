@@ -131,6 +131,21 @@ public sealed class PlatformIamService(
                 "VALIDATION_FAILED"
             );
 
+        // Validate BEFORE tracking anything: this context is scoped per request, so an entity added to
+        // the change tracker survives past a failed return and can flush as an orphan on a later,
+        // unrelated SaveChangesAsync call in the same scope. Resolving the backing user first means an
+        // unknown user never gets a principal (or a role assignment) tracked at all.
+        User? user = null;
+        if (request.PrincipalType == IamPrincipalType.Employee)
+        {
+            user = await db.Users.FirstOrDefaultAsync(
+                u => u.Id == request.UserId,
+                cancellationToken
+            );
+            if (user is null)
+                return Result.Failure<IamPrincipalDto>("Unknown user.", "NOT_FOUND");
+        }
+
         string? serviceAccountKey = null;
         IamPrincipal principal = new()
         {
@@ -149,16 +164,8 @@ public sealed class PlatformIamService(
         // The promote wiring (roles-permissions §5.4): the platform-principal marker is what mints the
         // `admin` role claim on the next token refresh — without it the new principal could never enter
         // Plane-C (the authorization handler gates entry on that claim before consulting this service).
-        if (request.PrincipalType == IamPrincipalType.Employee)
-        {
-            User? user = await db.Users.FirstOrDefaultAsync(
-                u => u.Id == request.UserId,
-                cancellationToken
-            );
-            if (user is null)
-                return Result.Failure<IamPrincipalDto>("Unknown user.", "NOT_FOUND");
+        if (user is not null)
             user.IsPlatformPrincipal = true;
-        }
 
         foreach (Guid roleId in request.RoleIds.Distinct())
             db.IamRoleAssignments.Add(
@@ -169,6 +176,18 @@ public sealed class PlatformIamService(
                     AssignedByPrincipalId = actingPrincipalId,
                 }
             );
+
+        if (IsSaas)
+            await AddAuditAsync(
+                actingPrincipalId,
+                CreatePrincipalPermission,
+                targetPrincipalId: principal.Id,
+                roleId: null,
+                scopeChannelId: null,
+                reason: null,
+                cancellationToken
+            );
+
         await db.SaveChangesAsync(cancellationToken);
 
         return Result.Success(ToDto(principal) with { ServiceAccountKey = serviceAccountKey });
@@ -200,8 +219,34 @@ public sealed class PlatformIamService(
         );
         if (role is null)
             return Result.Failure<IamRoleAssignmentDto>("Unknown role.", "NOT_FOUND");
-        if (!await db.IamPrincipals.AnyAsync(p => p.Id == principalId, cancellationToken))
+
+        IamPrincipal? target = await db.IamPrincipals.FirstOrDefaultAsync(
+            p => p.Id == principalId,
+            cancellationToken
+        );
+        if (target is null)
             return Result.Failure<IamRoleAssignmentDto>("Unknown principal.", "NOT_FOUND");
+        if (!target.IsActive)
+            return Result.Failure<IamRoleAssignmentDto>(
+                "Cannot assign a role to an inactive principal.",
+                "TARGET_INACTIVE"
+            );
+
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        bool duplicate = await db.IamRoleAssignments.AnyAsync(
+            a =>
+                a.PrincipalId == principalId
+                && a.RoleId == roleId
+                && a.ScopeChannelId == scopeChannelId
+                && a.RevokedAt == null
+                && (a.ExpiresAt == null || a.ExpiresAt > now),
+            cancellationToken
+        );
+        if (duplicate)
+            return Result.Failure<IamRoleAssignmentDto>(
+                "This role is already assigned to the principal in that scope.",
+                "DUPLICATE_ASSIGNMENT"
+            );
 
         IamRoleAssignment assignment = new()
         {
@@ -213,6 +258,18 @@ public sealed class PlatformIamService(
             Reason = reason,
         };
         db.IamRoleAssignments.Add(assignment);
+
+        if (IsSaas)
+            await AddAuditAsync(
+                actingPrincipalId,
+                ManagePermission,
+                targetPrincipalId: principalId,
+                roleId: roleId,
+                scopeChannelId: scopeChannelId,
+                reason: reason,
+                cancellationToken
+            );
+
         await db.SaveChangesAsync(cancellationToken);
 
         return Result.Success(ToDto(assignment, role.Name));
@@ -235,8 +292,36 @@ public sealed class PlatformIamService(
         if (assignment is null)
             return Result.Success();
 
+        // The lockout guard: revoking the last active grant of iam:manage would leave nobody able to
+        // administer IAM at all. Only refuse when this specific assignment's role actually grants
+        // iam:manage AND no OTHER active assignment (any principal) would still grant it afterward.
+        if ((await ManagerRoleIdsAsync(cancellationToken)).Contains(assignment.RoleId))
+        {
+            int remainingHolders = await CountActiveManageHoldersAsync(
+                cancellationToken,
+                excludeAssignmentId: assignment.Id
+            );
+            if (remainingHolders == 0)
+                return Result.Failure(
+                    "Cannot revoke the last active grant of iam:manage.",
+                    "LAST_MANAGER"
+                );
+        }
+
         assignment.RevokedAt = clock.GetUtcNow().UtcDateTime;
         assignment.Reason = reason ?? assignment.Reason;
+
+        if (IsSaas)
+            await AddAuditAsync(
+                actingPrincipalId,
+                ManagePermission,
+                targetPrincipalId: assignment.PrincipalId,
+                roleId: assignment.RoleId,
+                scopeChannelId: assignment.ScopeChannelId,
+                reason: reason,
+                cancellationToken
+            );
+
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
@@ -348,8 +433,37 @@ public sealed class PlatformIamService(
         if (principal is null)
             return Result.Failure("Unknown principal.", "NOT_FOUND");
 
+        // The capability lockout guard: whoever is being deactivated must not be the LAST active holder
+        // of iam:manage — that would strand the platform with nobody able to administer IAM at all. This
+        // is broader than the self-deactivation guard above (which only catches the acting principal
+        // deactivating themself); a manager can just as easily lock everyone out by deactivating the
+        // last OTHER holder.
+        if (
+            await IsActiveManageHolderAsync(principalId, cancellationToken)
+            && await CountActiveManageHoldersAsync(
+                cancellationToken,
+                excludePrincipalId: principalId
+            ) == 0
+        )
+            return Result.Failure(
+                "Cannot deactivate the last active holder of iam:manage.",
+                "LAST_MANAGER"
+            );
+
         principal.IsActive = false;
         await SetUserPlatformMarkerAsync(principal, isPlatformPrincipal: false, cancellationToken);
+
+        if (IsSaas)
+            await AddAuditAsync(
+                actingPrincipalId,
+                ManagePermission,
+                targetPrincipalId: principalId,
+                roleId: null,
+                scopeChannelId: null,
+                reason: reason,
+                cancellationToken
+            );
+
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
@@ -372,6 +486,18 @@ public sealed class PlatformIamService(
 
         principal.IsActive = true;
         await SetUserPlatformMarkerAsync(principal, isPlatformPrincipal: true, cancellationToken);
+
+        if (IsSaas)
+            await AddAuditAsync(
+                actingPrincipalId,
+                ManagePermission,
+                targetPrincipalId: principalId,
+                roleId: null,
+                scopeChannelId: null,
+                reason: null,
+                cancellationToken
+            );
+
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
@@ -449,6 +575,115 @@ public sealed class PlatformIamService(
             .Select(p => p.Key)
             .Distinct()
             .ToListAsync(ct);
+    }
+
+    /// <summary>Every role that carries <c>iam:manage</c> — the pool consulted by the last-holder lockout
+    /// guards on revoke/deactivate.</summary>
+    private async Task<List<Guid>> ManagerRoleIdsAsync(CancellationToken ct) =>
+        await db
+            .IamRolePermissions.Join(
+                db.IamPermissions,
+                rp => rp.PermissionId,
+                p => p.Id,
+                (rp, p) => new { rp.RoleId, p.Key }
+            )
+            .Where(x => x.Key == ManagePermission)
+            .Select(x => x.RoleId)
+            .Distinct()
+            .ToListAsync(ct);
+
+    /// <summary>
+    /// The number of distinct ACTIVE principals still holding <c>iam:manage</c> through an active,
+    /// non-expired role assignment, optionally excluding one principal (deactivate) or one specific
+    /// assignment (revoke) from the count — so the caller can ask "if this went away, would anyone be
+    /// left?" without a race between reading and acting.
+    /// </summary>
+    private async Task<int> CountActiveManageHoldersAsync(
+        CancellationToken ct,
+        Guid? excludePrincipalId = null,
+        Guid? excludeAssignmentId = null
+    )
+    {
+        List<Guid> managerRoleIds = await ManagerRoleIdsAsync(ct);
+        if (managerRoleIds.Count == 0)
+            return 0;
+
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        return await db
+            .IamRoleAssignments.Where(a =>
+                managerRoleIds.Contains(a.RoleId)
+                && a.RevokedAt == null
+                && (a.ExpiresAt == null || a.ExpiresAt > now)
+                && (excludePrincipalId == null || a.PrincipalId != excludePrincipalId)
+                && (excludeAssignmentId == null || a.Id != excludeAssignmentId)
+            )
+            .Join(
+                db.IamPrincipals,
+                a => a.PrincipalId,
+                p => p.Id,
+                (a, p) => new { a.PrincipalId, p.IsActive }
+            )
+            .Where(x => x.IsActive)
+            .Select(x => x.PrincipalId)
+            .Distinct()
+            .CountAsync(ct);
+    }
+
+    /// <summary>Does this active principal currently hold <c>iam:manage</c> through some active, non-expired
+    /// assignment? Used to short-circuit the deactivate lockout guard for principals that never held it.</summary>
+    private async Task<bool> IsActiveManageHolderAsync(Guid principalId, CancellationToken ct)
+    {
+        List<Guid> managerRoleIds = await ManagerRoleIdsAsync(ct);
+        if (managerRoleIds.Count == 0)
+            return false;
+        if (!await db.IamPrincipals.AnyAsync(p => p.Id == principalId && p.IsActive, ct))
+            return false;
+
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        return await db.IamRoleAssignments.AnyAsync(
+            a =>
+                a.PrincipalId == principalId
+                && managerRoleIds.Contains(a.RoleId)
+                && a.RevokedAt == null
+                && (a.ExpiresAt == null || a.ExpiresAt > now),
+            ct
+        );
+    }
+
+    /// <summary>
+    /// Appends one <c>IamAuditLog</c> row for a management mutation (assign/revoke/create/deactivate/
+    /// reactivate) — SaaS-only, per the entity's append-only, SaaS-only contract. The acting principal's
+    /// type is looked up fresh so the row records who actually did it, matching the shape
+    /// <see cref="AuthorizePlatformAsync"/> already writes for access evaluations.
+    /// </summary>
+    private async Task AddAuditAsync(
+        Guid actingPrincipalId,
+        string permission,
+        Guid? targetPrincipalId,
+        Guid? roleId,
+        Guid? scopeChannelId,
+        string? reason,
+        CancellationToken ct
+    )
+    {
+        IamPrincipal? actor = await db.IamPrincipals.FirstOrDefaultAsync(
+            p => p.Id == actingPrincipalId,
+            ct
+        );
+        db.IamAuditLogs.Add(
+            new()
+            {
+                PrincipalId = actingPrincipalId,
+                PrincipalType = actor?.PrincipalType ?? IamPrincipalType.Employee,
+                Permission = permission,
+                TargetPrincipalId = targetPrincipalId,
+                RoleId = roleId,
+                TargetBroadcasterId = scopeChannelId,
+                Justification = reason,
+                Outcome = IamOutcome.Allowed,
+                OccurredAt = clock.GetUtcNow().UtcDateTime,
+            }
+        );
     }
 
     private static string GenerateServiceAccountKey() =>

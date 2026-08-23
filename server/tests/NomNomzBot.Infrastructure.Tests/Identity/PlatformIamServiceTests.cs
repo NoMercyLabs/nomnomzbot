@@ -247,15 +247,43 @@ public sealed class PlatformIamServiceTests
     public async Task Revoke_removes_the_permission_from_the_effective_set()
     {
         (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
+        // iam:manage is what lets `manager` call revoke at all; the assignment actually being revoked
+        // grants an UNRELATED permission, so this proves the general revoke mechanics without tripping
+        // the last-iam:manage-holder lockout guard (proven separately below).
         Guid manager = SeedPrincipalWithPermission(db, "iam:manage");
+        SeedPrincipalWithPermission(db, "iam:tenant:read"); // keeps helper's role/perm ids distinct
+        Guid revocableRoleId = Guid.NewGuid();
+        Guid revocablePermissionId = Guid.NewGuid();
+        db.IamRoles.Add(new() { Id = revocableRoleId, Name = "revocable-role" });
+        db.IamPermissions.Add(
+            new()
+            {
+                Id = revocablePermissionId,
+                Key = "iam:tenant:write",
+                Category = IamCategory.Iam,
+            }
+        );
+        db.IamRolePermissions.Add(
+            new() { RoleId = revocableRoleId, PermissionId = revocablePermissionId }
+        );
+        db.IamRoleAssignments.Add(
+            new()
+            {
+                PrincipalId = manager,
+                RoleId = revocableRoleId,
+                AssignedByPrincipalId = manager,
+            }
+        );
         await db.SaveChangesAsync();
         IamRoleAssignment assignment = await db.IamRoleAssignments.FirstAsync(a =>
-            a.PrincipalId == manager
+            a.PrincipalId == manager && a.RoleId == revocableRoleId
         );
 
         await sut.RevokeAssignmentAsync(manager, assignment.Id, reason: "offboarded");
 
-        (await sut.GetEffectivePermissionsAsync(manager, null)).Value.Should().BeEmpty();
+        (await sut.GetEffectivePermissionsAsync(manager, null))
+            .Value.Should()
+            .NotContain("iam:tenant:write");
     }
 
     [Fact]
@@ -402,6 +430,269 @@ public sealed class PlatformIamServiceTests
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
         (await db.IamPrincipals.SingleAsync(p => p.Id == manager)).IsActive.Should().BeTrue();
+    }
+
+    // ─── S086c: IAM mutations are audited and guarded ────
+
+    [Fact]
+    public async Task Assign_writes_one_audit_row_naming_actor_target_and_role()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
+        Guid manager = SeedPrincipalWithPermission(db, "iam:manage");
+        Guid target = Guid.NewGuid();
+        Guid roleId = Guid.NewGuid();
+        db.IamPrincipals.Add(
+            new()
+            {
+                Id = target,
+                PrincipalType = IamPrincipalType.Employee,
+                Name = "target",
+                IsActive = true,
+            }
+        );
+        db.IamRoles.Add(new() { Id = roleId, Name = "support" });
+        await db.SaveChangesAsync();
+
+        Result<IamRoleAssignmentDto> result = await sut.AssignRoleAsync(
+            manager,
+            target,
+            roleId,
+            scopeChannelId: null,
+            expiresAt: null,
+            reason: "onboarding"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        IamAuditLog audit = await db.IamAuditLogs.SingleAsync();
+        audit.PrincipalId.Should().Be(manager);
+        audit.TargetPrincipalId.Should().Be(target);
+        audit.RoleId.Should().Be(roleId);
+        audit.Permission.Should().Be("iam:manage");
+        audit.Justification.Should().Be("onboarding");
+        audit.Outcome.Should().Be(IamOutcome.Allowed);
+    }
+
+    [Fact]
+    public async Task Revoke_writes_one_audit_row_naming_actor_target_and_role()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
+        // Two managers so revoking one assignment never trips the last-holder guard here.
+        Guid manager = SeedPrincipalWithPermission(db, "iam:manage");
+        Guid otherManager = SeedPrincipalWithPermission(db, "iam:manage");
+        await db.SaveChangesAsync();
+        IamRoleAssignment assignment = await db.IamRoleAssignments.FirstAsync(a =>
+            a.PrincipalId == manager
+        );
+
+        Result result = await sut.RevokeAssignmentAsync(otherManager, assignment.Id, "offboarded");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        IamAuditLog audit = await db.IamAuditLogs.SingleAsync();
+        audit.PrincipalId.Should().Be(otherManager);
+        audit.TargetPrincipalId.Should().Be(manager);
+        audit.RoleId.Should().Be(assignment.RoleId);
+        audit.Justification.Should().Be("offboarded");
+        audit.Outcome.Should().Be(IamOutcome.Allowed);
+    }
+
+    [Fact]
+    public async Task Create_writes_one_audit_row_naming_actor_and_the_new_principal()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
+        Guid creator = SeedPrincipalWithPermission(db, "iam:principal:create");
+        await db.SaveChangesAsync();
+
+        Result<IamPrincipalDto> result = await sut.CreatePrincipalAsync(
+            creator,
+            new(
+                IamPrincipalType.ServiceAccount,
+                UserId: null,
+                DisplayName: "ci-bot",
+                RoleIds: [],
+                ServiceAccountName: "ci-bot"
+            )
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        IamAuditLog audit = await db.IamAuditLogs.SingleAsync();
+        audit.PrincipalId.Should().Be(creator);
+        audit.TargetPrincipalId.Should().Be(result.Value.Id);
+        audit.Permission.Should().Be("iam:principal:create");
+        audit.Outcome.Should().Be(IamOutcome.Allowed);
+    }
+
+    [Fact]
+    public async Task Deactivate_and_reactivate_each_write_one_audit_row_naming_actor_and_target()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
+        Guid manager = SeedPrincipalWithPermission(db, "iam:manage");
+        Guid otherManager = SeedPrincipalWithPermission(db, "iam:manage");
+        await db.SaveChangesAsync();
+
+        (await sut.DeactivatePrincipalAsync(manager, otherManager, "offboarded"))
+            .IsSuccess.Should()
+            .BeTrue();
+        IamAuditLog deactivateAudit = await db.IamAuditLogs.SingleAsync();
+        deactivateAudit.PrincipalId.Should().Be(manager);
+        deactivateAudit.TargetPrincipalId.Should().Be(otherManager);
+        deactivateAudit.Justification.Should().Be("offboarded");
+
+        (await sut.ReactivatePrincipalAsync(manager, otherManager)).IsSuccess.Should().BeTrue();
+        (await db.IamAuditLogs.CountAsync()).Should().Be(2);
+        IamAuditLog reactivateAudit = await db
+            .IamAuditLogs.OrderByDescending(a => a.Id)
+            .FirstAsync();
+        reactivateAudit.PrincipalId.Should().Be(manager);
+        reactivateAudit.TargetPrincipalId.Should().Be(otherManager);
+    }
+
+    [Fact]
+    public async Task Create_employee_for_an_unknown_user_leaves_no_principal_row_behind()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
+        Guid creator = SeedPrincipalWithPermission(db, "iam:principal:create");
+        await db.SaveChangesAsync();
+        int principalsBefore = await db.IamPrincipals.CountAsync();
+
+        Result<IamPrincipalDto> result = await sut.CreatePrincipalAsync(
+            creator,
+            new(
+                IamPrincipalType.Employee,
+                UserId: Guid.NewGuid(),
+                DisplayName: "ghost",
+                RoleIds: [],
+                ServiceAccountName: null
+            )
+        );
+        // Nothing further should be tracked from the failed attempt — a later, unrelated save on the
+        // same context must not flush an orphaned principal (the bug this slice closes).
+        await db.SaveChangesAsync();
+
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        (await db.IamPrincipals.CountAsync()).Should().Be(principalsBefore);
+    }
+
+    [Fact]
+    public async Task A_duplicate_active_assignment_is_refused()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
+        Guid manager = SeedPrincipalWithPermission(db, "iam:manage");
+        Guid target = Guid.NewGuid();
+        Guid roleId = Guid.NewGuid();
+        db.IamPrincipals.Add(
+            new()
+            {
+                Id = target,
+                PrincipalType = IamPrincipalType.Employee,
+                Name = "target",
+                IsActive = true,
+            }
+        );
+        db.IamRoles.Add(new() { Id = roleId, Name = "support" });
+        await db.SaveChangesAsync();
+        (await sut.AssignRoleAsync(manager, target, roleId, null, null, null))
+            .IsSuccess.Should()
+            .BeTrue();
+
+        Result<IamRoleAssignmentDto> duplicate = await sut.AssignRoleAsync(
+            manager,
+            target,
+            roleId,
+            null,
+            null,
+            null
+        );
+
+        duplicate.ErrorCode.Should().Be("DUPLICATE_ASSIGNMENT");
+        (await db.IamRoleAssignments.CountAsync(a => a.PrincipalId == target && a.RoleId == roleId))
+            .Should()
+            .Be(1);
+    }
+
+    [Fact]
+    public async Task An_assignment_to_an_inactive_target_is_refused()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
+        Guid manager = SeedPrincipalWithPermission(db, "iam:manage");
+        Guid target = Guid.NewGuid();
+        Guid roleId = Guid.NewGuid();
+        db.IamPrincipals.Add(
+            new()
+            {
+                Id = target,
+                PrincipalType = IamPrincipalType.Employee,
+                Name = "target",
+                IsActive = false,
+            }
+        );
+        db.IamRoles.Add(new() { Id = roleId, Name = "support" });
+        await db.SaveChangesAsync();
+
+        Result<IamRoleAssignmentDto> result = await sut.AssignRoleAsync(
+            manager,
+            target,
+            roleId,
+            null,
+            null,
+            null
+        );
+
+        result.ErrorCode.Should().Be("TARGET_INACTIVE");
+    }
+
+    /// <summary>
+    /// The capability guard is reachable independent of whether the acting caller itself holds
+    /// iam:manage — self-host bypasses the actor permission check entirely (fix D2), so this is the
+    /// scenario where it matters: nothing here checks the caller's own grants, only whether the target
+    /// is the platform's last active iam:manage holder.
+    /// </summary>
+    [Fact]
+    public async Task Deactivating_the_last_iam_manage_holder_is_refused()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.SelfHostLite);
+        Guid onlyManager = SeedPrincipalWithPermission(db, "iam:manage");
+        await db.SaveChangesAsync();
+
+        Result result = await sut.DeactivatePrincipalAsync(
+            Guid.NewGuid(),
+            onlyManager,
+            reason: null
+        );
+
+        result.ErrorCode.Should().Be("LAST_MANAGER");
+        (await db.IamPrincipals.SingleAsync(p => p.Id == onlyManager)).IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Deactivating_a_non_last_iam_manage_holder_succeeds()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
+        Guid manager = SeedPrincipalWithPermission(db, "iam:manage");
+        Guid otherManager = SeedPrincipalWithPermission(db, "iam:manage");
+        await db.SaveChangesAsync();
+
+        Result result = await sut.DeactivatePrincipalAsync(manager, otherManager, reason: null);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        (await db.IamPrincipals.SingleAsync(p => p.Id == otherManager)).IsActive.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Revoking_the_last_active_grant_of_iam_manage_is_refused()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
+        Guid onlyManager = SeedPrincipalWithPermission(db, "iam:manage");
+        await db.SaveChangesAsync();
+        IamRoleAssignment assignment = await db.IamRoleAssignments.FirstAsync(a =>
+            a.PrincipalId == onlyManager
+        );
+
+        Result result = await sut.RevokeAssignmentAsync(onlyManager, assignment.Id, reason: null);
+
+        result.ErrorCode.Should().Be("LAST_MANAGER");
+        (await db.IamRoleAssignments.SingleAsync(a => a.Id == assignment.Id))
+            .RevokedAt.Should()
+            .BeNull();
     }
 
     [Fact]

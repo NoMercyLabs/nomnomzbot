@@ -28,5 +28,6 @@ public class IamAuditLogConfiguration : IEntityTypeConfiguration<IamAuditLog>
 
         builder.HasIndex(e => e.PrincipalId);
         builder.HasIndex(e => e.OccurredAt);
+        builder.HasIndex(e => e.TargetPrincipalId);
     }
 }
