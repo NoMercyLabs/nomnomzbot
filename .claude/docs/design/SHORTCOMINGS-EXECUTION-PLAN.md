@@ -28,8 +28,11 @@ Slice IDs are stable; the order is the queue.
 - **S098c** Refresh custody — by cookie presence, not `?client=` (`AuthController.cs:1079`); drop the fragment refresh
   path (`:552`); Origin/CSRF check on cookie refresh (U·E6). Done-when: a cross-origin cookie refresh is rejected and no
   refresh token ever appears in a URL.
-- **S098d** HSTS + CSP for the SPA entry; `ENCRYPTION_KEY` rotation pass that re-wraps (fail loud, never blank)
-  (`SystemCredentialsProvider.cs:50`) (U·E6). Done-when: rotation re-wraps every secret; a wrong key fails loud.
+- **S098e** `ENCRYPTION_KEY` rotation — a REACHABLE re-wrap pass. (Audit correction, traced 2026-08-23: secrets are
+  not silently blanked — `TokenProtector.cs:112-120` fails closed with a typed Result and 17 call sites treat the null
+  as "needs re-auth". The real gap: `ISubjectKeyService.RotateKeyAsync` (`SubjectKeyService.cs:313`) only retires the
+  DEK forward, never re-wraps stored ciphertext, and has zero callers.) Done-when: A→B rotation re-wraps every stored
+  secret, is idempotent, reports failures loudly, and is reachable from an admin surface.
 - **S115** Repo-wide CSharpier drift — `dotnet csharpier check .` fails on ~230 committed files (2551 checked), so the
   per-commit format gate in `CLAUDE.md` is currently unenforceable. Done-when: `dotnet csharpier check .` is clean on a
   quiet tree and stays the gate.
