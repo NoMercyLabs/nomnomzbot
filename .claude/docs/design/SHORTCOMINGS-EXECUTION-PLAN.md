@@ -21,19 +21,16 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
 
-- **S119 (BLOCKING — do this before trusting any suite run)** The Infrastructure test host crashes
-  nondeterministically, so `dotnet test` never completes and every "full suite green" claim is unverified.
-  Reproduces at HEAD cb30a41d in a clean worktree; dies at a different point each run (1040 / 2891 / 3402
-  passed), which explains the 3554 / 3557 / 3499 spread in recent slice reports. No dump is emitted even with
-  `--blame-crash --blame-crash-collect-always` + `DOTNET_DbgEnableMiniDump`. Both observed crash points sit
-  beside the file-backed SQLite concurrency tests added by S004/S004b/S004c/S004d
-  (`Economy/CurrencyBalanceConcurrencyTests.cs` and siblings: N concurrent `SqliteConnection`s on one WAL-mode
-  file from separate Tasks); each passes in isolation. Done-when: `dotnet test` for
-  `NomNomzBot.Infrastructure.Tests` completes to a stable total on three consecutive runs, and that total is
-  recorded here. Likely shape: get real dumps (procdump on PATH), then put the file-backed concurrency tests in
-  their own non-parallel xUnit collection and/or pin the native SQLite version — keep the tests' real
-  concurrency, isolate their scheduling.
-
+- **S119b** Finish the `ClearAllPools()` sweep — S119 (d31e572e) proved a process-wide
+  `SqliteConnection.ClearAllPools()` in a test `Dispose` crashes the host by yanking pooled native connections out of other
+  parallel test classes. Two sites still call it: `Platform/Persistence/SqliteDateTimeOffsetTranslationTests.cs:41` and
+  `Billing/UsageMeteringServiceTests.cs:46`. Grep for every remaining caller. Done-when: no test calls `ClearAllPools()`;
+  each scopes to `ClearPool(ownConnection)`; suite still completes at 3562 on three runs.
+- **S120** Timing flakes undermine the gate — `IpcDevModeListenerServiceTests` (`A_wrong_key_is_refused_and_closed`,
+  `Stop_closes_the_listener_and_drains_live_connections`, `An_oversized_frame_is_refused_and_the_connection_closes`) and
+  `DirectObsTransportTests` (timeout) fail intermittently across runs and pass in isolation. While they flake, "suite green"
+  is a coin toss and real regressions hide behind "probably the known flake". Done-when: each is deterministic (await the
+  actual signal instead of sleeping/racing a timeout), proven by 10 consecutive green runs of those classes.
 - **S001** Song-request queue store — `IMusicService` queue out of the scoped instance into a singleton
   store (U·B4 b1). Done-when: `!sr` → `!queue` → `GET /queue` agree across requests (test with two scopes).
 - **S002** Provider queue/skip outcomes — `AddToQueueAsync`/skip bool honoured; NO_ACTIVE_DEVICE,
