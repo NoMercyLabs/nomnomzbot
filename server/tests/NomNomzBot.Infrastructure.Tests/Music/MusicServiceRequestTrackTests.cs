@@ -228,6 +228,7 @@ public sealed class MusicServiceRequestTrackTests
             bus,
             blocks,
             new SongRequestQueueStore(),
+            new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore()
         );

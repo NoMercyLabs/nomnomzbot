@@ -283,6 +283,7 @@ public sealed class MusicServiceQueuePushFailureTests
             bus,
             blocks,
             new SongRequestQueueStore(),
+            new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore()
         );

@@ -242,6 +242,7 @@ public sealed class SpotifyMusicProviderAuthStatusTests
             new RecordingEventBus(),
             new BlockedTrackService(db),
             new SongRequestQueueStore(),
+            new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             capabilityStore
         );

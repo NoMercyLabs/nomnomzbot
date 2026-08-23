@@ -138,6 +138,7 @@ public sealed class MusicServiceQueueSnapshotTests
             bus,
             new BlockedTrackService(db),
             new SongRequestQueueStore(),
+            new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore()
         );

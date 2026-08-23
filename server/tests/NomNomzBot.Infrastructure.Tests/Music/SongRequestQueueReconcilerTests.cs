@@ -99,6 +99,10 @@ public sealed class SongRequestQueueReconcilerTests
             );
 
         RecordingEventBus bus = new();
-        return (new SongRequestQueueReconciler(store, bus), queue, bus);
+        return (
+            new SongRequestQueueReconciler(store, new NoOpSongRequestQueuePersistence(), bus),
+            queue,
+            bus
+        );
     }
 }

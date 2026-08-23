@@ -147,6 +147,7 @@ public sealed class SongRequestQueueCrossScopeTests
             new RecordingEventBus(),
             new BlockedTrackService(db),
             store,
+            new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore()
         );

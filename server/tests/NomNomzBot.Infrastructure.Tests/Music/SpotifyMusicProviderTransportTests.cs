@@ -249,6 +249,7 @@ public sealed class SpotifyMusicProviderTransportTests
             bus,
             new BlockedTrackService(db),
             new SongRequestQueueStore(),
+            new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             store
         );

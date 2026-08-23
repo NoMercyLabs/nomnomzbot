@@ -168,6 +168,7 @@ public sealed class MusicServiceQueuePushTests
             new RecordingEventBus(),
             new BlockedTrackService(db),
             new SongRequestQueueStore(),
+            new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore()
         );

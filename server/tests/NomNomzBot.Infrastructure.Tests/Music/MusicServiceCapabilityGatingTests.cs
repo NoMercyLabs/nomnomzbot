@@ -286,6 +286,7 @@ public sealed class MusicServiceCapabilityGatingTests
             new RecordingEventBus(),
             new BlockedTrackService(db),
             new SongRequestQueueStore(),
+            new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore()
         );

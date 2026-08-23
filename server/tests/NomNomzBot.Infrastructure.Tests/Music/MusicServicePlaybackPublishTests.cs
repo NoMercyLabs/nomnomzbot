@@ -117,6 +117,7 @@ public sealed class MusicServicePlaybackPublishTests
             bus,
             new BlockedTrackService(db),
             new SongRequestQueueStore(),
+            new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore()
         );
@@ -170,6 +171,7 @@ public sealed class MusicServicePlaybackPublishTests
             bus,
             new BlockedTrackService(db),
             new SongRequestQueueStore(),
+            new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore()
         );
