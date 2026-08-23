@@ -797,6 +797,12 @@
     <string name="moderation_action_user_id">Twitch gebruikers-ID</string>
     <string name="moderation_action_reason">Reden (optioneel)</string>
     <string name="moderation_action_duration">Duur in seconden</string>
+    <string name="moderation_action_duration_preset_60">60 seconden</string>
+    <string name="moderation_action_duration_preset_600">10 minuten</string>
+    <string name="moderation_action_duration_preset_3600">1 uur</string>
+    <string name="moderation_action_duration_preset_86400">24 uur</string>
+    <string name="moderation_action_duration_preset_604800">7 dagen</string>
+    <string name="moderation_action_duration_preset_custom">Aangepast…</string>
     <string name="moderation_rule_type_profanity">Grof taalgebruik</string>
     <string name="moderation_rule_type_links">Links</string>
     <string name="moderation_rule_type_caps">Hoofdletters</string>
@@ -2052,6 +2058,8 @@
     <string name="music_error">Muziek laden mislukt: %1$s</string>
     <string name="music_retry">Opnieuw</string>
     <string name="music_action_error">%1$s</string>
+    <string name="music_spotify_needs_reauth">De Spotify-verbinding moet opnieuw worden verbonden — afspelen en verzoeknummers werken pas daarna weer.</string>
+    <string name="music_spotify_reconnect">Spotify opnieuw verbinden</string>
     <string name="music_now_playing_label">Speelt nu</string>
     <string name="music_now_playing_description">Speelt nu: %1$s, %2$s</string>
     <string name="music_unknown_track">Onbekend nummer</string>
@@ -2924,6 +2932,11 @@
     <string name="settings_basics_prefix">Commandoprefix</string>
     <string name="settings_basics_prefix_hint">Het teken (of de tekens) dat een commando markeert, bijv. ! in !uptime.</string>
     <string name="settings_basics_prefix_invalid">Voer 1–5 tekens in zonder spaties.</string>
+    <string name="settings_basics_bot_line_prefix">Botregelmarkering</string>
+    <string name="settings_basics_bot_line_prefix_hint">Markeert regels die de bot vanaf jouw eigen account plaatst, bijv. * voor een botbericht.</string>
+    <string name="settings_basics_bot_line_prefix_none">Geen</string>
+    <string name="settings_basics_bot_line_prefix_custom">Aangepast</string>
+    <string name="settings_basics_bot_line_prefix_disabled_note">Niet nodig — je eigen botaccount plaatst zijn eigen berichten, dus een markering is niet nodig.</string>
     <string name="settings_basics_locale">Standaardtaal</string>
     <string name="settings_basics_locale_hint">BCP-47-code, bijv. en of nl. Laat leeg om de huidige waarde te behouden.</string>
     <string name="settings_basics_timezone">Tijdzone</string>
@@ -3020,6 +3033,10 @@
     <string name="moderation_nuke_confirm_message">Verban %1$s in elk kanaal waar je hoofdmoderator of hoger bent. Alleen terug te draaien via de nuke-batch.</string>
     <string name="moderation_nuke_confirm">Overal nuken</string>
     <string name="moderation_nuke_dismiss">Annuleren</string>
+    <string name="moderation_nuke_reason_label">Reden (verplicht)</string>
+    <string name="moderation_nuke_match_term_label">Zoekterm (verplicht)</string>
+    <string name="moderation_nuke_match_term_hint">De exacte term waarop de uitrol matcht, zodat een batch precies te controleren en terug te draaien is.</string>
+    <string name="moderation_nuke_target_fallback">Twitch-id %1$s</string>
     <string name="moderation_nuke_batches_title">Netwerk-nuke geschiedenis</string>
     <string name="moderation_nuke_target">Doel %1$s</string>
     <string name="moderation_nuke_channels">%1$d kanalen</string>

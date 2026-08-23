@@ -67,13 +67,15 @@ data class ChannelPersonality(
 data class SetPersonalityBody(val personality: String)
 
 /**
- * A channel's onboarding "basics" (`ChannelBasicsDto`): the command [prefix] (e.g. `!`), the default [locale]
- * (BCP-47, nullable), the [autoJoin] toggle, and the streamer's [timezone] (IANA, nullable). Prefills the
- * Settings "Bot basics" card and the onboarding basics step.
+ * A channel's onboarding "basics" (`ChannelBasicsDto`): the command [prefix] (e.g. `!`), the visible
+ * [botLinePrefix] marker bot-typed lines carry when the bot posts through the streamer's own account (null/empty
+ * = none, e.g. `*`, `#`, or an emoji), the default [locale] (BCP-47, nullable), the [autoJoin] toggle, and the
+ * streamer's [timezone] (IANA, nullable). Prefills the Settings "Bot basics" card and the onboarding basics step.
  */
 @Serializable
 data class ChannelBasics(
     val prefix: String = "!",
+    val botLinePrefix: String? = null,
     val locale: String? = null,
     val autoJoin: Boolean = true,
     val timezone: String? = null,
@@ -82,10 +84,13 @@ data class ChannelBasics(
 /**
  * Body for updating a channel's basics (`UpdateChannelSettingsDto`). Every field is nullable — only the
  * non-null ones are applied server-side, so a partial save (e.g. prefix only) leaves the rest untouched.
+ * [botLinePrefix] uses an empty string to explicitly clear the marker back to none (distinct from `null`,
+ * which leaves it unchanged).
  */
 @Serializable
 data class UpdateBasicsBody(
     val prefix: String? = null,
+    val botLinePrefix: String? = null,
     val locale: String? = null,
     val autoJoin: Boolean? = null,
     val timezone: String? = null,

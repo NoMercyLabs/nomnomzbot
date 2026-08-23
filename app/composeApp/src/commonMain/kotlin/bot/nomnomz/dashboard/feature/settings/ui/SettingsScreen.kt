@@ -246,6 +246,9 @@ import nomnomzbot.composeapp.generated.resources.settings_basics_timezone
 import nomnomzbot.composeapp.generated.resources.settings_basics_timezone_hint
 import nomnomzbot.composeapp.generated.resources.settings_basics_autojoin
 import nomnomzbot.composeapp.generated.resources.settings_basics_autojoin_desc
+import nomnomzbot.composeapp.generated.resources.settings_basics_bot_line_prefix
+import nomnomzbot.composeapp.generated.resources.settings_basics_bot_line_prefix_hint
+import nomnomzbot.composeapp.generated.resources.settings_basics_bot_line_prefix_disabled_note
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -325,8 +328,10 @@ fun SettingsScreen(
 
         // Bot basics — command prefix, default language, auto-join, timezone. Readable to all, changeable at
         // the Broadcaster floor (the backend gates the write at setup:write). This is where a streamer sets the
-        // command prefix; it applies to the live chat hot path without a restart.
-        BasicsSection(controller = basicsController, manage = ownerManage)
+        // command prefix; it applies to the live chat hot path without a restart. The bot-line marker field also
+        // needs [channelBotController]'s connection state: it only does anything while the bot types as the
+        // streamer's own account, so it hides behind an explanation once a dedicated bot account is connected.
+        BasicsSection(controller = basicsController, channelBotController = channelBotController, manage = ownerManage)
 
         // Bot personality — the built-in-command voice; readable to all, changeable at the Broadcaster
         // floor (the backend gates the write at setup:write). Independent of the stream-info load state.
@@ -920,13 +925,19 @@ private fun PersonalitySection(controller: PersonalityController, manage: Manage
 // below the floor the inputs disable with a reason. Save persists all fields at once and the card adopts the
 // backend's echoed values, so a rejected write shows no change.
 @Composable
-private fun BasicsSection(controller: BasicsController, manage: ManageDecision) {
+private fun BasicsSection(
+    controller: BasicsController,
+    channelBotController: ChannelBotController,
+    manage: ManageDecision,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val scope = rememberCoroutineScope()
 
     val state: BasicsState by controller.state.collectAsStateWithLifecycle()
+    val channelBotState: ChannelBotState by channelBotController.state.collectAsStateWithLifecycle()
+    val dedicatedBotConnected: Boolean = (channelBotState as? ChannelBotState.Ready)?.connected == true
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -963,6 +974,7 @@ private fun BasicsSection(controller: BasicsController, manage: ManageDecision) 
                     BasicsForm(
                         state = current,
                         manage = manage,
+                        dedicatedBotConnected = dedicatedBotConnected,
                         onSave = { body -> scope.launch { controller.save(body) } },
                     )
             }
@@ -977,12 +989,16 @@ private fun BasicsSection(controller: BasicsController, manage: ManageDecision) 
 private fun BasicsForm(
     state: BasicsState.Ready,
     manage: ManageDecision,
+    dedicatedBotConnected: Boolean,
     onSave: (UpdateBasicsBody) -> Unit,
 ) {
+    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
     val loaded = state.loaded
 
     var prefix: String by remember(loaded) { mutableStateOf(loaded.prefix) }
+    var botLinePrefix: String by remember(loaded) { mutableStateOf(loaded.botLinePrefix.orEmpty()) }
     var locale: String by remember(loaded) { mutableStateOf(loaded.locale.orEmpty()) }
     var timezone: String by remember(loaded) { mutableStateOf(loaded.timezone.orEmpty()) }
     var autoJoin: Boolean by remember(loaded) { mutableStateOf(loaded.autoJoin) }
@@ -990,13 +1006,17 @@ private fun BasicsForm(
     val prefixTrimmed: String = prefix.trim()
     val prefixValid: Boolean =
         prefixTrimmed.isNotEmpty() && prefixTrimmed.length <= 5 && prefixTrimmed.none { it.isWhitespace() }
+    val botLinePrefixTrimmed: String = botLinePrefix.trim()
+    val botLinePrefixValid: Boolean = botLinePrefixTrimmed.length <= 4
 
     val dirty: Boolean =
         prefixTrimmed != loaded.prefix ||
+            botLinePrefixTrimmed != loaded.botLinePrefix.orEmpty() ||
             locale.trim() != loaded.locale.orEmpty() ||
             timezone.trim() != loaded.timezone.orEmpty() ||
             autoJoin != loaded.autoJoin
-    val canSave: Boolean = prefixValid && dirty && !state.saving && manage.isAllowed
+    val canSave: Boolean =
+        prefixValid && botLinePrefixValid && dirty && !state.saving && manage.isAllowed
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
         ManageGate(decision = manage) { enabled ->
@@ -1011,6 +1031,26 @@ private fun BasicsForm(
                     errorText = stringResource(Res.string.settings_basics_prefix_invalid),
                     supportingText = stringResource(Res.string.settings_basics_prefix_hint),
                 )
+                // The bot-line marker only does anything while the bot types as the streamer's own account
+                // (D5); once a dedicated bot account is connected it types as itself and the marker is
+                // meaningless, so the field hides behind an explanation instead of silently doing nothing.
+                if (dedicatedBotConnected) {
+                    Text(
+                        text = stringResource(Res.string.settings_basics_bot_line_prefix_disabled_note),
+                        style = typography.sm,
+                        color = tokens.mutedForeground,
+                    )
+                } else {
+                    AppTextField(
+                        value = botLinePrefix,
+                        onValueChange = { botLinePrefix = it },
+                        enabled = enabled && !state.saving,
+                        isError = !botLinePrefixValid,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = stringResource(Res.string.settings_basics_bot_line_prefix),
+                        supportingText = stringResource(Res.string.settings_basics_bot_line_prefix_hint),
+                    )
+                }
                 AppTextField(
                     value = locale,
                     onValueChange = { locale = it },
@@ -1045,6 +1085,7 @@ private fun BasicsForm(
                 onSave(
                     UpdateBasicsBody(
                         prefix = prefixTrimmed,
+                        botLinePrefix = if (dedicatedBotConnected) null else botLinePrefixTrimmed,
                         locale = locale.trim().ifEmpty { null },
                         autoJoin = autoJoin,
                         timezone = timezone.trim().ifEmpty { null },

@@ -71102,6 +71102,7 @@
       "ChannelBasicsDto": {
         "required": [
           "prefix",
+          "botLinePrefix",
           "locale",
           "autoJoin",
           "timezone"
@@ -71110,6 +71111,12 @@
         "properties": {
           "prefix": {
             "type": "string"
+          },
+          "botLinePrefix": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "locale": {
             "type": [
@@ -79050,8 +79057,10 @@
           "originBroadcasterId",
           "initiatedByUserId",
           "matchTerm",
+          "reason",
           "targetUserId",
           "targetTwitchUserId",
+          "targetDisplayName",
           "channelCount",
           "status",
           "revertedByUserId",
@@ -79084,6 +79093,12 @@
               "string"
             ]
           },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "targetUserId": {
             "type": [
               "null",
@@ -79093,6 +79108,12 @@
             "format": "ulid"
           },
           "targetTwitchUserId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetDisplayName": {
             "type": [
               "null",
               "string"
@@ -92995,6 +93016,13 @@
               "string"
             ],
             "description": "The command prefix (1-5 non-whitespace chars, e.g. `!`). Null leaves it unchanged."
+          },
+          "botLinePrefix": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The visible marker bot-emitted lines carry when the bot posts through the streamer's own account (e.g. `*`, `#`, or an emoji; 1-4 chars). Empty string clears it back to none; null leaves it unchanged."
           },
           "locale": {
             "type": [

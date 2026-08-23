@@ -44,6 +44,18 @@ class BasicsControllerTest {
     }
 
     @Test
+    fun load_surfaces_the_bot_line_prefix() = runTest {
+        val api =
+            FakeBasicsApi(getResult = ApiResult.Ok(ChannelBasics(prefix = "!", botLinePrefix = "*")))
+        val controller = BasicsController(FakeBasicsChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+
+        controller.load()
+
+        val ready: BasicsState.Ready = controller.state.value as BasicsState.Ready
+        assertEquals("*", ready.loaded.botLinePrefix)
+    }
+
+    @Test
     fun save_puts_the_body_and_adopts_the_echoed_values() = runTest {
         val api =
             FakeBasicsApi(

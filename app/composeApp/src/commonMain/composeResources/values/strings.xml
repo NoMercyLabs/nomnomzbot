@@ -800,6 +800,12 @@
     <string name="moderation_action_user_id">Twitch user ID</string>
     <string name="moderation_action_reason">Reason (optional)</string>
     <string name="moderation_action_duration">Duration in seconds</string>
+    <string name="moderation_action_duration_preset_60">60 seconds</string>
+    <string name="moderation_action_duration_preset_600">10 minutes</string>
+    <string name="moderation_action_duration_preset_3600">1 hour</string>
+    <string name="moderation_action_duration_preset_86400">24 hours</string>
+    <string name="moderation_action_duration_preset_604800">7 days</string>
+    <string name="moderation_action_duration_preset_custom">Custom…</string>
     <string name="moderation_rule_type_profanity">Profanity</string>
     <string name="moderation_rule_type_links">Links</string>
     <string name="moderation_rule_type_caps">Caps</string>
@@ -2055,6 +2061,8 @@
     <string name="music_error">Couldn't load music: %1$s</string>
     <string name="music_retry">Retry</string>
     <string name="music_action_error">%1$s</string>
+    <string name="music_spotify_needs_reauth">The Spotify connection needs to be reconnected — playback and song requests won't work until then.</string>
+    <string name="music_spotify_reconnect">Reconnect Spotify</string>
     <string name="music_now_playing_label">Now playing</string>
     <string name="music_now_playing_description">Now playing: %1$s, %2$s</string>
     <string name="music_unknown_track">Unknown track</string>
@@ -2938,6 +2946,11 @@
     <string name="settings_basics_prefix">Command prefix</string>
     <string name="settings_basics_prefix_hint">The character(s) that mark a command, e.g. ! in !uptime.</string>
     <string name="settings_basics_prefix_invalid">Enter 1–5 characters with no spaces.</string>
+    <string name="settings_basics_bot_line_prefix">Bot line marker</string>
+    <string name="settings_basics_bot_line_prefix_hint">Marks lines the bot posts from your own account, e.g. * before a bot message.</string>
+    <string name="settings_basics_bot_line_prefix_none">None</string>
+    <string name="settings_basics_bot_line_prefix_custom">Custom</string>
+    <string name="settings_basics_bot_line_prefix_disabled_note">Not needed — your dedicated bot account posts its own messages, so no marker is required.</string>
     <string name="settings_basics_locale">Default language</string>
     <string name="settings_basics_locale_hint">BCP-47 code, e.g. en or nl. Leave blank to keep the current value.</string>
     <string name="settings_basics_timezone">Timezone</string>
@@ -3034,6 +3047,10 @@
     <string name="moderation_nuke_confirm_message">Ban %1$s across every channel where you are Lead Moderator or above. Reversible only by reverting the nuke batch.</string>
     <string name="moderation_nuke_confirm">Nuke everywhere</string>
     <string name="moderation_nuke_dismiss">Cancel</string>
+    <string name="moderation_nuke_reason_label">Reason (required)</string>
+    <string name="moderation_nuke_match_term_label">Match term (required)</string>
+    <string name="moderation_nuke_match_term_hint">The exact term the fan-out matches against, so a batch can be reviewed and reverted precisely.</string>
+    <string name="moderation_nuke_target_fallback">Twitch id %1$s</string>
     <string name="moderation_nuke_batches_title">Network nuke history</string>
     <string name="moderation_nuke_target">Target %1$s</string>
     <string name="moderation_nuke_channels">%1$d channels</string>
