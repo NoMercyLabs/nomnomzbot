@@ -61,5 +61,8 @@ public interface IStripeGateway
     /// monetization-billing.md §5.3). Resolves the invoice's payment intent host-side and issues the Stripe refund;
     /// the local <c>Invoice</c> row is marked <c>Refunded</c> by the caller once this succeeds.
     /// </summary>
-    Task<Result> RefundInvoiceAsync(string stripeInvoiceId, CancellationToken cancellationToken = default);
+    Task<Result> RefundInvoiceAsync(
+        string stripeInvoiceId,
+        CancellationToken cancellationToken = default
+    );
 }

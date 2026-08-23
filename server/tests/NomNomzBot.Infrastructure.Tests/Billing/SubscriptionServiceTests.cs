@@ -367,9 +367,7 @@ public sealed class SubscriptionServiceTests
         (await sut.ChangeTierAsync(Channel, new("pro", false)))
             .ErrorCode.Should()
             .Be("VALIDATION_FAILED");
-        (await sut.ChangeTierAsync(Channel, new("nope", false)))
-            .ErrorCode.Should()
-            .Be("NOT_FOUND");
+        (await sut.ChangeTierAsync(Channel, new("nope", false))).ErrorCode.Should().Be("NOT_FOUND");
     }
 
     [Fact]
@@ -468,9 +466,7 @@ public sealed class SubscriptionServiceTests
     public async Task RefundInvoiceAsync_refunds_via_stripe_marks_the_invoice_refunded_and_publishes_the_event()
     {
         IStripeGateway gateway = Substitute.For<IStripeGateway>();
-        gateway
-            .RefundInvoiceAsync("in_1", Arg.Any<CancellationToken>())
-            .Returns(Result.Success());
+        gateway.RefundInvoiceAsync("in_1", Arg.Any<CancellationToken>()).Returns(Result.Success());
         (SubscriptionService sut, AuthDbContext db, RecordingEventBus bus) = Build(gateway);
         await SeedAsync(db);
         Invoice invoice = await SeedPaidInvoiceAsync(db);
@@ -479,8 +475,8 @@ public sealed class SubscriptionServiceTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be("refunded");
-        (await db.Invoices.FirstAsync(i => i.Id == invoice.Id)).Status
-            .Should()
+        (await db.Invoices.FirstAsync(i => i.Id == invoice.Id))
+            .Status.Should()
             .Be(InvoiceStatus.Refunded);
         await gateway.Received(1).RefundInvoiceAsync("in_1", Arg.Any<CancellationToken>());
         bus.Published.OfType<InvoiceRefundedEvent>()
