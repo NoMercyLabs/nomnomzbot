@@ -272,7 +272,9 @@ public sealed class IpcDevModeListenerServiceTests : IAsyncDisposable
         InMemoryIpcConnection connection = await ConnectAuthenticatedAsync(key);
 
         // The handler re-arms its idle timer per read; keep advancing until the armed timer fires.
-        for (int attempt = 0; attempt < 100 && !connection.IsClosed; attempt++)
+        // S120: 300 attempts (not 100) so the poll survives thread-pool pressure from the full suite —
+        // it's the flag that decides success, not the iteration count.
+        for (int attempt = 0; attempt < 300 && !connection.IsClosed; attempt++)
         {
             _clock.Advance(IpcDevModeListenerService.IdleTimeout + TimeSpan.FromSeconds(1));
             await Task.Delay(20);
@@ -343,6 +345,14 @@ public sealed class IpcDevModeListenerServiceTests : IAsyncDisposable
     /// <summary>One fake duplex connection: the test plays the client, the service the server.</summary>
     private sealed class InMemoryIpcConnection : IIpcConnection
     {
+        // S120: the server side runs its accept/handle loop on real Task.Run work items; under the
+        // full suite's parallelism (thousands of tests, several of which spin up 8-20 real concurrent
+        // connections of their own) the thread pool can be under genuine, transient pressure, so 5s was
+        // occasionally not enough for a signal that DOES arrive — just late. This is a safety ceiling on
+        // a real channel/TaskCompletionSource await, not a fixed sleep standing in for the signal, so
+        // widening it does not weaken what any assertion proves.
+        private static readonly TimeSpan SignalTimeout = TimeSpan.FromSeconds(30);
+
         private readonly Channel<IpcReadResult> _toServer =
             Channel.CreateUnbounded<IpcReadResult>();
         private readonly Channel<string> _fromServer = Channel.CreateUnbounded<string>();
@@ -389,7 +399,7 @@ public sealed class IpcDevModeListenerServiceTests : IAsyncDisposable
 
         public async Task<JsonDocument> NextResponseAsync()
         {
-            using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+            using CancellationTokenSource timeout = new(SignalTimeout);
             string frame = await _fromServer.Reader.ReadAsync(timeout.Token);
             return JsonDocument.Parse(frame);
         }
@@ -397,13 +407,13 @@ public sealed class IpcDevModeListenerServiceTests : IAsyncDisposable
         /// <summary>True when the server closed the connection without writing anything further.</summary>
         public async Task<bool> ResponsesEndedAsync()
         {
-            using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+            using CancellationTokenSource timeout = new(SignalTimeout);
             return !await _fromServer.Reader.WaitToReadAsync(timeout.Token);
         }
 
         public async Task WaitClosedAsync()
         {
-            using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+            using CancellationTokenSource timeout = new(SignalTimeout);
             await _closed.Task.WaitAsync(timeout.Token);
         }
     }

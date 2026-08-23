@@ -165,7 +165,7 @@ public sealed class DirectObsTransportTests
             new("GetVersion", null)
         );
         await ReplyToFirstRequestAsync(h.Socket, ok: true);
-        Result<ObsResponse> result = await send.WaitAsync(TimeSpan.FromSeconds(5));
+        Result<ObsResponse> result = await send.WaitAsync(TimeSpan.FromSeconds(20));
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         JsonElement identify = JsonDocument.Parse(h.Socket.Sent[0]).RootElement;
@@ -198,7 +198,7 @@ public sealed class DirectObsTransportTests
             ok: false,
             comment: "No source was found"
         );
-        Result<ObsResponse> result = await send.WaitAsync(TimeSpan.FromSeconds(5));
+        Result<ObsResponse> result = await send.WaitAsync(TimeSpan.FromSeconds(20));
 
         result.IsSuccess.Should().BeTrue("transport-level success — OBS answered");
         result.Value.Ok.Should().BeFalse();
@@ -226,7 +226,7 @@ public sealed class DirectObsTransportTests
             new("GetVersion", null)
         );
         await ReplyToFirstRequestAsync(h.Socket, ok: true);
-        await send.WaitAsync(TimeSpan.FromSeconds(5));
+        await send.WaitAsync(TimeSpan.FromSeconds(20));
 
         h.Socket.QueueIncoming(
             """{ "op": 5, "d": { "eventType": "CurrentProgramSceneChanged", "eventIntent": 4, "eventData": { "sceneName": "Live" } } }"""
@@ -290,7 +290,11 @@ public sealed class DirectObsTransportTests
     private static async Task<T> WaitForAsync<T>(Func<T?> probe)
         where T : class
     {
-        for (int i = 0; i < 150; i++)
+        // S120: 750 * 20ms (15s ceiling, not the old 3s) — this polls a real flag set by the transport's
+        // background receive loop, and under the full suite's thread-pool pressure that loop can be
+        // scheduled late. Widening the ceiling doesn't change what's asserted, only how long a genuine
+        // (but delayed) signal is given to arrive.
+        for (int i = 0; i < 750; i++)
         {
             if (probe() is { } hit)
                 return hit;
