@@ -21,8 +21,11 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
 
-- **S001** Song-request queue store — `IMusicService` queue out of the scoped instance into a singleton
-  store (U·B4 b1). Done-when: `!sr` → `!queue` → `GET /queue` agree across requests (test with two scopes).
+- **S001b** Song-request queue does not survive a restart — S001 (00563352) moved the queue into the singleton
+  `SongRequestQueueStore` (in-memory `ConcurrentDictionary<string, FairQueue<T>>`), so `!sr`/`!queue`/`GET /queue` finally
+  agree, but a bot restart mid-stream still drops every viewer’s pending request with no warning. Streamers restart the bot
+  during a show (config change, update, crash). Done-when: the queue survives a restart with order and requester intact,
+  and a viewer whose request was dropped is never silently ignored — either it is restored or the channel is told.
 - **S002** Provider queue/skip outcomes — `AddToQueueAsync`/skip bool honoured; NO_ACTIVE_DEVICE,
   auth failures, premium-required become distinct error codes + chat replies (U·B4 b2). Done-when: each
   failure class replies differently (tests per class).
