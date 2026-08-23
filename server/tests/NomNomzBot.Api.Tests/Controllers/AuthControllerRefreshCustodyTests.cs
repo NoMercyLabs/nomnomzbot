@@ -84,6 +84,60 @@ public sealed class AuthControllerRefreshCustodyTests
         controller.Response.Headers["Set-Cookie"].ToString().Should().BeEmpty();
     }
 
+    /// <summary>
+    /// The web dashboard is SERVED BY the bot, so its refresh call is same-origin by construction — the
+    /// Origin header is the bot's own host. Requiring that host to also appear in Cors:Origins means every
+    /// deployment on a domain nobody added to that list (the deployed dev host, a LAN address, any
+    /// self-hoster's domain) has its cookie refresh rejected on every load: the session is silently lost
+    /// and the user is thrown back to login. Same-origin is trusted on its own — a CORS list exists to
+    /// admit OTHER origins, and a cross-site forgery cannot forge this one.
+    /// </summary>
+    [Fact]
+    public async Task CookieBorneRefresh_FromTheServingOrigin_IsAccepted_EvenWhenNotInTheCorsList()
+    {
+        // Cors:Origins names a completely different host — the served dashboard is not in it.
+        (AuthController controller, IAuthService auth) = Build(
+            allowedOrigin: "https://some-other-dashboard.example"
+        );
+        controller.Request.Scheme = "https";
+        controller.Request.Host = new("dev.nomnomz.bot");
+        controller.Request.Headers.Origin = "https://dev.nomnomz.bot";
+        controller.Request.Headers.Cookie = "nnz_refresh_token=old-ref-tok";
+        auth.RefreshTokenAsync(
+                "old-ref-tok",
+                Arg.Any<AuthContextDto>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(Auth("new-acc-tok", "new-ref-tok")));
+
+        IActionResult result = await controller.RefreshToken(null, null, default);
+
+        result
+            .Should()
+            .BeOfType<OkObjectResult>("the session must survive a reload on its own host");
+        controller
+            .Response.Headers["Set-Cookie"]
+            .ToString()
+            .Should()
+            .Contain("nnz_refresh_token=new-ref-tok", "the rotated cookie keeps the session alive");
+    }
+
+    /// <summary>A same-HOST request over a different scheme or port is NOT the serving origin — the match
+    /// is exact, so http://dev.nomnomz.bot cannot ride a session minted for https.</summary>
+    [Fact]
+    public async Task CookieBorneRefresh_FromTheSameHostOnAnotherScheme_IsRejected()
+    {
+        (AuthController controller, _) = Build(allowedOrigin: "https://dash.example.test");
+        controller.Request.Scheme = "https";
+        controller.Request.Host = new("dev.nomnomz.bot");
+        controller.Request.Headers.Origin = "http://dev.nomnomz.bot";
+        controller.Request.Headers.Cookie = "nnz_refresh_token=old-ref-tok";
+
+        IActionResult result = await controller.RefreshToken(null, null, default);
+
+        result.Should().NotBeOfType<OkObjectResult>();
+    }
+
     [Fact]
     public async Task CookieBorneRefresh_ForeignOrigin_IsRejected()
     {

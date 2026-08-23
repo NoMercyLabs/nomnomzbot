@@ -1104,9 +1104,18 @@ public class AuthController : BaseController
     }
 
     /// <summary>
-    /// True when the request's Origin (falling back to the Referer's origin) is one of the configured
-    /// dashboard origins — the same <c>Cors:Origins</c> list the CORS middleware enforces, read here directly
-    /// rather than maintained as a second copy. Neither header present is treated as untrusted.
+    /// True when the request's Origin (falling back to the Referer's origin) is trusted for a cookie-borne
+    /// refresh: either the origin that SERVED this request — the web dashboard is served by the bot, so its
+    /// refresh call is same-origin by construction, and a cross-site forgery cannot forge that origin — or
+    /// one of the configured <c>Cors:Origins</c> (the same list the CORS middleware enforces, read here
+    /// directly rather than kept as a second copy) for a dashboard hosted elsewhere. Neither header present
+    /// is treated as untrusted.
+    /// <para>
+    /// Requiring the CORS list ALONE is what silently broke session persistence: every deployment whose host
+    /// nobody had added — the deployed dev host, a LAN address, any self-hoster's own domain — had its
+    /// refresh rejected on every load and was thrown back to the login screen. The match stays exact
+    /// (scheme + host + port), so a same-host origin on another scheme or port is still refused.
+    /// </para>
     /// </summary>
     private bool HasAllowedOrigin()
     {
@@ -1122,6 +1131,10 @@ public class AuthController : BaseController
 
         if (string.IsNullOrEmpty(origin))
             return false;
+
+        string servingOrigin = $"{Request.Scheme}://{Request.Host.Value}";
+        if (string.Equals(servingOrigin, origin, StringComparison.OrdinalIgnoreCase))
+            return true;
 
         string[] allowedOrigins =
             _config.GetSection("Cors:Origins").Get<string[]>()
