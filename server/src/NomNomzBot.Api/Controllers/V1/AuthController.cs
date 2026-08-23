@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using System.Security.Claims;
-using System.Text;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -379,10 +378,11 @@ public class AuthController : BaseController
     }
 
     /// <summary>
-    /// Handle the OAuth callback from Twitch. Exchanges the authorization code for
-    /// platform tokens. If a mobile <c>redirect_uri</c> was passed in the original
-    /// request, the browser is redirected to the app's deep link with tokens in the
-    /// query string. Otherwise returns a JSON response (for web clients).
+    /// Handle the OAuth callback from Twitch. Exchanges the authorization code for platform tokens and returns
+    /// them in a JSON body (S098c: a mobile <c>redirect_uri</c> no longer carries any token in the query string
+    /// — mobile is a native client and reads its tokens from this response body like any other native caller).
+    /// The served-web flow is the only success path that still redirects, and only the short-lived access
+    /// token rides in that redirect's URL fragment.
     /// </summary>
     [HttpGet("twitch/callback")]
     [AllowAnonymous]
@@ -523,13 +523,15 @@ public class AuthController : BaseController
 
     /// <summary>
     /// Turns a successful login into the client-appropriate response — shared by the Twitch callback and the
-    /// generic auth-code login callback. A mobile <c>redirect_uri</c> gets only the short-lived access token in
-    /// the deep-link query (S098c: the long-lived refresh token used to ride here too — a deep-link URI is
-    /// logged by the OS activity manager and can leak via referrers, so it never travels in a URL again; the
-    /// native app must call the body-based flows — <c>POST twitch/callback</c> / device poll — to obtain and
-    /// hold its refresh token in the OS keychain). The served-web dashboard gets the access token in the URL
-    /// fragment (never sent to the server) + the refresh token in an HttpOnly + Secure + Lax cookie the SPA's
-    /// JS can't read (XSS can't exfiltrate it); native clients calling the body-based flows get a JSON body.
+    /// generic auth-code login callback. A mobile <c>redirect_uri</c> USED to carry both tokens in the
+    /// deep-link query; S098c removed that entirely — a deep-link URI is logged by the OS activity manager and
+    /// can leak via referrers/history, so no token (access or refresh) travels in a URL any more. Mobile is a
+    /// native client: the <c>mobileRedirectUri</c> parameter now only distinguishes "this call originated from
+    /// a mobile in-app browser" for logging/telemetry purposes, and the response is the same JSON body native
+    /// clients get — <c>accessToken</c> + <c>refreshToken</c> in <c>Data</c>, for the app to read from the HTTP
+    /// response and store in its OS keychain. The served-web dashboard alone still uses a redirect: the access
+    /// token in the URL fragment (never sent to the server) + the refresh token in an HttpOnly + Secure + Lax
+    /// cookie the SPA's JS can't read (XSS can't exfiltrate it).
     /// </summary>
     private IActionResult BuildLoginResponse(
         AuthResultDto auth,
@@ -540,15 +542,6 @@ public class AuthController : BaseController
     )
     {
         int expiresIn = (int)(auth.ExpiresAt - _timeProvider.GetUtcNow().UtcDateTime).TotalSeconds;
-
-        if (!string.IsNullOrWhiteSpace(mobileRedirectUri))
-        {
-            StringBuilder qs = new(mobileRedirectUri);
-            qs.Append(mobileRedirectUri.Contains('?') ? '&' : '?');
-            qs.Append("access_token=").Append(Uri.EscapeDataString(auth.AccessToken));
-            qs.Append("&expires_in=").Append(expiresIn);
-            return Redirect(qs.ToString());
-        }
 
         if (string.Equals(client, "web", StringComparison.OrdinalIgnoreCase))
         {

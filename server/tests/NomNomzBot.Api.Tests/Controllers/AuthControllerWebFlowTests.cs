@@ -93,6 +93,42 @@ public sealed class AuthControllerWebFlowTests
     }
 
     [Fact]
+    public async Task MobileDeepLinkCallback_ReturnsTokensInBody_NothingSensitiveInUrl()
+    {
+        // S098c: a mobile redirect_uri used to carry both tokens as deep-link query params — a deep-link URI
+        // is logged by the OS activity manager and can leak via referrers/history. Mobile is a native client:
+        // it must read its (usable, real) refresh token from the JSON body, exactly like any other native
+        // caller, with no token of any kind appearing in a URL.
+        (AuthController controller, IAuthService auth, ITwitchOAuthStateService state) = Build();
+        state
+            .ConsumeAsync("nonce", Arg.Any<CancellationToken>())
+            .Returns(new TwitchOAuthFlowState("user", RedirectUri: "myapp://oauth-callback"));
+        auth.HandleTwitchCallbackAsync(
+                Arg.Any<OAuthCallbackDto>(),
+                Arg.Any<AuthContextDto>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(Auth("mobile-acc-tok", "mobile-ref-tok")));
+
+        IActionResult result = await controller.HandleTwitchCallback("code", "nonce", default);
+
+        // No redirect at all for the mobile path any more — the deep-link URI carried no body, so it could
+        // never carry the refresh token safely. The app reads the JSON response of this very call instead.
+        result.Should().NotBeOfType<RedirectResult>();
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        StatusResponseDto<object> status = ok
+            .Value.Should()
+            .BeOfType<StatusResponseDto<object>>()
+            .Subject;
+        string body = System.Text.Json.JsonSerializer.Serialize(status.Data);
+        body.Should().Contain("mobile-acc-tok");
+        body.Should().Contain("mobile-ref-tok");
+
+        // No cookie either — cookie custody is the served-web mechanism only.
+        controller.Response.Headers["Set-Cookie"].ToString().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task NonWebCallback_StillReturnsJsonTokenShape()
     {
         (AuthController controller, IAuthService auth, ITwitchOAuthStateService state) = Build();
