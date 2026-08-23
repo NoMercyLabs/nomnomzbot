@@ -246,6 +246,15 @@ public enum SuspiciousUserTreatment { NoTreatment, ActiveMonitoring, Restricted 
 
 > **Migration note for `ModerationActionType`:** the old members `{Timeout, Ban, Delete, Warn}` map to `{Timeout, Ban, DeleteMessage, Warn}`. The `[VC:enum]` converter serializes to the schema's snake/text tokens (`delete_message`, etc.), not the C# member name — supply an explicit name map in the converter.
 
+> **`ChatFilterAction.Hold` — reachable only where a hold actually exists.** We are not the chat
+> host: Twitch, YouTube, Kick and X publish a message the instant it is sent, so a filter we
+> evaluate cannot stop one appearing (`spam-defense.md` SD12). `Hold` is therefore valid only for
+> (a) Twitch's **own** AutoMod queue, where Twitch held the message and we approve/deny it via
+> `ManageHeldAutoModMessageAsync`, and (b) surfaces **we** publish — overlays, TTS, song requests,
+> bot output. A channel-authored filter on platform chat that sets `Action=Hold` **degrades to
+> `Delete` plus a review-queue entry**, and the editor says so rather than implying interception
+> we do not have.
+
 > **`ChatFilterAction.Escalate`:** a `ChatFilter` (J.6) with `Action=Escalate` does **not** apply a fixed action — it defers to the per-channel escalation ladder, which decides warn/timeout/ban by the subject's running offense count (`IModerationEscalationService`, §3.11 below).
 
 ---
