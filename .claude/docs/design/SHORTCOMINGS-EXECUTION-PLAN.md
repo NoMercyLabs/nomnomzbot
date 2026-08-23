@@ -38,10 +38,6 @@ Slice IDs are stable; the order is the queue.
   (billing writes + refund), `ComplianceController` (GDPR erasure). `AdminController:180` is the only action already on
   `SecuritySensitiveRateLimitPolicy` (added by S098e) — that policy is the pattern to spread. Run this sweep after
   S086c/S086e land, since they hold three of those files.
-- **S116** `/health/ready` tells the truth — `Program.cs:824` maps `HealthStatus.Degraded` to HTTP 200 via the shared
-  `/health` writer's `ResultStatusCodes`, so a degraded dependency still reads as "ready" to an orchestrator; readiness
-  also ignores pending migrations and EventSub state (U·E5). Done-when: a degraded dependency returns 503 from
-  `/health/ready` while `/health` still reports the detail, and readiness fails while migrations are pending.
 - **S089** Impersonation made safe (owner decision: this is the owner's lowest-level support tool — FULL act-as stays; it is a
   restricted SaaS action held by the platform owner role only) — requires an explicit support session (reason, expiry,
   session id) and the token lifetime is clamped to it; `act` claim honoured only for that principal; every write journalled
