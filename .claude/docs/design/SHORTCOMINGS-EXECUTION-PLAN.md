@@ -29,11 +29,12 @@ Slice IDs are stable; the order is the queue.
 - **S003** Spotify visible state — 401/403 → `needs_reauth`/`forbidden` on the integration status +
   Music page; vault is the single token source (drop the `Services` mirror read) (U·A2). Done-when: a
   revoked token shows on the Integrations card and `!sr` says why; music reads no `Services` row.
-- **S004i** Last known read-modify-write — `Analytics/ChannelAnalyticsDailyProjection.cs:331`
-  (`(OccurredAt - LastSeenAt).TotalSeconds` mutated on a tracked entity). Flagged out-of-scope twice now (536d066a, then
-  again by S004h) — same shape as the watch-time inflation S004h fixed (430s recorded against a 150s bound). Use the
-  established atomic mechanism. Done-when: N concurrent folds accumulate exactly the real elapsed seconds, and a repo-wide
-  grep for the mutate-then-save shape returns nothing outstanding (report the count — this closes the class opened by S004).
+- **S004j** Close the read-modify-write class — the S004i inventory found 9 sites in this shape, 8 now atomic, 1 still open:
+  `Economy/CurrencyBalanceProjection.cs:78,81` mutates `CurrencyAccount.LifetimeEarned`/`LifetimeSpent` with `+=` on a
+  tracked entity before `SaveChangesAsync`. It is a SECOND consumer of the currency events (`CurrencyAccountService.AppendAsync`
+  already maintains those columns atomically), so replay can silently diverge lifetime totals. Same mechanism as the other 8.
+  Done-when: N concurrent/replayed credits leave LifetimeEarned/LifetimeSpent exactly correct, and the class inventory reads
+  9/9 atomic with only `ModerationEscalationState.OffenseCount` outstanding as S005’s.
 - **S005** Earning dedupe unique index + escalation atomic increment (S·F12, F13). Done-when: duplicate
   event credit blocked by the DB; two concurrent offenses compound.
 - **S006** Live-game money — settle failure refunds or parks retryable; can't-pay joiner feedback;
