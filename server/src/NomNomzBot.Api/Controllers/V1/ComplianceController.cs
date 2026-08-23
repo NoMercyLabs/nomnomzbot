@@ -11,7 +11,9 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Gdpr;
 using NomNomzBot.Application.Services;
@@ -28,6 +30,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/compliance")]
 [Tags("Compliance")]
+[EnableRateLimiting(RateLimitPolicyNames.Admin)]
 public class ComplianceController : BaseController
 {
     private readonly IErasureService _erasure;
@@ -42,6 +45,7 @@ public class ComplianceController : BaseController
     /// </summary>
     [HttpPost("erasure")]
     [Authorize(Policy = IamPermissionKeys.ComplianceErasure)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     [ProducesResponseType<StatusResponseDto<ErasureRequestDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> RequestErasure(
         [FromBody] RequestErasureRequest request,

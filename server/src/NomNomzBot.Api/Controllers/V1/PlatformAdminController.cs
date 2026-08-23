@@ -35,6 +35,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("api/v{version:apiVersion}/admin")]
 [Authorize]
 [Tags("Admin")]
+[EnableRateLimiting(RateLimitPolicyNames.Admin)]
 public class PlatformAdminController(
     IPlatformAdminService admin,
     ICurrentUserService currentUser,
@@ -84,6 +85,7 @@ public class PlatformAdminController(
     /// <summary>Suspends a tenant (<c>suspended</c> | <c>platform_banned</c>) — enforced by the bot lifecycle and tenant resolution.</summary>
     [HttpPost("tenants/{broadcasterId:guid}/suspend")]
     [Authorize(Policy = IamPermissionKeys.TenantSuspend)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     public async Task<IActionResult> SuspendTenant(
         Guid broadcasterId,
         [FromBody] SuspendTenantRequest request,
@@ -101,6 +103,7 @@ public class PlatformAdminController(
     /// <summary>Reinstates a suspended tenant to <c>active</c>.</summary>
     [HttpPost("tenants/{broadcasterId:guid}/reinstate")]
     [Authorize(Policy = IamPermissionKeys.TenantSuspend)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     public async Task<IActionResult> ReinstateTenant(
         Guid broadcasterId,
         [FromBody] ReinstateTenantRequest request,
@@ -118,6 +121,7 @@ public class PlatformAdminController(
     /// <summary>Begins audited support access to one tenant (time-boxed, tenant-narrowed role assignment).</summary>
     [HttpPost("tenants/{broadcasterId:guid}/access")]
     [Authorize(Policy = IamPermissionKeys.TenantAccess)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     [ProducesResponseType<StatusResponseDto<TenantAccessGrantDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> BeginTenantAccess(
         Guid broadcasterId,

@@ -11,7 +11,9 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
@@ -30,6 +32,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("api/v{version:apiVersion}/admin/billing")]
 [Authorize]
 [Tags("Admin")]
+[EnableRateLimiting(RateLimitPolicyNames.Admin)]
 public class AdminBillingController(IInviteCodeService invites, ISubscriptionService subscriptions)
     : BaseController
 {
@@ -69,6 +72,7 @@ public class AdminBillingController(IInviteCodeService invites, ISubscriptionSer
     /// <summary>Manually grant a channel a tier without Stripe, optionally marked as an invite-only grant.</summary>
     [HttpPost("channels/{broadcasterId:guid}/grant-tier")]
     [Authorize(Policy = IamPermissionKeys.BillingWrite)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     public async Task<IActionResult> GrantTier(
         Guid broadcasterId,
         [FromBody] GrantTierRequest request,
@@ -86,12 +90,14 @@ public class AdminBillingController(IInviteCodeService invites, ISubscriptionSer
     /// <summary>Grant a channel the founders badge directly.</summary>
     [HttpPost("channels/{broadcasterId:guid}/grant-founder")]
     [Authorize(Policy = IamPermissionKeys.BillingWrite)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     public async Task<IActionResult> GrantFounder(Guid broadcasterId, CancellationToken ct) =>
         ResultResponse(await invites.GrantFoundersBadgeAsync(broadcasterId, ct));
 
     /// <summary>Refund a paid invoice in full via Stripe; marks the local invoice <c>Refunded</c>.</summary>
     [HttpPost("invoices/{invoiceId:guid}/refund")]
     [Authorize(Policy = IamPermissionKeys.BillingRefund)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     public async Task<IActionResult> RefundInvoice(Guid invoiceId, CancellationToken ct) =>
         ResultResponse(await subscriptions.RefundInvoiceAsync(invoiceId, ct));
 }

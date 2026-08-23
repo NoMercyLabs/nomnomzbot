@@ -43,7 +43,7 @@ namespace NomNomzBot.Api.Controllers;
 [Route("obs-bridge")]
 [AllowAnonymous]
 [ApiExplorerSettings(IgnoreApi = true)]
-[EnableRateLimiting("api")]
+[EnableRateLimiting(NomNomzBot.Api.RateLimiting.RateLimitPolicyNames.Anonymous)]
 public sealed class ObsBridgeHostController : ControllerBase
 {
     private const string Html = """

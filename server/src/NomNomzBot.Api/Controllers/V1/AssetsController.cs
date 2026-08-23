@@ -11,8 +11,10 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Assets.Services;
 using NomNomzBot.Application.Common.Models;
@@ -112,6 +114,7 @@ public sealed class AssetsController : BaseController
     /// <summary>Upload a media asset (multipart, max 8 MB). An existing asset with the same name is replaced.</summary>
     [HttpPost]
     [RequireAction("sounds:write")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [RequestSizeLimit(9 * 1024 * 1024)] // 9 MB envelope (8 MB content + headers)
     [Consumes("multipart/form-data")]
     [ProducesResponseType<StatusResponseDto<ChannelAssetDto>>(StatusCodes.Status201Created)]

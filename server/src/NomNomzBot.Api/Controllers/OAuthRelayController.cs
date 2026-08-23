@@ -28,7 +28,7 @@ namespace NomNomzBot.Api.Controllers;
 [ApiController]
 [Route("oauth-relay")]
 [AllowAnonymous]
-[EnableRateLimiting("api")]
+[EnableRateLimiting(NomNomzBot.Api.RateLimiting.RateLimitPolicyNames.Anonymous)]
 public class OAuthRelayController : ControllerBase
 {
     private const string Html = """

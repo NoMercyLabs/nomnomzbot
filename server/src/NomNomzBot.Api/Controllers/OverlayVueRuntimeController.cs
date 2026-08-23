@@ -27,7 +27,7 @@ namespace NomNomzBot.Api.Controllers;
 [Route("overlay")]
 [AllowAnonymous]
 [ApiExplorerSettings(IgnoreApi = true)]
-[EnableRateLimiting("api")]
+[EnableRateLimiting(NomNomzBot.Api.RateLimiting.RateLimitPolicyNames.Anonymous)]
 public sealed class OverlayVueRuntimeController : ControllerBase
 {
     // The runtime is ~104 kb; read it out of the Infrastructure assembly once and cache the string for every

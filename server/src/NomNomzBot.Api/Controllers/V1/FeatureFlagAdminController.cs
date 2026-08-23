@@ -11,6 +11,8 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Domain.Identity;
@@ -27,6 +29,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("api/v{version:apiVersion}/admin/feature-flags")]
 [Authorize(Policy = IamPermissionKeys.FeatureFlagWrite)]
 [Tags("Feature Flags")]
+[EnableRateLimiting(RateLimitPolicyNames.Admin)]
 public class FeatureFlagAdminController(
     IFeatureFlagAdminService flags,
     ICurrentUserService currentUser
@@ -39,6 +42,7 @@ public class FeatureFlagAdminController(
 
     /// <summary>Create or update a feature flag's global definition and rollout ramp.</summary>
     [HttpPut]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     public async Task<IActionResult> SetFlag(
         [FromBody] SetFeatureFlagRequest request,
         CancellationToken ct
@@ -46,6 +50,7 @@ public class FeatureFlagAdminController(
 
     /// <summary>Set a per-channel override for a feature flag (beta opt-in or kill-switch).</summary>
     [HttpPut("{flagKey}/overrides/{broadcasterId:guid}")]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     public async Task<IActionResult> SetOverride(
         string flagKey,
         Guid broadcasterId,
@@ -56,6 +61,7 @@ public class FeatureFlagAdminController(
 
     /// <summary>Clear a channel's feature-flag override, returning it to the global ramp.</summary>
     [HttpDelete("{flagKey}/overrides/{broadcasterId:guid}")]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     public async Task<IActionResult> RemoveOverride(
         string flagKey,
         Guid broadcasterId,

@@ -11,6 +11,8 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -31,6 +33,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("api/v{version:apiVersion}/platform/iam")]
 [Authorize]
 [Tags("Admin")]
+[EnableRateLimiting(RateLimitPolicyNames.Admin)]
 public class PlatformIamController(
     IPlatformIamService iam,
     ICurrentUserService currentUser,
@@ -70,6 +73,7 @@ public class PlatformIamController(
     /// </summary>
     [HttpPost("principals")]
     [Authorize(Policy = IamPermissionKeys.IamPrincipalCreate)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     [ProducesResponseType<StatusResponseDto<IamPrincipalDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> CreatePrincipal(
         [FromBody] CreatePrincipalRequest request,
@@ -85,6 +89,7 @@ public class PlatformIamController(
     /// <summary>Deactivates a principal and clears the employee's platform marker (the demote). Self-deactivation is refused.</summary>
     [HttpPost("principals/{principalId:guid}/deactivate")]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     public async Task<IActionResult> DeactivatePrincipal(
         Guid principalId,
         [FromQuery] string? reason,
@@ -138,6 +143,7 @@ public class PlatformIamController(
     /// <summary>Revokes a role assignment (sets <c>RevokedAt</c>; already-revoked is a no-op).</summary>
     [HttpDelete("assignments/{assignmentId:guid}")]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     public async Task<IActionResult> RevokeAssignment(
         Guid assignmentId,
         [FromQuery] string? reason,

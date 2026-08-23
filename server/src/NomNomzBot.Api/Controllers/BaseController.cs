@@ -11,13 +11,19 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Contracts.Twitch;
 
 namespace NomNomzBot.Api.Controllers;
 
-/// <summary>Shared controller base: rate limiting, JSON output, common error responses, and Result-to-HTTP helpers.</summary>
+/// <summary>Shared controller base: rate limiting, JSON output, common error responses, and Result-to-HTTP helpers.
+/// The default tier is "write-cheap" (generous, per user); <see cref="RateLimitReadTierConvention"/> splits
+/// GET/HEAD actions onto the separate "read" tier so a caller's background polling never contends with
+/// their own writes (S114). A controller that needs a different tier (anonymous public surface,
+/// platform-admin, auth/device-poll) declares its own <see cref="EnableRateLimitingAttribute"/> and opts
+/// out of both the inherited default and the convention.</summary>
 [ApiController]
-[EnableRateLimiting("api")]
+[EnableRateLimiting(RateLimitPolicyNames.WriteCheap)]
 [Produces("application/json")]
 [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status400BadRequest)]
 [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status401Unauthorized)]

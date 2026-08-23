@@ -35,7 +35,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("api/v{version:apiVersion}/discord/interactions")]
 [AllowAnonymous]
 [Tags("Discord")]
-[EnableRateLimiting("api")]
+[EnableRateLimiting(NomNomzBot.Api.RateLimiting.RateLimitPolicyNames.Anonymous)]
 public class DiscordInteractionsController : ControllerBase
 {
     /// <summary>Interaction payloads are small JSON; anything bigger is not Discord.</summary>

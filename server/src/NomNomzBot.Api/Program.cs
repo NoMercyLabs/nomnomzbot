@@ -23,6 +23,7 @@ using NomNomzBot.Api.HealthChecks;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Middleware;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
@@ -116,8 +117,10 @@ try
     // constraint is swapped below so {id:guid} also matches a 26-char ULID. Nothing internal changes.
     builder
         .Services.AddControllers(options =>
-            options.ModelBinderProviders.Insert(0, new UlidGuidModelBinderProvider())
-        )
+        {
+            options.ModelBinderProviders.Insert(0, new UlidGuidModelBinderProvider());
+            options.Conventions.Add(new NomNomzBot.Api.RateLimiting.RateLimitReadTierConvention());
+        })
         .AddJsonOptions(o =>
         {
             o.JsonSerializerOptions.PropertyNamingPolicy = System
@@ -370,86 +373,10 @@ try
         // Otherwise keep the framework default (loopback only): a direct caller cannot spoof X-Forwarded-For.
     });
 
-    builder.Services.AddRateLimiter(options =>
-    {
-        // General API: 120 req/min per authenticated user or IP. Sliding window (6 segments) so a window
-        // reset cannot be exploited to burst 2x the limit at the boundary.
-        options.AddPolicy(
-            "api",
-            context =>
-            {
-                string key =
-                    context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                    ?? context.Connection.RemoteIpAddress?.ToString()
-                    ?? "anonymous";
-                return RateLimitPartition.GetSlidingWindowLimiter(
-                    key,
-                    _ =>
-                        new()
-                        {
-                            PermitLimit = 120,
-                            Window = TimeSpan.FromMinutes(1),
-                            SegmentsPerWindow = 6,
-                            QueueLimit = 0,
-                        }
-                );
-            }
-        );
-
-        // Auth endpoints: 10 req/min per IP (brute-force protection), sliding window for the same reason.
-        options.AddPolicy(
-            "auth",
-            context =>
-            {
-                string ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
-                return RateLimitPartition.GetSlidingWindowLimiter(
-                    $"auth:{ip}",
-                    _ =>
-                        new()
-                        {
-                            PermitLimit = 10,
-                            Window = TimeSpan.FromMinutes(1),
-                            SegmentsPerWindow = 6,
-                            QueueLimit = 0,
-                        }
-                );
-            }
-        );
-
-        // Device-login polling: the Device Code Flow legitimately polls every ~5s (≈12 req/min) until the
-        // operator approves, for up to the code's lifetime — far above the brute-force "auth" budget, so it
-        // gets its own generous per-IP allowance. 60 req/min (1/s) still bounds a flood (real polling never
-        // exceeds it, even with a concurrent streamer + bot login) while never throttling a legitimate login.
-        // The backend's own DeviceCodePollThrottle separately caps how often each code reaches Twitch.
-        options.AddPolicy(
-            "device-poll",
-            context =>
-            {
-                string ip = context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
-                return RateLimitPartition.GetSlidingWindowLimiter(
-                    $"device-poll:{ip}",
-                    _ =>
-                        new()
-                        {
-                            PermitLimit = 60,
-                            Window = TimeSpan.FromMinutes(1),
-                            SegmentsPerWindow = 6,
-                            QueueLimit = 0,
-                        }
-                );
-            }
-        );
-
-        // Security-sensitive admin actions (e.g. KEK-rotation re-wrap): 3 req/min per caller — far
-        // stricter than "api", because even an authenticated platform admin must not spam an operation
-        // that walks and re-wraps every stored DEK.
-        options.AddPolicy(
-            NomNomzBot.Api.RateLimiting.SecuritySensitiveRateLimitPolicy.PolicyName,
-            NomNomzBot.Api.RateLimiting.SecuritySensitiveRateLimitPolicy.Partition
-        );
-
-        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    });
+    // Named rate-limit tiers (S114) — read/write-cheap/write-expensive/auth/device-poll/anonymous/admin
+    // plus the security-sensitive destructive-action tier — each its own bucket so a cheap write never
+    // contends with an expensive one or with that caller's background reads. See RateLimiting/.
+    builder.Services.AddRateLimiter(options => options.AddNomNomzRateLimitPolicies());
 
     // OpenAPI. Owned-id schemas render as ULID strings (not uuid) so the committed contract matches the wire.
     builder.Services.AddOpenApi(options =>

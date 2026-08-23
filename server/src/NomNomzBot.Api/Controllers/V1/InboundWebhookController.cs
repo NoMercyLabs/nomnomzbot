@@ -33,7 +33,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("api/v{version:apiVersion}/webhooks/in")]
 [AllowAnonymous]
 [Tags("Webhooks")]
-[EnableRateLimiting("api")]
+[EnableRateLimiting(NomNomzBot.Api.RateLimiting.RateLimitPolicyNames.Anonymous)]
 public class InboundWebhookController(IInboundWebhookDispatcher dispatcher, TimeProvider clock)
     : ControllerBase
 {

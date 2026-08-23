@@ -11,8 +11,10 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Sound.Services;
@@ -112,6 +114,7 @@ public sealed class SoundClipsController : BaseController
     /// <summary>Upload a new sound clip (multipart audio file, max 10 MB).</summary>
     [HttpPost]
     [RequireAction("sounds:write")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [RequestSizeLimit(11 * 1024 * 1024)] // 11 MB envelope (10 MB content + headers)
     [Consumes("multipart/form-data")]
     [ProducesResponseType<StatusResponseDto<SoundClipDto>>(StatusCodes.Status201Created)]

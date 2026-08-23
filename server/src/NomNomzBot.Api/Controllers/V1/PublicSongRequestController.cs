@@ -27,7 +27,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/public/sr")]
 [AllowAnonymous]
-[EnableRateLimiting("api")]
+[EnableRateLimiting(NomNomzBot.Api.RateLimiting.RateLimitPolicyNames.Anonymous)]
 public sealed class PublicSongRequestController(
     ISongRequestPageTokenService pageTokens,
     IMusicService music
