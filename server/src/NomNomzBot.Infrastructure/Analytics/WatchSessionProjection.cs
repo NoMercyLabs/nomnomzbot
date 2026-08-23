@@ -86,20 +86,65 @@ public sealed class WatchSessionProjection(
             cancellationToken
         );
 
-        long previousDuration = session.DurationSeconds;
-        session.EndedAt = @event.OccurredAt;
-        session.DurationSeconds = (long)(@event.OccurredAt - session.StartedAt).TotalSeconds;
-        long watchSecondsDelta = Math.Max(0, session.DurationSeconds - previousDuration);
+        bool isChatMessage = @event.EventType == "ChatMessageReceivedEvent";
+        bool presenceThresholdMet =
+            (@event.OccurredAt - session.StartedAt).TotalSeconds >= PresenceThresholdSeconds;
 
-        if (@event.EventType == "ChatMessageReceivedEvent")
-            session.MessageCountInSession++;
-        if (
-            !session.PresenceConfirmed
-            && (@event.OccurredAt - session.StartedAt).TotalSeconds >= PresenceThresholdSeconds
-        )
-            session.PresenceConfirmed = true;
+        // The OPEN session's EndedAt/DurationSeconds are extended via a CAS-guarded ExecuteUpdateAsync
+        // instead of a plain tracked read-modify-write (S004h): two concurrent folds of the SAME
+        // already-open session (e.g. the driver's tick racing a manual rebuild/replay) previously both read
+        // the same stale EndedAt, each independently re-derived "elapsed since StartedAt" as ITS OWN
+        // DurationSeconds, and both deltas were folded into ViewerProfile.TotalWatchSeconds below —
+        // double-/over-counting the overlapping window instead of converging on the true wall-clock bound
+        // (measured: 15 concurrent folds of one open session inflated the total to 660s against a 150s real
+        // bound). The WHERE guard below only commits an extension while the row's EndedAt still matches what
+        // this call last observed; a losing CAS re-reads the (now newer) row and retries, so the delta it
+        // eventually folds is always the true, non-overlapping extension of the CURRENT row.
+        long watchSecondsDelta;
+        long sessionId = session.Id;
+        while (true)
+        {
+            DateTime observedEndedAt = session.EndedAt ?? session.StartedAt;
+            watchSecondsDelta =
+                @event.OccurredAt > observedEndedAt
+                    ? (long)(@event.OccurredAt - observedEndedAt).TotalSeconds
+                    : 0;
+            DateTime newEndedAt = watchSecondsDelta > 0 ? @event.OccurredAt : observedEndedAt;
+            int messageIncrement = isChatMessage ? 1 : 0;
+            DateTime? guardEndedAt = session.EndedAt;
 
-        await db.SaveChangesAsync(cancellationToken);
+            int updatedRows = await db
+                .WatchSessions.IgnoreQueryFilters()
+                .Where(s => s.Id == sessionId && s.EndedAt == guardEndedAt)
+                .ExecuteUpdateAsync(
+                    setters =>
+                        setters
+                            .SetProperty(s => s.EndedAt, newEndedAt)
+                            .SetProperty(
+                                s => s.DurationSeconds,
+                                s => s.DurationSeconds + watchSecondsDelta
+                            )
+                            .SetProperty(
+                                s => s.MessageCountInSession,
+                                s => s.MessageCountInSession + messageIncrement
+                            )
+                            .SetProperty(
+                                s => s.PresenceConfirmed,
+                                s => s.PresenceConfirmed || presenceThresholdMet
+                            ),
+                    cancellationToken
+                );
+
+            if (updatedRows > 0)
+                break;
+
+            // Lost the CAS race — another concurrent fold of this SAME session committed between our read
+            // and our write attempt. Re-read the row's now-current state and retry the extension against it.
+            session = await db
+                .WatchSessions.IgnoreQueryFilters()
+                .AsNoTracking()
+                .FirstAsync(s => s.Id == sessionId, cancellationToken);
+        }
 
         // The per-viewer total (analytics M.1 — {user.watchtime}, community hours-watched, viewer-analytics
         // sort) is folded via an atomic DB-side increment rather than a read-modify-write on the tracked

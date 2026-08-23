@@ -294,6 +294,106 @@ public sealed class WatchSessionConcurrencyTests
         profile.TotalWatchSeconds.Should().Be(0);
     }
 
+    /// <summary>
+    /// Proves S004h: <c>WatchSessionProjection.ApplyAsync</c> no longer extends an already-OPEN session's
+    /// <c>EndedAt</c>/<c>DurationSeconds</c> via a plain tracked read-modify-write. Before the fix, every
+    /// concurrent fold of the SAME open session re-derived its own "elapsed since StartedAt" as its
+    /// DurationSeconds and folded the (new - old) delta into <see cref="ViewerProfile.TotalWatchSeconds"/> —
+    /// two folds that both read the row before either committed both counted (their own copy of) the
+    /// overlapping window, over-accumulating far past the real wall-clock bound. Pre-fix, running this exact
+    /// scenario (15 concurrent folds, offsets 10s..150s of one open session) landed
+    /// <c>ViewerProfile.TotalWatchSeconds</c> at 1200 (Σ 10+20+...+150) against the true 150s bound — the
+    /// CAS-guarded <c>ExecuteUpdateAsync</c> retry loop this slice adds must converge on exactly 150.
+    /// </summary>
+    [Fact]
+    public async Task Concurrent_folds_of_one_already_open_session_accumulate_exactly_the_real_elapsed_time()
+    {
+        string dbName = $"watchsession-open-extend-race-{Guid.NewGuid():N}";
+        const int concurrency = 15;
+        const string streamId = "shared-open-session";
+        const long realBoundSeconds = concurrency * 10; // last task's offset — the true elapsed bound
+
+        Guid viewerUserId;
+        long sessionId;
+        using (AuthDbContext seed = AuthTestBuilder.NewContext(dbName))
+        {
+            (ViewerResolver resolver, _) = BuildResolver(seed);
+            ViewerProfile? primed = await resolver.ResolveAsync(
+                Channel,
+                "twitch",
+                ViewerExternalId,
+                "watcher",
+                "Watcher",
+                CancellationToken.None
+            );
+            primed.Should().NotBeNull();
+            viewerUserId = primed!.ViewerUserId;
+
+            // ONE already-open session — every concurrent task below extends THIS SAME row, isolating the
+            // extend-race this slice fixes from the separate (already-fixed) insert race S004f closed.
+            WatchSession session = new()
+            {
+                BroadcasterId = Channel,
+                ViewerProfileId = primed.Id,
+                ViewerUserId = viewerUserId,
+                StreamId = streamId,
+                StartedAt = BaseTime,
+                EndedAt = BaseTime,
+                CreatedAt = BaseTime,
+            };
+            seed.WatchSessions.Add(session);
+            await seed.SaveChangesAsync();
+            sessionId = session.Id;
+        }
+
+        Task[] tasks = Enumerable
+            .Range(1, concurrency)
+            .Select(i =>
+                Task.Run(async () =>
+                {
+                    using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
+                    (ViewerResolver resolver, IUserService _) = BuildResolver(db);
+                    ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
+                    live.GetCoveringStreamIdAsync(
+                            Arg.Any<Guid>(),
+                            Arg.Any<DateTime>(),
+                            Arg.Any<CancellationToken>()
+                        )
+                        .Returns(streamId);
+                    WatchSessionProjection sut = new(db, resolver, live);
+
+                    Result result = await sut.ApplyAsync(ChatEvent(BaseTime.AddSeconds(i * 10)));
+                    result.IsSuccess.Should().BeTrue();
+                })
+            )
+            .ToArray();
+
+        await Task.WhenAll(tasks);
+
+        using AuthDbContext verify = AuthTestBuilder.NewContext(dbName);
+        WatchSession finalSession = verify
+            .WatchSessions.IgnoreQueryFilters()
+            .Single(s => s.Id == sessionId);
+        finalSession
+            .DurationSeconds.Should()
+            .Be(
+                realBoundSeconds,
+                "the session's own DurationSeconds must converge on the true elapsed bound, not the sum "
+                    + "of every concurrent fold's independently re-derived duration"
+            );
+
+        ViewerProfile profile = verify
+            .ViewerProfiles.IgnoreQueryFilters()
+            .Single(p => p.BroadcasterId == Channel && p.ViewerUserId == viewerUserId);
+        profile
+            .TotalWatchSeconds.Should()
+            .Be(
+                realBoundSeconds,
+                "a lost-update-shaped race that instead OVER-counts would inflate this past the real bound "
+                    + "(pre-fix this observed 1200s against the true 150s)"
+            );
+    }
+
     private static (ViewerResolver Resolver, IUserService UserService) BuildResolver(
         AuthDbContext db
     )
