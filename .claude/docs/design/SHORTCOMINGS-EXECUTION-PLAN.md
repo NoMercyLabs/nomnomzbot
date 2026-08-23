@@ -21,11 +21,6 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
 
-- **S001b** Song-request queue does not survive a restart — S001 (00563352) moved the queue into the singleton
-  `SongRequestQueueStore` (in-memory `ConcurrentDictionary<string, FairQueue<T>>`), so `!sr`/`!queue`/`GET /queue` finally
-  agree, but a bot restart mid-stream still drops every viewer’s pending request with no warning. Streamers restart the bot
-  during a show (config change, update, crash). Done-when: the queue survives a restart with order and requester intact,
-  and a viewer whose request was dropped is never silently ignored — either it is restored or the channel is told.
 - **S008c-read** Nothing can READ the pipeline execution history — S008b (75519b88) persists runs with per-step logs and
   retention, but no API or dashboard surface exposes them, so a streamer debugging a misbehaving command still cannot see
   why it failed. Done-when: a run history endpoint exists (paged, tenant-scoped, failures filterable) and the dashboard shows
