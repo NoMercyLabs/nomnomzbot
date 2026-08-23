@@ -87,7 +87,13 @@ public sealed class IamCatalogSeederTests
             .ToListAsync();
         billingKeys
             .Should()
-            .BeEquivalentTo([IamPermissionKeys.BillingRead, IamPermissionKeys.BillingRefund]);
+            .BeEquivalentTo(
+                [
+                    IamPermissionKeys.BillingRead,
+                    IamPermissionKeys.BillingWrite,
+                    IamPermissionKeys.BillingRefund,
+                ]
+            );
     }
 
     [Fact]

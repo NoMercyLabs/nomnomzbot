@@ -64,10 +64,11 @@ public sealed class PlatformIamPolicyCoverageTests
 
     [Theory]
     [InlineData(nameof(AdminBillingController.ListInvites), IamPermissionKeys.BillingRead)]
-    [InlineData(nameof(AdminBillingController.CreateInvite), IamPermissionKeys.IamManage)]
-    [InlineData(nameof(AdminBillingController.RevokeInvite), IamPermissionKeys.IamManage)]
-    [InlineData(nameof(AdminBillingController.GrantTier), IamPermissionKeys.IamManage)]
-    [InlineData(nameof(AdminBillingController.GrantFounder), IamPermissionKeys.IamManage)]
+    [InlineData(nameof(AdminBillingController.CreateInvite), IamPermissionKeys.BillingWrite)]
+    [InlineData(nameof(AdminBillingController.RevokeInvite), IamPermissionKeys.BillingWrite)]
+    [InlineData(nameof(AdminBillingController.GrantTier), IamPermissionKeys.BillingWrite)]
+    [InlineData(nameof(AdminBillingController.GrantFounder), IamPermissionKeys.BillingWrite)]
+    [InlineData(nameof(AdminBillingController.RefundInvoice), IamPermissionKeys.BillingRefund)]
     public void AdminBillingController_action_carries_the_expected_iam_policy(
         string methodName,
         string expectedKey
@@ -129,7 +130,7 @@ public sealed class PlatformIamPolicyCoverageTests
     }
 
     [Theory]
-    [InlineData(nameof(ComplianceController.RequestErasure), IamPermissionKeys.TenantAccess)]
+    [InlineData(nameof(ComplianceController.RequestErasure), IamPermissionKeys.ComplianceErasure)]
     [InlineData(nameof(ComplianceController.ListErasureRequests), IamPermissionKeys.AuditRead)]
     public void ComplianceController_action_carries_the_expected_iam_policy(
         string methodName,
