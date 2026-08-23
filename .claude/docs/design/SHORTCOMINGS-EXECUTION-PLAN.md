@@ -37,8 +37,10 @@ Slice IDs are stable; the order is the queue.
   when a command misbehaves, and the dashboard has nothing to show. Found by S008 (80e9fd58) while threading run outcomes.
   Done-when: every pipeline run persists its outcome and per-step log, and a test proves a failed run is retrievable with the
   failing step identified.
-- **S011** Bot-line prefix (D5) — channel setting `BotLinePrefix` (none/`*`/`#`/emoji) applied on the
-  streamer's-own-account sends; Settings field. Done-when: prefix appears on bot-typed lines only.
+- **S011b** Dashboard field for `BotLinePrefix` — S011 (6ee95ca4) added the channel setting and applies it on the send path,
+  but a streamer cannot set it: there is no Settings control. Options are none / `*` / `#` / an emoji. Done-when: the field is
+  on the Settings page with en+nl strings, writes persist and survive reload, and it is hidden or explained when a dedicated
+  bot account is connected (the prefix is suppressed in that case, so an editable field that does nothing would be a lie).
 - **S012** Moderation accidental ban — timeout duration presets + hard block on unparseable; rule and
   escalation durations validated (U·B3 raw text). Done-when: empty duration cannot produce a ban (test).
 - **S013** Destructive actions carry reason + confirm — community Ban (reason + timeout option),
