@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,10 +33,12 @@ using NomNomzBot.Infrastructure.Platform.Security;
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
 /// <summary>
-/// Shared scaffolding for the auth behavior tests: a focused EF context mapping only the auth/integration
-/// entities (so it runs on the InMemory provider, where the production <c>AppDbContext</c>'s
-/// jsonb-of-complex-type columns cannot materialize), the REAL envelope-encryption crypto stack
-/// (so the vault round-trip proves ciphertext-at-rest, not a stub), and a recording event bus.
+/// Shared scaffolding for the auth behavior tests: a focused EF context over SQLite mapping only the
+/// auth/integration entities (so it stays provider-agnostic where the production <c>AppDbContext</c>'s
+/// jsonb-of-complex-type columns cannot materialize — the same reason it ran on the InMemory provider
+/// before S004d moved it to a real relational engine for unique-index enforcement and
+/// <c>ExecuteUpdateAsync</c> support), the REAL envelope-encryption crypto stack (so the vault round-trip
+/// proves ciphertext-at-rest, not a stub), and a recording event bus.
 /// </summary>
 internal static class AuthTestBuilder
 {
@@ -85,14 +89,59 @@ internal static class AuthTestBuilder
             TimeProvider.System
         );
 
+    // One keep-alive connection per shared database name — a SQLite "cache=shared" in-memory database
+    // is torn down the instant its last open connection closes, so this holds one open for the process's
+    // lifetime while every AuthDbContext opens its OWN connection to the same URI (real SQLite semantics —
+    // unique-index enforcement, ExecuteUpdateAsync support — unlike the InMemory provider this harness used
+    // to run on, which could not run ExecuteUpdateAsync and enforced no unique index at all).
+    private static readonly ConcurrentDictionary<string, SqliteConnection> KeepAliveConnections =
+        new();
+
+    // Guards schema creation for a brand-new shared-cache database: a concurrency test that opens several
+    // contexts against the SAME new name in parallel would otherwise race EnsureCreated() against itself
+    // (every context sees "no schema yet" and tries to CREATE TABLE, and every one after the first fails
+    // with "table already exists").
+    private static readonly object SchemaCreationLock = new();
+
     public static AuthDbContext NewContext() => NewContext(Guid.NewGuid().ToString());
 
     /// <summary>
-    /// A context over a named in-memory store. Two contexts built with the SAME name share one backing store —
-    /// the test analogue of a process restart against the same persisted database.
+    /// A context over a named in-memory SQLite store. Two contexts built with the SAME name share one backing
+    /// store — the test analogue of a process restart against the same persisted database.
     /// </summary>
-    public static AuthDbContext NewContext(string databaseName) =>
-        new(new DbContextOptionsBuilder<AuthDbContext>().UseInMemoryDatabase(databaseName).Options);
+    public static AuthDbContext NewContext(string databaseName)
+    {
+        KeepAliveConnections.GetOrAdd(
+            databaseName,
+            static name =>
+            {
+                SqliteConnection connection = new(SharedCacheConnectionString(name));
+                connection.Open();
+                return connection;
+            }
+        );
+        AuthDbContext db = new(
+            new DbContextOptionsBuilder<AuthDbContext>()
+                .UseSqlite(SharedCacheConnectionString(databaseName))
+                .Options
+        );
+        // Microsoft.Data.Sqlite turns FK enforcement ON for every connection it opens. This harness is
+        // deliberately a FOCUSED, scalar-only mapping (see the class doc) — most navigations are `.Ignore`d
+        // on purpose so a test can seed e.g. a UserIdentity without its owning User, exactly the partial
+        // graphs the InMemory provider used to tolerate silently. Enforcing FK integrity here would fight
+        // that design intent rather than serve it, so it stays off; the properties this migration actually
+        // needs from a relational engine — unique-index enforcement and ExecuteUpdateAsync — are unaffected.
+        db.Database.OpenConnection();
+        db.Database.ExecuteSqlRaw("PRAGMA foreign_keys = OFF;");
+        lock (SchemaCreationLock)
+        {
+            db.Database.EnsureCreated();
+        }
+        return db;
+    }
+
+    private static string SharedCacheConnectionString(string databaseName) =>
+        $"Data Source=file:{databaseName}?mode=memory&cache=shared";
 
     /// <summary>
     /// A real <see cref="ISystemCredentialsProvider"/> over the test context + REAL token protector, so a
@@ -276,6 +325,21 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
             .Ignore(e => e.Channel)
             .Ignore(e => e.Tags)
             .Ignore(e => e.ContentLabels);
+        // SQLite refuses to translate ORDER BY / comparisons on DateTimeOffset columns (it has no native
+        // type for one) — ChannelAnalyticsService orders streams by StartedAt, so this needs the same UTC
+        // ticks conversion as ScheduledPipelineTask above; see OUT-OF-SCOPE re: the production config gap.
+        b.Entity<NomNomzBot.Domain.Stream.Entities.Stream>()
+            .Property(e => e.StartedAt)
+            .HasConversion(
+                v => v == null ? (long?)null : v.Value.UtcTicks,
+                v => v == null ? (DateTimeOffset?)null : new DateTimeOffset(v.Value, TimeSpan.Zero)
+            );
+        b.Entity<NomNomzBot.Domain.Stream.Entities.Stream>()
+            .Property(e => e.EndedAt)
+            .HasConversion(
+                v => v == null ? (long?)null : v.Value.UtcTicks,
+                v => v == null ? (DateTimeOffset?)null : new DateTimeOffset(v.Value, TimeSpan.Zero)
+            );
         b.Entity<ChannelEvent>().HasKey(e => e.Id);
         b.Entity<ChannelEvent>().Ignore(e => e.Channel).Ignore(e => e.User);
         b.Entity<NomNomzBot.Domain.Commands.Entities.CommandUsage>().HasKey(e => e.Id);
@@ -357,11 +421,45 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<NomNomzBot.Domain.Commands.Entities.Pipeline>()
             .Ignore(e => e.Channel)
             .Ignore(e => e.Steps);
-        b.Entity<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask>().HasKey(e => e.Id);
+        // DueAt/CreatedAt/FiredAt are DateTimeOffset — the SQLite provider (unlike InMemory) refuses to
+        // translate ORDER BY / relational comparisons (<=, <) on its default TEXT-mapped DateTimeOffset
+        // columns, which the sweeper's `t.DueAt <= now` depends on. Converting to UTC ticks (a plain INTEGER
+        // column) makes every comparison operator translatable — the same fix production self-host-lite
+        // (which also runs on SQLite, via ScheduledPipelineTaskConfiguration) will need; see OUT-OF-SCOPE.
+        b.Entity<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask>()
+            .HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask>()
+            .Property(e => e.DueAt)
+            .HasConversion(v => v.UtcTicks, v => new DateTimeOffset(v, TimeSpan.Zero));
+        b.Entity<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask>()
+            .Property(e => e.CreatedAt)
+            .HasConversion(v => v.UtcTicks, v => new DateTimeOffset(v, TimeSpan.Zero));
+        b.Entity<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask>()
+            .Property(e => e.FiredAt)
+            .HasConversion(
+                v => v == null ? (long?)null : v.Value.UtcTicks,
+                v => v == null ? (DateTimeOffset?)null : new DateTimeOffset(v.Value, TimeSpan.Zero)
+            );
         b.Ignore<NomNomzBot.Domain.Commands.Entities.PipelineStep>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.EventJournal>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.TenantSequence>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint>();
+
+        // Mirrors ChannelAnalyticsDailyConfiguration / ChannelChatterDayConfiguration: one upserted row per
+        // (channel, day) / (channel, day, viewer-hash). The InMemory provider never enforced these, which is
+        // exactly why ChannelAnalyticsDailyProjection's insert-race handling (S004d) was unverifiable before
+        // this harness moved to a real relational engine.
+        b.Entity<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily>()
+            .HasIndex(e => new { e.BroadcasterId, e.ActivityDate })
+            .IsUnique();
+        b.Entity<NomNomzBot.Domain.Analytics.Entities.ChannelChatterDay>()
+            .HasIndex(e => new
+            {
+                e.BroadcasterId,
+                e.ActivityDate,
+                e.ChatterHash,
+            })
+            .IsUnique();
     }
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
@@ -596,6 +694,11 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily>();
     public DbSet<NomNomzBot.Domain.Analytics.Entities.ChannelChatterDay> ChannelChatterDays =>
         Set<NomNomzBot.Domain.Analytics.Entities.ChannelChatterDay>();
+
+    // NOTE: the (BroadcasterId, ActivityDate[, ChatterHash]) unique indexes these two entities carry in
+    // production (ChannelAnalyticsDailyConfiguration / ChannelChatterDayConfiguration) are declared in
+    // OnModelCreating below — the InMemory provider never enforced them, so the projection's insert-race
+    // handling was silently unverifiable until this harness moved to a real relational engine.
     public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlag> FeatureFlags =>
         Set<NomNomzBot.Domain.Platform.Entities.FeatureFlag>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.FeatureFlagOverride> FeatureFlagOverrides =>
