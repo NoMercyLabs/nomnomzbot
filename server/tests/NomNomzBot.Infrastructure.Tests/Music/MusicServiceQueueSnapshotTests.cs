@@ -81,18 +81,21 @@ public sealed class MusicServiceQueueSnapshotTests
     }
 
     [Fact]
-    public async Task Skip_that_dequeues_the_next_request_publishes_the_shrunken_snapshot()
+    public async Task Skip_republishes_the_snapshot_and_leaves_the_entry_pending_until_playback_confirms()
     {
         (MusicService sut, RecordingEventBus bus) = Build();
         await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q1", "viewer1");
 
         (await sut.SkipAsync(ChannelId.ToString())).IsSuccess.Should().BeTrue();
 
-        SongRequestQueueChangedEvent last = bus
-            .Published.OfType<SongRequestQueueChangedEvent>()
-            .Last();
-        last.Items.Should().BeEmpty();
+        // The request already sits in the provider's own queue, so a skip only advances the provider —
+        // the entry leaves OUR queue when the live playback state confirms it is the track now playing
+        // (SongRequestQueueReconciler), never on the optimistic assumption that the skip landed.
         bus.Published.OfType<SongRequestQueueChangedEvent>().Should().HaveCount(2);
+        bus.Published.OfType<SongRequestQueueChangedEvent>()
+            .Last()
+            .Items.Should()
+            .ContainSingle(i => i.Title == "Song Q");
     }
 
     private static (MusicService Sut, RecordingEventBus Bus) Build()

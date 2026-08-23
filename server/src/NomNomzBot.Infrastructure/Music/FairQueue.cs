@@ -124,6 +124,41 @@ public sealed class FairQueue<T> : IFairQueue<T>
         }
     }
 
+    public int RemoveThrough(Func<T, bool> predicate)
+    {
+        lock (_lock)
+        {
+            int index = _queue.FindIndex(e => predicate(e.Item));
+            if (index < 0)
+                return 0;
+
+            int count = index + 1;
+            _queue.RemoveRange(0, count);
+            RecalculateRanks();
+            return count;
+        }
+    }
+
+    public bool RemoveFirst(Func<T, bool> predicate)
+    {
+        lock (_lock)
+        {
+            int index = _queue.FindIndex(e => predicate(e.Item));
+            if (index < 0)
+                return false;
+
+            QueueEntry removed = _queue[index];
+            _queue.RemoveAt(index);
+
+            // Recalculate ranks for the removed owner's remaining items
+            int rank = 1;
+            foreach (QueueEntry e in _queue.Where(e => e.OwnerKey == removed.OwnerKey))
+                e.Rank = rank++;
+
+            return true;
+        }
+    }
+
     public bool RemoveAt(int position)
     {
         lock (_lock)
@@ -151,6 +186,18 @@ public sealed class FairQueue<T> : IFairQueue<T>
         lock (_lock)
         {
             return _queue.Select(e => (e.Item, e.Rank, e.OwnerKey)).ToList();
+        }
+    }
+
+    /// <summary>Re-derives every owner's ranks from the queue's current order — the invariant every
+    /// removal has to restore (rank = that owner's 1-based position among their own remaining items).</summary>
+    private void RecalculateRanks()
+    {
+        foreach (IGrouping<string, QueueEntry> owned in _queue.GroupBy(e => e.OwnerKey))
+        {
+            int rank = 1;
+            foreach (QueueEntry e in owned)
+                e.Rank = rank++;
         }
     }
 

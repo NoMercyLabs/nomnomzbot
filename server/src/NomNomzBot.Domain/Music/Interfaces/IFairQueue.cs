@@ -37,6 +37,13 @@ public interface IFairQueue<T>
     /// <summary>Removes all items belonging to a specific owner.</summary>
     int RemoveByOwner(string ownerKey);
 
+    /// <summary>Removes the head of the queue through the first item matching <paramref name="predicate"/>
+    /// (inclusive). Returns how many items were removed; 0 when none match.</summary>
+    int RemoveThrough(Func<T, bool> predicate);
+
+    /// <summary>Removes the first item matching <paramref name="predicate"/>. Returns false when none match.</summary>
+    bool RemoveFirst(Func<T, bool> predicate);
+
     /// <summary>Removes the item at the specified zero-based position. Returns false if position is out of range.</summary>
     bool RemoveAt(int position);
 

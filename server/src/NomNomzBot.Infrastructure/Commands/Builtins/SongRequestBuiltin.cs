@@ -87,6 +87,7 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                 requested.ErrorCode switch
                 {
                     "TRACK_BLOCKED" => requested.ErrorMessage!,
+                    "DUPLICATE_TRACK" => requested.ErrorMessage!,
                     "SERVICE_UNAVAILABLE" => NoProviderMessage(context.RoleLevel),
                     "NO_ACTIVE_DEVICE" => requested.ErrorMessage!,
                     "PREMIUM_REQUIRED" => requested.ErrorMessage!,

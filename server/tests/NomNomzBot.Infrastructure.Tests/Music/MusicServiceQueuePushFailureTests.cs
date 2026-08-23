@@ -50,6 +50,11 @@ public sealed class MusicServiceQueuePushFailureTests
         {"error":{"status":403,"reason":"PREMIUM_REQUIRED","message":"Premium required"}}
         """;
 
+    private static int QueuePushCount(RecordingHttpHandler handler) =>
+        handler.RequestUrls.Count(url =>
+            url.Contains("/me/player/queue", StringComparison.Ordinal)
+        );
+
     private static bool IsQueuePush(HttpRequestMessage r) =>
         r.Method == HttpMethod.Post
         && r.RequestUri!.AbsolutePath.EndsWith("/me/player/queue", StringComparison.Ordinal);
@@ -170,45 +175,31 @@ public sealed class MusicServiceQueuePushFailureTests
     }
 
     [Fact]
-    public async Task Skip_with_no_active_device_fails_with_its_own_code_and_puts_the_next_track_back()
+    public async Task Skip_does_not_push_the_next_track_again_because_the_provider_already_holds_it()
     {
         (MusicService sut, RecordingHttpHandler handler, _, _, _) = Build();
         RespondWithResolvedTrack(handler);
-        // The first push (the live request) succeeds; every push after that fails with
-        // NO_ACTIVE_DEVICE — simulating the device disappearing once the queue is already populated.
-        int queuePushCount = 0;
-        handler.RespondWhen(
-            r =>
-            {
-                if (!IsQueuePush(r))
-                    return false;
-                queuePushCount++;
-                return queuePushCount == 1;
-            },
-            HttpStatusCode.NoContent
-        );
-        handler.RespondWhen(IsQueuePush, HttpStatusCode.NotFound, NoActiveDeviceJson);
+        handler.RespondWhen(IsQueuePush, HttpStatusCode.NoContent);
 
-        // The fair queue holds current + upcoming: request one track (pushed live to the provider,
-        // stays in the local queue as the "now playing" entry) and queue a second one behind it.
+        // Admission pushes the request to the provider's own queue — that is what plays it.
         await sut.RequestTrackAsync(
             ChannelId.ToString(),
             $"https://open.spotify.com/track/{TrackId}",
             "viewer1"
         );
-        await sut.AddToQueueAsync(ChannelId.ToString(), TrackUri, "viewer2");
-        (await sut.GetQueueAsync(ChannelId.ToString())).Queue.Should().HaveCount(2);
+        int pushesAfterRequest = QueuePushCount(handler);
+        pushesAfterRequest.Should().Be(1);
 
         Result skip = await sut.SkipAsync(ChannelId.ToString());
 
-        skip.IsFailure.Should().BeTrue();
-        skip.ErrorCode.Should().Be("NO_ACTIVE_DEVICE");
+        skip.IsSuccess.Should().BeTrue();
+        // A skip only advances the provider. Re-pushing the entry here would queue the same track a
+        // second time, which is exactly the double-play the old dequeue-and-push skip produced.
+        QueuePushCount(handler).Should().Be(pushesAfterRequest);
+        // The entry stays pending until the live playback state confirms it is the track now playing.
         (await sut.GetQueueAsync(ChannelId.ToString()))
             .Queue.Should()
-            .HaveCount(
-                2,
-                "the dequeued next track must be put back, not lost, when the push fails"
-            );
+            .ContainSingle();
     }
 
     [Fact]

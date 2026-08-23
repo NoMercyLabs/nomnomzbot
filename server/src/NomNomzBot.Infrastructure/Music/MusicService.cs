@@ -163,49 +163,12 @@ public sealed class MusicService : IMusicService
         if (!HasCapability(provider, MusicProviderCapabilities.Skip))
             return Unsupported("skipping");
 
+        // Every queued request is already sitting in the provider's own queue (see EnqueueResolvedAsync),
+        // so a skip only tells the provider to advance — re-pushing the next entry here would queue it a
+        // second time. Our own entry for the track that starts playing is dropped by
+        // SongRequestQueueReconciler off the live playback state, the same way a natural track end is.
         FairQueue<SongRequestEntry>? fairQueue = _queueStore.TryGet(broadcasterId);
-        SongRequestEntry? next = fairQueue?.Dequeue();
-
-        if (next is not null)
-        {
-            // Push the newly-head-of-queue track onto the provider's own queue. A failure here must
-            // not silently vanish the request: put it straight back into the fair queue (nothing was
-            // lost) and fail the skip itself with the same typed reason a viewer would get from !sr,
-            // rather than reporting the skip as done while the next track never reached the provider.
-            try
-            {
-                bool pushed = await provider.AddToQueueAsync(
-                    tenantId,
-                    next.TrackUri,
-                    cancellationToken
-                );
-                if (!pushed)
-                {
-                    fairQueue!.Enqueue(next.RequestedBy, next);
-                    return ProviderErrorOnSkip();
-                }
-            }
-            catch (PremiumRequiredException)
-            {
-                fairQueue!.Enqueue(next.RequestedBy, next);
-                return PremiumRequiredOnSkip();
-            }
-            catch (NoActiveDeviceException)
-            {
-                fairQueue!.Enqueue(next.RequestedBy, next);
-                return NoActiveDeviceOnSkip();
-            }
-            catch (MusicAuthenticationFailedException)
-            {
-                fairQueue!.Enqueue(next.RequestedBy, next);
-                return AuthFailedOnSkip();
-            }
-            catch (MusicForbiddenException)
-            {
-                fairQueue!.Enqueue(next.RequestedBy, next);
-                return ForbiddenOnSkip();
-            }
-        }
+        bool hadPending = fairQueue is not null && !fairQueue.IsEmpty;
 
         try
         {
@@ -216,8 +179,9 @@ public sealed class MusicService : IMusicService
             return PremiumRequired(ex);
         }
 
-        // A dequeue changed the fair queue — push the fresh snapshot to the sr_queue overlay surfaces.
-        if (next is not null)
+        // The head of the queue is about to become the playing track — push the fresh snapshot to the
+        // sr_queue overlay surfaces.
+        if (hadPending)
             await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
 
         await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
@@ -419,6 +383,20 @@ public sealed class MusicService : IMusicService
                 "TRACK_BLOCKED"
             );
 
+        FairQueue<SongRequestEntry> queue = _queueStore.GetOrCreate(broadcasterId);
+
+        // Duplicate gate (legacy parity): the same track already pending, or playing right now, is
+        // refused with the requester's name rather than queued twice.
+        Result? duplicate = await CheckDuplicateAsync(
+            tenantId,
+            provider,
+            queue,
+            trackInfo,
+            cancellationToken
+        );
+        if (duplicate is not null)
+            return duplicate;
+
         SongRequestEntry entry = new(
             trackUri,
             trackInfo.TrackName,
@@ -430,47 +408,37 @@ public sealed class MusicService : IMusicService
 
         // Add to fair queue — via the singleton store, so this entry is visible to every later
         // DI scope (next chat command, next dashboard request), not just this one.
-        FairQueue<SongRequestEntry> queue = _queueStore.GetOrCreate(broadcasterId);
         queue.Enqueue(requestedBy ?? "anonymous", entry);
 
-        // If nothing is in the provider's queue, add immediately
-        // If nothing was already ahead of it, this request is the head of the queue — push it onto the
-        // provider's own queue immediately so it starts as soon as the current track ends. A failure here
-        // means the request never reached the provider at all: it is NOT left behind as a phantom entry
-        // in our own fair queue pretending to be live — it is removed, and the caller gets the real,
-        // typed reason instead of a false "queued" success.
-        int queueSize = queue.Count;
-        if (queueSize <= 1)
+        // EVERY accepted request is handed to the provider's own queue — that queue is what actually
+        // plays the audio; ours is the pending/ordering mirror the dashboard and sr_queue overlay render
+        // and the reconciler drains as each track starts. Pushing only the head (the previous rule) was
+        // invisible while the fair queue reset every DI scope, and became "requests queue but nothing
+        // ever plays" the moment the queue became a real singleton.
+        // A failed push means the request never reached the provider at all: it is NOT left behind as a
+        // phantom entry pretending to be live — that one entry is removed (never the requester's other
+        // pending requests) and the caller gets the real, typed reason instead of a false success.
+        try
         {
-            try
-            {
-                bool pushed = await provider.AddToQueueAsync(tenantId, trackUri, cancellationToken);
-                if (!pushed)
-                {
-                    queue.RemoveByOwner(requestedBy ?? "anonymous");
-                    return ProviderErrorOnQueue(trackInfo.TrackName);
-                }
-            }
-            catch (PremiumRequiredException)
-            {
-                queue.RemoveByOwner(requestedBy ?? "anonymous");
-                return PremiumRequiredOnQueue(trackInfo.TrackName);
-            }
-            catch (NoActiveDeviceException)
-            {
-                queue.RemoveByOwner(requestedBy ?? "anonymous");
-                return NoActiveDeviceOnQueue(trackInfo.TrackName);
-            }
-            catch (MusicAuthenticationFailedException)
-            {
-                queue.RemoveByOwner(requestedBy ?? "anonymous");
-                return AuthFailedOnQueue(trackInfo.TrackName);
-            }
-            catch (MusicForbiddenException)
-            {
-                queue.RemoveByOwner(requestedBy ?? "anonymous");
-                return ForbiddenOnQueue(trackInfo.TrackName);
-            }
+            bool pushed = await provider.AddToQueueAsync(tenantId, trackUri, cancellationToken);
+            if (!pushed)
+                return RollBack(queue, entry, ProviderErrorOnQueue(trackInfo.TrackName));
+        }
+        catch (PremiumRequiredException)
+        {
+            return RollBack(queue, entry, PremiumRequiredOnQueue(trackInfo.TrackName));
+        }
+        catch (NoActiveDeviceException)
+        {
+            return RollBack(queue, entry, NoActiveDeviceOnQueue(trackInfo.TrackName));
+        }
+        catch (MusicAuthenticationFailedException)
+        {
+            return RollBack(queue, entry, AuthFailedOnQueue(trackInfo.TrackName));
+        }
+        catch (MusicForbiddenException)
+        {
+            return RollBack(queue, entry, ForbiddenOnQueue(trackInfo.TrackName));
         }
 
         _logger.LogInformation(
@@ -727,36 +695,6 @@ public sealed class MusicService : IMusicService
     private static Result ProviderErrorOnQueue(string trackName) =>
         Result.Failure(
             $"Couldn't queue \"{trackName}\" — the music service had a problem. Try again in a moment.",
-            "PROVIDER_ERROR"
-        );
-
-    // ── Skip failure replies — the next track couldn't be pushed to the provider, so it was put
-    // back at the head of the fair queue rather than lost. ─────────────────────────────────────
-
-    private static Result NoActiveDeviceOnSkip() =>
-        Result.Failure(
-            "Skip failed — nothing is playing on any device right now. Start playback and try again.",
-            "NO_ACTIVE_DEVICE"
-        );
-
-    private static Result AuthFailedOnSkip() =>
-        Result.Failure(
-            "Skip failed — the music connection needs to be reconnected.",
-            "MUSIC_AUTH_FAILED"
-        );
-
-    private static Result ForbiddenOnSkip() =>
-        Result.Failure(
-            "Skip failed — the music connection doesn't have permission for that.",
-            "MUSIC_FORBIDDEN"
-        );
-
-    private static Result PremiumRequiredOnSkip() =>
-        Result.Failure("Skip failed — a Premium account is required for that.", "PREMIUM_REQUIRED");
-
-    private static Result ProviderErrorOnSkip() =>
-        Result.Failure(
-            "Skip failed — the music service had a problem. Try again in a moment.",
             "PROVIDER_ERROR"
         );
 
@@ -1084,6 +1022,71 @@ public sealed class MusicService : IMusicService
                 .ToList();
     }
 
-    private SongRequestEntry? DequeueNext(string broadcasterId) =>
-        _queueStore.TryGet(broadcasterId)?.Dequeue();
+    /// <summary>Takes one rejected entry back out of the fair queue and returns the caller's failure —
+    /// only that entry, never the requester's other pending requests.</summary>
+    private static Result RollBack(
+        FairQueue<SongRequestEntry> queue,
+        SongRequestEntry entry,
+        Result failure
+    )
+    {
+        queue.RemoveFirst(e => ReferenceEquals(e, entry));
+        return failure;
+    }
+
+    /// <summary>
+    /// Legacy-parity duplicate gate: the same track already waiting in the fair queue, or playing right
+    /// now, is refused instead of queued a second time. Returns null when the request is not a duplicate.
+    /// </summary>
+    private static async Task<Result?> CheckDuplicateAsync(
+        Guid tenantId,
+        IMusicProvider provider,
+        FairQueue<SongRequestEntry> queue,
+        TrackInfo trackInfo,
+        CancellationToken cancellationToken
+    )
+    {
+        (SongRequestEntry Item, int Rank, string OwnerKey) pending = queue
+            .GetSnapshot()
+            .FirstOrDefault(e =>
+                string.Equals(
+                    e.Item.TrackUri,
+                    trackInfo.TrackUri,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            );
+        if (pending.Item is not null)
+            return Result.Failure(
+                $"\"{trackInfo.TrackName}\" is already in the queue (requested by {pending.Item.RequestedBy}).",
+                "DUPLICATE_TRACK"
+            );
+
+        // Best-effort: the now-playing probe is a nicety on top of the queue check, so a provider that
+        // cannot answer it right now must not turn a perfectly good request into a failure — the real
+        // admission verdict comes from the push below.
+        TrackInfo? current;
+        try
+        {
+            current = await provider.GetCurrentTrackAsync(tenantId, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
+
+        if (
+            current?.TrackUri is not null
+            && string.Equals(
+                current.TrackUri,
+                trackInfo.TrackUri,
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+            return Result.Failure(
+                $"\"{trackInfo.TrackName}\" is playing right now.",
+                "DUPLICATE_TRACK"
+            );
+
+        return null;
+    }
 }
