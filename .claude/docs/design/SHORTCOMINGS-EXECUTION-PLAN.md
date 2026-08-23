@@ -41,8 +41,11 @@ Slice IDs are stable; the order is the queue.
   but a streamer cannot set it: there is no Settings control. Options are none / `*` / `#` / an emoji. Done-when: the field is
   on the Settings page with en+nl strings, writes persist and survive reload, and it is hidden or explained when a dedicated
   bot account is connected (the prefix is suppressed in that case, so an editable field that does nothing would be a lie).
-- **S012** Moderation accidental ban — timeout duration presets + hard block on unparseable; rule and
-  escalation durations validated (U·B3 raw text). Done-when: empty duration cannot produce a ban (test).
+- **S012b** Timeout duration presets in the dashboard — S012 (4a31190e) hard-blocked invalid durations server-side and
+  inventoried all 9 parse sites, but the manual timeout box in `app/` is still a free number field with no presets, so a
+  moderator can still fumble a duration and get a rejection instead of a picker. Note the audit correction: non-numeric text
+  never reached the backend (`DurationSeconds` is `int?`, model binding 400s it) — the real risk was 0/negative, now blocked.
+  Done-when: the timeout control offers 60s / 10m / 1h / 24h / 7d plus custom, en+nl, and an explicit separate Ban action.
 - **S013** Destructive actions carry reason + confirm — community Ban (reason + timeout option),
   nuke reason/matchTerm + display name, Moderation "Verwijderen" + Commands delete behind confirm
   (U·B3, K). Done-when: every destructive dialog asks; reason lands in the mod log.
