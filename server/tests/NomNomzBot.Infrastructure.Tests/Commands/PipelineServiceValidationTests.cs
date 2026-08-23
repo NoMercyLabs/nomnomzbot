@@ -47,7 +47,15 @@ public sealed class PipelineServiceValidationTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         CommandConfigValidator validator = new([new FakeAction { ActionType = "send_message" }]);
-        return (new PipelineService(db, Substitute.For<IEventBus>(), validator), db);
+        return (
+            new PipelineService(
+                db,
+                Substitute.For<IEventBus>(),
+                validator,
+                Substitute.For<IChannelRegistry>()
+            ),
+            db
+        );
     }
 
     private static object GraphWith(params object[] steps) =>

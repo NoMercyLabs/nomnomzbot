@@ -26,16 +26,19 @@ public class PipelineService : IPipelineService
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
     private readonly ICommandConfigValidator _validator;
+    private readonly IChannelRegistry _registry;
 
     public PipelineService(
         IApplicationDbContext db,
         IEventBus eventBus,
-        ICommandConfigValidator validator
+        ICommandConfigValidator validator,
+        IChannelRegistry registry
     )
     {
         _db = db;
         _eventBus = eventBus;
         _validator = validator;
+        _registry = registry;
     }
 
     public async Task<Result<PagedList<PipelineListItemDto>>> ListAsync(
@@ -131,6 +134,7 @@ public class PipelineService : IPipelineService
         _db.Pipelines.Add(entity);
         await _db.SaveChangesAsync(ct);
         await PublishConfigChangedAsync(broadcaster, entity.Id, "created", ct);
+        await InvalidateBoundCachesAsync(broadcaster, ct);
 
         return Result.Success(ToDto(entity));
     }
@@ -181,6 +185,7 @@ public class PipelineService : IPipelineService
 
         await _db.SaveChangesAsync(ct);
         await PublishConfigChangedAsync(broadcaster, entity.Id, "updated", ct);
+        await InvalidateBoundCachesAsync(broadcaster, ct);
 
         return Result.Success(ToDto(entity));
     }
@@ -206,8 +211,24 @@ public class PipelineService : IPipelineService
         _db.Pipelines.Remove(entity);
         await _db.SaveChangesAsync(ct);
         await PublishConfigChangedAsync(broadcaster, pipelineId, "deleted", ct);
+        await InvalidateBoundCachesAsync(broadcaster, ct);
 
         return Result.Success();
+    }
+
+    /// <summary>
+    /// A pipeline's steps are only ever reached through a bound <c>Command</c> or <c>ChatTrigger</c>, and both
+    /// resolve the pipeline's <c>GraphJsonCache</c> once, at cache-load time, into <see cref="Domain.Platform.Interfaces.CachedCommand.PipelineGraphJson"/>
+    /// / <see cref="Domain.Platform.Interfaces.CachedChatTrigger.PipelineGraphJson"/> — so a create, edit or
+    /// delete here has to force BOTH hot-path caches to reload, or a bound command/trigger keeps running the old
+    /// graph (edit) or a graph that no longer exists (delete) until the process restarts. Scoped to this one
+    /// broadcaster's <see cref="ChannelContext"/> only — <see cref="IChannelRegistry"/>'s invalidation methods
+    /// are a no-op for any channel that isn't currently registered, and never touch another tenant's entry.
+    /// </summary>
+    private async Task InvalidateBoundCachesAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        await _registry.InvalidateCommandsAsync(broadcasterId, ct);
+        await _registry.InvalidateChatTriggersAsync(broadcasterId, ct);
     }
 
     /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>

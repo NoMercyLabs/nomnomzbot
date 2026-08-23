@@ -75,7 +75,12 @@ public sealed class MarketplaceServiceTests
         permissiveValidator
             .ValidatePipelineAsync(Arg.Any<PipelineGraphInput>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(PipelineValidationResult.Valid()));
-        PipelineService pipelines = new(db, bus, permissiveValidator);
+        PipelineService pipelines = new(
+            db,
+            bus,
+            permissiveValidator,
+            Substitute.For<IChannelRegistry>()
+        );
         CustomDataSourceService dataSources = new(
             db,
             Substitute.For<ITokenProtector>(),
