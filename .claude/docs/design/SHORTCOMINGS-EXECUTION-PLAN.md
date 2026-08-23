@@ -29,13 +29,10 @@ Slice IDs are stable; the order is the queue.
 - **S003** Spotify visible state — 401/403 → `needs_reauth`/`forbidden` on the integration status +
   Music page; vault is the single token source (drop the `Services` mirror read) (U·A2). Done-when: a
   revoked token shows on the Integrations card and `!sr` says why; music reads no `Services` row.
-- **S004e** SQLite `DateTimeOffset` translation — BROKEN ON THE DEFAULT SELF-HOST RUNTIME. SQLite refuses to translate
-  DateTimeOffset comparisons/ORDER BY, so `ScheduledPipelineService.cs:277` (`t.DueAt <= now`) and `ChannelAnalyticsService`’s
-  stream `OrderBy(StartedAt)` throw on `self_host_lite` while working on Postgres. Invisible until the harness left EF InMemory
-  (S004d). Sweep the whole tree for DateTimeOffset used in a translated predicate/ordering, not just these two.
-  Done-when: scheduled pipelines fire and stream analytics order correctly on SQLite, proven on the SQLite harness.
 - **S004f** `WatchSessionConfiguration.cs` has no unique index on (BroadcasterId, ViewerUserId, StreamId) — concurrent
   `GetOrOpenAsync` can mint duplicate session rows. Done-when: the DB rejects the duplicate and the code handles it.
+  Also drop the now-redundant per-entity UTC-ticks converters in `Identity/AuthTestContext.cs:328-441` — S004e’s
+  model-level `ApplySqliteCompatibility` supersedes that hand-rolled workaround.
 - **S004g** `EventStoreController.cs:115-171` Replay/RebuildProjections take no `IRunOnceGuard` lease, so a manual rebuild
   races the driver’s 15s tick. S004d’s atomic upserts absorb the damage; the lease would stop it at the source.
   Done-when: a rebuild started while the driver is mid-tick for the same broadcaster+projection waits or is refused.
