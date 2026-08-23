@@ -29,6 +29,51 @@ public sealed class DiscordGuildServiceTests
 {
     private static readonly FakeTimeProvider Clock = new(new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero));
 
+    /// <summary>
+    /// The connection row is written and flushed BEFORE the vault is asked to hold the bot token, all
+    /// inside one transaction. When the vault refuses, the service reports a failed Result rather than
+    /// throwing — so without the commit guard the transaction would commit and leave a connection that
+    /// claims a linked, bot-installed guild whose token was never stored: the dashboard would show a
+    /// working Discord link that cannot send a single message.
+    /// </summary>
+    [Fact]
+    public async Task UpsertFromOAuthAsync_WhenTheVaultRefusesTheToken_leaves_no_connection_behind()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        RecordingVault vault = new() { StoreTokensFailureCode = "VAULT_UNAVAILABLE" };
+        RecordingEventBus bus = new();
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            DiscordGuildService service = NewService(db, vault, bus);
+            Result<DiscordGuildConnectionDto> result = await service.UpsertFromOAuthAsync(
+                channel,
+                new(
+                    "guild-123",
+                    "Cool Server",
+                    "bot-access-token",
+                    "bot-refresh-token",
+                    Clock.GetUtcNow().UtcDateTime.AddDays(7),
+                    ["bot", "guilds"],
+                    "installer-discord-id"
+                )
+            );
+
+            result.IsFailure.Should().BeTrue();
+            result.ErrorCode.Should().Be("VAULT_UNAVAILABLE");
+        }
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            db.DiscordGuildConnections.IgnoreQueryFilters()
+                .Should()
+                .BeEmpty("the connection written before the vault call must roll back with it");
+        }
+
+        bus.Published.Should().BeEmpty("a link that never completed may not be announced");
+    }
+
     [Fact]
     public async Task UpsertFromOAuthAsync_CreatesConnection_AndVaultsTheBotToken()
     {

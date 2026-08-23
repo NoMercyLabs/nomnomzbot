@@ -27,6 +27,10 @@ internal sealed class RecordingVault : IIntegrationTokenVault
     public List<string> RevokedReasons { get; } = [];
     public Guid LastUpsertedConnectionId { get; private set; }
 
+    /// <summary>When set, StoreTokens refuses with this code — the vault half of a guild link failing
+    /// AFTER the connection row was already written inside the same transaction.</summary>
+    public string? StoreTokensFailureCode { get; set; }
+
     public Task<Result<IntegrationConnectionDto>> UpsertConnectionAsync(
         UpsertConnectionDto request,
         CancellationToken cancellationToken = default
@@ -61,7 +65,11 @@ internal sealed class RecordingVault : IIntegrationTokenVault
     )
     {
         StoredTokens.Add(tokens);
-        return Task.FromResult(Result.Success());
+        return Task.FromResult(
+            StoreTokensFailureCode is null
+                ? Result.Success()
+                : Result.Failure("The vault refused the tokens.", StoreTokensFailureCode)
+        );
     }
 
     public Task<Result> RevokeConnectionAsync(

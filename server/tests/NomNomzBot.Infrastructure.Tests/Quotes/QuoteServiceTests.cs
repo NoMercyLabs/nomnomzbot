@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Quotes.Dtos;
 using NomNomzBot.Domain.Quotes.Entities;
 using NomNomzBot.Domain.Quotes.Events;
@@ -54,6 +55,64 @@ public sealed class QuoteServiceTests
         );
         await db.SaveChangesAsync();
         return channelId;
+    }
+
+    /// <summary>
+    /// The number allocation and the row insert share one transaction, and that transaction now runs
+    /// through the provider's execution strategy — where the operation returns a FAILED Result instead
+    /// of throwing. Without the commit guard the attempt would commit anyway, leaving the allocator's
+    /// bumped sequence (a burnt quote number) behind and publishing nothing to explain the gap.
+    /// </summary>
+    [Fact]
+    public async Task AddAsync_WhenTheNumberCannotBeAllocated_persists_nothing_and_publishes_nothing()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        RecordingEventBus bus = new();
+
+        Result<QuoteDto> failed;
+        await using (QuoteTestDbContext db = database.NewContext())
+        {
+            QuoteTestUnitOfWork uow = new(db);
+            QuoteService service = new(db, new FailingSequenceAllocator(), uow, bus, Clock);
+            failed = await service.AddAsync(
+                channel,
+                new("a quote that never lands", null, null, null, Guid.CreateVersion7())
+            );
+        }
+
+        failed.IsFailure.Should().BeTrue();
+        failed.ErrorCode.Should().Be("SEQUENCE_UNAVAILABLE");
+
+        await using QuoteTestDbContext reader = database.NewContext();
+        reader.Quotes.Should().BeEmpty("a failed allocation must leave no quote row behind");
+        bus.Published.OfType<QuoteAddedEvent>()
+            .Should()
+            .BeEmpty("nothing was added, so nothing may be announced");
+    }
+
+    /// <summary>Refuses every allocation — the one failure mode AddAsync reports as a Result rather
+    /// than an exception, which is exactly the case a plain commit would have swallowed.</summary>
+    private sealed class FailingSequenceAllocator : ITenantSequenceAllocator
+    {
+        public Task<Result<long>> NextAsync(
+            Guid broadcasterId,
+            string sequenceName,
+            CancellationToken cancellationToken = default
+        ) =>
+            Task.FromResult(
+                Result.Failure<long>("The sequence is unavailable.", "SEQUENCE_UNAVAILABLE")
+            );
+
+        public Task<Result<long>> NextBlockAsync(
+            Guid broadcasterId,
+            string sequenceName,
+            int count,
+            CancellationToken cancellationToken = default
+        ) =>
+            Task.FromResult(
+                Result.Failure<long>("The sequence is unavailable.", "SEQUENCE_UNAVAILABLE")
+            );
     }
 
     [Fact]

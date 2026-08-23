@@ -188,6 +188,40 @@ public sealed class CurrencyAccountServiceTests
         positions.Should().Equal(1, 2, 3, 4, 5);
     }
 
+    /// <summary>
+    /// A transfer whose debit is refused (insufficient funds) must leave BOTH sides exactly as they
+    /// were. The refusal comes back as a failed Result, not an exception, so the transaction's
+    /// operation returns normally — without the commit guard the strategy would commit the attempt,
+    /// keeping the lazily-created recipient account and any balance already moved. Asserts the two
+    /// balances and the ledger separately: a count-only check would sail past a one-sided write.
+    /// </summary>
+    [Fact]
+    public async Task A_refused_transfer_leaves_both_balances_and_the_ledger_untouched()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (CurrencyAccountService sut, EventStoreTestDbContext db, RecordingEventBus bus) = New(
+            database
+        );
+        await SeedConfigAsync(db, startingBalance: 0);
+
+        // Neither wallet exists yet: TransferAsync lazily creates BOTH inside its transaction before it
+        // discovers the sender cannot cover the amount. That makes the rollback observable — a committed
+        // failed attempt would leave two accounts (and their seed ledger entries) behind.
+        Result<TransferResultDto> refused = await sut.TransferAsync(
+            Channel,
+            new(Viewer, Viewer2, 500, "more than they have", null)
+        );
+
+        refused.IsFailure.Should().BeTrue("a 0 balance cannot cover a transfer of 500");
+        (await db.CurrencyAccounts.CountAsync(a => a.BroadcasterId == Channel))
+            .Should()
+            .Be(0, "the accounts created by the failed attempt must roll back with it");
+        (await db.CurrencyLedgerEntries.CountAsync(e => e.BroadcasterId == Channel))
+            .Should()
+            .Be(0, "a refused transfer writes no ledger entry at all");
+        bus.Published.Should().BeEmpty("nothing moved, so no movement may be announced");
+    }
+
     [Fact]
     public async Task Transfer_moves_balance_as_a_linked_debit_and_credit()
     {
