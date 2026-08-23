@@ -97,6 +97,26 @@ public static class ProviderCompatibilityExtensions
                 string? columnType = property.GetColumnType();
                 Type clrType = property.ClrType;
 
+                // SQLite has no native DateTimeOffset comparison — every relational predicate, ORDER BY,
+                // MIN/MAX or GROUP BY key over a DateTimeOffset column fails client-side evaluation (or
+                // throws) because the provider cannot translate <, <=, >, >= on its default TEXT mapping.
+                // Storing the instant as UTC ticks (a plain INTEGER) makes every such operator translate as
+                // an ordinary integer comparison on BOTH the primary key and the same column's semantics on
+                // Postgres (which maps DateTimeOffset natively and needs no rewrite). Applied model-wide so
+                // this class of bug cannot recur one call-site at a time.
+                if (clrType == typeof(DateTimeOffset) || clrType == typeof(DateTimeOffset?))
+                {
+                    bool isNullable = clrType == typeof(DateTimeOffset?);
+                    property.SetValueConverter(
+                        isNullable
+                            ? new NullableDateTimeOffsetTicksConverter()
+                            : new DateTimeOffsetTicksConverter()
+                    );
+                    property.SetColumnType("INTEGER");
+                    property.SetDefaultValueSql(null);
+                    continue;
+                }
+
                 bool isNpgsqlNativeColumn =
                     columnType
                     is "jsonb"
@@ -179,6 +199,24 @@ public static class ProviderCompatibilityExtensions
 
         Type comparerType = typeof(JsonValueComparer<>).MakeGenericType(clrType);
         return (ValueComparer?)Activator.CreateInstance(comparerType);
+    }
+
+    /// <summary>Stores a <see cref="DateTimeOffset"/> as its UTC tick count so SQLite can translate comparisons.</summary>
+    private sealed class DateTimeOffsetTicksConverter : ValueConverter<DateTimeOffset, long>
+    {
+        public DateTimeOffsetTicksConverter()
+            : base(v => v.UtcTicks, v => new DateTimeOffset(v, TimeSpan.Zero)) { }
+    }
+
+    /// <summary>Nullable counterpart of <see cref="DateTimeOffsetTicksConverter"/>.</summary>
+    private sealed class NullableDateTimeOffsetTicksConverter
+        : ValueConverter<DateTimeOffset?, long?>
+    {
+        public NullableDateTimeOffsetTicksConverter()
+            : base(
+                v => v == null ? (long?)null : v.Value.UtcTicks,
+                v => v == null ? (DateTimeOffset?)null : new DateTimeOffset(v.Value, TimeSpan.Zero)
+            ) { }
     }
 
     /// <summary>Round-trips a value to/from JSON text (Newtonsoft, the project's [VC:JSON] serializer).</summary>
