@@ -13,6 +13,8 @@ using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -63,6 +65,9 @@ public sealed class FeatureFlagAdminService(
             f => f.Key == request.Key,
             ct
         );
+        string oldValue = flag is null
+            ? "(new)"
+            : $"enabled={flag.IsEnabledGlobally};rollout={flag.RolloutPercentage};tier={flag.MinTierKey ?? "-"}";
         if (flag is null)
         {
             flag = new() { Key = request.Key, CreatedAt = now };
@@ -82,6 +87,10 @@ public sealed class FeatureFlagAdminService(
                 .Select(t => (Guid?)t.Id)
                 .FirstOrDefaultAsync(ct);
         flag.UpdatedAt = now;
+
+        string newValue =
+            $"enabled={flag.IsEnabledGlobally};rollout={flag.RolloutPercentage};tier={flag.MinTierKey ?? "-"}";
+        AuditFlagChange(request.Key, null, actorUserId, oldValue, newValue, now);
 
         await db.SaveChangesAsync(ct);
         await EmitAsync(request.Key, Guid.Empty, "flag_set", actorUserId, ct);
@@ -116,6 +125,8 @@ public sealed class FeatureFlagAdminService(
             o => o.FeatureFlagId == flag.Id && o.BroadcasterId == broadcasterId,
             ct
         );
+        bool wasNew = over is null;
+        string oldValue = wasNew ? "(none)" : $"enabled={over!.IsEnabled}";
         if (over is null)
         {
             over = new()
@@ -130,6 +141,15 @@ public sealed class FeatureFlagAdminService(
         over.Reason = request.Reason;
         over.ExpiresAt = request.ExpiresAt;
         over.UpdatedAt = now;
+
+        AuditFlagChange(
+            flagKey,
+            broadcasterId,
+            actorUserId,
+            oldValue,
+            $"enabled={over.IsEnabled}",
+            now
+        );
 
         await db.SaveChangesAsync(ct);
         await InvalidateAsync(flagKey, broadcasterId, ct);
@@ -155,6 +175,16 @@ public sealed class FeatureFlagAdminService(
         if (over is null)
             return Result.Failure("Override not found.", "NOT_FOUND");
 
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        AuditFlagChange(
+            flagKey,
+            broadcasterId,
+            actorUserId,
+            $"enabled={over.IsEnabled}",
+            "(removed)",
+            now
+        );
+
         db.FeatureFlagOverrides.Remove(over);
         await db.SaveChangesAsync(ct);
         await InvalidateAsync(flagKey, broadcasterId, ct);
@@ -164,6 +194,36 @@ public sealed class FeatureFlagAdminService(
 
     private Task InvalidateAsync(string flagKey, Guid broadcasterId, CancellationToken ct) =>
         cache.RemoveAsync($"ff:{flagKey}:{broadcasterId}", ct);
+
+    /// <summary>
+    /// Records a feature-flag mutation into the platform-IAM audit log (S086f — flag changes were entirely
+    /// unaudited). Reuses <see cref="IamAuditLog"/> rather than a second audit table: <c>Permission</c>
+    /// carries the flag action, <c>TargetResource</c> the flag key, and <c>Justification</c> the actor plus
+    /// the before/after values. Tracked on the change tracker for the caller's own <c>SaveChangesAsync</c>.
+    /// </summary>
+    private void AuditFlagChange(
+        string flagKey,
+        Guid? broadcasterId,
+        Guid? actorUserId,
+        string oldValue,
+        string newValue,
+        DateTime now
+    ) =>
+        db.IamAuditLogs.Add(
+            new()
+            {
+                PrincipalId = actorUserId ?? Guid.Empty,
+                PrincipalType = IamPrincipalType.Employee,
+                Permission = "feature_flag:set",
+                TargetBroadcasterId = broadcasterId,
+                TargetResource = flagKey,
+                Justification =
+                    $"actor={actorUserId?.ToString() ?? "system"};old={oldValue};new={newValue}",
+                BreakGlass = false,
+                Outcome = IamOutcome.Allowed,
+                OccurredAt = now,
+            }
+        );
 
     private async Task EmitAsync(
         string flagKey,

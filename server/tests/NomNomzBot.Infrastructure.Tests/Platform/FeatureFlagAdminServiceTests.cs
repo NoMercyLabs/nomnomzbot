@@ -39,12 +39,7 @@ public sealed class FeatureFlagAdminServiceTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         ICacheService cache = Substitute.For<ICacheService>();
         RecordingEventBus bus = new();
-        return (
-            new(db, bus, cache, new FakeTimeProvider(Now)),
-            db,
-            cache,
-            bus
-        );
+        return (new(db, bus, cache, new FakeTimeProvider(Now)), db, cache, bus);
     }
 
     private static async Task SeedFlagAsync(AuthDbContext db, string key = "feat")
@@ -82,12 +77,7 @@ public sealed class FeatureFlagAdminServiceTests
         ) = Build();
         await SeedFlagAsync(db);
 
-        Result result = await sut.SetOverrideAsync(
-            "feat",
-            Channel,
-            new(IsEnabled: true),
-            null
-        );
+        Result result = await sut.SetOverrideAsync("feat", Channel, new(IsEnabled: true), null);
 
         result.IsSuccess.Should().BeTrue();
         db.FeatureFlagOverrides.Single().IsEnabled.Should().BeTrue();
@@ -103,12 +93,7 @@ public sealed class FeatureFlagAdminServiceTests
     {
         (FeatureFlagAdminService sut, _, _, _) = Build();
 
-        Result result = await sut.SetOverrideAsync(
-            "missing",
-            Channel,
-            new(IsEnabled: true),
-            null
-        );
+        Result result = await sut.SetOverrideAsync("missing", Channel, new(IsEnabled: true), null);
 
         result.ErrorCode.Should().Be("NOT_FOUND");
     }
@@ -125,5 +110,39 @@ public sealed class FeatureFlagAdminServiceTests
         result.IsSuccess.Should().BeTrue();
         db.FeatureFlagOverrides.Should().BeEmpty();
         await cache.Received(2).RemoveAsync($"ff:feat:{Channel}", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetFlag_writes_an_audit_row_naming_the_actor_flag_old_and_new_value()
+    {
+        (FeatureFlagAdminService sut, AuthDbContext db, _, _) = Build();
+        Guid actor = Guid.Parse("0192a000-0000-7000-8000-0000000090aa");
+
+        await sut.SetFlagAsync(new("feat", "desc", false, 0), actor);
+        await sut.SetFlagAsync(new("feat", "desc", true, 100), actor);
+
+        db.IamAuditLogs.Should().HaveCount(2);
+        NomNomzBot.Domain.Identity.Entities.IamAuditLog second = db
+            .IamAuditLogs.OrderBy(a => a.Id)
+            .Last();
+        second.TargetResource.Should().Be("feat");
+        second.Justification.Should().Contain(actor.ToString());
+        second.Justification.Should().Contain("enabled=False");
+        second.Justification.Should().Contain("enabled=True");
+    }
+
+    [Fact]
+    public async Task SetOverride_and_RemoveOverride_each_write_an_audit_row()
+    {
+        (FeatureFlagAdminService sut, AuthDbContext db, _, _) = Build();
+        await SeedFlagAsync(db);
+        Guid actor = Guid.Parse("0192a000-0000-7000-8000-0000000090bb");
+
+        await sut.SetOverrideAsync("feat", Channel, new(true), actor);
+        await sut.RemoveOverrideAsync("feat", Channel, actor);
+
+        db.IamAuditLogs.Should().HaveCount(2);
+        db.IamAuditLogs.Should()
+            .Contain(a => a.Justification != null && a.Justification.Contains("new=(removed)"));
     }
 }
