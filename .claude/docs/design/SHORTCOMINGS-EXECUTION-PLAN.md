@@ -40,8 +40,6 @@ Slice IDs are stable; the order is the queue.
   flat `Service` table rather than `IIntegrationTokenVault` — a second custody path. Done-when: Spotify refresh goes through
   `ConnectionRefreshGate` with the same two-concurrent-callers test, and YouTube custody is on the vault or the split is
   documented as deliberate with the reason.
-- **S037** Worker backoff — delay out of the try in YouTube poll / scheduled-pipeline expiry /
-  TimerService / redemption-timer expiry (U·B7). Done-when: a throwing tick sleeps its interval (test each).
 - **S038** DB/Redis resilience — Redis `abortConnect=false` + degrade; health check pings the singleton;
   SQLite WAL + busy timeout; `EnableRetryOnFailure`; `UnitOfWork` nested-begin guard + disposable;
   delete `DatabaseHealthCheck.cs` (U·B7). Done-when: SQLite soak with all services shows no "locked".
