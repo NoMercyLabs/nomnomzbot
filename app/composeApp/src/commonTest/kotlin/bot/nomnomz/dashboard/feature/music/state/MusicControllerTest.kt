@@ -17,8 +17,11 @@ import bot.nomnomz.dashboard.core.network.BlockedTrack
 import bot.nomnomz.dashboard.core.network.BlockedTrackPage
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.IntegrationStatus
+import bot.nomnomz.dashboard.core.network.IntegrationsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.MusicApi
+import bot.nomnomz.dashboard.core.network.OAuthStart
 import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.MusicDevice
 import bot.nomnomz.dashboard.core.network.MusicPlaylist
@@ -47,6 +50,52 @@ import kotlinx.coroutines.test.runTest
 // testing it proves the page shows the real playback (no fabricated tracks), controls it through the real
 // backend routes, reloads on a successful control so both halves re-project, and degrades cleanly.
 class MusicControllerTest {
+
+    // S003b — the state holder must expose the SAME dead-token signal the Integrations card reads
+    // (`IntegrationStatus.needsReauth`), not fabricate its own, so the Music page and the Integrations card
+    // never disagree about whether Spotify is actually connected.
+    @Test
+    fun load_surfaces_spotify_needs_reauth_from_the_integrations_status() = runTest {
+        val controller =
+            MusicController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                musicApi = FakeMusicApi(ApiResult.Ok(MusicSnapshot())),
+                integrationsApi =
+                    FakeIntegrationsApiForMusic(
+                        listOf(IntegrationStatus(provider = "spotify", connected = true, needsReauth = true))
+                    ),
+            )
+
+        controller.load()
+
+        val state: MusicState.Ready = controller.state.value as MusicState.Ready
+        assertTrue(state.spotifyNeedsReauth)
+    }
+
+    @Test
+    fun load_reports_no_reauth_when_spotify_is_healthy() = runTest {
+        val controller =
+            MusicController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                musicApi =
+                    FakeMusicApi(
+                        ApiResult.Ok(
+                            MusicSnapshot(
+                                nowPlaying = NowPlaying(trackName = "Track", artist = "Artist", provider = "spotify")
+                            )
+                        )
+                    ),
+                integrationsApi =
+                    FakeIntegrationsApiForMusic(
+                        listOf(IntegrationStatus(provider = "spotify", connected = true, needsReauth = false))
+                    ),
+            )
+
+        controller.load()
+
+        val state: MusicState.Ready = controller.state.value as MusicState.Ready
+        assertFalse(state.spotifyNeedsReauth)
+    }
 
     @Test
     fun load_surfaces_the_now_playing_track_and_queue_on_success() = runTest {
@@ -555,6 +604,25 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun channelBotStatus(channelId: String) = error("stub")
     override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
+}
+
+private class FakeIntegrationsApiForMusic(private val statuses: List<IntegrationStatus>) : IntegrationsApi {
+    override suspend fun status(channelId: String): ApiResult<List<IntegrationStatus>> = ApiResult.Ok(statuses)
+
+    override suspend fun startGenericConnect(
+        channelId: String,
+        provider: String,
+        scopeSetKey: String,
+        returnUrl: String?,
+    ): ApiResult<OAuthStart> = error("not exercised by the Music controller")
+
+    override fun discordStartUrl(baseUrl: String, channelId: String): String = ""
+
+    override suspend fun disconnectGeneric(channelId: String, provider: String): ApiResult<Unit> =
+        error("not exercised by the Music controller")
+
+    override suspend fun disconnectDiscord(channelId: String): ApiResult<Unit> =
+        error("not exercised by the Music controller")
 }
 
 private class FakeMusicApi(

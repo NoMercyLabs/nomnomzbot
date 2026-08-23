@@ -83,6 +83,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.music_action_error
+import nomnomzbot.composeapp.generated.resources.music_spotify_needs_reauth
+import nomnomzbot.composeapp.generated.resources.music_spotify_reconnect
 import nomnomzbot.composeapp.generated.resources.music_art_placeholder
 import nomnomzbot.composeapp.generated.resources.music_empty
 import nomnomzbot.composeapp.generated.resources.music_error
@@ -182,6 +184,9 @@ fun MusicScreen(
     controller: MusicController,
     role: ManagementRole?,
     hubEvents: SharedFlow<HubEvent>? = null,
+    // S003b — where the reconnect notice's action sends the streamer; defaults to a no-op so screens/tests
+    // that don't wire shell navigation still compile.
+    onNavigateToIntegrations: () -> Unit = {},
 ) {
     val state: MusicState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -236,6 +241,8 @@ fun MusicScreen(
                     },
                     onUnblockTrack = { id -> scope.launch { controller.unblockTrack(id) } },
                     onBlockedPage = { page -> scope.launch { controller.loadBlockedTracks(page) } },
+                    spotifyNeedsReauth = current.spotifyNeedsReauth,
+                    onReconnectSpotify = onNavigateToIntegrations,
                 )
         }
     }
@@ -271,6 +278,8 @@ private fun ReadyContent(
     onBlockTrack: (provider: String, trackUri: String, title: String, reason: String?) -> Unit,
     onUnblockTrack: (blockedTrackId: String) -> Unit,
     onBlockedPage: (page: Int) -> Unit,
+    spotifyNeedsReauth: Boolean = false,
+    onReconnectSpotify: () -> Unit = {},
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -285,6 +294,14 @@ private fun ReadyContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_music))
+        if (spotifyNeedsReauth) {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                ActionErrorBanner(message = stringResource(Res.string.music_spotify_needs_reauth))
+                Button(onClick = onReconnectSpotify) {
+                    Text(stringResource(Res.string.music_spotify_reconnect), maxLines = 1)
+                }
+            }
+        }
         if (nowPlaying != null) {
             NowPlayingCard(
                 nowPlaying = nowPlaying,

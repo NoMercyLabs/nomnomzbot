@@ -666,6 +666,7 @@ class AppGraph {
         MusicController(
             channelsApi = channelsApi,
             musicApi = musicApi,
+            integrationsApi = integrationsApi,
             baseUrlProvider = sessionStore::baseUrl,
         )
 

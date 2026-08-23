@@ -409,6 +409,7 @@ fun ShellScreen(
                     isReviewer = user?.isAdmin == true,
                     onChannelDeleted = onLogout,
                     onReconnect = triggerReconnect,
+                    onNavigate = { requestedRoute = it },
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
             }
@@ -466,6 +467,7 @@ fun ShellScreen(
                         isReviewer = user?.isAdmin == true,
                         onChannelDeleted = onLogout,
                         onReconnect = triggerReconnect,
+                        onNavigate = { requestedRoute = it },
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                     )
                 }
@@ -518,6 +520,7 @@ private fun ShellContent(
     isReviewer: Boolean = false,
     onChannelDeleted: () -> Unit = {},
     onReconnect: () -> Unit = {},
+    onNavigate: (ShellRoute) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val activeChannelId: String? by graph.channelSwitcherController.activeChannelId.collectAsStateWithLifecycle()
@@ -579,6 +582,7 @@ private fun ShellContent(
                     controller = graph.musicController,
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
+                    onNavigateToIntegrations = { onNavigate(ShellRoute.Integrations) },
                 )
             ShellRoute.SoundClips ->
                 SoundScreen(controller = graph.soundController, role = role)

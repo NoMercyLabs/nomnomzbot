@@ -16,6 +16,8 @@ import bot.nomnomz.dashboard.core.network.BlockedTrack
 import bot.nomnomz.dashboard.core.network.BlockedTrackPage
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.IntegrationStatus
+import bot.nomnomz.dashboard.core.network.IntegrationsApi
 import bot.nomnomz.dashboard.core.network.MusicApi
 import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.MusicSnapshot
@@ -40,6 +42,12 @@ import kotlinx.coroutines.flow.asStateFlow
 class MusicController(
     private val channelsApi: ChannelsApi,
     private val musicApi: MusicApi,
+    // S003b — read alongside the queue so a dead/forbidden Spotify grant surfaces on the Music page itself
+    // (not just the Integrations card). Reuses the SAME typed status the Integrations screen already renders
+    // (`IntegrationStatus.needsReauth`), so this is one source of truth, not a second auth-state computation.
+    // Defaults to a no-signal stub for callers (and older tests) that don't exercise the reauth path — it
+    // reports every provider healthy rather than failing the whole load over an untested dependency.
+    private val integrationsApi: IntegrationsApi = NoSignalIntegrationsApi,
     // The active backend origin, read live so the pretty share link (`{origin}/sr/@name`) matches whatever host
     // served the dashboard. Null (the default, e.g. in tests) simply omits the absolute link.
     private val baseUrlProvider: () -> String? = { null },
@@ -121,21 +129,34 @@ class MusicController(
                 channel.login.takeIf { it.isNotBlank() }?.let { login -> "$origin/sr/@$login" }
             }
 
+        // S003b — the Spotify grant's live auth health, from the same unified status the Integrations card
+        // reads. A failure degrades to "healthy" (false) rather than falsely alarming the streamer over an
+        // unrelated network hiccup on this read.
+        val spotifyNeedsReauth: Boolean =
+            when (val result: ApiResult<List<IntegrationStatus>> = integrationsApi.status(channel.id)) {
+                is ApiResult.Ok -> result.value.any { it.provider == "spotify" && it.needsReauth }
+                is ApiResult.Failure -> false
+            }
+
         _state.value =
-            if (snapshot.nowPlaying == null && snapshot.queue.isEmpty() && config == null) MusicState.Empty
-            else MusicState.Ready(
-                nowPlaying = snapshot.nowPlaying,
-                queue = snapshot.queue,
-                config = config,
-                srPageToken = srToken,
-                shareLink = shareLink,
-                devices = devices,
-                playlists = playlists,
-                blockedTracks = blocked.data,
-                blockedPage = blockedPage,
-                blockedTotal = blocked.total,
-                blockedHasMore = blocked.hasMore,
-            )
+            if (snapshot.nowPlaying == null && snapshot.queue.isEmpty() && config == null && !spotifyNeedsReauth) {
+                MusicState.Empty
+            } else {
+                MusicState.Ready(
+                    nowPlaying = snapshot.nowPlaying,
+                    queue = snapshot.queue,
+                    config = config,
+                    srPageToken = srToken,
+                    shareLink = shareLink,
+                    devices = devices,
+                    playlists = playlists,
+                    blockedTracks = blocked.data,
+                    blockedPage = blockedPage,
+                    blockedTotal = blocked.total,
+                    blockedHasMore = blocked.hasMore,
+                    spotifyNeedsReauth = spotifyNeedsReauth,
+                )
+            }
     }
 
     /**
@@ -373,9 +394,36 @@ sealed interface MusicState {
         val blockedTotal: Int = 0,
         val blockedHasMore: Boolean = false,
         val actionError: String? = null,
+        // S003b — true when the active Spotify grant is dead (a live call came back 401). The screen shows a
+        // reconnect notice; a healthy or non-Spotify provider (or a read failure) reports false.
+        val spotifyNeedsReauth: Boolean = false,
     ) : MusicState
 
     data object Empty : MusicState
 
     data class Error(val detail: String) : MusicState
+}
+
+// S003b — the default [MusicController.integrationsApi]: reports every provider connected/healthy and never
+// wired for a mutation (the Music page never calls anything beyond `status`). Exists solely so a caller that
+// doesn't care about the reauth signal (older tests, a future non-Twitch host) doesn't have to wire a real
+// [IntegrationsApi] just to construct the controller.
+private object NoSignalIntegrationsApi : IntegrationsApi {
+    override suspend fun status(channelId: String): ApiResult<List<IntegrationStatus>> = ApiResult.Ok(emptyList())
+
+    override suspend fun startGenericConnect(
+        channelId: String,
+        provider: String,
+        scopeSetKey: String,
+        returnUrl: String?,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.OAuthStart> =
+        ApiResult.Failure(bot.nomnomz.dashboard.core.network.ApiError(status = 501, code = "UNSUPPORTED", message = "Not wired."))
+
+    override fun discordStartUrl(baseUrl: String, channelId: String): String = ""
+
+    override suspend fun disconnectGeneric(channelId: String, provider: String): ApiResult<Unit> =
+        ApiResult.Failure(bot.nomnomz.dashboard.core.network.ApiError(status = 501, code = "UNSUPPORTED", message = "Not wired."))
+
+    override suspend fun disconnectDiscord(channelId: String): ApiResult<Unit> =
+        ApiResult.Failure(bot.nomnomz.dashboard.core.network.ApiError(status = 501, code = "UNSUPPORTED", message = "Not wired."))
 }
