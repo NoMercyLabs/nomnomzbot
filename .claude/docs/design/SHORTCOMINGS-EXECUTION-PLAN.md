@@ -42,6 +42,13 @@ Slice IDs are stable; the order is the queue.
   public, per IP), `admin` (per principal); assign every controller/action explicitly; 429 responses carry `Retry-After`
   and the dashboard shows a calm "slow down" instead of an error. Done-when: 50 toggles in a minute never 429; 50 login
   attempts do.
+  **Counted 2026-08-23:** every controller already has *a* limiter (BaseController's `api`, or an explicit attribute —
+  `ControllerSecurityBaselineTests` enforces it). The gap is tiering: 5 controllers run sensitive/destructive platform
+  actions on the generic `api` bucket — `PlatformAdminController` (impersonate, suspend, tenant ops),
+  `PlatformIamController` (principal create/deactivate), `FeatureFlagAdminController`, `AdminBillingController`
+  (billing writes + refund), `ComplianceController` (GDPR erasure). `AdminController:180` is the only action already on
+  `SecuritySensitiveRateLimitPolicy` (added by S098e) — that policy is the pattern to spread. Run this sweep after
+  S086c/S086e land, since they hold three of those files.
 - **S111c** Desktop app polish — firewall hint; log file with a size cap and a documented path; session-expiry
   refresh; window state persisted; app icon + stamped version (`/health/version` is hardcoded 1.0.0.0); macOS
   data dir (U·E5). Done-when: a restart restores window state and the version endpoint reports the build.
