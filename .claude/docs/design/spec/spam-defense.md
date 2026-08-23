@@ -214,6 +214,39 @@ Cross-message and cross-channel, over sliding windows.
 Baselines are per-channel and self-calibrating. A 50-viewer channel and a 50 000-viewer channel
 must not share a threshold.
 
+#### L3.0 — A campaign is a cohort of strangers (SD0)
+
+Correlation is the most dangerous layer in this design, because **a beloved community copypasta
+and a coordinated spam campaign are the same shape**: many accounts, near-identical text, tight
+window. Hype spam, raid greetings, an inside joke everyone pastes, a "GG" wall after a clutch —
+all of them trip a naive campaign detector, and the cost of getting it wrong is mass-banning the
+most enthusiastic people in the room.
+
+So a campaign is not defined by the message. It is defined by **who is sending it**:
+
+> **A cohort is a campaign only when at least 80% of its members have no positive standing
+> (§L1.2).** If regulars, subs, mods-elsewhere, or viewers with watch time are pasting it, it is
+> community behaviour, and it is not a campaign — no matter how identical the text.
+
+The membership rules that follow from that:
+
+- Semi-Trusted and Established members are removed from the cohort **before** the 80% is computed,
+  never counted toward it.
+- A cohort failing the threshold produces **no action at all** — not a downgraded one. It is
+  recorded as `community_pattern` for the mod feed, and the skeleton is *not* added to the corpus.
+- A cohort passing it still actions each member on their own evidence (SD9), never as a set.
+
+**Channel-benign learning.** A skeleton repeatedly posted by standing viewers in a channel is
+marked benign **for that channel** and stops contributing to correlation there. Communities get to
+have catchphrases, and the system learns them instead of fighting them. Benign marks are
+channel-local and are **never** contributed to the network — one channel's in-joke is another's
+spam.
+
+**Never network-contributed:** a skeleton first observed from a cohort that included any
+standing viewer. Positive standing anywhere in a cohort disqualifies it as a signature source
+outright, because a false signature propagated to every subscriber is the worst outcome this
+system can produce.
+
 #### L3.1 — Lurker protection (SD9)
 
 The lurker is the easiest person in this system to hurt by accident, because they generate no
@@ -490,6 +523,12 @@ table-driven test over the full signal enum, so **adding a new signal without co
 the build** — the immunity cannot decay as the system grows. Plus: an Established viewer who
 quotes a live campaign's exact spam text is asserted absent from the resulting `SpamCampaign`
 member set, and unactioned.
+
+**L3.0 — community copypasta is not a campaign.** 40 accounts post the same phrase inside 20
+seconds; 15 are subs, regulars, or carry watch time. Assert **no** `SpamCampaign` is created, zero
+actions, a `community_pattern` record instead, and that the skeleton is neither added to the local
+corpus nor queued for network contribution. Then re-run with all 40 as fresh no-standing accounts
+and assert a campaign *is* created — the test must be able to fail in both directions.
 
 **SD11 — Semi-Trusted can never be auto-banned.** Table-driven over the full signal enum, and over
 each route into Semi-Trusted (mod elsewhere, VIP elsewhere, sub elsewhere, watch time here, watch
