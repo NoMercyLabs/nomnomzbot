@@ -36,6 +36,7 @@ SignalR hub methods and pipeline actions excluded). `#PipeActions` = `ICommandAc
 | Custom Code (T3) | `custom-code.md` | H.5, H.6, H.7 | 5 | 8 | 1 (`run_code`) |
 | Chat-message decoration (third-party emotes + enrichment) | `chat-decoration.md` | — (enriches the chat fragment tree; no schema delta) | — | 0 | 0 |
 | Moderation | `moderation.md` | J.1–J.11, O.8 | 9 | 34 | 6 (2 exist + 4 new) |
+| Spam &amp; Bot Defense | `spam-defense.md` | extends J.* (6 new entities + `UserTrustScore` delta) | 6 | — | — |
 | Economy | `economy.md` | K.1–K.11, L.1–L.3 | 8 | 49 | 5 |
 | Live Games | `live-games.md` | K.9a GameSession (+ K.9 GamePlay delta; consumes K.7/K.2/K.3) | 2 (+3 IGameService deltas) | 5 | 2 |
 | Music & Song Requests | `music-sr.md` | L.4–L.9, E.5, E.6 | 9 | 31 | 8 |
