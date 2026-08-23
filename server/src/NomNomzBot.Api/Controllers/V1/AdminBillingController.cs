@@ -21,8 +21,10 @@ namespace NomNomzBot.Api.Controllers.V1;
 
 /// <summary>
 /// Platform-admin billing (monetization-billing.md §5.3) — invite-code administration + manual tier/founder
-/// grants. Plane-C IAM gates per the §5.3 rows: reads on <c>billing:read</c>, invite minting/revocation and
-/// manual grants on <c>iam:manage</c> (policy name = <c>IamPermission.Key</c> verbatim, audited on SaaS).
+/// grants + invoice refunds. Plane-C IAM gates per the §5.3 rows: reads on <c>billing:read</c>, invite
+/// minting/revocation and manual grants on <c>billing:write</c>, refunds on <c>billing:refund</c> (policy
+/// name = <c>IamPermission.Key</c> verbatim, audited on SaaS) — the <c>platform-billing</c> role holds all
+/// three; <c>iam:manage</c> stays reserved for actual IAM administration.
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/admin/billing")]
@@ -52,7 +54,7 @@ public class AdminBillingController(IInviteCodeService invites, ISubscriptionSer
 
     /// <summary>Mint an invite code with redemption cap, optional tier/founders-badge grant, and expiry.</summary>
     [HttpPost("invites")]
-    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [Authorize(Policy = IamPermissionKeys.BillingWrite)]
     public async Task<IActionResult> CreateInvite(
         [FromBody] CreateInviteCodeRequest request,
         CancellationToken ct
@@ -60,13 +62,13 @@ public class AdminBillingController(IInviteCodeService invites, ISubscriptionSer
 
     /// <summary>Revoke an invite code, blocking further redemptions.</summary>
     [HttpPost("invites/{inviteCodeId:guid}/revoke")]
-    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [Authorize(Policy = IamPermissionKeys.BillingWrite)]
     public async Task<IActionResult> RevokeInvite(Guid inviteCodeId, CancellationToken ct) =>
         ResultResponse(await invites.RevokeInviteCodeAsync(inviteCodeId, ct));
 
     /// <summary>Manually grant a channel a tier without Stripe, optionally marked as an invite-only grant.</summary>
     [HttpPost("channels/{broadcasterId:guid}/grant-tier")]
-    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [Authorize(Policy = IamPermissionKeys.BillingWrite)]
     public async Task<IActionResult> GrantTier(
         Guid broadcasterId,
         [FromBody] GrantTierRequest request,
@@ -83,7 +85,13 @@ public class AdminBillingController(IInviteCodeService invites, ISubscriptionSer
 
     /// <summary>Grant a channel the founders badge directly.</summary>
     [HttpPost("channels/{broadcasterId:guid}/grant-founder")]
-    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [Authorize(Policy = IamPermissionKeys.BillingWrite)]
     public async Task<IActionResult> GrantFounder(Guid broadcasterId, CancellationToken ct) =>
         ResultResponse(await invites.GrantFoundersBadgeAsync(broadcasterId, ct));
+
+    /// <summary>Refund a paid invoice in full via Stripe; marks the local invoice <c>Refunded</c>.</summary>
+    [HttpPost("invoices/{invoiceId:guid}/refund")]
+    [Authorize(Policy = IamPermissionKeys.BillingRefund)]
+    public async Task<IActionResult> RefundInvoice(Guid invoiceId, CancellationToken ct) =>
+        ResultResponse(await subscriptions.RefundInvoiceAsync(invoiceId, ct));
 }
