@@ -39,9 +39,12 @@ Slice IDs are stable; the order is the queue.
   public, per IP), `admin` (per principal); assign every controller/action explicitly; 429 responses carry `Retry-After`
   and the dashboard shows a calm "slow down" instead of an error. Done-when: 50 toggles in a minute never 429; 50 login
   attempts do.
-- **S111** Desktop app hardening — OS keychain/DPAPI token store; saved connections + switcher + forget;
-  rescan + firewall hint; log file; session-expiry refresh; window state; icon + stamped version; macOS
-  data dir (U·E5). Done-when: tokens never on disk in plaintext.
+- **S111b** Desktop saved connections — list + add + switch + forget in the Connect/profile UI, wired to the
+  committed `SavedConnectionsRepository`; rescan action; mDNS failure surfaced inline instead of stderr (U·E5).
+  Done-when: switch changes the active connection and reconnects; forget removes it and its token.
+- **S111c** Desktop app polish — firewall hint; log file with a size cap and a documented path; session-expiry
+  refresh; window state persisted; app icon + stamped version (`/health/version` is hardcoded 1.0.0.0); macOS
+  data dir (U·E5). Done-when: a restart restores window state and the version endpoint reports the build.
 - **S086** IAM bootstrap truth — self-host = deployment-mode fact (not "any principal exists");
   bootstrap mints a real principal + owner role for the self-host owner and `INITIAL_ADMIN_TWITCH_ID`;
   acting principal never `Guid.Empty` (system principal row); resolve failure ≠ allow (U·D2).
