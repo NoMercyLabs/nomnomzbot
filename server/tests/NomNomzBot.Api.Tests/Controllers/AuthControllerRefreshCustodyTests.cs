@@ -72,7 +72,7 @@ public sealed class AuthControllerRefreshCustodyTests
             .Returns(Result.Success(Auth("new-acc-tok", "new-ref-tok")));
 
         IActionResult result = await controller.RefreshToken(
-            new RefreshTokenRequest { RefreshToken = "body-ref-tok" },
+            new RefreshTokenRequest("body-ref-tok"),
             null,
             default
         );
