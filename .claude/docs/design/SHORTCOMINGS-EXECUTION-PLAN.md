@@ -26,12 +26,6 @@ Slice IDs are stable; the order is the queue.
   agree, but a bot restart mid-stream still drops every viewer’s pending request with no warning. Streamers restart the bot
   during a show (config change, update, crash). Done-when: the queue survives a restart with order and requester intact,
   and a viewer whose request was dropped is never silently ignored — either it is restored or the channel is told.
-- **S003b** Show the Spotify auth state to the streamer — S003 (1b8926e1) added `AuthStatus`
-  (`needs_reauth` / `forbidden` / healthy) to `ChannelIntegrationDto` and proved the provider-level transitions, but nothing
-  RENDERS it: the Integrations card and the Music page still look connected. Backend gap too: the DTO wiring itself has no
-  DB-level test (covered only via `GetActiveProviderAuthStatusAsync`), so a stale value could reach the card unnoticed.
-  Done-when: the card and the Music page show the state with a one-click reconnect for `needs_reauth`, en+nl strings, and a
-  test asserts the DTO served from the database carries the right status.
 - **S008c-read** Nothing can READ the pipeline execution history — S008b (75519b88) persists runs with per-step logs and
   retention, but no API or dashboard surface exposes them, so a streamer debugging a misbehaving command still cannot see
   why it failed. Done-when: a run history endpoint exists (paged, tenant-scoped, failures filterable) and the dashboard shows
