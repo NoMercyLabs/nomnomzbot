@@ -421,13 +421,23 @@ public class MusicController : BaseController
         NowPlaying? track = await _musicService.GetNowPlayingAsync(channelId, ct);
 
         if (track is null)
-            return Ok(
-                new StatusResponseDto<NowPlayingDto>
-                {
-                    Data = null,
-                    Message = "Nothing is currently playing.",
-                }
+        {
+            // S003 — "nothing is playing" and "the connection is broken" used to look identical here;
+            // a broken connection now says so instead of leaving the streamer guessing why playback
+            // never shows up.
+            string? authStatus = await _musicService.GetActiveProviderAuthStatusAsync(
+                channelId,
+                ct
             );
+            string message = authStatus switch
+            {
+                "needs_reauth" => "The music connection needs to be reconnected.",
+                "forbidden" =>
+                    "The music connection doesn't have permission for that — check its access.",
+                _ => "Nothing is currently playing.",
+            };
+            return Ok(new StatusResponseDto<NowPlayingDto> { Data = null, Message = message });
+        }
 
         NowPlayingDto dto = new(
             track.TrackName,

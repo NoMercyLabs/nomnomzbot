@@ -65,7 +65,7 @@ public sealed class MusicServiceQueuePushFailureTests
     [Fact]
     public async Task No_active_device_on_the_initial_push_fails_the_request_with_its_own_code_and_reply()
     {
-        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _, _, _) = Build();
         RespondWithResolvedTrack(handler);
         handler.RespondWhen(IsQueuePush, HttpStatusCode.NotFound, NoActiveDeviceJson);
 
@@ -89,7 +89,7 @@ public sealed class MusicServiceQueuePushFailureTests
     [Fact]
     public async Task Premium_required_on_the_initial_push_fails_the_request_with_its_own_code_and_reply()
     {
-        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _, _, _) = Build();
         RespondWithResolvedTrack(handler);
         handler.RespondWhen(IsQueuePush, HttpStatusCode.Forbidden, PremiumRequiredJson);
 
@@ -108,18 +108,19 @@ public sealed class MusicServiceQueuePushFailureTests
     [Fact]
     public async Task Dead_connection_on_the_initial_push_fails_as_MUSIC_AUTH_FAILED()
     {
-        (MusicService sut, RecordingHttpHandler handler, MusicTestDbContext db) = Build();
+        (
+            MusicService sut,
+            RecordingHttpHandler handler,
+            _,
+            FakeIntegrationTokenVault vault,
+            Guid connectionId
+        ) = Build();
         // Expired token, no refresh token on file — GetTokenAsync resolves to null for every Spotify
         // call (resolve/search included), so AddToQueueAsync (not RequestTrackAsync) is the entry point
         // here: it degrades an unresolvable track to a synthetic display entry and still attempts the
         // real admission — including the immediate provider push, which is what must surface the auth
         // failure rather than a misleading NOT_FOUND from the resolve step.
-        NomNomzBot.Domain.Platform.Entities.Service service = await db.Services.SingleAsync(s =>
-            s.BroadcasterId == ChannelId
-        );
-        service.TokenExpiry = DateTime.UtcNow.AddDays(-1);
-        service.RefreshToken = null;
-        await db.SaveChangesAsync();
+        vault.MakeUnrefreshable(connectionId);
 
         Result result = await sut.AddToQueueAsync(ChannelId.ToString(), TrackUri, "viewer1");
 
@@ -135,7 +136,7 @@ public sealed class MusicServiceQueuePushFailureTests
     [Fact]
     public async Task An_unrecognised_provider_failure_on_the_initial_push_falls_back_to_PROVIDER_ERROR()
     {
-        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _, _, _) = Build();
         RespondWithResolvedTrack(handler);
         handler.RespondWhen(IsQueuePush, HttpStatusCode.InternalServerError, "{}");
 
@@ -153,7 +154,7 @@ public sealed class MusicServiceQueuePushFailureTests
     [Fact]
     public async Task A_successful_initial_push_still_queues_and_replies_with_the_track()
     {
-        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _, _, _) = Build();
         RespondWithResolvedTrack(handler);
         handler.RespondWhen(IsQueuePush, HttpStatusCode.NoContent);
 
@@ -171,7 +172,7 @@ public sealed class MusicServiceQueuePushFailureTests
     [Fact]
     public async Task Skip_with_no_active_device_fails_with_its_own_code_and_puts_the_next_track_back()
     {
-        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _, _, _) = Build();
         RespondWithResolvedTrack(handler);
         // The first push (the live request) succeeds; every push after that fails with
         // NO_ACTIVE_DEVICE — simulating the device disappearing once the queue is already populated.
@@ -213,7 +214,7 @@ public sealed class MusicServiceQueuePushFailureTests
     [Fact]
     public async Task Skip_still_succeeds_when_the_provider_push_succeeds()
     {
-        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _, _, _) = Build();
         RespondWithResolvedTrack(handler);
         handler.RespondWhen(IsQueuePush, HttpStatusCode.NoContent);
         handler.RespondWhen(
@@ -240,13 +241,22 @@ public sealed class MusicServiceQueuePushFailureTests
 
     // ─── Harness ──────────────────────────────────────────────────────────────
 
-    private static (MusicService Sut, RecordingHttpHandler Handler, MusicTestDbContext Db) Build()
+    private static (
+        MusicService Sut,
+        RecordingHttpHandler Handler,
+        MusicTestDbContext Db,
+        FakeIntegrationTokenVault Vault,
+        Guid ConnectionId
+    ) Build()
     {
         MusicTestDbContext db = new(
             new DbContextOptionsBuilder<MusicTestDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
+        // Routing seed: MusicService.GetActiveProviderAsync selects the active provider by which
+        // Service names are connected — a separate concern from SpotifyMusicProvider's OWN token
+        // resolution (which reads the vault below, S003).
         db.Services.Add(
             new()
             {
@@ -259,15 +269,19 @@ public sealed class MusicServiceQueuePushFailureTests
         );
         db.SaveChanges();
 
+        FakeIntegrationTokenVault vault = new(db);
+        Guid connectionId = vault.SeedConnectedSpotify(ChannelId);
+
         RecordingHttpHandler handler = new();
         SpotifyMusicProvider spotify = new(
             db,
-            new PassthroughProtector(),
+            vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
-            NullLogger<SpotifyMusicProvider>.Instance
+            NullLogger<SpotifyMusicProvider>.Instance,
+            NullSystemCredentialsProvider.Instance
         );
 
         RecordingEventBus bus = new();
@@ -278,8 +292,9 @@ public sealed class MusicServiceQueuePushFailureTests
             bus,
             blocks,
             new SongRequestQueueStore(),
-            NullLogger<MusicService>.Instance
+            NullLogger<MusicService>.Instance,
+            new InMemoryIntegrationCapabilityStore()
         );
-        return (sut, handler, db);
+        return (sut, handler, db, vault, connectionId);
     }
 }

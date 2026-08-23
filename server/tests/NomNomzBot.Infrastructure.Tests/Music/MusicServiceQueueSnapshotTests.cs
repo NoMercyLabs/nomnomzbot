@@ -114,14 +114,18 @@ public sealed class MusicServiceQueueSnapshotTests
         );
         db.SaveChanges();
 
+        FakeIntegrationTokenVault vault = new(db);
+        vault.SeedConnectedSpotify(ChannelId);
+
         SpotifyMusicProvider spotify = new(
             db,
-            new PassthroughProtector(),
+            vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(new QueueFakeSpotifyHandler()),
             TimeProvider.System,
-            NullLogger<SpotifyMusicProvider>.Instance
+            NullLogger<SpotifyMusicProvider>.Instance,
+            NullSystemCredentialsProvider.Instance
         );
 
         RecordingEventBus bus = new();
@@ -131,7 +135,8 @@ public sealed class MusicServiceQueueSnapshotTests
             bus,
             new BlockedTrackService(db),
             new SongRequestQueueStore(),
-            NullLogger<MusicService>.Instance
+            NullLogger<MusicService>.Instance,
+            new InMemoryIntegrationCapabilityStore()
         );
         return (sut, bus);
     }

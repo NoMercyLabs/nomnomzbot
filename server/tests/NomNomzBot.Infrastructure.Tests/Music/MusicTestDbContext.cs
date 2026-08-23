@@ -63,6 +63,16 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<NomNomzBot.Domain.Music.Entities.BlockedTrack>(b =>
             b.HasKey(x => x.Id)
         );
+        // S003 — SpotifyMusicProvider resolves its connection id through this table (the vault is the
+        // single token source; no Service-row read). Only the connection ROW is mapped here — the actual
+        // tokens live in FakeIntegrationTokenVault's own in-memory dictionary, never in a mapped
+        // IntegrationToken row (the InMemory provider can't materialize its jsonb-shaped columns anyway).
+        modelBuilder.Entity<IntegrationConnection>(b =>
+        {
+            b.HasKey(c => c.Id);
+            b.Ignore(c => c.Channel);
+            b.Ignore(c => c.Tokens);
+        });
 
         foreach (Type entity in UnmappedEntities)
             modelBuilder.Ignore(entity);
@@ -81,7 +91,9 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
         )
         .Select(p => p.PropertyType.GetGenericArguments()[0])
         .Where(t =>
-            t != typeof(Service) && t != typeof(NomNomzBot.Domain.Music.Entities.BlockedTrack)
+            t != typeof(Service)
+            && t != typeof(NomNomzBot.Domain.Music.Entities.BlockedTrack)
+            && t != typeof(IntegrationConnection)
         )
         .ToList();
 
@@ -157,7 +169,7 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
     public DbSet<AuthSession> AuthSessions => throw new NotSupportedException();
     public DbSet<RefreshToken> RefreshTokens => throw new NotSupportedException();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => throw new NotSupportedException();
-    public DbSet<IntegrationConnection> IntegrationConnections => throw new NotSupportedException();
+    public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
     public DbSet<IntegrationToken> IntegrationTokens => throw new NotSupportedException();
     public DbSet<CryptoKey> CryptoKeys => throw new NotSupportedException();
     public DbSet<KeyUsageBinding> KeyUsageBindings => throw new NotSupportedException();

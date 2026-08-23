@@ -244,8 +244,12 @@ public sealed class MusicServiceCapabilityGatingTests
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
+        FakeIntegrationTokenVault vault = new(db);
         if (connectedService is not null)
         {
+            // Routing seed: MusicService.GetActiveProviderAsync selects the active provider by which
+            // Service names are connected — a separate concern from SpotifyMusicProvider's OWN token
+            // resolution (which reads the vault, S003).
             db.Services.Add(
                 new()
                 {
@@ -258,17 +262,21 @@ public sealed class MusicServiceCapabilityGatingTests
                 }
             );
             db.SaveChanges();
+
+            if (connectedService == "spotify")
+                vault.SeedConnectedSpotify(ChannelId, scopes: scopes);
         }
 
         RecordingHttpHandler handler = new();
         SpotifyMusicProvider spotify = new(
             db,
-            new PassthroughProtector(),
+            vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
-            NullLogger<SpotifyMusicProvider>.Instance
+            NullLogger<SpotifyMusicProvider>.Instance,
+            NullSystemCredentialsProvider.Instance
         );
         YouTubeMusicProvider youtube = YouTubeProviderFactory.Create();
 
@@ -278,7 +286,8 @@ public sealed class MusicServiceCapabilityGatingTests
             new RecordingEventBus(),
             new BlockedTrackService(db),
             new SongRequestQueueStore(),
-            NullLogger<MusicService>.Instance
+            NullLogger<MusicService>.Instance,
+            new InMemoryIntegrationCapabilityStore()
         );
         return (sut, handler);
     }

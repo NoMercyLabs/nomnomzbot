@@ -134,19 +134,21 @@ public sealed class SongRequestQueueCrossScopeTests
             [
                 new SpotifyMusicProvider(
                     db,
-                    new PassthroughProtector(),
+                    new FakeIntegrationTokenVault(db),
                     new InMemoryIntegrationCapabilityStore(),
                     new LastActiveSpotifyDeviceTracker(),
                     new SingleHandlerClientFactory(new TrackEchoSpotifyHandler()),
                     TimeProvider.System,
-                    NullLogger<SpotifyMusicProvider>.Instance
+                    NullLogger<SpotifyMusicProvider>.Instance,
+                    NullSystemCredentialsProvider.Instance
                 ),
             ],
             db,
             new RecordingEventBus(),
             new BlockedTrackService(db),
             store,
-            NullLogger<MusicService>.Instance
+            NullLogger<MusicService>.Instance,
+            new InMemoryIntegrationCapabilityStore()
         );
 
     private static MusicTestDbContext SeedChannel(Guid channelId, MusicTestDbContext? into = null)
@@ -158,6 +160,10 @@ public sealed class SongRequestQueueCrossScopeTests
                     .UseInMemoryDatabase(Guid.NewGuid().ToString())
                     .Options
             );
+        // Routing seed: MusicService.GetActiveProviderAsync selects the active provider by which
+        // Service names are connected — a separate concern from SpotifyMusicProvider's OWN token
+        // resolution (which reads the vault, S003; a fresh FakeIntegrationTokenVault is built per
+        // BuildScope call above, over this same db, so it always finds the connection seeded here).
         db.Services.Add(
             new()
             {
@@ -169,6 +175,7 @@ public sealed class SongRequestQueueCrossScopeTests
             }
         );
         db.SaveChanges();
+        new FakeIntegrationTokenVault(db).SeedConnectedSpotify(channelId);
         return db;
     }
 

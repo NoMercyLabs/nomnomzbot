@@ -143,30 +143,20 @@ public sealed class SpotifyMusicProviderResolveTrackTests
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
+        FakeIntegrationTokenVault vault = new(db);
         if (connectSpotify)
-        {
-            db.Services.Add(
-                new()
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Name = "spotify",
-                    BroadcasterId = ChannelId,
-                    Enabled = true,
-                    AccessToken = "test-access-token",
-                }
-            );
-            db.SaveChanges();
-        }
+            vault.SeedConnectedSpotify(ChannelId);
 
         RecordingHttpHandler handler = new();
         SpotifyMusicProvider provider = new(
             db,
-            new PassthroughProtector(),
+            vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
-            NullLogger<SpotifyMusicProvider>.Instance
+            NullLogger<SpotifyMusicProvider>.Instance,
+            NullSystemCredentialsProvider.Instance
         );
         return (provider, handler);
     }

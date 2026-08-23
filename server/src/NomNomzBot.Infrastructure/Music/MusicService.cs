@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Integrations.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Exceptions;
@@ -39,6 +40,7 @@ public sealed class MusicService : IMusicService
     private readonly IBlockedTrackService _blockedTracks;
     private readonly ISongRequestQueueStore _queueStore;
     private readonly ILogger<MusicService> _logger;
+    private readonly IIntegrationCapabilityStore _capabilities;
 
     public MusicService(
         IEnumerable<IMusicProvider> providers,
@@ -46,7 +48,8 @@ public sealed class MusicService : IMusicService
         IEventBus eventBus,
         IBlockedTrackService blockedTracks,
         ISongRequestQueueStore queueStore,
-        ILogger<MusicService> logger
+        ILogger<MusicService> logger,
+        IIntegrationCapabilityStore capabilities
     )
     {
         _providers = providers;
@@ -55,6 +58,7 @@ public sealed class MusicService : IMusicService
         _blockedTracks = blockedTracks;
         _queueStore = queueStore;
         _logger = logger;
+        _capabilities = capabilities;
     }
 
     public async Task<IReadOnlyList<MusicTrack>> SearchAsync(
@@ -195,6 +199,11 @@ public sealed class MusicService : IMusicService
             {
                 fairQueue!.Enqueue(next.RequestedBy, next);
                 return AuthFailedOnSkip();
+            }
+            catch (MusicForbiddenException)
+            {
+                fairQueue!.Enqueue(next.RequestedBy, next);
+                return ForbiddenOnSkip();
             }
         }
 
@@ -457,6 +466,11 @@ public sealed class MusicService : IMusicService
                 queue.RemoveByOwner(requestedBy ?? "anonymous");
                 return AuthFailedOnQueue(trackInfo.TrackName);
             }
+            catch (MusicForbiddenException)
+            {
+                queue.RemoveByOwner(requestedBy ?? "anonymous");
+                return ForbiddenOnQueue(trackInfo.TrackName);
+            }
         }
 
         _logger.LogInformation(
@@ -572,6 +586,33 @@ public sealed class MusicService : IMusicService
         return provider?.Provider;
     }
 
+    public async Task<string?> GetActiveProviderAuthStatusAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return null;
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null)
+            return null;
+
+        IReadOnlyDictionary<string, bool> observed = _capabilities.GetObserved(
+            tenantId,
+            provider.Provider
+        );
+
+        // Forbidden takes precedence when somehow both are observed true (shouldn't happen — a live
+        // call is classified as exactly one of the two — but forbidden is the more specific reason).
+        if (observed.GetValueOrDefault(SpotifyMusicProvider.ForbiddenCapabilityKey))
+            return "forbidden";
+        if (observed.GetValueOrDefault(SpotifyMusicProvider.NeedsReauthCapabilityKey))
+            return "needs_reauth";
+
+        return null;
+    }
+
     // ─── Trust-level enforcement ──────────────────────────────────────────────
 
     /// <summary>
@@ -671,6 +712,12 @@ public sealed class MusicService : IMusicService
             "MUSIC_AUTH_FAILED"
         );
 
+    private static Result ForbiddenOnQueue(string trackName) =>
+        Result.Failure(
+            $"Couldn't queue \"{trackName}\" — the music connection doesn't have permission for that.",
+            "MUSIC_FORBIDDEN"
+        );
+
     private static Result PremiumRequiredOnQueue(string trackName) =>
         Result.Failure(
             $"Couldn't queue \"{trackName}\" — a Premium account is required for that.",
@@ -696,6 +743,12 @@ public sealed class MusicService : IMusicService
         Result.Failure(
             "Skip failed — the music connection needs to be reconnected.",
             "MUSIC_AUTH_FAILED"
+        );
+
+    private static Result ForbiddenOnSkip() =>
+        Result.Failure(
+            "Skip failed — the music connection doesn't have permission for that.",
+            "MUSIC_FORBIDDEN"
         );
 
     private static Result PremiumRequiredOnSkip() =>

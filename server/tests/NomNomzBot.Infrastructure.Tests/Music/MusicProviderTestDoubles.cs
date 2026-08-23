@@ -14,7 +14,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Integrations.YouTube;
 using NomNomzBot.Infrastructure.Music;
 
@@ -44,6 +50,201 @@ internal sealed class SingleHandlerClientFactory(HttpMessageHandler handler) : I
 }
 
 /// <summary>
+/// S003 — a minimal, real-shaped <see cref="IIntegrationTokenVault"/> double for
+/// <see cref="SpotifyMusicProvider"/> tests: plaintext in-memory token storage keyed by connection id
+/// (no crypto — the envelope-encryption stack has its own dedicated tests), but the SAME status/failure
+/// semantics as the production vault (<c>StoreTokensAsync</c> resets the connection back to
+/// <c>connected</c>; a connection's <c>Status</c> lives on the real <see cref="IntegrationConnection"/>
+/// row so <c>SpotifyMusicProvider</c>'s own connection lookup — <c>Status != "revoked"</c> — behaves
+/// identically to production). Only the members <c>SpotifyMusicProvider</c> actually calls are
+/// meaningfully implemented; the rest of the interface throws — a call there would mean the provider
+/// started depending on a vault member this test double was never asked to support.
+/// </summary>
+internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
+{
+    // Keyed by connection id (a fresh Guid.CreateVersion7() per seeded connection, so cross-test
+    // collisions are not a real concern) rather than held per-instance: several production call sites
+    // build a NEW SpotifyMusicProvider/MusicService per simulated DI scope over the SAME db — exactly
+    // like the real container handing out scoped instances per request — and each of those scopes
+    // constructs its OWN FakeIntegrationTokenVault. A per-instance dictionary would make a token
+    // "vaulted" in scope 1 invisible to scope 2 even though they share the same db, defeating the
+    // cross-scope tests this double exists to support (S001/S003).
+    private static readonly Dictionary<
+        Guid,
+        (string Access, string? Refresh, DateTime? ExpiresAt)
+    > _tokens = [];
+
+    private readonly IApplicationDbContext _db;
+
+    public FakeIntegrationTokenVault(IApplicationDbContext db)
+    {
+        _db = db;
+    }
+
+    /// <summary>Seeds a usable, non-expiring Spotify connection + token pair for a broadcaster, exactly
+    /// as a real OAuth connect would leave the vault. Returns the connection id for tests that need to
+    /// mutate it directly (e.g. to simulate an expired/un-refreshable token).</summary>
+    public Guid SeedConnectedSpotify(
+        Guid broadcasterId,
+        string accessToken = "test-access-token",
+        string? refreshToken = null,
+        IReadOnlyList<string>? scopes = null,
+        DateTime? expiresAt = null
+    )
+    {
+        IntegrationConnection connection = new()
+        {
+            BroadcasterId = broadcasterId,
+            Provider = AuthEnums.IntegrationProvider.Spotify,
+            Status = AuthEnums.IntegrationStatus.Connected,
+            Scopes = scopes is null ? [] : [.. scopes],
+        };
+        _db.IntegrationConnections.Add(connection);
+        _db.SaveChangesAsync(CancellationToken.None).GetAwaiter().GetResult();
+
+        _tokens[connection.Id] = (accessToken, refreshToken, expiresAt);
+        return connection.Id;
+    }
+
+    /// <summary>Marks a previously-seeded connection's token dead: expired with no refresh token on
+    /// file — the vault equivalent of "GetTokenAsync resolves to null for every Spotify call".</summary>
+    public void MakeUnrefreshable(Guid connectionId)
+    {
+        (string Access, string? Refresh, DateTime? ExpiresAt) current = _tokens[connectionId];
+        _tokens[connectionId] = (current.Access, null, DateTime.UtcNow.AddDays(-1));
+    }
+
+    public Task<Result<DecryptedTokenDto>> GetAccessTokenAsync(
+        Guid connectionId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!_tokens.TryGetValue(connectionId, out var entry))
+            return Task.FromResult(
+                Result.Failure<DecryptedTokenDto>("No such token.", "NOT_FOUND")
+            );
+
+        bool isExpired = entry.ExpiresAt is { } expiresAt && expiresAt <= DateTime.UtcNow;
+        return Task.FromResult(
+            Result.Success(
+                new DecryptedTokenDto(
+                    entry.Access,
+                    AuthEnums.TokenType.Access,
+                    entry.ExpiresAt,
+                    isExpired
+                )
+            )
+        );
+    }
+
+    public Task<Result<DecryptedTokenDto>> GetRefreshTokenAsync(
+        Guid connectionId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!_tokens.TryGetValue(connectionId, out var entry) || entry.Refresh is null)
+            return Task.FromResult(
+                Result.Failure<DecryptedTokenDto>("No refresh token on file.", "NOT_FOUND")
+            );
+
+        return Task.FromResult(
+            Result.Success(
+                new DecryptedTokenDto(entry.Refresh, AuthEnums.TokenType.Refresh, null, false)
+            )
+        );
+    }
+
+    public async Task<Result> StoreTokensAsync(
+        Guid connectionId,
+        StoreTokensDto tokens,
+        IReadOnlyList<string>? grantedScopes = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        _tokens.TryGetValue(connectionId, out var existing);
+        _tokens[connectionId] = (
+            tokens.AccessToken,
+            tokens.RefreshToken ?? existing.Refresh,
+            tokens.AccessExpiresAt
+        );
+
+        IntegrationConnection? connection = await _db.IntegrationConnections.FirstOrDefaultAsync(
+            c => c.Id == connectionId,
+            cancellationToken
+        );
+        if (connection is not null)
+        {
+            connection.Status = AuthEnums.IntegrationStatus.Connected;
+            if (grantedScopes is not null)
+                connection.Scopes = [.. grantedScopes];
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        return Result.Success();
+    }
+
+    public async Task<Result> MarkRefreshFailureAsync(
+        Guid connectionId,
+        string error,
+        CancellationToken cancellationToken = default
+    )
+    {
+        IntegrationConnection? connection = await _db.IntegrationConnections.FirstOrDefaultAsync(
+            c => c.Id == connectionId,
+            cancellationToken
+        );
+        if (connection is null)
+            return Result.Failure("No such connection.", "NOT_FOUND");
+
+        connection.Status = AuthEnums.IntegrationStatus.NeedsReauth;
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    public Task<Result> RevokeConnectionAsync(
+        Guid connectionId,
+        string reason,
+        CancellationToken cancellationToken = default
+    ) => throw new NotSupportedException("Not exercised by the SpotifyMusicProvider test surface.");
+
+    public Task<Result<IntegrationConnectionDto>> UpsertConnectionAsync(
+        UpsertConnectionDto request,
+        CancellationToken cancellationToken = default
+    ) => throw new NotSupportedException("Not exercised by the SpotifyMusicProvider test surface.");
+
+    public Task<Result<IReadOnlyList<IntegrationConnectionDto>>> ListConnectionsAsync(
+        Guid? broadcasterId,
+        CancellationToken cancellationToken = default
+    ) => throw new NotSupportedException("Not exercised by the SpotifyMusicProvider test surface.");
+}
+
+/// <summary>Never configured — <c>SpotifyMusicProvider</c> only reaches this when refreshing, and no
+/// test here exercises a refresh (tokens seeded via <see cref="FakeIntegrationTokenVault"/> never expire
+/// unless a test explicitly calls <c>MakeUnrefreshable</c>, which removes the refresh token too — so
+/// <c>RefreshTokenAsync</c> always short-circuits on the vault's own <c>GetRefreshTokenAsync</c> failure
+/// before this would ever be consulted).</summary>
+internal sealed class NullSystemCredentialsProvider : ISystemCredentialsProvider
+{
+    public static readonly NullSystemCredentialsProvider Instance = new();
+
+    public Task<SystemAppCredentials?> GetAsync(
+        string provider,
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult<SystemAppCredentials?>(null);
+
+    public Task<string?> GetClientIdAsync(
+        string provider,
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult<string?>(null);
+
+    public Task<string?> GetValueAsync(
+        string provider,
+        string field,
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult<string?>(null);
+}
+
+/// <summary>
 /// Records every request a music provider sends (method + absolute URL, plus the JSON body when
 /// present) and answers from registered routes; anything unrouted gets a 404 so a test can prove an
 /// endpoint was NOT called with real consequences instead of silence.
@@ -66,6 +267,12 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
         HttpStatusCode status,
         string? json = null
     ) => _routes.Add((matches, status, json));
+
+    /// <summary>Drops every previously-registered route (requests already recorded are kept) — for a test
+    /// that simulates a connection RECOVERING mid-test (e.g. a later call succeeding after an earlier one
+    /// was rejected), since the first-match-wins dispatch below would otherwise keep answering with the
+    /// stale route forever.</summary>
+    public void ClearRoutes() => _routes.Clear();
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,

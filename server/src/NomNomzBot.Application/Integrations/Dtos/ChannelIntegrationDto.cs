@@ -23,5 +23,10 @@ public sealed record ChannelIntegrationDto(
     string Category,
     string Description,
     bool Connected,
-    string? ConnectedAs
+    string? ConnectedAs,
+    // S003 — the live-observed auth state of a CONNECTED integration: "needs_reauth" (a call came back
+    // 401 — the token is dead), "forbidden" (a call came back 403 for a reason other than premium — the
+    // grant lacks permission), or null when healthy/unobserved. Never populated for a disconnected entry
+    // (Connected=false already says everything there is to say).
+    string? AuthStatus = null
 );

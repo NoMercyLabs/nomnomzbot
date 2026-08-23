@@ -117,7 +117,8 @@ public sealed class MusicServicePlaybackPublishTests
             bus,
             new BlockedTrackService(db),
             new SongRequestQueueStore(),
-            NullLogger<MusicService>.Instance
+            NullLogger<MusicService>.Instance,
+            new InMemoryIntegrationCapabilityStore()
         );
 
         Result ok = await sut.PlayAsync(ChannelId.ToString());
@@ -147,15 +148,19 @@ public sealed class MusicServicePlaybackPublishTests
         );
         db.SaveChanges();
 
+        FakeIntegrationTokenVault vault = new(db);
+        vault.SeedConnectedSpotify(ChannelId);
+
         FakeSpotifyHttpHandler handler = new() { CurrentTrackJson = currentTrackJson };
         SpotifyMusicProvider spotify = new(
             db,
-            new PassthroughTokenProtector(),
+            vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
             new SingleClientFactory(handler),
             TimeProvider.System,
-            NullLogger<SpotifyMusicProvider>.Instance
+            NullLogger<SpotifyMusicProvider>.Instance,
+            NullSystemCredentialsProvider.Instance
         );
 
         RecordingEventBus bus = new();
@@ -165,7 +170,8 @@ public sealed class MusicServicePlaybackPublishTests
             bus,
             new BlockedTrackService(db),
             new SongRequestQueueStore(),
-            NullLogger<MusicService>.Instance
+            NullLogger<MusicService>.Instance,
+            new InMemoryIntegrationCapabilityStore()
         );
         return (sut, bus, handler);
     }

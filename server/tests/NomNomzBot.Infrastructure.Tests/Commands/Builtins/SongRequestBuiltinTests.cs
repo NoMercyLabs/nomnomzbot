@@ -96,6 +96,41 @@ public sealed class SongRequestBuiltinTests
     }
 
     [Fact]
+    public async Task A_dead_connection_tells_the_viewer_it_needs_to_be_reconnected()
+    {
+        // S003 — a live 401 (SpotifyMusicProvider's classification, not just a missing token) reaches
+        // here as MUSIC_AUTH_FAILED; !sr must say WHY instead of the generic PROVIDER_ERROR wording.
+        SongRequestBuiltin sut = Build(
+            requestResult: Result.Failure<MusicTrack>(
+                "Couldn't queue \"Song Q\" — the music connection needs to be reconnected.",
+                "MUSIC_AUTH_FAILED"
+            )
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context("song q", roleLevel: 0));
+
+        result.Value.Should().Contain("reconnected");
+    }
+
+    [Fact]
+    public async Task A_forbidden_connection_tells_the_viewer_it_lacks_permission_distinctly_from_a_dead_one()
+    {
+        // S003 — a live 403 (not premium-required) reaches here as MUSIC_FORBIDDEN, worded distinctly
+        // from MUSIC_AUTH_FAILED so a streamer isn't told to "reconnect" when re-auth wouldn't fix it.
+        SongRequestBuiltin sut = Build(
+            requestResult: Result.Failure<MusicTrack>(
+                "Couldn't queue \"Song Q\" — the music connection doesn't have permission for that.",
+                "MUSIC_FORBIDDEN"
+            )
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context("song q", roleLevel: 0));
+
+        result.Value.Should().Contain("permission");
+        result.Value.Should().NotContain("reconnected");
+    }
+
+    [Fact]
     public async Task A_provider_error_reads_differently_from_no_provider_and_from_not_found()
     {
         SongRequestBuiltin sut = Build(

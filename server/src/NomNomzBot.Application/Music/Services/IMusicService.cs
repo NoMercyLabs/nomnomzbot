@@ -97,6 +97,18 @@ public interface IMusicService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// S003 — the channel's active music provider's live-observed auth state: <c>"needs_reauth"</c> (a
+    /// call came back 401 — the token is dead), <c>"forbidden"</c> (a call came back 403 for a reason
+    /// other than premium — the grant lacks permission), or null when the connection is healthy (or
+    /// nothing has been observed yet, or no provider is connected). Feeds both the integrations status
+    /// surface and the Music page, so a broken connection stops looking silently "connected".
+    /// </summary>
+    Task<string?> GetActiveProviderAuthStatusAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Remove a specific item from the queue by its zero-based position.</summary>
     Task<bool> RemoveFromQueueAsync(
         string broadcasterId,

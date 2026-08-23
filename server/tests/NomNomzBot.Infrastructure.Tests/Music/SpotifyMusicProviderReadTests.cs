@@ -446,26 +446,20 @@ public sealed class SpotifyMusicProviderReadTests
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
-        db.Services.Add(
-            new()
-            {
-                Id = Guid.NewGuid().ToString(),
-                Name = "spotify",
-                BroadcasterId = ChannelId,
-                Enabled = true,
-                AccessToken = "test-access-token",
-                Scopes = ["user-read-playback-state", "user-modify-playback-state"],
-            }
+        FakeIntegrationTokenVault vault = new(db);
+        vault.SeedConnectedSpotify(
+            ChannelId,
+            scopes: ["user-read-playback-state", "user-modify-playback-state"]
         );
-        db.SaveChanges();
         SpotifyMusicProvider spotify = new(
             db,
-            new PassthroughProtector(),
+            vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(new RecordingHttpHandler()),
             TimeProvider.System,
-            NullLogger<SpotifyMusicProvider>.Instance
+            NullLogger<SpotifyMusicProvider>.Instance,
+            NullSystemCredentialsProvider.Instance
         );
 
         string? token = await spotify.GetEmbeddedPlaybackTokenAsync(ChannelId);
@@ -493,27 +487,21 @@ public sealed class SpotifyMusicProviderReadTests
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
-        db.Services.Add(
-            new()
-            {
-                Id = Guid.NewGuid().ToString(),
-                Name = "spotify",
-                BroadcasterId = ChannelId,
-                Enabled = true,
-                AccessToken = "test-access-token",
-                Scopes = ["user-read-playback-state", "streaming", "user-read-email"],
-            }
+        FakeIntegrationTokenVault vault = new(db);
+        vault.SeedConnectedSpotify(
+            ChannelId,
+            scopes: ["user-read-playback-state", "streaming", "user-read-email"]
         );
-        db.SaveChanges();
         RecordingHttpHandler handler = new();
         SpotifyMusicProvider spotify = new(
             db,
-            new PassthroughProtector(),
+            vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
-            NullLogger<SpotifyMusicProvider>.Instance
+            NullLogger<SpotifyMusicProvider>.Instance,
+            NullSystemCredentialsProvider.Instance
         );
 
         string? token = await spotify.GetEmbeddedPlaybackTokenAsync(ChannelId);
@@ -559,30 +547,20 @@ public sealed class SpotifyMusicProviderReadTests
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
+        FakeIntegrationTokenVault vault = new(db);
         if (connectSpotify)
-        {
-            db.Services.Add(
-                new()
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Name = "spotify",
-                    BroadcasterId = ChannelId,
-                    Enabled = true,
-                    AccessToken = "test-access-token",
-                }
-            );
-            db.SaveChanges();
-        }
+            vault.SeedConnectedSpotify(ChannelId);
 
         RecordingHttpHandler handler = new();
         SpotifyMusicProvider spotify = new(
             db,
-            new PassthroughProtector(),
+            vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
-            NullLogger<SpotifyMusicProvider>.Instance
+            NullLogger<SpotifyMusicProvider>.Instance,
+            NullSystemCredentialsProvider.Instance
         );
 
         return (spotify, handler);

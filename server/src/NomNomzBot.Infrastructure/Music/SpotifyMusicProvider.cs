@@ -15,13 +15,16 @@ using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Integrations.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
-using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Infrastructure.Music;
 
@@ -31,7 +34,9 @@ namespace NomNomzBot.Infrastructure.Music;
 /// a player write rejected 403/<c>PREMIUM_REQUIRED</c> throws <see cref="PremiumRequiredException"/>,
 /// which the first Result-typed surface maps to <c>Failure("PREMIUM_REQUIRED")</c>, and flips the
 /// observed <c>spotify.premium</c> capability for the integrations status surface).
-/// Token stored as Service(Name="spotify", BroadcasterId=broadcasterId).
+/// Tokens live in the crypto vault (<c>IIntegrationTokenVault</c>) under the channel's <c>IntegrationConnection</c>
+/// (Provider="spotify", BroadcasterId=broadcasterId) — the vault is the single token source (S003; no
+/// <c>Service</c>-row read).
 ///
 /// Live-reference notes (verified 2026-07-05):
 /// - Search max 10 results per type; no batch GET /tracks?ids=; no browse endpoints
@@ -55,12 +60,23 @@ public sealed class SpotifyMusicProvider
     private const string SpotifyTokenEndpoint = "https://accounts.spotify.com/api/token";
     private const string ProviderName = "spotify";
     private const string PremiumCapabilityKey = "spotify.premium";
+
+    /// <summary>S003 — the live-call-observed auth signal, distinct from <see cref="PremiumCapabilityKey"/>:
+    /// a 401 means the token itself is dead. Reported false the instant any call succeeds again, so a
+    /// stale <c>needs_reauth</c> never outlives the connection that triggered it.</summary>
+    internal const string NeedsReauthCapabilityKey = "auth.needs_reauth";
+
+    /// <summary>S003 — a live 403 whose reason is NOT <c>PREMIUM_REQUIRED</c>: the token is alive but the
+    /// account/grant lacks permission for the call. Cleared the same way as <see cref="NeedsReauthCapabilityKey"/>.</summary>
+    internal const string ForbiddenCapabilityKey = "auth.forbidden";
+
     private const int LibraryUrisPerRequest = 40; // /me/library hard cap per live reference
     private const int ContainsIdsPerRequest = 50; // GET /me/tracks/contains hard cap per live reference
     private const int SavedTracksPerPage = 50; // GET /me/tracks limit hard cap per live reference
 
     private readonly IApplicationDbContext _db;
-    private readonly ITokenProtector _tokenProtector;
+    private readonly IIntegrationTokenVault _vault;
+    private readonly ISystemCredentialsProvider _credentials;
     private readonly IIntegrationCapabilityStore _capabilities;
     private readonly ILastActiveSpotifyDeviceTracker _lastActiveDevice;
     private readonly HttpClient _http;
@@ -69,21 +85,23 @@ public sealed class SpotifyMusicProvider
 
     public SpotifyMusicProvider(
         IApplicationDbContext db,
-        ITokenProtector tokenProtector,
+        IIntegrationTokenVault vault,
         IIntegrationCapabilityStore capabilities,
         ILastActiveSpotifyDeviceTracker lastActiveDevice,
         IHttpClientFactory httpClientFactory,
         TimeProvider timeProvider,
-        ILogger<SpotifyMusicProvider> logger
+        ILogger<SpotifyMusicProvider> logger,
+        ISystemCredentialsProvider credentials
     )
     {
         _db = db;
-        _tokenProtector = tokenProtector;
+        _vault = vault;
         _capabilities = capabilities;
         _lastActiveDevice = lastActiveDevice;
         _http = httpClientFactory.CreateClient("spotify");
         _timeProvider = timeProvider;
         _logger = logger;
+        _credentials = credentials;
     }
 
     public string Provider => ProviderName;
@@ -213,6 +231,7 @@ public sealed class SpotifyMusicProvider
             HttpMethod.Get,
             $"{SpotifyApiBase}/me/player",
             token,
+            broadcasterId,
             cancellationToken
         );
         if (response is null || response.StatusCode == HttpStatusCode.NoContent)
@@ -281,6 +300,7 @@ public sealed class SpotifyMusicProvider
             HttpMethod.Get,
             url,
             token,
+            broadcasterId,
             cancellationToken
         );
         if (response is null || !response.IsSuccessStatusCode)
@@ -315,6 +335,7 @@ public sealed class SpotifyMusicProvider
             HttpMethod.Get,
             $"{SpotifyApiBase}/tracks/{Uri.EscapeDataString(trackId)}",
             token,
+            broadcasterId,
             cancellationToken
         );
         if (response is null || !response.IsSuccessStatusCode)
@@ -363,28 +384,28 @@ public sealed class SpotifyMusicProvider
         CancellationToken cancellationToken = default
     )
     {
-        Service? service = await _db.Services.FirstOrDefaultAsync(
-            s =>
-                s.BroadcasterId == broadcasterId
-                && s.Name == ProviderName
-                && s.Enabled
-                && s.AccessToken != null,
-            cancellationToken
-        );
-        if (service is null)
+        Guid? connectionId = await FindConnectionIdAsync(broadcasterId, cancellationToken);
+        if (connectionId is null)
         {
             _logger.LogDebug(
-                "GetEmbeddedPlaybackTokenAsync: no Spotify service for broadcaster {BroadcasterId}",
+                "GetEmbeddedPlaybackTokenAsync: no Spotify connection for broadcaster {BroadcasterId}",
                 broadcasterId
             );
             return null;
         }
 
+        List<string> grantedScopes =
+            await _db
+                .IntegrationConnections.Where(c => c.Id == connectionId.Value)
+                .Select(c => c.Scopes)
+                .FirstOrDefaultAsync(cancellationToken)
+            ?? [];
+
         // The SDK becomes a real Connect device and streams audio — deliberately gated on its own scope
         // (never implied by the playback-control scopes already granted), so an existing connection made
         // before this feature shipped is never silently handed a token wider than what the streamer actually
         // consented to.
-        if (!service.Scopes.Contains("streaming"))
+        if (!grantedScopes.Contains("streaming"))
         {
             _logger.LogDebug(
                 "GetEmbeddedPlaybackTokenAsync: broadcaster {BroadcasterId} has not granted the streaming scope",
@@ -434,6 +455,15 @@ public sealed class SpotifyMusicProvider
             && await IsNoActiveDeviceAsync(response, cancellationToken)
         )
             throw new NoActiveDeviceException(ProviderName);
+
+        // S003 — a live 401 means the connection died mid-session (GetTokenAsync only catches an
+        // already-dead token; this catches Spotify rejecting a still-fresh-looking one). A live 403
+        // reaching here is never PREMIUM_REQUIRED (SendPlayerCommandAsync already intercepted and threw
+        // for that reason before returning) — it means the grant lacks permission for this call.
+        if (response?.StatusCode == HttpStatusCode.Unauthorized)
+            throw new MusicAuthenticationFailedException(ProviderName);
+        if (response?.StatusCode == HttpStatusCode.Forbidden)
+            throw new MusicForbiddenException(ProviderName);
 
         return false;
     }
@@ -555,6 +585,7 @@ public sealed class SpotifyMusicProvider
             HttpMethod.Get,
             url,
             token,
+            broadcasterId,
             cancellationToken
         );
         if (response is null || !response.IsSuccessStatusCode)
@@ -591,7 +622,7 @@ public sealed class SpotifyMusicProvider
             return [];
 
         (HttpStatusCode? status, SpotifyPaging<SpotifyPlaylist>? page) =
-            await FetchPlaylistsPageAsync(token, offset, limit, cancellationToken);
+            await FetchPlaylistsPageAsync(token, broadcasterId, offset, limit, cancellationToken);
         if (status is null || page?.Items is null)
             return [];
 
@@ -642,7 +673,13 @@ public sealed class SpotifyMusicProvider
             return NotConnected<IReadOnlyList<MusicPlaylistDto>>();
 
         (HttpStatusCode? status, SpotifyPaging<SpotifyPlaylist>? page) =
-            await FetchPlaylistsPageAsync(token, offset: 0, limit: 50, cancellationToken);
+            await FetchPlaylistsPageAsync(
+                token,
+                broadcasterId,
+                offset: 0,
+                limit: 50,
+                cancellationToken
+            );
 
         if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
             return MissingScope<IReadOnlyList<MusicPlaylistDto>>();
@@ -741,6 +778,7 @@ public sealed class SpotifyMusicProvider
             HttpMethod.Get,
             $"{SpotifyApiBase}/playlists/{Uri.EscapeDataString(id)}",
             token,
+            broadcasterId,
             cancellationToken
         );
         if (getResponse is null || !getResponse.IsSuccessStatusCode)
@@ -1032,6 +1070,7 @@ public sealed class SpotifyMusicProvider
             HttpMethod.Get,
             url,
             token,
+            broadcasterId,
             cancellationToken
         );
         if (response is null)
@@ -1086,6 +1125,7 @@ public sealed class SpotifyMusicProvider
                 HttpMethod.Get,
                 url,
                 token,
+                broadcasterId,
                 cancellationToken
             );
             if (response is null)
@@ -1134,7 +1174,13 @@ public sealed class SpotifyMusicProvider
         if (target == MusicFollowTarget.Playlist)
         {
             (HttpStatusCode? status, SpotifyPaging<SpotifyPlaylist>? page) =
-                await FetchPlaylistsPageAsync(token, 0, cappedLimit, cancellationToken);
+                await FetchPlaylistsPageAsync(
+                    token,
+                    broadcasterId,
+                    0,
+                    cappedLimit,
+                    cancellationToken
+                );
             if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
                 return MissingScope<IReadOnlyList<MusicFollowDto>>();
             if (page?.Items is null)
@@ -1157,6 +1203,7 @@ public sealed class SpotifyMusicProvider
             HttpMethod.Get,
             url,
             token,
+            broadcasterId,
             cancellationToken
         );
         if (artistResponse is null)
@@ -1219,91 +1266,83 @@ public sealed class SpotifyMusicProvider
         return Result.Success();
     }
 
-    // ─── Token management ────────────────────────────────────────────────────
+    // ─── Token management (S003 — the vault is the single token source; no Service-row read) ──
+
+    /// <summary>The channel's own (non-revoked) Spotify <c>IntegrationConnection</c> id, or null when
+    /// nothing is connected. The single lookup every token-management member resolves through.</summary>
+    private async Task<Guid?> FindConnectionIdAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken
+    ) =>
+        await _db
+            .IntegrationConnections.Where(c =>
+                c.Provider == AuthEnums.IntegrationProvider.Spotify
+                && c.BroadcasterId == broadcasterId
+                && c.Status != AuthEnums.IntegrationStatus.Revoked
+            )
+            .Select(c => (Guid?)c.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 
     private async Task<string?> GetTokenAsync(
         Guid broadcasterId,
         CancellationToken cancellationToken
     )
     {
-        Service? service = await _db.Services.FirstOrDefaultAsync(
-            s =>
-                s.BroadcasterId == broadcasterId
-                && s.Name == ProviderName
-                && s.Enabled
-                && s.AccessToken != null,
-            cancellationToken
-        );
-
-        if (service is null)
+        Guid? connectionId = await FindConnectionIdAsync(broadcasterId, cancellationToken);
+        if (connectionId is null)
         {
             _logger.LogDebug(
-                "No Spotify service found for broadcaster {BroadcasterId}",
+                "No Spotify connection found for broadcaster {BroadcasterId}",
                 broadcasterId
             );
             return null;
         }
 
-        // Refresh if expiring within 5 minutes
-        if (
-            service.TokenExpiry.HasValue
-            && service.TokenExpiry.Value <= _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(5)
-        )
+        Result<DecryptedTokenDto> access = await _vault.GetAccessTokenAsync(
+            connectionId.Value,
+            cancellationToken
+        );
+        if (access.IsFailure)
         {
-            string? refreshed = await RefreshTokenAsync(service, cancellationToken);
-            if (refreshed is null)
-                return null;
-            return refreshed;
+            _logger.LogDebug(
+                "Spotify access token unavailable for broadcaster {BroadcasterId}: {Error}",
+                broadcasterId,
+                access.ErrorMessage
+            );
+            return null;
         }
 
-        return service.AccessToken is not null
-            ? await _tokenProtector.TryUnprotectAsync(
-                service.AccessToken,
-                new(service.BroadcasterId?.ToString() ?? "_platform", ProviderName, "access"),
-                cancellationToken
-            )
-            : null;
+        bool expiring =
+            access.Value.IsExpired
+            || (
+                access.Value.ExpiresAt is { } expiresAt
+                && expiresAt <= _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(5)
+            );
+        if (!expiring)
+            return access.Value.Value;
+
+        return await RefreshTokenAsync(connectionId.Value, broadcasterId, cancellationToken);
     }
 
     private async Task<string?> RefreshTokenAsync(
-        Service service,
+        Guid connectionId,
+        Guid broadcasterId,
         CancellationToken cancellationToken
     )
     {
-        if (service.RefreshToken is null)
-            return null;
-
-        string subjectId = service.BroadcasterId?.ToString() ?? "_platform";
-
-        string? refreshToken = await _tokenProtector.TryUnprotectAsync(
-            service.RefreshToken,
-            new(subjectId, ProviderName, "refresh"),
+        Result<DecryptedTokenDto> refresh = await _vault.GetRefreshTokenAsync(
+            connectionId,
             cancellationToken
         );
-        if (refreshToken is null)
+        if (refresh.IsFailure)
             return null;
 
-        // Client credentials required for refresh (stored on the service)
-        string? clientId = service.ClientId is not null
-            ? await _tokenProtector.TryUnprotectAsync(
-                service.ClientId,
-                new(subjectId, ProviderName, "client_id"),
-                cancellationToken
-            )
-            : null;
-        string? clientSecret = service.ClientSecret is not null
-            ? await _tokenProtector.TryUnprotectAsync(
-                service.ClientSecret,
-                new(subjectId, ProviderName, "client_secret"),
-                cancellationToken
-            )
-            : null;
-
-        if (clientId is null || clientSecret is null)
+        SystemAppCredentials? app = await _credentials.GetAsync(ProviderName, cancellationToken);
+        if (app is null)
         {
             _logger.LogWarning(
                 "Spotify credentials not configured for broadcaster {BroadcasterId}",
-                service.BroadcasterId
+                broadcasterId
             );
             return null;
         }
@@ -1312,9 +1351,9 @@ public sealed class SpotifyMusicProvider
             new Dictionary<string, string>
             {
                 ["grant_type"] = "refresh_token",
-                ["refresh_token"] = refreshToken,
-                ["client_id"] = clientId,
-                ["client_secret"] = clientSecret,
+                ["refresh_token"] = refresh.Value.Value,
+                ["client_id"] = app.ClientId,
+                ["client_secret"] = app.ClientSecret,
             }
         );
 
@@ -1329,8 +1368,13 @@ public sealed class SpotifyMusicProvider
             {
                 _logger.LogWarning(
                     "Spotify token refresh failed for {BroadcasterId}: {Status}",
-                    service.BroadcasterId,
+                    broadcasterId,
                     response.StatusCode
+                );
+                await _vault.MarkRefreshFailureAsync(
+                    connectionId,
+                    $"Spotify refresh failed ({(int)response.StatusCode})",
+                    cancellationToken
                 );
                 return null;
             }
@@ -1340,29 +1384,31 @@ public sealed class SpotifyMusicProvider
                     cancellationToken: cancellationToken
                 );
             if (json is null)
-                return null;
-
-            service.AccessToken = await _tokenProtector.ProtectAsync(
-                json.AccessToken,
-                new(subjectId, ProviderName, "access"),
-                cancellationToken
-            );
-            service.TokenExpiry = _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(json.ExpiresIn);
-
-            // Refresh token may be rotated
-            if (!string.IsNullOrEmpty(json.RefreshToken))
-                service.RefreshToken = await _tokenProtector.ProtectAsync(
-                    json.RefreshToken,
-                    new(subjectId, ProviderName, "refresh"),
+            {
+                await _vault.MarkRefreshFailureAsync(
+                    connectionId,
+                    "Spotify refresh returned an unexpected body",
                     cancellationToken
                 );
+                return null;
+            }
 
-            await _db.SaveChangesAsync(cancellationToken);
-
-            _logger.LogInformation(
-                "Refreshed Spotify token for {BroadcasterId}",
-                service.BroadcasterId
+            // Refresh token may be rotated — a null/empty one from Spotify keeps the existing vaulted one.
+            await _vault.StoreTokensAsync(
+                connectionId,
+                new(
+                    json.AccessToken,
+                    string.IsNullOrEmpty(json.RefreshToken) ? null : json.RefreshToken,
+                    AppToken: null,
+                    AccessExpiresAt: _timeProvider
+                        .GetUtcNow()
+                        .UtcDateTime.AddSeconds(json.ExpiresIn)
+                ),
+                grantedScopes: null,
+                cancellationToken
             );
+
+            _logger.LogInformation("Refreshed Spotify token for {BroadcasterId}", broadcasterId);
             return json.AccessToken;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -1370,7 +1416,7 @@ public sealed class SpotifyMusicProvider
             _logger.LogError(
                 ex,
                 "Exception refreshing Spotify token for {BroadcasterId}",
-                service.BroadcasterId
+                broadcasterId
             );
             return null;
         }
@@ -1383,6 +1429,7 @@ public sealed class SpotifyMusicProvider
         SpotifyPaging<SpotifyPlaylist>? Page
     )> FetchPlaylistsPageAsync(
         string token,
+        Guid broadcasterId,
         int offset,
         int limit,
         CancellationToken cancellationToken
@@ -1393,6 +1440,7 @@ public sealed class SpotifyMusicProvider
             HttpMethod.Get,
             url,
             token,
+            broadcasterId,
             cancellationToken
         );
         if (response is null)
@@ -1411,6 +1459,7 @@ public sealed class SpotifyMusicProvider
         HttpMethod method,
         string url,
         string token,
+        Guid broadcasterId,
         CancellationToken cancellationToken
     )
     {
@@ -1433,9 +1482,15 @@ public sealed class SpotifyMusicProvider
                     // Retry once after backoff
                     request = new(method, url);
                     request.Headers.Authorization = new("Bearer", token);
-                    return await _http.SendAsync(request, cancellationToken);
+                    response = await _http.SendAsync(request, cancellationToken);
                 }
             }
+
+            // Buffer up front so ClassifyAuthAsync's own body read (403 premium-vs-forbidden
+            // disambiguation) never disturbs the caller's own subsequent read of the same response.
+            if (response.Content is not null)
+                await response.Content.LoadIntoBufferAsync();
+            await ClassifyAuthAsync(response, broadcasterId, cancellationToken);
 
             return response;
         }
@@ -1443,6 +1498,39 @@ public sealed class SpotifyMusicProvider
         {
             _logger.LogError(ex, "Spotify API request failed: {Method} {Url}", method, url);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// S003 — the read-path (GET) auth classification, mirroring <see cref="SendPlayerCommandAsync"/>'s
+    /// end-of-call classification for player writes. A live 401 means the token itself is dead
+    /// (<see cref="NeedsReauthCapabilityKey"/>); a live 403 whose reason is NOT <c>PREMIUM_REQUIRED</c>
+    /// means the token is alive but lacks permission (<see cref="ForbiddenCapabilityKey"/>); any
+    /// success clears both, so a resolved connection is never left showing a stale broken state.
+    /// </summary>
+    private async Task ClassifyAuthAsync(
+        HttpResponseMessage response,
+        Guid broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            _capabilities.Report(broadcasterId, ProviderName, NeedsReauthCapabilityKey, true);
+            return;
+        }
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            if (!await IsPremiumRequiredAsync(response, cancellationToken))
+                _capabilities.Report(broadcasterId, ProviderName, ForbiddenCapabilityKey, true);
+            return;
+        }
+
+        if (response.IsSuccessStatusCode)
+        {
+            _capabilities.Report(broadcasterId, ProviderName, NeedsReauthCapabilityKey, false);
+            _capabilities.Report(broadcasterId, ProviderName, ForbiddenCapabilityKey, false);
         }
     }
 
@@ -1542,6 +1630,10 @@ public sealed class SpotifyMusicProvider
 
         if (response.IsSuccessStatusCode)
             _capabilities.Report(broadcasterId, ProviderName, PremiumCapabilityKey, true);
+
+        // S003 — a 401 here means the token itself is dead; a non-premium 403 falls through to here
+        // untouched (the premium branch above already intercepted and threw for that specific reason).
+        await ClassifyAuthAsync(response, broadcasterId, cancellationToken);
 
         return response;
     }

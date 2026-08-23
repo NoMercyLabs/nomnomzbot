@@ -91,6 +91,7 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                     "NO_ACTIVE_DEVICE" => requested.ErrorMessage!,
                     "PREMIUM_REQUIRED" => requested.ErrorMessage!,
                     "MUSIC_AUTH_FAILED" => requested.ErrorMessage!,
+                    "MUSIC_FORBIDDEN" => requested.ErrorMessage!,
                     _ =>
                         $"Couldn't reach the music service for \"{query}\" — try again in a moment.",
                 }

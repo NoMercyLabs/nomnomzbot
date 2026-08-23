@@ -126,6 +126,9 @@ public sealed class MusicServiceBlockedAdmissionTests
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
+        // Routing seed: MusicService.GetActiveProviderAsync selects the active provider by which
+        // Service names are connected — a separate concern from SpotifyMusicProvider's OWN token
+        // resolution (which reads the vault below, S003).
         foreach (Guid channel in connectedChannels)
         {
             db.Services.Add(
@@ -141,14 +144,19 @@ public sealed class MusicServiceBlockedAdmissionTests
         }
         db.SaveChanges();
 
+        FakeIntegrationTokenVault vault = new(db);
+        foreach (Guid channel in connectedChannels)
+            vault.SeedConnectedSpotify(channel);
+
         SpotifyMusicProvider spotify = new(
             db,
-            new PassthroughProtector(),
+            vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(new SearchFakeSpotifyHandler()),
             TimeProvider.System,
-            NullLogger<SpotifyMusicProvider>.Instance
+            NullLogger<SpotifyMusicProvider>.Instance,
+            NullSystemCredentialsProvider.Instance
         );
 
         RecordingEventBus bus = new();
@@ -159,7 +167,8 @@ public sealed class MusicServiceBlockedAdmissionTests
             bus,
             blocks,
             new SongRequestQueueStore(),
-            NullLogger<MusicService>.Instance
+            NullLogger<MusicService>.Instance,
+            new InMemoryIntegrationCapabilityStore()
         );
         return (sut, bus, blocks);
     }

@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Integrations.Dtos;
 using NomNomzBot.Application.Integrations.Services;
+using NomNomzBot.Application.Music.Services;
 
 namespace NomNomzBot.Infrastructure.Integrations;
 
@@ -25,10 +26,12 @@ namespace NomNomzBot.Infrastructure.Integrations;
 public sealed class IntegrationStatusService : IIntegrationStatusService
 {
     private readonly IApplicationDbContext _db;
+    private readonly IMusicService _music;
 
-    public IntegrationStatusService(IApplicationDbContext db)
+    public IntegrationStatusService(IApplicationDbContext db, IMusicService music)
     {
         _db = db;
+        _music = music;
     }
 
     private static readonly Dictionary<
@@ -99,6 +102,16 @@ public sealed class IntegrationStatusService : IIntegrationStatusService
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
+        // S003 — only Spotify observes/reports a live auth status today; other providers surface null
+        // until they wire the same classification. Skipped entirely when Spotify isn't connected —
+        // AuthStatus only ever qualifies an already-connected entry.
+        string? spotifyAuthStatus = connectedServiceNames.Contains("spotify")
+            ? await _music.GetActiveProviderAuthStatusAsync(
+                broadcasterId.ToString(),
+                cancellationToken
+            )
+            : null;
+
         List<ChannelIntegrationDto> result = Meta.Select(kvp =>
             {
                 string id = kvp.Key;
@@ -118,13 +131,16 @@ public sealed class IntegrationStatusService : IIntegrationStatusService
                     _ => null,
                 };
 
+                string? authStatus = id == "spotify" ? spotifyAuthStatus : null;
+
                 return new ChannelIntegrationDto(
                     id,
                     Name,
                     Category,
                     Description,
                     isConnected,
-                    connectedAs
+                    connectedAs,
+                    authStatus
                 );
             })
             .ToList();

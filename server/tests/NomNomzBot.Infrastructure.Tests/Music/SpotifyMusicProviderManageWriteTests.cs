@@ -411,27 +411,19 @@ public sealed class SpotifyMusicProviderManageWriteTests
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
-        db.Services.Add(
-            new()
-            {
-                Id = Guid.NewGuid().ToString(),
-                Name = "spotify",
-                BroadcasterId = ChannelId,
-                Enabled = true,
-                AccessToken = "test-access-token",
-            }
-        );
-        db.SaveChanges();
+        FakeIntegrationTokenVault vault = new(db);
+        vault.SeedConnectedSpotify(ChannelId);
 
         RecordingHttpHandler handler = new();
         SpotifyMusicProvider spotify = new(
             db,
-            new PassthroughProtector(),
+            vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
-            NullLogger<SpotifyMusicProvider>.Instance
+            NullLogger<SpotifyMusicProvider>.Instance,
+            NullSystemCredentialsProvider.Instance
         );
         YouTubeMusicProvider youtube = YouTubeProviderFactory.Create();
 

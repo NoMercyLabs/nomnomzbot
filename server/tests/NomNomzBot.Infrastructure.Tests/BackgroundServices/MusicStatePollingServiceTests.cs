@@ -492,6 +492,11 @@ public sealed class MusicStatePollingServiceTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
+        public Task<string?> GetActiveProviderAuthStatusAsync(
+            string broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
         public Task<Result> SetVolumeAsync(
             string broadcasterId,
             int volume,
