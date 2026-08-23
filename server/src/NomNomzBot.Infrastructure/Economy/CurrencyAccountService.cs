@@ -165,6 +165,26 @@ public sealed class CurrencyAccountService(
             await PublishMovementAsync(broadcasterId, posted.Value, ct);
             return Result.Success(ToDto(posted.Value));
         }
+        catch (DbUpdateException) when (command.EventId is not null)
+        {
+            // Lost a concurrent-insert race — the partial unique index on (BroadcasterId, ViewerUserId,
+            // EventId, EntryType) rejected a redelivered/retried earning event (S005/F12). The balance
+            // mutation already made in this transaction rolls back with it, so the DB never double-credits.
+            // The winning entry is already committed by the other caller — return it as-is: idempotent
+            // success, not a 500, and no second credit.
+            await unitOfWork.RollbackTransactionAsync(ct);
+            CurrencyLedgerEntry? existing = await db.CurrencyLedgerEntries.FirstOrDefaultAsync(
+                e =>
+                    e.BroadcasterId == broadcasterId
+                    && e.ViewerUserId == command.ViewerUserId
+                    && e.EventId == command.EventId
+                    && e.EntryType == entryType,
+                ct
+            );
+            if (existing is null)
+                throw;
+            return Result.Success(ToDto(existing));
+        }
         catch
         {
             await unitOfWork.RollbackTransactionAsync(ct);

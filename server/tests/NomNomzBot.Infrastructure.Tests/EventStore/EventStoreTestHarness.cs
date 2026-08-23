@@ -51,11 +51,11 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy> ModerationEscalationPolicies =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState> ModerationEscalationStates =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChatFilter> ChatFilters =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Moderation.Entities.ChatFilter>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
@@ -194,6 +194,18 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         );
         modelBuilder.ApplyConfiguration(
             new NomNomzBot.Infrastructure.Platform.Persistence.Configurations.UsageRecordConfiguration()
+        );
+        modelBuilder.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Platform.Persistence.Configurations.CurrencyLedgerEntryConfiguration()
+        );
+        modelBuilder.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Moderation.Persistence.ModerationEscalationPolicyConfiguration()
+        );
+        modelBuilder.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Moderation.Persistence.ModerationEscalationStateConfiguration()
+        );
+        modelBuilder.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Moderation.Persistence.ChatFilterConfiguration()
         );
 
         // EF discovers entity types from every DbSet<T> property (an IApplicationDbContext requirement) and

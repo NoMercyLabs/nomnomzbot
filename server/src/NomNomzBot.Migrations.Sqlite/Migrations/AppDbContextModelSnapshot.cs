@@ -2613,6 +2613,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.HasIndex("BroadcasterId", "AccountId", "Id");
 
+                    b.HasIndex("BroadcasterId", "ViewerUserId", "EventId", "EntryType")
+                        .IsUnique()
+                        .HasDatabaseName("IX_CurrencyLedgerEntries_Broadcaster_Viewer_EventId_EntryType")
+                        .HasFilter("\"EventId\" IS NOT NULL");
+
                     b.ToTable("CurrencyLedgerEntries");
                 });
 

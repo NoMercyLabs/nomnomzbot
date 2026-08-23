@@ -21,6 +21,7 @@ using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
+using NomNomzBot.Infrastructure.Tests.EventStore;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
@@ -41,14 +42,31 @@ public sealed class ChatFilterExecutionHandlerTests
 
     private sealed record Harness(
         ChatFilterExecutionHandler Handler,
-        ModerationServiceTestDbContext Db,
+        EventStoreTestDbContext Db,
         ITwitchModerationApi Moderation,
-        ModerationEscalationService Escalation
-    );
+        ModerationEscalationService Escalation,
+        SqliteTestDatabase Database
+    )
+    {
+        /// <summary>
+        /// A FRESH context on the same underlying database, for verification reads. <see cref="Db"/> stays
+        /// tracking whatever it inserted across HandleAsync calls — ModerationEscalationService's cold-start
+        /// insert path tracks the new row it adds, and EF's identity map then serves that stale in-memory
+        /// instance back to any LATER same-context entity query instead of the fresh row a bypassing
+        /// ExecuteUpdateAsync wrote (the same staleness AppendAsync's own comments document elsewhere).
+        /// Reading through a separate context sidesteps that identity-map artifact entirely.
+        /// </summary>
+        public EventStoreTestDbContext Verify() => Database.NewContext();
+    }
 
     private static Harness Build()
     {
-        ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
+        // A real relational SQLite context (S005/F13: ModerationEscalationService's atomic ExecuteUpdateAsync
+        // increment is not supported at all by EF's InMemory provider, which this harness used before). The
+        // SqliteTestDatabase's keep-alive connection is intentionally never disposed here — same lifetime
+        // convention this file already used for its (also never-disposed) InMemory context per test.
+        SqliteTestDatabase database = SqliteTestDatabase.Open();
+        EventStoreTestDbContext db = database.NewContext();
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
 
         IUserService users = Substitute.For<IUserService>();
@@ -82,7 +100,7 @@ public sealed class ChatFilterExecutionHandlerTests
             users,
             NullLogger<ChatFilterExecutionHandler>.Instance
         );
-        return new(handler, db, moderation, escalation);
+        return new(handler, db, moderation, escalation, database);
     }
 
     private static ChatMessageReceivedEvent Message(string text, bool isVip = false) =>
@@ -104,7 +122,7 @@ public sealed class ChatFilterExecutionHandlerTests
         };
 
     private static async Task<ChatFilter> SeedBlocklistFilter(
-        ModerationServiceTestDbContext db,
+        EventStoreTestDbContext db,
         ChatFilterAction action,
         List<string> terms,
         int? timeoutSeconds = null,
@@ -145,7 +163,7 @@ public sealed class ChatFilterExecutionHandlerTests
         await h.Handler.HandleAsync(Message("this is banned content"));
 
         // The offense was recorded on the ladder (J.11) for the resolved subject.
-        ModerationEscalationState state = await h.Db.ModerationEscalationStates.SingleAsync();
+        ModerationEscalationState state = await h.Verify().ModerationEscalationStates.SingleAsync();
         state.SubjectUserId.Should().Be(SubjectUserId);
         state.OffenseCount.Should().Be(1);
 
@@ -197,7 +215,7 @@ public sealed class ChatFilterExecutionHandlerTests
         await h.Handler.HandleAsync(Message("banned once"));
         await h.Handler.HandleAsync(Message("banned twice"));
 
-        (await h.Db.ModerationEscalationStates.SingleAsync()).OffenseCount.Should().Be(2);
+        (await h.Verify().ModerationEscalationStates.SingleAsync()).OffenseCount.Should().Be(2);
         // Second offense → the ladder returns "timeout 60", applied with the ladder's duration (not the filter's).
         await h
             .Moderation.Received(1)
@@ -287,6 +305,6 @@ public sealed class ChatFilterExecutionHandlerTests
                 Arg.Any<CancellationToken>()
             );
         (await h.Db.ChatFilters.SingleAsync()).MatchCount.Should().Be(0);
-        (await h.Db.ModerationEscalationStates.CountAsync()).Should().Be(0);
+        (await h.Verify().ModerationEscalationStates.CountAsync()).Should().Be(0);
     }
 }

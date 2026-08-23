@@ -61,39 +61,122 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
             );
 
         DateTime now = clock.GetUtcNow().UtcDateTime;
-        ModerationEscalationState? state = await db.ModerationEscalationStates.FirstOrDefaultAsync(
-            s => s.BroadcasterId == broadcasterId && s.SubjectUserId == subjectUserId,
-            ct
-        );
-        if (state is null)
+        TimeSpan window = TimeSpan.FromHours(policy.OffenseWindowHours);
+
+        // F13/S005: two concurrent offenses against a TRACKED entity's `OffenseCount++` then SaveChangesAsync
+        // is a classic read-modify-write — the second SaveChangesAsync overwrites the first's increment and
+        // one offense vanishes, so the ladder never reaches its correct rung. Reuse the S004/S004b mechanism
+        // this session closed 9/9 elsewhere: an unconditional `ExecuteUpdateAsync` (`OffenseCount + 1`)
+        // evaluated against the CURRENT row at write time, never a stale in-memory value, with a
+        // DbUpdateException-guarded insert-and-retry for the cold-start (no row yet) case.
+        int newCount = await TryAtomicIncrementAsync(broadcasterId, subjectUserId, now, window, ct);
+        if (newCount == 0)
         {
-            state = new()
+            // No row for this (channel, subject) yet. Insert the first-offense row directly; a concurrent
+            // caller racing this same cold start loses the unique (BroadcasterId, SubjectUserId) insert and
+            // folds its offense into the winner's row via the atomic increment retry below, instead of
+            // throwing or silently dropping it.
+            ModerationEscalationState inserted = new()
             {
                 BroadcasterId = broadcasterId,
                 SubjectUserId = subjectUserId,
                 SubjectTwitchUserId = subjectTwitchUserId,
+                OffenseCount = 1,
                 WindowStartedAt = now,
+                LastOffenseAt = now,
             };
-            db.ModerationEscalationStates.Add(state);
+            db.ModerationEscalationStates.Add(inserted);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                newCount = 1;
+            }
+            catch (DbUpdateException)
+            {
+                if (db is DbContext context)
+                    context.Entry(inserted).State = EntityState.Detached;
+                newCount = await TryAtomicIncrementAsync(
+                    broadcasterId,
+                    subjectUserId,
+                    now,
+                    window,
+                    ct
+                );
+                if (newCount == 0)
+                    return Result.Failure<EscalationDecision>(
+                        "Failed to record the offense after an insert-race retry.",
+                        "ESCALATION_STATE_RACE"
+                    );
+            }
         }
-        else if (now - state.WindowStartedAt > TimeSpan.FromHours(policy.OffenseWindowHours))
-        {
-            // The decaying window lapsed — the tally restarts at rung one.
-            state.OffenseCount = 0;
-            state.WindowStartedAt = now;
-        }
-
-        state.OffenseCount++;
-        state.LastOffenseAt = now;
-        await db.SaveChangesAsync(ct);
 
         // The step for the NEW count — the highest configured rung clamps everything above it.
         EscalationLadderStep step =
-            ladder.Where(s => s.AtOffense <= state.OffenseCount).MaxBy(s => s.AtOffense)
-            ?? ladder[0];
-        return Result.Success(
-            new EscalationDecision(step.Action, step.TimeoutSeconds, state.OffenseCount)
-        );
+            ladder.Where(s => s.AtOffense <= newCount).MaxBy(s => s.AtOffense) ?? ladder[0];
+        return Result.Success(new EscalationDecision(step.Action, step.TimeoutSeconds, newCount));
+    }
+
+    /// <summary>
+    /// Atomically advances the tally for an EXISTING row: resets to rung one when the decaying window
+    /// lapsed, else increments by one. Both branches are separate `SET ... WHERE ...` statements, mutually
+    /// exclusive on the window-lapsed predicate IN THE WHERE CLAUSE (not the SET value — EF Core's
+    /// `ExecuteUpdate` cannot translate a conditional expression inside `SetProperty`, only inside `Where`),
+    /// each evaluated atomically against the CURRENT row at write time, never a previously-read value, so
+    /// concurrent callers never overwrite each other's increment. Returns the row's new
+    /// <c>OffenseCount</c> after the update, or 0 if no row exists yet.
+    /// </summary>
+    private async Task<int> TryAtomicIncrementAsync(
+        Guid broadcasterId,
+        Guid subjectUserId,
+        DateTime now,
+        TimeSpan window,
+        CancellationToken ct
+    )
+    {
+        // Plain DateTime comparisons only — EF Core's SQLite provider cannot translate `DateTime - DateTime`
+        // (TimeSpan) arithmetic in a query. `WindowStartedAt >= cutoff` is exactly `now - WindowStartedAt <=
+        // window` restated without a TimeSpan operand.
+        DateTime cutoff = now - window;
+
+        int rowsUpdated = await db
+            .ModerationEscalationStates.Where(s =>
+                s.BroadcasterId == broadcasterId
+                && s.SubjectUserId == subjectUserId
+                && s.WindowStartedAt >= cutoff
+            )
+            .ExecuteUpdateAsync(
+                setters =>
+                    setters
+                        .SetProperty(s => s.OffenseCount, s => s.OffenseCount + 1)
+                        .SetProperty(s => s.LastOffenseAt, now),
+                ct
+            );
+
+        if (rowsUpdated == 0)
+            rowsUpdated = await db
+                .ModerationEscalationStates.Where(s =>
+                    s.BroadcasterId == broadcasterId
+                    && s.SubjectUserId == subjectUserId
+                    && s.WindowStartedAt < cutoff
+                )
+                .ExecuteUpdateAsync(
+                    setters =>
+                        setters
+                            .SetProperty(s => s.OffenseCount, 1)
+                            .SetProperty(s => s.WindowStartedAt, now)
+                            .SetProperty(s => s.LastOffenseAt, now),
+                    ct
+                );
+
+        if (rowsUpdated == 0)
+            return 0;
+
+        return await db
+            .ModerationEscalationStates.Where(s =>
+                s.BroadcasterId == broadcasterId && s.SubjectUserId == subjectUserId
+            )
+            .Select(s => s.OffenseCount)
+            .FirstAsync(ct);
     }
 
     public async Task<Result<ModerationEscalationPolicyDto>> GetPolicyAsync(

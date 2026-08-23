@@ -42,6 +42,15 @@ namespace NomNomzBot.Infrastructure.Tests.Moderation;
 /// <see cref="IApplicationDbContext"/> set throws, since no exercised path reaches it. Mirrors the
 /// "declare every DbSet, auto-ignore the unmapped ones by reflection" shape of
 /// <c>Commands/CommandsTestDbContext.cs</c>.
+///
+/// NOTE (S005/F13): <c>ModerationEscalationService</c>'s atomic <c>ExecuteUpdateAsync</c> increment is not
+/// supported AT ALL by this InMemory provider. Switching this shared context wholesale to a relational SQLite
+/// connection was tried and reverted — several OTHER services sharing this context
+/// (<c>SharedBanService.TrustedListAsync</c>'s client-projecting `OrderBy`) rely on InMemory's permissive
+/// client-eval and fail to translate on a real relational provider, an unrelated pre-existing gap far outside
+/// this slice's blast radius. <see cref="NomNomzBot.Infrastructure.Tests.Moderation.ChatFilterExecutionHandlerTests"/>
+/// — the one consumer here that exercises <c>ModerationEscalationService</c> — instead builds its OWN
+/// dedicated relational SQLite context; every other consumer of THIS InMemory context is untouched.
 /// </summary>
 internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDbContext
 {
