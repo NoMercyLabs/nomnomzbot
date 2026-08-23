@@ -142,6 +142,75 @@ public sealed class ChannelAnalyticsDailyConcurrencyTests
             .Be(1, "the SAME viewer flips Chatted exactly once, never double-counted");
     }
 
+    /// <summary>
+    /// S004i — the last known read-modify-write in the class: <c>FoldPresenceAsync</c>'s
+    /// <c>(OccurredAt - LastSeenAt).TotalSeconds</c> span (ChannelAnalyticsDailyProjection.cs:331) folds
+    /// into <c>TotalWatchSeconds</c> via a CAS-retried anchor update (LastSeenAt/Chatted guarded in the
+    /// UPDATE's WHERE), which is telescoping by construction: whichever writer's CAS wins always computes
+    /// its delta against the anchor's CURRENT persisted LastSeenAt, so the sum of every accepted delta
+    /// equals (final LastSeenAt - initial LastSeenAt) no matter how the concurrent folds interleave. A
+    /// plain read-modify-write (the shape fixed everywhere else in this class) would instead let two
+    /// concurrent folds both read the SAME stale LastSeenAt and double-count the span between them —
+    /// inflating TotalWatchSeconds beyond the real elapsed time.
+    /// </summary>
+    [Fact]
+    public async Task Concurrent_presence_folds_in_the_same_stream_accumulate_exactly_the_real_elapsed_seconds()
+    {
+        string dbName = $"analytics-watchtime-race-{Guid.NewGuid():N}";
+        const string streamId = "stream-1";
+        const int concurrency = 8;
+        const int stepSeconds = 10;
+
+        ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
+        live.GetCoveringStreamIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<DateTime>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(streamId);
+
+        // Seed the anchor's first sighting (T0) sequentially so every concurrent fold below is an
+        // ADVANCE against an existing anchor — the shape the CAS retry loop guards.
+        using (AuthDbContext seed = AuthTestBuilder.NewContext(dbName))
+        {
+            ChannelAnalyticsDailyProjection seedSut = new(seed, live);
+            Result seedResult = await seedSut.ApplyAsync(PresenceEvent("viewer-1", Day));
+            seedResult.IsSuccess.Should().BeTrue();
+        }
+
+        Task[] tasks = Enumerable
+            .Range(1, concurrency)
+            .Select(i =>
+                Task.Run(async () =>
+                {
+                    using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
+                    ChannelAnalyticsDailyProjection sut = new(db, live);
+                    Result result = await sut.ApplyAsync(
+                        PresenceEvent("viewer-1", Day.AddSeconds(i * stepSeconds))
+                    );
+                    result.IsSuccess.Should().BeTrue();
+                })
+            )
+            .ToArray();
+
+        await Task.WhenAll(tasks);
+
+        using AuthDbContext verify = AuthTestBuilder.NewContext(dbName);
+        ChannelAnalyticsDaily row = verify
+            .ChannelAnalyticsDailies.IgnoreQueryFilters()
+            .Single(r => r.BroadcasterId == Channel);
+
+        long realElapsedSeconds = concurrency * stepSeconds; // T0 -> T0 + concurrency*stepSeconds
+        row.TotalWatchSeconds.Should()
+            .Be(
+                realElapsedSeconds,
+                "the accumulated span must equal exactly the real first->last elapsed time; a "
+                    + "read-modify-write on the anchor would let concurrent folds double-count the same "
+                    + "span and inflate this number (e.g. the S004h open-session bug recorded 430s "
+                    + "against a 150s true bound)"
+            );
+    }
+
     private static EventRecord ChatEvent(string viewerId) =>
         new(
             Random.Shared.NextInt64(),
@@ -162,5 +231,27 @@ public sealed class ChannelAnalyticsDailyConcurrencyTests
             "{}",
             Day,
             Day
+        );
+
+    private static EventRecord PresenceEvent(string viewerId, DateTime occurredAt) =>
+        new(
+            Random.Shared.NextInt64(),
+            Guid.NewGuid(),
+            Channel,
+            0,
+            "ChatMessageReceivedEvent",
+            1,
+            "domain",
+            $"{{\"UserId\":\"{viewerId}\",\"UserLogin\":\"{viewerId}\",\"UserDisplayName\":\"{viewerId}\"}}",
+            false,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "{}",
+            occurredAt,
+            occurredAt
         );
 }
