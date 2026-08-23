@@ -396,6 +396,49 @@ public sealed class SubscriptionService(
         return Result.Success(await ToDtoAsync(broadcasterId, sub, ct));
     }
 
+    public async Task<Result<InvoiceDto>> RefundInvoiceAsync(
+        Guid invoiceId,
+        CancellationToken ct = default
+    )
+    {
+        // Platform-wide admin action — not scoped to the caller's own tenant, so the tenant query filter
+        // must not narrow this lookup.
+        Invoice? invoice = await db
+            .Invoices.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(i => i.Id == invoiceId && i.DeletedAt == null, ct);
+        if (invoice is null)
+            return Result.Failure<InvoiceDto>("Invoice not found.", "NOT_FOUND");
+        if (invoice.Status != InvoiceStatus.Paid)
+            return Result.Failure<InvoiceDto>(
+                "Only a paid invoice can be refunded.",
+                "VALIDATION_FAILED"
+            );
+        if (string.IsNullOrWhiteSpace(invoice.StripeInvoiceId))
+            return Result.Failure<InvoiceDto>(
+                "This invoice has no Stripe payment to refund.",
+                "VALIDATION_FAILED"
+            );
+
+        Result refunded = await stripe.RefundInvoiceAsync(invoice.StripeInvoiceId, ct);
+        if (refunded.IsFailure)
+            return refunded.WithValue<InvoiceDto>(null!);
+
+        invoice.Status = InvoiceStatus.Refunded;
+        await db.SaveChangesAsync(ct);
+
+        await eventBus.PublishAsync(
+            new InvoiceRefundedEvent
+            {
+                BroadcasterId = invoice.BroadcasterId,
+                InvoiceId = invoice.Id,
+                AmountRefundedCents = invoice.AmountPaidCents,
+                Currency = invoice.Currency,
+            },
+            ct
+        );
+        return Result.Success(ToInvoiceDto(invoice));
+    }
+
     private Task<Subscription?> FindAsync(Guid broadcasterId, CancellationToken ct) =>
         db.Subscriptions.FirstOrDefaultAsync(
             s => s.BroadcasterId == broadcasterId && s.DeletedAt == null,
