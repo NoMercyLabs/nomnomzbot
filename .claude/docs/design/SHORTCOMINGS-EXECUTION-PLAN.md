@@ -21,16 +21,12 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
 
-- **S119b** Finish the `ClearAllPools()` sweep — S119 (d31e572e) proved a process-wide
-  `SqliteConnection.ClearAllPools()` in a test `Dispose` crashes the host by yanking pooled native connections out of other
-  parallel test classes. Two sites still call it: `Platform/Persistence/SqliteDateTimeOffsetTranslationTests.cs:41` and
-  `Billing/UsageMeteringServiceTests.cs:46`. Grep for every remaining caller. Done-when: no test calls `ClearAllPools()`;
-  each scopes to `ClearPool(ownConnection)`; suite still completes at 3562 on three runs.
-- **S120** Timing flakes undermine the gate — `IpcDevModeListenerServiceTests` (`A_wrong_key_is_refused_and_closed`,
-  `Stop_closes_the_listener_and_drains_live_connections`, `An_oversized_frame_is_refused_and_the_connection_closes`) and
-  `DirectObsTransportTests` (timeout) fail intermittently across runs and pass in isolation. While they flake, "suite green"
-  is a coin toss and real regressions hide behind "probably the known flake". Done-when: each is deterministic (await the
-  actual signal instead of sleeping/racing a timeout), proven by 10 consecutive green runs of those classes.
+- **S004g-verify** The run-once lease test is itself flaky — `EventStore/ProjectionRunnerLeaseTests.cs:136-137`
+  (`Rebuild_ForDifferentBroadcaster_ProceedsUnaffected_WhileAnotherIsInFlight`) failed once in 6 full-suite runs. S004g
+  (cb30a41d) added that lease to stop a manual rebuild racing the driver tick, so a flaky lease test is the shape of a real
+  race in the LOCK ITSELF, not merely a slow test — a lease that occasionally admits two holders is worse than none, because
+  the caller now trusts it. Done-when: the cause is named (test timing vs. genuine lease race, with file:line), the
+  production defect fixed if there is one, and the class passes 10 consecutive full-suite runs.
 - **S001** Song-request queue store — `IMusicService` queue out of the scoped instance into a singleton
   store (U·B4 b1). Done-when: `!sr` → `!queue` → `GET /queue` agree across requests (test with two scopes).
 - **S002** Provider queue/skip outcomes — `AddToQueueAsync`/skip bool honoured; NO_ACTIVE_DEVICE,
