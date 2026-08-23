@@ -48,10 +48,15 @@ Slice IDs are stable; the order is the queue.
 - **S111c** Desktop app polish — firewall hint; log file with a size cap and a documented path; session-expiry
   refresh; window state persisted; app icon + stamped version (`/health/version` is hardcoded 1.0.0.0); macOS
   data dir (U·E5). Done-when: a restart restores window state and the version endpoint reports the build.
-- **S086** IAM bootstrap truth — self-host = deployment-mode fact (not "any principal exists");
-  bootstrap mints a real principal + owner role for the self-host owner and `INITIAL_ADMIN_TWITCH_ID`;
-  acting principal never `Guid.Empty` (system principal row); resolve failure ≠ allow (U·D2).
-  Done-when: creating a service account on self-host does not lock the owner out (test).
+- **S086c** IAM audit + guard gaps (U·D2 remainder, untouched by S086) — assign/revoke/create/deactivate/reactivate
+  write no `IamAuditLog` row (`PlatformIamService.cs:171-236,324-371`); create is non-transactional and can flush an
+  orphan principal (`:106-169`); duplicate/inactive-target assignments allowed (`:200`); the last `iam:manage` holder
+  can be removed (`:335` guards only self-deactivation); `platform-billing` can only read while every billing write
+  gates on `iam:manage` (`IamCatalogSeeder.cs:101`, `AdminBillingController.cs:55,63,69,86`); `billing:refund` has no
+  endpoint; admin GDPR erasure gated on `tenant:access` (`ComplianceController.cs:42`); `IamAccessEvaluatedEvent`,
+  `TenantAccessGrantedEvent` and the flag-change sites (`FeatureFlagAdminService.cs:87,136,161`) have zero consumers.
+  Done-when: every IAM mutation lands an audit row naming target+role+scope, and the last `iam:manage` holder cannot
+  be removed.
 - **S088** Suspension enforced — `Channel.Status` checked in tenant resolution; bot parts + EventSub
   session revoked on suspend; handler on `TenantSuspensionChangedEvent` (U·D3). Done-when: a suspended
   tenant's dashboard and bot stop within one tick.
