@@ -414,5 +414,3 @@ Slice IDs are stable; the order is the queue.
 - Pre-existing from BUILD-TODO: authz key names (Plane-C + Gate-2), self-host owner = platform admin,
   user-scripting model (JS-first), YouTube non-BYOC client, Stripe, pipelines 6-surface unification,
   community reposition, data-sources push-bridge, federation transport, Streamer.bot import.
-
-- **S117** Model/migration drift — the Sqlite migration set carried an unrelated pending `Rewards.IsUserInputRequired` column, i.e. the model changed without its own migration at some point. Done-when: `dotnet ef migrations has-pending-model-changes` (or the equivalent check) is clean for BOTH providers, and a test guards it.
