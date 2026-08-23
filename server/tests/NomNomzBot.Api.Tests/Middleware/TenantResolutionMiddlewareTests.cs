@@ -11,8 +11,11 @@
 using System.Security.Claims;
 using FluentAssertions;
 using NomNomzBot.Api.Middleware;
+using NomNomzBot.Api.Tests.Controllers;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Middleware;
@@ -50,6 +53,26 @@ public class TenantResolutionMiddlewareTests
         return access;
     }
 
+    /// <summary>A tenant DB with no rows — every status lookup misses, so <c>RefuseIfSuspendedAsync</c> no-ops.</summary>
+    private static ApiTestDbContext EmptyDb() => ApiTestDbContext.New();
+
+    /// <summary>A tenant DB seeded with one channel at the given status, for the suspension-enforcement tests.</summary>
+    private static ApiTestDbContext DbWithChannel(Guid channelId, string status)
+    {
+        ApiTestDbContext db = ApiTestDbContext.New();
+        db.Channels.Add(
+            new Channel
+            {
+                Id = channelId,
+                Name = "test-channel",
+                NameNormalized = "test-channel",
+                Status = status,
+            }
+        );
+        db.SaveChanges();
+        return db;
+    }
+
     private static void Authenticate(DefaultHttpContext context, Guid userId)
     {
         context.User = new(
@@ -71,7 +94,7 @@ public class TenantResolutionMiddlewareTests
         DefaultHttpContext context = new();
         context.Request.RouteValues["channelId"] = ChannelGuid.ToString();
 
-        await middleware.InvokeAsync(context, tenantService, access);
+        await middleware.InvokeAsync(context, tenantService, access, EmptyDb());
 
         tenantService.Received(1).SetTenant(ChannelGuid);
         await access
@@ -91,7 +114,7 @@ public class TenantResolutionMiddlewareTests
         DefaultHttpContext context = new();
         context.Request.Headers["X-Channel-Id"] = ChannelGuid.ToString();
 
-        await middleware.InvokeAsync(context, tenantService, AccessStub());
+        await middleware.InvokeAsync(context, tenantService, AccessStub(), EmptyDb());
 
         tenantService.Received(1).SetTenant(ChannelGuid);
     }
@@ -104,7 +127,7 @@ public class TenantResolutionMiddlewareTests
         DefaultHttpContext context = new();
         context.Request.QueryString = new($"?channelId={ChannelGuid}");
 
-        await middleware.InvokeAsync(context, tenantService, AccessStub());
+        await middleware.InvokeAsync(context, tenantService, AccessStub(), EmptyDb());
 
         tenantService.Received(1).SetTenant(ChannelGuid);
     }
@@ -122,7 +145,7 @@ public class TenantResolutionMiddlewareTests
         DefaultHttpContext context = new();
         context.Request.RouteValues["channelId"] = new Ulid(ChannelGuid).ToString();
 
-        await middleware.InvokeAsync(context, tenantService, AccessStub());
+        await middleware.InvokeAsync(context, tenantService, AccessStub(), EmptyDb());
 
         tenantService.Received(1).SetTenant(ChannelGuid);
         context.Request.RouteValues["channelId"].Should().Be(ChannelGuid.ToString());
@@ -146,7 +169,7 @@ public class TenantResolutionMiddlewareTests
         context.Request.RouteValues["channelId"] = new Ulid(ChannelGuid).ToString();
         Authenticate(context, OwnerUser);
 
-        await middleware.InvokeAsync(context, tenantService, access);
+        await middleware.InvokeAsync(context, tenantService, access, EmptyDb());
 
         tenantService.Received(1).SetTenant(ChannelGuid);
         await access
@@ -171,7 +194,7 @@ public class TenantResolutionMiddlewareTests
         DefaultHttpContext context = new();
         context.Request.RouteValues["channelId"] = "not-a-guid";
 
-        await middleware.InvokeAsync(context, tenantService, AccessStub());
+        await middleware.InvokeAsync(context, tenantService, AccessStub(), EmptyDb());
 
         context.Response.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
         tenantService.DidNotReceive().SetTenant(Arg.Any<Guid>());
@@ -185,7 +208,7 @@ public class TenantResolutionMiddlewareTests
         ICurrentTenantService tenantService = Substitute.For<ICurrentTenantService>();
         DefaultHttpContext context = new();
 
-        await middleware.InvokeAsync(context, tenantService, AccessStub());
+        await middleware.InvokeAsync(context, tenantService, AccessStub(), EmptyDb());
 
         tenantService.DidNotReceive().SetTenant(Arg.Any<Guid>());
     }
@@ -202,7 +225,7 @@ public class TenantResolutionMiddlewareTests
         ICurrentTenantService tenantService = Substitute.For<ICurrentTenantService>();
         DefaultHttpContext context = new();
 
-        await middleware.InvokeAsync(context, tenantService, AccessStub());
+        await middleware.InvokeAsync(context, tenantService, AccessStub(), EmptyDb());
 
         nextCalled.Should().BeTrue();
     }
@@ -232,7 +255,7 @@ public class TenantResolutionMiddlewareTests
         context.Request.QueryString = new($"?channelId={VictimChannel}");
         Authenticate(context, AttackerUser);
 
-        await middleware.InvokeAsync(context, tenantService, access);
+        await middleware.InvokeAsync(context, tenantService, access, EmptyDb());
 
         context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
         tenantService.DidNotReceive().SetTenant(Arg.Any<Guid>());
@@ -262,7 +285,7 @@ public class TenantResolutionMiddlewareTests
         context.Request.RouteValues["channelId"] = ChannelGuid.ToString();
         Authenticate(context, OwnerUser);
 
-        await middleware.InvokeAsync(context, tenantService, access);
+        await middleware.InvokeAsync(context, tenantService, access, EmptyDb());
 
         tenantService.Received(1).SetTenant(ChannelGuid);
         nextCalled.Should().BeTrue();
@@ -284,7 +307,7 @@ public class TenantResolutionMiddlewareTests
         DefaultHttpContext context = new();
         Authenticate(context, OwnerUser);
 
-        await middleware.InvokeAsync(context, tenantService, access);
+        await middleware.InvokeAsync(context, tenantService, access, EmptyDb());
 
         tenantService.Received(1).SetTenant(OwnChannel);
         tenantService.DidNotReceive().SetTenant(OwnerUser); // never the user id
@@ -306,8 +329,108 @@ public class TenantResolutionMiddlewareTests
         DefaultHttpContext context = new();
         Authenticate(context, OwnerUser);
 
-        await middleware.InvokeAsync(context, tenantService, access);
+        await middleware.InvokeAsync(context, tenantService, access, EmptyDb());
 
         tenantService.DidNotReceive().SetTenant(Arg.Any<Guid>());
+    }
+
+    // ── S088: a suspended tenant's requests are refused, not silently served ───────────
+
+    [Fact]
+    public async Task InvokeAsync_AnonymousExplicitChannel_Suspended_Returns403ProblemAndStops()
+    {
+        // The public-endpoint anonymous path (e.g. the song-request page) never runs
+        // CanResolveTenantAsync, so it must check suspension itself — a banned channel's public surface
+        // must not keep serving.
+        bool nextCalled = false;
+        TenantResolutionMiddleware middleware = CreateMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+        ICurrentTenantService tenantService = Substitute.For<ICurrentTenantService>();
+        DefaultHttpContext context = new();
+        context.Request.RouteValues["channelId"] = ChannelGuid.ToString();
+        using ApiTestDbContext db = DbWithChannel(ChannelGuid, AuthEnums.ChannelStatus.Suspended);
+
+        await middleware.InvokeAsync(context, tenantService, AccessStub(), db);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        context.Response.ContentType.Should().Contain("application/problem+json");
+        tenantService.DidNotReceive().SetTenant(Arg.Any<Guid>());
+        nextCalled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task InvokeAsync_AnonymousExplicitChannel_Active_SetsTenantAndContinues()
+    {
+        // The mirror case: an active tenant's public surface is unaffected.
+        bool nextCalled = false;
+        TenantResolutionMiddleware middleware = CreateMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+        ICurrentTenantService tenantService = Substitute.For<ICurrentTenantService>();
+        DefaultHttpContext context = new();
+        context.Request.RouteValues["channelId"] = ChannelGuid.ToString();
+        using ApiTestDbContext db = DbWithChannel(ChannelGuid, AuthEnums.ChannelStatus.Active);
+
+        await middleware.InvokeAsync(context, tenantService, AccessStub(), db);
+
+        tenantService.Received(1).SetTenant(ChannelGuid);
+        nextCalled.Should().BeTrue();
+        context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_AuthenticatedOwnChannel_Suspended_Returns403ProblemAndStops()
+    {
+        // The default-own-channel path (no explicit channelId) must go dark for the owner too — e.g. their
+        // own dashboard must not keep resolving to a suspended channel between reinstate and the periodic
+        // BotLifecycleService reconcile.
+        bool nextCalled = false;
+        TenantResolutionMiddleware middleware = CreateMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+        ICurrentTenantService tenantService = Substitute.For<ICurrentTenantService>();
+        IChannelAccessService access = Substitute.For<IChannelAccessService>();
+        access
+            .ResolveOwnChannelAsync(OwnerUser.ToString(), Arg.Any<CancellationToken>())
+            .Returns(OwnChannel);
+        using ApiTestDbContext db = DbWithChannel(
+            OwnChannel,
+            AuthEnums.ChannelStatus.PlatformBanned
+        );
+
+        DefaultHttpContext context = new();
+        Authenticate(context, OwnerUser);
+
+        await middleware.InvokeAsync(context, tenantService, access, db);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        tenantService.DidNotReceive().SetTenant(Arg.Any<Guid>());
+        nextCalled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task InvokeAsync_AuthenticatedOwnChannel_Active_SetsTenantAndContinues()
+    {
+        TenantResolutionMiddleware middleware = CreateMiddleware();
+        ICurrentTenantService tenantService = Substitute.For<ICurrentTenantService>();
+        IChannelAccessService access = Substitute.For<IChannelAccessService>();
+        access
+            .ResolveOwnChannelAsync(OwnerUser.ToString(), Arg.Any<CancellationToken>())
+            .Returns(OwnChannel);
+        using ApiTestDbContext db = DbWithChannel(OwnChannel, AuthEnums.ChannelStatus.Active);
+
+        DefaultHttpContext context = new();
+        Authenticate(context, OwnerUser);
+
+        await middleware.InvokeAsync(context, tenantService, access, db);
+
+        tenantService.Received(1).SetTenant(OwnChannel);
     }
 }

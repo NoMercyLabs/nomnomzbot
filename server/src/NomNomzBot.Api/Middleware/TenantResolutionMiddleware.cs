@@ -9,10 +9,14 @@
 // -----------------------------------------------------------------------------
 
 using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Primitives;
 using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Api.Middleware;
 
@@ -37,7 +41,8 @@ public class TenantResolutionMiddleware
     public async Task InvokeAsync(
         HttpContext context,
         ICurrentTenantService tenantService,
-        IChannelAccessService channelAccess
+        IChannelAccessService channelAccess,
+        IApplicationDbContext db
     )
     {
         string? requestedChannelId = ResolveRequestedChannelId(context);
@@ -67,7 +72,20 @@ public class TenantResolutionMiddleware
 
             if (string.IsNullOrEmpty(userId))
             {
-                // Anonymous request → public-endpoint channel selector (public data only).
+                // Anonymous request → public-endpoint channel selector (public data only). Anonymous callers
+                // never go through CanResolveTenantAsync (which gates active-only for authenticated callers),
+                // so a suspended tenant must be refused here explicitly — a public song-request page for a
+                // banned channel must not keep serving.
+                if (
+                    await RefuseIfSuspendedAsync(
+                        context,
+                        db,
+                        requestedChannelGuid,
+                        context.RequestAborted
+                    )
+                )
+                    return;
+
                 tenantService.SetTenant(requestedChannelGuid);
             }
             else if (
@@ -82,8 +100,19 @@ public class TenantResolutionMiddleware
             }
             else
             {
-                // Authenticated caller asked to act as a channel they do not control. Fail closed —
-                // do not set the tenant and do not continue the pipeline.
+                // Authenticated caller asked to act as a channel they do not control, OR that channel is
+                // suspended (CanResolveTenantAsync requires Active) — surface the typed reason where we can
+                // cheaply tell them apart, otherwise fail closed with the existing generic 403.
+                if (
+                    await RefuseIfSuspendedAsync(
+                        context,
+                        db,
+                        requestedChannelGuid,
+                        context.RequestAborted
+                    )
+                )
+                    return;
+
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 return;
             }
@@ -98,12 +127,57 @@ public class TenantResolutionMiddleware
             );
             if (ownChannel != Guid.Empty)
             {
+                // ResolveOwnChannelAsync does not filter on Status (an owner must still be able to reach the
+                // platform-admin surface and reinstatement flow for their own suspended channel via routes that
+                // do not carry an explicit channelId) — but the channel-scoped API surface itself must go dark
+                // for a suspended tenant exactly like the explicit-channel path above.
+                if (await RefuseIfSuspendedAsync(context, db, ownChannel, context.RequestAborted))
+                    return;
+
                 tenantService.SetTenant(ownChannel);
             }
             // No owned channel (fresh / not-onboarded account): leave tenant unset.
         }
 
         await _next(context);
+    }
+
+    /// <summary>
+    /// Refuses the request with a typed RFC 7807 problem response when <paramref name="channelGuid"/> names a
+    /// suspended or platform-banned tenant. Returns <c>true</c> when the request was refused (the caller must
+    /// stop the pipeline without setting the tenant); <c>false</c> when the tenant is active/unknown and the
+    /// caller should proceed with its own logic.
+    /// </summary>
+    private static async Task<bool> RefuseIfSuspendedAsync(
+        HttpContext context,
+        IApplicationDbContext db,
+        Guid channelGuid,
+        CancellationToken ct
+    )
+    {
+        string? status = await db
+            .Channels.Where(c => c.Id == channelGuid)
+            .Select(c => c.Status)
+            .FirstOrDefaultAsync(ct);
+
+        if (
+            status != AuthEnums.ChannelStatus.Suspended
+            && status != AuthEnums.ChannelStatus.PlatformBanned
+        )
+            return false;
+
+        ProblemDetails problem = new()
+        {
+            Type = "https://nomnomz.bot/problems/tenant-suspended",
+            Title = "Tenant suspended",
+            Status = StatusCodes.Status403Forbidden,
+            Detail = "This channel's access has been suspended by the platform.",
+            Extensions = { ["tenantStatus"] = status },
+        };
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        context.Response.ContentType = "application/problem+json";
+        await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(problem), ct);
+        return true;
     }
 
     private static string? ResolveRequestedChannelId(HttpContext context)
