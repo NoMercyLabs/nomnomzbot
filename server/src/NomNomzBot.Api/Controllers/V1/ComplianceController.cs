@@ -37,9 +37,11 @@ public class ComplianceController : BaseController
     /// <summary>
     /// Erase a subject's data on their behalf (broadcaster- or platform-initiated). The requester kind is
     /// constrained to the operator plane — a body claiming <c>self_service</c> is rejected by validation.
+    /// Gated on <c>compliance:erasure</c> — a destructive, irreversible action distinct from the
+    /// support-visit <c>tenant:access</c> key; holding tenant:access alone must not permit erasure.
     /// </summary>
     [HttpPost("erasure")]
-    [Authorize(Policy = IamPermissionKeys.TenantAccess)]
+    [Authorize(Policy = IamPermissionKeys.ComplianceErasure)]
     [ProducesResponseType<StatusResponseDto<ErasureRequestDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> RequestErasure(
         [FromBody] RequestErasureRequest request,
