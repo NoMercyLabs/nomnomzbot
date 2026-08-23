@@ -47,17 +47,26 @@ public sealed class UsageMeteringService(
             return Result.Success(); // unlimited (self-host or unmetered key) — nothing to meter
 
         (DateTime periodStart, DateTime periodEnd) = CurrentMonth();
-        UsageRecord? record = await db.UsageRecords.FirstOrDefaultAsync(
-            u =>
-                u.BroadcasterId == broadcasterId
-                && u.MetricKey == metricKey
-                && u.PeriodStart == periodStart,
+
+        // Best-effort snapshot for the quota-crossing check below — not load-bearing for correctness of the
+        // persisted total (the increment itself is atomic, see IncrementExistingAsync/insert-race retry).
+        long before = await CurrentQuantityAsync(broadcasterId, metricKey, periodStart, ct);
+
+        int rowsUpdated = await IncrementExistingAsync(
+            broadcasterId,
+            metricKey,
+            periodStart,
+            quantity,
             ct
         );
-        long before = record?.Quantity ?? 0;
-        if (record is null)
+
+        if (rowsUpdated == 0)
         {
-            record = new()
+            // No current-period row yet. Insert one; a concurrent caller racing this same first-of-the-month
+            // increment will lose the unique-index race and fold its quantity into the winner's row atomically
+            // instead of throwing or silently dropping its units (S004/S004b mechanism: guard the write against
+            // the CURRENT row, not a prior in-memory read).
+            UsageRecord record = new()
             {
                 BroadcasterId = broadcasterId,
                 MetricKey = metricKey,
@@ -67,21 +76,39 @@ public sealed class UsageMeteringService(
                 CreatedAt = clock.GetUtcNow().UtcDateTime,
             };
             db.UsageRecords.Add(record);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException)
+            {
+                if (db is DbContext context)
+                    context.Entry(record).State = EntityState.Detached;
+                int retried = await IncrementExistingAsync(
+                    broadcasterId,
+                    metricKey,
+                    periodStart,
+                    quantity,
+                    ct
+                );
+                if (retried == 0)
+                    return Result.Failure(
+                        "Failed to record usage after an insert-race retry.",
+                        "USAGE_RECORD_RACE"
+                    );
+            }
         }
-        else
-        {
-            record.Quantity += quantity;
-        }
-        await db.SaveChangesAsync(ct);
+
+        long after = await CurrentQuantityAsync(broadcasterId, metricKey, periodStart, ct);
 
         // Fire once, on the first crossing of the limit this period.
-        if (before < limit && record.Quantity >= limit)
+        if (before < limit && after >= limit)
             await eventBus.PublishAsync(
                 new UsageQuotaExceededEvent
                 {
                     BroadcasterId = broadcasterId,
                     MetricKey = metricKey,
-                    Used = record.Quantity,
+                    Used = after,
                     Limit = limit,
                     PeriodStart = new(periodStart, TimeSpan.Zero),
                     PeriodEnd = new(periodEnd, TimeSpan.Zero),
@@ -90,6 +117,42 @@ public sealed class UsageMeteringService(
             );
         return Result.Success();
     }
+
+    // Atomic `SET Quantity = Quantity + quantity` evaluated against the CURRENT row at write time — the same
+    // ExecuteUpdateAsync-with-guard mechanism as CurrencyAccountService.AppendAsync (S004/S004b). Returns the
+    // number of rows updated (0 means no current-period row exists yet).
+    private Task<int> IncrementExistingAsync(
+        Guid broadcasterId,
+        string metricKey,
+        DateTime periodStart,
+        long quantity,
+        CancellationToken ct
+    ) =>
+        db
+            .UsageRecords.Where(u =>
+                u.BroadcasterId == broadcasterId
+                && u.MetricKey == metricKey
+                && u.PeriodStart == periodStart
+            )
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(u => u.Quantity, u => u.Quantity + quantity),
+                ct
+            );
+
+    private Task<long> CurrentQuantityAsync(
+        Guid broadcasterId,
+        string metricKey,
+        DateTime periodStart,
+        CancellationToken ct
+    ) =>
+        db
+            .UsageRecords.Where(u =>
+                u.BroadcasterId == broadcasterId
+                && u.MetricKey == metricKey
+                && u.PeriodStart == periodStart
+            )
+            .Select(u => u.Quantity)
+            .FirstOrDefaultAsync(ct);
 
     public async Task<Result<QuotaCheckDto>> CheckAsync(
         Guid broadcasterId,

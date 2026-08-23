@@ -129,7 +129,7 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Billing.Entities.Invoice> Invoices =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Billing.Entities.UsageRecord> UsageRecords =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Billing.Entities.UsageRecord>();
     public DbSet<NomNomzBot.Domain.Billing.Entities.FoundersBadge> FoundersBadges =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Billing.Entities.InviteCode> InviteCodes =>
@@ -192,6 +192,9 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(
             new NomNomzBot.Infrastructure.EventStore.Persistence.ProjectionCheckpointConfiguration()
         );
+        modelBuilder.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Platform.Persistence.Configurations.UsageRecordConfiguration()
+        );
 
         // EF discovers entity types from every DbSet<T> property (an IApplicationDbContext requirement) and
         // would try to map their jsonb-of-complex-type columns (unsupported on SQLite). Ignore every entity
@@ -252,7 +255,6 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.TierLimit>();
         modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.Subscription>();
         modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.Invoice>();
-        modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.UsageRecord>();
         modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.FoundersBadge>();
         modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.InviteCode>();
         modelBuilder.Ignore<NomNomzBot.Domain.Federation.Entities.FederationPeer>();
