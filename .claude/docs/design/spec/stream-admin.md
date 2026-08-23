@@ -411,10 +411,14 @@ public sealed record TenantAccessGrantDto(
     Guid Id, Guid PrincipalId, Guid TargetBroadcasterId, string Justification,
     bool BreakGlass, DateTime GrantedAt, DateTime? ExpiresAt, DateTime? RevokedAt);
 
-public sealed record ImpersonateUserRequest(Guid AccessGrantId);
+public sealed record ImpersonateUserRequest(Guid AccessGrantId, string Justification);
 
 public sealed record ImpersonationTokenDto(
-    string AccessToken, DateTime ExpiresAt, Guid SessionId, Guid SubjectUserId);
+    string AccessToken,
+    DateTime ExpiresAt,
+    Guid SessionId,
+    UserDto User
+);
 
 public sealed record FeatureFlagDto(
     Guid Id, string Key, string? Description, bool IsEnabledGlobally, int RolloutPercentage,
@@ -491,8 +495,8 @@ All controllers extend `BaseController` (`NomNomzBot.Api.Controllers`), are `[Ap
 | POST | `/tenants/{broadcasterId:guid}/reinstate` | `{ "justification": string }` | `StatusResponseDto<object>` | platform · `tenant:suspend` |
 | POST | `/tenants/{broadcasterId:guid}/access` | `BeginTenantAccessRequest` | `StatusResponseDto<TenantAccessGrantDto>` | platform · `tenant:access` |
 | DELETE | `/access/{accessGrantId:guid}` | — | `StatusResponseDto<object>` | platform · `tenant:access` |
-| POST | `/users/{subjectUserId:guid}/impersonate` | `ImpersonateUserRequest` | `StatusResponseDto<ImpersonationTokenDto>` | platform · `user:impersonate` (**SaaS platform-owner only — restricted**; self-host: route refused, deployment-mode fact) |
-| POST | `/impersonate/{accessGrantId:guid}/end` | — | `StatusResponseDto<object>` | platform · `user:impersonate` (**SaaS platform-owner only — restricted**; self-host: route refused, deployment-mode fact) |
+| POST | `/users/{userId:guid}/impersonate` | `ImpersonateUserRequest` | `StatusResponseDto<ImpersonationTokenDto>` | platform · `user:impersonate` (**SaaS platform-owner only — restricted**; self-host: route refused, deployment-mode fact) |
+| DELETE | `/impersonation/{accessGrantId:guid}` | — | `StatusResponseDto<object>` | platform · `user:impersonate` (**SaaS platform-owner only — restricted**; self-host: route refused, deployment-mode fact) |
 | GET | `/feature-flags` | — | `StatusResponseDto<List<FeatureFlagDto>>` | platform · `featureflag:write` |
 | PUT | `/feature-flags` | `UpsertFeatureFlagRequest` | `StatusResponseDto<FeatureFlagDto>` | platform · `featureflag:write` |
 | PUT | `/feature-flags/{flagKey}/overrides/{broadcasterId:guid}` | `SetFlagOverrideRequest` | `StatusResponseDto<object>` | platform · `featureflag:write` |
