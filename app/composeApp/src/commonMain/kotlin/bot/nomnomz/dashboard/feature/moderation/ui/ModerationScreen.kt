@@ -47,7 +47,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
@@ -206,6 +208,12 @@ import nomnomzbot.composeapp.generated.resources.moderation_action_confirm
 import nomnomzbot.composeapp.generated.resources.moderation_action_dialog_title
 import nomnomzbot.composeapp.generated.resources.moderation_action_dismiss
 import nomnomzbot.composeapp.generated.resources.moderation_action_duration
+import nomnomzbot.composeapp.generated.resources.moderation_action_duration_preset_60
+import nomnomzbot.composeapp.generated.resources.moderation_action_duration_preset_600
+import nomnomzbot.composeapp.generated.resources.moderation_action_duration_preset_3600
+import nomnomzbot.composeapp.generated.resources.moderation_action_duration_preset_86400
+import nomnomzbot.composeapp.generated.resources.moderation_action_duration_preset_604800
+import nomnomzbot.composeapp.generated.resources.moderation_action_duration_preset_custom
 import nomnomzbot.composeapp.generated.resources.moderation_action_reason
 import nomnomzbot.composeapp.generated.resources.moderation_action_type_ban
 import nomnomzbot.composeapp.generated.resources.moderation_action_type_delete
@@ -293,6 +301,10 @@ import nomnomzbot.composeapp.generated.resources.moderation_nuke_confirm_title
 import nomnomzbot.composeapp.generated.resources.moderation_nuke_confirm_message
 import nomnomzbot.composeapp.generated.resources.moderation_nuke_confirm
 import nomnomzbot.composeapp.generated.resources.moderation_nuke_dismiss
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_reason_label
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_match_term_label
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_match_term_hint
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_target_fallback
 import nomnomzbot.composeapp.generated.resources.moderation_nuke_batches_title
 import nomnomzbot.composeapp.generated.resources.moderation_nuke_target
 import nomnomzbot.composeapp.generated.resources.moderation_nuke_channels
@@ -436,7 +448,9 @@ fun ModerationScreen(
             onSuspicious = { userId, status -> scope.launch { controller.setSuspicious(userId, status) } },
             onClearSuspicious = { userId -> scope.launch { controller.clearSuspicious(userId) } },
             onForgive = { userId -> scope.launch { controller.forgiveUser(userId) } },
-            onNetworkNuke = { userId -> scope.launch { controller.networkNuke(userId, null, null) } },
+            onNetworkNuke = { userId, reason, matchTerm ->
+                scope.launch { controller.networkNuke(userId, reason, matchTerm) }
+            },
             onSetStanding = { userId, provider, standing, reason ->
                 scope.launch { controller.setStanding(userId, provider, standing, reason) }
             },
@@ -1067,6 +1081,22 @@ private fun BansList(
 // Dialog to apply a ban or timeout to a viewer identified by their Twitch user ID.
 // The moderator selects the action type (ban vs timeout), optionally enters a reason and, for timeouts,
 // a duration in seconds (default 600 = 10 minutes). The caller owns open/closed state.
+//
+// S012b — the preset durations the dropdown offers (60s / 10m / 1h / 24h / 7d); "custom" reveals a free-text
+// field instead. The backend hard-rejects a zero/negative duration server-side regardless of this list.
+private val DURATION_PRESETS_SECONDS: List<Int> = listOf(60, 600, 3_600, 86_400, 604_800)
+
+@Composable
+private fun durationPresetLabel(seconds: Int?): String =
+    when (seconds) {
+        60 -> stringResource(Res.string.moderation_action_duration_preset_60)
+        600 -> stringResource(Res.string.moderation_action_duration_preset_600)
+        3_600 -> stringResource(Res.string.moderation_action_duration_preset_3600)
+        86_400 -> stringResource(Res.string.moderation_action_duration_preset_86400)
+        604_800 -> stringResource(Res.string.moderation_action_duration_preset_604800)
+        else -> stringResource(Res.string.moderation_action_duration_preset_custom)
+    }
+
 @Composable
 private fun ModerateViewerDialog(
     searchViewers: suspend (query: String) -> List<PickerOption>,
@@ -1081,6 +1111,10 @@ private fun ModerateViewerDialog(
     // viewer is chosen from the debounced search, so the action can't fire against a hand-typed guess.
     var target: PickerRef? by remember { mutableStateOf(null) }
     var reason: String by remember { mutableStateOf("") }
+    // S012b — a preset duration is the default so a moderator never fat-fingers a raw second count; "custom"
+    // reveals the free-text field. 600s (10 min) matches the prior hardcoded default.
+    var durationPreset: Int? by remember { mutableStateOf(600) }
+    var durationMenuOpen: Boolean by remember { mutableStateOf(false) }
     var durationText: String by remember { mutableStateOf("600") }
     var isBan: Boolean by remember { mutableStateOf(true) }
     var showUserIdError: Boolean by remember { mutableStateOf(false) }
@@ -1125,12 +1159,44 @@ private fun ModerateViewerDialog(
                     }
                 }
                 if (!isBan) {
-                    AppTextField(
-                        value = durationText,
-                        onValueChange = { durationText = it },
+                    AppSelectField(
                         label = stringResource(Res.string.moderation_action_duration),
+                        value = durationPresetLabel(durationPreset),
+                        expanded = durationMenuOpen,
+                        onExpandedChange = { durationMenuOpen = it },
                         modifier = Modifier.fillMaxWidth(),
-                    )
+                    ) {
+                        DURATION_PRESETS_SECONDS.forEach { seconds ->
+                            DropdownMenuItem(
+                                text = { Text(durationPresetLabel(seconds), color = tokens.cardForeground) },
+                                onClick = {
+                                    durationPreset = seconds
+                                    durationText = seconds.toString()
+                                    durationMenuOpen = false
+                                },
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    stringResource(Res.string.moderation_action_duration_preset_custom),
+                                    color = tokens.cardForeground,
+                                )
+                            },
+                            onClick = {
+                                durationPreset = null
+                                durationMenuOpen = false
+                            },
+                        )
+                    }
+                    if (durationPreset == null) {
+                        AppTextField(
+                            value = durationText,
+                            onValueChange = { durationText = it },
+                            label = stringResource(Res.string.moderation_action_duration),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
                 AppTextField(
                     value = reason,
@@ -1395,7 +1461,7 @@ private fun UserModerationContextDialog(
     onSuspicious: (userId: String, status: String) -> Unit,
     onClearSuspicious: (userId: String) -> Unit,
     onForgive: (userId: String) -> Unit,
-    onNetworkNuke: (userId: String) -> Unit,
+    onNetworkNuke: (userId: String, reason: String, matchTerm: String) -> Unit,
     onSetStanding: (userId: String, provider: String, standing: String, reason: String?) -> Unit,
     onClearStanding: (userId: String, provider: String) -> Unit,
     onAddNote: (userId: String, content: String, pinned: Boolean) -> Unit,
@@ -1485,7 +1551,7 @@ private fun UserModerationActions(
     onSuspicious: (userId: String, status: String) -> Unit,
     onClearSuspicious: (userId: String) -> Unit,
     onForgive: (userId: String) -> Unit,
-    onNetworkNuke: (userId: String) -> Unit,
+    onNetworkNuke: (userId: String, reason: String, matchTerm: String) -> Unit,
     onSetStanding: (userId: String, provider: String, standing: String, reason: String?) -> Unit,
     onClearStanding: (userId: String, provider: String) -> Unit,
 ) {
@@ -1496,6 +1562,10 @@ private fun UserModerationActions(
     var reason: String by remember(userId) { mutableStateOf("") }
     var confirmRestrict: Boolean by remember(userId) { mutableStateOf(false) }
     var confirmNuke: Boolean by remember(userId) { mutableStateOf(false) }
+    // S013b — the nuke fan-out bans across every channel the moderator leads; Reason and MatchTerm are both
+    // REQUIRED before it can submit, so a batch can always be reviewed and reverted precisely afterward.
+    var nukeReason: String by remember(userId) { mutableStateOf("") }
+    var nukeMatchTerm: String by remember(userId) { mutableStateOf("") }
 
     Separator()
     Text(
@@ -1600,17 +1670,59 @@ private fun UserModerationActions(
     }
 
     if (confirmNuke) {
-        ConfirmDialog(
-            title = stringResource(Res.string.moderation_nuke_confirm_title),
-            message = stringResource(Res.string.moderation_nuke_confirm_message, userId),
-            confirmLabel = stringResource(Res.string.moderation_nuke_confirm),
-            dismissLabel = stringResource(Res.string.moderation_nuke_dismiss),
-            destructive = true,
-            onConfirm = {
-                confirmNuke = false
-                onNetworkNuke(userId)
+        val nukeReasonValid: Boolean = nukeReason.isNotBlank()
+        val nukeMatchTermValid: Boolean = nukeMatchTerm.isNotBlank()
+        AlertDialog(
+            onDismissRequest = { confirmNuke = false },
+            title = {
+                Text(
+                    text = stringResource(Res.string.moderation_nuke_confirm_title),
+                    style = typography.lg,
+                    color = tokens.popoverForeground,
+                )
             },
-            onDismiss = { confirmNuke = false },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                    Text(
+                        text = stringResource(Res.string.moderation_nuke_confirm_message, userId),
+                        style = typography.sm,
+                        color = tokens.mutedForeground,
+                    )
+                    AppTextField(
+                        value = nukeReason,
+                        onValueChange = { nukeReason = it },
+                        isError = false,
+                        label = stringResource(Res.string.moderation_nuke_reason_label),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    AppTextField(
+                        value = nukeMatchTerm,
+                        onValueChange = { nukeMatchTerm = it },
+                        isError = false,
+                        label = stringResource(Res.string.moderation_nuke_match_term_label),
+                        supportingText = stringResource(Res.string.moderation_nuke_match_term_hint),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmNuke = false }) {
+                    Text(stringResource(Res.string.moderation_nuke_dismiss))
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmNuke = false
+                        onNetworkNuke(userId, nukeReason.trim(), nukeMatchTerm.trim())
+                        nukeReason = ""
+                        nukeMatchTerm = ""
+                    },
+                    enabled = nukeReasonValid && nukeMatchTermValid,
+                ) {
+                    Text(stringResource(Res.string.moderation_nuke_confirm))
+                }
+            },
         )
     }
 }
@@ -3178,7 +3290,13 @@ private fun NukeBatchRow(batch: NetworkNukeBatch, manage: ManageDecision, onReve
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val target: String = batch.targetTwitchUserId ?: batch.targetUserId ?: ""
+    // S013b — prefer the human-readable display name over the raw Twitch id; the id is the fallback only for
+    // an older batch recorded before the backend started resolving it.
+    val target: String =
+        batch.targetDisplayName
+            ?: batch.targetTwitchUserId?.let { stringResource(Res.string.moderation_nuke_target_fallback, it) }
+            ?: batch.targetUserId
+            ?: ""
     val revertable: Boolean = batch.status == "active" || batch.status == "partial"
 
     Row(
