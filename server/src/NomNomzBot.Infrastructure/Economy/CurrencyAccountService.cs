@@ -320,7 +320,11 @@ public sealed class CurrencyAccountService(
         );
     }
 
-    /// <summary>Appends one ledger entry + updates the projection within the caller's tx. Guards, allocates the position.</summary>
+    /// <summary>
+    /// Appends one ledger entry and atomically applies the CAS-gated Balance update within the caller's tx.
+    /// Guards, allocates the position. LifetimeEarned/LifetimeSpent are NOT written here — see the class
+    /// remarks on <see cref="CurrencyBalanceProjection"/>, which owns those columns.
+    /// </summary>
     private async Task<Result<CurrencyLedgerEntry>> AppendAsync(
         Guid broadcasterId,
         CurrencyAccount account,
@@ -352,14 +356,6 @@ public sealed class CurrencyAccountService(
                 setters =>
                     setters
                         .SetProperty(a => a.Balance, a => a.Balance + amount)
-                        .SetProperty(
-                            a => a.LifetimeEarned,
-                            a => amount > 0 ? a.LifetimeEarned + amount : a.LifetimeEarned
-                        )
-                        .SetProperty(
-                            a => a.LifetimeSpent,
-                            a => amount < 0 ? a.LifetimeSpent - amount : a.LifetimeSpent
-                        )
                         .SetProperty(a => a.LastActivityAt, activityAt),
                 ct
             );
@@ -402,11 +398,12 @@ public sealed class CurrencyAccountService(
         // while telling EF there is nothing left to save, so a later SaveChangesAsync in this same request
         // does not re-persist a value that can go stale relative to a concurrent writer the moment we step
         // outside our own transaction.
+        //
+        // LifetimeEarned/LifetimeSpent are NOT touched here (S004j): they are owned solely by
+        // CurrencyBalanceProjection, which folds the CurrencyCreditedEvent/CurrencyDebitedEvent this method
+        // appends below, atomically via its own ExecuteUpdateAsync. AppendAsync writing them here too used
+        // to double-count every credit/debit once the projection caught up.
         account.Balance = newBalance;
-        if (amount > 0)
-            account.LifetimeEarned += amount;
-        else if (amount < 0)
-            account.LifetimeSpent += -amount;
         account.LastActivityAt = activityAt;
         if (db is DbContext dbContext)
         {
@@ -419,14 +416,6 @@ public sealed class CurrencyAccountService(
             // update. IsModified = false, set AFTER OriginalValue already equals CurrentValue, is a no-op
             // on the value (nothing to revert to) but correctly clears the flag.
             SyncWithoutPersisting(accountEntry.Property(a => a.Balance), account.Balance);
-            SyncWithoutPersisting(
-                accountEntry.Property(a => a.LifetimeEarned),
-                account.LifetimeEarned
-            );
-            SyncWithoutPersisting(
-                accountEntry.Property(a => a.LifetimeSpent),
-                account.LifetimeSpent
-            );
             SyncWithoutPersisting(
                 accountEntry.Property(a => a.LastActivityAt),
                 account.LastActivityAt

@@ -26,6 +26,15 @@ namespace NomNomzBot.Infrastructure.Economy;
 /// <c>BalanceAfter</c> value on the event is the authoritative running total from the service layer, so the
 /// projection trusts it directly rather than computing deltas. This keeps the projection idempotent on
 /// re-run because an event is only applied once (the projection driver gates on the checkpoint).
+///
+/// <c>LifetimeEarned</c>/<c>LifetimeSpent</c> are OWNED by this projection, not by
+/// <c>CurrencyAccountService.AppendAsync</c> — S004j found AppendAsync also incrementing these same two
+/// columns synchronously inside its own transaction, which double-counted every credit/debit the moment the
+/// background <c>ProjectionRunner</c> folded the same event a second time. AppendAsync now only writes
+/// <c>Balance</c> (which its insufficient-funds/max-balance CAS check needs synchronously) and
+/// <c>LastActivityAt</c>; the lifetime totals accrue solely here, atomically via <c>ExecuteUpdateAsync</c>
+/// column-plus-delta (never a tracked read-modify-write), so both the live incremental drive and a full
+/// reset+replay land on the same numbers.
 /// </summary>
 public sealed class CurrencyBalanceProjection(IApplicationDbContext db) : IProjection
 {
@@ -61,28 +70,29 @@ public sealed class CurrencyBalanceProjection(IApplicationDbContext db) : IProje
         if (accountId is null || balanceAfter is null || amount is null)
             return Result.Success();
 
-        CurrencyAccount? account = await db.CurrencyAccounts.FirstOrDefaultAsync(
-            a => a.Id == accountId.Value && a.BroadcasterId == broadcasterId,
-            cancellationToken
-        );
+        bool isCredit = @event.EventType == "CurrencyCreditedEvent";
+        long delta = amount.Value;
 
-        if (account is null)
-            return Result.Success();
+        await db
+            .CurrencyAccounts.Where(a =>
+                a.Id == accountId.Value && a.BroadcasterId == broadcasterId
+            )
+            .ExecuteUpdateAsync(
+                setters =>
+                    setters
+                        .SetProperty(a => a.Balance, balanceAfter.Value)
+                        .SetProperty(a => a.LastActivityAt, @event.OccurredAt)
+                        .SetProperty(
+                            a => a.LifetimeEarned,
+                            a => isCredit ? a.LifetimeEarned + delta : a.LifetimeEarned
+                        )
+                        .SetProperty(
+                            a => a.LifetimeSpent,
+                            a => !isCredit ? a.LifetimeSpent + delta : a.LifetimeSpent
+                        ),
+                cancellationToken
+            );
 
-        account.Balance = balanceAfter.Value;
-        account.LastActivityAt = @event.OccurredAt;
-
-        switch (@event.EventType)
-        {
-            case "CurrencyCreditedEvent":
-                account.LifetimeEarned += amount.Value;
-                break;
-            case "CurrencyDebitedEvent":
-                account.LifetimeSpent += amount.Value;
-                break;
-        }
-
-        await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
 
