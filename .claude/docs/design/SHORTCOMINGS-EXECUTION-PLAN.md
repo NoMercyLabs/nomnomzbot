@@ -66,10 +66,6 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 1 — runtime stability of EXISTING plumbing
 
-- **S033b** Same `WaitAsync` leak in two more hosted services — `Supporters/SupporterSocketHostedService` and
-  `CustomEvents/CustomDataSocketHostedService` use the `Task.WhenAny(x, Task.Delay(Timeout.Infinite, ct))` pattern that S033
-  (62bdb933) replaced with `x.WaitAsync(ct)`; the old form leaves an unobserved Delay alive for the token's lifetime. Found by
-  S033's sweep. Done-when: neither service leaks a pending Delay across N reconnect cycles, proven the way S033 proved it.
 - **S035** SignalR hardening — `WithStatefulReconnect()`; OverlayHub many-widgets-per-connection;
   overlay token out of the query string + throttle (U·B5/B7). 🔒 backplane for multi-replica.
 - **S036** Token refresh — per-connection refresh lock (Twitch/Kick/YouTube/X); sweep at boot, every
