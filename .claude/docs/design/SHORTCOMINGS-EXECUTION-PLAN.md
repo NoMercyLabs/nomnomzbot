@@ -32,8 +32,12 @@ Slice IDs are stable; the order is the queue.
   DB-level test (covered only via `GetActiveProviderAuthStatusAsync`), so a stale value could reach the card unnoticed.
   Done-when: the card and the Music page show the state with a one-click reconnect for `needs_reauth`, en+nl strings, and a
   test asserts the DTO served from the database carries the right status.
-- **S005** Earning dedupe unique index + escalation atomic increment (S·F12, F13). Done-when: duplicate
-  event credit blocked by the DB; two concurrent offenses compound.
+- **S005b** InMemory-only queries are production bugs — `Moderation/SharedBanService.cs:314` (`TrustedListAsync`) joins with a
+  client-projecting `OrderBy` that EF’s InMemory provider tolerates and a REAL provider refuses to translate, so it throws on
+  both Postgres and SQLite. Found by S005 while trying to move `ModerationServiceTestDbContext` off InMemory (it reverted the
+  move rather than fix out of scope). Same class as the DateTimeOffset breakage S004e fixed: the old harness could not fail the
+  way production fails. Done-when: `ModerationServiceTestDbContext` runs on SQLite like the main harness, every query it
+  exposes translates on a real provider, and each bug that surfaces during the migration is fixed or listed with file:line.
 - **S006** Live-game money — settle failure refunds or parks retryable; can't-pay joiner feedback;
   runner force-cancel+refund after N tick failures (U·B2 b5). Done-when: forced settle failure refunds
   every stake (test); a stuck runtime self-cancels.
