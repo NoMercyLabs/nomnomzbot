@@ -11,8 +11,10 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
@@ -75,6 +77,7 @@ public class TtsQueueController : BaseController
 
     /// <summary>Approve a pending utterance — it is synthesized and played on the overlay.</summary>
     [HttpPost("{entryId:guid}/approve")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [RequireAction("tts:queue:review")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Approve(string channelId, Guid entryId, CancellationToken ct)

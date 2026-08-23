@@ -38,6 +38,7 @@ public class AdminBillingController(IInviteCodeService invites, ISubscriptionSer
 {
     /// <summary>List all invite codes platform-wide, paginated.</summary>
     [HttpGet("invites")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [Authorize(Policy = IamPermissionKeys.BillingRead)]
     [ProducesResponseType<PaginatedResponse<InviteCodeDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListInvites(

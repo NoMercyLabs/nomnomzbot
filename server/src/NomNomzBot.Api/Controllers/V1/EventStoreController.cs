@@ -11,8 +11,10 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
@@ -59,6 +61,7 @@ public class EventStoreController : BaseController
     /// </summary>
     [RequireAction("eventstore:export")]
     [HttpPost("export")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> Export(string channelId, CancellationToken ct)
     {
@@ -82,6 +85,7 @@ public class EventStoreController : BaseController
     /// </summary>
     [RequireAction("eventstore:import")]
     [HttpPost("import")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType<StatusResponseDto<EventJournalImportSummary>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Import(string channelId, IFormFile file, CancellationToken ct)
     {
@@ -110,6 +114,7 @@ public class EventStoreController : BaseController
     /// </summary>
     [RequireAction("eventstore:replay:write")]
     [HttpPost("replay")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType<StatusResponseDto<long>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Replay(string channelId, CancellationToken ct)
     {
@@ -131,6 +136,7 @@ public class EventStoreController : BaseController
     /// </summary>
     [RequireAction("eventstore:import:legacy")]
     [HttpPost("import-legacy")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType<StatusResponseDto<LegacyImportResult>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ImportLegacy(string channelId, CancellationToken ct)
     {
@@ -151,6 +157,7 @@ public class EventStoreController : BaseController
     /// </summary>
     [RequireAction("eventstore:projection:rebuild")]
     [HttpPost("rebuild-projections")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<ProjectionRebuildResult>>>(
         StatusCodes.Status200OK
     )]

@@ -69,6 +69,7 @@ public class ComplianceController : BaseController
 
     /// <summary>Page all subjects' GDPR requests (compliance audit view), newest first.</summary>
     [HttpGet("erasure")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [Authorize(Policy = IamPermissionKeys.AuditRead)]
     [ProducesResponseType<PaginatedResponse<ErasureRequestDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListErasureRequests(

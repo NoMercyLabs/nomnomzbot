@@ -37,6 +37,7 @@ public class FeatureFlagAdminController(
 {
     /// <summary>List all feature-flag definitions.</summary>
     [HttpGet]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
     public async Task<IActionResult> List(CancellationToken ct) =>
         ResultResponse(await flags.ListAsync(ct));
 

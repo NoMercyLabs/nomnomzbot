@@ -11,7 +11,9 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Marketplace.Services;
@@ -35,6 +37,7 @@ public class BundlesController(
 {
     /// <summary>Export the selected entities as a portable bundle ZIP (secrets stripped).</summary>
     [HttpPost("export")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [RequireAction("bundles:export")]
     [Produces("application/zip", "application/json")]
     public async Task<IActionResult> Export(
@@ -56,6 +59,7 @@ public class BundlesController(
 
     /// <summary>Inspect an uploaded bundle ZIP without installing: manifest, capability summary, issues.</summary>
     [HttpPost("inspect")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [RequireAction("bundles:import")]
     public async Task<IActionResult> Inspect(string channelId, IFormFile file, CancellationToken ct)
     {
@@ -70,6 +74,7 @@ public class BundlesController(
 
     /// <summary>Install an uploaded bundle ZIP under the given conflict policy (default: rename).</summary>
     [HttpPost("import")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [RequireAction("bundles:import")]
     public async Task<IActionResult> Import(
         string channelId,

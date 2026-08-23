@@ -11,9 +11,11 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Rewards.Dtos;
@@ -282,6 +284,7 @@ public class RewardsController : BaseController
     /// <summary>Sync channel point rewards from Twitch Helix.</summary>
     [RequireAction("reward:sync")]
     [HttpPost("sync")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SyncRewards(string channelId, CancellationToken ct)
     {
@@ -294,6 +297,7 @@ public class RewardsController : BaseController
     /// <summary>Import ALL of the channel's Twitch rewards — including external (non-bot) ones — into the local table.</summary>
     [RequireAction("reward:sync")]
     [HttpPost("import")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ImportRewards(string channelId, CancellationToken ct)
     {

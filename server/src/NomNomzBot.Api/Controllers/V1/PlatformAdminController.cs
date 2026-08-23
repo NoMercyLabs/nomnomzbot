@@ -44,6 +44,7 @@ public class PlatformAdminController(
 {
     /// <summary>Paged tenant listing with search/status/live filters.</summary>
     [HttpGet("tenants")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [Authorize(Policy = IamPermissionKeys.TenantRead)]
     [ProducesResponseType<PaginatedResponse<AdminTenantDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListTenants(
@@ -72,6 +73,7 @@ public class PlatformAdminController(
 
     /// <summary>Tenant detail — status, tier, owner, membership count.</summary>
     [HttpGet("tenants/{broadcasterId:guid}")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [Authorize(Policy = IamPermissionKeys.TenantRead)]
     [ProducesResponseType<StatusResponseDto<AdminTenantDetailDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTenant(Guid broadcasterId, CancellationToken ct)
@@ -192,6 +194,7 @@ public class PlatformAdminController(
 
     /// <summary>Paged Plane-C audit search by principal/tenant/permission/outcome/time.</summary>
     [HttpGet("audit")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [Authorize(Policy = IamPermissionKeys.AuditRead)]
     [ProducesResponseType<PaginatedResponse<IamAuditEntryDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SearchAudit(

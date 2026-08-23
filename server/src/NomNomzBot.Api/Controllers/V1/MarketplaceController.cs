@@ -11,8 +11,10 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Marketplace.Services;
@@ -90,6 +92,7 @@ public class MarketplaceController(
     /// Re-installing an already-installed item updates it in place instead of duplicating.
     /// </summary>
     [HttpPost("items/{itemId}/install")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [RequireAction("bundles:import")]
     public async Task<IActionResult> InstallItem(
         string channelId,
@@ -115,6 +118,7 @@ public class MarketplaceController(
     /// first — a bundle with issues is refused before any bytes are uploaded.
     /// </summary>
     [HttpPost("publish")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [RequireAction("bundles:publish")]
     public async Task<IActionResult> Publish(
         string channelId,

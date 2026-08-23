@@ -11,9 +11,11 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -163,6 +165,7 @@ public class TtsConfigController : BaseController
 
     /// <summary>Generate a short test TTS clip to preview a voice.</summary>
     [HttpPost("test")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [RequireAction("tts:voice:test")]
     [ProducesResponseType<StatusResponseDto<TtsTestResultDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> TestVoice(
@@ -273,6 +276,7 @@ public class TtsConfigController : BaseController
     /// without it nothing is ever created for them.
     /// </summary>
     [HttpPost("voices/assignments/import")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [RequireAction("tts:config:write")]
     [ProducesResponseType<StatusResponseDto<TtsVoiceImportResultDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ImportVoiceAssignments(

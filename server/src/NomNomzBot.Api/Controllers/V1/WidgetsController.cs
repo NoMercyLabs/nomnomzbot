@@ -11,10 +11,12 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -217,6 +219,7 @@ public class WidgetsController : BaseController
     /// <summary>Install a verified gallery widget into this channel (its source compiled into v1, immediately live).</summary>
     [RequireAction("widget:install")]
     [HttpPost("install/{galleryItemId}")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType<StatusResponseDto<WidgetDetail>>(StatusCodes.Status201Created)]
     public async Task<IActionResult> InstallWidget(
         string channelId,
@@ -287,6 +290,7 @@ public class WidgetsController : BaseController
     /// </summary>
     [RequireAction("widget:compile")]
     [HttpPost("{widgetId}/compile")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType<StatusResponseDto<WidgetVersionDetail>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> CompileWidget(
         string channelId,

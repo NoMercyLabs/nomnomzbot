@@ -11,8 +11,10 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
@@ -99,12 +101,7 @@ public class PipelinesController : BaseController
             .Select(c => new PipelineConditionDescriptorDto(c.ConditionType))
             .OrderBy(c => c.Type, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        return Ok(
-            new StatusResponseDto<PipelineCatalogueDto>
-            {
-                Data = new(actions, conditions),
-            }
-        );
+        return Ok(new StatusResponseDto<PipelineCatalogueDto> { Data = new(actions, conditions) });
     }
 
     /// <summary>Create a new pipeline for the channel.</summary>
@@ -169,6 +166,7 @@ public class PipelinesController : BaseController
     /// </summary>
     [RequireAction("pipelines:write")]
     [HttpPost("{id:guid}/test-run")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType<StatusResponseDto<TestRunResultDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> TestRunPipeline(
         string channelId,

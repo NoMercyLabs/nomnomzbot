@@ -11,7 +11,9 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs;
 using NomNomzBot.Application.Import.Dtos;
@@ -41,6 +43,7 @@ public class ImportController : BaseController
     /// <summary>Import commands, quotes, and timers from a StreamElements chatbot export.</summary>
     [RequireAction("commands:write")]
     [HttpPost("streamelements")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType<StatusResponseDto<ImportSummary>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ImportStreamElements(
         string channelId,

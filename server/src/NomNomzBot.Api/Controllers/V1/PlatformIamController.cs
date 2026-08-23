@@ -42,6 +42,7 @@ public class PlatformIamController(
 {
     /// <summary>The role catalog with each role's permission bundle — the role picker.</summary>
     [HttpGet("roles")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<IamRoleDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListRoles(CancellationToken ct) =>
@@ -49,6 +50,7 @@ public class PlatformIamController(
 
     /// <summary>Every principal with its active role assignments — the IAM screen's principal list.</summary>
     [HttpGet("principals")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<IamPrincipalSummaryDto>>>(
         StatusCodes.Status200OK
@@ -58,6 +60,7 @@ public class PlatformIamController(
 
     /// <summary>Effective permission keys for a principal (optionally within one tenant scope).</summary>
     [HttpGet("principals/{principalId:guid}/permissions")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<string>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetEffectivePermissions(

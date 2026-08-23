@@ -11,8 +11,10 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
@@ -143,6 +145,7 @@ public class CodeScriptsController(
 
     /// <summary>Publish a specific version as the script's live version (the one run_code executes).</summary>
     [HttpPost("{id:guid}/versions/{versionId:guid}/publish")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     public async Task<IActionResult> Publish(Guid id, Guid versionId, CancellationToken ct)
     {
         Result gate = await FeatureGateAsync(ct);
@@ -157,6 +160,7 @@ public class CodeScriptsController(
     /// CAPTURED and returned instead of performed; reads run live. Leaves no trace — no state, no chat, no quota.
     /// </summary>
     [HttpPost("{id:guid}/test-run")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType<StatusResponseDto<TestRunResultDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> TestRun(
         Guid id,
