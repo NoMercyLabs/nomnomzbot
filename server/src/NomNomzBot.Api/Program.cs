@@ -19,6 +19,7 @@ using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
 using NomNomzBot.Api.AutomationStream;
 using NomNomzBot.Api.Configuration;
+using NomNomzBot.Api.HealthChecks;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Middleware;
@@ -246,8 +247,12 @@ try
     // the identical Jwt:* configuration the DI-registered singleton uses; it mints no tokens, only exposes
     // the validation parameters (including the pinned ValidAlgorithms) the real signer already computed.
     NomNomzBot.Application.Abstractions.Auth.IJwtTokenService bearerValidationFactory =
-        new NomNomzBot.Infrastructure.Platform.Auth.JwtTokenService(builder.Configuration, TimeProvider.System);
-    TokenValidationParameters bearerValidationParameters = bearerValidationFactory.GetValidationParameters();
+        new NomNomzBot.Infrastructure.Platform.Auth.JwtTokenService(
+            builder.Configuration,
+            TimeProvider.System
+        );
+    TokenValidationParameters bearerValidationParameters =
+        bearerValidationFactory.GetValidationParameters();
 
     builder
         .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -531,6 +536,15 @@ try
                 tags: ["cache", "ready"]
             );
     }
+
+    // Pending EF migrations and EventSub connection state are readiness concerns that Degraded/Unhealthy
+    // 200-mapping on /health has historically masked from orchestrators (S116) — both are wired regardless
+    // of durable-tier vs. lite so a stale schema or a genuinely dropped EventSub socket fails readiness on
+    // every profile.
+    builder.Services.AddSingleton<EventSubDisconnectTracker>();
+    healthChecks
+        .AddCheck<PendingMigrationsHealthCheck>("pending-migrations", tags: ["db", "ready"])
+        .AddCheck<EventSubReadinessHealthCheck>("eventsub", tags: ["ready"]);
 
     // ── Smart self-host port handling (deployment-distribution §6) ───────────────────────────
     // Before the host binds, resolve the actual listen port so a port conflict never crashes the bot: prefer the
@@ -871,12 +885,7 @@ try
                         }
                     );
                 },
-                ResultStatusCodes =
-                {
-                    [HealthStatus.Healthy] = StatusCodes.Status200OK,
-                    [HealthStatus.Degraded] = StatusCodes.Status200OK,
-                    [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
-                },
+                ResultStatusCodes = new Dictionary<HealthStatus, int>(ReadinessStatusCodeMap.Value),
             }
         )
         .ExcludeFromDescription();
