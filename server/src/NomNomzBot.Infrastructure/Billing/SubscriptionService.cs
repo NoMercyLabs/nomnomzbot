@@ -564,6 +564,7 @@ public sealed class SubscriptionService(
             InvoiceStatus.Paid => "paid",
             InvoiceStatus.Void => "void",
             InvoiceStatus.Uncollectible => "uncollectible",
+            InvoiceStatus.Refunded => "refunded",
             _ => "draft",
         };
 }
