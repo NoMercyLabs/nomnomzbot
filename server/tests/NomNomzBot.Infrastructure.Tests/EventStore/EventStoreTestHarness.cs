@@ -207,6 +207,12 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(
             new NomNomzBot.Infrastructure.Moderation.Persistence.ChatFilterConfiguration()
         );
+        modelBuilder.Entity<NomNomzBot.Domain.Commands.Entities.PipelineExecution>(b =>
+        {
+            // Pipeline itself is Ignore()d below (not exercised by these tests) — drop the nav so EF
+            // doesn't try to map an FK to an ignored entity.
+            b.Ignore(e => e.Pipeline);
+        });
 
         // EF discovers entity types from every DbSet<T> property (an IApplicationDbContext requirement) and
         // would try to map their jsonb-of-complex-type columns (unsupported on SQLite). Ignore every entity
@@ -426,7 +432,7 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition> PipelineStepConditions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineExecution> PipelineExecutions =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Commands.Entities.PipelineExecution>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand> ChannelBuiltinCommands =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.CommandCooldownState> CommandCooldownStates =>

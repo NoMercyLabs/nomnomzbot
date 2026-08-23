@@ -37,6 +37,17 @@ public sealed class PipelineEngine : IPipelineEngine
     private static readonly TimeSpan ExecutionTimeout = TimeSpan.FromMinutes(5);
     private const int MaxConcurrentPerChannel = 5;
 
+    // Retention: a busy channel runs pipelines constantly, so PipelineExecution rows are bounded
+    // on two axes rather than kept forever. Successful runs (Completed/Stopped) are routine noise —
+    // they carry no debugging value once quiet, so they're purged fast. Failure-shaped outcomes
+    // (PartiallyFailed/TimedOut/Cancelled/Failed) are what a streamer actually needs to diagnose
+    // "why did my command misbehave", so they get a longer window. A hard per-channel row cap is
+    // enforced on top of both TTLs so an extreme-volume channel can never grow this table unbounded
+    // even inside the retention window.
+    private static readonly TimeSpan SuccessRetention = TimeSpan.FromDays(3);
+    private static readonly TimeSpan FailureRetention = TimeSpan.FromDays(30);
+    private const int MaxRowsPerChannel = 500;
+
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -108,7 +119,7 @@ public sealed class PipelineEngine : IPipelineEngine
         if (current > MaxConcurrentPerChannel)
         {
             _activeCount.AddOrUpdate(request.BroadcasterId, 0, (_, v) => Math.Max(0, v - 1));
-            return new()
+            PipelineExecutionResult throttled = new()
             {
                 ExecutionId = Guid.NewGuid().ToString("N")[..12],
                 Outcome = PipelineOutcome.Failed,
@@ -116,6 +127,8 @@ public sealed class PipelineEngine : IPipelineEngine
                 ErrorMessage =
                     $"Channel {request.BroadcasterId} has too many active pipelines ({MaxConcurrentPerChannel} max)",
             };
+            await PersistExecutionAsync(request, null, startedAt, throttled, ct);
+            return throttled;
         }
 
         // Resolve the pipeline definition — DB steps take priority over graph JSON cache.
@@ -137,7 +150,7 @@ public sealed class PipelineEngine : IPipelineEngine
         if (definition is null)
         {
             _activeCount.AddOrUpdate(request.BroadcasterId, 0, (_, v) => Math.Max(0, v - 1));
-            return new()
+            PipelineExecutionResult invalid = new()
             {
                 ExecutionId = Guid.NewGuid().ToString("N")[..12],
                 Outcome = PipelineOutcome.Failed,
@@ -145,17 +158,21 @@ public sealed class PipelineEngine : IPipelineEngine
                 ErrorMessage =
                     "Invalid pipeline: could not parse JSON or load steps from database.",
             };
+            await PersistExecutionAsync(request, null, startedAt, invalid, ct);
+            return invalid;
         }
 
         if (definition.Steps.Count == 0)
         {
             _activeCount.AddOrUpdate(request.BroadcasterId, 0, (_, v) => Math.Max(0, v - 1));
-            return new()
+            PipelineExecutionResult empty = new()
             {
                 ExecutionId = Guid.NewGuid().ToString("N")[..12],
                 Outcome = PipelineOutcome.Completed,
                 Duration = _timeProvider.GetUtcNow() - startedAt,
             };
+            await PersistExecutionAsync(request, definition, startedAt, empty, ct);
+            return empty;
         }
 
         // Build execution context
@@ -185,9 +202,10 @@ public sealed class PipelineEngine : IPipelineEngine
         if (channelCtx is not null)
             channelCtx.ActivePipelines[execCtx.ExecutionId] = linkedCts;
 
+        PipelineExecutionResult result;
         try
         {
-            return await RunStepsAsync(execCtx, definition, startedAt, linkedCts.Token);
+            result = await RunStepsAsync(execCtx, definition, startedAt, linkedCts.Token);
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
         {
@@ -196,7 +214,7 @@ public sealed class PipelineEngine : IPipelineEngine
                 execCtx.ExecutionId,
                 request.BroadcasterId
             );
-            return new()
+            result = new()
             {
                 ExecutionId = execCtx.ExecutionId,
                 Outcome = PipelineOutcome.TimedOut,
@@ -208,7 +226,7 @@ public sealed class PipelineEngine : IPipelineEngine
         }
         catch (OperationCanceledException)
         {
-            return new()
+            result = new()
             {
                 ExecutionId = execCtx.ExecutionId,
                 Outcome = PipelineOutcome.Cancelled,
@@ -223,6 +241,12 @@ public sealed class PipelineEngine : IPipelineEngine
             channelCtx?.ActivePipelines.TryRemove(execCtx.ExecutionId, out _);
             _activeCount.AddOrUpdate(request.BroadcasterId, 0, (_, v) => Math.Max(0, v - 1));
         }
+
+        // Persist outside the finally block: SaveChangesAsync can itself throw (e.g. transient DB
+        // failure) and must not mask the pipeline's own outcome above, nor prevent the active-count
+        // decrement in `finally` from running first.
+        await PersistExecutionAsync(request, definition, startedAt, result, ct);
+        return result;
     }
 
     // ─── Execution loop ───────────────────────────────────────────────────────
@@ -468,6 +492,135 @@ public sealed class PipelineEngine : IPipelineEngine
         }
 
         return definition;
+    }
+
+    // ─── Persistence (H.4 PipelineExecution) ─────────────────────────────────
+
+    private async Task PersistExecutionAsync(
+        PipelineRequest request,
+        PipelineDefinition? definition,
+        DateTimeOffset startedAt,
+        PipelineExecutionResult result,
+        CancellationToken ct
+    )
+    {
+        Guid? triggeredByUserId = Guid.TryParse(request.TriggeredByUserId, out Guid parsedUserId)
+            ? parsedUserId
+            : null;
+
+        // Step logs exclude StepExecutionLog.Output — it can carry chat/user content — per the
+        // append-only, PII-excluded contract on PipelineExecution.StepLogsJson.
+        string? stepLogsJson =
+            result.StepLogs.Count == 0
+                ? null
+                : JsonSerializer.Serialize(
+                    result.StepLogs.Select(l => new
+                    {
+                        l.StepIndex,
+                        l.ActionType,
+                        l.Succeeded,
+                        DurationMs = (int)l.Duration.TotalMilliseconds,
+                        l.ErrorMessage,
+                    })
+                );
+
+        PipelineExecution row = new()
+        {
+            PipelineId = request.PipelineId ?? Guid.Empty,
+            BroadcasterId = request.BroadcasterId,
+            TriggeredByUserId = triggeredByUserId,
+            TriggerKind = request.PipelineId.HasValue ? "pipeline" : "inline_json",
+            Status = ToStatus(result.Outcome),
+            HostCallCount = result.StepsExecuted,
+            DurationMs = (int)result.Duration.TotalMilliseconds,
+            ErrorMessage = result.ErrorMessage,
+            StepLogsJson = stepLogsJson,
+            StartedAt = startedAt.UtcDateTime,
+            CompletedAt = startedAt.UtcDateTime.Add(result.Duration),
+        };
+
+        try
+        {
+            _db.PipelineExecutions.Add(row);
+            await _db.SaveChangesAsync(ct);
+            await PurgeOldExecutionsAsync(request.BroadcasterId, ct);
+        }
+        catch (Exception ex)
+        {
+            // Telemetry persistence must never take down command execution — the run already
+            // completed (or failed) and its result has already been returned to the caller.
+            _logger.LogError(
+                ex,
+                "Failed to persist PipelineExecution for pipeline {PipelineId} in channel {BroadcasterId}",
+                request.PipelineId,
+                request.BroadcasterId
+            );
+        }
+    }
+
+    private static string ToStatus(PipelineOutcome outcome) =>
+        outcome switch
+        {
+            PipelineOutcome.Completed => "completed",
+            PipelineOutcome.Stopped => "stopped",
+            PipelineOutcome.Failed => "failed",
+            PipelineOutcome.PartiallyFailed => "partially_failed",
+            PipelineOutcome.TimedOut => "timed_out",
+            PipelineOutcome.Cancelled => "cancelled",
+            _ => "unknown",
+        };
+
+    private static readonly HashSet<string> FailureStatuses =
+    [
+        "failed",
+        "partially_failed",
+        "timed_out",
+        "cancelled",
+    ];
+
+    /// <summary>
+    /// Retention sweep for the channel that just ran a pipeline. Successful/stopped runs are
+    /// routine noise and expire after <see cref="SuccessRetention"/>; failure-shaped outcomes are
+    /// kept longer (<see cref="FailureRetention"/>) so a streamer can actually diagnose a
+    /// misbehaving command. A hard <see cref="MaxRowsPerChannel"/> cap bounds disk usage even
+    /// inside those windows for an extreme-volume channel.
+    /// </summary>
+    private async Task PurgeOldExecutionsAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
+        DateTime successCutoff = now - SuccessRetention;
+        DateTime failureCutoff = now - FailureRetention;
+
+        await _db
+            .PipelineExecutions.Where(e =>
+                e.BroadcasterId == broadcasterId
+                && (
+                    (!FailureStatuses.Contains(e.Status) && e.StartedAt < successCutoff)
+                    || (FailureStatuses.Contains(e.Status) && e.StartedAt < failureCutoff)
+                )
+            )
+            .ExecuteDeleteAsync(ct);
+
+        int total = await _db
+            .PipelineExecutions.Where(e => e.BroadcasterId == broadcasterId)
+            .CountAsync(ct);
+
+        if (total > MaxRowsPerChannel)
+        {
+            List<long> overflowIds = await _db
+                .PipelineExecutions.Where(e => e.BroadcasterId == broadcasterId)
+                .OrderByDescending(e => e.StartedAt)
+                .Skip(MaxRowsPerChannel)
+                .Select(e => e.Id)
+                .ToListAsync(ct);
+
+            if (overflowIds.Count > 0)
+            {
+                await _db
+                    .PipelineExecutions.Where(e => overflowIds.Contains(e.Id))
+                    .ExecuteDeleteAsync(ct);
+            }
+        }
     }
 
     private PipelineDefinition? ParseJson(string json)
