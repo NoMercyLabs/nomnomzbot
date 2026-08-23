@@ -236,6 +236,14 @@ public interface IPlatformAdminService
     Task<Result> EndTenantAccessAsync(
         Guid principalId, Guid accessGrantId, CancellationToken ct = default);
 
+    // ── Impersonation (support act-as, SaaS platform-owner only) ─────────────
+    Task<Result<ImpersonationTokenDto>> ImpersonateUserAsync(
+        Guid principalId, Guid accessGrantId, Guid subjectUserId,
+        CancellationToken ct = default);
+
+    Task<Result> EndImpersonationAsync(
+        Guid principalId, Guid accessGrantId, CancellationToken ct = default);
+
     // ── Feature flags ────────────────────────────────────────────────────────
     Task<Result<IReadOnlyList<FeatureFlagDto>>> ListFeatureFlagsAsync(
         Guid principalId, CancellationToken ct = default);
@@ -261,6 +269,8 @@ Behavior notes:
 - `ReinstateTenantAsync` — requires `tenant:suspend`; sets `Status=active`, clears `SuspendedAt`/`SuspendedReason`; emits `TenantSuspensionChangedEvent(NewStatus="active")`; audited.
 - `BeginTenantAccessAsync` — requires `tenant:access`; grants support access by creating a time-boxed `IamRoleAssignment` (schema C.5) narrowed to `ScopeChannelId=broadcasterId`, with `AssignedByPrincipalId=principalId`, `ExpiresAt=request.ExpiresAt`, and `Reason=request.Justification`; the returned `TenantAccessGrantDto.Id` is that assignment's `Id`. Emits `TenantAccessGrantedEvent`; writes `IamAuditLog(Permission="tenant:access", BreakGlass=request.BreakGlass, Justification, Outcome=allowed)`. `request.Justification` required → `VALIDATION_FAILED` if blank.
 - `EndTenantAccessAsync` — revokes the access grant by setting the `IamRoleAssignment.RevokedAt=now` (`accessGrantId` is the assignment `Id`); writes a closing `IamAuditLog` row; `NOT_FOUND` if the assignment is not owned by the principal or not active (already revoked/expired).
+- `ImpersonateUserAsync` — requires `user:impersonate` (**SaaS platform-owner role only — restricted**; held solely by the platform-owner role, removed from the `platform-support` bundle; refused outright on self-host — a deployment-mode fact, not a permission check). Requires an already-open support session — `accessGrantId` must be an unrevoked, unexpired `IamRoleAssignment` from `BeginTenantAccessAsync`; with none open the mint is refused with a typed `VALIDATION_FAILED` (`NoOpenSupportSession`) error. Mints an act-as access token carrying `act={principalId}` and `sid={accessGrantId}`, honored only for that principal and that session id; the token's `ExpiresAt` is **clamped** to the support session's remaining time, never longer, and no refresh-token row is persisted for it (act-as tokens cannot be refreshed). Mints are rate-limited by `SecuritySensitiveRateLimitPolicy`. Writes `IamAuditLog(Permission="user:impersonate", TargetBroadcasterId, TargetResource=subjectUserId, Outcome)` naming operator, subject and session id; notifies the tenant owner that impersonation began. Intended contract (ambient wiring is slice S089c): while the minted token is active, event-journal writes carry both `OnBehalfOfUserId` and `ImpersonationSessionId` so a write made during an impersonated session records both actors.
+- `EndImpersonationAsync` — requires `user:impersonate`; revokes the minted act-as token's `sid` through `ISessionRevocationService` so the token stops authenticating on the very next request, ending the underlying support session with it; writes a closing `IamAuditLog` row; notifies the tenant owner that impersonation ended.
 - `ListFeatureFlagsAsync` — requires `featureflag:write` (read implies the admin flag surface) ; returns global `FeatureFlag` defs with `MinTierKey`.
 - `UpsertFeatureFlagAsync` — requires `featureflag:write`; inserts/updates a global `FeatureFlag` (resolves `MinTierKey`→`MinTierId` FK); emits `FeatureFlagAdministeredEvent(OverrideBroadcasterId=null)` (audit) + the platform-conventions `FeatureFlagChangedEvent` (cache invalidation); audited.
 - `SetFeatureFlagOverrideAsync` — requires `featureflag:write`; upserts `FeatureFlagOverride(FlagId, BroadcasterId)`; emits `FeatureFlagAdministeredEvent(OverrideBroadcasterId)` (audit) + the platform-conventions `FeatureFlagChangedEvent`; audited. `NOT_FOUND` if `flagKey` unknown.
@@ -401,6 +411,11 @@ public sealed record TenantAccessGrantDto(
     Guid Id, Guid PrincipalId, Guid TargetBroadcasterId, string Justification,
     bool BreakGlass, DateTime GrantedAt, DateTime? ExpiresAt, DateTime? RevokedAt);
 
+public sealed record ImpersonateUserRequest(Guid AccessGrantId);
+
+public sealed record ImpersonationTokenDto(
+    string AccessToken, DateTime ExpiresAt, Guid SessionId, Guid SubjectUserId);
+
 public sealed record FeatureFlagDto(
     Guid Id, string Key, string? Description, bool IsEnabledGlobally, int RolloutPercentage,
     string? MinTierKey, string? RequiresConsent, string? DeploymentMode);
@@ -476,6 +491,8 @@ All controllers extend `BaseController` (`NomNomzBot.Api.Controllers`), are `[Ap
 | POST | `/tenants/{broadcasterId:guid}/reinstate` | `{ "justification": string }` | `StatusResponseDto<object>` | platform · `tenant:suspend` |
 | POST | `/tenants/{broadcasterId:guid}/access` | `BeginTenantAccessRequest` | `StatusResponseDto<TenantAccessGrantDto>` | platform · `tenant:access` |
 | DELETE | `/access/{accessGrantId:guid}` | — | `StatusResponseDto<object>` | platform · `tenant:access` |
+| POST | `/users/{subjectUserId:guid}/impersonate` | `ImpersonateUserRequest` | `StatusResponseDto<ImpersonationTokenDto>` | platform · `user:impersonate` (**SaaS platform-owner only — restricted**; self-host: route refused, deployment-mode fact) |
+| POST | `/impersonate/{accessGrantId:guid}/end` | — | `StatusResponseDto<object>` | platform · `user:impersonate` (**SaaS platform-owner only — restricted**; self-host: route refused, deployment-mode fact) |
 | GET | `/feature-flags` | — | `StatusResponseDto<List<FeatureFlagDto>>` | platform · `featureflag:write` |
 | PUT | `/feature-flags` | `UpsertFeatureFlagRequest` | `StatusResponseDto<FeatureFlagDto>` | platform · `featureflag:write` |
 | PUT | `/feature-flags/{flagKey}/overrides/{broadcasterId:guid}` | `SetFlagOverrideRequest` | `StatusResponseDto<object>` | platform · `featureflag:write` |
