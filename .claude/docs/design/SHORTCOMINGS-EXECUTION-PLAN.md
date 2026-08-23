@@ -36,8 +36,6 @@ Slice IDs are stable; the order is the queue.
 - **S006** Live-game money — settle failure refunds or parks retryable; can't-pay joiner feedback;
   runner force-cancel+refund after N tick failures (U·B2 b5). Done-when: forced settle failure refunds
   every stake (test); a stuck runtime self-cancels.
-- **S007** Pipeline validation on save — `CommandConfigValidator` in `PipelineService` create/update
-  (S·F1). Done-when: unknown action type rejected at save with typed error.
 - **S008** Execution truth — real send outcome threaded; `SendReplyAsync` returns a result with
   plain+mention fallback; broken-out run = PartiallyFailed; invoker gets one reply for failure /
   cooldown / permission (S·F4, U·A1 i1, U·C7 reply semantics + `BuiltinOutcome`). Done-when: failing
