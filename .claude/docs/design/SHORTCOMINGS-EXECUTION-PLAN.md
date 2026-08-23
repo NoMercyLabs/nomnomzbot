@@ -44,9 +44,10 @@ Slice IDs are stable; the order is the queue.
   (billing writes + refund), `ComplianceController` (GDPR erasure). `AdminController:180` is the only action already on
   `SecuritySensitiveRateLimitPolicy` (added by S098e) — that policy is the pattern to spread. Run this sweep after
   S086c/S086e land, since they hold three of those files.
-- **S111d** `/health/version` reports the build — the API endpoint still returns a hardcoded `1.0.0.0`; stamp it from
-  the build the way S111c stamped the desktop app (single version literal feeding both). Done-when: `/health/version`
-  returns the built assembly's version, asserted by a test.
+- **S116** `/health/ready` tells the truth — `Program.cs:824` maps `HealthStatus.Degraded` to HTTP 200 via the shared
+  `/health` writer's `ResultStatusCodes`, so a degraded dependency still reads as "ready" to an orchestrator; readiness
+  also ignores pending migrations and EventSub state (U·E5). Done-when: a degraded dependency returns 503 from
+  `/health/ready` while `/health` still reports the detail, and readiness fails while migrations are pending.
 - **S086c** IAM audit + guard gaps (U·D2 remainder, untouched by S086) — assign/revoke/create/deactivate/reactivate
   write no `IamAuditLog` row (`PlatformIamService.cs:171-236,324-371`); create is non-transactional and can flush an
   orphan principal (`:106-169`); duplicate/inactive-target assignments allowed (`:200`); the last `iam:manage` holder
