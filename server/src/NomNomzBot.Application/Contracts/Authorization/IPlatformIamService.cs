@@ -48,7 +48,7 @@ public interface IPlatformIamService
     /// The authorization handler consults this to decide the no-principal-row case for a platform-marked
     /// caller: implicit-full on self-host, fail-closed misconfiguration on SaaS.
     /// </summary>
-    Task<bool> HasAnyPrincipalsAsync(CancellationToken cancellationToken = default);
+    Task<bool> IsSaasDeploymentAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Provisions an employee (over an existing user) or a service account (generates a key, stores its hash,

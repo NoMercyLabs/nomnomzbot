@@ -392,7 +392,7 @@ public sealed class PlatformIamService(
             user.IsPlatformPrincipal = isPlatformPrincipal;
     }
 
-    public Task<bool> HasAnyPrincipalsAsync(CancellationToken cancellationToken = default) =>
+    public Task<bool> IsSaasDeploymentAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(IsSaas);
 
     /// <summary>

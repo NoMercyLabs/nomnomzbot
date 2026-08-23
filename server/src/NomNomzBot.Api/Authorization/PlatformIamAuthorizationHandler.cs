@@ -58,7 +58,7 @@ public sealed class PlatformIamAuthorizationHandler(
             // No principal row for a platform-marked caller. Self-host (zero principals anywhere): the
             // operator is implicitly full — allow. SaaS (principals exist): a marker without a principal
             // row is a misconfiguration — fail closed; never fabricate a principal id for the audit log.
-            if (!await iam.HasAnyPrincipalsAsync())
+            if (!await iam.IsSaasDeploymentAsync())
                 context.Succeed(requirement);
             return;
         }

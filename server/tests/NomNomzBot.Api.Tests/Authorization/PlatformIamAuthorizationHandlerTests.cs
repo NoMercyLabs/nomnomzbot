@@ -118,7 +118,7 @@ public sealed class PlatformIamAuthorizationHandlerTests
 
         context.HasSucceeded.Should().BeFalse();
         await iam.DidNotReceiveWithAnyArgs().ResolvePrincipalAsync(default, default);
-        await iam.DidNotReceiveWithAnyArgs().HasAnyPrincipalsAsync(default);
+        await iam.DidNotReceiveWithAnyArgs().IsSaasDeploymentAsync(default);
         await iam.DidNotReceiveWithAnyArgs()
             .AuthorizePlatformAsync(default, default!, default, default, default, default);
     }
