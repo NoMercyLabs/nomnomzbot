@@ -292,6 +292,7 @@ public sealed class AuthServiceStreamerScopesTests
             Substitute.For<ITwitchDeviceCodeService>(),
             Substitute.For<IIntegrationTokenVault>(),
             Substitute.For<ISessionService>(),
+            Substitute.For<ISessionRevocationService>(),
             new RecordingEventBus(),
             credentials,
             Substitute.For<IHttpClientFactory>(),

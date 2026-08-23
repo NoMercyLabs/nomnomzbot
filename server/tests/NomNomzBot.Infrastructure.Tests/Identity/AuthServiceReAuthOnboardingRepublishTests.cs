@@ -183,6 +183,7 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
             Substitute.For<ITwitchDeviceCodeService>(),
             vault,
             sessions,
+            Substitute.For<ISessionRevocationService>(),
             bus,
             credentials,
             httpClientFactory,

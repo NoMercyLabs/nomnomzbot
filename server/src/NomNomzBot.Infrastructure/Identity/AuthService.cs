@@ -47,6 +47,7 @@ public sealed class AuthService : IAuthService
     private readonly ITwitchDeviceCodeService _deviceCode;
     private readonly IIntegrationTokenVault _vault;
     private readonly ISessionService _sessions;
+    private readonly ISessionRevocationService _sessionRevocation;
     private readonly IEventBus _eventBus;
     private readonly ISystemCredentialsProvider _credentials;
     private readonly HttpClient _http;
@@ -142,6 +143,7 @@ public sealed class AuthService : IAuthService
         ITwitchDeviceCodeService deviceCode,
         IIntegrationTokenVault vault,
         ISessionService sessions,
+        ISessionRevocationService sessionRevocation,
         IEventBus eventBus,
         ISystemCredentialsProvider credentials,
         IHttpClientFactory httpClientFactory,
@@ -157,6 +159,7 @@ public sealed class AuthService : IAuthService
         _deviceCode = deviceCode;
         _vault = vault;
         _sessions = sessions;
+        _sessionRevocation = sessionRevocation;
         _eventBus = eventBus;
         _credentials = credentials;
         _http = httpClientFactory.CreateClient("twitch-auth");
@@ -725,6 +728,11 @@ public sealed class AuthService : IAuthService
         if (revoke.IsFailure)
             return revoke;
 
+        // S098b: revoking the refresh-token session is not enough on its own — the access JWT already
+        // handed out for this session stays valid (and usable) for up to its full 60-minute lifetime
+        // unless its `sid` is separately marked revoked, checked on every bearer-authenticated request.
+        await _sessionRevocation.RevokeAsync(sessionId, cancellationToken);
+
         await _eventBus.PublishAsync(
             new UserLoggedOutEvent
             {
@@ -742,15 +750,32 @@ public sealed class AuthService : IAuthService
         return Result.Success();
     }
 
-    public Task<Result<int>> LogoutAllAsync(
+    public async Task<Result<int>> LogoutAllAsync(
         Guid userId,
         CancellationToken cancellationToken = default
-    ) =>
-        _sessions.RevokeAllForUserAsync(
+    )
+    {
+        // Capture the session ids BEFORE revoking so every in-flight access token minted for any of this
+        // user's sessions is also sid-revoked (S098b) — RevokeAllForUserAsync only tells us how many rows
+        // it touched, not which ones.
+        List<Guid> sessionIds = await _db
+            .AuthSessions.Where(s => s.UserId == userId)
+            .Select(s => s.Id)
+            .ToListAsync(cancellationToken);
+
+        Result<int> revoked = await _sessions.RevokeAllForUserAsync(
             userId,
             AuthEnums.RefreshTokenRevokedReason.Logout,
             cancellationToken
         );
+        if (revoked.IsFailure)
+            return revoked;
+
+        foreach (Guid sessionId in sessionIds)
+            await _sessionRevocation.RevokeAsync(sessionId, cancellationToken);
+
+        return revoked;
+    }
 
     // ─── Platform (shared) bot ─────────────────────────────────────────────────
 
