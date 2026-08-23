@@ -32,11 +32,10 @@ Slice IDs are stable; the order is the queue.
   DB-level test (covered only via `GetActiveProviderAuthStatusAsync`), so a stale value could reach the card unnoticed.
   Done-when: the card and the Music page show the state with a one-click reconnect for `needs_reauth`, en+nl strings, and a
   test asserts the DTO served from the database carries the right status.
-- **S008b** `PipelineExecution` is a dead table — the entity/table from schema H.4 has ZERO writers anywhere:
-  `Status`, `ErrorMessage` and `StepLogsJson` are never persisted, so there is no execution history for a streamer to look at
-  when a command misbehaves, and the dashboard has nothing to show. Found by S008 (80e9fd58) while threading run outcomes.
-  Done-when: every pipeline run persists its outcome and per-step log, and a test proves a failed run is retrievable with the
-  failing step identified.
+- **S008c-read** Nothing can READ the pipeline execution history — S008b (75519b88) persists runs with per-step logs and
+  retention, but no API or dashboard surface exposes them, so a streamer debugging a misbehaving command still cannot see
+  why it failed. Done-when: a run history endpoint exists (paged, tenant-scoped, failures filterable) and the dashboard shows
+  the failing step for a `PartiallyFailed` run.
 - **S011b** Dashboard field for `BotLinePrefix` — S011 (6ee95ca4) added the channel setting and applies it on the send path,
   but a streamer cannot set it: there is no Settings control. Options are none / `*` / `#` / an emoji. Done-when: the field is
   on the Settings page with en+nl strings, writes persist and survive reload, and it is hidden or explained when a dedicated
