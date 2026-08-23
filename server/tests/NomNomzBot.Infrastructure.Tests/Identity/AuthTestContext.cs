@@ -358,7 +358,11 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Platform.Entities.Record>();
         b.Ignore<Permission>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.ChannelFeature>();
-        b.Ignore<ChannelBotAuthorization>();
+        // ChannelBotAuthorization: mapped scalar-only (Channel/BotAccount navs ignored) so
+        // ChatPlatformRouter's bot-line-prefix dedicated-bot lookup (S011) can seed/query it through this
+        // harness.
+        b.Entity<ChannelBotAuthorization>().HasKey(e => e.Id);
+        b.Entity<ChannelBotAuthorization>().Ignore(e => e.Channel).Ignore(e => e.BotAccount);
 
         // IpcDevModeKey: mapped scalar-only (CreatedByUser nav ignored) so the IpcDevModeService tests
         // can prove hash-only storage, tombstoning, and constant-time auth through this harness.
@@ -510,7 +514,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Platform.Entities.ChannelFeature> ChannelFeatures =>
         throw new NotSupportedException();
     public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>
-        throw new NotSupportedException();
+        Set<ChannelBotAuthorization>();
     public DbSet<BotAccount> BotAccounts => Set<BotAccount>();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => Set<IpcDevModeKey>();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection> DiscordGuildConnections =>

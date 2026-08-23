@@ -38,6 +38,17 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// platform token bucket that paces sends to the platform's limit and coalesces concurrent identical
 /// sends. A chunk the platform rejects is never swallowed: it is logged and folds the whole call's result
 /// to <c>false</c> (S008d) rather than reporting success for a partially-delivered line.
+///
+/// S011 (bot-line prefix, D5): before shaping, the visible <c>Channel.BotLinePrefix</c> (e.g. <c>*</c> or
+/// an emoji) is prepended to the message body — NOT the invisible <see cref="BotEmittedLine"/> marker,
+/// which stays a separate, always-applied loop-guard stamp. The prefix is applied here, before
+/// <see cref="IOutboundChatShaper.Shape"/> chunks the body, so it becomes part of the chunked text itself:
+/// it appears exactly once, on the first chunk, and counts toward the platform's character budget like any
+/// other text (never appended after chunking, which would either repeat it per chunk or let it overflow
+/// the budget unaccounted for). The prefix is applied ONLY when the bot has no dedicated account connected
+/// for this tenant (self-host default: the bot types as the streamer's own account, D5) — once a dedicated
+/// bot account is connected, its distinct username already tells viewers apart from the streamer, so the
+/// prefix would be redundant noise and is skipped.
 /// </summary>
 public sealed class ChatPlatformRouter : IChatProvider
 {
@@ -47,6 +58,7 @@ public sealed class ChatPlatformRouter : IChatProvider
     private readonly IChatSendQueue _sendQueue;
     private readonly ILogger<ChatPlatformRouter> _logger;
     private readonly Dictionary<Guid, string> _providerByTenant = [];
+    private readonly Dictionary<Guid, string?> _botLinePrefixByTenant = [];
 
     public ChatPlatformRouter(
         IEnumerable<IChatPlatform> platforms,
@@ -73,16 +85,18 @@ public sealed class ChatPlatformRouter : IChatProvider
         string provider = platform.Provider;
         string queueKey = $"{broadcasterId:D}:{provider}";
         string coalesceKey = $"{queueKey}|msg|{message}";
+        string? botLinePrefix = await ResolveBotLinePrefixAsync(broadcasterId, cancellationToken);
 
         return await _sendQueue.EnqueueAsync(
             queueKey,
             coalesceKey,
             async ct =>
             {
+                string prefixedMessage = botLinePrefix is null ? message : botLinePrefix + message;
                 IReadOnlyList<string> chunks = _shaper.Shape(
                     provider,
                     queueKey,
-                    BotEmittedLine.Stamp(message)
+                    BotEmittedLine.Stamp(prefixedMessage)
                 );
                 bool allSucceeded = true;
                 foreach (string chunk in chunks)
@@ -115,16 +129,18 @@ public sealed class ChatPlatformRouter : IChatProvider
         string provider = platform.Provider;
         string queueKey = $"{broadcasterId:D}:{provider}";
         string coalesceKey = $"{queueKey}|reply|{replyToMessageId}|{message}";
+        string? botLinePrefix = await ResolveBotLinePrefixAsync(broadcasterId, cancellationToken);
 
         return await _sendQueue.EnqueueAsync(
             queueKey,
             coalesceKey,
             async ct =>
             {
+                string prefixedMessage = botLinePrefix is null ? message : botLinePrefix + message;
                 IReadOnlyList<string> chunks = _shaper.Shape(
                     provider,
                     queueKey,
-                    BotEmittedLine.Stamp(message)
+                    BotEmittedLine.Stamp(prefixedMessage)
                 );
                 bool allSucceeded = true;
                 for (int i = 0; i < chunks.Count; i++)
@@ -204,6 +220,59 @@ public sealed class ChatPlatformRouter : IChatProvider
             messageId,
             cancellationToken
         );
+
+    /// <summary>
+    /// The visible bot-line prefix (D5) to apply for this tenant, or null when there is nothing to prepend —
+    /// either no prefix is configured, or a dedicated bot account is connected (its own username already
+    /// distinguishes it from the streamer, so the courtesy prefix would be redundant). Resolved once per
+    /// tenant and cached for the scope's lifetime, mirroring <see cref="ResolveAsync"/>'s provider cache.
+    /// </summary>
+    private async Task<string?> ResolveBotLinePrefixAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        if (_botLinePrefixByTenant.TryGetValue(broadcasterId, out string? cached))
+            return cached;
+
+        string? configuredPrefix = await _db
+            .Channels.Where(c => c.Id == broadcasterId)
+            .Select(c => c.BotLinePrefix)
+            .FirstOrDefaultAsync(ct);
+
+        string? resolved =
+            configuredPrefix is not null && !await HasDedicatedBotAsync(broadcasterId, ct)
+                ? configuredPrefix
+                : null;
+
+        _botLinePrefixByTenant[broadcasterId] = resolved;
+        return resolved;
+    }
+
+    /// <summary>
+    /// True when this tenant sends chat through a dedicated bot account — either its own connected
+    /// per-channel custom bot, or (absent that) the shared platform bot — rather than the streamer's own
+    /// account. Mirrors <c>BotSelfEchoGuard</c>'s identity-resolution order.
+    /// </summary>
+    private async Task<bool> HasDedicatedBotAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        bool hasChannelBot = await _db
+            .ChannelBotAuthorizations.IgnoreQueryFilters()
+            .AnyAsync(
+                a => a.BroadcasterId == broadcasterId && a.IsActive && a.DeletedAt == null,
+                ct
+            );
+        if (hasChannelBot)
+            return true;
+
+        return await _db
+            .BotAccounts.IgnoreQueryFilters()
+            .AnyAsync(
+                b =>
+                    b.IdentityType == AuthEnums.BotIdentityType.Shared
+                    && b.IsActive
+                    && b.DeletedAt == null
+                    && b.ConnectionId != null,
+                ct
+            );
+    }
 
     private async Task<IChatPlatform> ResolveAsync(Guid broadcasterId, CancellationToken ct)
     {

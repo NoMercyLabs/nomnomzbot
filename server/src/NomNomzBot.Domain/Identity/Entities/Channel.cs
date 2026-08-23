@@ -94,6 +94,18 @@ public class Channel : SoftDeletableEntity
     [MaxLength(5)]
     public string CommandPrefix { get; set; } = "!";
 
+    /// <summary>
+    /// The user-defined marker a bot-emitted chat line is prefixed with (product decision D5) so viewers
+    /// can visually tell the bot's voice apart from the streamer's own typing when the bot has no dedicated
+    /// account and posts through the streamer's own (self-host default, <c>BotIdentityType.None</c>). One to
+    /// four characters (covers a single emoji, including multi-codepoint sequences); null/empty = no visible
+    /// prefix. This is entirely separate from the <c>BotEmittedLine.Marker</c> loop-guard stamp — that is an
+    /// invisible marker applied to every bot line regardless of account; this is a visible, opt-in courtesy
+    /// marker applied only on the streamer's-own-account configuration.
+    /// </summary>
+    [MaxLength(16)]
+    public string? BotLinePrefix { get; set; }
+
     public bool IsOnboarded { get; set; }
 
     public DateTime? BotJoinedAt { get; set; }

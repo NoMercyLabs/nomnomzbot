@@ -60,6 +60,13 @@ public sealed record UpdateChannelSettingsDto
     /// <summary>The command prefix (1-5 non-whitespace chars, e.g. <c>!</c>). Null leaves it unchanged.</summary>
     public string? Prefix { get; init; }
 
+    /// <summary>
+    /// The visible marker bot-emitted lines carry when the bot posts through the streamer's own account
+    /// (e.g. <c>*</c>, <c>#</c>, or an emoji; 1-4 chars). Empty string clears it back to none; null leaves
+    /// it unchanged.
+    /// </summary>
+    public string? BotLinePrefix { get; init; }
+
     /// <summary>The channel's default language/locale (BCP-47, e.g. <c>en</c>). Null leaves it unchanged.</summary>
     public string? Locale { get; init; }
 
@@ -77,6 +84,7 @@ public sealed record UpdateChannelSettingsDto
 /// </summary>
 public sealed record ChannelBasicsDto(
     string Prefix,
+    string? BotLinePrefix,
     string? Locale,
     bool AutoJoin,
     string? Timezone

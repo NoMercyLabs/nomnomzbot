@@ -204,6 +204,10 @@ public class ChannelService : IChannelService
         if (prefixError is not null)
             return Result.Failure<ChannelDto>(prefixError, "VALIDATION_FAILED");
 
+        string? botLinePrefixError = ValidateBotLinePrefix(request.BotLinePrefix);
+        if (botLinePrefixError is not null)
+            return Result.Failure<ChannelDto>(botLinePrefixError, "VALIDATION_FAILED");
+
         await ApplyAndPersistAsync(broadcasterGuid, channel, request, cancellationToken);
         return Result.Success(ToDto(channel));
     }
@@ -223,6 +227,7 @@ public class ChannelService : IChannelService
             .Select(c => new
             {
                 c.CommandPrefix,
+                c.BotLinePrefix,
                 c.Language,
                 c.Enabled,
                 c.User.Timezone,
@@ -233,7 +238,13 @@ public class ChannelService : IChannelService
             return Errors.ChannelNotFound<ChannelBasicsDto>(broadcasterId);
 
         return Result.Success(
-            new ChannelBasicsDto(row.CommandPrefix, row.Language, row.Enabled, row.Timezone)
+            new ChannelBasicsDto(
+                row.CommandPrefix,
+                row.BotLinePrefix,
+                row.Language,
+                row.Enabled,
+                row.Timezone
+            )
         );
     }
 
@@ -257,10 +268,15 @@ public class ChannelService : IChannelService
         if (prefixError is not null)
             return Result.Failure<ChannelBasicsDto>(prefixError, "VALIDATION_FAILED");
 
+        string? botLinePrefixError = ValidateBotLinePrefix(request.BotLinePrefix);
+        if (botLinePrefixError is not null)
+            return Result.Failure<ChannelBasicsDto>(botLinePrefixError, "VALIDATION_FAILED");
+
         await ApplyAndPersistAsync(broadcasterGuid, channel, request, cancellationToken);
         return Result.Success(
             new ChannelBasicsDto(
                 channel.CommandPrefix,
+                channel.BotLinePrefix,
                 channel.Language,
                 channel.Enabled,
                 channel.User.Timezone
@@ -285,6 +301,22 @@ public class ChannelService : IChannelService
     }
 
     /// <summary>
+    /// Validates the bot-line prefix (D5): null leaves it unchanged; empty string clears it to "none";
+    /// otherwise it must be 1-4 non-whitespace characters (a symbol or a single emoji, including
+    /// multi-codepoint sequences). Returns an error message when invalid, or null when valid/unchanged.
+    /// </summary>
+    private static string? ValidateBotLinePrefix(string? prefix)
+    {
+        if (prefix is null || prefix.Length == 0)
+            return null;
+
+        if (prefix.Length > 4 || prefix.Any(char.IsWhiteSpace))
+            return "Bot line prefix must be 1-4 non-whitespace characters (e.g. \"*\" or an emoji).";
+
+        return null;
+    }
+
+    /// <summary>
     /// Applies the supplied (already-validated) settings to the loaded channel, persists them, refreshes the
     /// in-memory registry so the chat hot path picks up a prefix/locale change without a restart, and fans out
     /// the change for other consumers. The caller must have loaded <c>channel.User</c>.
@@ -300,6 +332,9 @@ public class ChannelService : IChannelService
             channel.User.DisplayName = request.DisplayName;
         if (request.Prefix is not null)
             channel.CommandPrefix = request.Prefix.Trim();
+        if (request.BotLinePrefix is not null)
+            channel.BotLinePrefix =
+                request.BotLinePrefix.Length == 0 ? null : request.BotLinePrefix;
         if (request.Locale is not null)
             channel.Language = request.Locale;
         if (request.AutoJoin.HasValue)

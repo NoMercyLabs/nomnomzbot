@@ -234,7 +234,12 @@ public sealed class ChatPlatformRouterTests
         Assert.False(sent);
     }
 
-    private static Channel Channel(Guid id, string provider, string externalId) =>
+    private static Channel Channel(
+        Guid id,
+        string provider,
+        string externalId,
+        string? botLinePrefix = null
+    ) =>
         new()
         {
             Id = id,
@@ -247,5 +252,177 @@ public sealed class ChatPlatformRouterTests
             IsOnboarded = true,
             DeploymentMode = AuthEnums.DeploymentMode.Saas,
             BillingTierKey = "free",
+            BotLinePrefix = botLinePrefix,
         };
+}
+
+/// <summary>
+/// S011 (D5 bot-line prefix): proves the visible <c>Channel.BotLinePrefix</c> lands on outbound bot lines
+/// exactly once — never per chunk — counts toward the platform's character budget, and is skipped entirely
+/// once a dedicated bot account is connected for the tenant. Separate fixture from
+/// <see cref="ChatPlatformRouterTests"/> so each test builds its own tenant with the exact bot-authorization
+/// state it needs.
+/// </summary>
+public sealed class ChatPlatformRouterBotLinePrefixTests
+{
+    private static readonly Guid Owner = Guid.Parse("0192b000-0000-7000-8000-0000000000d9");
+
+    private static async Task<(
+        ChatPlatformRouter Router,
+        IChatPlatform Twitch,
+        AuthDbContext Db
+    )> BuildAsync(Guid tenantId, string? botLinePrefix, bool withDedicatedBot = false)
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new Channel
+            {
+                Id = tenantId,
+                OwnerUserId = Owner,
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "tw-prefix",
+                TwitchChannelId = "tw-prefix",
+                Name = "tw-prefix",
+                NameNormalized = "tw-prefix",
+                IsOnboarded = true,
+                DeploymentMode = AuthEnums.DeploymentMode.Saas,
+                BillingTierKey = "free",
+                BotLinePrefix = botLinePrefix,
+            }
+        );
+
+        if (withDedicatedBot)
+        {
+            BotAccount bot = new()
+            {
+                Id = Guid.NewGuid(),
+                Platform = AuthEnums.Platform.Twitch,
+                BotUserId = "dedicated-bot-1",
+                BotUsername = "NomNomzBot",
+                IdentityType = AuthEnums.BotIdentityType.Shared,
+                IsActive = true,
+                ConnectionId = Guid.NewGuid(),
+            };
+            db.BotAccounts.Add(bot);
+        }
+
+        await db.SaveChangesAsync();
+
+        IChatPlatform twitch = Substitute.For<IChatPlatform>();
+        twitch.Provider.Returns(AuthEnums.Platform.Twitch);
+        twitch
+            .SendMessageAsync(tenantId, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        ChatPlatformRouter router = new(
+            [twitch],
+            db,
+            new OutboundChatShaper(),
+            new TokenBucketChatSendQueue(),
+            NullLogger<ChatPlatformRouter>.Instance
+        );
+        return (router, twitch, db);
+    }
+
+    [Fact]
+    public async Task A_configured_prefix_lands_on_the_bot_line_exactly_once()
+    {
+        Guid tenant = Guid.Parse("0192b000-0000-7000-8000-0000000000e1");
+        (ChatPlatformRouter router, IChatPlatform twitch, _) = await BuildAsync(tenant, "*");
+
+        await router.SendMessageAsync(tenant, "hello chat");
+
+        await twitch
+            .Received(1)
+            .SendMessageAsync(
+                tenant,
+                BotEmittedLine.Marker + "*hello chat",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task No_configured_prefix_leaves_the_bot_line_unprefixed()
+    {
+        Guid tenant = Guid.Parse("0192b000-0000-7000-8000-0000000000e2");
+        (ChatPlatformRouter router, IChatPlatform twitch, _) = await BuildAsync(tenant, null);
+
+        await router.SendMessageAsync(tenant, "hello chat");
+
+        await twitch
+            .Received(1)
+            .SendMessageAsync(
+                tenant,
+                BotEmittedLine.Marker + "hello chat",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_line_that_chunks_into_three_carries_the_prefix_on_only_the_first_chunk()
+    {
+        Guid tenant = Guid.Parse("0192b000-0000-7000-8000-0000000000e3");
+        (ChatPlatformRouter router, IChatPlatform twitch, _) = await BuildAsync(tenant, "*");
+        List<string> captured = [];
+        twitch
+            .SendMessageAsync(tenant, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true)
+            .AndDoes(call => captured.Add(call.ArgAt<string>(1)));
+
+        // 260 words of ~7 chars each (~1800 chars) comfortably exceeds Twitch's 500-char budget three times over.
+        string longLine = string.Join(" ", Enumerable.Range(1, 260).Select(i => $"word{i}"));
+        await router.SendMessageAsync(tenant, longLine);
+
+        Assert.True(captured.Count >= 3);
+        // The prefix rides the first chunk, immediately after the (invisible) loop-guard marker...
+        Assert.Equal(
+            BotEmittedLine.Marker + "*",
+            captured[0][..(BotEmittedLine.Marker.Length + 1)]
+        );
+        // ...and appears nowhere else, so a chunked line never shows three stray prefixes mid-sentence.
+        Assert.All(captured.Skip(1), c => Assert.DoesNotContain("*", c));
+        // The prefix counts toward the platform's visible-character budget: no chunk (marker stripped)
+        // exceeds the limit even though the first chunk carries an extra visible character.
+        Assert.All(captured, c => Assert.True(c.Replace(BotEmittedLine.Marker, "").Length <= 500));
+    }
+
+    [Fact]
+    public async Task A_dedicated_bot_account_suppresses_the_prefix_entirely()
+    {
+        Guid tenant = Guid.Parse("0192b000-0000-7000-8000-0000000000e4");
+        (ChatPlatformRouter router, IChatPlatform twitch, _) = await BuildAsync(
+            tenant,
+            "*",
+            withDedicatedBot: true
+        );
+
+        await router.SendMessageAsync(tenant, "hello chat");
+
+        // Its own connected username already tells viewers apart from the streamer, so the courtesy
+        // prefix is redundant and is skipped — only the always-on loop-guard marker rides the line.
+        await twitch
+            .Received(1)
+            .SendMessageAsync(
+                tenant,
+                BotEmittedLine.Marker + "hello chat",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_prefixed_chunk_still_trips_the_loop_guards_marker_check_if_fed_back_through_ingest()
+    {
+        Guid tenant = Guid.Parse("0192b000-0000-7000-8000-0000000000e5");
+        (ChatPlatformRouter router, IChatPlatform twitch, _) = await BuildAsync(tenant, "#");
+        string? sentLine = null;
+        twitch
+            .SendMessageAsync(tenant, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true)
+            .AndDoes(call => sentLine = call.ArgAt<string>(1));
+
+        await router.SendMessageAsync(tenant, "hi");
+
+        Assert.NotNull(sentLine);
+        Assert.True(BotEmittedLine.IsMarked(sentLine!));
+    }
 }
