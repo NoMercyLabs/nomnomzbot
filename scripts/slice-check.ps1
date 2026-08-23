@@ -11,11 +11,25 @@
 param(
     [Parameter(Mandatory = $true)][string]$TestProject,
     [Parameter(Mandatory = $true)][string]$Filter,
-    [Parameter(Mandatory = $true)][string[]]$Paths
+    [Parameter(Mandatory = $true)][string[]]$Paths,
+    # Verify a committed sha in a throwaway worktree instead of the shared tree. Use this whenever
+    # another agent's uncommitted work breaks the build on a file you do not own. Never `git stash`.
+    [string]$AtCommit
 )
 
 $ErrorActionPreference = 'Stop'
-$server = Join-Path $PSScriptRoot '..\server' | Resolve-Path
+$repo = Join-Path $PSScriptRoot '..' | Resolve-Path
+$worktree = $null
+
+if ($AtCommit) {
+    $worktree = Join-Path ([System.IO.Path]::GetTempPath()) ("nnb-slice-" + $AtCommit.Substring(0, 8))
+    git -C $repo worktree add -f $worktree $AtCommit
+    if ($LASTEXITCODE -ne 0) { throw "could not create worktree at $AtCommit" }
+    $server = Join-Path $worktree 'server'
+}
+else {
+    $server = Join-Path $repo 'server'
+}
 
 Push-Location $server
 try {
@@ -36,4 +50,5 @@ try {
 }
 finally {
     Pop-Location
+    if ($worktree) { git -C $repo worktree remove --force $worktree }
 }
