@@ -25,19 +25,12 @@ Slice IDs are stable; the order is the queue.
 - **S115** Repo-wide CSharpier drift — `dotnet csharpier check .` fails on ~230 committed files (2551 checked), so the
   per-commit format gate in `CLAUDE.md` is currently unenforceable. Done-when: `dotnet csharpier check .` is clean on a
   quiet tree and stays the gate.
-- **S114** Rate-limit tiers by task type (owner: got rate-limited toggling cheap options — the single `"api"` bucket
-  is wrong) — replace the one policy with named tiers: `read` (generous, per user), `write-cheap` (toggles/config, generous),
-  `write-expensive` (synthesis, uploads, fan-out, per channel), `auth` (strict, per IP), `anonymous` (overlay/webhook/
-  public, per IP), `admin` (per principal); assign every controller/action explicitly; 429 responses carry `Retry-After`
-  and the dashboard shows a calm "slow down" instead of an error. Done-when: 50 toggles in a minute never 429; 50 login
-  attempts do.
-  **Counted 2026-08-23:** every controller already has *a* limiter (BaseController's `api`, or an explicit attribute —
-  `ControllerSecurityBaselineTests` enforces it). The gap is tiering: 5 controllers run sensitive/destructive platform
-  actions on the generic `api` bucket — `PlatformAdminController` (impersonate, suspend, tenant ops),
-  `PlatformIamController` (principal create/deactivate), `FeatureFlagAdminController`, `AdminBillingController`
-  (billing writes + refund), `ComplianceController` (GDPR erasure). `AdminController:180` is the only action already on
-  `SecuritySensitiveRateLimitPolicy` (added by S098e) — that policy is the pattern to spread. Run this sweep after
-  S086c/S086e land, since they hold three of those files.
+- **S118** Finish the rate-limit tier assignment — S114 (342e248c) tiered the counted controllers, but the sweep is
+  incomplete: `TtsQueueController` (synthesis), `CodeScriptsController` (script execution) and `MarketplaceController`
+  (install) have expensive actions still on a cheap/class-level tier, and `FeatureFlagAdminController.List` (GET) sits on
+  `admin` rather than `read` because the controller declares its own policy. Done-when: every action whose cost is
+  synthesis / execution / upload / fan-out is on `write-expensive`, every plain GET is on `read`, proven by a test that
+  enumerates actions and fails on an untiered expensive one.
 ## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
 
 - **S001** Song-request queue store — `IMusicService` queue out of the scoped instance into a singleton
