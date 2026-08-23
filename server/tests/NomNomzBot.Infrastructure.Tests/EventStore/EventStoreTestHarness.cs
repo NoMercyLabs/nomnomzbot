@@ -473,18 +473,40 @@ internal sealed class EventStoreTestUnitOfWork : IUnitOfWork
     }
 }
 
-/// <summary>Opens a fresh, isolated SQLite database (one connection kept open for the test's lifetime).</summary>
+/// <summary>
+/// Opens a fresh, isolated SQLite database backed by a named shared-cache in-memory database (one "keep-alive"
+/// connection held open for the test's lifetime so the data survives between contexts).
+/// </summary>
+/// <remarks>
+/// <see cref="NewContext"/> gives every caller its OWN <see cref="SqliteConnection"/> (via the connection
+/// string, not a shared connection object) rather than handing out the SAME physical connection to multiple
+/// <see cref="EventStoreTestDbContext"/> instances. A single ADO.NET connection cannot run two commands
+/// concurrently, so two "independent" test contexts sharing one connection object corrupt each other's commands
+/// the moment they run concurrently (S120: <c>ProjectionRunnerLeaseTests</c> exercises exactly that — two
+/// runners over two contexts racing in real parallel) — a test-harness artifact, not a production concern,
+/// since production request-scoped <c>DbContext</c>s always get their own pooled connection. Shared-cache mode
+/// (<c>cache=shared</c>) keeps every connection pointed at the same in-memory data; <c>PRAGMA busy_timeout</c>
+/// makes genuinely concurrent writers wait for SQLite's own lock instead of throwing immediately, matching how
+/// independent connections behave against a real database.
+/// </remarks>
 internal sealed class SqliteTestDatabase : IDisposable
 {
-    private readonly SqliteConnection _connection;
+    private readonly string _connectionString;
+    private readonly SqliteConnection _keepAlive;
 
-    private SqliteTestDatabase(SqliteConnection connection) => _connection = connection;
+    private SqliteTestDatabase(string connectionString, SqliteConnection keepAlive)
+    {
+        _connectionString = connectionString;
+        _keepAlive = keepAlive;
+    }
 
     public static SqliteTestDatabase Open()
     {
-        SqliteConnection connection = new("DataSource=:memory:");
-        connection.Open();
-        SqliteTestDatabase db = new(connection);
+        string connectionString = $"DataSource=file:{Guid.NewGuid():N}?mode=memory&cache=shared";
+        SqliteConnection keepAlive = new(connectionString);
+        keepAlive.Open();
+
+        SqliteTestDatabase db = new(connectionString, keepAlive);
         using EventStoreTestDbContext context = db.NewContext();
         context.Database.EnsureCreated();
         return db;
@@ -493,9 +515,14 @@ internal sealed class SqliteTestDatabase : IDisposable
     public EventStoreTestDbContext NewContext()
     {
         DbContextOptions<EventStoreTestDbContext> options =
-            new DbContextOptionsBuilder<EventStoreTestDbContext>().UseSqlite(_connection).Options;
-        return new(options);
+            new DbContextOptionsBuilder<EventStoreTestDbContext>()
+                .UseSqlite(_connectionString)
+                .Options;
+        EventStoreTestDbContext context = new(options);
+        context.Database.OpenConnection();
+        context.Database.ExecuteSqlRaw("PRAGMA busy_timeout=5000;");
+        return context;
     }
 
-    public void Dispose() => _connection.Dispose();
+    public void Dispose() => _keepAlive.Dispose();
 }
