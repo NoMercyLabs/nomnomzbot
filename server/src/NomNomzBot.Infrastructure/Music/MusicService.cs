@@ -1061,18 +1061,10 @@ public sealed class MusicService : IMusicService
                 "DUPLICATE_TRACK"
             );
 
-        // Best-effort: the now-playing probe is a nicety on top of the queue check, so a provider that
-        // cannot answer it right now must not turn a perfectly good request into a failure — the real
-        // admission verdict comes from the push below.
-        TrackInfo? current;
-        try
-        {
-            current = await provider.GetCurrentTrackAsync(tenantId, cancellationToken);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            return null;
-        }
+        // The probe is best-effort by contract: IMusicProvider.GetCurrentTrackAsync returns null for
+        // every "cannot answer" (no device, dead token, provider error), and a null read must never be
+        // read as a match — an unanswerable probe leaves the verdict to the real admission push below.
+        TrackInfo? current = await provider.GetCurrentTrackAsync(tenantId, cancellationToken);
 
         if (
             current?.TrackUri is not null

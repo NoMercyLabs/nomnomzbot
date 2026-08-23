@@ -71,14 +71,16 @@ public sealed class MusicServiceDuplicateRequestTests
     }
 
     [Fact]
-    public async Task A_provider_that_cannot_answer_the_now_playing_probe_still_accepts_the_request()
+    public async Task A_probe_that_cannot_answer_is_not_treated_as_a_match()
     {
         (MusicService sut, RecordingHttpHandler handler) = Build();
         RespondQueuePush(handler, HttpStatusCode.NoContent);
+        // Dead token: the provider contract turns every unanswerable probe into a null read, which must
+        // not count as "this track is playing" — otherwise a broken connection refuses every request.
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
-            HttpStatusCode.InternalServerError,
-            "{}"
+            HttpStatusCode.Unauthorized,
+            """{"error":{"status":401,"message":"The access token expired"}}"""
         );
 
         Result result = await sut.AddToQueueAsync(ChannelId.ToString(), TrackUri, "viewer1");
@@ -144,6 +146,7 @@ public sealed class MusicServiceDuplicateRequestTests
             new RecordingEventBus(),
             new BlockedTrackService(db),
             new SongRequestQueueStore(),
+            new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore()
         );
