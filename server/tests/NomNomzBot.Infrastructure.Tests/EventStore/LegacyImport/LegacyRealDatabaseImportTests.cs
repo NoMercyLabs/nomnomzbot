@@ -10,10 +10,12 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.EventStore.LegacyImport;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.EventStore.LegacyImport;
 
@@ -28,9 +30,7 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore.LegacyImport;
 /// </summary>
 public sealed class LegacyRealDatabaseImportTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero));
 
     private static string LegacyDbPath =>
         Path.Combine(
@@ -63,7 +63,8 @@ public sealed class LegacyRealDatabaseImportTests
                 new TenantSequenceAllocator(db),
                 new EventStoreTestUnitOfWork(db),
                 Clock,
-                new PassthroughEventPayloadProtector()
+                new PassthroughEventPayloadProtector(),
+                Substitute.For<ICurrentUserService>()
             );
             LegacyChannelEventImporter importer = new(journal, new());
             Guid tenant = Guid.Parse("0192a000-0000-7000-8000-00000000cc01");

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
@@ -31,13 +32,15 @@ public sealed class EventJournalService : IEventJournal
     private readonly IUnitOfWork _unitOfWork;
     private readonly TimeProvider _clock;
     private readonly IEventPayloadProtector _payloadProtector;
+    private readonly ICurrentUserService _currentUser;
 
     public EventJournalService(
         IApplicationDbContext db,
         ITenantSequenceAllocator sequences,
         IUnitOfWork unitOfWork,
         TimeProvider clock,
-        IEventPayloadProtector payloadProtector
+        IEventPayloadProtector payloadProtector,
+        ICurrentUserService currentUser
     )
     {
         _db = db;
@@ -45,6 +48,7 @@ public sealed class EventJournalService : IEventJournal
         _unitOfWork = unitOfWork;
         _clock = clock;
         _payloadProtector = payloadProtector;
+        _currentUser = currentUser;
     }
 
     public async Task<Result<EventRecord>> AppendAsync(
@@ -260,13 +264,20 @@ public sealed class EventJournalService : IEventJournal
     // and batch append paths so the row shape stays identical regardless of how the position was reserved. The
     // Payload / PayloadIsEncrypted / SubjectKeyId trio comes from the already-resolved <paramref name="protectedPayload"/>
     // (a subject-attributed event is sealed under its DEK; a subject-less event stays plaintext).
-    private static EventJournal BuildJournalEntity(
+    // Populates the dual-actor trail from the ambient impersonation context (S089c) — not from the
+    // request — so EVERY journalled write made during an act-as request carries the true operator +
+    // subject + session, regardless of what any individual call site passed as ActorUserId. Outside
+    // impersonation, ambient.Impersonation is null and the request's own (typically absent) values pass
+    // through unchanged.
+    private EventJournal BuildJournalEntity(
         AppendEventRequest request,
         ProtectedPayload protectedPayload,
         long position,
         DateTime recordedAt
-    ) =>
-        new()
+    )
+    {
+        ImpersonationContext? impersonation = _currentUser.Impersonation;
+        return new()
         {
             EventId = request.EventId,
             BroadcasterId = request.BroadcasterId,
@@ -279,15 +290,16 @@ public sealed class EventJournalService : IEventJournal
             SubjectKeyId = protectedPayload.SubjectKeyId,
             CorrelationId = request.CorrelationId,
             CausationId = request.CausationId,
-            ActorUserId = request.ActorUserId,
+            ActorUserId = impersonation?.OperatorUserId ?? request.ActorUserId,
             ActorExternalUserId = request.ActorExternalUserId,
             ActorProvider = request.ActorProvider,
-            OnBehalfOfUserId = request.OnBehalfOfUserId,
-            ImpersonationSessionId = request.ImpersonationSessionId,
+            OnBehalfOfUserId = impersonation?.SubjectUserId ?? request.OnBehalfOfUserId,
+            ImpersonationSessionId = impersonation?.SessionId ?? request.ImpersonationSessionId,
             Metadata = request.MetadataJson,
             OccurredAt = DateTime.SpecifyKind(request.OccurredAt, DateTimeKind.Utc),
             RecordedAt = recordedAt,
         };
+    }
 
     // Loads the already-stored journal rows for the given event ids, keyed by EventId, chunking the IN-list so a
     // large batch never exceeds the provider parameter limit. Used by the batch append to dedupe in one pass and

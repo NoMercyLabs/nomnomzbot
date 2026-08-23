@@ -10,12 +10,14 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.EventStore;
 
@@ -29,9 +31,7 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore;
 /// </summary>
 public sealed class EventPayloadProtectorTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 
     // A chat-message-shaped payload carrying a viewer's PII (display name + message text).
     private const string PiiPayload =
@@ -73,7 +73,8 @@ public sealed class EventPayloadProtectorTests
             new TenantSequenceAllocator(eventDb),
             new EventStoreTestUnitOfWork(eventDb),
             Clock,
-            protector
+            protector,
+            Substitute.For<ICurrentUserService>()
         );
         return new(journal, protector, subjectKeys);
     }

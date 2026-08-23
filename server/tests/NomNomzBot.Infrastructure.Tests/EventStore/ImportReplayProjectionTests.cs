@@ -11,12 +11,14 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.EventStore;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.EventStore;
 
@@ -32,9 +34,7 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore;
 /// </summary>
 public sealed class ImportReplayProjectionTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 
     private static EventJournalService NewJournal(EventStoreTestDbContext db) =>
         new(
@@ -42,7 +42,8 @@ public sealed class ImportReplayProjectionTests
             new TenantSequenceAllocator(db),
             new EventStoreTestUnitOfWork(db),
             Clock,
-            new PassthroughEventPayloadProtector()
+            new PassthroughEventPayloadProtector(),
+            Substitute.For<ICurrentUserService>()
         );
 
     private static ProjectionRunner NewRunner(

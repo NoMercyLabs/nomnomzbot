@@ -10,9 +10,11 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Infrastructure.EventStore;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.EventStore;
 
@@ -23,15 +25,14 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore;
 /// </summary>
 public sealed class EventJournalServiceTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 
     private static AppendEventRequest Request(
         Guid? broadcasterId,
         string eventType = "test.event",
         string payload = "{\"v\":1}",
-        Guid? eventId = null
+        Guid? eventId = null,
+        Guid? actorUserId = null
     ) =>
         new(
             EventId: eventId ?? Guid.NewGuid(),
@@ -41,10 +42,14 @@ public sealed class EventJournalServiceTests
             Source: "domain",
             PayloadJson: payload,
             MetadataJson: "{}",
-            OccurredAt: new(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc)
+            OccurredAt: new(2026, 6, 20, 11, 0, 0, DateTimeKind.Utc),
+            ActorUserId: actorUserId
         );
 
-    private static EventJournalService NewJournal(EventStoreTestDbContext db)
+    private static EventJournalService NewJournal(
+        EventStoreTestDbContext db,
+        ICurrentUserService? currentUser = null
+    )
     {
         EventStoreTestUnitOfWork uow = new(db);
         TenantSequenceAllocator allocator = new(db);
@@ -53,8 +58,24 @@ public sealed class EventJournalServiceTests
             allocator,
             uow,
             Clock,
-            new PassthroughEventPayloadProtector()
+            new PassthroughEventPayloadProtector(),
+            currentUser ?? Substitute.For<ICurrentUserService>()
         );
+    }
+
+    // A fake with no ICurrentUserService.Impersonation override returns null via NSubstitute's default
+    // (reference-type members default to null), which is exactly the non-impersonated ambient state.
+    private static ICurrentUserService CurrentUserImpersonating(
+        Guid operatorUserId,
+        Guid subjectUserId,
+        Guid sessionId
+    )
+    {
+        ICurrentUserService fake = Substitute.For<ICurrentUserService>();
+        fake.Impersonation.Returns(
+            new ImpersonationContext(operatorUserId, subjectUserId, sessionId)
+        );
+        return fake;
     }
 
     [Fact]
@@ -325,5 +346,69 @@ public sealed class EventJournalServiceTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    // S089c done-when: a write made on a request carrying an act-as token journals BOTH actors — the
+    // OPERATOR as the acting actor, the SUBJECT as on-behalf-of, plus the session — even though the
+    // caller passed only the subject (the token's own `sub`) as ActorUserId, exactly as every real
+    // business-write call site does today.
+    [Fact]
+    public async Task Append_DuringImpersonation_JournalsOperatorAsActorAndSubjectAsOnBehalfOf()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Guid tenant = Guid.NewGuid();
+        Guid operatorUserId = Guid.NewGuid();
+        Guid subjectUserId = Guid.NewGuid();
+        Guid sessionId = Guid.NewGuid();
+
+        await using EventStoreTestDbContext db = database.NewContext();
+        EventJournalService journal = NewJournal(
+            db,
+            CurrentUserImpersonating(operatorUserId, subjectUserId, sessionId)
+        );
+
+        // The call site does what real business writes do: attribute the write to "the current user",
+        // which under an act-as token IS the subject (the token grants exactly their access).
+        Result<EventRecord> appended = await journal.AppendAsync(
+            Request(tenant, actorUserId: subjectUserId)
+        );
+
+        appended.IsSuccess.Should().BeTrue(appended.ErrorMessage);
+        appended.Value.ActorUserId.Should().Be(operatorUserId, "the true author is the operator");
+        appended
+            .Value.OnBehalfOfUserId.Should()
+            .Be(subjectUserId, "the write acted on the subject's behalf");
+        appended.Value.ImpersonationSessionId.Should().Be(sessionId);
+
+        // One audit query returns operator + subject + session together for the impersonated write —
+        // the plan's literal done-when.
+        Result<PagedList<EventRecord>> queried = await journal.QueryAsync(
+            new EventJournalQuery(tenant, null, null, null, operatorUserId, 1, 25)
+        );
+        queried.IsSuccess.Should().BeTrue(queried.ErrorMessage);
+        EventRecord row = queried.Value.Items.Should().ContainSingle().Subject;
+        row.ActorUserId.Should().Be(operatorUserId);
+        row.OnBehalfOfUserId.Should().Be(subjectUserId);
+        row.ImpersonationSessionId.Should().Be(sessionId);
+    }
+
+    [Fact]
+    public async Task Append_NormalRequest_LeavesOnBehalfOfAndSessionNull()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Guid tenant = Guid.NewGuid();
+        Guid actingUser = Guid.NewGuid();
+
+        await using EventStoreTestDbContext db = database.NewContext();
+        EventJournalService journal = NewJournal(db); // no impersonation context configured
+
+        Result<EventRecord> appended = await journal.AppendAsync(
+            Request(tenant, actorUserId: actingUser)
+        );
+
+        appended.IsSuccess.Should().BeTrue(appended.ErrorMessage);
+        appended.Value.ActorUserId.Should().Be(actingUser);
+        appended.Value.OnBehalfOfUserId.Should().BeNull();
+        appended.Value.ImpersonationSessionId.Should().BeNull();
     }
 }

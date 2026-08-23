@@ -45,4 +45,27 @@ public sealed class CurrentUserService : ICurrentUserService
 
     public IEnumerable<string> Roles =>
         _httpContextAccessor.HttpContext?.User?.FindAll(ClaimTypes.Role).Select(c => c.Value) ?? [];
+
+    public ImpersonationContext? Impersonation
+    {
+        get
+        {
+            ClaimsPrincipal? principal = _httpContextAccessor.HttpContext?.User;
+            if (principal is null)
+                return null;
+
+            string? actClaim = principal.FindFirstValue(JwtTokenService.ActorClaim);
+            string? sidClaim = principal.FindFirstValue(JwtTokenService.SessionClaim);
+            string? subClaim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (
+                !Guid.TryParse(actClaim, out Guid operatorUserId)
+                || !Guid.TryParse(sidClaim, out Guid sessionId)
+                || !Guid.TryParse(subClaim, out Guid subjectUserId)
+            )
+                return null;
+
+            return new ImpersonationContext(operatorUserId, subjectUserId, sessionId);
+        }
+    }
 }

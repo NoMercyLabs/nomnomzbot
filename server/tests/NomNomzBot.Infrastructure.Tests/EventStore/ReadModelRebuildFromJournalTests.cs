@@ -40,9 +40,7 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore;
 /// </summary>
 public sealed class ReadModelRebuildFromJournalTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 22, 20, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 22, 20, 0, 0, TimeSpan.Zero));
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000abc01");
     private static readonly DateTime Live = new(2026, 6, 22, 20, 0, 0, DateTimeKind.Utc);
 
@@ -57,7 +55,8 @@ public sealed class ReadModelRebuildFromJournalTests
             new TenantSequenceAllocator(db),
             new RebuildTestUnitOfWork(db),
             Clock,
-            new PassthroughEventPayloadProtector()
+            new PassthroughEventPayloadProtector(),
+            Substitute.For<ICurrentUserService>()
         );
 
         await AppendRepresentativeSpreadAsync(journal);
@@ -252,14 +251,7 @@ public sealed class ReadModelRebuildFromJournalTests
             .Select(u => $"{u.TwitchUserId}|{u.DisplayName}")
             .ToListAsync();
 
-        return new(
-            channelDaily,
-            messageDaily,
-            engagement,
-            profiles,
-            sessions,
-            viewers
-        );
+        return new(channelDaily, messageDaily, engagement, profiles, sessions, viewers);
     }
 
     // Mutate every table to a wrong value so an empty/unchanged rebuild can never pass by accident.

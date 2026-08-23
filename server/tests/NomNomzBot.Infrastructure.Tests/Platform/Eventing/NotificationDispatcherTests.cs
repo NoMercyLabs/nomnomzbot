@@ -12,6 +12,7 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -21,6 +22,7 @@ using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Tests.EventStore;
 using NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
 
@@ -32,9 +34,7 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
 /// </summary>
 public sealed class NotificationDispatcherTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 
     private static EventJournalService NewJournal(EventStoreTestDbContext db)
     {
@@ -45,7 +45,8 @@ public sealed class NotificationDispatcherTests
             allocator,
             uow,
             Clock,
-            new PassthroughEventPayloadProtector()
+            new PassthroughEventPayloadProtector(),
+            Substitute.For<ICurrentUserService>()
         );
     }
 

@@ -12,12 +12,14 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.EventStore;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.EventStore;
 
@@ -28,9 +30,7 @@ namespace NomNomzBot.Infrastructure.Tests.EventStore;
 /// </summary>
 public sealed class JournalingEventBusDecoratorTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 
     private sealed class CapturableEvent : DomainEventBase
     {
@@ -125,7 +125,8 @@ public sealed class JournalingEventBusDecoratorTests
                 sp.GetRequiredService<ITenantSequenceAllocator>(),
                 sp.GetRequiredService<IUnitOfWork>(),
                 sp.GetRequiredService<TimeProvider>(),
-                new PassthroughEventPayloadProtector()
+                new PassthroughEventPayloadProtector(),
+                Substitute.For<ICurrentUserService>()
             ));
         services.AddScoped<IEventStoreSubscriber>(sp => new EventStoreSubscriber(
             sp.GetRequiredService<IEventJournal>(),
@@ -170,7 +171,8 @@ public sealed class JournalingEventBusDecoratorTests
             new TenantSequenceAllocator(verify),
             new EventStoreTestUnitOfWork(verify),
             Clock,
-            new PassthroughEventPayloadProtector()
+            new PassthroughEventPayloadProtector(),
+            Substitute.For<ICurrentUserService>()
         );
         Result<EventRecord> stored = await journal.GetByEventIdAsync(@event.EventId);
         stored.IsSuccess.Should().BeTrue();

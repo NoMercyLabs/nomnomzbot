@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using Newtonsoft.Json.Linq;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Domain.Community.Events;
@@ -23,6 +24,7 @@ using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Analytics;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Tests.EventStore;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Analytics;
 
@@ -37,9 +39,7 @@ namespace NomNomzBot.Infrastructure.Tests.Analytics;
 /// </summary>
 public sealed class TwitchChannelEventLogProjectionTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 22, 20, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 22, 20, 0, 0, TimeSpan.Zero));
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000abc0e");
     private static readonly Guid OtherChannel = Guid.Parse("0192a000-0000-7000-8000-0000000abc0f");
     private static readonly DateTime Live = new(2026, 6, 22, 20, 0, 0, DateTimeKind.Utc);
@@ -212,7 +212,8 @@ public sealed class TwitchChannelEventLogProjectionTests
             new TenantSequenceAllocator(db),
             new RebuildTestUnitOfWork(db),
             Clock,
-            new PassthroughEventPayloadProtector()
+            new PassthroughEventPayloadProtector(),
+            Substitute.For<ICurrentUserService>()
         );
 
     private static ProjectionRunner NewRunner(
