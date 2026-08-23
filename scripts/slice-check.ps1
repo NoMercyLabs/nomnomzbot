@@ -42,8 +42,22 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'slice tests failed' }
 
     Write-Host '== format (slice files only) =='
-    dotnet csharpier format @Paths
-    dotnet csharpier check @Paths
+    # -Paths are given repo-relative. In -AtCommit mode the build runs inside the worktree, so they must
+    # be rebased onto the worktree root; formatting the shared tree's copies from here would be wrong.
+    [string[]]$resolvedPaths = @()
+    foreach ($path in $Paths) {
+        if ([System.IO.Path]::IsPathRooted($path)) {
+            $resolvedPaths += $path
+            continue
+        }
+        [string]$root = if ($worktree) { $worktree } else { $repo }
+        [string]$candidate = Join-Path $root $path
+        if (-not (Test-Path $candidate)) { throw "slice path not found under ${root}: $path" }
+        $resolvedPaths += (Resolve-Path $candidate).Path
+    }
+
+    dotnet csharpier format @resolvedPaths
+    dotnet csharpier check @resolvedPaths
     if ($LASTEXITCODE -ne 0) { throw 'csharpier check failed on slice files' }
 
     Write-Host 'SLICE CHECK OK - safe to commit with: git commit --only -m "..." -- <paths>'
