@@ -82,4 +82,13 @@ public interface ISubscriptionService
         bool isInviteOnlyGrant,
         CancellationToken ct = default
     );
+
+    // ── Platform-admin (Plane-C, billing:refund) ──
+
+    /// <summary>
+    /// Refunds a paid invoice in full via Stripe and marks it <c>Refunded</c> locally; publishes
+    /// <c>InvoiceRefundedEvent</c>. NOT_FOUND on an unknown invoice; VALIDATION_FAILED when it carries no
+    /// Stripe invoice id (self-host / manually-granted tiers never have Stripe invoices) or is not paid.
+    /// </summary>
+    Task<Result<InvoiceDto>> RefundInvoiceAsync(Guid invoiceId, CancellationToken ct = default);
 }
