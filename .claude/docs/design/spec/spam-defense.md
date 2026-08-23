@@ -62,7 +62,7 @@ earned capability.
 | **SD9** | **Presence is never an offence.** No account is ever actioned for being silent, for being new, or for arriving at the same moment as an attack. Every action requires a signal *that account itself* produced. Bursts and spikes select a **window to scrutinise**, never a set to punish. |
 | **SD10** | **Account risk multiplies, it never adds.** Score = content signal × account-risk coefficient, so zero content signal is zero score whatever the account looks like. Nobody is ever actioned for *what they are* — only for *what they said*. The two marks that describe silence are pinned at ×1.0 and move nothing (§L1.1). |
 | **SD11** | **Standing is portable, and positive evidence outranks negative.** A viewer who is a mod or VIP anywhere, subscribed anywhere, or carrying real watch time on this instance is **semi-trusted by default** and cannot be auto-banned or auto-timed-out — the engine may delete and flag, a human decides the rest. Positive standing is checked **first**, and it can zero a risk coefficient outright (§L1.2). |
-| **SD12** | **We are not the chat host — a message cannot be held.** Twitch, YouTube, Kick and X publish the message the instant it is sent. Our only pre-emptive lever is the platform's *own* controls (blocked terms, AutoMod, followers-only, slow, Shield Mode); everything else is reaction. `Hold` exists only on surfaces we publish ourselves (§5.1). |
+| **SD12** | **We are not the chat host — a message cannot be held.** Twitch, YouTube, Kick and X publish the message the instant it is sent. Our only pre-emptive lever is the platform's *own* controls (blocked terms, AutoMod, followers-only, slow, Shield Mode); everything else is reaction. `Hold` exists only on surfaces we publish ourselves (§L5.1). |
 
 ---
 
@@ -334,9 +334,9 @@ numbers — see the role-name rule):
 | Regular | account ≥ 6mo, following ≥ 30d, ≥ 50 messages, no strikes in 90d |
 | **Semi-Trusted** | positive standing anywhere — see §L1.2 (SD11). **Never auto-banned or auto-timed-out.** |
 | Trusted | sub / VIP / mod **in this channel**, or operator-granted |
-| **Established** | **immune** — see §4.1 |
+| **Established** | **immune** — see §L4.1 |
 
-#### 4.1 Established — the immunity invariant (SD8)
+#### L4.1 Established — the immunity invariant (SD8)
 
 A viewer reaches **Established** in a channel by being a real, sustained participant there:
 
@@ -405,7 +405,7 @@ inventing a parallel action path.
 
 **Follow/view-bot track** issues **block**, never ban, and strips the follow.
 
-#### 5.1 — What "hold" and "lockdown" actually mean (SD12)
+#### L5.1 — What "hold" and "lockdown" actually mean (SD12)
 
 We do not host the chat. Twitch, YouTube, Kick and X publish a message the moment it is sent;
 there is no pre-publish hook we can stand in. So the vocabulary has to be exact:
@@ -560,7 +560,7 @@ overrode it.
 | | `AutoReverseOnDeQualify` | **on** | off is allowed but warned against |
 | **Bursts** | follow-spike factor over baseline | 5× | self-calibrating baseline |
 | | join-burst factor over baseline | 4× | |
-| **Lockdown** | which platform controls to engage, per platform | §5.1 | checkboxes over the real capability map |
+| **Lockdown** | which platform controls to engage, per platform | §L5.1 | checkboxes over the real capability map |
 | | duration, auto-extend, max duration | 15 / on / 60 min | |
 | **Network** | subscribe / contribute | subscribe on, contribute **off** | opt-in, SD3 |
 | | corroborations before a quarantined signature acts | 3 | |
@@ -633,7 +633,7 @@ The bar (`CLAUDE.md` testing standard) is behaviour, not surface.
 - **Follow spike** — a burst against a calibrated baseline produces blocks, and asserts that
   **zero bans** were issued.
 
-### 8.1 Invariant tests — these two may never be allowed to rot
+### 8.1 Invariant tests — none of these may ever be allowed to rot
 
 **SD8 — Established immunity.** For *every* signal the engine can produce, an Established viewer
 emitting it asserts `ActionTaken == Flag` and asserts the message still posted. Written as a
