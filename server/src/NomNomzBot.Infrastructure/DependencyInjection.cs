@@ -237,10 +237,7 @@ public static class DependencyInjection
 
         // Remembers each channel's last active Spotify device across the (scoped, per-request) provider
         // instances that observe it — must outlive a single request to be useful.
-        services.AddSingleton<
-            ILastActiveSpotifyDeviceTracker,
-            LastActiveSpotifyDeviceTracker
-        >();
+        services.AddSingleton<ILastActiveSpotifyDeviceTracker, LastActiveSpotifyDeviceTracker>();
 
         // Federation inbound handlers (scoped — multi-binding consumed as IEnumerable<IFederationInboundHandler>).
         // The registered Types ARE the closed inbound accept-set (federation-oidc.md §3.7): moderation ships the
@@ -321,10 +318,7 @@ public static class DependencyInjection
         // Per-channel chat-colour memory backing the mention-colour step (cache-only). Stateless → singleton.
         services.AddSingleton<Application.Chat.Services.IChatColorMemory, ChatColorMemory>();
         // Per-channel pre-mute volume memory so unmute restores the real prior level (cache-only). Stateless → singleton.
-        services.AddSingleton<
-            Application.Music.Services.IMuteVolumeMemory,
-            MuteVolumeMemory
-        >();
+        services.AddSingleton<Application.Music.Services.IMuteVolumeMemory, MuteVolumeMemory>();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
         services.AddScoped<Application.Chat.Services.IChatMessageDecorator, ChatMessageDecorator>();
@@ -363,9 +357,7 @@ public static class DependencyInjection
         // the product User-Agent by default, stamped with the running build version. A client may still override.
         services.ConfigureHttpClientDefaults(builder =>
             builder.ConfigureHttpClient(client =>
-                client.DefaultRequestHeaders.UserAgent.ParseAdd(
-                    Platform.Http.AppUserAgent.Value
-                )
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(Platform.Http.AppUserAgent.Value)
             )
         );
 
@@ -424,10 +416,7 @@ public static class DependencyInjection
         >();
         // No-op fallback; the API host replaces this with the SignalR-backed TtsOverlayNotifierAdapter
         // (drives the client_edge TTS dispatch push — tts.md §3.4).
-        services.AddScoped<
-            ITtsOverlayNotifier,
-            NullTtsOverlayNotifier
-        >();
+        services.AddScoped<ITtsOverlayNotifier, NullTtsOverlayNotifier>();
         // No-op fallback; the API host replaces this with the SignalR-backed WidgetEventNotifierAdapter
         // (drives the widget_event pipeline action's overlay push — widgets-overlays.md §6).
         services.AddScoped<
@@ -580,9 +569,7 @@ public static class DependencyInjection
         // The single SSRF-hardened egress client (sandbox + outbound webhooks): resolve-then-pin + https-only.
         services
             .AddHttpClient(Sandbox.EgressHttpClient.Name)
-            .ConfigurePrimaryHttpMessageHandler(
-                Sandbox.EgressHttpClient.CreateHandler
-            )
+            .ConfigurePrimaryHttpMessageHandler(Sandbox.EgressHttpClient.CreateHandler)
             .AddHttpMessageHandler(() => new Sandbox.EgressSchemeHandler());
 
         // Webhook dispatchers (I*Dispatcher — not the name-convention "*Service", so registered explicitly).
@@ -721,6 +708,10 @@ public static class DependencyInjection
         // stateless; the only per-request state is the store's DbContext.
         services.AddScoped<ISubjectKeyService, SubjectKeyService>();
         services.AddScoped<ITokenProtector, TokenProtector>();
+
+        // KEK-rotation re-wrap pass (reachable via AdminController's security/rotate-encryption-key action).
+        // Scoped: composes the scoped DEK registry.
+        services.AddScoped<IDekRotationService, DekRotationService>();
 
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
@@ -1366,10 +1357,7 @@ public static class DependencyInjection
         // Reconnect gap backfill (twitch-eventsub §7): sweeps redemptions + follows for the window a dropped
         // WebSocket session silently missed, deterministically deduped, then replayed through the ordinary
         // IEventBus path. Scoped — touches the scoped Helix sub-clients and the scoped journal.
-        services.AddScoped<
-            IEventSubGapBackfillService,
-            EventSubGapBackfillService
-        >();
+        services.AddScoped<IEventSubGapBackfillService, EventSubGapBackfillService>();
 
         // The lifecycle host: one instance behind ITwitchEventSubService + IEventSource + IHostedService.
         services.AddSingleton<TwitchEventSubHostedService>();

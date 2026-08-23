@@ -198,6 +198,17 @@ public sealed class CryptoKeySubjectKeyStore : ISubjectKeyStore
         return resolved.Distinct().ToList();
     }
 
+    public async Task<IReadOnlyList<SubjectKeyRecord>> GetAllNonDestroyedAsync(
+        CancellationToken cancellationToken = default
+    )
+    {
+        List<CryptoKey> entities = await _db
+            .CryptoKeys.AsNoTracking()
+            .Where(k => k.Status != DestroyedStatus)
+            .ToListAsync(cancellationToken);
+        return entities.Select(ToRecord).ToList();
+    }
+
     private const string ActiveStatus = "active";
     private const string DestroyedStatus = "destroyed";
     private const string SubjectScope = "subject";

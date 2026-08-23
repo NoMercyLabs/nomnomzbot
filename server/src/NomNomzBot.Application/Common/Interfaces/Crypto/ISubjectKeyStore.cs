@@ -81,4 +81,13 @@ public interface ISubjectKeyStore
         string subjectIdHash,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Every DEK that still holds wrapped key material — <c>active</c> and <c>rotating</c> generations,
+    /// excluding <c>destroyed</c> keys whose material is already nulled. Backs the KEK-rotation re-wrap
+    /// pass, which must reach every generation that could still be unwrapped, not only the current one.
+    /// </summary>
+    Task<IReadOnlyList<SubjectKeyRecord>> GetAllNonDestroyedAsync(
+        CancellationToken cancellationToken = default
+    );
 }

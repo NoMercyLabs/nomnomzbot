@@ -17,6 +17,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -36,14 +37,22 @@ public class AdminController : BaseController
 {
     private readonly IAdminService _adminService;
     private readonly IApplicationDbContext _db;
+    private readonly IDekRotationService _dekRotationService;
 
-    public AdminController(IAdminService adminService, IApplicationDbContext db)
+    public AdminController(
+        IAdminService adminService,
+        IApplicationDbContext db,
+        IDekRotationService dekRotationService
+    )
     {
         _adminService = adminService;
         _db = db;
+        _dekRotationService = dekRotationService;
     }
 
     public record ServiceHealthResponseDto(string Name, string Status);
+
+    public record RotateEncryptionKeyRequestDto(string PreviousKey, string CurrentKey);
 
     public record PlatformEventDto(string Message, string Time, string Type);
 
@@ -157,5 +166,27 @@ public class AdminController : BaseController
             .ToList();
 
         return Ok(new StatusResponseDto<List<PlatformEventDto>> { Data = dtos });
+    }
+
+    /// <summary>
+    /// KEK-rotation re-wrap pass (gdpr-crypto): re-wraps every stored DEK from
+    /// <see cref="RotateEncryptionKeyRequestDto.PreviousKey"/> to
+    /// <see cref="RotateEncryptionKeyRequestDto.CurrentKey"/> so a rotated <c>Encryption:Key</c> does not
+    /// orphan stored secrets. Idempotent — a second call re-wraps nothing.
+    /// </summary>
+    [HttpPost("security/rotate-encryption-key")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [ProducesResponseType<StatusResponseDto<DekRotationSummary>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RotateEncryptionKey(
+        [FromBody] RotateEncryptionKeyRequestDto request,
+        CancellationToken ct
+    )
+    {
+        Result<DekRotationSummary> result = await _dekRotationService.RotateAllDeksAsync(
+            request.PreviousKey,
+            request.CurrentKey,
+            ct
+        );
+        return ResultResponse(result);
     }
 }
