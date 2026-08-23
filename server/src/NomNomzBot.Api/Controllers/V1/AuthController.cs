@@ -14,6 +14,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Primitives;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
@@ -95,11 +96,7 @@ public class AuthController : BaseController
 
         string? ip = Request.HttpContext.Connection.RemoteIpAddress?.ToString();
         string? userAgent = Request.Headers.UserAgent.ToString();
-        return new(
-            clientType,
-            ip,
-            string.IsNullOrWhiteSpace(userAgent) ? null : userAgent
-        );
+        return new(clientType, ip, string.IsNullOrWhiteSpace(userAgent) ? null : userAgent);
     }
 
     /// <summary>Get the currently authenticated user.</summary>
@@ -192,10 +189,7 @@ public class AuthController : BaseController
             return url.IsFailure
                 ? ResultResponse(url)
                 : Ok(
-                    new StatusResponseDto<OAuthStartDto>
-                    {
-                        Data = new(url.Value.ToString(), state),
-                    }
+                    new StatusResponseDto<OAuthStartDto> { Data = new(url.Value.ToString(), state) }
                 );
         }
 
@@ -529,10 +523,13 @@ public class AuthController : BaseController
 
     /// <summary>
     /// Turns a successful login into the client-appropriate response — shared by the Twitch callback and the
-    /// generic auth-code login callback. A mobile <c>redirect_uri</c> gets the tokens in the deep-link query;
-    /// the served-web dashboard gets the access token in the URL fragment (never sent to the server) + the
-    /// refresh token in an HttpOnly + Secure + Lax cookie the SPA's JS can't read (XSS can't exfiltrate it);
-    /// native clients get a JSON body.
+    /// generic auth-code login callback. A mobile <c>redirect_uri</c> gets only the short-lived access token in
+    /// the deep-link query (S098c: the long-lived refresh token used to ride here too — a deep-link URI is
+    /// logged by the OS activity manager and can leak via referrers, so it never travels in a URL again; the
+    /// native app must call the body-based flows — <c>POST twitch/callback</c> / device poll — to obtain and
+    /// hold its refresh token in the OS keychain). The served-web dashboard gets the access token in the URL
+    /// fragment (never sent to the server) + the refresh token in an HttpOnly + Secure + Lax cookie the SPA's
+    /// JS can't read (XSS can't exfiltrate it); native clients calling the body-based flows get a JSON body.
     /// </summary>
     private IActionResult BuildLoginResponse(
         AuthResultDto auth,
@@ -549,7 +546,6 @@ public class AuthController : BaseController
             StringBuilder qs = new(mobileRedirectUri);
             qs.Append(mobileRedirectUri.Contains('?') ? '&' : '?');
             qs.Append("access_token=").Append(Uri.EscapeDataString(auth.AccessToken));
-            qs.Append("&refresh_token=").Append(Uri.EscapeDataString(auth.RefreshToken));
             qs.Append("&expires_in=").Append(expiresIn);
             return Redirect(qs.ToString());
         }
@@ -1044,7 +1040,14 @@ public class AuthController : BaseController
             }
         );
 
-    /// <summary>Refresh an expired access token.</summary>
+    /// <summary>
+    /// Refresh an expired access token. Custody — cookie (web) vs body (native) — is decided by whether the
+    /// request itself carries the <c>nnz_refresh_token</c> HttpOnly cookie; a caller-controlled <c>?client=</c>
+    /// query flag is never consulted (S098c — it let any caller flip which custody path a request took). A
+    /// cookie-borne refresh additionally requires an allowed Origin: <c>SameSite=Lax</c> alone still lets a
+    /// top-level cross-site navigation attach the cookie, so a forged Origin/Referer is rejected outright. A
+    /// body-borne (native) refresh carries no ambient browser credential, so it is not subject to that check.
+    /// </summary>
     [HttpPost("refresh")]
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
@@ -1054,12 +1057,13 @@ public class AuthController : BaseController
         CancellationToken ct
     )
     {
-        // Web sends no body token — its refresh token rides an HttpOnly cookie the browser attaches
-        // automatically; native sends the token it holds in its own vault. Prefer the body, fall back to the
-        // cookie, and reject when neither is present.
-        string? refreshToken = request?.RefreshToken;
-        if (string.IsNullOrWhiteSpace(refreshToken))
-            refreshToken = Request.Cookies["nnz_refresh_token"];
+        string? cookieRefreshToken = Request.Cookies["nnz_refresh_token"];
+        bool isWebClient = !string.IsNullOrWhiteSpace(cookieRefreshToken);
+
+        if (isWebClient && !HasAllowedOrigin())
+            return UnauthenticatedResponse("Refresh rejected: untrusted origin.");
+
+        string? refreshToken = isWebClient ? cookieRefreshToken : request?.RefreshToken;
         if (string.IsNullOrWhiteSpace(refreshToken))
             return UnauthenticatedResponse();
 
@@ -1076,7 +1080,7 @@ public class AuthController : BaseController
         int expiresIn = (int)(auth.ExpiresAt - _timeProvider.GetUtcNow().UtcDateTime).TotalSeconds;
 
         // Web: rotate the HttpOnly cookie and DON'T hand the refresh token back in the JS-readable body.
-        if (string.Equals(client, "web", StringComparison.OrdinalIgnoreCase))
+        if (isWebClient)
         {
             SetRefreshTokenCookie(auth.RefreshToken);
             return Ok(
@@ -1103,6 +1107,40 @@ public class AuthController : BaseController
                     user = auth.User,
                 },
             }
+        );
+    }
+
+    /// <summary>
+    /// True when the request's Origin (falling back to the Referer's origin) is one of the configured
+    /// dashboard origins — the same <c>Cors:Origins</c> list the CORS middleware enforces, read here directly
+    /// rather than maintained as a second copy. Neither header present is treated as untrusted.
+    /// </summary>
+    private bool HasAllowedOrigin()
+    {
+        string? origin = Request.Headers.Origin.ToString();
+        if (
+            string.IsNullOrEmpty(origin)
+            && Request.Headers.TryGetValue("Referer", out StringValues referer)
+        )
+        {
+            if (Uri.TryCreate(referer.ToString(), UriKind.Absolute, out Uri? refererUri))
+                origin = $"{refererUri.Scheme}://{refererUri.Authority}";
+        }
+
+        if (string.IsNullOrEmpty(origin))
+            return false;
+
+        string[] allowedOrigins =
+            _config.GetSection("Cors:Origins").Get<string[]>()
+            ??
+            [
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "http://localhost:8081",
+                "https://bot-dev.nomercy.tv",
+            ];
+        return allowedOrigins.Any(allowed =>
+            string.Equals(allowed, origin, StringComparison.OrdinalIgnoreCase)
         );
     }
 
@@ -1159,10 +1197,7 @@ public class AuthController : BaseController
         if (!ClientRedirectPolicy.IsAllowed(redirect_uri))
             return BadRequest("Disallowed redirect_uri.");
 
-        string state = await _oauthState.IssueAsync(
-            new("bot", redirect_uri),
-            ct
-        );
+        string state = await _oauthState.IssueAsync(new("bot", redirect_uri), ct);
 
         Result<string> authUrl = await _authService.GetTwitchBotOAuthUrl(
             state,
@@ -1171,9 +1206,7 @@ public class AuthController : BaseController
         );
         if (authUrl.IsFailure)
             return ResultResponse(authUrl);
-        return Ok(
-            new StatusResponseDto<OAuthStartDto> { Data = new(authUrl.Value, state) }
-        );
+        return Ok(new StatusResponseDto<OAuthStartDto> { Data = new(authUrl.Value, state) });
     }
 
     /// <summary>Get the current platform-shared bot account connection status (platform-operator only).</summary>
