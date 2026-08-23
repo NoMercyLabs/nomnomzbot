@@ -290,7 +290,19 @@ class AppGraph {
                 sessionStore.updateAccessToken(result.value.accessToken)
                 true
             }
-            is ApiResult.Failure -> false
+            is ApiResult.Failure -> {
+                // A mid-session refresh failure means the refresh token itself is dead (expired, or
+                // revoked server-side) — not just a momentarily-stale access token. Previously this
+                // returned false and left the 401 to propagate to whatever screen triggered it,
+                // stranding the operator on a broken page instead of routing back to sign-in (S111c:
+                // "desktop session expiry is unhandled"). clearActiveSession() drops ONLY the
+                // in-memory session — it leaves the vault, the remembered profile, and every OTHER
+                // saved connection untouched, so the gate (App.kt) falls through to Connect for THIS
+                // server without wiping saved connections or forcing a fresh device-code login for
+                // any other one.
+                sessionStore.clearActiveSession()
+                false
+            }
         }
     }
 

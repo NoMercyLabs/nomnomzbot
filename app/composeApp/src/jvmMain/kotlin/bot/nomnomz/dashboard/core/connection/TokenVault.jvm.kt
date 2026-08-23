@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.connection
 
+import bot.nomnomz.dashboard.core.platform.DesktopDataDir
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermission
@@ -137,12 +138,6 @@ actual class TokenVault internal constructor(private val dir: File) : SessionTok
         const val GCM_IV_LENGTH_BYTES: Int = 12
         const val GCM_TAG_LENGTH_BITS: Int = 128
 
-        fun defaultDir(): File {
-            val base: String =
-                System.getenv("LOCALAPPDATA")
-                    ?: System.getenv("XDG_DATA_HOME")
-                    ?: (System.getProperty("user.home") + File.separator + ".local" + File.separator + "share")
-            return File(base, "NomNomzBot${File.separator}tokens")
-        }
+        fun defaultDir(): File = File(DesktopDataDir.resolve(), "tokens")
     }
 }

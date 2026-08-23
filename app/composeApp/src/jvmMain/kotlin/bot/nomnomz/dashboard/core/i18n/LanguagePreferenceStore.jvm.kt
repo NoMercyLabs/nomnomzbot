@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.i18n
 
+import bot.nomnomz.dashboard.core.platform.DesktopDataDir
 import java.io.File
 
 // Desktop language persistence — a tiny text file under the OS app-data dir (same base resolution as
@@ -18,14 +19,7 @@ import java.io.File
 // file degrades to System default rather than crashing the dashboard.
 actual class LanguagePreferenceStore : LanguageStore {
 
-    private val file: File by lazy {
-        val base: String =
-            System.getenv("LOCALAPPDATA")
-                ?: System.getenv("XDG_DATA_HOME")
-                ?: (System.getProperty("user.home") + File.separator + ".local" + File.separator + "share")
-        val dir = File(base, "NomNomzBot").apply { mkdirs() }
-        File(dir, "language")
-    }
+    private val file: File by lazy { File(DesktopDataDir.resolve(), "language") }
 
     actual override fun read(): String? =
         runCatching {

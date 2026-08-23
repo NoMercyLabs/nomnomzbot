@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.connection
 
+import bot.nomnomz.dashboard.core.platform.DesktopDataDir
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -18,13 +19,7 @@ import kotlinx.coroutines.withContext
 // profile vaults (frontend.md §6). The channel id is not a secret (a tenant GUID), so it stays plain text.
 actual class ActiveChannelVault : ActiveChannelStore {
 
-    private val dir: File by lazy {
-        val base: String =
-            System.getenv("LOCALAPPDATA")
-                ?: System.getenv("XDG_DATA_HOME")
-                ?: (System.getProperty("user.home") + File.separator + ".local" + File.separator + "share")
-        File(base, "NomNomzBot").apply { mkdirs() }
-    }
+    private val dir: File by lazy { DesktopDataDir.resolve() }
 
     private val file: File by lazy { File(dir, "active-channel.txt") }
 

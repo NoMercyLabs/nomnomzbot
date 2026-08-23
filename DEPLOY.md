@@ -46,6 +46,19 @@ features. Requirements for `--app`: a JDK (21 recommended, [adoptium.net](https:
 on Windows the MSI additionally needs the [WiX Toolset 3.x](https://wixtoolset.org). The installer
 is always built for the OS you run the script on.
 
+**Windows first launch:** the desktop app opens no console window (a windowless launcher), which
+Windows Defender Firewall treats like any other app making its first outbound connection — expect
+one "Windows Defender Firewall has blocked some features of this app" prompt the first time it
+reaches the bot over the network. Allow it (Private networks is enough for LAN bots); this is a
+one-time OS prompt, not a bot/app misconfiguration.
+
+**Desktop data & logs:** the app's per-user state (saved connections, the encrypted token vault,
+window position/size, language/emoji preferences) lives under the OS-standard app-data directory —
+`%LOCALAPPDATA%\NomNomzBot` on Windows, `~/Library/Application Support/NomNomzBot` on macOS,
+`$XDG_DATA_HOME/NomNomzBot` (falling back to `~/.local/share/NomNomzBot`) on Linux. A rolling
+diagnostics log lives at `<that directory>/logs/app.log`, capped at 2 MB (oldest lines are dropped
+once it would grow past the cap) — check it first when the app fails to reach a bot or won't start.
+
 ## Scenario: desktop — `self_host_lite`
 
 One self-contained file. No Docker, no database server — the bot keeps all its data (SQLite

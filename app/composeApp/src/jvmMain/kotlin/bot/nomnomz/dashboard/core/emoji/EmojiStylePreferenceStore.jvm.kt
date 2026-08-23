@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.emoji
 
+import bot.nomnomz.dashboard.core.platform.DesktopDataDir
 import java.io.File
 
 // Desktop emoji-style persistence — a tiny text file under the OS app-data dir (same base resolution as
@@ -18,14 +19,7 @@ import java.io.File
 // missing/corrupt/locked file degrades to the default rather than crashing the dashboard.
 actual class EmojiStylePreferenceStore : EmojiStyleStore {
 
-    private val file: File by lazy {
-        val base: String =
-            System.getenv("LOCALAPPDATA")
-                ?: System.getenv("XDG_DATA_HOME")
-                ?: (System.getProperty("user.home") + File.separator + ".local" + File.separator + "share")
-        val dir = File(base, "NomNomzBot").apply { mkdirs() }
-        File(dir, "emoji-style")
-    }
+    private val file: File by lazy { File(DesktopDataDir.resolve(), "emoji-style") }
 
     actual override fun read(): String? =
         runCatching {

@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.connection
 
+import bot.nomnomz.dashboard.core.platform.DesktopDataDir
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,13 +23,7 @@ actual class ActiveProfileVault : ActiveProfileStore {
 
     private val json: Json = Json { ignoreUnknownKeys = true }
 
-    private val dir: File by lazy {
-        val base: String =
-            System.getenv("LOCALAPPDATA")
-                ?: System.getenv("XDG_DATA_HOME")
-                ?: (System.getProperty("user.home") + File.separator + ".local" + File.separator + "share")
-        File(base, "NomNomzBot").apply { mkdirs() }
-    }
+    private val dir: File by lazy { DesktopDataDir.resolve() }
 
     private val file: File by lazy { File(dir, "active-profile.json") }
 

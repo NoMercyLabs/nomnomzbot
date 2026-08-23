@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.connection
 
+import bot.nomnomz.dashboard.core.platform.DesktopDataDir
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -77,13 +78,7 @@ class FileSavedConnectionsStore internal constructor(private val file: File) : S
     }
 
     private companion object {
-        fun defaultFile(): File {
-            val base: String =
-                System.getenv("LOCALAPPDATA")
-                    ?: System.getenv("XDG_DATA_HOME")
-                    ?: (System.getProperty("user.home") + File.separator + ".local" + File.separator + "share")
-            return File(base, "NomNomzBot${File.separator}saved-connections.json")
-        }
+        fun defaultFile(): File = File(DesktopDataDir.resolve(), "saved-connections.json")
     }
 }
 
