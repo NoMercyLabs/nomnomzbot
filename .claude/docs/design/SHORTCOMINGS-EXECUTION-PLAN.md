@@ -51,8 +51,6 @@ Slice IDs are stable; the order is the queue.
   Reason/MatchTerm and the batch history must render `TargetDisplayName` instead of a raw Twitch id; (3) Commands delete and
   Moderation "Verwijderen" need confirm dialogs — the backend audits both now, the client asks nothing. en+nl strings.
   Done-when: no destructive action in the dashboard fires without a confirm, and every reason reaches the mod log.
-- **S013c** `ModerationService.DeleteRuleAsync` hard-deletes and publishes a domain event with no actor — same shape as the
-  command-delete gap S013 fixed, found in its inventory and left. Done-when: deleting a rule leaves an audit row naming who did it.
 - **S013d** SYSTEMIC: soft deletes record *when* but never *who* — every `SoftDeletableEntity` (widgets, sounds, assets, rewards,
   quotes, pick lists, timers, giveaways, …) has `DeletedAt` and no `DeletedBy`, so nothing deleted in the dashboard can be
   attributed. Dozens of entities, so scope it as one base-entity change plus a migration sweep, not per-entity edits.
