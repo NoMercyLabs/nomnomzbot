@@ -21,13 +21,7 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 0-S — security first (owner, 2026-08-22: "security is tight" beats "features start working")
 
-- **S098b** Token validation hardening — access tokens stay 60 min but a cached `sid` revocation check runs per request
-  so logout / impersonation-end invalidates in-flight tokens (owner decision); `ValidAlgorithms` pinned and bearer
-  validation built from the token-service factory (`Program.cs:256-265`) (U·E6). Done-when: logout invalidates an
-  in-flight access token.
-- **S098c** Refresh custody — by cookie presence, not `?client=` (`AuthController.cs:1079`); drop the fragment refresh
-  path (`:552`); Origin/CSRF check on cookie refresh (U·E6). Done-when: a cross-origin cookie refresh is rejected and no
-  refresh token ever appears in a URL.
+- **S089b** Impersonation UI + spec — the dashboard confirm dialog with a required justification, the "acting as" banner sourced from the real support session, and the `stream-admin.md:231-263` spec amended to describe act-as impersonation as shipped (S089a covers the backend). Done-when: an operator cannot mint an impersonation token from the UI without typing a justification, and the spec matches the code.
 - **S115** Repo-wide CSharpier drift — `dotnet csharpier check .` fails on ~230 committed files (2551 checked), so the
   per-commit format gate in `CLAUDE.md` is currently unenforceable. Done-when: `dotnet csharpier check .` is clean on a
   quiet tree and stays the gate.
@@ -48,15 +42,6 @@ Slice IDs are stable; the order is the queue.
   `/health` writer's `ResultStatusCodes`, so a degraded dependency still reads as "ready" to an orchestrator; readiness
   also ignores pending migrations and EventSub state (U·E5). Done-when: a degraded dependency returns 503 from
   `/health/ready` while `/health` still reports the detail, and readiness fails while migrations are pending.
-- **S086c** IAM audit + guard gaps (U·D2 remainder, untouched by S086) — assign/revoke/create/deactivate/reactivate
-  write no `IamAuditLog` row (`PlatformIamService.cs:171-236,324-371`); create is non-transactional and can flush an
-  orphan principal (`:106-169`); duplicate/inactive-target assignments allowed (`:200`); the last `iam:manage` holder
-  can be removed (`:335` guards only self-deactivation); `platform-billing` can only read while every billing write
-  gates on `iam:manage` (`IamCatalogSeeder.cs:101`, `AdminBillingController.cs:55,63,69,86`); `billing:refund` has no
-  endpoint; admin GDPR erasure gated on `tenant:access` (`ComplianceController.cs:42`); `IamAccessEvaluatedEvent`,
-  `TenantAccessGrantedEvent` and the flag-change sites (`FeatureFlagAdminService.cs:87,136,161`) have zero consumers.
-  Done-when: every IAM mutation lands an audit row naming target+role+scope, and the last `iam:manage` holder cannot
-  be removed.
 - **S089** Impersonation made safe (owner decision: this is the owner's lowest-level support tool — FULL act-as stays; it is a
   restricted SaaS action held by the platform owner role only) — requires an explicit support session (reason, expiry,
   session id) and the token lifetime is clamped to it; `act` claim honoured only for that principal; every write journalled
@@ -440,3 +425,5 @@ Slice IDs are stable; the order is the queue.
 - Pre-existing from BUILD-TODO: authz key names (Plane-C + Gate-2), self-host owner = platform admin,
   user-scripting model (JS-first), YouTube non-BYOC client, Stripe, pipelines 6-surface unification,
   community reposition, data-sources push-bridge, federation transport, Streamer.bot import.
+
+- **S117** Model/migration drift — the Sqlite migration set carried an unrelated pending `Rewards.IsUserInputRequired` column, i.e. the model changed without its own migration at some point. Done-when: `dotnet ef migrations has-pending-model-changes` (or the equivalent check) is clean for BOTH providers, and a test guards it.
