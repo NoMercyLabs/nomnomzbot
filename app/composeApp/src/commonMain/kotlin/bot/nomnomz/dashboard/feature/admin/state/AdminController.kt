@@ -456,7 +456,7 @@ class AdminController(
             }
 
         val token: ImpersonationTokenDto =
-            when (val result: ApiResult<ImpersonationTokenDto> = api.impersonate(subjectUserId, grant.id)) {
+            when (val result: ApiResult<ImpersonationTokenDto> = api.impersonate(subjectUserId, grant.id, trimmedJustification)) {
                 is ApiResult.Ok -> result.value
                 is ApiResult.Failure -> {
                     _state.value = _state.value.copy(
@@ -467,11 +467,14 @@ class AdminController(
                 }
             }
 
+        // The server's own user projection is the source of truth for the banner name — falls back to the
+        // caller-supplied [subjectDisplayName] only if the backend ever returns a blank one.
+        val displayName: String = token.user.displayName.ifBlank { subjectDisplayName }
         sessionStore?.beginImpersonation(
             targetAccessToken = token.accessToken,
-            targetDisplayName = subjectDisplayName,
+            targetDisplayName = displayName,
             expiresAt = Instant.parse(token.expiresAt),
-            accessGrantId = grant.id,
+            accessGrantId = token.sessionId,
         )
         reResolveIdentity()
     }

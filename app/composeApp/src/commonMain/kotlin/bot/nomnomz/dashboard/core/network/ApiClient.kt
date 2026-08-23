@@ -60,6 +60,15 @@ class ApiClient(
      */
     @PublishedApi
     internal var tokenRefresher: (suspend () -> Boolean)? = null
+
+    /**
+     * Test-only seam: when set, invoked with the exact (HTTP method, path) of every request made through
+     * [envelope] / [unit] — BEFORE the base-URL check, so it fires even with no active connection. Lets a
+     * facade test (e.g. AdminApiImpl) assert the real verb+path it sends without a live HTTP client or a
+     * mock engine dependency. Always null in production; never read there.
+     */
+    @PublishedApi
+    internal var requestSpy: ((method: String, path: String) -> Unit)? = null
     internal val json: Json = Json {
         ignoreUnknownKeys = true
         isLenient = true
@@ -98,7 +107,7 @@ class ApiClient(
 
     /** GETs a `StatusResponseDto<T>` endpoint, unwrapping `data` to an [ApiResult]. */
     internal suspend inline fun <reified T> getEnvelope(path: String): ApiResult<T> =
-        envelope(path) { url -> httpClient.get(url) }
+        envelope(path, "GET") { url -> httpClient.get(url) }
 
     /**
      * GETs an endpoint whose whole body deserializes to [T] (no `StatusResponseDto<T>` unwrap) — the
@@ -163,7 +172,7 @@ class ApiClient(
 
     /** POSTs an optional JSON [body] to a `StatusResponseDto<T>` endpoint, unwrapping `data`. */
     internal suspend inline fun <reified T> postEnvelope(path: String, body: Any? = null): ApiResult<T> =
-        envelope(path) { url ->
+        envelope(path, "POST") { url ->
             httpClient.post(url) {
                 if (body != null) {
                     contentType(ContentType.Application.Json)
@@ -174,7 +183,7 @@ class ApiClient(
 
     /** PATCHes an optional JSON [body] to a `StatusResponseDto<T>` endpoint, unwrapping `data`. */
     internal suspend inline fun <reified T> patchEnvelope(path: String, body: Any? = null): ApiResult<T> =
-        envelope(path) { url ->
+        envelope(path, "PATCH") { url ->
             httpClient.patch(url) {
                 if (body != null) {
                     contentType(ContentType.Application.Json)
@@ -185,7 +194,7 @@ class ApiClient(
 
     /** PUTs an optional JSON [body] to a `StatusResponseDto<T>` endpoint, unwrapping `data`. */
     internal suspend inline fun <reified T> putEnvelope(path: String, body: Any? = null): ApiResult<T> =
-        envelope(path) { url ->
+        envelope(path, "PUT") { url ->
             httpClient.put(url) {
                 if (body != null) {
                     contentType(ContentType.Application.Json)
@@ -196,11 +205,11 @@ class ApiClient(
 
     /** DELETEs a path against a `StatusResponseDto<T>` endpoint (a delete that echoes the new state), unwrapping `data`. */
     internal suspend inline fun <reified T> deleteEnvelope(path: String): ApiResult<T> =
-        envelope(path) { url -> httpClient.delete(url) }
+        envelope(path, "DELETE") { url -> httpClient.delete(url) }
 
     /** POSTs an optional JSON [body] and treats any 2xx as success, ignoring the response body. */
     internal suspend fun postUnit(path: String, body: Any? = null): ApiResult<Unit> =
-        unit(path) { url ->
+        unit(path, "POST") { url ->
             httpClient.post(url) {
                 if (body != null) {
                     contentType(ContentType.Application.Json)
@@ -211,7 +220,7 @@ class ApiClient(
 
     /** PUTs an optional JSON [body] and treats any 2xx as success, ignoring the response body. */
     internal suspend fun putUnit(path: String, body: Any? = null): ApiResult<Unit> =
-        unit(path) { url ->
+        unit(path, "PUT") { url ->
             httpClient.put(url) {
                 if (body != null) {
                     contentType(ContentType.Application.Json)
@@ -222,7 +231,7 @@ class ApiClient(
 
     /** PATCHes an optional JSON [body] and treats any 2xx as success, ignoring the response body. */
     internal suspend fun patchUnit(path: String, body: Any? = null): ApiResult<Unit> =
-        unit(path) { url ->
+        unit(path, "PATCH") { url ->
             httpClient.patch(url) {
                 if (body != null) {
                     contentType(ContentType.Application.Json)
@@ -233,7 +242,7 @@ class ApiClient(
 
     /** DELETEs a path and treats any 2xx (including 204 No Content) as success. */
     internal suspend fun deleteUnit(path: String): ApiResult<Unit> =
-        unit(path) { url -> httpClient.delete(url) }
+        unit(path, "DELETE") { url -> httpClient.delete(url) }
 
     /**
      * GETs a `text/plain` endpoint and returns the whole raw body as a string (no envelope unwrap) — for the
@@ -337,7 +346,7 @@ class ApiClient(
         fileContentType: ContentType,
         fields: Map<String, String>,
     ): ApiResult<T> =
-        envelope(path) { url ->
+        envelope(path, "POST") { url ->
             httpClient.post(url) {
                 setBody(
                     MultiPartFormDataContent(
@@ -371,7 +380,7 @@ class ApiClient(
         bytes: ByteArray,
         contentType: ContentType,
     ): ApiResult<T> =
-        envelope(path) { url ->
+        envelope(path, "POST") { url ->
             httpClient.post(url) {
                 setBody(
                     MultiPartFormDataContent(
@@ -400,8 +409,10 @@ class ApiClient(
     @PublishedApi
     internal suspend inline fun <reified T> envelope(
         path: String,
+        method: String,
         send: (url: String) -> HttpResponse,
     ): ApiResult<T> {
+        requestSpy?.invoke(method, path)
         // `send` is invoked inline within this suspend body, so the suspend `httpClient.*` calls in the
         // callers' lambdas run in the right context without the param itself being marked suspend.
         val base: String = baseUrl() ?: return noConnection()
@@ -447,7 +458,8 @@ class ApiClient(
         }
     }
 
-    private suspend fun unit(path: String, send: suspend (url: String) -> HttpResponse): ApiResult<Unit> {
+    private suspend fun unit(path: String, method: String, send: suspend (url: String) -> HttpResponse): ApiResult<Unit> {
+        requestSpy?.invoke(method, path)
         val base: String = baseUrl() ?: return noConnection()
         var response: HttpResponse =
             try {

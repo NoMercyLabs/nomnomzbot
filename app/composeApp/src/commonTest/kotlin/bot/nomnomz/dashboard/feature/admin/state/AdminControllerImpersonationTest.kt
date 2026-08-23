@@ -56,6 +56,7 @@ import bot.nomnomz.dashboard.core.network.PlatformIamApi
 import bot.nomnomz.dashboard.core.network.ReinstateTenantBody
 import bot.nomnomz.dashboard.core.network.SuspendTenantBody
 import bot.nomnomz.dashboard.core.network.TenantAccessGrant
+import bot.nomnomz.dashboard.core.network.UserSearchResult
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -127,7 +128,7 @@ class AdminControllerImpersonationTest {
                     accessToken = "target-jwt",
                     expiresAt = "2030-01-01T00:00:00Z",
                     sessionId = "session-1",
-                    subjectUserId = "user-1",
+                    user = UserSearchResult(id = "user-1", displayName = "Some Streamer"),
                 ),
             ),
         )
@@ -167,15 +168,18 @@ class AdminControllerImpersonationTest {
 
         // 2. The impersonate call carries the grant id THAT session returned.
         assertEquals(1, api.impersonateCalls.size)
-        val (subjectUserId, accessGrantId) = api.impersonateCalls.single()
+        val (subjectUserId, accessGrantId, capturedJustification) = api.impersonateCalls.single()
         assertEquals("user-1", subjectUserId)
         assertEquals("grant-1", accessGrantId)
+        assertEquals("Investigating a billing ticket", capturedJustification)
 
         // 3. The session swapped onto the minted token and the "acting as" state carries the grant + expiry.
         assertEquals("target-jwt", sessionStore.accessToken())
         val info: ImpersonationInfo? = sessionStore.impersonating.value
         assertEquals("Some Streamer", info?.displayName)
-        assertEquals("grant-1", info?.accessGrantId)
+        // Ending impersonation targets the MINTED SESSION (ImpersonationTokenDto.sessionId), not the tenant
+        // access grant that authorized minting it — they are two different ids on the real contract.
+        assertEquals("session-1", info?.accessGrantId)
         assertEquals(kotlinx.datetime.Instant.parse("2030-01-01T00:00:00Z"), info?.expiresAt)
         assertNull(controller.state.value.impersonationRefusal)
     }
@@ -316,7 +320,7 @@ private class FakeAdminApi(
     ),
     private val endImpersonationResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : AdminApi {
-    val impersonateCalls: MutableList<Pair<String, String>> = mutableListOf()
+    val impersonateCalls: MutableList<Triple<String, String, String>> = mutableListOf()
     val endImpersonationCalls: MutableList<String> = mutableListOf()
 
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
@@ -341,8 +345,8 @@ private class FakeAdminApi(
     override suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun grantFounderBadge(broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
-    override suspend fun impersonate(subjectUserId: String, accessGrantId: String): ApiResult<ImpersonationTokenDto> {
-        impersonateCalls += subjectUserId to accessGrantId
+    override suspend fun impersonate(subjectUserId: String, accessGrantId: String, justification: String): ApiResult<ImpersonationTokenDto> {
+        impersonateCalls += Triple(subjectUserId, accessGrantId, justification)
         return impersonateResult
     }
 
