@@ -37,6 +37,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
     private readonly HttpClient _http;
     private readonly ILogger<TwitchAuthService> _logger;
     private readonly TimeProvider _timeProvider;
+    private readonly Identity.IConnectionRefreshGate _refreshGate;
 
     private const string TokenEndpoint = "https://id.twitch.tv/oauth2/token";
     private const string RevokeEndpoint = "https://id.twitch.tv/oauth2/revoke";
@@ -62,7 +63,8 @@ public sealed class TwitchAuthService : ITwitchAuthService
         ISystemCredentialsProvider credentials,
         IHttpClientFactory httpClientFactory,
         ILogger<TwitchAuthService> logger,
-        TimeProvider timeProvider
+        TimeProvider timeProvider,
+        Identity.IConnectionRefreshGate refreshGate
     )
     {
         _db = db;
@@ -71,6 +73,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
         _http = httpClientFactory.CreateClient("twitch-auth");
         _logger = logger;
         _timeProvider = timeProvider;
+        _refreshGate = refreshGate;
     }
 
     /// <summary>
@@ -157,6 +160,47 @@ public sealed class TwitchAuthService : ITwitchAuthService
         // operator re-auths. StoreTokensAsync resets this to connected the moment a fresh grant is vaulted.
         if (connection.Status == AuthEnums.IntegrationStatus.NeedsReauth)
             return null;
+
+        // S036 — serialize refreshes of the SAME connection. Two concurrent 401s (or an overlapping proactive
+        // sweep + a reactive 401) must not both post the same refresh token to Twitch: Twitch invalidates the
+        // prior refresh token on use, so the loser's re-vault would destroy the winner's fresh pair and log the
+        // channel out. A DIFFERENT connection's refresh uses a different key and is never blocked by this one.
+        DateTime? refreshedBeforeWaiting = connection.LastRefreshedAt;
+        using IDisposable gate = await _refreshGate.AcquireAsync($"twitch:{connection.Id}", ct);
+
+        // Re-check after acquiring the gate: if another caller refreshed this exact connection while we were
+        // waiting, its result is already vaulted — hand back that token instead of posting a second refresh
+        // (which would be racing against a refresh token Twitch already rotated out from under us).
+        IntegrationConnection? afterWait = await ResolveConnectionAsync(
+            broadcasterId,
+            provider,
+            ct
+        );
+        if (
+            afterWait is not null
+            && afterWait.LastRefreshedAt is { } refreshedAt
+            && refreshedAt != refreshedBeforeWaiting
+        )
+        {
+            Result<DecryptedTokenDto> winnerAccess = await _vault.GetAccessTokenAsync(
+                afterWait.Id,
+                ct
+            );
+            if (winnerAccess.IsSuccess)
+            {
+                Result<DecryptedTokenDto> winnerRefresh = await _vault.GetRefreshTokenAsync(
+                    afterWait.Id,
+                    ct
+                );
+                return new TokenResult(
+                    winnerAccess.Value.Value,
+                    winnerRefresh.IsSuccess ? winnerRefresh.Value.Value : string.Empty,
+                    winnerAccess.Value.ExpiresAt ?? refreshedAt,
+                    [.. afterWait.Scopes]
+                );
+            }
+        }
+        connection = afterWait ?? connection;
 
         Result<DecryptedTokenDto> refresh = await _vault.GetRefreshTokenAsync(connection.Id, ct);
         if (refresh.IsFailure)
@@ -338,8 +382,13 @@ public sealed class TwitchAuthService : ITwitchAuthService
         string provider,
         CancellationToken ct
     ) =>
+        // AsNoTracking: this class only ever READS the connection (every mutation goes through the vault),
+        // and the S036 re-check after the refresh gate depends on seeing the CURRENT row rather than a
+        // stale identity-mapped instance the same DbContext already tracked from an earlier call in this
+        // same method.
         await _db
             .IntegrationConnections.IgnoreQueryFilters()
+            .AsNoTracking()
             .FirstOrDefaultAsync(
                 c =>
                     c.BroadcasterId == broadcasterId

@@ -43,6 +43,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
     private readonly TimeProvider _clock;
     private readonly HttpClient _http;
     private readonly ILogger<KickAccessTokenProvider> _logger;
+    private readonly Identity.IConnectionRefreshGate _refreshGate;
 
     public KickAccessTokenProvider(
         IApplicationDbContext db,
@@ -50,7 +51,8 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
         ISystemCredentialsProvider credentials,
         TimeProvider clock,
         IHttpClientFactory httpClientFactory,
-        ILogger<KickAccessTokenProvider> logger
+        ILogger<KickAccessTokenProvider> logger,
+        Identity.IConnectionRefreshGate refreshGate
     )
     {
         _db = db;
@@ -59,6 +61,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
         _clock = clock;
         _http = httpClientFactory.CreateClient("kick");
         _logger = logger;
+        _refreshGate = refreshGate;
     }
 
     public async Task<KickAccess?> GetAsync(
@@ -133,6 +136,22 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
 
     private async Task<string?> RefreshAsync(Guid connectionId, CancellationToken ct)
     {
+        // S036 — serialize refreshes of the SAME connection. Kick is OAuth 2.1 and rotates the refresh token
+        // on every grant, so a second concurrent caller posting the token the first caller already spent
+        // would fail (or worse, a race could vault the loser's stale pair over the winner's). A different
+        // connection refreshing concurrently uses a different key and is unaffected.
+        using IDisposable gate = await _refreshGate.AcquireAsync($"kick:{connectionId}", ct);
+
+        // Re-check under the gate: another caller may have already refreshed this connection while we waited.
+        Result<DecryptedTokenDto> current = await _vault.GetAccessTokenAsync(connectionId, ct);
+        if (
+            current.IsSuccess
+            && !current.Value.IsExpired
+            && current.Value.ExpiresAt is { } expiresAt
+            && expiresAt > _clock.GetUtcNow().UtcDateTime.Add(RefreshMargin)
+        )
+            return current.Value.Value;
+
         Result<DecryptedTokenDto> refresh = await _vault.GetRefreshTokenAsync(connectionId, ct);
         if (refresh.IsFailure)
             return null;

@@ -1280,6 +1280,11 @@ public static class DependencyInjection
         // AddServicesByConvention above. (The legacy ITwitchApiService has been retired — every caller now
         // targets the granular Helix sub-clients / ITwitchHelixClient façade.)
 
+        // Per-connection refresh mutex (S036) — ONE instance for the process so every provider's refresh
+        // path (Twitch/Kick/YouTube) serializes against the SAME in-memory table of keys. Singleton by
+        // design: a scoped instance would give each request its own empty dictionary and defeat the point.
+        services.AddSingleton<Identity.IConnectionRefreshGate, Identity.ConnectionRefreshGate>();
+
         // Roles & permissions — the effective-level resolver (Gate-2 reads it). Not an I<X>Service, so it is
         // registered explicitly rather than by AddServicesByConvention. Scoped (reads the per-request DbContext).
         services.AddScoped<

@@ -36,13 +36,15 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
     private readonly TimeProvider _timeProvider;
     private readonly HttpClient _http;
     private readonly ILogger<YouTubeAccessTokenProvider> _logger;
+    private readonly NomNomzBot.Infrastructure.Identity.IConnectionRefreshGate _refreshGate;
 
     public YouTubeAccessTokenProvider(
         IApplicationDbContext db,
         ITokenProtector tokenProtector,
         TimeProvider timeProvider,
         IHttpClientFactory httpClientFactory,
-        ILogger<YouTubeAccessTokenProvider> logger
+        ILogger<YouTubeAccessTokenProvider> logger,
+        NomNomzBot.Infrastructure.Identity.IConnectionRefreshGate refreshGate
     )
     {
         _db = db;
@@ -50,6 +52,7 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
         _timeProvider = timeProvider;
         _http = httpClientFactory.CreateClient(ProviderName);
         _logger = logger;
+        _refreshGate = refreshGate;
     }
 
     public async Task<string?> GetAccessTokenAsync(
@@ -98,6 +101,34 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
     {
         if (service.RefreshToken is null)
             return null;
+
+        // S036 — serialize refreshes of the SAME YouTube service row. Google does not invalidate the prior
+        // refresh token on a refresh grant, but two concurrent callers still each burn a quota-limited
+        // request and could interleave the SaveChangesAsync writes; gate them to exactly one HTTP call.
+        using IDisposable gate = await _refreshGate.AcquireAsync(
+            $"youtube:{service.Id}",
+            cancellationToken
+        );
+
+        // Re-check under the gate against the CURRENT row: another caller may already have refreshed it
+        // while we waited. AsNoTracking + a detached read on purpose — it must NOT replace the tracked
+        // `service` instance below, which the HTTP-refresh path mutates and saves in place.
+        Service? current = await _db
+            .Services.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == service.Id, cancellationToken);
+        if (
+            current is not null
+            && current.TokenExpiry.HasValue
+            && current.TokenExpiry.Value > _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(5)
+            && current.AccessToken is not null
+        )
+        {
+            return await _tokenProtector.TryUnprotectAsync(
+                current.AccessToken,
+                new(current.BroadcasterId?.ToString() ?? "_platform", ProviderName, "access"),
+                cancellationToken
+            );
+        }
 
         string subjectId = service.BroadcasterId?.ToString() ?? "_platform";
 

@@ -340,7 +340,8 @@ internal static class YouTubeProviderFactory
             new PassthroughProtector(),
             TimeProvider.System,
             factory,
-            NullLogger<YouTubeAccessTokenProvider>.Instance
+            NullLogger<YouTubeAccessTokenProvider>.Instance,
+            new NomNomzBot.Infrastructure.Identity.ConnectionRefreshGate()
         );
 
         return new(factory, configuration, accessTokens, NullLogger<YouTubeMusicProvider>.Instance);

@@ -19,6 +19,7 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Configuration;
 
@@ -51,7 +52,8 @@ public sealed class TwitchAuthServiceCredentialsTests
             credentials,
             new SingleClientFactory(wire),
             NullLogger<TwitchAuthService>.Instance,
-            TimeProvider.System
+            TimeProvider.System,
+            new ConnectionRefreshGate()
         );
         return (service, wire);
     }
@@ -117,7 +119,8 @@ public sealed class TwitchAuthServiceCredentialsTests
             credentials,
             new SingleClientFactory(wire),
             NullLogger<TwitchAuthService>.Instance,
-            TimeProvider.System
+            TimeProvider.System,
+            new ConnectionRefreshGate()
         );
 
         TokenResult? result = await service.ExchangeCodeAsync(

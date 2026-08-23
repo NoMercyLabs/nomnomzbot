@@ -313,14 +313,21 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
         CancellationToken cancellationToken
     )
     {
+        // AsNoTracking on both reads: a refresh path re-checks this same read AFTER acquiring the S036
+        // per-connection refresh gate, on the SAME scoped DbContext it used before waiting — without
+        // no-tracking, EF's identity map would hand back the pre-wait tracked instance instead of the row a
+        // concurrent winner just rewrote, defeating the "only one provider call" guarantee that gate exists
+        // to give.
         IntegrationConnection? connection = await _db
             .IntegrationConnections.IgnoreQueryFilters()
+            .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == connectionId, cancellationToken);
         if (connection is null)
             return Result.Failure<DecryptedTokenDto>("No such connection.", "NOT_FOUND");
 
         IntegrationToken? token = await _db
             .IntegrationTokens.IgnoreQueryFilters()
+            .AsNoTracking()
             .FirstOrDefaultAsync(
                 t =>
                     t.ConnectionId == connectionId
