@@ -433,4 +433,90 @@ public sealed class SubscriptionServiceTests
 
         result.ErrorCode.Should().Be("NOT_FOUND");
     }
+
+    // ── RefundInvoiceAsync (platform-admin billing:refund, S086e) ──────────────────────────────
+
+    private static async Task<Invoice> SeedPaidInvoiceAsync(AuthDbContext db)
+    {
+        BillingTier pro = await db.BillingTiers.FirstAsync(t => t.Key == "pro");
+        Subscription sub = new()
+        {
+            BroadcasterId = Channel,
+            TierId = pro.Id,
+            Status = SubscriptionStatus.Active,
+            StripeSubscriptionId = "sub_1",
+        };
+        db.Subscriptions.Add(sub);
+        Invoice invoice = new()
+        {
+            BroadcasterId = Channel,
+            SubscriptionId = sub.Id,
+            StripeInvoiceId = "in_1",
+            Status = InvoiceStatus.Paid,
+            AmountDueCents = 1_999,
+            AmountPaidCents = 1_999,
+            Currency = "usd",
+            IssuedAt = Now.UtcDateTime,
+            PaidAt = Now.UtcDateTime,
+        };
+        db.Invoices.Add(invoice);
+        await db.SaveChangesAsync();
+        return invoice;
+    }
+
+    [Fact]
+    public async Task RefundInvoiceAsync_refunds_via_stripe_marks_the_invoice_refunded_and_publishes_the_event()
+    {
+        IStripeGateway gateway = Substitute.For<IStripeGateway>();
+        gateway
+            .RefundInvoiceAsync("in_1", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        (SubscriptionService sut, AuthDbContext db, RecordingEventBus bus) = Build(gateway);
+        await SeedAsync(db);
+        Invoice invoice = await SeedPaidInvoiceAsync(db);
+
+        Result<InvoiceDto> result = await sut.RefundInvoiceAsync(invoice.Id);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be("refunded");
+        (await db.Invoices.FirstAsync(i => i.Id == invoice.Id)).Status
+            .Should()
+            .Be(InvoiceStatus.Refunded);
+        await gateway.Received(1).RefundInvoiceAsync("in_1", Arg.Any<CancellationToken>());
+        bus.Published.OfType<InvoiceRefundedEvent>()
+            .Should()
+            .ContainSingle(e =>
+                e.InvoiceId == invoice.Id
+                && e.AmountRefundedCents == 1_999
+                && e.Currency == "usd"
+                && e.BroadcasterId == Channel
+            );
+    }
+
+    [Fact]
+    public async Task RefundInvoiceAsync_on_an_unpaid_invoice_is_rejected_and_stripe_is_never_called()
+    {
+        IStripeGateway gateway = Substitute.For<IStripeGateway>();
+        (SubscriptionService sut, AuthDbContext db, _) = Build(gateway);
+        await SeedAsync(db);
+        Invoice invoice = await SeedPaidInvoiceAsync(db);
+        invoice.Status = InvoiceStatus.Open;
+        await db.SaveChangesAsync();
+
+        Result<InvoiceDto> result = await sut.RefundInvoiceAsync(invoice.Id);
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        await gateway.DidNotReceiveWithAnyArgs().RefundInvoiceAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task RefundInvoiceAsync_on_an_unknown_invoice_is_not_found()
+    {
+        (SubscriptionService sut, AuthDbContext db, _) = Build();
+        await SeedAsync(db);
+
+        Result<InvoiceDto> result = await sut.RefundInvoiceAsync(Guid.NewGuid());
+
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
 }
