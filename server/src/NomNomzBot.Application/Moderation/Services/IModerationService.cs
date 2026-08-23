@@ -166,11 +166,17 @@ public interface IModerationService
     );
 
     /// <summary>Approve or deny an unban request on Twitch as the operator, returning the resolved request.</summary>
+    /// <summary>
+    /// Approves or denies an unban request. Approving requires <paramref name="confirm"/> to be explicitly
+    /// true — it reverses a ban instantly with no client-side undo, so a bare approval intent with no
+    /// confirmation is rejected before any Twitch call is made. Denial needs no confirmation.
+    /// </summary>
     Task<Result<UnbanRequestDto>> ResolveUnbanRequestAsync(
         string broadcasterId,
         Guid operatorUserId,
         string unbanRequestId,
         bool approve,
+        bool confirm,
         string? note,
         CancellationToken cancellationToken = default
     );

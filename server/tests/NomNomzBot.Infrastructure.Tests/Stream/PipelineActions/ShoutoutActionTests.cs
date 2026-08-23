@@ -202,6 +202,33 @@ public sealed class ShoutoutActionTests
             );
     }
 
+    /// <summary>
+    /// S014: the announcement's own Result was previously logged on failure but never folded into the
+    /// returned ActionResult — a broadcaster whose custom announcement failed to post (e.g. a missing
+    /// user:write:chat scope) saw the pipeline step report success anyway, because only the native Helix
+    /// shoutout's outcome was checked. Proves the returned outcome, not merely that nothing threw.
+    /// </summary>
+    [Fact]
+    public async Task A_failed_announcement_is_reported_as_a_failure_even_though_the_native_shoutout_succeeded()
+    {
+        (ShoutoutAction sut, ITwitchChatApi chat, ITwitchUsersApi _) = Build();
+        chat.SendAnnouncementAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("missing scope", "TWITCH_ERROR"));
+
+        ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
+
+        // The native shoutout was still sent (best-effort, independent of the announcement)...
+        await chat.Received(1).SendShoutoutAsync(Channel, "123456", Arg.Any<CancellationToken>());
+        // ...but the reported outcome is truthful: nothing claims success when the announcement failed.
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("announcement failed");
+    }
+
     [Fact]
     public async Task Tts_true_speaks_the_announcement_but_tts_omitted_stays_silent()
     {

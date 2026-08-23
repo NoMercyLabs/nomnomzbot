@@ -1166,12 +1166,22 @@ public class ModerationService : IModerationService
         Guid operatorUserId,
         string unbanRequestId,
         bool approve,
+        bool confirm,
         string? note,
         CancellationToken cancellationToken = default
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return Errors.ChannelNotFound<UnbanRequestDto>(broadcasterId);
+
+        // Approving reverses a ban instantly and irreversibly from the dashboard's side — an accidental click
+        // must never carry it out. No Twitch call is made until the caller explicitly confirms intent. Denial
+        // carries no such risk and needs no confirmation.
+        if (approve && !confirm)
+            return Result.Failure<UnbanRequestDto>(
+                "Approving an unban request requires explicit confirmation.",
+                "CONFIRMATION_REQUIRED"
+            );
 
         Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
             tenantId,

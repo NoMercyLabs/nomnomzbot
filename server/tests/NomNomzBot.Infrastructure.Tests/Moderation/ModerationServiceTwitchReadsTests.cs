@@ -563,6 +563,7 @@ public sealed class ModerationServiceTwitchReadsTests
                 Operator,
                 "req-7",
                 approve: true,
+                confirm: true,
                 note: "welcome back"
             );
 
@@ -599,7 +600,14 @@ public sealed class ModerationServiceTwitchReadsTests
             .Returns(Result.Success(Unban("9", "Nope", "denied", moderatorName: "ModBob")));
 
         Result<UnbanRequestDto> result = await NewService(moderation)
-            .ResolveUnbanRequestAsync(BroadcasterId, Operator, "req-9", approve: false, note: null);
+            .ResolveUnbanRequestAsync(
+                BroadcasterId,
+                Operator,
+                "req-9",
+                approve: false,
+                confirm: false,
+                note: null
+            );
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be("denied");
@@ -631,10 +639,81 @@ public sealed class ModerationServiceTwitchReadsTests
             .Returns(Result.Failure<TwitchUnbanRequest>("Missing scope.", "missing_scope"));
 
         Result<UnbanRequestDto> result = await NewService(moderation)
-            .ResolveUnbanRequestAsync(BroadcasterId, Operator, "req-1", approve: true, note: null);
+            .ResolveUnbanRequestAsync(
+                BroadcasterId,
+                Operator,
+                "req-1",
+                approve: true,
+                confirm: true,
+                note: null
+            );
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("missing_scope");
+    }
+
+    /// <summary>
+    /// S014: approving an unban request reverses a ban instantly with no client-side undo, so an accidental
+    /// click must never carry it out. Proves the Twitch call is never even attempted without explicit
+    /// confirmation — not merely that the caller's Result is a failure.
+    /// </summary>
+    [Fact]
+    public async Task ResolveUnbanRequestAsync_ApproveWithoutConfirm_IsRejectedAndNeverCallsTwitch()
+    {
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+
+        Result<UnbanRequestDto> result = await NewService(moderation)
+            .ResolveUnbanRequestAsync(
+                BroadcasterId,
+                Operator,
+                "req-7",
+                approve: true,
+                confirm: false,
+                note: null
+            );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("CONFIRMATION_REQUIRED");
+        await moderation
+            .DidNotReceiveWithAnyArgs()
+            .ResolveUnbanRequestAsOperatorAsync(
+                default,
+                default!,
+                default!,
+                default!,
+                default,
+                default
+            );
+    }
+
+    /// <summary>Denying carries no reversal risk, so it needs no confirmation flag.</summary>
+    [Fact]
+    public async Task ResolveUnbanRequestAsync_DenyWithoutConfirm_StillProceeds()
+    {
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .ResolveUnbanRequestAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                "req-9",
+                "denied",
+                null,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(Unban("9", "Nope", "denied", moderatorName: "ModBob")));
+
+        Result<UnbanRequestDto> result = await NewService(moderation)
+            .ResolveUnbanRequestAsync(
+                BroadcasterId,
+                Operator,
+                "req-9",
+                approve: false,
+                confirm: false,
+                note: null
+            );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be("denied");
     }
 
     // ─── Warn ─────────────────────────────────────────────────────────────────

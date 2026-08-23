@@ -207,11 +207,17 @@ public sealed record UnbanRequestDto(
     string? ResolutionText
 );
 
-/// <summary>Approve or deny a pending unban request, with an optional note the viewer sees.</summary>
+/// <summary>
+/// Approve or deny a pending unban request, with an optional note the viewer sees. Approving reverses a
+/// ban instantly and irreversibly (from the dashboard's perspective — Twitch offers no "re-ban on regret"), so
+/// <see cref="Confirm"/> must be explicitly set true on approval; a bare <c>Approve: true</c> with no confirmation
+/// is rejected rather than acted on. Denial carries no such risk and needs no confirmation.
+/// </summary>
 public sealed record ResolveUnbanRequestRequest
 {
     public required bool Approve { get; init; }
     public string? Note { get; init; }
+    public bool Confirm { get; init; }
 }
 
 // ─── Per-user enforcement (warn / suspicious) ──────────────────────────────────

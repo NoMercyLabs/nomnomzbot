@@ -252,9 +252,17 @@ public sealed class ShoutoutAction : ICommandAction
                 );
         }
 
-        return success
-            ? ActionResult.Success($"shoutout sent to {rawUserId}")
-            : ActionResult.Failure($"Twitch shoutout API failed for {rawUserId}");
+        // Truthful outcome: the docstring promises the native Helix shoutout PLUS the templated announcement, so
+        // a failed announcement must not be reported as a successful shoutout — previously `announceResult` was
+        // logged but never folded into the returned ActionResult, so a broadcaster whose announcement silently
+        // failed (e.g. missing user:write:chat scope) saw the pipeline step report success regardless.
+        if (!success)
+            return ActionResult.Failure($"Twitch shoutout API failed for {rawUserId}");
+        if (announceResult.IsFailure)
+            return ActionResult.Failure(
+                $"shoutout sent to {rawUserId} but the announcement failed: {announceResult.ErrorMessage}"
+            );
+        return ActionResult.Success($"shoutout sent to {rawUserId}");
     }
 
     /// <summary>Resolves a whole-value <c>{key}</c> reference against the pipeline's variable bag; a value

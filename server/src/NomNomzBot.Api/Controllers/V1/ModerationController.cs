@@ -562,6 +562,7 @@ public class ModerationController : BaseController
             operatorUserId,
             unbanRequestId,
             request.Approve,
+            request.Confirm,
             request.Note,
             ct
         );
