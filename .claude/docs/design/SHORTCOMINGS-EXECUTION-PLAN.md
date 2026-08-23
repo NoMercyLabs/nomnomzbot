@@ -30,10 +30,6 @@ Slice IDs are stable; the order is the queue.
   retention, but no API or dashboard surface exposes them, so a streamer debugging a misbehaving command still cannot see
   why it failed. Done-when: a run history endpoint exists (paged, tenant-scoped, failures filterable) and the dashboard shows
   the failing step for a `PartiallyFailed` run.
-- **S011b** Dashboard field for `BotLinePrefix` — S011 (6ee95ca4) added the channel setting and applies it on the send path,
-  but a streamer cannot set it: there is no Settings control. Options are none / `*` / `#` / an emoji. Done-when: the field is
-  on the Settings page with en+nl strings, writes persist and survive reload, and it is hidden or explained when a dedicated
-  bot account is connected (the prefix is suppressed in that case, so an editable field that does nothing would be a lie).
 - **S012b** Timeout duration presets in the dashboard — S012 (4a31190e) hard-blocked invalid durations server-side and
   inventoried all 9 parse sites, but the manual timeout box in `app/` is still a free number field with no presets, so a
   moderator can still fumble a duration and get a rejection instead of a picker. Note the audit correction: non-numeric text
