@@ -66,8 +66,10 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 1 — runtime stability of EXISTING plumbing
 
-- **S033** EventSub reconnect — backoff on clean close; `ReconnectAsync` re-opens every owner session;
-  `WaitAsync` leak; per-owner subscription count (U·B7). Done-when: mock close 4003 → exponential backoff.
+- **S033b** Same `WaitAsync` leak in two more hosted services — `Supporters/SupporterSocketHostedService` and
+  `CustomEvents/CustomDataSocketHostedService` use the `Task.WhenAny(x, Task.Delay(Timeout.Infinite, ct))` pattern that S033
+  (62bdb933) replaced with `x.WaitAsync(ct)`; the old form leaves an unobserved Delay alive for the token's lifetime. Found by
+  S033's sweep. Done-when: neither service leaks a pending Delay across N reconnect cycles, proven the way S033 proved it.
 - **S034** EventSub revocation — handlers for `EventSubRevokedEvent` (→ `needs_reauth` + notice) and
   the two unhandled events; publish `EventSubDisconnectedEvent` (U·B7). Done-when: revoke at Twitch
   flips status within one tick.
