@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Contracts.Chat;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
 
@@ -23,6 +24,13 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// The provider key is resolved once per tenant and cached for the scope's lifetime (channels never
 /// change platform); an unknown/unregistered provider falls back to Twitch — the dominant platform and
 /// the pre-seam behavior — with a warning, never a throw into the hot chat path.
+///
+/// This is also where every outbound line is stamped with <see cref="BotEmittedLine.Marker"/> (S009b):
+/// the router is the ONE seam every bot-voice send crosses regardless of platform, so stamping here —
+/// rather than inside each <see cref="IChatPlatform"/> implementation — means a future fourth platform
+/// inherits the loop-guard automatically just by registering, instead of each implementation having to
+/// remember to call <see cref="BotEmittedLine.Stamp"/> itself. <see cref="OperatorChatSender"/> is a
+/// deliberately separate path (a human operator's own composer send) and is never stamped.
 /// </summary>
 public sealed class ChatPlatformRouter : IChatProvider
 {
@@ -49,7 +57,7 @@ public sealed class ChatPlatformRouter : IChatProvider
     ) =>
         await (await ResolveAsync(broadcasterId, cancellationToken)).SendMessageAsync(
             broadcasterId,
-            message,
+            BotEmittedLine.Stamp(message),
             cancellationToken
         );
 
@@ -62,7 +70,7 @@ public sealed class ChatPlatformRouter : IChatProvider
         await (await ResolveAsync(broadcasterId, cancellationToken)).SendReplyAsync(
             broadcasterId,
             replyToMessageId,
-            message,
+            BotEmittedLine.Stamp(message),
             cancellationToken
         );
 

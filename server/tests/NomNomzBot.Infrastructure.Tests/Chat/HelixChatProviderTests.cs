@@ -569,6 +569,163 @@ public sealed class HelixChatProviderTests
         transport.CallCount.Should().Be(0, "the send short-circuits before the Helix call");
     }
 
+    /// <summary>
+    /// S009b round trip: a line sent through the REAL router → real <see cref="HelixChatProvider"/> seam
+    /// carries the marker on the wire, and feeding that EXACT captured text back through the real
+    /// <see cref="ChannelChatMessageTranslator"/> ingest (self-host: sender id = the owner's own account,
+    /// no dedicated bot) is suppressed — while the owner's own un-stamped command on the same account
+    /// still publishes, proving the marker (not the sender id) is doing the suppressing here.
+    /// </summary>
+    [Fact]
+    public async Task A_line_the_router_actually_sent_does_not_retrigger_on_twitchs_own_ingest()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await AddConnectionAsync(
+            db,
+            Owner,
+            AuthEnums.IntegrationProvider.Twitch,
+            OwnerTwitchUserId,
+            DateTime.UtcNow
+        );
+        db.Channels.Add(
+            new()
+            {
+                Id = Owner,
+                OwnerUserId = Owner,
+                Provider = AuthEnums.Platform.Twitch,
+                TwitchChannelId = OwnerTwitchChannelId,
+                ExternalChannelId = OwnerTwitchChannelId,
+                Name = "owner",
+                NameNormalized = "owner",
+                IsOnboarded = true,
+                DeploymentMode = AuthEnums.DeploymentMode.Saas,
+                BillingTierKey = "free",
+            }
+        );
+        await db.SaveChangesAsync();
+        (HelixChatProvider provider, CapturingHelixTransport transport) = Build(db);
+        NomNomzBot.Infrastructure.Chat.ChatPlatformRouter router = new(
+            [provider],
+            db,
+            Microsoft
+                .Extensions
+                .Logging
+                .Abstractions
+                .NullLogger<NomNomzBot.Infrastructure.Chat.ChatPlatformRouter>
+                .Instance
+        );
+
+        bool sent = await router.SendMessageAsync(Owner, "Try !cmd again");
+
+        sent.Should().BeTrue();
+        string capturedMessage = ReadBody(transport.LastRequest!.Body!).Message;
+        capturedMessage
+            .Should()
+            .StartWith(
+                NomNomzBot.Application.Contracts.Chat.BotEmittedLine.Marker,
+                "the router must stamp every line it hands to the platform"
+            );
+
+        // The self-echo guard here is marker-aware only (no dedicated bot registered) — mirrors
+        // BotSelfEchoGuard's real second signal without touching the DB tables this fake context lacks.
+        NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard guard =
+            NSubstitute.Substitute.For<NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard>();
+        guard
+            .ShouldSuppressAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo =>
+                NomNomzBot.Application.Contracts.Chat.BotEmittedLine.IsMarked(
+                    callInfo.ArgAt<string>(3)
+                )
+            );
+        NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix.CapturingEventBus bus = new();
+        NomNomzBot.Infrastructure.Platform.Eventing.Translators.ChannelChatMessageTranslator translator =
+            new(
+                bus,
+                TimeProvider.System,
+                Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+                guard
+            );
+
+        string echoedPayload = $$"""
+            {
+                "broadcaster_user_id": "{{OwnerTwitchChannelId}}",
+                "chatter_user_id": "{{OwnerTwitchUserId}}",
+                "chatter_user_login": "owner",
+                "chatter_user_name": "Owner",
+                "message_id": "echo-1",
+                "message_type": "text",
+                "message": { "text": {{System.Text.Json.JsonSerializer.Serialize(
+                capturedMessage
+            )}} },
+                "badges": []
+            }
+            """;
+        using System.Text.Json.JsonDocument echoedDoc = System.Text.Json.JsonDocument.Parse(
+            echoedPayload
+        );
+        await translator.TranslateAsync(
+            new()
+            {
+                MessageId = "eventsub-1",
+                MessageTimestamp = DateTimeOffset.UtcNow,
+                SubscriptionType = "channel.chat.message",
+                SubscriptionVersion = "1",
+                BroadcasterId = Owner,
+                TwitchBroadcasterUserId = OwnerTwitchChannelId,
+                Event = echoedDoc.RootElement.Clone(),
+            }
+        );
+
+        bus.EventsOf<NomNomzBot.Domain.Chat.Events.ChatMessageReceivedEvent>()
+            .Should()
+            .BeEmpty(
+                "the exact line the router sent must not re-enter as a fresh trigger, self-host, no dedicated bot"
+            );
+
+        // Regression (S009): the SAME account's real, un-stamped command must still be honoured.
+        string humanPayload = $$"""
+            {
+                "broadcaster_user_id": "{{OwnerTwitchChannelId}}",
+                "chatter_user_id": "{{OwnerTwitchUserId}}",
+                "chatter_user_login": "owner",
+                "chatter_user_name": "Owner",
+                "message_id": "human-1",
+                "message_type": "text",
+                "message": { "text": "!cmd" },
+                "badges": []
+            }
+            """;
+        using System.Text.Json.JsonDocument humanDoc = System.Text.Json.JsonDocument.Parse(
+            humanPayload
+        );
+        await translator.TranslateAsync(
+            new()
+            {
+                MessageId = "eventsub-2",
+                MessageTimestamp = DateTimeOffset.UtcNow,
+                SubscriptionType = "channel.chat.message",
+                SubscriptionVersion = "1",
+                BroadcasterId = Owner,
+                TwitchBroadcasterUserId = OwnerTwitchChannelId,
+                Event = humanDoc.RootElement.Clone(),
+            }
+        );
+
+        bus.EventsOf<NomNomzBot.Domain.Chat.Events.ChatMessageReceivedEvent>()
+            .Should()
+            .ContainSingle(
+                "the owner's own real command on the same account must still be honoured"
+            )
+            .Which.Message.Should()
+            .Be("!cmd");
+    }
+
     /// <summary>Reads the anonymous chat-send body (PascalCase) the provider hands the transport.</summary>
     private static (string SenderId, string BroadcasterId, string Message) ReadBody(object body)
     {

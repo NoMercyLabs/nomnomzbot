@@ -245,6 +245,76 @@ public sealed class KickWebhookIngestTests
             );
     }
 
+    /// <summary>
+    /// S009b round trip: a line sent through the REAL router → real <see cref="KickChatPlatform"/> seam
+    /// carries the marker on the wire, and feeding that EXACT captured text back through the real
+    /// <see cref="KickWebhookIngest"/> (self-host: sender id = the owner's own kick id, no dedicated bot)
+    /// is suppressed — proving the send path and the ingest path agree on the marker, not two unrelated
+    /// assertions each trusting a hardcoded literal.
+    /// </summary>
+    [Fact]
+    public async Task A_line_the_router_actually_sent_does_not_retrigger_on_kicks_own_ingest()
+    {
+        (KickWebhookIngest ingest, AuthDbContext db, RecordingEventBus bus) = Build();
+
+        NomNomzBot.Application.Contracts.Kick.IKickAccessTokenProvider tokens =
+            Substitute.For<NomNomzBot.Application.Contracts.Kick.IKickAccessTokenProvider>();
+        tokens
+            .GetAsync(Tenant, Arg.Any<CancellationToken>())
+            .Returns(new NomNomzBot.Application.Contracts.Kick.KickAccess("kick-bearer-1", 12345));
+        NomNomzBot.Application.Contracts.Kick.IKickApiClient client =
+            Substitute.For<NomNomzBot.Application.Contracts.Kick.IKickApiClient>();
+        string capturedMessage = null!;
+        client
+            .SendMessageAsync(
+                Arg.Any<string>(),
+                Arg.Any<long>(),
+                Arg.Do<string>(m => capturedMessage = m),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(NomNomzBot.Application.Common.Models.Result.Success("m-echo"));
+        KickChatPlatform platform = new(tokens, client, NullLogger<KickChatPlatform>.Instance);
+        NomNomzBot.Infrastructure.Chat.ChatPlatformRouter router = new(
+            [platform],
+            db,
+            NullLogger<NomNomzBot.Infrastructure.Chat.ChatPlatformRouter>.Instance
+        );
+
+        bool sent = await router.SendMessageAsync(Tenant, "Try !cmd again");
+        sent.Should().BeTrue();
+
+        capturedMessage
+            .Should()
+            .StartWith(
+                BotEmittedLine.Marker,
+                "the router must stamp every line before Kick sends it"
+            );
+
+        string echoedBody = $$"""
+            {
+              "message_id": "kick-msg-echo",
+              "broadcaster": { "user_id": 12345, "username": "StreamerGal", "channel_slug": "streamergal" },
+              "sender": {
+                "user_id": 12345,
+                "username": "StreamerGal",
+                "channel_slug": "streamergal",
+                "identity": { "username_color": "#FF0000", "badges": [] }
+              },
+              "content": {{System.Text.Json.JsonSerializer.Serialize(capturedMessage)}},
+              "created_at": "2026-07-11T12:38:00Z"
+            }
+            """;
+
+        await ingest.HandleAsync("chat.message.sent", echoedBody);
+
+        bus.Published.OfType<ChatMessageReceivedEvent>()
+            .Should()
+            .BeEmpty(
+                "the exact line KickChatPlatform sent must not retrigger on Kick's own ingest, self-host, no dedicated bot"
+            );
+    }
+
     [Fact]
     public async Task A_chat_message_carries_the_moderator_and_subscriber_role_flags_from_badges()
     {

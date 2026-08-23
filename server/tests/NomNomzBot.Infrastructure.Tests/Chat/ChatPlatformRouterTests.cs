@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Contracts.Chat;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -22,7 +23,9 @@ namespace NomNomzBot.Infrastructure.Tests.Chat;
 /// Proves the slice-3 chat seam: the router (registered as THE <see cref="IChatProvider"/>) selects the
 /// platform by the tenant channel's <c>Channel.Provider</c> — a YouTube tenant's send reaches the YouTube
 /// platform, a Twitch tenant's the Twitch one, and an unknown/unregistered provider falls back to Twitch
-/// (the pre-seam behavior) instead of throwing into the hot chat path.
+/// (the pre-seam behavior) instead of throwing into the hot chat path. It also proves S009b: the router
+/// stamps every outbound line with <see cref="BotEmittedLine.Marker"/> BEFORE handing it to whichever
+/// platform is selected — the one seam a future platform inherits the loop-guard from automatically.
 /// </summary>
 public sealed class ChatPlatformRouterTests
 {
@@ -66,7 +69,11 @@ public sealed class ChatPlatformRouterTests
 
         await youtube
             .Received(1)
-            .SendMessageAsync(YouTubeTenant, "hello", Arg.Any<CancellationToken>());
+            .SendMessageAsync(
+                YouTubeTenant,
+                BotEmittedLine.Marker + "hello",
+                Arg.Any<CancellationToken>()
+            );
         await twitch
             .DidNotReceiveWithAnyArgs()
             .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
@@ -81,10 +88,21 @@ public sealed class ChatPlatformRouterTests
         await router.SendMessageAsync(TwitchTenant, "hi");
         await router.SendReplyAsync(TwitchTenant, "m-1", "reply");
 
-        await twitch.Received(1).SendMessageAsync(TwitchTenant, "hi", Arg.Any<CancellationToken>());
         await twitch
             .Received(1)
-            .SendReplyAsync(TwitchTenant, "m-1", "reply", Arg.Any<CancellationToken>());
+            .SendMessageAsync(
+                TwitchTenant,
+                BotEmittedLine.Marker + "hi",
+                Arg.Any<CancellationToken>()
+            );
+        await twitch
+            .Received(1)
+            .SendReplyAsync(
+                TwitchTenant,
+                "m-1",
+                BotEmittedLine.Marker + "reply",
+                Arg.Any<CancellationToken>()
+            );
         await youtube
             .DidNotReceiveWithAnyArgs()
             .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
@@ -98,7 +116,41 @@ public sealed class ChatPlatformRouterTests
 
         await router.SendMessageAsync(KickTenant, "yo");
 
-        await twitch.Received(1).SendMessageAsync(KickTenant, "yo", Arg.Any<CancellationToken>());
+        await twitch
+            .Received(1)
+            .SendMessageAsync(
+                KickTenant,
+                BotEmittedLine.Marker + "yo",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Every_send_and_reply_is_stamped_with_the_bot_emitted_marker_regardless_of_platform()
+    {
+        // S009b: the stamp happens at the ROUTER, not inside each platform — so a future platform
+        // registered as IChatPlatform inherits the loop-guard for free, with zero code of its own.
+        (ChatPlatformRouter router, IChatPlatform twitch, IChatPlatform youtube) =
+            await BuildAsync();
+
+        await router.SendMessageAsync(TwitchTenant, "twitch line");
+        await router.SendReplyAsync(YouTubeTenant, "parent-1", "youtube reply");
+
+        await twitch
+            .Received(1)
+            .SendMessageAsync(
+                TwitchTenant,
+                BotEmittedLine.Marker + "twitch line",
+                Arg.Any<CancellationToken>()
+            );
+        await youtube
+            .Received(1)
+            .SendReplyAsync(
+                YouTubeTenant,
+                "parent-1",
+                BotEmittedLine.Marker + "youtube reply",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]

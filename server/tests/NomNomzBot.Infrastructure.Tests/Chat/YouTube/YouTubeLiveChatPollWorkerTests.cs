@@ -457,6 +457,83 @@ public sealed class YouTubeLiveChatPollWorkerTests
             .Be("m-2");
     }
 
+    /// <summary>
+    /// S009b round trip: a line sent through the REAL router → real <see cref="YouTubeChatPlatform"/>
+    /// seam carries the marker on the wire, and feeding that EXACT captured text back through the real
+    /// poll-worker ingest (self-host: sender = the owner's own YouTube channel, no dedicated bot) is
+    /// suppressed — proving the send path and the ingest path agree on the marker.
+    /// </summary>
+    [Fact]
+    public async Task A_line_the_router_actually_sent_does_not_retrigger_on_youtubes_own_ingest()
+    {
+        (
+            YouTubeLiveChatPollWorker worker,
+            ScriptedLiveChatClient client,
+            RecordingEventBus bus,
+            AuthDbContext db,
+            FakeTimeProvider time,
+            YouTubeLiveChatSessionRegistry sessions
+        ) = await BuildConnectedAsync();
+
+        client.LivenessResults.Enqueue(
+            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
+        );
+        client.PageResults.Enqueue(
+            Result.Success(new YouTubeLiveChatPage([Message("hist-1", "old line")], "tok-1", 1000))
+        );
+        client.PageResults.Enqueue(Result.Success(new YouTubeLiveChatPage([], "tok-2", 1000)));
+
+        await worker.TickAsync(CancellationToken.None); // liveness → live, tenant provisioned
+        await worker.TickAsync(CancellationToken.None); // bootstrap page
+
+        Channel tenant = await db
+            .Channels.IgnoreQueryFilters()
+            .SingleAsync(c => c.Provider == AuthEnums.Platform.YouTube);
+
+        IYouTubeLiveChatBanLedger bans = NSubstitute.Substitute.For<IYouTubeLiveChatBanLedger>();
+        YouTubeChatPlatform platform = new(
+            sessions,
+            new FixedTokenProvider("bearer-token"),
+            client,
+            bans,
+            NullLogger<YouTubeChatPlatform>.Instance
+        );
+        NomNomzBot.Infrastructure.Chat.ChatPlatformRouter router = new(
+            [platform],
+            db,
+            NullLogger<NomNomzBot.Infrastructure.Chat.ChatPlatformRouter>.Instance
+        );
+
+        bool sent = await router.SendMessageAsync(tenant.Id, "Try !cmd again");
+
+        sent.Should().BeTrue();
+        string capturedMessage = client.SentMessages.Should().ContainSingle().Subject;
+        capturedMessage
+            .Should()
+            .StartWith(
+                BotEmittedLine.Marker,
+                "the router must stamp every line before YouTubeChatPlatform sends it"
+            );
+
+        time.Advance(TimeSpan.FromSeconds(6));
+        client.PageResults.Enqueue(
+            Result.Success(
+                new YouTubeLiveChatPage(
+                    [Message("m-echo", capturedMessage, isOwner: true)],
+                    "tok-3",
+                    1000
+                )
+            )
+        );
+        await worker.TickAsync(CancellationToken.None);
+
+        bus.Published.OfType<ChatMessageReceivedEvent>()
+            .Should()
+            .BeEmpty(
+                "the exact line YouTubeChatPlatform sent must not retrigger on YouTube's own ingest, self-host, no dedicated bot"
+            );
+    }
+
     // ── shared scaffolding ──────────────────────────────────────────────────
 
     private static async Task<(
@@ -581,12 +658,18 @@ public sealed class YouTubeLiveChatPollWorkerTests
             CancellationToken cancellationToken = default
         ) => Task.FromResult(Result.Success(new YouTubeOwnChannel("UCstreamer", "Streamer YT")));
 
+        public List<string> SentMessages { get; } = [];
+
         public Task<Result> SendMessageAsync(
             string accessToken,
             string liveChatId,
             string text,
             CancellationToken cancellationToken = default
-        ) => Task.FromResult(Result.Success());
+        )
+        {
+            SentMessages.Add(text);
+            return Task.FromResult(Result.Success());
+        }
 
         public Task<Result<string>> BanUserAsync(
             string accessToken,
