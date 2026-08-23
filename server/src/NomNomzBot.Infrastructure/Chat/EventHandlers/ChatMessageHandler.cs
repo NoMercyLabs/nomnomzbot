@@ -455,10 +455,15 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 );
 
                 // IChatProvider takes the tenant Guid and resolves it to the Twitch channel string id
-                // internally (the invariant boundary lives in HelixChatProvider).
-                await SendResponseAsync(@event, resolved, cancellationToken);
+                // internally (the invariant boundary lives in HelixChatProvider). Before this, the bool
+                // was discarded and success hardcoded, so a template response that never reached chat
+                // (transport rejection) still recorded as a successful CommandExecutedEvent — the same
+                // defect class S008 fixed for pipelines and S008c fixed for builtins.
+                bool templateSent = await SendResponseAsync(@event, resolved, cancellationToken);
+                if (!templateSent)
+                    await SendBuiltinFailureNoticeAsync(@event, cancellationToken);
 
-                await PublishExecutedAsync(@event, command.Name, true, cancellationToken);
+                await PublishExecutedAsync(@event, command.Name, templateSent, cancellationToken);
             }
         }
         catch (Exception ex)

@@ -1022,6 +1022,80 @@ public sealed class ChatMessageHandlerTests
             );
     }
 
+    [Fact]
+    public async Task Template_response_whose_send_fails_records_a_failed_execution_fact_and_sends_one_failure_line()
+    {
+        // S008d: the THIRD chat-send-then-report site — a plain authored command with a template
+        // response (no pipeline, no builtin fallback). Before this fix the handler awaited
+        // SendResponseAsync and then hardcoded `true` into PublishExecutedAsync regardless of the
+        // transport result — observed directly below by NOT stubbing chat as failing yet: the pre-fix
+        // code path (still present in git history at HEAD~) would have published Succeeded=true here
+        // even though SendReplyAsync returned false.
+        ChannelContext ctx = NewChannelContext();
+        AddTemplateCommand(ctx, "hello", "Hi there");
+
+        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(ctx, new());
+        chat.SendReplyAsync(Broadcaster, "msg-1", "Hi there", Arg.Any<CancellationToken>())
+            .Returns(false);
+        chat.SendMessageAsync(Broadcaster, "@Viewer Hi there", Arg.Any<CancellationToken>())
+            .Returns(false);
+        // The one failure notice the invoker gets also goes through SendReplyAsync — let it succeed so
+        // the assertion isolates the execution-fact outcome, mirroring the builtin/fallback tests.
+        chat.SendReplyAsync(
+                Broadcaster,
+                "msg-1",
+                "Sorry, that command hit a snag and didn't finish.",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
+
+        await sut.HandleAsync(MessageEvent("!hello"), CancellationToken.None);
+
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                "msg-1",
+                "Sorry, that command hit a snag and didn't finish.",
+                Arg.Any<CancellationToken>()
+            );
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.CommandName == "hello" && !e.Succeeded
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Template_response_whose_send_succeeds_sends_no_extra_chatter()
+    {
+        // Regression guard: a clean send records success with no extra failure line.
+        ChannelContext ctx = NewChannelContext();
+        AddTemplateCommand(ctx, "hello", "Hi there");
+
+        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(ctx, new());
+        chat.SendReplyAsync(Broadcaster, "msg-1", "Hi there", Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        await sut.HandleAsync(MessageEvent("!hello"), CancellationToken.None);
+
+        await chat.Received(1)
+            .SendReplyAsync(Broadcaster, "msg-1", "Hi there", Arg.Any<CancellationToken>());
+        await chat.DidNotReceive()
+            .SendReplyAsync(
+                Broadcaster,
+                "msg-1",
+                "Sorry, that command hit a snag and didn't finish.",
+                Arg.Any<CancellationToken>()
+            );
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     // ── shared scaffolding ──────────────────────────────────────────────────
 
     private static ChannelContext NewChannelContext() =>
@@ -1082,6 +1156,19 @@ public sealed class ChatMessageHandlerTests
             .Returns(callInfo => Task.FromResult(callInfo.ArgAt<string>(0)));
 
         IChatProvider chat = Substitute.For<IChatProvider>();
+        // Real transport sends succeed by default (S008d): see the identical comment in BuildWithBus —
+        // an unconfigured NSubstitute bool call defaults to false, which now that the template-response
+        // path threads the real chat-send bool through would flip every "command dispatched fine" test
+        // into a false send-failed outcome. Tests exercising a send failure override this explicitly.
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
+        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         IEventBus bus = Substitute.For<IEventBus>();
 
         ChatMessageHandler sut = new(

@@ -48,6 +48,12 @@ public sealed class TimerServiceTests
         AuthDbContext db = AuthTestBuilder.NewContext();
 
         IChatProvider chat = Substitute.For<IChatProvider>();
+        // Real transport sends succeed by default (S008d): an unconfigured NSubstitute bool call
+        // defaults to false, which would silently flip every "timer fired fine" test into a false
+        // "send failed, don't advance" outcome now that FireMessageAsync threads the real chat-send bool.
+        // Tests exercising a send failure override this explicitly.
+        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         IPipelineEngine engine = Substitute.For<IPipelineEngine>();
         engine
             .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>())
@@ -195,6 +201,26 @@ public sealed class TimerServiceTests
             .SendMessageAsync(Channel, "hello chat!", Arg.Any<CancellationToken>());
         await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
         h.Db.Timers.Single(t => t.Id == timer.Id).LastFiredAt.Should().Be(Now.UtcDateTime);
+    }
+
+    [Fact]
+    public async Task A_message_timer_whose_send_fails_does_not_stamp_last_fired_or_advance_rotation()
+    {
+        // S008d: FireMessageAsync used to hardcode `true` regardless of the chat-send result, so a
+        // failed transport send still stamped LastFiredAt and advanced NextMessageIndex — the line was
+        // silently dropped forever instead of retrying on the next tick. Observed directly: with the
+        // stub below returning false, the pre-fix code (hardcoded `return true`) would have stamped
+        // LastFiredAt to Now and advanced the index anyway.
+        Harness h = Build();
+        Timer timer = SeedTimer(h.Db, pipelineId: null, ["hello chat!", "second line"]);
+        h.Chat.SendMessageAsync(Channel, "hello chat!", Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        Timer persisted = h.Db.Timers.Single(t => t.Id == timer.Id);
+        persisted.LastFiredAt.Should().BeNull();
+        persisted.NextMessageIndex.Should().Be(0);
     }
 
     [Fact]

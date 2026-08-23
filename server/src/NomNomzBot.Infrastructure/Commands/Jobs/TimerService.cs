@@ -211,7 +211,24 @@ public sealed class TimerService : BackgroundService
             return false;
 
         // IChatProvider takes the tenant Guid and resolves it to the Twitch channel string id internally.
-        await chat.SendMessageAsync(channelCtx.BroadcasterId, message, cancellationToken: ct);
+        // Before this, the send's bool was discarded and true was hardcoded, so a failed transport send
+        // still stamped LastFiredAt and advanced the round-robin index as if the line went out — the
+        // failed line was silently skipped forever instead of retrying next interval.
+        bool sent = await chat.SendMessageAsync(
+            channelCtx.BroadcasterId,
+            message,
+            cancellationToken: ct
+        );
+        if (!sent)
+        {
+            _logger.LogWarning(
+                "Timer {Name} failed to send in channel {BroadcasterId}: \"{Message}\"",
+                timer.Name,
+                timer.BroadcasterId,
+                message
+            );
+            return false;
+        }
 
         _logger.LogInformation(
             "Timer {Name} fired in channel {BroadcasterId}: \"{Message}\"",
