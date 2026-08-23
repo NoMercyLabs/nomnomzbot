@@ -349,6 +349,8 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         IApplicationDbContext db = services.GetRequiredService<IApplicationDbContext>();
         IEventBus bus = services.GetRequiredService<IEventBus>();
         IChannelRegistry registry = services.GetRequiredService<IChannelRegistry>();
+        NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard selfEchoGuard =
+            services.GetRequiredService<NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard>();
         // Blacklisted chatters (J.12) are dropped HERE, before the bus fan-out.
         ConcurrentDictionary<string, string>? standings = registry
             .Get(state.TenantId)
@@ -369,6 +371,19 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
             if (
                 standings?.GetValueOrDefault($"youtube:{message.AuthorChannelId}")
                 == Domain.Moderation.Entities.ModerationStanding.Blacklisted
+            )
+                continue;
+
+            // S009 — a line the bot itself typed (a dedicated bot account, or a marked line on the
+            // self-host owner account) must never re-enter as a fresh command trigger.
+            if (
+                await selfEchoGuard.ShouldSuppressAsync(
+                    state.TenantId,
+                    AuthEnums.Platform.YouTube,
+                    message.AuthorChannelId,
+                    message.DisplayText,
+                    ct
+                )
             )
                 continue;
 

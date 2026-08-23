@@ -48,6 +48,23 @@ public sealed class ChatTranslatorsTests
         };
     }
 
+    /// <summary>A guard stub that never suppresses — models "no dedicated bot, no marker on this line".</summary>
+    private static NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard NeverSuppressGuard()
+    {
+        NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard guard =
+            Substitute.For<NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard>();
+        guard
+            .ShouldSuppressAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(false);
+        return guard;
+    }
+
     [Fact]
     public async Task ChatMessage_PlainText_PublishesReceivedEvent_WithFragmentsAndTenant()
     {
@@ -55,7 +72,8 @@ public sealed class ChatTranslatorsTests
         ChannelChatMessageTranslator translator = new(
             bus,
             Clock,
-            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            NeverSuppressGuard()
         );
 
         await translator.TranslateAsync(
@@ -118,13 +136,101 @@ public sealed class ChatTranslatorsTests
     }
 
     [Fact]
+    public async Task ChatMessage_SuppressedByTheSelfEchoGuard_PublishesNothing()
+    {
+        // S009: a line the bot itself emitted (the guard says so) must never re-enter as a fresh trigger —
+        // proven at the ingest seam by a guard stubbed to suppress, independent of WHY it suppresses.
+        CapturingEventBus bus = new();
+        NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard guard =
+            Substitute.For<NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard>();
+        guard
+            .ShouldSuppressAsync(
+                Tenant,
+                NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+                "555",
+                "!cmd try again",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
+        ChannelChatMessageTranslator translator = new(
+            bus,
+            Clock,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            guard
+        );
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.message",
+                """
+                {
+                    "broadcaster_user_id": "broadcaster-99",
+                    "chatter_user_id": "555",
+                    "chatter_user_login": "cool_user",
+                    "chatter_user_name": "Cool_User",
+                    "message_id": "abc-123",
+                    "message_type": "text",
+                    "message": { "text": "!cmd try again", "fragments": [ { "type": "text", "text": "!cmd try again" } ] },
+                    "badges": []
+                }
+                """
+            )
+        );
+
+        bus.EventsOf<ChatMessageReceivedEvent>()
+            .Should()
+            .BeEmpty("the self-echo guard flagged this line as the bot's own voice");
+    }
+
+    [Fact]
+    public async Task ChatMessage_SelfHostOwnerTypingACommand_IsHonoured_WhenTheGuardDoesNotSuppress()
+    {
+        // The regression that matters most (D5): on self-host, before a dedicated bot account is
+        // connected, the bot types as the streamer's OWN account — so a real command the streamer types
+        // themselves must still publish, even though the sender id is the same one a bot-emitted line
+        // would carry. NeverSuppressGuard() models "no dedicated bot, no marker on this line".
+        CapturingEventBus bus = new();
+        ChannelChatMessageTranslator translator = new(
+            bus,
+            Clock,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            NeverSuppressGuard()
+        );
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.message",
+                """
+                {
+                    "broadcaster_user_id": "broadcaster-99",
+                    "chatter_user_id": "555",
+                    "chatter_user_login": "streamer_own_account",
+                    "chatter_user_name": "Streamer_Own_Account",
+                    "message_id": "abc-124",
+                    "message_type": "text",
+                    "message": { "text": "!cmd", "fragments": [ { "type": "text", "text": "!cmd" } ] },
+                    "badges": [ { "set_id": "broadcaster", "id": "1", "info": "" } ]
+                }
+                """
+            )
+        );
+
+        bus.EventsOf<ChatMessageReceivedEvent>()
+            .Should()
+            .ContainSingle("the streamer's own human line is a real command, not the bot's echo")
+            .Which.Message.Should()
+            .Be("!cmd");
+    }
+
+    [Fact]
     public async Task ChatMessage_DerivesRoleFlags_FromBadgeSetIds()
     {
         CapturingEventBus bus = new();
         ChannelChatMessageTranslator translator = new(
             bus,
             Clock,
-            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            NeverSuppressGuard()
         );
 
         await translator.TranslateAsync(
@@ -167,7 +273,8 @@ public sealed class ChatTranslatorsTests
         ChannelChatMessageTranslator translator = new(
             bus,
             Clock,
-            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            NeverSuppressGuard()
         );
 
         await translator.TranslateAsync(
@@ -205,7 +312,8 @@ public sealed class ChatTranslatorsTests
         ChannelChatMessageTranslator translator = new(
             bus,
             Clock,
-            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            NeverSuppressGuard()
         );
 
         await translator.TranslateAsync(
@@ -248,7 +356,8 @@ public sealed class ChatTranslatorsTests
         ChannelChatMessageTranslator translator = new(
             bus,
             Clock,
-            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            NeverSuppressGuard()
         );
 
         await translator.TranslateAsync(
@@ -297,7 +406,8 @@ public sealed class ChatTranslatorsTests
         ChannelChatMessageTranslator translator = new(
             bus,
             Clock,
-            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            NeverSuppressGuard()
         );
 
         await translator.TranslateAsync(
@@ -345,7 +455,8 @@ public sealed class ChatTranslatorsTests
         ChannelChatMessageTranslator translator = new(
             bus,
             Clock,
-            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>()
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            NeverSuppressGuard()
         );
 
         await translator.TranslateAsync(

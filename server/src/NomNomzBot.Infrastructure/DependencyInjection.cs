@@ -1124,6 +1124,17 @@ public static class DependencyInjection
         // Populates the registry from DB on startup so commands and timers fire from the first message.
         services.AddHostedService<ChannelRegistryBootstrapService>();
 
+        // BotSelfEchoGuard (S009) — singleton so its per-tenant bot-identity cache survives across the
+        // scoped DbContext each of the three chat ingests runs under; registered under both its query
+        // surface and its cache-invalidation seam so the one instance serves both.
+        services.AddSingleton<Chat.BotSelfEchoGuard>();
+        services.AddSingleton<Application.Contracts.Chat.IBotSelfEchoGuard>(sp =>
+            sp.GetRequiredService<Chat.BotSelfEchoGuard>()
+        );
+        services.AddSingleton<Application.Contracts.Chat.IBotIdentityCacheInvalidation>(sp =>
+            sp.GetRequiredService<Chat.BotSelfEchoGuard>()
+        );
+
         // BotLifecycleService, TimerService, and TokenRefreshService are auto-registered as
         // hosted services by AddHostedWorkers above. Content seeding is no longer a hosted
         // service — it runs once at startup via SeedRunner (backend-structure §5.1).

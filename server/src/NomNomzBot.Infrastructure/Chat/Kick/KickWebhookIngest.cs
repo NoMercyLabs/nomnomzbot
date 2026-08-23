@@ -49,13 +49,15 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
     private readonly IChannelRegistry _registry;
     private readonly TimeProvider _clock;
     private readonly ILogger<KickWebhookIngest> _logger;
+    private readonly NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard _selfEchoGuard;
 
     public KickWebhookIngest(
         IApplicationDbContext db,
         IEventBus bus,
         IChannelRegistry registry,
         TimeProvider clock,
-        ILogger<KickWebhookIngest> logger
+        ILogger<KickWebhookIngest> logger,
+        NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard selfEchoGuard
     )
     {
         _db = db;
@@ -63,6 +65,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
         _registry = registry;
         _clock = clock;
         _logger = logger;
+        _selfEchoGuard = selfEchoGuard;
     }
 
     public Task HandleAsync(
@@ -133,6 +136,19 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
         // Kick retries undelivered webhooks — anything already persisted has already been broadcast.
         bool seen = await _db.ChatMessages.AnyAsync(m => m.Id == messageId, ct);
         if (seen)
+            return;
+
+        // S009 — a line the bot itself typed (a dedicated bot account, or a marked line on the self-host
+        // owner account) must never re-enter as a fresh command trigger.
+        if (
+            await _selfEchoGuard.ShouldSuppressAsync(
+                tenantId,
+                AuthEnums.Platform.Kick,
+                senderKickIdText,
+                payload.Content ?? string.Empty,
+                ct
+            )
+        )
             return;
 
         IReadOnlyList<string> badgeTypes =

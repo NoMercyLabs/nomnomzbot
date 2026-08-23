@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Chat;
 using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Events;
@@ -325,6 +326,137 @@ public sealed class YouTubeLiveChatPollWorkerTests
         bus.Published.Should().BeEmpty();
     }
 
+    // ── S009 — the bot cannot trigger itself ────────────────────────────────
+
+    [Fact]
+    public async Task A_dedicated_bots_line_is_ignored_once_connected()
+    {
+        (
+            YouTubeLiveChatPollWorker worker,
+            ScriptedLiveChatClient client,
+            RecordingEventBus bus,
+            _,
+            FakeTimeProvider time,
+            _
+        ) = await BuildConnectedAsync(
+            selfEchoGuard: new FakeBotSelfEchoGuard
+            {
+                DedicatedBotIdentity = (AuthEnums.Platform.YouTube, "UCauthor-m-1"),
+            }
+        );
+
+        client.LivenessResults.Enqueue(
+            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
+        );
+        client.PageResults.Enqueue(
+            Result.Success(new YouTubeLiveChatPage([Message("hist-1", "old line")], "tok-1", 1000))
+        );
+        client.PageResults.Enqueue(
+            Result.Success(
+                new YouTubeLiveChatPage([Message("m-1", "!cmd", isOwner: true)], "tok-2", 1000)
+            )
+        );
+
+        await worker.TickAsync(CancellationToken.None); // liveness → live
+        await worker.TickAsync(CancellationToken.None); // bootstrap page
+        time.Advance(TimeSpan.FromSeconds(6));
+        await worker.TickAsync(CancellationToken.None); // live page → the bot's own line
+
+        bus.Published.OfType<ChatMessageReceivedEvent>()
+            .Should()
+            .BeEmpty("the connected bot's own line must never re-enter as a fresh trigger");
+    }
+
+    [Fact]
+    public async Task A_bot_line_on_another_platform_does_not_suppress_this_youtube_line()
+    {
+        // The sender id "UCauthor-m-1" is registered as a TWITCH bot, not a YouTube one — the guard must
+        // key its identity match on (provider, senderId) together, or an id collision across platforms
+        // would cross-amplify the suppression.
+        (
+            YouTubeLiveChatPollWorker worker,
+            ScriptedLiveChatClient client,
+            RecordingEventBus bus,
+            _,
+            FakeTimeProvider time,
+            _
+        ) = await BuildConnectedAsync(
+            selfEchoGuard: new FakeBotSelfEchoGuard
+            {
+                DedicatedBotIdentity = (AuthEnums.Platform.Twitch, "UCauthor-m-1"),
+            }
+        );
+
+        client.LivenessResults.Enqueue(
+            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
+        );
+        client.PageResults.Enqueue(
+            Result.Success(new YouTubeLiveChatPage([Message("hist-1", "old line")], "tok-1", 1000))
+        );
+        client.PageResults.Enqueue(
+            Result.Success(
+                new YouTubeLiveChatPage([Message("m-1", "!cmd", isOwner: true)], "tok-2", 1000)
+            )
+        );
+
+        await worker.TickAsync(CancellationToken.None);
+        await worker.TickAsync(CancellationToken.None);
+        time.Advance(TimeSpan.FromSeconds(6));
+        await worker.TickAsync(CancellationToken.None);
+
+        bus.Published.OfType<ChatMessageReceivedEvent>()
+            .Should()
+            .ContainSingle("a Twitch-registered bot identity must not suppress a YouTube chatter");
+    }
+
+    [Fact]
+    public async Task A_marked_line_on_the_self_hosted_owner_account_does_not_retrigger()
+    {
+        // D5: with no dedicated bot connected the bot types as the streamer's own YouTube account — a
+        // real command from that account (no marker) must publish, but a BOT-EMITTED line on the SAME
+        // account (carrying the marker) must not.
+        (
+            YouTubeLiveChatPollWorker worker,
+            ScriptedLiveChatClient client,
+            RecordingEventBus bus,
+            _,
+            FakeTimeProvider time,
+            _
+        ) = await BuildConnectedAsync();
+
+        client.LivenessResults.Enqueue(
+            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
+        );
+        client.PageResults.Enqueue(
+            Result.Success(new YouTubeLiveChatPage([Message("hist-1", "old line")], "tok-1", 1000))
+        );
+        client.PageResults.Enqueue(
+            Result.Success(
+                new YouTubeLiveChatPage(
+                    [
+                        Message("m-1", BotEmittedLine.Marker + "Try !cmd again", isOwner: true),
+                        Message("m-2", "!cmd", isOwner: true),
+                    ],
+                    "tok-2",
+                    1000
+                )
+            )
+        );
+
+        await worker.TickAsync(CancellationToken.None);
+        await worker.TickAsync(CancellationToken.None);
+        time.Advance(TimeSpan.FromSeconds(6));
+        await worker.TickAsync(CancellationToken.None);
+
+        bus.Published.OfType<ChatMessageReceivedEvent>()
+            .Should()
+            .ContainSingle(
+                "the marked line is the bot's own echo; the un-marked line is the owner's real command"
+            )
+            .Which.MessageId.Should()
+            .Be("m-2");
+    }
+
     // ── shared scaffolding ──────────────────────────────────────────────────
 
     private static async Task<(
@@ -334,7 +466,10 @@ public sealed class YouTubeLiveChatPollWorkerTests
         AuthDbContext Db,
         FakeTimeProvider Time,
         YouTubeLiveChatSessionRegistry Sessions
-    )> BuildConnectedAsync(string? accessToken = "bearer-token")
+    )> BuildConnectedAsync(
+        string? accessToken = "bearer-token",
+        FakeBotSelfEchoGuard? selfEchoGuard = null
+    )
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
@@ -375,6 +510,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         services.AddSingleton<IEventBus>(bus);
         // The publisher's blacklist gate (J.12) resolves the registry; an empty one = nobody blacklisted.
         services.AddSingleton(NSubstitute.Substitute.For<IChannelRegistry>());
+        services.AddSingleton<IBotSelfEchoGuard>(selfEchoGuard ?? new FakeBotSelfEchoGuard());
         ServiceProvider provider = services.BuildServiceProvider();
 
         YouTubeLiveChatPollWorker worker = new(
@@ -485,5 +621,36 @@ public sealed class YouTubeLiveChatPollWorkerTests
             Guid broadcasterId,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(token);
+    }
+
+    /// <summary>
+    /// A hand-written <see cref="IBotSelfEchoGuard"/> double mirroring the real
+    /// <c>BotSelfEchoGuard</c>'s two-signal decision (identity match on (provider, senderId), else the
+    /// <see cref="BotEmittedLine"/> marker) WITHOUT touching the DB — the test fake <c>AuthDbContext</c>
+    /// used across this suite deliberately does not support <c>ChannelBotAuthorizations</c>/
+    /// <c>BotAccounts</c> (see <c>Identity/AuthTestContext.cs</c>); the DB-backed resolution itself is
+    /// proven separately in <c>BotSelfEchoGuardTests</c>.
+    /// </summary>
+    private sealed class FakeBotSelfEchoGuard : IBotSelfEchoGuard
+    {
+        public (string Provider, string SenderId)? DedicatedBotIdentity { get; init; }
+
+        public Task<bool> ShouldSuppressAsync(
+            Guid tenantId,
+            string provider,
+            string senderId,
+            string message,
+            CancellationToken cancellationToken = default
+        )
+        {
+            if (
+                DedicatedBotIdentity is { } identity
+                && string.Equals(identity.Provider, provider, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(identity.SenderId, senderId, StringComparison.Ordinal)
+            )
+                return Task.FromResult(true);
+
+            return Task.FromResult(BotEmittedLine.IsMarked(message));
+        }
     }
 }

@@ -181,12 +181,13 @@ internal static class ChatPayload
 public sealed class ChannelChatMessageTranslator(
     IEventBus bus,
     TimeProvider clock,
-    IChannelRegistry registry
+    IChannelRegistry registry,
+    NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard selfEchoGuard
 ) : EventSubEventTranslator(bus, clock)
 {
     public override string SubscriptionType => "channel.chat.message";
 
-    public override Task TranslateAsync(
+    public override async Task TranslateAsync(
         EventSubNotification notification,
         CancellationToken ct = default
     )
@@ -204,7 +205,22 @@ public sealed class ChannelChatMessageTranslator(
                 ?.ModerationStandings.GetValueOrDefault($"twitch:{chatterUserId}")
             == Domain.Moderation.Entities.ModerationStanding.Blacklisted
         )
-            return Task.CompletedTask;
+            return;
+
+        string messageText = ChatPayload.ReadMessageText(message);
+
+        // S009 — a line the bot itself typed (a dedicated bot account, or a marked line on the self-host
+        // owner account) must never re-enter as a fresh command trigger.
+        if (
+            await selfEchoGuard.ShouldSuppressAsync(
+                notification.BroadcasterId,
+                Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+                chatterUserId,
+                messageText,
+                ct
+            )
+        )
+            return;
 
         ChatMessageReceivedEvent received = new()
         {
@@ -215,7 +231,7 @@ public sealed class ChannelChatMessageTranslator(
             UserId = chatterUserId,
             UserLogin = payload.GetRequiredString("chatter_user_login"),
             UserDisplayName = payload.GetRequiredString("chatter_user_name"),
-            Message = ChatPayload.ReadMessageText(message),
+            Message = messageText,
             Fragments = ChatPayload.ReadFragments(message),
             ColorHex = payload.GetString("color"),
             MessageType = payload.GetString("message_type") ?? "text",
@@ -234,7 +250,7 @@ public sealed class ChannelChatMessageTranslator(
             ReplyParentUserName = reply?.GetString("parent_user_name"),
         };
 
-        return PublishAsync(received, ct);
+        await PublishAsync(received, ct);
     }
 }
 

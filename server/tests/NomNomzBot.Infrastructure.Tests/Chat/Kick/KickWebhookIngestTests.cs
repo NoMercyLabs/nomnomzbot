@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Contracts.Chat;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Identity.Entities;
@@ -59,7 +60,9 @@ public sealed class KickWebhookIngestTests
         }
         """;
 
-    private static (KickWebhookIngest Ingest, AuthDbContext Db, RecordingEventBus Bus) Build()
+    private static (KickWebhookIngest Ingest, AuthDbContext Db, RecordingEventBus Bus) Build(
+        FakeBotSelfEchoGuard? guard = null
+    )
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
@@ -84,9 +87,42 @@ public sealed class KickWebhookIngestTests
             bus,
             Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
             TimeProvider.System,
-            NullLogger<KickWebhookIngest>.Instance
+            NullLogger<KickWebhookIngest>.Instance,
+            guard ?? new FakeBotSelfEchoGuard()
         );
         return (ingest, db, bus);
+    }
+
+    /// <summary>
+    /// A hand-written <see cref="IBotSelfEchoGuard"/> double mirroring the real
+    /// <c>BotSelfEchoGuard</c>'s two-signal decision (identity match on (provider, senderId), else the
+    /// <see cref="BotEmittedLine"/> marker) WITHOUT touching the DB — the test fake
+    /// <c>AuthDbContext</c> used across this suite deliberately does not support
+    /// <c>ChannelBotAuthorizations</c>/<c>BotAccounts</c> (see <c>Identity/AuthTestContext.cs</c>), so the
+    /// DB-backed resolution itself is proven separately in <c>BotSelfEchoGuardTests</c>. This double lets
+    /// each S009 test configure exactly the identity (or none) the scenario needs.
+    /// </summary>
+    private sealed class FakeBotSelfEchoGuard : IBotSelfEchoGuard
+    {
+        public (string Provider, string SenderId)? DedicatedBotIdentity { get; init; }
+
+        public Task<bool> ShouldSuppressAsync(
+            Guid tenantId,
+            string provider,
+            string senderId,
+            string message,
+            CancellationToken cancellationToken = default
+        )
+        {
+            if (
+                DedicatedBotIdentity is { } identity
+                && string.Equals(identity.Provider, provider, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(identity.SenderId, senderId, StringComparison.Ordinal)
+            )
+                return Task.FromResult(true);
+
+            return Task.FromResult(BotEmittedLine.IsMarked(message));
+        }
     }
 
     // ─── chat.message.sent ───────────────────────────────────────────────────
@@ -111,6 +147,116 @@ public sealed class KickWebhookIngestTests
         published.UserLogin.Should().Be("chatterboi", "the channel slug is the stable handle");
         published.Message.Should().Be("hello kick [emote:37226:EZ]");
         published.OccurredAt.Should().Be(DateTimeOffset.Parse("2026-07-11T12:34:56Z"));
+    }
+
+    // ─── S009 — the bot cannot trigger itself ─────────────────────────────────
+
+    [Fact]
+    public async Task A_dedicated_bot_accounts_line_is_ignored_once_connected()
+    {
+        (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build(
+            new FakeBotSelfEchoGuard
+            {
+                // the SAME sender id ChatBody carries, on Kick — the connected dedicated bot's identity.
+                DedicatedBotIdentity = (AuthEnums.Platform.Kick, "678"),
+            }
+        );
+
+        await ingest.HandleAsync("chat.message.sent", ChatBody);
+
+        bus.Published.OfType<ChatMessageReceivedEvent>()
+            .Should()
+            .BeEmpty("the connected bot's own line must never re-enter as a fresh trigger");
+    }
+
+    [Fact]
+    public async Task A_bot_line_on_another_platform_does_not_suppress_this_kick_line()
+    {
+        // The bot account's sender id "678" is registered as a TWITCH bot, not a Kick one — the guard must
+        // key its identity match on (provider, senderId) together, never senderId alone, or a numeric-id
+        // collision across platforms would cross-amplify the suppression.
+        (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build(
+            new FakeBotSelfEchoGuard { DedicatedBotIdentity = (AuthEnums.Platform.Twitch, "678") }
+        );
+        await ingest.HandleAsync("chat.message.sent", ChatBody);
+
+        bus.Published.OfType<ChatMessageReceivedEvent>()
+            .Should()
+            .ContainSingle("a Twitch-registered bot identity must not suppress a Kick chatter");
+    }
+
+    [Fact]
+    public async Task Self_host_owner_typing_a_command_is_honoured_with_no_dedicated_bot_connected()
+    {
+        // D5: before a dedicated bot is connected the bot types as the streamer's OWN account, so the
+        // owner's real human line — sender id equals the broadcaster's own kick id — must still publish.
+        (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build();
+        const string ownerChatBody = """
+            {
+              "message_id": "kick-msg-owner",
+              "broadcaster": { "user_id": 12345, "username": "StreamerGal", "channel_slug": "streamergal" },
+              "sender": {
+                "user_id": 12345,
+                "username": "StreamerGal",
+                "channel_slug": "streamergal",
+                "identity": { "username_color": "#FF0000", "badges": [] }
+              },
+              "content": "!cmd",
+              "created_at": "2026-07-11T12:35:00Z"
+            }
+            """;
+
+        await ingest.HandleAsync("chat.message.sent", ownerChatBody);
+
+        bus.Published.OfType<ChatMessageReceivedEvent>()
+            .Should()
+            .ContainSingle("a self-host streamer typing a command themselves is a real trigger")
+            .Which.Message.Should()
+            .Be("!cmd");
+    }
+
+    [Fact]
+    public async Task A_marked_line_on_the_self_hosted_owner_account_does_not_retrigger()
+    {
+        // Same account as above, but this time the line carries the bot-emitted marker (as a bot-sent
+        // reply would) — proving the marker alone suppresses even with no dedicated bot connected.
+        (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build();
+        string ownerChatBody = $$"""
+            {
+              "message_id": "kick-msg-owner-echo",
+              "broadcaster": { "user_id": 12345, "username": "StreamerGal", "channel_slug": "streamergal" },
+              "sender": {
+                "user_id": 12345,
+                "username": "StreamerGal",
+                "channel_slug": "streamergal",
+                "identity": { "username_color": "#FF0000", "badges": [] }
+              },
+              "content": "{{BotEmittedLine.Marker}}Try !cmd again",
+              "created_at": "2026-07-11T12:36:00Z"
+            }
+            """;
+
+        await ingest.HandleAsync("chat.message.sent", ownerChatBody);
+
+        bus.Published.OfType<ChatMessageReceivedEvent>()
+            .Should()
+            .BeEmpty(
+                "the marker identifies this as the bot's own emitted line, not a human command"
+            );
+    }
+
+    [Fact]
+    public async Task A_chat_message_carries_the_moderator_and_subscriber_role_flags_from_badges()
+    {
+        (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build();
+
+        await ingest.HandleAsync("chat.message.sent", ChatBody);
+
+        ChatMessageReceivedEvent published = bus
+            .Published.OfType<ChatMessageReceivedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
         published.IsModerator.Should().BeTrue("the moderator badge is present");
         published.IsSubscriber.Should().BeTrue("the subscriber badge is present");
         published.IsBroadcaster.Should().BeFalse();
