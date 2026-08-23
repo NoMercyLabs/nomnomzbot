@@ -27,8 +27,14 @@ public static class IamPermissionKeys
     public const string AuditRead = "audit:read";
     public const string FeatureFlagWrite = "featureflag:write";
     public const string BillingRead = "billing:read";
+    public const string BillingWrite = "billing:write";
     public const string BillingRefund = "billing:refund";
     public const string PlatformAnalyticsRead = "platform:analytics:read";
+
+    // GDPR erasure of another subject (Art. 4(7)) — a destructive, irreversible data-deletion action.
+    // Distinct from tenant:access (a support-VISIT key): holding tenant:access must NOT let an operator
+    // erase a subject's data.
+    public const string ComplianceErasure = "compliance:erasure";
 
     // Widget-gallery moderation (widgets-overlays.md §5c): review/pin community submissions —
     // approving code that renders on other people's overlays, so it is a sensitive platform grant.
@@ -54,8 +60,10 @@ public static class IamPermissionKeys
         AuditRead,
         FeatureFlagWrite,
         BillingRead,
+        BillingWrite,
         BillingRefund,
         PlatformAnalyticsRead,
+        ComplianceErasure,
         GalleryReview,
         SystemIpcManage,
         UserImpersonate,
