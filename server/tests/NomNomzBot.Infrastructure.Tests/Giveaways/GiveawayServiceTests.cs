@@ -23,6 +23,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Giveaways;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Persistence;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Giveaways;
@@ -79,7 +80,7 @@ public sealed class GiveawayServiceTests
 
         IGiveawayFulfillment fulfillment = Substitute.For<IGiveawayFulfillment>();
         IEventBus bus = Substitute.For<IEventBus>();
-        IUnitOfWork unitOfWork = Substitute.For<IUnitOfWork>();
+        IUnitOfWork unitOfWork = new PassThroughUnitOfWork();
 
         GiveawayService service = new(
             db,

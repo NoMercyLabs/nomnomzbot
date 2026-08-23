@@ -353,6 +353,49 @@ public sealed class SeedRunnerTests
             return _db.SaveChangesAsync(ct);
         }
 
+        /// <summary>Same shape as the production UnitOfWork: the whole operation runs inside ONE
+        /// transaction of this fake, so a test sees exactly the commit/rollback the service asked for.</summary>
+        public Task ExecuteInTransactionAsync(
+            Func<CancellationToken, Task> operation,
+            CancellationToken ct = default
+        ) =>
+            ExecuteInTransactionAsync<bool>(
+                async token =>
+                {
+                    await operation(token);
+
+                    return true;
+                },
+                ct
+            );
+
+        public async Task<T> ExecuteInTransactionAsync<T>(
+            Func<CancellationToken, Task<T>> operation,
+            CancellationToken ct = default,
+            Func<T, bool>? shouldCommit = null
+        )
+        {
+            await BeginTransactionAsync(ct);
+
+            try
+            {
+                T result = await operation(ct);
+
+                if (shouldCommit is null || shouldCommit(result))
+                    await CommitTransactionAsync(ct);
+                else
+                    await RollbackTransactionAsync(ct);
+
+                return result;
+            }
+            catch
+            {
+                await RollbackTransactionAsync(ct);
+
+                throw;
+            }
+        }
+
         public Task BeginTransactionAsync(CancellationToken ct = default)
         {
             Calls.Add("Begin");

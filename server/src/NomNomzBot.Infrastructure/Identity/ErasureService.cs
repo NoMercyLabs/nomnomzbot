@@ -135,16 +135,15 @@ public sealed class ErasureService : IErasureService
 
         try
         {
-            await _unitOfWork.BeginTransactionAsync(cancellationToken);
-            Result<ErasurePipelineOutcome> pipeline = await ExecuteErasurePipelineAsync(
-                user,
-                erasureRequest,
-                subjectIdHash,
-                cancellationToken
+            // Retriable unit — a bare Begin/Commit is rejected by Npgsql's retrying execution strategy.
+            // The completion event and the log line fire only after it commits.
+            Result<ErasurePipelineOutcome> pipeline = await _unitOfWork.ExecuteInTransactionAsync(
+                token => ExecuteErasurePipelineAsync(user, erasureRequest, subjectIdHash, token),
+                cancellationToken,
+                shouldCommit: outcome => outcome.IsSuccess
             );
             if (pipeline.IsFailure)
             {
-                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                 return await MarkRequestFailedAsync(
                     erasureRequest.Id,
                     user.Id,
@@ -156,8 +155,6 @@ public sealed class ErasureService : IErasureService
                     cancellationToken
                 );
             }
-
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             ErasurePipelineOutcome outcome = pipeline.Value;
             await _eventBus.PublishAsync(
@@ -188,7 +185,6 @@ public sealed class ErasureService : IErasureService
         }
         catch (Exception exception)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(
                 exception,
                 "GDPR erasure {ErasureRequestId} failed for subject hash {SubjectIdHash}.",
@@ -615,92 +611,115 @@ public sealed class ErasureService : IErasureService
 
         try
         {
-            await _unitOfWork.BeginTransactionAsync(cancellationToken);
-            DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
-            List<string> tablesAffected = [];
-            int rowsAffected = 0;
-
-            // Withdraw the legitimate-interest consents (marketing + leaderboard) via the §3.6 ledger.
-            List<ConsentRecord> activeConsents = await _db
-                .ConsentRecords.Where(r =>
-                    r.SubjectUserId == user.Id
-                    && r.Status == "granted"
-                    && r.WithdrawnAt == null
-                    && OptOutConsentTypes.Contains(r.ConsentType)
-                    && (request.BroadcasterId == null || r.BroadcasterId == request.BroadcasterId)
-                )
-                .ToListAsync(cancellationToken);
-            foreach (ConsentRecord consent in activeConsents)
-            {
-                Result withdrawn = await _consents.WithdrawAsync(
-                    user.Id,
-                    consent.BroadcasterId,
-                    consent.ConsentType,
-                    cancellationToken
-                );
-                if (withdrawn.IsFailure)
+            // Retriable unit — Npgsql's retrying strategy rejects a bare Begin/Commit. A consent
+            // withdrawal that fails inside aborts the whole opt-out; the request is marked failed
+            // AFTER the rollback, outside the transaction, so that audit row survives.
+            Result<int> applied = await _unitOfWork.ExecuteInTransactionAsync(
+                async token =>
                 {
-                    await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                    return await MarkRequestFailedAsync(
-                        erasureRequest.Id,
-                        user.Id,
-                        subjectIdHash,
-                        request.BroadcasterId,
-                        request.RequestedBy,
-                        requestTypeForAudit: "consent_change",
-                        withdrawn.ErrorMessage ?? "Consent withdrawal failed.",
-                        cancellationToken
+                    DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
+                    List<string> tablesAffected = [];
+                    int rowsAffected = 0;
+
+                    // Withdraw the legitimate-interest consents (marketing + leaderboard) via the §3.6 ledger.
+                    List<ConsentRecord> activeConsents = await _db
+                        .ConsentRecords.Where(r =>
+                            r.SubjectUserId == user.Id
+                            && r.Status == "granted"
+                            && r.WithdrawnAt == null
+                            && OptOutConsentTypes.Contains(r.ConsentType)
+                            && (
+                                request.BroadcasterId == null
+                                || r.BroadcasterId == request.BroadcasterId
+                            )
+                        )
+                        .ToListAsync(token);
+                    foreach (ConsentRecord consent in activeConsents)
+                    {
+                        Result withdrawn = await _consents.WithdrawAsync(
+                            user.Id,
+                            consent.BroadcasterId,
+                            consent.ConsentType,
+                            token
+                        );
+                        if (withdrawn.IsFailure)
+                            return Result.Failure<int>(
+                                withdrawn.ErrorMessage ?? "Consent withdrawal failed.",
+                                withdrawn.ErrorCode
+                            );
+                    }
+                    CountStep(
+                        tablesAffected,
+                        ref rowsAffected,
+                        "ConsentRecords",
+                        activeConsents.Count
                     );
-                }
-            }
-            CountStep(tablesAffected, ref rowsAffected, "ConsentRecords", activeConsents.Count);
 
-            // Flag analytics processing opt-out on the subject's viewer profiles — a cross-tenant write, so
-            // the tenant filter is bypassed and the soft-delete predicate re-applied by hand.
-            List<Domain.Analytics.Entities.ViewerProfile> profiles = await _db
-                .ViewerProfiles.IgnoreQueryFilters()
-                .Where(p =>
-                    p.ViewerUserId == user.Id
-                    && p.DeletedAt == null
-                    && (request.BroadcasterId == null || p.BroadcasterId == request.BroadcasterId)
-                    && !p.IsAnalyticsOptedOut
-                )
-                .ToListAsync(cancellationToken);
-            foreach (Domain.Analytics.Entities.ViewerProfile profile in profiles)
-                profile.IsAnalyticsOptedOut = true;
-            CountStep(tablesAffected, ref rowsAffected, "ViewerProfiles", profiles.Count);
+                    // Flag analytics processing opt-out on the subject's viewer profiles — a
+                    // cross-tenant write, so the tenant filter is bypassed and the soft-delete
+                    // predicate re-applied by hand.
+                    List<Domain.Analytics.Entities.ViewerProfile> profiles = await _db
+                        .ViewerProfiles.IgnoreQueryFilters()
+                        .Where(p =>
+                            p.ViewerUserId == user.Id
+                            && p.DeletedAt == null
+                            && (
+                                request.BroadcasterId == null
+                                || p.BroadcasterId == request.BroadcasterId
+                            )
+                            && !p.IsAnalyticsOptedOut
+                        )
+                        .ToListAsync(token);
+                    foreach (Domain.Analytics.Entities.ViewerProfile profile in profiles)
+                        profile.IsAnalyticsOptedOut = true;
+                    CountStep(tablesAffected, ref rowsAffected, "ViewerProfiles", profiles.Count);
 
-            erasureRequest.Status = "completed";
-            erasureRequest.RowsAffected = rowsAffected;
-            erasureRequest.CompletedAt = now;
-            _db.ComplianceAuditLogs.Add(
-                BuildAuditRow(
-                    requestType: "consent_change",
+                    erasureRequest.Status = "completed";
+                    erasureRequest.RowsAffected = rowsAffected;
+                    erasureRequest.CompletedAt = now;
+                    _db.ComplianceAuditLogs.Add(
+                        BuildAuditRow(
+                            requestType: "consent_change",
+                            erasureRequest.Id,
+                            subjectIdHash,
+                            request.BroadcasterId,
+                            request.RequestedBy,
+                            tablesAffected,
+                            rowsAffected,
+                            keysShredded: 0,
+                            outcome: "completed",
+                            now
+                        )
+                    );
+                    await _db.SaveChangesAsync(token);
+                    return Result.Success(rowsAffected);
+                },
+                cancellationToken,
+                shouldCommit: applied => applied.IsSuccess
+            );
+
+            if (applied.IsFailure)
+                return await MarkRequestFailedAsync(
                     erasureRequest.Id,
+                    user.Id,
                     subjectIdHash,
                     request.BroadcasterId,
                     request.RequestedBy,
-                    tablesAffected,
-                    rowsAffected,
-                    keysShredded: 0,
-                    outcome: "completed",
-                    now
-                )
-            );
-            await _db.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+                    requestTypeForAudit: "consent_change",
+                    applied.ErrorMessage ?? "Consent withdrawal failed.",
+                    cancellationToken
+                );
 
             _logger.LogInformation(
                 "GDPR opt-out {ErasureRequestId} completed for subject hash {SubjectIdHash} ({RowsAffected} rows).",
                 erasureRequest.Id,
                 subjectIdHash,
-                rowsAffected
+                applied.Value
             );
             return Result.Success(ToDto(erasureRequest));
         }
         catch (Exception exception)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(
                 exception,
                 "GDPR opt-out {ErasureRequestId} failed for subject hash {SubjectIdHash}.",

@@ -365,9 +365,13 @@ public sealed class TimerServiceTests
         }
     }
 
+    /// <summary>Polls until the background loop has caught up. The budget is generous on purpose: this
+    /// waits on a REAL thread-pool turn (only the clock is fake), so a machine running the full suite in
+    /// parallel can easily need more than a second — a tighter budget made this test flake red in CI
+    /// while passing in isolation. A condition that is genuinely never met still fails, just later.</summary>
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
-        for (int i = 0; i < 100 && !condition(); i++)
+        for (int i = 0; i < 1000 && !condition(); i++)
             await Task.Delay(10, CancellationToken.None);
     }
 }

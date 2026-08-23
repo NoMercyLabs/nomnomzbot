@@ -18,6 +18,7 @@ using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Domain.Economy.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Platform.Persistence;
 
 namespace NomNomzBot.Infrastructure.Economy;
 
@@ -514,24 +515,25 @@ public sealed class SavingsJarService(
     /// The increment and the read-back run in one transaction so the read can never observe a different
     /// write than the one this call just made.
     /// </summary>
-    private async Task<long> AdjustJarBalanceAsync(Guid jarId, long delta, CancellationToken ct)
-    {
-        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction tx =
-            await RequireDbContext().Database.BeginTransactionAsync(ct);
-        await db
-            .SavingsJars.Where(j => j.Id == jarId)
-            .ExecuteUpdateAsync(
-                setters => setters.SetProperty(j => j.Balance, j => j.Balance + delta),
+    private Task<long> AdjustJarBalanceAsync(Guid jarId, long delta, CancellationToken ct) =>
+        RequireDbContext()
+            .ExecuteInTransactionAsync(
+                async token =>
+                {
+                    await db
+                        .SavingsJars.Where(j => j.Id == jarId)
+                        .ExecuteUpdateAsync(
+                            setters => setters.SetProperty(j => j.Balance, j => j.Balance + delta),
+                            token
+                        );
+                    return await db
+                        .SavingsJars.Where(j => j.Id == jarId)
+                        .AsNoTracking()
+                        .Select(j => j.Balance)
+                        .FirstAsync(token);
+                },
                 ct
             );
-        long balanceAfter = await db
-            .SavingsJars.Where(j => j.Id == jarId)
-            .AsNoTracking()
-            .Select(j => j.Balance)
-            .FirstAsync(ct);
-        await tx.CommitAsync(ct);
-        return balanceAfter;
-    }
 
     /// <summary>
     /// Atomically subtracts <paramref name="amount"/> from a jar's balance ONLY if the row's current
@@ -540,33 +542,32 @@ public sealed class SavingsJarService(
     /// and the read-back run in one transaction so the read can never observe a different write than the
     /// one this call just made.
     /// </summary>
-    private async Task<long?> TryDecrementJarBalanceAsync(
+    private Task<long?> TryDecrementJarBalanceAsync(
         Guid jarId,
         long amount,
         CancellationToken ct
-    )
-    {
-        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction tx =
-            await RequireDbContext().Database.BeginTransactionAsync(ct);
-        int decrementedRows = await db
-            .SavingsJars.Where(j => j.Id == jarId && j.Balance >= amount)
-            .ExecuteUpdateAsync(
-                setters => setters.SetProperty(j => j.Balance, j => j.Balance - amount),
+    ) =>
+        RequireDbContext()
+            .ExecuteInTransactionAsync<long?>(
+                async token =>
+                {
+                    int decrementedRows = await db
+                        .SavingsJars.Where(j => j.Id == jarId && j.Balance >= amount)
+                        .ExecuteUpdateAsync(
+                            setters => setters.SetProperty(j => j.Balance, j => j.Balance - amount),
+                            token
+                        );
+                    if (decrementedRows == 0)
+                        return null;
+
+                    return await db
+                        .SavingsJars.Where(j => j.Id == jarId)
+                        .AsNoTracking()
+                        .Select(j => j.Balance)
+                        .FirstAsync(token);
+                },
                 ct
             );
-        if (decrementedRows == 0)
-        {
-            await tx.CommitAsync(ct);
-            return null;
-        }
-        long balanceAfter = await db
-            .SavingsJars.Where(j => j.Id == jarId)
-            .AsNoTracking()
-            .Select(j => j.Balance)
-            .FirstAsync(ct);
-        await tx.CommitAsync(ct);
-        return balanceAfter;
-    }
 
     /// <summary>
     /// <see cref="ExecuteUpdateAsync{TSource}(IQueryable{TSource},Expression{Func{SetPropertyCalls{TSource},SetPropertyCalls{TSource}}},CancellationToken)"/>

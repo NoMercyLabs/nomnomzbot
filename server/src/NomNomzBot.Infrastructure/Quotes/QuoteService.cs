@@ -75,61 +75,67 @@ public sealed class QuoteService : IQuoteService
         // The number allocation and the row insert must land together: allocate inside the transaction so a
         // crash between the two never burns a number or hands out a duplicate (the allocator row-locks the
         // tenant's sequence; the unique (BroadcasterId, Number) index is the final backstop).
-        await _unitOfWork.BeginTransactionAsync(ct);
-        try
-        {
-            Result<long> next = await _sequences.NextAsync(broadcasterId, QuoteNumberSequence, ct);
-            if (next.IsFailure)
+        // Retriable unit (Npgsql's retrying strategy rejects a bare Begin/Commit). The event publishes
+        // stay OUTSIDE it: a retried attempt re-runs everything inside the lambda, and a duplicate
+        // QuoteAddedEvent would be a real double-fire on every consumer.
+        Result<QuoteDto> allocated = await _unitOfWork.ExecuteInTransactionAsync(
+            async token =>
             {
-                await _unitOfWork.RollbackTransactionAsync(ct);
-                return Result.Failure<QuoteDto>(next.ErrorMessage, next.ErrorCode);
-            }
+                Result<long> next = await _sequences.NextAsync(
+                    broadcasterId,
+                    QuoteNumberSequence,
+                    token
+                );
+                if (next.IsFailure)
+                    return Result.Failure<QuoteDto>(next.ErrorMessage, next.ErrorCode);
 
-            DateTime createdAt = _timeProvider.GetUtcNow().UtcDateTime;
-            Quote quote = new()
+                DateTime createdAt = _timeProvider.GetUtcNow().UtcDateTime;
+                Quote quote = new()
+                {
+                    Id = Guid.CreateVersion7(),
+                    BroadcasterId = broadcasterId,
+                    Number = (int)next.Value,
+                    Text = text,
+                    QuotedDisplayName = request.QuotedDisplayName?.Trim(),
+                    ContextGame = request.ContextGame?.Trim(),
+                    QuotedAt = request.QuotedAt ?? createdAt,
+                    CreatedByUserId = request.CreatedByUserId,
+                };
+
+                _db.Quotes.Add(quote);
+                await _unitOfWork.SaveChangesAsync(token);
+                return Result.Success(ToDto(quote));
+            },
+            ct,
+            shouldCommit: created => created.IsSuccess
+        );
+
+        if (allocated.IsFailure)
+            return allocated;
+
+        QuoteDto created = allocated.Value;
+        await _eventBus.PublishAsync(
+            new QuoteAddedEvent
             {
-                Id = Guid.CreateVersion7(),
                 BroadcasterId = broadcasterId,
-                Number = (int)next.Value,
-                Text = text,
-                QuotedDisplayName = request.QuotedDisplayName?.Trim(),
-                ContextGame = request.ContextGame?.Trim(),
-                QuotedAt = request.QuotedAt ?? createdAt,
+                QuoteId = created.Id,
+                Number = created.Number,
                 CreatedByUserId = request.CreatedByUserId,
-            };
+            },
+            ct
+        );
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "quotes",
+                EntityId = created.Id.ToString(),
+                Action = "created",
+            },
+            ct
+        );
 
-            _db.Quotes.Add(quote);
-            await _unitOfWork.SaveChangesAsync(ct);
-            await _unitOfWork.CommitTransactionAsync(ct);
-
-            await _eventBus.PublishAsync(
-                new QuoteAddedEvent
-                {
-                    BroadcasterId = broadcasterId,
-                    QuoteId = quote.Id,
-                    Number = quote.Number,
-                    CreatedByUserId = quote.CreatedByUserId,
-                },
-                ct
-            );
-            await _eventBus.PublishAsync(
-                new ChannelConfigChangedEvent
-                {
-                    BroadcasterId = broadcasterId,
-                    Domain = "quotes",
-                    EntityId = quote.Id.ToString(),
-                    Action = "created",
-                },
-                ct
-            );
-
-            return Result.Success(ToDto(quote));
-        }
-        catch
-        {
-            await _unitOfWork.RollbackTransactionAsync(ct);
-            throw;
-        }
+        return allocated;
     }
 
     public async Task<Result<QuoteDto>> GetAsync(

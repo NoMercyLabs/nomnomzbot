@@ -380,72 +380,73 @@ public sealed class GiveawayService : IGiveawayService
 
         int winnerTarget = Math.Min(giveaway.WinnerCount, pool.Count);
 
-        await _unitOfWork.BeginTransactionAsync(ct);
-        try
-        {
-            List<GiveawayWinner> winners = [];
-            for (int i = 0; i < winnerTarget; i++)
+        // Retriable unit (Npgsql's retrying strategy rejects a bare Begin/Commit). A retry re-draws from
+        // the pool — different winners, but only after a rolled-back attempt that nobody observed: the
+        // GiveawayDrawnEvent and the chat announcement happen after this returns, never inside.
+        List<GiveawayWinner> winners = await _unitOfWork.ExecuteInTransactionAsync(
+            async token =>
             {
-                WeightedCandidate picked = PickWeighted(pool);
-                pool.Remove(picked);
-
-                GiveawayWinner winner = new()
+                List<GiveawayWinner> drawn = [];
+                List<WeightedCandidate> remaining = [.. pool];
+                for (int i = 0; i < winnerTarget; i++)
                 {
-                    BroadcasterId = broadcasterId,
-                    GiveawayId = giveawayId,
-                    ViewerUserId = picked.UserId,
-                    ViewerTwitchUserId = picked.TwitchUserId,
-                    DrawnAt = _clock.GetUtcNow().UtcDateTime,
-                    Status = giveaway.ClaimWindowMinutes is null
-                        ? GiveawayWinnerStatus.Claimed
-                        : GiveawayWinnerStatus.Drawn,
-                };
-                await _db.GiveawayWinners.AddAsync(winner, ct);
-                winners.Add(winner);
-            }
-            await _db.SaveChangesAsync(ct);
+                    WeightedCandidate picked = PickWeighted(remaining);
+                    remaining.Remove(picked);
 
-            foreach (GiveawayWinner winner in winners)
-                await _fulfillment.FulfillAsync(giveaway, winner, ct);
+                    GiveawayWinner winner = new()
+                    {
+                        BroadcasterId = broadcasterId,
+                        GiveawayId = giveawayId,
+                        ViewerUserId = picked.UserId,
+                        ViewerTwitchUserId = picked.TwitchUserId,
+                        DrawnAt = _clock.GetUtcNow().UtcDateTime,
+                        Status = giveaway.ClaimWindowMinutes is null
+                            ? GiveawayWinnerStatus.Claimed
+                            : GiveawayWinnerStatus.Drawn,
+                    };
+                    await _db.GiveawayWinners.AddAsync(winner, token);
+                    drawn.Add(winner);
+                }
+                await _db.SaveChangesAsync(token);
 
-            giveaway.Status = GiveawayStatus.Drawn;
-            giveaway.DrawnAt = _clock.GetUtcNow().UtcDateTime;
-            await _db.SaveChangesAsync(ct);
-            await _unitOfWork.CommitTransactionAsync(ct);
+                foreach (GiveawayWinner winner in drawn)
+                    await _fulfillment.FulfillAsync(giveaway, winner, token);
 
-            int entryCount = await CountEntriesAsync(giveawayId, ct);
-            await _bus.PublishAsync(
-                new GiveawayDrawnEvent
-                {
-                    BroadcasterId = broadcasterId,
-                    OccurredAt = _clock.GetUtcNow(),
-                    GiveawayId = giveawayId,
-                    WinnerUserIds = winners.Select(w => w.ViewerUserId).ToList(),
-                    EntryCount = entryCount,
-                    PrizeMode = giveaway.PrizeMode,
-                },
-                ct
+                giveaway.Status = GiveawayStatus.Drawn;
+                giveaway.DrawnAt = _clock.GetUtcNow().UtcDateTime;
+                await _db.SaveChangesAsync(token);
+                return drawn;
+            },
+            ct
+        );
+
+        int entryCount = await CountEntriesAsync(giveawayId, ct);
+        await _bus.PublishAsync(
+            new GiveawayDrawnEvent
+            {
+                BroadcasterId = broadcasterId,
+                OccurredAt = _clock.GetUtcNow(),
+                GiveawayId = giveawayId,
+                WinnerUserIds = winners.Select(w => w.ViewerUserId).ToList(),
+                EntryCount = entryCount,
+                PrizeMode = giveaway.PrizeMode,
+            },
+            ct
+        );
+
+        // Fewer codes than winners is flagged loudly, never silently dropped (§4 CODE_POOL_EXHAUSTED).
+        if (
+            giveaway.PrizeMode == GiveawayPrizeMode.CodePool
+            && winners.Any(w => w.AssignedCodeId is null)
+        )
+            return Result.Failure<IReadOnlyList<GiveawayWinnerDto>>(
+                "The code pool ran out before every winner got a code — the un-coded winners are flagged in winner history.",
+                "CODE_POOL_EXHAUSTED"
             );
 
-            // Fewer codes than winners is flagged loudly, never silently dropped (§4 CODE_POOL_EXHAUSTED).
-            if (
-                giveaway.PrizeMode == GiveawayPrizeMode.CodePool
-                && winners.Any(w => w.AssignedCodeId is null)
-            )
-                return Result.Failure<IReadOnlyList<GiveawayWinnerDto>>(
-                    "The code pool ran out before every winner got a code — the un-coded winners are flagged in winner history.",
-                    "CODE_POOL_EXHAUSTED"
-                );
-
-            return Result.Success<IReadOnlyList<GiveawayWinnerDto>>(
-                await ToWinnerDtosAsync(winners, ct)
-            );
-        }
-        catch
-        {
-            await _unitOfWork.RollbackTransactionAsync(ct);
-            throw;
-        }
+        return Result.Success<IReadOnlyList<GiveawayWinnerDto>>(
+            await ToWinnerDtosAsync(winners, ct)
+        );
     }
 
     public async Task<Result<GiveawayWinnerDto>> RedrawAsync(
@@ -484,38 +485,35 @@ public sealed class GiveawayService : IGiveawayService
                 "NO_ENTRIES"
             );
 
-        await _unitOfWork.BeginTransactionAsync(ct);
-        try
-        {
-            target.Status = GiveawayWinnerStatus.Redrawn;
-
-            WeightedCandidate picked = PickWeighted(pool);
-            GiveawayWinner replacement = new()
+        GiveawayWinner replacement = await _unitOfWork.ExecuteInTransactionAsync(
+            async token =>
             {
-                BroadcasterId = broadcasterId,
-                GiveawayId = giveawayId,
-                ViewerUserId = picked.UserId,
-                ViewerTwitchUserId = picked.TwitchUserId,
-                DrawnAt = _clock.GetUtcNow().UtcDateTime,
-                Status = giveaway.ClaimWindowMinutes is null
-                    ? GiveawayWinnerStatus.Claimed
-                    : GiveawayWinnerStatus.Drawn,
-                IsRedraw = true,
-            };
-            await _db.GiveawayWinners.AddAsync(replacement, ct);
-            await _db.SaveChangesAsync(ct);
+                target.Status = GiveawayWinnerStatus.Redrawn;
 
-            await _fulfillment.FulfillAsync(giveaway, replacement, ct);
-            await _db.SaveChangesAsync(ct);
-            await _unitOfWork.CommitTransactionAsync(ct);
+                WeightedCandidate picked = PickWeighted(pool);
+                GiveawayWinner drawn = new()
+                {
+                    BroadcasterId = broadcasterId,
+                    GiveawayId = giveawayId,
+                    ViewerUserId = picked.UserId,
+                    ViewerTwitchUserId = picked.TwitchUserId,
+                    DrawnAt = _clock.GetUtcNow().UtcDateTime,
+                    Status = giveaway.ClaimWindowMinutes is null
+                        ? GiveawayWinnerStatus.Claimed
+                        : GiveawayWinnerStatus.Drawn,
+                    IsRedraw = true,
+                };
+                await _db.GiveawayWinners.AddAsync(drawn, token);
+                await _db.SaveChangesAsync(token);
 
-            return Result.Success((await ToWinnerDtosAsync([replacement], ct))[0]);
-        }
-        catch
-        {
-            await _unitOfWork.RollbackTransactionAsync(ct);
-            throw;
-        }
+                await _fulfillment.FulfillAsync(giveaway, drawn, token);
+                await _db.SaveChangesAsync(token);
+                return drawn;
+            },
+            ct
+        );
+
+        return Result.Success((await ToWinnerDtosAsync([replacement], ct))[0]);
     }
 
     public async Task<Result<PagedList<GiveawayWinnerDto>>> GetWinnersAsync(

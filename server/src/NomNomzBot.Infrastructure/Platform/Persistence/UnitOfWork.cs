@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using NomNomzBot.Application.Abstractions.Persistence;
 
@@ -39,6 +40,17 @@ public class UnitOfWork : IUnitOfWork, IAsyncDisposable, IDisposable
 
         _transaction = await _db.Database.BeginTransactionAsync(ct);
     }
+
+    public Task ExecuteInTransactionAsync(
+        Func<CancellationToken, Task> operation,
+        CancellationToken ct = default
+    ) => _db.ExecuteInTransactionAsync(operation, ct);
+
+    public Task<T> ExecuteInTransactionAsync<T>(
+        Func<CancellationToken, Task<T>> operation,
+        CancellationToken ct = default,
+        Func<T, bool>? shouldCommit = null
+    ) => _db.ExecuteInTransactionAsync(operation, ct, shouldCommit);
 
     public async Task CommitTransactionAsync(CancellationToken ct = default)
     {

@@ -99,91 +99,92 @@ public sealed class DiscordGuildService : IDiscordGuildService
         if (!channelExists)
             return Errors.ChannelNotFound<DiscordGuildConnectionDto>(broadcasterId.ToString());
 
-        await _unitOfWork.BeginTransactionAsync(ct);
-        try
-        {
-            DiscordGuildConnection? connection =
-                await _db.DiscordGuildConnections.FirstOrDefaultAsync(
-                    c => c.BroadcasterId == broadcasterId && c.GuildId == oauth.GuildId,
-                    ct
-                );
-
-            bool wasActive = connection is not null && IsActive(connection);
-            DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
-
-            if (connection is null)
-            {
-                connection = new()
+        // Retriable unit (Npgsql's retrying strategy rejects a bare Begin/Commit); the guild-linked event
+        // publishes after the commit, so a retried attempt cannot announce a link twice.
+        Result<(DiscordGuildConnection Connection, bool WasActive)> linked =
+            await _unitOfWork.ExecuteInTransactionAsync(
+                async token =>
                 {
-                    Id = Guid.CreateVersion7(),
-                    BroadcasterId = broadcasterId,
-                    GuildId = oauth.GuildId,
-                };
-                _db.DiscordGuildConnections.Add(connection);
-            }
+                    DiscordGuildConnection? connection =
+                        await _db.DiscordGuildConnections.FirstOrDefaultAsync(
+                            c => c.BroadcasterId == broadcasterId && c.GuildId == oauth.GuildId,
+                            token
+                        );
 
-            connection.GuildName = oauth.GuildName ?? connection.GuildName;
-            connection.BotInstalled = true;
-            // The OAuth bot-install carries the server admin's approval implicitly (they authorized the install).
-            connection.ServerConsentStatus = Approved;
-            connection.ApprovedByDiscordUserId =
-                oauth.InstalledByDiscordUserId ?? connection.ApprovedByDiscordUserId;
-            connection.ApprovedAt ??= now;
+                    bool wasActive = connection is not null && IsActive(connection);
+                    DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
 
-            await _unitOfWork.SaveChangesAsync(ct);
+                    if (connection is null)
+                    {
+                        connection = new()
+                        {
+                            Id = Guid.CreateVersion7(),
+                            BroadcasterId = broadcasterId,
+                            GuildId = oauth.GuildId,
+                        };
+                        _db.DiscordGuildConnections.Add(connection);
+                    }
 
-            // Vault the bot OAuth token (no plaintext column). The connection upsert is idempotent on
-            // (BroadcasterId, Provider="discord", ProviderAccountId=GuildId).
-            Result<IntegrationConnectionDto> vaultConnection = await _vault.UpsertConnectionAsync(
-                new(
-                    broadcasterId,
-                    Provider,
-                    oauth.GuildId,
-                    oauth.GuildName,
-                    oauth.Scopes,
-                    ClientId: null,
-                    IsByok: false,
-                    ConnectedByUserId: null,
-                    SettingsJson: null
-                ),
-                ct
+                    connection.GuildName = oauth.GuildName ?? connection.GuildName;
+                    connection.BotInstalled = true;
+                    // The OAuth bot-install carries the server admin's approval implicitly (they
+                    // authorized the install).
+                    connection.ServerConsentStatus = Approved;
+                    connection.ApprovedByDiscordUserId =
+                        oauth.InstalledByDiscordUserId ?? connection.ApprovedByDiscordUserId;
+                    connection.ApprovedAt ??= now;
+
+                    await _unitOfWork.SaveChangesAsync(token);
+
+                    // Vault the bot OAuth token (no plaintext column). The connection upsert is
+                    // idempotent on (BroadcasterId, Provider="discord", ProviderAccountId=GuildId).
+                    Result<IntegrationConnectionDto> vaultConnection =
+                        await _vault.UpsertConnectionAsync(
+                            new(
+                                broadcasterId,
+                                Provider,
+                                oauth.GuildId,
+                                oauth.GuildName,
+                                oauth.Scopes,
+                                ClientId: null,
+                                IsByok: false,
+                                ConnectedByUserId: null,
+                                SettingsJson: null
+                            ),
+                            token
+                        );
+                    if (vaultConnection.IsFailure)
+                        return Result.Failure<(DiscordGuildConnection, bool)>(
+                            vaultConnection.ErrorMessage,
+                            vaultConnection.ErrorCode
+                        );
+
+                    Result storeTokens = await _vault.StoreTokensAsync(
+                        vaultConnection.Value.Id,
+                        new(oauth.AccessToken, oauth.RefreshToken, AppToken: null, oauth.ExpiresAt),
+                        oauth.Scopes,
+                        token
+                    );
+                    if (storeTokens.IsFailure)
+                        return Result.Failure<(DiscordGuildConnection, bool)>(
+                            storeTokens.ErrorMessage,
+                            storeTokens.ErrorCode
+                        );
+
+                    return Result.Success((connection, wasActive));
+                },
+                ct,
+                shouldCommit: link => link.IsSuccess
             );
-            if (vaultConnection.IsFailure)
-            {
-                await _unitOfWork.RollbackTransactionAsync(ct);
-                return Result.Failure<DiscordGuildConnectionDto>(
-                    vaultConnection.ErrorMessage,
-                    vaultConnection.ErrorCode
-                );
-            }
 
-            Result storeTokens = await _vault.StoreTokensAsync(
-                vaultConnection.Value.Id,
-                new(oauth.AccessToken, oauth.RefreshToken, AppToken: null, oauth.ExpiresAt),
-                oauth.Scopes,
-                ct
-            );
-            if (storeTokens.IsFailure)
-            {
-                await _unitOfWork.RollbackTransactionAsync(ct);
-                return Result.Failure<DiscordGuildConnectionDto>(
-                    storeTokens.ErrorMessage,
-                    storeTokens.ErrorCode
-                );
-            }
+        if (linked.IsFailure)
+            return Result.Failure<DiscordGuildConnectionDto>(linked.ErrorMessage, linked.ErrorCode);
 
-            await _unitOfWork.CommitTransactionAsync(ct);
+        (DiscordGuildConnection stored, bool wasActiveBefore) = linked.Value;
+        if (!wasActiveBefore && IsActive(stored))
+            await PublishLinkedAsync(stored, ct);
 
-            if (!wasActive && IsActive(connection))
-                await PublishLinkedAsync(connection, ct);
-
-            return Result.Success(ToDto(connection));
-        }
-        catch
-        {
-            await _unitOfWork.RollbackTransactionAsync(ct);
-            throw;
-        }
+        return Result.Success(ToDto(stored));
     }
 
     public async Task<Result> ApproveServerConsentAsync(
@@ -264,43 +265,39 @@ public sealed class DiscordGuildService : IDiscordGuildService
         if (connection is null)
             return Result.Success(); // idempotent
 
-        await _unitOfWork.BeginTransactionAsync(ct);
-        try
-        {
-            // Cascade soft-delete the connection's configs + roles (the SoftDeleteInterceptor stamps DeletedAt).
-            List<DiscordNotificationConfig> configs = await _db
-                .DiscordNotificationConfigs.Where(c => c.GuildConnectionId == connectionId)
-                .ToListAsync(ct);
-            _db.DiscordNotificationConfigs.RemoveRange(configs);
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async token =>
+            {
+                // Cascade soft-delete the connection's configs + roles (the SoftDeleteInterceptor
+                // stamps DeletedAt).
+                List<DiscordNotificationConfig> configs = await _db
+                    .DiscordNotificationConfigs.Where(c => c.GuildConnectionId == connectionId)
+                    .ToListAsync(token);
+                _db.DiscordNotificationConfigs.RemoveRange(configs);
 
-            List<DiscordNotificationRole> roles = await _db
-                .DiscordNotificationRoles.Where(r => r.GuildConnectionId == connectionId)
-                .ToListAsync(ct);
-            _db.DiscordNotificationRoles.RemoveRange(roles);
+                List<DiscordNotificationRole> roles = await _db
+                    .DiscordNotificationRoles.Where(r => r.GuildConnectionId == connectionId)
+                    .ToListAsync(token);
+                _db.DiscordNotificationRoles.RemoveRange(roles);
 
-            _db.DiscordGuildConnections.Remove(connection);
-            await _unitOfWork.SaveChangesAsync(ct);
+                _db.DiscordGuildConnections.Remove(connection);
+                await _unitOfWork.SaveChangesAsync(token);
 
-            // Revoke the vaulted bot token (soft-deletes IntegrationTokens, Status=revoked).
-            Guid? vaultConnectionId = await _db
-                .IntegrationConnections.IgnoreQueryFilters()
-                .Where(c =>
-                    c.BroadcasterId == broadcasterId
-                    && c.Provider == Provider
-                    && c.ProviderAccountId == connection.GuildId
-                )
-                .Select(c => (Guid?)c.Id)
-                .FirstOrDefaultAsync(ct);
-            if (vaultConnectionId is { } vid)
-                await _vault.RevokeConnectionAsync(vid, "discord_disconnected", ct);
-
-            await _unitOfWork.CommitTransactionAsync(ct);
-        }
-        catch
-        {
-            await _unitOfWork.RollbackTransactionAsync(ct);
-            throw;
-        }
+                // Revoke the vaulted bot token (soft-deletes IntegrationTokens, Status=revoked).
+                Guid? vaultConnectionId = await _db
+                    .IntegrationConnections.IgnoreQueryFilters()
+                    .Where(c =>
+                        c.BroadcasterId == broadcasterId
+                        && c.Provider == Provider
+                        && c.ProviderAccountId == connection.GuildId
+                    )
+                    .Select(c => (Guid?)c.Id)
+                    .FirstOrDefaultAsync(token);
+                if (vaultConnectionId is { } vid)
+                    await _vault.RevokeConnectionAsync(vid, "discord_disconnected", token);
+            },
+            ct
+        );
 
         await PublishUnlinkedAsync(connection, "disconnected", ct);
         return Result.Success();

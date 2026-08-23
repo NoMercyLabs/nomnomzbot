@@ -55,22 +55,29 @@ public sealed class SeedRunner
             ordered.Count
         );
 
-        await _unitOfWork.BeginTransactionAsync(ct);
         try
         {
-            foreach (ISeeder seeder in ordered)
-            {
-                await seeder.SeedAsync(ct);
-            }
+            // Retriable unit: on Postgres the configured retrying execution strategy rejects a bare
+            // Begin/Commit outright, and this seed runs at boot — so getting it wrong takes the whole
+            // API down before it ever serves a request. Seeders are idempotent upserts, so a retried
+            // attempt is safe.
+            await _unitOfWork.ExecuteInTransactionAsync(
+                async token =>
+                {
+                    foreach (ISeeder seeder in ordered)
+                    {
+                        await seeder.SeedAsync(token);
+                    }
 
-            // Single commit for all seeders' tracked changes — all-or-nothing.
-            await _unitOfWork.SaveChangesAsync(ct);
-            await _unitOfWork.CommitTransactionAsync(ct);
+                    // Single save for all seeders' tracked changes — all-or-nothing.
+                    await _unitOfWork.SaveChangesAsync(token);
+                },
+                ct
+            );
             _logger.LogInformation("Content seed complete ({Count} seeder(s)).", ordered.Count);
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(ct);
             _logger.LogError(ex, "Content seed failed — transaction rolled back, no rows written.");
             throw;
         }

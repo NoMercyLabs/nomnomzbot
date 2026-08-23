@@ -50,24 +50,20 @@ public sealed class CurrencyAccountService(
             return Result.Success(ToDto(existing));
 
         CurrencyConfig? config = await LoadConfigAsync(broadcasterId, ct);
-        await unitOfWork.BeginTransactionAsync(ct);
-        try
-        {
-            CurrencyAccount account = await CreateAccountAsync(
-                broadcasterId,
-                viewerUserId,
-                config,
-                ct
-            );
-            await unitOfWork.SaveChangesAsync(ct);
-            await unitOfWork.CommitTransactionAsync(ct);
-            return Result.Success(ToDto(account));
-        }
-        catch
-        {
-            await unitOfWork.RollbackTransactionAsync(ct);
-            throw;
-        }
+        return await unitOfWork.ExecuteInTransactionAsync(
+            async token =>
+            {
+                CurrencyAccount account = await CreateAccountAsync(
+                    broadcasterId,
+                    viewerUserId,
+                    config,
+                    token
+                );
+                await unitOfWork.SaveChangesAsync(token);
+                return Result.Success(ToDto(account));
+            },
+            ct
+        );
     }
 
     public async Task<Result<long>> GetBalanceAsync(
@@ -129,41 +125,46 @@ public sealed class CurrencyAccountService(
                 "CURRENCY_DISABLED"
             );
 
-        await unitOfWork.BeginTransactionAsync(ct);
+        // Retriable unit (Npgsql's retrying strategy rejects a bare Begin/Commit); the movement event is
+        // published AFTER it commits, so a retried attempt cannot double-fire it.
+        Result<CurrencyLedgerEntry> posted;
         try
         {
-            CurrencyAccount account =
-                await FindAccountAsync(broadcasterId, command.ViewerUserId, ct)
-                ?? await CreateAccountAsync(broadcasterId, command.ViewerUserId, config, ct);
+            posted = await unitOfWork.ExecuteInTransactionAsync(
+                async token =>
+                {
+                    CurrencyAccount account =
+                        await FindAccountAsync(broadcasterId, command.ViewerUserId, token)
+                        ?? await CreateAccountAsync(
+                            broadcasterId,
+                            command.ViewerUserId,
+                            config,
+                            token
+                        );
 
-            Result<CurrencyLedgerEntry> posted = await AppendAsync(
-                broadcasterId,
-                account,
-                command.Amount,
-                entryType,
-                sourceType,
-                command.SourceId,
-                config,
-                command.RelatedEntryId,
-                command.EventId,
-                command.Reason,
-                command.ActorUserId,
-                ct
+                    Result<CurrencyLedgerEntry> appended = await AppendAsync(
+                        broadcasterId,
+                        account,
+                        command.Amount,
+                        entryType,
+                        sourceType,
+                        command.SourceId,
+                        config,
+                        command.RelatedEntryId,
+                        command.EventId,
+                        command.Reason,
+                        command.ActorUserId,
+                        token
+                    );
+                    if (appended.IsFailure)
+                        return appended;
+
+                    await unitOfWork.SaveChangesAsync(token);
+                    return appended;
+                },
+                ct,
+                shouldCommit: appended => appended.IsSuccess
             );
-            if (posted.IsFailure)
-            {
-                await unitOfWork.RollbackTransactionAsync(ct);
-                return Result.Failure<CurrencyLedgerEntryDto>(
-                    posted.ErrorMessage,
-                    posted.ErrorCode
-                );
-            }
-
-            await unitOfWork.SaveChangesAsync(ct);
-            await unitOfWork.CommitTransactionAsync(ct);
-
-            await PublishMovementAsync(broadcasterId, posted.Value, ct);
-            return Result.Success(ToDto(posted.Value));
         }
         catch (DbUpdateException) when (command.EventId is not null)
         {
@@ -172,7 +173,6 @@ public sealed class CurrencyAccountService(
             // mutation already made in this transaction rolls back with it, so the DB never double-credits.
             // The winning entry is already committed by the other caller — return it as-is: idempotent
             // success, not a 500, and no second credit.
-            await unitOfWork.RollbackTransactionAsync(ct);
             CurrencyLedgerEntry? existing = await db.CurrencyLedgerEntries.FirstOrDefaultAsync(
                 e =>
                     e.BroadcasterId == broadcasterId
@@ -185,11 +185,12 @@ public sealed class CurrencyAccountService(
                 throw;
             return Result.Success(ToDto(existing));
         }
-        catch
-        {
-            await unitOfWork.RollbackTransactionAsync(ct);
-            throw;
-        }
+
+        if (posted.IsFailure)
+            return Result.Failure<CurrencyLedgerEntryDto>(posted.ErrorMessage, posted.ErrorCode);
+
+        await PublishMovementAsync(broadcasterId, posted.Value, ct);
+        return Result.Success(ToDto(posted.Value));
     }
 
     public async Task<Result<TransferResultDto>> TransferAsync(
@@ -213,69 +214,86 @@ public sealed class CurrencyAccountService(
         if (config is null || !config.IsEnabled)
             return Result.Failure<TransferResultDto>("Currency is disabled.", "CURRENCY_DISABLED");
 
-        await unitOfWork.BeginTransactionAsync(ct);
-        try
-        {
-            CurrencyAccount from =
-                await FindAccountAsync(broadcasterId, command.FromViewerUserId, ct)
-                ?? await CreateAccountAsync(broadcasterId, command.FromViewerUserId, config, ct);
-            CurrencyAccount to =
-                await FindAccountAsync(broadcasterId, command.ToViewerUserId, ct)
-                ?? await CreateAccountAsync(broadcasterId, command.ToViewerUserId, config, ct);
+        // Retriable unit; both movement events fire only after the transfer has committed.
+        Result<(CurrencyLedgerEntry Debit, CurrencyLedgerEntry Credit)> transferred =
+            await unitOfWork.ExecuteInTransactionAsync(
+                async token =>
+                {
+                    CurrencyAccount from =
+                        await FindAccountAsync(broadcasterId, command.FromViewerUserId, token)
+                        ?? await CreateAccountAsync(
+                            broadcasterId,
+                            command.FromViewerUserId,
+                            config,
+                            token
+                        );
+                    CurrencyAccount to =
+                        await FindAccountAsync(broadcasterId, command.ToViewerUserId, token)
+                        ?? await CreateAccountAsync(
+                            broadcasterId,
+                            command.ToViewerUserId,
+                            config,
+                            token
+                        );
 
-            Result<CurrencyLedgerEntry> debit = await AppendAsync(
-                broadcasterId,
-                from,
-                -command.Amount,
-                CurrencyEntryType.Transfer,
-                CurrencyLedgerSourceType.Transfer,
-                to.Id,
-                config,
-                null,
-                null,
-                command.Reason,
-                command.ActorUserId,
-                ct
+                    Result<CurrencyLedgerEntry> debit = await AppendAsync(
+                        broadcasterId,
+                        from,
+                        -command.Amount,
+                        CurrencyEntryType.Transfer,
+                        CurrencyLedgerSourceType.Transfer,
+                        to.Id,
+                        config,
+                        null,
+                        null,
+                        command.Reason,
+                        command.ActorUserId,
+                        token
+                    );
+                    if (debit.IsFailure)
+                        return Result.Failure<(CurrencyLedgerEntry, CurrencyLedgerEntry)>(
+                            debit.ErrorMessage,
+                            debit.ErrorCode
+                        );
+
+                    Result<CurrencyLedgerEntry> credit = await AppendAsync(
+                        broadcasterId,
+                        to,
+                        command.Amount,
+                        CurrencyEntryType.Transfer,
+                        CurrencyLedgerSourceType.Transfer,
+                        from.Id,
+                        config,
+                        debit.Value.TenantPosition,
+                        null,
+                        command.Reason,
+                        command.ActorUserId,
+                        token
+                    );
+                    if (credit.IsFailure)
+                        return Result.Failure<(CurrencyLedgerEntry, CurrencyLedgerEntry)>(
+                            credit.ErrorMessage,
+                            credit.ErrorCode
+                        );
+
+                    debit.Value.RelatedEntryId = credit.Value.TenantPosition;
+                    await unitOfWork.SaveChangesAsync(token);
+                    return Result.Success((debit.Value, credit.Value));
+                },
+                ct,
+                shouldCommit: transfer => transfer.IsSuccess
             );
-            if (debit.IsFailure)
-            {
-                await unitOfWork.RollbackTransactionAsync(ct);
-                return Result.Failure<TransferResultDto>(debit.ErrorMessage, debit.ErrorCode);
-            }
 
-            Result<CurrencyLedgerEntry> credit = await AppendAsync(
-                broadcasterId,
-                to,
-                command.Amount,
-                CurrencyEntryType.Transfer,
-                CurrencyLedgerSourceType.Transfer,
-                from.Id,
-                config,
-                debit.Value.TenantPosition,
-                null,
-                command.Reason,
-                command.ActorUserId,
-                ct
+        if (transferred.IsFailure)
+            return Result.Failure<TransferResultDto>(
+                transferred.ErrorMessage,
+                transferred.ErrorCode
             );
-            if (credit.IsFailure)
-            {
-                await unitOfWork.RollbackTransactionAsync(ct);
-                return Result.Failure<TransferResultDto>(credit.ErrorMessage, credit.ErrorCode);
-            }
-            debit.Value.RelatedEntryId = credit.Value.TenantPosition;
 
-            await unitOfWork.SaveChangesAsync(ct);
-            await unitOfWork.CommitTransactionAsync(ct);
-
-            await PublishMovementAsync(broadcasterId, debit.Value, ct);
-            await PublishMovementAsync(broadcasterId, credit.Value, ct);
-            return Result.Success(new TransferResultDto(ToDto(debit.Value), ToDto(credit.Value)));
-        }
-        catch
-        {
-            await unitOfWork.RollbackTransactionAsync(ct);
-            throw;
-        }
+        (CurrencyLedgerEntry debited, CurrencyLedgerEntry credited) = transferred.Value;
+        await PublishMovementAsync(broadcasterId, debited, ct);
+        await PublishMovementAsync(broadcasterId, credited, ct);
+        return Result.Success(new TransferResultDto(ToDto(debited), ToDto(credited)));
     }
 
     public Task<Result<CurrencyLedgerEntryDto>> AdminAdjustAsync(

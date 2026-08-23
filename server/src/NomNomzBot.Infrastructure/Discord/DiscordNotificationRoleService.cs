@@ -158,25 +158,21 @@ public sealed class DiscordNotificationRoleService : IDiscordNotificationRoleSer
         if (role is null)
             return Errors.NotFound<object>("Discord role", roleId.ToString());
 
-        await _unitOfWork.BeginTransactionAsync(ct);
-        try
-        {
-            // Null the FK on any config that pinged this role (FK is nullable) — same transaction.
-            List<DiscordNotificationConfig> referencing = await _db
-                .DiscordNotificationConfigs.Where(c => c.PingRoleId == roleId)
-                .ToListAsync(ct);
-            foreach (DiscordNotificationConfig config in referencing)
-                config.PingRoleId = null;
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async token =>
+            {
+                // Null the FK on any config that pinged this role (FK is nullable) — same transaction.
+                List<DiscordNotificationConfig> referencing = await _db
+                    .DiscordNotificationConfigs.Where(c => c.PingRoleId == roleId)
+                    .ToListAsync(token);
+                foreach (DiscordNotificationConfig config in referencing)
+                    config.PingRoleId = null;
 
-            _db.DiscordNotificationRoles.Remove(role); // soft-delete via interceptor
-            await _unitOfWork.SaveChangesAsync(ct);
-            await _unitOfWork.CommitTransactionAsync(ct);
-        }
-        catch
-        {
-            await _unitOfWork.RollbackTransactionAsync(ct);
-            throw;
-        }
+                _db.DiscordNotificationRoles.Remove(role); // soft-delete via interceptor
+                await _unitOfWork.SaveChangesAsync(token);
+            },
+            ct
+        );
 
         return Result.Success();
     }

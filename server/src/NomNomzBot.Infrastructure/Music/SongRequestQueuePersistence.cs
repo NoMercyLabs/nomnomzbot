@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using NomNomzBot.Domain.Music.Entities;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 
@@ -72,16 +71,25 @@ public sealed class SongRequestQueuePersistence : ISongRequestQueuePersistence
 
     public SongRequestQueuePersistence(AppDbContext db) => _db = db;
 
-    public async Task SyncAsync(
+    public Task SyncAsync(
+        string broadcasterId,
+        IReadOnlyList<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshot,
+        CancellationToken cancellationToken
+    ) =>
+        // Retriable unit — a bare Begin/Commit is rejected outright by Npgsql's retrying execution
+        // strategy. Delete-then-insert of one channel's whole row set is idempotent, so a retried
+        // attempt reproduces exactly the same end state.
+        _db.ExecuteInTransactionAsync(
+            async token => await WriteSnapshotAsync(broadcasterId, snapshot, token),
+            cancellationToken
+        );
+
+    private async Task WriteSnapshotAsync(
         string broadcasterId,
         IReadOnlyList<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshot,
         CancellationToken cancellationToken
     )
     {
-        await using IDbContextTransaction transaction = await _db.Database.BeginTransactionAsync(
-            cancellationToken
-        );
-
         await _db
             .SongRequestQueueItems.Where(r => r.BroadcasterId == broadcasterId)
             .ExecuteDeleteAsync(cancellationToken);
@@ -110,8 +118,6 @@ public sealed class SongRequestQueuePersistence : ISongRequestQueuePersistence
             _db.SongRequestQueueItems.AddRange(rows);
             await _db.SaveChangesAsync(cancellationToken);
         }
-
-        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task<SongRequestQueueRestoreResult> LoadForRestoreAsync(

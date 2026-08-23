@@ -69,31 +69,34 @@ public sealed class EventJournalService : IEventJournal
         if (protectedPayload.IsFailure)
             return protectedPayload.ToTyped<EventRecord>();
 
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        // Retriable unit — Npgsql's retrying execution strategy rejects a bare Begin/Commit. The append
+        // is idempotent by EventId, so a retried attempt returns the already-stored record.
         try
         {
-            Result<EventJournal> appended = await AppendOneAsync(
-                request,
-                protectedPayload.Value,
-                cancellationToken
-            );
-            if (appended.IsFailure)
-            {
-                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                return Result.Failure<EventRecord>(
-                    appended.ErrorMessage!,
-                    appended.ErrorCode,
-                    appended.ErrorDetail
-                );
-            }
+            return await _unitOfWork.ExecuteInTransactionAsync(
+                async token =>
+                {
+                    Result<EventJournal> appended = await AppendOneAsync(
+                        request,
+                        protectedPayload.Value,
+                        token
+                    );
+                    if (appended.IsFailure)
+                        return Result.Failure<EventRecord>(
+                            appended.ErrorMessage!,
+                            appended.ErrorCode,
+                            appended.ErrorDetail
+                        );
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
-            return Result.Success(Map(appended.Value));
+                    await _unitOfWork.SaveChangesAsync(token);
+                    return Result.Success(Map(appended.Value));
+                },
+                cancellationToken,
+                shouldCommit: record => record.IsSuccess
+            );
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             return Result.Failure<EventRecord>(
                 "Failed to append event to the journal.",
                 "JOURNAL_APPEND_FAILED",
@@ -148,77 +151,79 @@ public sealed class EventJournalService : IEventJournal
             protectedByEventId[request.EventId] = protectedPayload.Value;
         }
 
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            DateTime now = _clock.GetUtcNow().UtcDateTime;
-            Dictionary<Guid, EventJournal> appended = [];
-            List<EventJournal> toInsert = new(seen.Count);
-            foreach ((Guid sequenceTenant, List<AppendEventRequest> slice) in newByTenant)
-            {
-                // One block reservation for the whole tenant slice (replaces the per-row NextAsync); the caller
-                // assigns first..first+count-1 in arrival order.
-                Result<long> block = await _sequences.NextBlockAsync(
-                    sequenceTenant,
-                    ITenantSequenceAllocator.EventStreamPositionSequence,
-                    slice.Count,
-                    cancellationToken
-                );
-                if (block.IsFailure)
+            // Retriable unit — see AppendAsync. A retry re-reserves positions and re-inserts, which is
+            // safe: nothing outside the transaction observed the rolled-back attempt.
+            return await _unitOfWork.ExecuteInTransactionAsync(
+                async token =>
                 {
-                    await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                    return Result.Failure<IReadOnlyList<EventRecord>>(
-                        block.ErrorMessage!,
-                        block.ErrorCode,
-                        block.ErrorDetail
-                    );
-                }
+                    DateTime now = _clock.GetUtcNow().UtcDateTime;
+                    Dictionary<Guid, EventJournal> appended = [];
+                    List<EventJournal> toInsert = new(seen.Count);
+                    foreach ((Guid sequenceTenant, List<AppendEventRequest> slice) in newByTenant)
+                    {
+                        // One block reservation for the whole tenant slice (replaces the per-row
+                        // NextAsync); the caller assigns first..first+count-1 in arrival order.
+                        Result<long> block = await _sequences.NextBlockAsync(
+                            sequenceTenant,
+                            ITenantSequenceAllocator.EventStreamPositionSequence,
+                            slice.Count,
+                            token
+                        );
+                        if (block.IsFailure)
+                            return Result.Failure<IReadOnlyList<EventRecord>>(
+                                block.ErrorMessage!,
+                                block.ErrorCode,
+                                block.ErrorDetail
+                            );
 
-                long position = block.Value;
-                foreach (AppendEventRequest request in slice)
-                {
-                    EventJournal entity = BuildJournalEntity(
-                        request,
-                        protectedByEventId[request.EventId],
-                        position++,
-                        now
-                    );
-                    appended[request.EventId] = entity;
-                    toInsert.Add(entity);
-                }
-            }
+                        long position = block.Value;
+                        foreach (AppendEventRequest request in slice)
+                        {
+                            EventJournal entity = BuildJournalEntity(
+                                request,
+                                protectedByEventId[request.EventId],
+                                position++,
+                                now
+                            );
+                            appended[request.EventId] = entity;
+                            toInsert.Add(entity);
+                        }
+                    }
 
-            if (toInsert.Count > 0)
-            {
-                await _db.EventJournals.AddRangeAsync(toInsert, cancellationToken);
-                // ONE flush for the entire batch (was one SaveChanges per row).
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-            }
+                    if (toInsert.Count > 0)
+                    {
+                        await _db.EventJournals.AddRangeAsync(toInsert, token);
+                        // ONE flush for the entire batch (was one SaveChanges per row).
+                        await _unitOfWork.SaveChangesAsync(token);
+                    }
 
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+                    // Results in original request order: a duplicate (stored or earlier-in-batch)
+                    // returns its existing record; a new one returns the row just appended.
+                    List<EventRecord> results = new(requests.Count);
+                    foreach (AppendEventRequest request in requests)
+                        results.Add(
+                            Map(
+                                stored.TryGetValue(request.EventId, out EventJournal? existing)
+                                    ? existing
+                                    : appended[request.EventId]
+                            )
+                        );
 
-            // Results in original request order: a duplicate (stored or earlier-in-batch) returns its existing
-            // record; a new one returns the row just appended.
-            List<EventRecord> results = new(requests.Count);
-            foreach (AppendEventRequest request in requests)
-                results.Add(
-                    Map(
-                        stored.TryGetValue(request.EventId, out EventJournal? existing)
-                            ? existing
-                            : appended[request.EventId]
-                    )
-                );
+                    // Detach everything this batch tracked so a long backfill stays O(batch), not
+                    // O(total) (the scoped DbContext would otherwise accumulate every appended row).
+                    // Rows are committed and reads use AsNoTracking, so dropping the graph is safe.
+                    ClearChangeTracker();
 
-            // Detach everything this batch tracked so a long backfill stays O(batch), not O(total) (the scoped
-            // DbContext would otherwise accumulate every appended row). Rows are committed and reads use
-            // AsNoTracking, so dropping the tracked graph is safe.
-            ClearChangeTracker();
-
-            return Result.Success<IReadOnlyList<EventRecord>>(results);
+                    return Result.Success<IReadOnlyList<EventRecord>>(results);
+                },
+                cancellationToken,
+                shouldCommit: records => records.IsSuccess
+            );
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             return Result.Failure<IReadOnlyList<EventRecord>>(
                 "Failed to append event batch to the journal.",
                 "JOURNAL_APPEND_BATCH_FAILED",
