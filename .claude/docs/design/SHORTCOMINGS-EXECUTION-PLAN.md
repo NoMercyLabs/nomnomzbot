@@ -35,10 +35,15 @@ Slice IDs are stable; the order is the queue.
 - **S006** Live-game money — settle failure refunds or parks retryable; can't-pay joiner feedback;
   runner force-cancel+refund after N tick failures (U·B2 b5). Done-when: forced settle failure refunds
   every stake (test); a stuck runtime self-cancels.
-- **S008** Execution truth — real send outcome threaded; `SendReplyAsync` returns a result with
-  plain+mention fallback; broken-out run = PartiallyFailed; invoker gets one reply for failure /
-  cooldown / permission (S·F4, U·A1 i1, U·C7 reply semantics + `BuiltinOutcome`). Done-when: failing
-  middle step → PartiallyFailed + one chat line; analytics records failure.
+- **S008b** `PipelineExecution` is a dead table — the entity/table from schema H.4 has ZERO writers anywhere:
+  `Status`, `ErrorMessage` and `StepLogsJson` are never persisted, so there is no execution history for a streamer to look at
+  when a command misbehaves, and the dashboard has nothing to show. Found by S008 (80e9fd58) while threading run outcomes.
+  Done-when: every pipeline run persists its outcome and per-step log, and a test proves a failed run is retrievable with the
+  failing step identified.
+- **S008c** The builtin path still swallows send failures — `Chat/EventHandlers/ChatMessageHandler.cs` (~line 878) and the
+  builtin-fallback re-invocation discard the chat-send bool into `CommandExecutedEvent`, so a builtin whose reply never sent
+  still records as successful. S008 fixed only the pipeline path. Done-when: a builtin whose send fails records the failure
+  and tells the invoker once, same as the pipeline path.
 - **S009** Chat loop guard — per-tenant "sender ids the bot types as" checked on all three ingests
   (U·C7). Done-when: a bot line containing `!cmd` does not self-trigger (test per ingest).
 - **S010** Outbound chat shaping — per-platform length chunking (Twitch 500 / YouTube 200 / Kick 500 /
