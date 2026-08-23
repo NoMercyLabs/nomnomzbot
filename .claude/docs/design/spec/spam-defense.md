@@ -50,6 +50,7 @@ earned capability.
 
 | # | Decision |
 |---|---|
+| **SD0** | **A legitimate viewer is never punished. This governs every other decision here.** Where confidence is imperfect, the system acts on **the room, not the person** — it tightens the platform's own chat rules for everyone, reversibly, instead of punishing an individual it is not certain about. Tightening a room inconveniences people for minutes; a wrong ban costs someone a community. When those two trade off, the room loses every time. Any rule below that would punish an individual on imperfect confidence is wrong, and SD0 wins. |
 | **SD1** | **Split enforcement by confidence.** High-confidence signals act immediately (ban/timeout/block), logged with one-click mod undo. Trust-gated capabilities route to a silent review queue instead of an action. |
 | **SD2** | **Three charset tiers, not one gate.** Cosmetic-abuse characters are blocked at every tier for everyone; homoglyph script-mixing is detected within a token; whole non-Latin scripts are trust-gated per-channel, **default OFF**. |
 | **SD3** | **Curated + earned-trust signature network.** Every instance may subscribe read-only. Contribution requires an earned reporter-trust score or NoMercy curation. Poisoning the feed must not be a viable attack. |
@@ -59,6 +60,8 @@ earned capability.
 | **SD7** | **Every action is explainable.** Each enforcement records the normalized text, the signals that fired, their weights, and the resulting score. No black-box bans. |
 | **SD8** | **Established regulars are immune — absolutely.** A long-term active participant is **never** auto-actioned by this subsystem, at any confidence, by any signal, from any source. The engine may flag for a human; it may not delete, hold, time out, ban, or block. This is a hard invariant, not a high threshold. |
 | **SD9** | **Presence is never an offence.** No account is ever actioned for being silent, for being new, or for arriving at the same moment as an attack. Every action requires a signal *that account itself* produced. Bursts and spikes select a **window to scrutinise**, never a set to punish. |
+| **SD11** | **Standing is portable, and positive evidence outranks negative.** A viewer who is a mod or VIP anywhere, subscribed anywhere, or carrying real watch time on this instance is **semi-trusted by default** and cannot be auto-banned or auto-timed-out — the engine may delete and flag, a human decides the rest. Positive standing is checked **first**, and it can zero a risk coefficient outright (§L1.2). |
+| **SD12** | **We are not the chat host — a message cannot be held.** Twitch, YouTube, Kick and X publish the message the instant it is sent. Our only pre-emptive lever is the platform's *own* controls (blocked terms, AutoMod, followers-only, slow, Shield Mode); everything else is reaction. `Hold` exists only on surfaces we publish ourselves (§5.1). |
 | **SD10** | **Account risk multiplies, it never adds.** Score = content signal × account-risk coefficient, so zero content signal is zero score whatever the account looks like. Nobody is ever actioned for *what they are* — only for *what they said*. The two marks that describe silence are pinned at ×1.0 and move nothing (§L1.1). |
 
 ---
@@ -133,7 +136,45 @@ stacks two mediums for the crime of having been quiet. They are recorded, they s
 explanation, and they move nothing. A ten-year lurker's first word is scored exactly like a
 regular's thousandth.
 
-They earn their keep in one place only: **corroboration**. Where a content signal has *already*
+They earn their keep in one place only: **corroboration**.
+
+#### L1.2 — Positive standing, checked first (SD11)
+
+Risk marks describe what we *don't* know about someone. Standing describes what we *do*. Standing
+is evaluated **before** risk, and it wins.
+
+| Positive evidence | Effect |
+|---|---|
+| Moderator or VIP in **any** channel on this instance | → **Semi-Trusted** |
+| Moderator or VIP on the platform, observed via the network feed | → **Semi-Trusted** |
+| Subscriber / member anywhere on this instance | → **Semi-Trusted** |
+| ≥ 10h watch time in this channel | → **Semi-Trusted** |
+| ≥ 25h watch time across this instance's channels | → **Semi-Trusted** |
+| Partner / affiliate / verified account | risk coefficient → ×1.0 |
+| Account ≥ 2y **with** genuine activity (streams, follows, history) | risk coefficient → ×1.0 |
+
+**Semi-Trusted is a floor, not a score.** Reaching it means:
+
+- **No automated ban. No automated timeout. Ever.** The engine's ceiling for a Semi-Trusted viewer
+  is *delete the message and flag it*. A human decides everything past that.
+- Risk coefficient is forced to ×1.0 — no account-shape mark can weigh against them.
+- They are excluded from every cohort action and every burst sweep.
+- Network signatures can flag them; nothing more.
+
+Someone who moderates three other channels is not a spam bot. Someone with forty hours of watch
+time here is not a throwaway. Punishing either automatically is the exact failure SD0 exists to
+prevent, and no accumulation of suspicion is allowed to get there.
+
+**Watch time is ours, and it is the strongest signal we own.** No public list has it, Sery_Bot
+cannot see it, and it is nearly impossible to fake at scale — a bot farm would have to genuinely
+watch. It is what lets us extend trust to a viewer who has never typed a word, which is precisely
+the person every other system gets wrong.
+
+**The network carries standing both ways (extends SD3).** Most anti-spam networks share only who
+is bad. Ours shares who is *good* — cross-channel mod/VIP/sub standing and corroborated
+legitimacy — because a shared bad-list makes false positives contagious, while a shared good-list
+makes them rarer everywhere at once. Positive entries need no quarantine; they can only ever
+reduce enforcement. Where a content signal has *already*
 fired, they can raise a Medium to High — which per SD1 means a `Hold` into the review queue, not
 an action. Silence never bans anyone.
 
@@ -215,7 +256,8 @@ numbers — see the role-name rule):
 | Newcomer | account ≥ 7d **and** following ≥ 24h |
 | Known | account ≥ 30d, following ≥ 7d, ≥ 5 messages |
 | Regular | account ≥ 6mo, following ≥ 30d, ≥ 50 messages, no strikes in 90d |
-| Trusted | sub / VIP / mod, or operator-granted |
+| **Semi-Trusted** | positive standing anywhere — see §L1.2 (SD11). **Never auto-banned or auto-timed-out.** |
+| Trusted | sub / VIP / mod **in this channel**, or operator-granted |
 | **Established** | **immune** — see §4.1 |
 
 #### 4.1 Established — the immunity invariant (SD8)
@@ -277,7 +319,7 @@ Per **SD1**:
 | Confidence | Response |
 |---|---|
 | **High** — cosmetic-abuse chars, corpus hit, confirmed campaign cohort, malicious link | Act immediately: delete + timeout/ban per the channel's escalation policy. Logged, explainable, one-click undo. |
-| **Medium** — capability not yet earned (a Newcomer's first link), promo shape without a corpus hit | **Hold**: the message does not post, and lands in the mod review queue. Approving it also credits the sender's trust. |
+| **Medium** — capability not yet earned (a Newcomer's first link), promo shape without a corpus hit | **Delete + queue**, reversible: the message is removed and the deletion lands in the mod review queue. Restoring it credits the sender's trust. **No timeout, no ban** — medium confidence never touches the account. |
 | **Low** — a single weak signal | Flag only. Visible to mods in the chat feed, no action. |
 | **Zero** — no content signal fired | Nothing. No record beyond the routine trust-counter update. Per SD10 this is where every silent, new, or odd-looking account saying something ordinary lands, regardless of its marks. |
 
@@ -287,8 +329,42 @@ inventing a parallel action path.
 
 **Follow/view-bot track** issues **block**, never ban, and strips the follow.
 
-**Hate-raid track** additionally trips a channel lockdown (followers-only + slow mode) for a
-cooldown window, and alerts the operator.
+#### 5.1 — What "hold" and "lockdown" actually mean (SD12)
+
+We do not host the chat. Twitch, YouTube, Kick and X publish a message the moment it is sent;
+there is no pre-publish hook we can stand in. So the vocabulary has to be exact:
+
+| Lever | Reality |
+|---|---|
+| **Hold** | Only on surfaces **we** publish — overlays, TTS, song requests, our own bot output. Never available for platform chat. |
+| **Platform's own hold** | Twitch's AutoMod queue is a genuine pre-publish hold, but **Twitch decides what enters it**, not us. We can auto-approve/deny via `ManageHeldAutoModMessageAsync`. |
+| **Blocked terms** | The one place our detection becomes real *prevention*: push our skeletons into the platform's own blocked-term list (`AddBlockedTermAsync`) and the platform blocks at send time. |
+| **Delete / timeout / ban** | Reaction. The message was visible for a second or two. This is the ceiling for anything we detect ourselves. |
+
+**Lockdown is therefore not "we stop messages."** It is: *tighten the platform's own rules for the
+room, all at once, reversibly.* Per **SD0** this is the preferred response to uncertainty, because
+it costs everyone a few minutes and costs nobody their account.
+
+Twitch — every one of these already exists in `TwitchModerationApi` / `TwitchChatApi`:
+
+- Shield Mode on (`UpdateShieldModeStatusAsync`)
+- Followers-only with a minimum follow age, slow mode, unique-chat, optionally sub-only
+  (`UpdateChatSettingsAsync`)
+- AutoMod to its strictest level (`UpdateAutoModSettingsAsync`)
+- The active campaign's skeletons pushed as blocked terms (`AddBlockedTermAsync`), removed again
+  when the window closes
+
+YouTube, Kick and X get the same *intent* against a smaller control set — lockdown is a
+**per-platform capability map**, not one uniform action. Where a platform offers nothing
+pre-emptive, we are honestly reactive there and the dashboard says so rather than implying cover
+we do not have.
+
+**Lockdown restricts posting. It never removes, blocks, or bans anyone for being present.** It
+carries a timer, restores every setting it changed, and is one click to end early. Semi-Trusted
+and Established viewers keep talking through it.
+
+**Hate-raid track** trips lockdown as its *first* action, not its last — tightening the room ahead
+of judging individuals is the whole point of SD0.
 
 ---
 
@@ -361,6 +437,8 @@ New entities under `Domain/Moderation/Entities/`:
 | `SpamCampaign` | A correlated cohort: window, member accounts, representative skeleton, action outcome |
 | `FollowBotBlock` | Blocked account, **per-account** detection reason (required, non-null — SD9), spike batch ref, restored-at |
 | `ReporterTrust` | Per-channel contribution history and earned reporter score |
+| `ViewerStanding` | Portable positive standing (SD11): mod/VIP/sub elsewhere, watch-time totals here and instance-wide, partner/affiliate, resolved tier + why |
+| `LockdownWindow` | An SD0 room-tightening: platform, settings changed **and their prior values**, trigger, expiry, restored-at |
 
 Extended: `UserTrustScore` gains the L1 component breakdown so a tier is explainable, not just a
 number, plus the per-channel participation counters that earn **Established** (first-message-at,
@@ -412,6 +490,21 @@ table-driven test over the full signal enum, so **adding a new signal without co
 the build** — the immunity cannot decay as the system grows. Plus: an Established viewer who
 quotes a live campaign's exact spam text is asserted absent from the resulting `SpamCampaign`
 member set, and unactioned.
+
+**SD11 — Semi-Trusted can never be auto-banned.** Table-driven over the full signal enum, and over
+each route into Semi-Trusted (mod elsewhere, VIP elsewhere, sub elsewhere, watch time here, watch
+time instance-wide): assert every outcome caps at delete+flag, that `ActionTaken` is never
+`Timeout` or `Ban`, and that the viewer is absent from every cohort and burst sweep. A new
+enforcement path that does not honour the cap fails the build.
+
+**SD0 — the room, not the person.** A synthetic hate raid where confidence is *medium* on 30
+accounts: assert lockdown engaged, and assert **zero** bans and **zero** timeouts issued. Then
+assert every setting lockdown changed is restored when its window closes, and that an Established
+and a Semi-Trusted viewer both posted successfully throughout.
+
+**SD12 — no phantom holds.** Assert that a platform-chat message never produces `ActionTaken ==
+Hold`; the medium tier must resolve to delete+queue. Assert Hold remains reachable for an
+overlay/TTS/song-request surface, so the capability is not silently lost.
 
 **SD10 — L1 cannot act alone.** Construct the worst-looking account the risk table can describe —
 2 days old, not following, default profile, generated-handle username, zero history anywhere,
