@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
@@ -307,6 +308,39 @@ public sealed class CatalogService(
             }
         }
 
+        // Atomically reserve one unit of stock BEFORE charging: the WHERE predicate is evaluated against
+        // the CURRENT row at write time (not the `item.StockRemaining` read above), so two concurrent
+        // purchases of the last unit cannot both pass — only one UPDATE can match `StockRemaining > 0`
+        // when there is exactly one unit left. Mirrors S004's ExecuteUpdateAsync-with-guard mechanism
+        // (CurrencyAccountService.AppendAsync) rather than the prior in-memory read-modify-write.
+        bool hasStockLimit = item.StockLimit is not null;
+        Guid catalogItemId = item.Id;
+        if (hasStockLimit)
+        {
+            int reservedRows = await db
+                .CatalogItems.Where(i => i.Id == catalogItemId && i.StockRemaining > 0)
+                .ExecuteUpdateAsync(
+                    setters =>
+                        setters.SetProperty(i => i.StockRemaining, i => i.StockRemaining - 1),
+                    ct
+                );
+            if (reservedRows == 0)
+                return Result.Failure<CatalogPurchaseDto>("Item is out of stock.", "OUT_OF_STOCK");
+
+            // ExecuteUpdateAsync bypasses the change tracker, so the tracked `item` instance loaded above
+            // would otherwise keep serving its stale pre-reservation StockRemaining to any other code in
+            // this unit of work that looks it up again (EF's identity map always prefers the tracked
+            // instance). Sync the CLR value in place and re-baseline its ORIGINAL value so a later
+            // SaveChangesAsync in this same request does not re-persist a stale value over the reservation
+            // — mirrors CurrencyAccountService.SyncWithoutPersisting (S004).
+            item.StockRemaining -= 1;
+            if (db is DbContext dbContext)
+                SyncWithoutPersisting(
+                    dbContext.Entry(item).Property(i => i.StockRemaining),
+                    item.StockRemaining
+                );
+        }
+
         Result<CurrencyLedgerEntryDto> debit = await accounts.PostLedgerEntryAsync(
             broadcasterId,
             new(
@@ -323,10 +357,26 @@ public sealed class CatalogService(
             ct
         );
         if (debit.IsFailure)
+        {
+            // Compensate the reservation: the debit that would have consumed it never happened.
+            if (hasStockLimit)
+            {
+                await db
+                    .CatalogItems.Where(i => i.Id == catalogItemId)
+                    .ExecuteUpdateAsync(
+                        setters =>
+                            setters.SetProperty(i => i.StockRemaining, i => i.StockRemaining + 1),
+                        ct
+                    );
+                item.StockRemaining += 1;
+                if (db is DbContext dbContext)
+                    SyncWithoutPersisting(
+                        dbContext.Entry(item).Property(i => i.StockRemaining),
+                        item.StockRemaining
+                    );
+            }
             return Result.Failure<CatalogPurchaseDto>(debit.ErrorMessage, debit.ErrorCode);
-
-        if (item.StockRemaining is { } remaining)
-            item.StockRemaining = remaining - 1;
+        }
 
         CatalogPurchase purchase = new()
         {
@@ -398,12 +448,40 @@ public sealed class CatalogService(
         if (credit.IsFailure)
             return Result.Failure<CatalogPurchaseDto>(credit.ErrorMessage, credit.ErrorCode);
 
-        CatalogItem? item = await db.CatalogItems.FirstOrDefaultAsync(
-            i => i.Id == original.CatalogItemId,
-            ct
-        );
-        if (item?.StockRemaining is { } remaining)
-            item.StockRemaining = remaining + 1;
+        // Atomic restock — SET StockRemaining = StockRemaining + 1 evaluated at write time, not a prior
+        // in-memory read, so a refund racing a concurrent purchase's atomic reservation cannot lose the
+        // other side's update. Only items WITH a stock limit carry a StockRemaining to restock.
+        int restockedRows = await db
+            .CatalogItems.Where(i => i.Id == original.CatalogItemId && i.StockLimit != null)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(i => i.StockRemaining, i => i.StockRemaining + 1),
+                ct
+            );
+        if (restockedRows > 0)
+        {
+            // ExecuteUpdateAsync bypasses the change tracker — if this DbContext already has the item
+            // loaded (e.g. a prior GetItemAsync in the same unit of work), its identity-map instance would
+            // otherwise keep serving the pre-restock StockRemaining. Sync it in place; see
+            // CurrencyAccountService.SyncWithoutPersisting (S004).
+            CatalogItem? trackedItem = await db.CatalogItems.FirstOrDefaultAsync(
+                i => i.Id == original.CatalogItemId,
+                ct
+            );
+            if (trackedItem is not null && db is DbContext dbContext)
+            {
+                trackedItem.StockRemaining = (
+                    await db
+                        .CatalogItems.AsNoTracking()
+                        .Where(i => i.Id == original.CatalogItemId)
+                        .Select(i => i.StockRemaining)
+                        .FirstAsync(ct)
+                );
+                SyncWithoutPersisting(
+                    dbContext.Entry(trackedItem).Property(i => i.StockRemaining),
+                    trackedItem.StockRemaining
+                );
+            }
+        }
 
         CatalogPurchase refundRow = new()
         {
@@ -469,6 +547,22 @@ public sealed class CatalogService(
                 total
             )
         );
+    }
+
+    /// <summary>
+    /// Accepts a property's already-assigned CurrentValue as the new baseline WITHOUT letting a later
+    /// SaveChangesAsync in this unit of work re-persist it. See
+    /// <c>CurrencyAccountService.SyncWithoutPersisting</c> (S004) for why setting only OriginalValue is
+    /// not sufficient — IsModified must be explicitly cleared AFTER OriginalValue already equals
+    /// CurrentValue.
+    /// </summary>
+    private static void SyncWithoutPersisting<TValue>(
+        PropertyEntry<CatalogItem, TValue> property,
+        TValue currentValue
+    )
+    {
+        property.OriginalValue = currentValue;
+        property.IsModified = false;
     }
 
     private Task<CatalogItem?> FindItemAsync(

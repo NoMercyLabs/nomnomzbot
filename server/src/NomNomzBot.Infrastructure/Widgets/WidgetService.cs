@@ -299,8 +299,17 @@ public class WidgetService : IWidgetService
                 compiled.ErrorCode ?? "WIDGET_BUILD_FAILED"
             );
 
-        item.InstallCount += 1;
-        await _db.SaveChangesAsync(cancellationToken);
+        // Atomic increment on the shared gallery row (SET InstallCount = InstallCount + 1 evaluated at
+        // write time), not the prior in-memory `item.InstallCount += 1` + SaveChanges — concurrent
+        // installs of the same gallery item (by different channels) were silently losing counts under
+        // that read-modify-write. Mirrors S004's ExecuteUpdateAsync mechanism.
+        Guid installedGalleryItemId = item.Id;
+        await _db
+            .WidgetGalleryItems.Where(i => i.Id == installedGalleryItemId)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(i => i.InstallCount, i => i.InstallCount + 1),
+                cancellationToken
+            );
 
         return await GetAsync(broadcasterId, widget.Id.ToString(), cancellationToken);
     }
