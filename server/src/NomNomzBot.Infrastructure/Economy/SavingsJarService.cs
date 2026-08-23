@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
@@ -270,6 +271,19 @@ public sealed class SavingsJarService(
                 );
         }
 
+        bool crossedGoal =
+            jar.GoalAmount is { } goal
+            && jar.Balance < goal
+            && jar.Balance + request.Amount >= goal;
+        Guid jarId = jar.Id;
+        long contributeAmount = request.Amount;
+        // Credit the jar BEFORE debiting the contributor. The jar's Balance is the shared, contended row
+        // here (every concurrent contributor writes it); the contributor's own CurrencyAccount row is not.
+        // The increment (ExecuteUpdateAsync, an atomic `SET Balance = Balance + x`) and the balance
+        // read-back are wrapped in ONE transaction so the read observes exactly the write this call just
+        // made, with no window for another concurrent contribute/withdraw to land in between.
+        long jarBalanceAfter = await AdjustJarBalanceAsync(jarId, contributeAmount, ct);
+
         Result<CurrencyLedgerEntryDto> debit = await accounts.PostLedgerEntryAsync(
             broadcasterId,
             new(
@@ -286,13 +300,21 @@ public sealed class SavingsJarService(
             ct
         );
         if (debit.IsFailure)
+        {
+            // Compensate: reverse the jar credit we already applied before the debit failed.
+            await AdjustJarBalanceAsync(jarId, -contributeAmount, ct);
             return Result.Failure<JarMovementDto>(debit.ErrorMessage, debit.ErrorCode);
+        }
 
-        bool crossedGoal =
-            jar.GoalAmount is { } goal
-            && jar.Balance < goal
-            && jar.Balance + request.Amount >= goal;
-        jar.Balance += request.Amount;
+        jar.Balance = jarBalanceAfter;
+        if (db is DbContext dbContext)
+            // Accept jarBalanceAfter as the property's new baseline WITHOUT letting a later
+            // SaveChangesAsync in this request re-persist it. Setting OriginalValue alone is not enough —
+            // EF's per-property "modified" flag was already latched when CurrentValue diverged from
+            // OriginalValue and does not get cleared just by rewriting OriginalValue; IsModified = false,
+            // applied AFTER OriginalValue already matches CurrentValue, is a value no-op but correctly
+            // clears the flag.
+            SyncWithoutPersisting(dbContext.Entry(jar).Property(j => j.Balance), jarBalanceAfter);
         JarContribution movement = new()
         {
             JarId = request.JarId,
@@ -301,7 +323,7 @@ public sealed class SavingsJarService(
             ContributorUserId = request.ContributorUserId,
             Amount = request.Amount,
             MovementType = JarMovementType.Contribute,
-            JarBalanceAfter = jar.Balance,
+            JarBalanceAfter = jarBalanceAfter,
             LedgerEntryId = debit.Value.Id,
             CreatedAt = clock.GetUtcNow().UtcDateTime,
         };
@@ -316,7 +338,7 @@ public sealed class SavingsJarService(
                 SourceBroadcasterId = broadcasterId,
                 ContributorUserId = request.ContributorUserId,
                 Amount = request.Amount,
-                JarBalanceAfter = jar.Balance,
+                JarBalanceAfter = jarBalanceAfter,
                 ContributionId = movement.Id,
             },
             ct
@@ -328,11 +350,11 @@ public sealed class SavingsJarService(
                     BroadcasterId = broadcasterId,
                     JarId = request.JarId,
                     GoalAmount = jar.GoalAmount!.Value,
-                    Balance = jar.Balance,
+                    Balance = jarBalanceAfter,
                 },
                 ct
             );
-        return Result.Success(ToDto(movement, jar.Balance));
+        return Result.Success(ToDto(movement, jarBalanceAfter));
     }
 
     public async Task<Result<JarMovementDto>> WithdrawAsync(
@@ -366,7 +388,19 @@ public sealed class SavingsJarService(
                 "Withdrawal exceeds the jar's per-channel cap.",
                 "JAR_CAP_EXCEEDED"
             );
-        if (jar.Balance < request.Amount)
+
+        Guid jarId = jar.Id;
+        long withdrawAmount = request.Amount;
+        // The guarded decrement (ExecuteUpdateAsync's WHERE requires the CURRENT row balance to cover the
+        // withdrawal) and the balance read-back run in ONE transaction so the read observes exactly the
+        // write this call just made, with no window for a concurrent contribute/withdraw to land in
+        // between and for this call to then report a stale snapshot.
+        long? jarBalanceAfterDecrement = await TryDecrementJarBalanceAsync(
+            jarId,
+            withdrawAmount,
+            ct
+        );
+        if (jarBalanceAfterDecrement is null)
             return Result.Failure<JarMovementDto>(
                 "Jar has insufficient balance.",
                 "VALIDATION_FAILED"
@@ -388,9 +422,22 @@ public sealed class SavingsJarService(
             ct
         );
         if (credit.IsFailure)
+        {
+            // Compensate: restore the jar balance we already decremented before the credit failed.
+            await AdjustJarBalanceAsync(jarId, withdrawAmount, ct);
             return Result.Failure<JarMovementDto>(credit.ErrorMessage, credit.ErrorCode);
+        }
 
-        jar.Balance -= request.Amount;
+        long jarBalanceAfter = jarBalanceAfterDecrement.Value;
+        jar.Balance = jarBalanceAfter;
+        if (db is DbContext dbContext)
+            // Accept jarBalanceAfter as the property's new baseline WITHOUT letting a later
+            // SaveChangesAsync in this request re-persist it. Setting OriginalValue alone is not enough —
+            // EF's per-property "modified" flag was already latched when CurrentValue diverged from
+            // OriginalValue and does not get cleared just by rewriting OriginalValue; IsModified = false,
+            // applied AFTER OriginalValue already matches CurrentValue, is a value no-op but correctly
+            // clears the flag.
+            SyncWithoutPersisting(dbContext.Entry(jar).Property(j => j.Balance), jarBalanceAfter);
         JarContribution movement = new()
         {
             JarId = request.JarId,
@@ -398,7 +445,7 @@ public sealed class SavingsJarService(
             ContributorUserId = request.TargetViewerUserId,
             Amount = request.Amount,
             MovementType = JarMovementType.Withdraw,
-            JarBalanceAfter = jar.Balance,
+            JarBalanceAfter = jarBalanceAfter,
             LedgerEntryId = credit.Value.Id,
             ActorUserId = request.ActorUserId,
             CreatedAt = clock.GetUtcNow().UtcDateTime,
@@ -414,12 +461,12 @@ public sealed class SavingsJarService(
                 SourceBroadcasterId = broadcasterId,
                 ActorUserId = request.ActorUserId,
                 Amount = request.Amount,
-                JarBalanceAfter = jar.Balance,
+                JarBalanceAfter = jarBalanceAfter,
                 ContributionId = movement.Id,
             },
             ct
         );
-        return Result.Success(ToDto(movement, jar.Balance));
+        return Result.Success(ToDto(movement, jarBalanceAfter));
     }
 
     public async Task<Result<PagedList<JarMovementDto>>> GetJarHistoryAsync(
@@ -460,6 +507,97 @@ public sealed class SavingsJarService(
 
     private Task<SavingsJar?> FindJarAsync(Guid jarId, CancellationToken ct) =>
         db.SavingsJars.FirstOrDefaultAsync(j => j.Id == jarId && j.DeletedAt == null, ct);
+
+    /// <summary>
+    /// Atomically adds <paramref name="delta"/> to a jar's balance (unconditional — used for credits and
+    /// for reversing a decrement whose paired currency write failed) and returns the resulting balance.
+    /// The increment and the read-back run in one transaction so the read can never observe a different
+    /// write than the one this call just made.
+    /// </summary>
+    private async Task<long> AdjustJarBalanceAsync(Guid jarId, long delta, CancellationToken ct)
+    {
+        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction tx =
+            await RequireDbContext().Database.BeginTransactionAsync(ct);
+        await db
+            .SavingsJars.Where(j => j.Id == jarId)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(j => j.Balance, j => j.Balance + delta),
+                ct
+            );
+        long balanceAfter = await db
+            .SavingsJars.Where(j => j.Id == jarId)
+            .AsNoTracking()
+            .Select(j => j.Balance)
+            .FirstAsync(ct);
+        await tx.CommitAsync(ct);
+        return balanceAfter;
+    }
+
+    /// <summary>
+    /// Atomically subtracts <paramref name="amount"/> from a jar's balance ONLY if the row's current
+    /// balance covers it — the guard is a DB predicate evaluated at write time, never a prior in-memory
+    /// read — returning the resulting balance, or null if the jar had insufficient funds. The decrement
+    /// and the read-back run in one transaction so the read can never observe a different write than the
+    /// one this call just made.
+    /// </summary>
+    private async Task<long?> TryDecrementJarBalanceAsync(
+        Guid jarId,
+        long amount,
+        CancellationToken ct
+    )
+    {
+        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction tx =
+            await RequireDbContext().Database.BeginTransactionAsync(ct);
+        int decrementedRows = await db
+            .SavingsJars.Where(j => j.Id == jarId && j.Balance >= amount)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(j => j.Balance, j => j.Balance - amount),
+                ct
+            );
+        if (decrementedRows == 0)
+        {
+            await tx.CommitAsync(ct);
+            return null;
+        }
+        long balanceAfter = await db
+            .SavingsJars.Where(j => j.Id == jarId)
+            .AsNoTracking()
+            .Select(j => j.Balance)
+            .FirstAsync(ct);
+        await tx.CommitAsync(ct);
+        return balanceAfter;
+    }
+
+    /// <summary>
+    /// <see cref="ExecuteUpdateAsync{TSource}(IQueryable{TSource},Expression{Func{SetPropertyCalls{TSource},SetPropertyCalls{TSource}}},CancellationToken)"/>
+    /// needs the relational seam (a real <see cref="DbContext"/>) to open the short-lived transaction that
+    /// pairs each guarded write with its read-back. Every <see cref="IApplicationDbContext"/> in this app
+    /// is a <see cref="DbContext"/> (see <c>TenantSequenceAllocator</c> for the same pattern).
+    /// </summary>
+    private DbContext RequireDbContext() =>
+        db as DbContext
+        ?? throw new InvalidOperationException(
+            "SavingsJarService requires a relational DbContext-backed IApplicationDbContext."
+        );
+
+    /// <summary>
+    /// Accepts a property's already-assigned CurrentValue as the new baseline WITHOUT letting a later
+    /// SaveChangesAsync in this unit of work re-persist it. Setting only
+    /// <see cref="PropertyEntry{TEntity,TProperty}.OriginalValue"/> is not sufficient: EF's per-property
+    /// "modified" flag was already latched the moment CurrentValue diverged from OriginalValue, and
+    /// rewriting OriginalValue does not retroactively clear it — a later SaveChangesAsync would still
+    /// re-persist CurrentValue verbatim, silently erasing whatever a concurrent writer moved the row to
+    /// since. Setting IsModified = false, done AFTER OriginalValue already equals CurrentValue, is a value
+    /// no-op (there is nothing left to revert to) but correctly clears the flag.
+    /// </summary>
+    private static void SyncWithoutPersisting<TValue>(
+        PropertyEntry<SavingsJar, TValue> property,
+        TValue currentValue
+    )
+    {
+        property.OriginalValue = currentValue;
+        property.IsModified = false;
+    }
 
     private Task<SavingsJarMembership?> FindMembershipAsync(
         Guid membershipId,

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
@@ -338,17 +339,102 @@ public sealed class CurrencyAccountService(
         if (account.IsFrozen)
             return Result.Failure<CurrencyLedgerEntry>("Account is frozen.", "ACCOUNT_FROZEN");
 
-        long newBalance = account.Balance + amount;
-        if (amount < 0 && newBalance < 0)
-            return Result.Failure<CurrencyLedgerEntry>("Insufficient funds.", "INSUFFICIENT_FUNDS");
-        if (amount > 0 && config.MaxBalance is { } max && newBalance > max)
-            return Result.Failure<CurrencyLedgerEntry>(
-                "Maximum balance exceeded.",
-                "MAX_BALANCE_EXCEEDED"
+        long? maxBalance = config.MaxBalance;
+        Guid accountId = account.Id;
+        DateTime activityAt = clock.GetUtcNow().UtcDateTime;
+        int updatedRows = await db
+            .CurrencyAccounts.Where(a =>
+                a.Id == accountId
+                && (amount >= 0 || a.Balance + amount >= 0)
+                && (amount <= 0 || maxBalance == null || a.Balance + amount <= maxBalance)
+            )
+            .ExecuteUpdateAsync(
+                setters =>
+                    setters
+                        .SetProperty(a => a.Balance, a => a.Balance + amount)
+                        .SetProperty(
+                            a => a.LifetimeEarned,
+                            a => amount > 0 ? a.LifetimeEarned + amount : a.LifetimeEarned
+                        )
+                        .SetProperty(
+                            a => a.LifetimeSpent,
+                            a => amount < 0 ? a.LifetimeSpent - amount : a.LifetimeSpent
+                        )
+                        .SetProperty(a => a.LastActivityAt, activityAt),
+                ct
             );
 
+        if (updatedRows == 0)
+        {
+            long currentBalance = await db
+                .CurrencyAccounts.Where(a => a.Id == accountId)
+                .Select(a => a.Balance)
+                .FirstAsync(ct);
+            long attemptedBalance = currentBalance + amount;
+            if (amount < 0 && attemptedBalance < 0)
+                return Result.Failure<CurrencyLedgerEntry>(
+                    "Insufficient funds.",
+                    "INSUFFICIENT_FUNDS"
+                );
+            if (amount > 0 && maxBalance is { } max && attemptedBalance > max)
+                return Result.Failure<CurrencyLedgerEntry>(
+                    "Maximum balance exceeded.",
+                    "MAX_BALANCE_EXCEEDED"
+                );
+            return Result.Failure<CurrencyLedgerEntry>(
+                "Balance update conflicted; retry.",
+                "CONCURRENCY_CONFLICT"
+            );
+        }
+
+        long newBalance = await db
+            .CurrencyAccounts.Where(a => a.Id == accountId)
+            .AsNoTracking()
+            .Select(a => a.Balance)
+            .FirstAsync(ct);
+        // ExecuteUpdateAsync bypasses the change tracker, so the tracked `account` instance (if this
+        // DbContext already has it loaded) would otherwise keep serving its stale pre-update values to
+        // any other code in this same unit of work that looks it up again (EF's identity map always
+        // prefers the tracked instance over a fresh row). Sync the CLR values in place, then re-baseline
+        // each property's ORIGINAL value to match — NOT via `IsModified = false` or `entry.State =
+        // Unchanged`, both of which discard the pending edit and revert CurrentValue back to what it was
+        // before this method ran. Rewriting OriginalValue keeps CurrentValue as the freshly-read DB value
+        // while telling EF there is nothing left to save, so a later SaveChangesAsync in this same request
+        // does not re-persist a value that can go stale relative to a concurrent writer the moment we step
+        // outside our own transaction.
+        account.Balance = newBalance;
+        if (amount > 0)
+            account.LifetimeEarned += amount;
+        else if (amount < 0)
+            account.LifetimeSpent += -amount;
+        account.LastActivityAt = activityAt;
+        if (db is DbContext dbContext)
+        {
+            EntityEntry<CurrencyAccount> accountEntry = dbContext.Entry(account);
+            // Setting OriginalValue alone is NOT enough — EF's per-property "modified" flag is a separate,
+            // already-latched bit set the moment CurrentValue diverged from OriginalValue above; rewriting
+            // OriginalValue to match does not retroactively clear it. Without also clearing IsModified, a
+            // later SaveChangesAsync in this same request still re-persists CurrentValue verbatim, and if a
+            // concurrent writer has moved the row on since, that re-persist silently erases it — a lost
+            // update. IsModified = false, set AFTER OriginalValue already equals CurrentValue, is a no-op
+            // on the value (nothing to revert to) but correctly clears the flag.
+            SyncWithoutPersisting(accountEntry.Property(a => a.Balance), account.Balance);
+            SyncWithoutPersisting(
+                accountEntry.Property(a => a.LifetimeEarned),
+                account.LifetimeEarned
+            );
+            SyncWithoutPersisting(
+                accountEntry.Property(a => a.LifetimeSpent),
+                account.LifetimeSpent
+            );
+            SyncWithoutPersisting(
+                accountEntry.Property(a => a.LastActivityAt),
+                account.LastActivityAt
+            );
+        }
+
         long position = (await allocator.NextAsync(broadcasterId, LedgerSequence, ct)).Value;
-        DateTime now = clock.GetUtcNow().UtcDateTime;
+        DateTime now = activityAt;
         CurrencyLedgerEntry entry = new()
         {
             BroadcasterId = broadcasterId,
@@ -368,13 +454,6 @@ public sealed class CurrencyAccountService(
             CreatedAt = now,
         };
         db.CurrencyLedgerEntries.Add(entry);
-
-        account.Balance = newBalance;
-        if (amount > 0)
-            account.LifetimeEarned += amount;
-        else
-            account.LifetimeSpent += -amount;
-        account.LastActivityAt = now;
 
         return Result.Success(entry);
     }
@@ -428,6 +507,25 @@ public sealed class CurrencyAccountService(
             a => a.BroadcasterId == broadcasterId && a.ViewerUserId == viewerUserId,
             ct
         );
+
+    /// <summary>
+    /// Accepts a property's already-assigned CurrentValue as the new baseline WITHOUT letting a later
+    /// SaveChangesAsync in this unit of work re-persist it. Setting only <see cref="PropertyEntry{TEntity,TProperty}.OriginalValue"/>
+    /// is not sufficient: EF's per-property "modified" flag was already latched the moment CurrentValue
+    /// diverged from OriginalValue, and rewriting OriginalValue does not retroactively clear it — a later
+    /// SaveChangesAsync would still re-persist CurrentValue verbatim, silently erasing whatever a
+    /// concurrent writer moved the row to since. Setting IsModified = false, done AFTER OriginalValue
+    /// already equals CurrentValue, is a value no-op (there is nothing left to revert to) but correctly
+    /// clears the flag.
+    /// </summary>
+    private static void SyncWithoutPersisting<TValue>(
+        PropertyEntry<CurrencyAccount, TValue> property,
+        TValue currentValue
+    )
+    {
+        property.OriginalValue = currentValue;
+        property.IsModified = false;
+    }
 
     private Task<CurrencyConfig?> LoadConfigAsync(Guid broadcasterId, CancellationToken ct) =>
         db.CurrencyConfigs.FirstOrDefaultAsync(c => c.BroadcasterId == broadcasterId, ct);
