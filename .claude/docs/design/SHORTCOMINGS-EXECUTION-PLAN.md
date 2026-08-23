@@ -29,12 +29,13 @@ Slice IDs are stable; the order is the queue.
 - **S003** Spotify visible state — 401/403 → `needs_reauth`/`forbidden` on the integration status +
   Music page; vault is the single token source (drop the `Services` mirror read) (U·A2). Done-when: a
   revoked token shows on the Integrations card and `!sr` says why; music reads no `Services` row.
-- **S004b** Finish the read-modify-write sweep — S004 (89a45dd4) made `CurrencyAccount.Balance` and
-  `SavingsJar.Balance` atomic, but the same shape survives at `Economy/CatalogService.cs:328,406`
-  (`StockRemaining` — a genuine oversell: two concurrent purchases of the last item both pass the check) and
-  `Widgets/WidgetService.cs:302` (`item.InstallCount += 1`, a lost-count). Use the SAME mechanism S004 chose.
-  Done-when: N concurrent purchases of a 1-stock item yield exactly one sale and stock never goes negative;
-  N concurrent installs increment the count exactly N times.
+- **S004c** Last read-modify-write sites — `Billing/UsageMeteringService.cs:73` (`record.Quantity += quantity`
+  then SaveChanges) loses billing usage under concurrency, i.e. undercharged revenue; `Analytics/`
+  `ChannelAnalyticsDailyProjection.cs:107,113,117,221` and `WatchSessionProjection.cs:97` use the same `+=`
+  accumulator shape (probably single-writer today — establish whether the projection runner can ever run two
+  writers for one key, and either make them atomic or add the test that pins single-writer). Same mechanism as
+  S004/S004b. Done-when: N concurrent metering calls record exactly N units; the projection question is answered
+  by a test, not an assumption.
 - **S005** Earning dedupe unique index + escalation atomic increment (S·F12, F13). Done-when: duplicate
   event credit blocked by the DB; two concurrent offenses compound.
 - **S006** Live-game money — settle failure refunds or parks retryable; can't-pay joiner feedback;
