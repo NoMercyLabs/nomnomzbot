@@ -18,6 +18,7 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Music;
 
 namespace NomNomzBot.Infrastructure.BackgroundServices;
 
@@ -123,6 +124,8 @@ public sealed class MusicStatePollingService : BackgroundService
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         IMusicService musicService = scope.ServiceProvider.GetRequiredService<IMusicService>();
+        ISongRequestHandover handover =
+            scope.ServiceProvider.GetRequiredService<ISongRequestHandover>();
         List<string> providerKeys = scope
             .ServiceProvider.GetServices<IMusicProvider>()
             .Select(p => p.Provider)
@@ -157,6 +160,15 @@ public sealed class MusicStatePollingService : BackgroundService
                 );
                 _backoff.TryRemove(channelId, out _);
                 await ProcessChannelStateAsync(channelId, nowPlaying, now, cancellationToken);
+
+                // Recovery tick for a stuck song-request queue. SongRequestQueueReconciler advances the
+                // queue off playback CHANGES, but a handover that could not land — the streamer's player
+                // was closed, the token had died, a transient provider error — leaves requests waiting
+                // with nothing in flight, and a paused or unchanging player publishes no further change
+                // to wake the reconciler. Asking here every tick means the queue resumes by itself the
+                // moment playback is possible again, instead of waiting for a viewer to request another
+                // song. No-ops when something is already in flight or the queue is empty.
+                await handover.HandOverNextAsync(channelId.ToString(), cancellationToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

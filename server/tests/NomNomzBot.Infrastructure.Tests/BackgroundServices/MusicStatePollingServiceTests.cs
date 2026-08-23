@@ -19,6 +19,7 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.BackgroundServices;
+using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Music;
 
@@ -42,7 +43,8 @@ public sealed class MusicStatePollingServiceTests
             MusicStatePollingService sut,
             RecordingEventBus bus,
             FakeMusicService music,
-            FakeTimeProvider _
+            FakeTimeProvider _,
+            RecordingHandover _
         ) = Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
 
@@ -55,9 +57,8 @@ public sealed class MusicStatePollingServiceTests
     [Fact]
     public async Task Track_change_publishes_the_new_track()
     {
-        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _) = Build([
-            ChannelA,
-        ]);
+        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
+            Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
@@ -74,9 +75,8 @@ public sealed class MusicStatePollingServiceTests
     [Fact]
     public async Task Pause_flip_publishes_the_new_play_state()
     {
-        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _) = Build([
-            ChannelA,
-        ]);
+        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
+            Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
@@ -98,7 +98,8 @@ public sealed class MusicStatePollingServiceTests
             MusicStatePollingService sut,
             RecordingEventBus bus,
             FakeMusicService music,
-            FakeTimeProvider clock
+            FakeTimeProvider clock,
+            _
         ) = Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
@@ -119,7 +120,8 @@ public sealed class MusicStatePollingServiceTests
             MusicStatePollingService sut,
             RecordingEventBus bus,
             FakeMusicService music,
-            FakeTimeProvider clock
+            FakeTimeProvider clock,
+            _
         ) = Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
@@ -136,9 +138,8 @@ public sealed class MusicStatePollingServiceTests
     [Fact]
     public async Task Volume_only_change_publishes_too()
     {
-        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _) = Build([
-            ChannelA,
-        ]);
+        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
+            Build([ChannelA]);
         music.SetResponse(
             ChannelA,
             NowPlayingState("Song A", isPlaying: true, progressMs: 1_000, volumePercent: 80)
@@ -164,9 +165,8 @@ public sealed class MusicStatePollingServiceTests
     [Fact]
     public async Task Permission_flip_with_nothing_else_changed_publishes_too()
     {
-        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _) = Build([
-            ChannelA,
-        ]);
+        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
+            Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
@@ -189,10 +189,8 @@ public sealed class MusicStatePollingServiceTests
     [Fact]
     public async Task One_channel_throwing_does_not_stop_the_others_in_the_same_tick()
     {
-        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _) = Build([
-            ChannelA,
-            ChannelB,
-        ]);
+        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
+            Build([ChannelA, ChannelB]);
         music.SetThrows(ChannelA);
         music.SetResponse(ChannelB, NowPlayingState("Song B", isPlaying: true, progressMs: 0));
 
@@ -212,7 +210,8 @@ public sealed class MusicStatePollingServiceTests
             MusicStatePollingService sut,
             RecordingEventBus _,
             FakeMusicService music,
-            FakeTimeProvider clock
+            FakeTimeProvider clock,
+            RecordingHandover _
         ) = Build([ChannelA]);
         music.SetThrows(ChannelA);
 
@@ -230,11 +229,50 @@ public sealed class MusicStatePollingServiceTests
         music.Calls.Should().HaveCount(2);
     }
 
+    /// <summary>
+    /// The song-request queue advances off playback CHANGES, but a handover that could not land — the
+    /// streamer's player was closed, the token had died — leaves requests waiting with nothing at the
+    /// provider, and a paused or unchanging player publishes no further change to wake the reconciler.
+    /// The poller therefore asks on EVERY tick, including a tick that publishes nothing, so the queue
+    /// resumes by itself rather than waiting for a viewer to request another song.
+    /// </summary>
+    [Fact]
+    public async Task Every_tick_asks_to_un_stick_the_song_request_queue_even_when_nothing_changed()
+    {
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider _,
+            RecordingHandover handover
+        ) = Build([ChannelA, ChannelB]);
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
+        music.SetResponse(ChannelB, NowPlayingState("Song B", isPlaying: true, progressMs: 1_000));
+
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        int publishedAfterFirstTick = bus.Published.Count;
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        // The second tick observes identical state and publishes nothing — and must still ask, for BOTH
+        // channels: which channels were asked is the distinction, not how many calls were made.
+        bus.Published.Count.Should()
+            .Be(publishedAfterFirstTick, "unchanged state publishes nothing");
+        handover
+            .Calls.Should()
+            .Equal(
+                ChannelA.ToString(),
+                ChannelB.ToString(),
+                ChannelA.ToString(),
+                ChannelB.ToString()
+            );
+    }
+
     private static (
         MusicStatePollingService Sut,
         RecordingEventBus Bus,
         FakeMusicService MusicService,
-        FakeTimeProvider Clock
+        FakeTimeProvider Clock,
+        RecordingHandover Handover
     ) Build(IReadOnlyList<Guid> connectedChannels)
     {
         MusicTestDbContext db = new(
@@ -261,14 +299,15 @@ public sealed class MusicStatePollingServiceTests
         FakeMusicService music = new();
         FakeTimeProvider clock = new(new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
 
+        PollerScopeFactory scopes = new(db, music);
         MusicStatePollingService sut = new(
-            new PollerScopeFactory(db, music),
+            scopes,
             bus,
             clock,
             NullLogger<MusicStatePollingService>.Instance
         );
 
-        return (sut, bus, music, clock);
+        return (sut, bus, music, clock, scopes.Handover);
     }
 
     private static NowPlaying NowPlayingState(
@@ -293,17 +332,25 @@ public sealed class MusicStatePollingServiceTests
         );
 
     /// <summary>A scope factory whose every scope resolves the shared test <see cref="IApplicationDbContext"/>,
-    /// <see cref="IMusicService"/>, and the registered <see cref="IMusicProvider"/> set — the three dependencies
-    /// <see cref="MusicStatePollingService"/> resolves per tick (the provider set supplies the integration
-    /// names whose connections count as "music-connected").</summary>
-    private sealed class PollerScopeFactory(IApplicationDbContext db, IMusicService musicService)
-        : IServiceScopeFactory
+    /// <see cref="IMusicService"/>, the registered <see cref="IMusicProvider"/> set, and the
+    /// <see cref="ISongRequestHandover"/> the poller asks on each tick to un-stick a song-request queue whose
+    /// earlier handover could not land (the provider set supplies the integration names whose connections
+    /// count as "music-connected").</summary>
+    private sealed class PollerScopeFactory(
+        IApplicationDbContext db,
+        IMusicService musicService,
+        RecordingHandover? handover = null
+    ) : IServiceScopeFactory
     {
-        public IServiceScope CreateScope() => new Scope(db, musicService);
+        public RecordingHandover Handover { get; } = handover ?? new RecordingHandover();
 
-        private sealed class Scope(IApplicationDbContext db, IMusicService musicService)
-            : IServiceScope,
-                IServiceProvider
+        public IServiceScope CreateScope() => new Scope(db, musicService, Handover);
+
+        private sealed class Scope(
+            IApplicationDbContext db,
+            IMusicService musicService,
+            ISongRequestHandover handover
+        ) : IServiceScope, IServiceProvider
         {
             public IServiceProvider ServiceProvider => this;
 
@@ -313,12 +360,29 @@ public sealed class MusicStatePollingServiceTests
                     return db;
                 if (serviceType == typeof(IMusicService))
                     return musicService;
+                if (serviceType == typeof(ISongRequestHandover))
+                    return handover;
                 if (serviceType == typeof(IEnumerable<IMusicProvider>))
                     return new List<IMusicProvider> { new RegisteredSpotifyStub() };
                 return null;
             }
 
             public void Dispose() { }
+        }
+    }
+
+    /// <summary>Records the channels the poller asked to un-stick, instead of touching a provider.</summary>
+    internal sealed class RecordingHandover : ISongRequestHandover
+    {
+        public List<string> Calls { get; } = [];
+
+        public Task HandOverNextAsync(
+            string broadcasterId,
+            CancellationToken cancellationToken = default
+        )
+        {
+            Calls.Add(broadcasterId);
+            return Task.CompletedTask;
         }
     }
 

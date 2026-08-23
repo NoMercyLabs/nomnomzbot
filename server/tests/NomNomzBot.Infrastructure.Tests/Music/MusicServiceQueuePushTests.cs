@@ -103,6 +103,91 @@ public sealed class MusicServiceQueuePushTests
             .Equal("Song b2");
     }
 
+    /// <summary>
+    /// A handover that could not land — the streamer's player was closed, the token had died — must not
+    /// strand the queue. The request stays at the head with nothing in flight, and the playback poller's
+    /// recovery tick calls the same handover again, so the queue resumes on its own the moment playback is
+    /// possible instead of waiting for someone to request another song.
+    /// </summary>
+    [Fact]
+    public async Task A_request_that_could_not_be_handed_over_is_handed_over_on_the_next_recovery_tick()
+    {
+        (MusicService sut, RecordingHttpHandler handler) = Build();
+        handler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            SearchJson("c1")
+        );
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Post
+                && r.RequestUri!.AbsolutePath.EndsWith(
+                    "/me/player/queue",
+                    StringComparison.Ordinal
+                ),
+            HttpStatusCode.NotFound,
+            """{"error":{"status":404,"reason":"NO_ACTIVE_DEVICE","message":"No active device"}}"""
+        );
+
+        (await sut.AddToQueueAsync(ChannelId.ToString(), "song c1", "viewer1"))
+            .ErrorCode.Should()
+            .Be("NO_ACTIVE_DEVICE");
+
+        // The viewer re-requests once the device is back; it queues but is not yet at the provider...
+        handler.ClearRoutes();
+        handler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            SearchJson("c2")
+        );
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Post
+                && r.RequestUri!.AbsolutePath.EndsWith(
+                    "/me/player/queue",
+                    StringComparison.Ordinal
+                ),
+            HttpStatusCode.NotFound,
+            """{"error":{"status":404,"reason":"NO_ACTIVE_DEVICE","message":"No active device"}}"""
+        );
+        (await sut.AddToQueueAsync(ChannelId.ToString(), "song c2", "viewer1"))
+            .ErrorCode.Should()
+            .Be("NO_ACTIVE_DEVICE");
+
+        // ...the device comes back. The recovery tick hands the head over without any new request.
+        handler.ClearRoutes();
+        RespondQueuePush(handler, HttpStatusCode.NoContent);
+        int pushesBefore = QueuePushCount(handler);
+
+        await sut.HandOverNextAsync(ChannelId.ToString());
+
+        QueuePushCount(handler)
+            .Should()
+            .Be(pushesBefore, "nothing is queued — both attempts rolled their request back out");
+
+        // With a request actually waiting, the same tick hands exactly that one over.
+        handler.ClearRoutes();
+        handler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            SearchJson("c3")
+        );
+        RespondQueuePush(handler, HttpStatusCode.NoContent);
+        (await sut.AddToQueueAsync(ChannelId.ToString(), "song c3", "viewer1"))
+            .IsSuccess.Should()
+            .BeTrue();
+        int afterAccepted = QueuePushCount(handler);
+
+        await sut.HandOverNextAsync(ChannelId.ToString());
+
+        QueuePushCount(handler)
+            .Should()
+            .Be(
+                afterAccepted,
+                "one is already in flight — a recovery tick must never push a second"
+            );
+    }
+
     private static int QueuePushCount(RecordingHttpHandler handler) =>
         handler.RequestUrls.Count(url =>
             url.Contains("/me/player/queue", StringComparison.Ordinal)

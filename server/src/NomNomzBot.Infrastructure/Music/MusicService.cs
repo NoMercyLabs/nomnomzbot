@@ -1115,6 +1115,11 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return;
 
+        // Never two of ours at the provider — that is the invariant the whole fair queue rests on. Callers
+        // that fire on a cadence (the playback poller's recovery tick) can therefore call this freely.
+        if (_queueStore.GetInFlight(broadcasterId) is not null)
+            return;
+
         FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
         SongRequestEntry? next = queue?.Peek();
         if (next is null)
