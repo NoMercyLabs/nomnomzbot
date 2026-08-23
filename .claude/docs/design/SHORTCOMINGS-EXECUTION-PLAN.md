@@ -40,9 +40,11 @@ Slice IDs are stable; the order is the queue.
   flat `Service` table rather than `IIntegrationTokenVault` — a second custody path. Done-when: Spotify refresh goes through
   `ConnectionRefreshGate` with the same two-concurrent-callers test, and YouTube custody is on the vault or the split is
   documented as deliberate with the reason.
-- **S038** DB/Redis resilience — Redis `abortConnect=false` + degrade; health check pings the singleton;
-  SQLite WAL + busy timeout; `EnableRetryOnFailure`; `UnitOfWork` nested-begin guard + disposable;
-  delete `DatabaseHealthCheck.cs` (U·B7). Done-when: SQLite soak with all services shows no "locked".
+- **S038b** Redis loss still throws per-call — S038 (daaca3a4) set `AbortOnConnectFail=false` so the app boots without Redis,
+  but `RedisRateLimiterPartitionStore` and `DistributedCacheService` call straight into Redis with no fallback, so losing Redis
+  at RUNTIME now surfaces as per-call timeouts instead of a clean degrade. `InfraReachabilityProbe`/`StartupReadinessChecker`
+  also open their own multiplexers with the old abort posture. Done-when: a runtime Redis outage degrades to in-memory for both
+  stores and the health check reports it, proven with Redis stopped mid-run.
 - **S039** Timers correctness — interval floor/ceiling; `LastFiredAt` advances on failure; stamp on
   enable/create; `MinChatActivity` snapshot; prune dead; rename uniqueness (S·F2/F5/F8, U·B1).
 - **S040** Cooldown + collisions — atomic cooldown try-acquire (🔒 DB write-through); unique index or
