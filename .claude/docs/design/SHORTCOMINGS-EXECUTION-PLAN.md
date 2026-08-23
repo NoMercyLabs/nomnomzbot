@@ -42,10 +42,12 @@ Slice IDs are stable; the order is the queue.
 - **S003** Spotify visible state — 401/403 → `needs_reauth`/`forbidden` on the integration status +
   Music page; vault is the single token source (drop the `Services` mirror read) (U·A2). Done-when: a
   revoked token shows on the Integrations card and `!sr` says why; music reads no `Services` row.
-- **S004f** `WatchSessionConfiguration.cs` has no unique index on (BroadcasterId, ViewerUserId, StreamId) — concurrent
-  `GetOrOpenAsync` can mint duplicate session rows. Done-when: the DB rejects the duplicate and the code handles it.
-  Also drop the now-redundant per-entity UTC-ticks converters in `Identity/AuthTestContext.cs:328-441` — S004e’s
-  model-level `ApplySqliteCompatibility` supersedes that hand-rolled workaround.
+- **S004h** Open watch-session duration is still a read-modify-write — `WatchSessionProjection.cs:~89-92` mutates the
+  OPEN session’s `DurationSeconds`/`EndedAt` on a tracked entity, so concurrent folds of one already-open session lose or
+  over-accumulate watch time. Measured: 15 concurrent folds produced 660s against a 150s real bound — streamers would see
+  inflated watch stats. Separate from the duplicate-row defect S004f closed. Use the S004 mechanism.
+  Done-when: N concurrent folds of one open session accumulate exactly the real elapsed time, asserted against the bound.
+  **Wait for S119** (test-host crash fix) before adding another file-backed concurrency test.
 - **S004g** `EventStoreController.cs:115-171` Replay/RebuildProjections take no `IRunOnceGuard` lease, so a manual rebuild
   races the driver’s 15s tick. S004d’s atomic upserts absorb the damage; the lease would stop it at the source.
   Done-when: a rebuild started while the driver is mid-tick for the same broadcaster+projection waits or is refused.
