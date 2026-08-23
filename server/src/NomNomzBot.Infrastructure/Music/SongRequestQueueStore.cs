@@ -27,11 +27,12 @@ namespace NomNomzBot.Infrastructure.Music;
 /// the same channel never race each other or lose an entry.
 /// </para>
 /// <para>
-/// In-memory only, by design for this slice: the song-request queue is transient live-show state
-/// (today's stream's pending requests), not a durable record — restarting the bot mid-stream loses
-/// the in-flight queue, same as before this fix. If that turns out to matter (e.g. a crash losing a
-/// long queue), the fix is a durable-backed store behind this same interface, not a silent
-/// workaround here.
+/// The queues here are the live, in-memory serving path — every read/write in the hot `!sr` / `!queue`
+/// path only ever touches this store, never the database. Durability (S001b) is layered on top, not
+/// baked in here: <see cref="MusicService"/> and <see cref="SongRequestQueueReconciler"/> call
+/// <c>ISongRequestQueuePersistence.SyncAsync</c> immediately after every mutation they make to a
+/// queue returned from here, and <c>SongRequestQueueRestoreHostedService</c> calls <see cref="Restore"/>
+/// once at startup, before any live traffic, to replay a fresh persisted queue back into an empty one.
 /// </para>
 /// </summary>
 public interface ISongRequestQueueStore
@@ -41,6 +42,18 @@ public interface ISongRequestQueueStore
 
     /// <summary>Returns the channel's queue if one has ever been created; null otherwise (never creates one).</summary>
     FairQueue<SongRequestEntry>? TryGet(string broadcasterId);
+
+    /// <summary>
+    /// Replays a persisted queue back into memory at startup (S001b), in the exact order it was
+    /// persisted. Only meant to be called once per channel, before any live traffic reaches it —
+    /// <see cref="FairQueue{T}.Enqueue"/> derives rank purely from insertion order, so replaying the
+    /// same ordered (ownerKey, item) sequence reproduces the exact same rank state the queue had
+    /// before the restart.
+    /// </summary>
+    void Restore(
+        string broadcasterId,
+        IReadOnlyList<(string OwnerKey, SongRequestEntry Entry)> orderedEntries
+    );
 }
 
 /// <inheritdoc cref="ISongRequestQueueStore"/>
@@ -53,6 +66,16 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
 
     public FairQueue<SongRequestEntry>? TryGet(string broadcasterId) =>
         _queues.TryGetValue(broadcasterId, out FairQueue<SongRequestEntry>? queue) ? queue : null;
+
+    public void Restore(
+        string broadcasterId,
+        IReadOnlyList<(string OwnerKey, SongRequestEntry Entry)> orderedEntries
+    )
+    {
+        FairQueue<SongRequestEntry> queue = GetOrCreate(broadcasterId);
+        foreach ((string ownerKey, SongRequestEntry entry) in orderedEntries)
+            queue.Enqueue(ownerKey, entry);
+    }
 }
 
 /// <summary>An item in the per-channel song request queue.</summary>

@@ -6724,6 +6724,59 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("BlockedTracks");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Music.Entities.SongRequestQueueItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Artist")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BroadcasterId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Sequence")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TrackName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrackUri")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "Sequence")
+                        .IsUnique()
+                        .HasDatabaseName("IX_SongRequestQueueItem_BroadcasterId_Sequence");
+
+                    b.ToTable("SongRequestQueueItems");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Obs.Entities.ObsConnection", b =>
                 {
                     b.Property<Guid>("Id")

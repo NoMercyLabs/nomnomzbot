@@ -85,6 +85,13 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Domain.Music.Entities.BlockedTrack> BlockedTracks =>
         Set<Domain.Music.Entities.BlockedTrack>();
 
+    // Music — durable mirror of the in-memory song-request fair queue (S001b). Not part of
+    // IApplicationDbContext: only NomNomzBot.Infrastructure.Music.SongRequestQueuePersistence reads/writes
+    // it, going through this concrete AppDbContext directly (the same pattern as PronounResolutionService),
+    // so adding it never touches the ~26 IApplicationDbContext test fakes.
+    public DbSet<Domain.Music.Entities.SongRequestQueueItem> SongRequestQueueItems =>
+        Set<Domain.Music.Entities.SongRequestQueueItem>();
+
     // Generic named pick-lists (the {list.pick.<name>} primitive).
     public DbSet<Domain.PickLists.Entities.PickList> PickLists =>
         Set<Domain.PickLists.Entities.PickList>();
