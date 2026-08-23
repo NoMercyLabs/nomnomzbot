@@ -59,6 +59,14 @@ public sealed class InvoicePaymentRecordedEvent : DomainEventBase
     public required string Currency { get; init; }
 }
 
+/// <summary>An invoice was refunded via platform admin (monetization-billing.md §5.3, <c>billing:refund</c>).</summary>
+public sealed class InvoiceRefundedEvent : DomainEventBase
+{
+    public required Guid InvoiceId { get; init; }
+    public required int AmountRefundedCents { get; init; }
+    public required string Currency { get; init; }
+}
+
 /// <summary>Invite code redeemed (badge and/or tier granted). <c>BroadcasterId</c> = redeemer's channel.</summary>
 public sealed class InviteCodeRedeemedEvent : DomainEventBase
 {
