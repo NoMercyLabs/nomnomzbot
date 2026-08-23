@@ -29,6 +29,9 @@ private object NoOpLanDiscovery : LanDiscovery {
     private val _discovered: MutableStateFlow<List<ConnectionProfile>> = MutableStateFlow(emptyList())
     override val discovered: StateFlow<List<ConnectionProfile>> = _discovered.asStateFlow()
 
+    private val _discoveryFailed: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    override val discoveryFailed: StateFlow<Boolean> = _discoveryFailed.asStateFlow()
+
     override fun start() = Unit
 
     override fun stop() = Unit

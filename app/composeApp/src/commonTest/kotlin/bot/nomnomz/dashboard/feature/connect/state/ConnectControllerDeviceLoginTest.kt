@@ -17,6 +17,9 @@ import bot.nomnomz.dashboard.core.connection.LanDiscovery
 import bot.nomnomz.dashboard.core.connection.ProfileSource
 import bot.nomnomz.dashboard.core.connection.SessionPhase
 import bot.nomnomz.dashboard.core.connection.SessionStore
+import bot.nomnomz.dashboard.core.connection.SavedConnection
+import bot.nomnomz.dashboard.core.connection.SavedConnectionsRepository
+import bot.nomnomz.dashboard.core.connection.SavedConnectionsStore
 import bot.nomnomz.dashboard.core.connection.SessionTokenStore
 import bot.nomnomz.dashboard.core.connection.SessionTokens
 import bot.nomnomz.dashboard.core.network.ApiError
@@ -63,8 +66,13 @@ class ConnectControllerDeviceLoginTest {
         profiles: ActiveProfileStore = InMemoryProfileStore(),
         connectLauncher: ConnectLauncher = FakeConnectLauncher(),
         diagnostics: TwitchDiagnosticsApi = FakeTwitchDiagnosticsApi(),
+        savedConnectionsStore: SavedConnectionsStore = InMemorySavedConnectionsStore(),
     ): ConnectController {
         val session: SessionStore = SessionStore(vault, profiles)
+        // The saved-connections repository shares the SAME token vault the session uses, exactly like
+        // production (both are stateless, keyed-by-id token stores) — so a token established through one
+        // path is visible when the saved-connections flow later looks it up by id.
+        val savedConnectionsRepository = SavedConnectionsRepository(savedConnectionsStore, vault)
         return ConnectController(
                 sessionStore = session,
                 authApi = authApi,
@@ -73,6 +81,7 @@ class ConnectControllerDeviceLoginTest {
                 lanDiscovery = lanDiscovery,
                 diagnosticsApi = diagnostics,
                 profileIdFactory = { "test-profile" },
+                savedConnectionsRepository = savedConnectionsRepository,
             )
             .also { sessionByController[it] = session }
     }
@@ -158,6 +167,64 @@ class ConnectControllerDeviceLoginTest {
         assertEquals(1, discovery.startCount)
         controller.stopDiscovery()
         assertEquals(1, discovery.stopCount)
+    }
+
+    @Test
+    fun mdns_browse_failure_surfaces_as_a_user_visible_state_flag_not_stderr() = runTest {
+        // S111b: a total browse failure (every interface failed to open) must land in a flow the Connect
+        // screen renders a calm inline message from, not only in stderr.
+        val discovery = FakeLanDiscovery()
+        val controller = controller(FakeSystemApi(ready = true), lanDiscovery = discovery)
+
+        assertEquals(false, controller.discoveryFailed.value)
+
+        discovery.setDiscoveryFailed(true)
+
+        assertEquals(true, controller.discoveryFailed.value)
+    }
+
+    @Test
+    fun switching_to_a_saved_connection_swaps_the_active_backend_and_reconnects() = runTest {
+        // Two saved connections, each with its own already-stored token (as if both were signed into
+        // previously). Switching to B must swap the session onto B's backend + token (the reconnect signal
+        // REST/SignalR read from) and flip the active-saved-connection id.
+        val vault = InMemoryVault()
+        vault.stored["conn-a"] = SessionTokens(accessToken = "token-a")
+        vault.stored["conn-b"] = SessionTokens(accessToken = "token-b")
+
+        val savedStore = InMemorySavedConnectionsStore()
+        savedStore.add(SavedConnection(id = "conn-a", label = "Home", baseUrl = "http://localhost:5080", lastUsedAt = null))
+        savedStore.add(SavedConnection(id = "conn-b", label = "LAN", baseUrl = "http://192.168.2.60:5080", lastUsedAt = null))
+
+        val authApi = FakeAuthApi(meResults = listOf(ApiResult.Ok(CurrentUser("u1", "eagle", "Eagle"))))
+        val controller =
+            controller(FakeSystemApi(ready = true), authApi = authApi, vault = vault, savedConnectionsStore = savedStore)
+
+        controller.loadSavedConnections()
+        val connectionB: SavedConnection = controller.savedConnections.value.first { it.id == "conn-b" }
+
+        controller.switchToSavedConnection(connectionB)
+
+        val session: SessionStore = sessionOf(controller)
+        assertEquals("http://192.168.2.60:5080", session.baseUrl())
+        assertEquals("token-b", session.accessToken())
+        assertEquals(SessionPhase.Connected, session.phase.value)
+        assertEquals("conn-b", controller.activeSavedConnectionId.value)
+    }
+
+    @Test
+    fun forgetting_a_saved_connection_removes_it_from_the_rendered_list() = runTest {
+        val savedStore = InMemorySavedConnectionsStore()
+        savedStore.add(SavedConnection(id = "conn-a", label = "Home", baseUrl = "http://localhost:5080", lastUsedAt = null))
+        savedStore.add(SavedConnection(id = "conn-b", label = "LAN", baseUrl = "http://192.168.2.60:5080", lastUsedAt = null))
+
+        val controller = controller(FakeSystemApi(ready = true), savedConnectionsStore = savedStore)
+        controller.loadSavedConnections()
+        assertEquals(setOf("conn-a", "conn-b"), controller.savedConnections.value.map { it.id }.toSet())
+
+        controller.forgetSavedConnection("conn-b")
+
+        assertEquals(listOf("conn-a"), controller.savedConnections.value.map { it.id })
     }
 
     @Test
@@ -761,6 +828,30 @@ private class InMemoryProfileStore : ActiveProfileStore {
     }
 }
 
+/** An in-memory [SavedConnectionsStore] so the controller tests drive saved connections without any file I/O. */
+private class InMemorySavedConnectionsStore : SavedConnectionsStore {
+    private val entries: MutableMap<String, SavedConnection> = mutableMapOf()
+    private var active: String? = null
+
+    override suspend fun list(): List<SavedConnection> = entries.values.toList()
+
+    override suspend fun activeId(): String? = active
+
+    override suspend fun add(connection: SavedConnection) {
+        entries[connection.id] = connection
+        active = connection.id
+    }
+
+    override suspend fun setActive(id: String) {
+        if (entries.containsKey(id)) active = id
+    }
+
+    override suspend fun remove(id: String) {
+        entries.remove(id)
+        if (active == id) active = null
+    }
+}
+
 /** An in-memory [LanDiscovery] so the controller tests drive the discovered feed without any mDNS. */
 private class FakeLanDiscovery : LanDiscovery {
     override val isSupported: Boolean = true
@@ -768,6 +859,13 @@ private class FakeLanDiscovery : LanDiscovery {
     private val _discovered: MutableStateFlow<List<ConnectionProfile>> =
         MutableStateFlow(emptyList())
     override val discovered: StateFlow<List<ConnectionProfile>> = _discovered.asStateFlow()
+
+    private val _discoveryFailed: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    override val discoveryFailed: StateFlow<Boolean> = _discoveryFailed.asStateFlow()
+
+    fun setDiscoveryFailed(value: Boolean) {
+        _discoveryFailed.value = value
+    }
 
     var startCount: Int = 0
         private set

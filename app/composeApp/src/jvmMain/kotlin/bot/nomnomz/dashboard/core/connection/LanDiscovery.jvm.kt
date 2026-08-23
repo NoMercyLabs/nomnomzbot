@@ -39,6 +39,9 @@ class JmdnsLanDiscovery : LanDiscovery {
     private val _discovered: MutableStateFlow<List<ConnectionProfile>> = MutableStateFlow(emptyList())
     override val discovered: StateFlow<List<ConnectionProfile>> = _discovered.asStateFlow()
 
+    private val _discoveryFailed: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    override val discoveryFailed: StateFlow<Boolean> = _discoveryFailed.asStateFlow()
+
     // jmDNS lives entirely on the worker thread; the lock guards the start/stop transition so a rapid
     // show/dispose can't leave two browsers or a half-open one behind. [running] is the authoritative
     // started/stopped flag — it flips synchronously in start/stop, so the async worker can detect a stop
@@ -52,6 +55,7 @@ class JmdnsLanDiscovery : LanDiscovery {
         synchronized(lock) {
             if (running) return
             running = true
+            _discoveryFailed.value = false
             // create() does a blocking network probe; never run it on the caller's (UI) thread.
             thread(name = "nnz-lan-discovery", isDaemon = true) { runBrowser() }
         }
@@ -124,6 +128,9 @@ class JmdnsLanDiscovery : LanDiscovery {
             instances = created
             listener = browseListener
         }
+        // Every interface (including the last-ditch default) failed to open — nothing to browse on. Surface
+        // this as a calm inline state instead of leaving it in stderr only (S111b).
+        _discoveryFailed.value = created.isEmpty()
     }
 
     // The IPv4 address of every interface that is up, multicast-capable, and not loopback — the set a bot's

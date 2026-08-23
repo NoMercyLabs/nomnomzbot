@@ -36,6 +36,13 @@ interface LanDiscovery {
     /** The live set of backends seen on the LAN, deduped by the advertised instance id. */
     val discovered: StateFlow<List<ConnectionProfile>>
 
+    /**
+     * True when the last browse attempt could not open ANY interface (e.g. every NIC create() failed).
+     * The Connect screen renders this as a calm inline message instead of the failure going only to
+     * stderr (S111b). Cleared on the next successful [start].
+     */
+    val discoveryFailed: StateFlow<Boolean>
+
     /** Begin browsing. Idempotent — a second call while running is a no-op. */
     fun start()
 

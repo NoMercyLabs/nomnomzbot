@@ -86,3 +86,6 @@ class FileSavedConnectionsStore internal constructor(private val file: File) : S
         }
     }
 }
+
+/** Desktop factory — the real file-backed store. */
+actual fun savedConnectionsStore(): SavedConnectionsStore = FileSavedConnectionsStore()

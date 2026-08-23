@@ -19,6 +19,10 @@ import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.connection.servedOriginProfile
 import bot.nomnomz.dashboard.core.connection.SessionTokens
 import bot.nomnomz.dashboard.core.connection.SessionUser
+import bot.nomnomz.dashboard.core.connection.SavedConnection
+import bot.nomnomz.dashboard.core.connection.SavedConnectionsRepository
+import bot.nomnomz.dashboard.core.connection.TokenVault
+import bot.nomnomz.dashboard.core.connection.savedConnectionsStore
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.AuthPayload
@@ -62,6 +66,12 @@ class ConnectController(
     private val lanDiscovery: LanDiscovery,
     private val diagnosticsApi: TwitchDiagnosticsApi,
     private val profileIdFactory: () -> String = ::randomProfileId,
+    // Desktop saved-connections switcher (S111b) — a file-backed list on desktop, a no-op on web.
+    // Shares the SAME on-disk token vault [SessionStore] arms/reads, so a connection's token survives
+    // across the SavedConnectionsRepository's own TokenVault instance (both are stateless file I/O
+    // keyed by profile id — no in-memory cache to fall out of sync).
+    private val savedConnectionsRepository: SavedConnectionsRepository =
+        SavedConnectionsRepository(savedConnectionsStore(), TokenVault()),
 ) {
     // The web build is single-origin: default the backend URL to the SERVED ORIGIN so it matches wherever the
     // dashboard is opened (localhost, the LAN, or the public tunnel) instead of a hardcoded localhost. Native
@@ -102,11 +112,83 @@ class ConnectController(
     /** Whether LAN discovery works on this platform — false on web, where the Connect screen hides that section. */
     val discoverySupported: Boolean = lanDiscovery.isSupported
 
+    /** True when the last browse attempt found no usable interface — the screen renders this as a calm inline message. */
+    val discoveryFailed: StateFlow<Boolean> = lanDiscovery.discoveryFailed
+
     /** Begin browsing the LAN — called when the Connect screen appears. */
     fun startDiscovery() = lanDiscovery.start()
 
     /** Stop browsing the LAN — called when the Connect screen leaves composition. */
     fun stopDiscovery() = lanDiscovery.stop()
+
+    /** Explicit re-browse (S111b) — stop then start the browser fresh, e.g. after the operator plugs in a NIC. */
+    fun rescanLan() {
+        lanDiscovery.stop()
+        lanDiscovery.start()
+    }
+
+    private val _savedConnections: MutableStateFlow<List<SavedConnection>> = MutableStateFlow(emptyList())
+
+    /** The desktop saved-connections list (S111b) — empty (permanently) on web. */
+    val savedConnections: StateFlow<List<SavedConnection>> = _savedConnections.asStateFlow()
+
+    private val _activeSavedConnectionId: MutableStateFlow<String?> = MutableStateFlow(null)
+
+    /** Which saved connection is currently active, if any. */
+    val activeSavedConnectionId: StateFlow<String?> = _activeSavedConnectionId.asStateFlow()
+
+    /** Load the saved-connections list + active id from custody — call once when the Connect screen appears. */
+    suspend fun loadSavedConnections() {
+        _savedConnections.value = savedConnectionsRepository.list()
+        _activeSavedConnectionId.value = savedConnectionsRepository.activeId()
+    }
+
+    /**
+     * Save the CURRENTLY TYPED backend URL as a named connection (manual add, S111b). Validates the URL the
+     * same way [connect] does; a blank/invalid URL is silently ignored (the field's own error path covers
+     * feedback for the connect flow, and an add button is disabled with nothing typed).
+     */
+    suspend fun addSavedConnection(label: String) {
+        val normalized: String = normalizeBaseUrl(_baseUrl.value) ?: return
+        val trimmedLabel: String = label.trim().ifEmpty { normalized }
+        savedConnectionsRepository.add(
+            SavedConnection(id = profileIdFactory(), label = trimmedLabel, baseUrl = normalized, lastUsedAt = null),
+        )
+        loadSavedConnections()
+    }
+
+    /**
+     * Switch the active backend to a saved connection (S111b) — swaps in its base URL + stored token and
+     * reconnects REST + SignalR via [establishSession] (both read the shared [SessionStore]'s baseUrl/token).
+     * When no token was ever stored for this connection (added but never signed in), falls back to the full
+     * onboarding dance ([connectTo]) against the same id, so a first-time switch still lands the operator in.
+     */
+    suspend fun switchToSavedConnection(connection: SavedConnection) {
+        if (loginInProgress()) return
+        savedConnectionsRepository.switchTo(connection.id)
+        _activeSavedConnectionId.value = connection.id
+
+        val profile =
+            ConnectionProfile(
+                id = connection.id,
+                displayName = connection.label,
+                baseUrl = connection.baseUrl,
+                source = ProfileSource.Manual,
+            )
+        val storedTokens: SessionTokens? = savedConnectionsRepository.tokenFor(connection.id)
+        _status.value = ConnectStatus.Connecting
+        val reconnected: Boolean = storedTokens != null && establishSession(profile, storedTokens)
+        if (!reconnected) {
+            connectTo(profile)
+        }
+        loadSavedConnections()
+    }
+
+    /** Forget a saved connection AND its stored token (S111b) — never touches any other connection's token. */
+    suspend fun forgetSavedConnection(id: String) {
+        savedConnectionsRepository.forget(id)
+        loadSavedConnections()
+    }
 
     fun onBaseUrlChange(value: String) {
         _baseUrl.value = value

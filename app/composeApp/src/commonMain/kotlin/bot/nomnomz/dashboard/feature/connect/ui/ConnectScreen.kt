@@ -16,6 +16,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,7 +31,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +43,8 @@ import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.connection.ConnectionProfile
+import bot.nomnomz.dashboard.core.connection.SavedConnection
+import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.network.LoginProvider
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -59,12 +65,23 @@ import nomnomzbot.composeapp.generated.resources.connect_device_waiting
 import nomnomzbot.composeapp.generated.resources.connect_discovered_manual_label
 import nomnomzbot.composeapp.generated.resources.connect_discovered_searching
 import nomnomzbot.composeapp.generated.resources.connect_discovered_title
+import nomnomzbot.composeapp.generated.resources.connect_discovery_failed
+import nomnomzbot.composeapp.generated.resources.connect_discovery_rescan
 import nomnomzbot.composeapp.generated.resources.connect_error_auth
 import nomnomzbot.composeapp.generated.resources.connect_error_invalid_url
 import nomnomzbot.composeapp.generated.resources.connect_error_login_denied
 import nomnomzbot.composeapp.generated.resources.connect_error_login_expired
 import nomnomzbot.composeapp.generated.resources.connect_error_login_failed
 import nomnomzbot.composeapp.generated.resources.connect_modal_heading_first_login
+import nomnomzbot.composeapp.generated.resources.connect_saved_active_label
+import nomnomzbot.composeapp.generated.resources.connect_saved_add
+import nomnomzbot.composeapp.generated.resources.connect_saved_forget
+import nomnomzbot.composeapp.generated.resources.connect_saved_forget_cancel
+import nomnomzbot.composeapp.generated.resources.connect_saved_forget_confirm
+import nomnomzbot.composeapp.generated.resources.connect_saved_forget_message
+import nomnomzbot.composeapp.generated.resources.connect_saved_forget_title
+import nomnomzbot.composeapp.generated.resources.connect_saved_switch
+import nomnomzbot.composeapp.generated.resources.connect_saved_title
 import nomnomzbot.composeapp.generated.resources.connect_url_label
 import nomnomzbot.composeapp.generated.resources.connect_url_placeholder
 import nomnomzbot.composeapp.generated.resources.connect_use_device_code
@@ -87,7 +104,10 @@ fun ConnectScreen(controller: ConnectController) {
     val baseUrl: String by controller.baseUrl.collectAsStateWithLifecycle()
     val status: ConnectStatus by controller.status.collectAsStateWithLifecycle()
     val discovered: List<ConnectionProfile> by controller.discovered.collectAsStateWithLifecycle()
+    val discoveryFailed: Boolean by controller.discoveryFailed.collectAsStateWithLifecycle()
     val providers: List<LoginProvider> by controller.providers.collectAsStateWithLifecycle()
+    val savedConnections: List<SavedConnection> by controller.savedConnections.collectAsStateWithLifecycle()
+    val activeSavedConnectionId: String? by controller.activeSavedConnectionId.collectAsStateWithLifecycle()
     val busy: Boolean =
         status is ConnectStatus.Connecting || status is ConnectStatus.AwaitingApproval
 
@@ -95,6 +115,12 @@ fun ConnectScreen(controller: ConnectController) {
     // composition, so the card renders one button per ENABLED provider instead of a hardcoded Twitch button.
     // Fail-open in the controller keeps Twitch on the card even if this probe fails.
     LaunchedEffect(controller) { controller.loadProviders() }
+
+    // Desktop saved-connections list (S111b) — loaded once per composition; refreshed by the controller
+    // itself after every add/switch/forget so this screen never has to poll.
+    if (controller.discoverySupported) {
+        LaunchedEffect(controller) { controller.loadSavedConnections() }
+    }
 
     // Browse the LAN only while the Connect screen is on-screen, and only where discovery actually works
     // (desktop) — never on web, where it is a no-op; release the browser on dispose.
@@ -141,13 +167,23 @@ fun ConnectScreen(controller: ConnectController) {
                     onConnect = { provider -> scope.launch { controller.connect(provider) } },
                 )
 
-                // Discovery is desktop-only; the web build is single-origin and can't browse, so hide the
-                // whole "found on your network" section there rather than show a forever-"searching" hint.
+                // Saved connections + discovery are desktop-only (S111b) — the web build is single-origin
+                // and can't browse or hold a multi-origin list, so hide both sections there.
                 if (controller.discoverySupported) {
+                    SavedConnectionsSection(
+                        connections = savedConnections,
+                        activeId = activeSavedConnectionId,
+                        enabled = !busy,
+                        onSwitch = { connection -> scope.launch { controller.switchToSavedConnection(connection) } },
+                        onForget = { id -> scope.launch { controller.forgetSavedConnection(id) } },
+                    )
+
                     DiscoveredSection(
                         discovered = discovered,
+                        failed = discoveryFailed,
                         enabled = !busy,
                         onConnect = { profile -> scope.launch { controller.connectTo(profile) } },
+                        onRescan = controller::rescanLan,
                     )
                 }
 
@@ -159,6 +195,15 @@ fun ConnectScreen(controller: ConnectController) {
                     label = stringResource(Res.string.connect_url_label),
                     placeholder = stringResource(Res.string.connect_url_placeholder),
                 )
+
+                if (controller.discoverySupported && baseUrl.isNotBlank()) {
+                    TextButton(
+                        onClick = { scope.launch { controller.addSavedConnection(baseUrl) } },
+                        enabled = !busy,
+                    ) {
+                        Text(stringResource(Res.string.connect_saved_add))
+                    }
+                }
 
                 // Make the account unambiguous: this is the streamer's OWN account, and the bot is a
                 // separate, optional account added later — never forced here.
@@ -223,13 +268,17 @@ private fun AccountHint() {
     )
 }
 
-// The mDNS-discovered backends, each a click-to-connect row, with a subtle searching/empty hint and the
-// "or enter a URL" label that introduces the manual field below.
+// The mDNS-discovered backends, each a click-to-connect row, with a subtle searching/empty hint, an
+// explicit Rescan action, a calm inline message when the last browse attempt failed outright (S111b —
+// previously that failure only reached stderr), and the "or enter a URL" label introducing the manual
+// field below.
 @Composable
 private fun DiscoveredSection(
     discovered: List<ConnectionProfile>,
+    failed: Boolean,
     enabled: Boolean,
     onConnect: (ConnectionProfile) -> Unit,
+    onRescan: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -239,14 +288,29 @@ private fun DiscoveredSection(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        Text(
-            text = stringResource(Res.string.connect_discovered_title),
-            style = typography.sm,
-            color = tokens.foreground,
+        Row(
             modifier = Modifier.fillMaxWidth(),
-        )
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            Text(
+                text = stringResource(Res.string.connect_discovered_title),
+                style = typography.sm,
+                color = tokens.foreground,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onRescan, enabled = enabled) {
+                Text(text = stringResource(Res.string.connect_discovery_rescan), style = typography.xs)
+            }
+        }
 
-        if (discovered.isEmpty()) {
+        if (failed) {
+            Text(
+                text = stringResource(Res.string.connect_discovery_failed),
+                style = typography.xs,
+                color = tokens.destructive,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else if (discovered.isEmpty()) {
             Text(
                 text = stringResource(Res.string.connect_discovered_searching),
                 style = typography.xs,
@@ -265,6 +329,109 @@ private fun DiscoveredSection(
             color = tokens.mutedForeground,
             modifier = Modifier.fillMaxWidth().padding(top = spacing.s2),
         )
+    }
+}
+
+// The desktop saved-connections list (S111b) - the profile-menu switcher's Connect-screen half. Each row
+// shows the label + base URL, an "Active" tag on the currently active connection, a Switch action, and a
+// Forget action gated behind the app's shared [ConfirmDialog] (irreversible: it also drops the stored token).
+@Composable
+private fun SavedConnectionsSection(
+    connections: List<SavedConnection>,
+    activeId: String?,
+    enabled: Boolean,
+    onSwitch: (SavedConnection) -> Unit,
+    onForget: (String) -> Unit,
+) {
+    if (connections.isEmpty()) return
+
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var pendingForgetId: String? by remember { mutableStateOf(null) }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = stringResource(Res.string.connect_saved_title),
+            style = typography.sm,
+            color = tokens.foreground,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        connections.forEach { connection ->
+            SavedConnectionRow(
+                connection = connection,
+                active = connection.id == activeId,
+                enabled = enabled,
+                onSwitch = { onSwitch(connection) },
+                onForget = { pendingForgetId = connection.id },
+            )
+        }
+    }
+
+    val forgetTarget: String? = pendingForgetId
+    if (forgetTarget != null) {
+        ConfirmDialog(
+            title = stringResource(Res.string.connect_saved_forget_title),
+            message = stringResource(Res.string.connect_saved_forget_message),
+            confirmLabel = stringResource(Res.string.connect_saved_forget_confirm),
+            dismissLabel = stringResource(Res.string.connect_saved_forget_cancel),
+            destructive = true,
+            onConfirm = {
+                onForget(forgetTarget)
+                pendingForgetId = null
+            },
+            onDismiss = { pendingForgetId = null },
+        )
+    }
+}
+
+// A single saved connection - a bordered card matching [DiscoveredRow], with the Switch/Forget actions
+// and the active-connection tag.
+@Composable
+private fun SavedConnectionRow(
+    connection: SavedConnection,
+    active: Boolean,
+    enabled: Boolean,
+    onSwitch: () -> Unit,
+    onForget: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val shape = RoundedCornerShape(tokens.radius.md)
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .clip(shape)
+                .background(tokens.card)
+                .border(BorderStroke(spacing.s0_5 / 2, tokens.border), shape)
+                .padding(horizontal = spacing.s3, vertical = spacing.s2),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
+            Text(text = connection.label, style = typography.sm, color = tokens.cardForeground)
+            Text(text = connection.baseUrl, style = typography.xs, color = tokens.mutedForeground)
+            if (active) {
+                Text(
+                    text = stringResource(Res.string.connect_saved_active_label),
+                    style = typography.xs,
+                    color = tokens.primary,
+                )
+            }
+        }
+        TextButton(onClick = onSwitch, enabled = enabled && !active) {
+            Text(text = stringResource(Res.string.connect_saved_switch), style = typography.xs)
+        }
+        TextButton(onClick = onForget, enabled = enabled) {
+            Text(text = stringResource(Res.string.connect_saved_forget), style = typography.xs, color = tokens.destructive)
+        }
     }
 }
 

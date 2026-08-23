@@ -23,6 +23,17 @@
     <string name="connect_discovered_title">Gevonden op je netwerk</string>
     <string name="connect_discovered_searching">Bezig met zoeken naar bots op je netwerk…</string>
     <string name="connect_discovered_manual_label">Of voer een backend-URL in</string>
+    <string name="connect_saved_title">Opgeslagen verbindingen</string>
+    <string name="connect_saved_active_label">Actief</string>
+    <string name="connect_saved_switch">Wisselen</string>
+    <string name="connect_saved_forget">Vergeten</string>
+    <string name="connect_saved_forget_title">Deze verbinding vergeten?</string>
+    <string name="connect_saved_forget_message">Dit verwijdert de opgeslagen verbinding en de opgeslagen aanmelding. Je moet opnieuw inloggen om weer verbinding te maken.</string>
+    <string name="connect_saved_forget_confirm">Vergeten</string>
+    <string name="connect_saved_forget_cancel">Annuleren</string>
+    <string name="connect_saved_add">Deze verbinding opslaan</string>
+    <string name="connect_discovery_rescan">Opnieuw zoeken</string>
+    <string name="connect_discovery_failed">Kon je netwerk niet doorzoeken. Controleer je verbinding en probeer Opnieuw zoeken.</string>
     <string name="connect_device_title">Keur de aanmelding goed op Twitch</string>
     <string name="connect_device_instruction">Open Twitch en voer deze code in op twitch.tv/activate:</string>
     <string name="connect_device_open">Open Twitch om goed te keuren</string>

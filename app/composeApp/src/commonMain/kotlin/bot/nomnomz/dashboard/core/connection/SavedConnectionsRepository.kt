@@ -29,6 +29,9 @@ class SavedConnectionsRepository(
         connections.setActive(id)
     }
 
+    /** The stored session token for a connection, if it was ever signed into — null for a freshly added one. */
+    suspend fun tokenFor(id: String): SessionTokens? = tokens.read(id)
+
     suspend fun forget(id: String) {
         connections.remove(id)
         tokens.clear(id)

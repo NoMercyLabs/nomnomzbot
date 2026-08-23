@@ -39,3 +39,7 @@ interface SavedConnectionsStore {
 
     suspend fun remove(id: String)
 }
+
+/** The per-target [SavedConnectionsStore] implementation — a file-backed store on desktop, a deliberate
+ * no-op on web (single-origin, served by its own bot — nothing to save a list of). */
+expect fun savedConnectionsStore(): SavedConnectionsStore
