@@ -3,6 +3,12 @@
 Status: **design settled, not implemented** (2026-08-23)
 Sibling spec: `moderation.md` (this spec extends it; it does not replace it)
 
+**Design ledger — complete.** Decisions SD0–SD12 settled; L0–L5 specced; seed corpus built
+(`data/spam-seed-corpus.md`); configuration surfaces specced (§6); moderation retraction merged
+into `widgets-overlays.md` §2a and `tts.md` §3.4a; structural and consistency passes run. Nothing
+below is implemented — §9 Build Order is the remaining work, and it is implementation, gated on
+the owner's word per the settle-specs-before-implementing rule.
+
 Defends every channel against the automated-spam economy that plagues Twitch and its
 siblings: chat-promo bots, follow bots, view bots, and hate raids. The reference bar is
 `Sery_Bot` — matched on capability, exceeded on transparency and operator control.
