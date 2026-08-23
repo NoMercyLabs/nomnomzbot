@@ -4,9 +4,9 @@
 # Usage:
 #   scripts/slice-check.ps1 -TestProject tests/NomNomzBot.Api.Tests -Filter "FullyQualifiedName~SecurityHeaders" -Paths a.cs,b.cs
 #
-# The repo currently has pre-existing CSharpier drift (slice S115), so a repo-wide
-# `csharpier check .` is red for reasons unrelated to any slice. This script therefore
-# format-checks ONLY the paths the slice touched. Delete the -Paths scoping once S115 lands.
+# The repo-wide drift is gone (S115, commit 2282847c: `csharpier check .` is clean over 2609 files),
+# so `CLAUDE.md`'s per-commit format gate is enforceable again. Path scoping is kept because it is
+# fast and keeps a slice from reformatting files it does not own while other agents share the tree.
 
 param(
     [Parameter(Mandatory = $true)][string]$TestProject,

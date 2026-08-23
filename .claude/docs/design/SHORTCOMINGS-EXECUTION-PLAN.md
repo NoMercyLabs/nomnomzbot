@@ -22,9 +22,6 @@ Slice IDs are stable; the order is the queue.
 ## Phase 0-S — security first (owner, 2026-08-22: "security is tight" beats "features start working")
 
 - **S089b** Impersonation UI + spec — the dashboard confirm dialog with a required justification, the "acting as" banner sourced from the real support session, and the `stream-admin.md:231-263` spec amended to describe act-as impersonation as shipped (S089a covers the backend). Done-when: an operator cannot mint an impersonation token from the UI without typing a justification, and the spec matches the code.
-- **S115** Repo-wide CSharpier drift — `dotnet csharpier check .` fails on ~230 committed files (2551 checked), so the
-  per-commit format gate in `CLAUDE.md` is currently unenforceable. Done-when: `dotnet csharpier check .` is clean on a
-  quiet tree and stays the gate.
 ## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
 
 - **S001** Song-request queue store — `IMusicService` queue out of the scoped instance into a singleton
