@@ -88,12 +88,19 @@ public sealed class ImpersonationBroadcastHandlerTests
         notifiedBroadcaster.Should().NotBe(OtherTenant.ToString());
         sent.Should().NotBeNull();
         sent!.Type.Should().Be("impersonation_started");
-        sent.Data!.GetType().GetProperty("OperatorPrincipalId")!.GetValue(sent.Data).Should().Be(Operator);
-        sent.Data.GetType().GetProperty("TargetUserId")!.GetValue(sent.Data).Should().Be(TargetUser);
+        sent.Data!.GetType()
+            .GetProperty("OperatorPrincipalId")!
+            .GetValue(sent.Data)
+            .Should()
+            .Be(Operator);
+        sent.Data.GetType()
+            .GetProperty("TargetUserId")!
+            .GetValue(sent.Data)
+            .Should()
+            .Be(TargetUser);
         sent.Data.GetType().GetProperty("AccessGrantId")!.GetValue(sent.Data).Should().Be(GrantId);
         sent.Data.GetType().GetProperty("ExpiresAt")!.GetValue(sent.Data).Should().Be(expiresAt);
-        sent
-            .Data.GetType()
+        sent.Data.GetType()
             .GetProperty("Reason")!
             .GetValue(sent.Data)
             .Should()
@@ -103,7 +110,10 @@ public sealed class ImpersonationBroadcastHandlerTests
     [Fact]
     public async Task End_notifies_only_the_target_tenant_with_operator_reason_and_session_id()
     {
-        await using ImpersonationTestDbContext db = await SeedGrantAsync(TargetTenant, "Ticket #4821");
+        await using ImpersonationTestDbContext db = await SeedGrantAsync(
+            TargetTenant,
+            "Ticket #4821"
+        );
 
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         string? notifiedBroadcaster = null;
@@ -130,8 +140,16 @@ public sealed class ImpersonationBroadcastHandlerTests
         notifiedBroadcaster.Should().NotBe(OtherTenant.ToString());
         sent.Should().NotBeNull();
         sent!.Type.Should().Be("impersonation_ended");
-        sent.Data!.GetType().GetProperty("OperatorPrincipalId")!.GetValue(sent.Data).Should().Be(Operator);
-        sent.Data.GetType().GetProperty("TargetUserId")!.GetValue(sent.Data).Should().Be(TargetUser);
+        sent.Data!.GetType()
+            .GetProperty("OperatorPrincipalId")!
+            .GetValue(sent.Data)
+            .Should()
+            .Be(Operator);
+        sent.Data.GetType()
+            .GetProperty("TargetUserId")!
+            .GetValue(sent.Data)
+            .Should()
+            .Be(TargetUser);
         sent.Data.GetType().GetProperty("AccessGrantId")!.GetValue(sent.Data).Should().Be(GrantId);
         sent.Data.GetType().GetProperty("Reason")!.GetValue(sent.Data).Should().Be("Ticket #4821");
     }
@@ -139,7 +157,10 @@ public sealed class ImpersonationBroadcastHandlerTests
     [Fact]
     public async Task Start_sends_nothing_when_the_grant_is_platform_wide_not_tenant_scoped()
     {
-        await using ImpersonationTestDbContext db = await SeedGrantAsync(scopeChannelId: null, reason: null);
+        await using ImpersonationTestDbContext db = await SeedGrantAsync(
+            scopeChannelId: null,
+            reason: null
+        );
 
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
 
@@ -175,9 +196,10 @@ public sealed class ImpersonationBroadcastHandlerTests
         handlerType.IsAbstract.Should().BeFalse();
         handlerType.IsSealed.Should().BeTrue();
 
-        Type expectedInterface = typeof(NomNomzBot.Domain.Platform.Interfaces.IEventHandler<>).MakeGenericType(
-            eventType
-        );
+        Type expectedInterface =
+            typeof(NomNomzBot.Domain.Platform.Interfaces.IEventHandler<>).MakeGenericType(
+                eventType
+            );
         handlerType.GetInterfaces().Should().Contain(expectedInterface);
     }
 }

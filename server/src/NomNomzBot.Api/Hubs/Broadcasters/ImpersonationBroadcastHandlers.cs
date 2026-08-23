@@ -27,8 +27,10 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 /// channel scope (platform-wide grant, not a per-tenant support session) is not this handler's concern and
 /// is silently skipped.
 /// </summary>
-public sealed class ImpersonationStartedBroadcastHandler(IDashboardNotifier notifier, IApplicationDbContext db)
-    : IEventHandler<ImpersonationStartedEvent>
+public sealed class ImpersonationStartedBroadcastHandler(
+    IDashboardNotifier notifier,
+    IApplicationDbContext db
+) : IEventHandler<ImpersonationStartedEvent>
 {
     public async Task HandleAsync(ImpersonationStartedEvent @event, CancellationToken ct = default)
     {
@@ -64,8 +66,10 @@ public sealed class ImpersonationStartedBroadcastHandler(IDashboardNotifier noti
 /// (<see cref="ImpersonationStartedBroadcastHandler"/> — same event/grant relationship, mirrored for the
 /// end of session). Pushed as a dashboard alert to the affected tenant only.
 /// </summary>
-public sealed class ImpersonationEndedBroadcastHandler(IDashboardNotifier notifier, IApplicationDbContext db)
-    : IEventHandler<ImpersonationEndedEvent>
+public sealed class ImpersonationEndedBroadcastHandler(
+    IDashboardNotifier notifier,
+    IApplicationDbContext db
+) : IEventHandler<ImpersonationEndedEvent>
 {
     public async Task HandleAsync(ImpersonationEndedEvent @event, CancellationToken ct = default)
     {
