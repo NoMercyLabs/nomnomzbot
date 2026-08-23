@@ -12,16 +12,13 @@ work only). A slice may be split further while executing, never merged. 🔒 = n
 skip it and continue. Persona priority (owner): streamer → moderator of many → viewer.
 
 **Ordering rule (owner, 2026-08-22): stabilize the CURRENT feature set first; merge new code only
-where a fix requires it; add the new stuff after.** Phases: 0-S security first · 0 truth-and-safety · 1 runtime stability ·
+where a fix requires it; add the new stuff after.** Phases: ~~0-S security first (COMPLETE 2026-08-23)~~ · 0 truth-and-safety · 1 runtime stability ·
 2 existing platforms made to work (minimal spine) · 3 form infrastructure · 4 existing-feature truth/
 reach · 5 new model (one channel, many platforms; any login) · 6 new features + personas · 7 polish.
 Slice IDs are stable; the order is the queue.
 
 ---
 
-## Phase 0-S — security first (owner, 2026-08-22: "security is tight" beats "features start working")
-
-- **S089b** Impersonation UI + spec — the dashboard confirm dialog with a required justification, the "acting as" banner sourced from the real support session, and the `stream-admin.md:231-263` spec amended to describe act-as impersonation as shipped (S089a covers the backend). Done-when: an operator cannot mint an impersonation token from the UI without typing a justification, and the spec matches the code.
 ## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
 
 - **S001** Song-request queue store — `IMusicService` queue out of the scoped instance into a singleton
