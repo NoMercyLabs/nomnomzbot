@@ -46,6 +46,78 @@ public sealed class EventJournalServiceTests
             ActorUserId: actorUserId
         );
 
+    /// <summary>
+    /// A batch spanning two tenants reserves a position block per tenant, and each reservation FLUSHES
+    /// the bumped sequence row inside the transaction. When a later tenant's reservation fails, the
+    /// whole batch is refused — so the earlier tenant's bump must roll back with it. Without the commit
+    /// guard the operation returns a failed Result normally, the transaction commits, and that tenant's
+    /// stream permanently skips the positions nothing was ever written at. Asserts the sequence VALUE,
+    /// not just "no journal rows": the burnt positions are invisible to a row count.
+    /// </summary>
+    [Fact]
+    public async Task AppendBatchAsync_when_a_later_tenants_block_fails_burns_no_positions()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Guid tenantA = Guid.CreateVersion7();
+        Guid tenantB = Guid.CreateVersion7();
+
+        Result<IReadOnlyList<EventRecord>> refused;
+        await using (EventStoreTestDbContext db = database.NewContext())
+        {
+            EventStoreTestUnitOfWork uow = new(db);
+            EventJournalService journal = new(
+                db,
+                new FailsForTenantAllocator(new(db), refuseFor: tenantB),
+                uow,
+                Clock,
+                new PassthroughEventPayloadProtector(),
+                Substitute.For<ICurrentUserService>()
+            );
+
+            refused = await journal.AppendBatchAsync([Request(tenantA), Request(tenantB)]);
+        }
+
+        refused.IsFailure.Should().BeTrue();
+
+        await using EventStoreTestDbContext reader = database.NewContext();
+        reader.EventJournals.Should().BeEmpty("a refused batch writes no journal row");
+        reader
+            .TenantSequences.Where(s => s.BroadcasterId == tenantA)
+            .Should()
+            .BeEmpty(
+                "tenant A's reservation must roll back — a committed bump burns stream positions"
+            );
+    }
+
+    /// <summary>Delegates to the real allocator except for one tenant, which it refuses — reproducing a
+    /// mid-batch reservation failure AFTER an earlier tenant's sequence row was already flushed.</summary>
+    private sealed class FailsForTenantAllocator(TenantSequenceAllocator inner, Guid refuseFor)
+        : ITenantSequenceAllocator
+    {
+        public Task<Result<long>> NextAsync(
+            Guid broadcasterId,
+            string sequenceName,
+            CancellationToken cancellationToken = default
+        ) =>
+            broadcasterId == refuseFor
+                ? Task.FromResult(
+                    Result.Failure<long>("Sequence unavailable.", "SEQUENCE_UNAVAILABLE")
+                )
+                : inner.NextAsync(broadcasterId, sequenceName, cancellationToken);
+
+        public Task<Result<long>> NextBlockAsync(
+            Guid broadcasterId,
+            string sequenceName,
+            int count,
+            CancellationToken cancellationToken = default
+        ) =>
+            broadcasterId == refuseFor
+                ? Task.FromResult(
+                    Result.Failure<long>("Sequence unavailable.", "SEQUENCE_UNAVAILABLE")
+                )
+                : inner.NextBlockAsync(broadcasterId, sequenceName, count, cancellationToken);
+    }
+
     private static EventJournalService NewJournal(
         EventStoreTestDbContext db,
         ICurrentUserService? currentUser = null

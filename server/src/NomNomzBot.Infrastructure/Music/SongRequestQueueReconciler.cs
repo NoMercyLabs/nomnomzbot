@@ -31,16 +31,19 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
     private const int QueueSnapshotSize = 10;
 
     private readonly ISongRequestQueueStore _queueStore;
+    private readonly ISongRequestHandover _handover;
     private readonly ISongRequestQueuePersistence _queuePersistence;
     private readonly IEventBus _eventBus;
 
     public SongRequestQueueReconciler(
         ISongRequestQueueStore queueStore,
+        ISongRequestHandover handover,
         ISongRequestQueuePersistence queuePersistence,
         IEventBus eventBus
     )
     {
         _queueStore = queueStore;
+        _handover = handover;
         _queuePersistence = queuePersistence;
         _eventBus = eventBus;
     }
@@ -58,15 +61,27 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
         if (queue is null)
             return;
 
-        // Everything AHEAD of the now-playing track is gone too, not just the matching entry. Spotify's
-        // client-side crossfade (0–12s, set per client) means one track can start while the previous is
-        // still audible, and the 1s poller can observe the pair in either order — plus a viewer skipping
-        // through several tracks advances the provider past entries that were never observed as current.
-        // Dropping the head through the match keeps our queue equal to what is still genuinely pending
-        // instead of stranding entries the provider has already played.
+        // Everything up to and including the now-playing track has stopped being pending. Dropping the
+        // whole head — not just the exact match — absorbs Spotify's client-side crossfade (0–12s, set per
+        // client), where one track starts while the previous is still audible and the 1s poller can see
+        // the pair in either order, and a viewer skipping several tracks between ticks.
         int dropped = queue.RemoveThrough(e =>
             string.Equals(e.TrackUri, @event.TrackUri, StringComparison.OrdinalIgnoreCase)
         );
+
+        SongRequestEntry? inFlight = _queueStore.GetInFlight(broadcasterId);
+        bool inFlightIsGone =
+            inFlight is not null
+            && !queue.GetSnapshot().Any(e => ReferenceEquals(e.Item, inFlight));
+        if (inFlightIsGone)
+            _queueStore.SetInFlight(broadcasterId, null);
+
+        // Exactly ONE request is ever at the provider. That is what keeps the fair queue authoritative:
+        // everything behind the current track is still ours, so a viewer's first request can still be
+        // re-ranked ahead of someone's third. Hand the next one over only once the provider is free.
+        if (_queueStore.GetInFlight(broadcasterId) is null && !queue.IsEmpty)
+            await _handover.HandOverNextAsync(broadcasterId, cancellationToken);
+
         if (dropped == 0)
             return;
 

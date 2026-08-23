@@ -29,7 +29,7 @@ namespace NomNomzBot.Infrastructure.Music;
 /// (music-sr.md §3.5): a member whose required capability is absent fails closed without
 /// touching the provider.
 /// </summary>
-public sealed class MusicService : IMusicService
+public sealed class MusicService : IMusicService, ISongRequestHandover
 {
     /// <summary>Upper bound on the queue-changed snapshot — overlays render a top-of-queue list, never the full backlog.</summary>
     private const int QueueSnapshotSize = 10;
@@ -423,14 +423,28 @@ public sealed class MusicService : IMusicService
         queue.Enqueue(requestedBy ?? "anonymous", entry);
         await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
 
-        // EVERY accepted request is handed to the provider's own queue — that queue is what actually
-        // plays the audio; ours is the pending/ordering mirror the dashboard and sr_queue overlay render
-        // and the reconciler drains as each track starts. Pushing only the head (the previous rule) was
-        // invisible while the fair queue reset every DI scope, and became "requests queue but nothing
-        // ever plays" the moment the queue became a real singleton.
-        // A failed push means the request never reached the provider at all: it is NOT left behind as a
-        // phantom entry pretending to be live — that one entry is removed (never the requester's other
-        // pending requests) and the caller gets the real, typed reason instead of a false success.
+        // ONE track at a time reaches the provider. The fair queue is the authority on order, and it can
+        // only stay that way while the tracks behind the current one are still OURS to re-rank: a viewer's
+        // first request must be able to overtake someone's third, which is impossible once both sit in
+        // Spotify's own queue in arrival order. So exactly one request is ever handed over — the one now
+        // waiting to play — and SongRequestQueueReconciler hands over the next when the provider moves on.
+        // A push failure means the request never reached the provider: it is NOT left behind as a phantom
+        // entry pretending to be live — that one entry is removed (never the requester's other pending
+        // requests) and the caller gets the real, typed reason instead of a false success.
+        if (_queueStore.GetInFlight(broadcasterId) is not null)
+        {
+            // Something of ours is already queued at the provider; this request waits its turn in the
+            // fair queue, where a later re-rank can still move it.
+            await LogAndAnnounceAsync(
+                tenantId,
+                broadcasterId,
+                trackInfo,
+                requestedBy,
+                cancellationToken
+            );
+            return Result.Success();
+        }
+
         try
         {
             bool pushed = await provider.AddToQueueAsync(tenantId, trackUri, cancellationToken);
@@ -484,6 +498,31 @@ public sealed class MusicService : IMusicService
             );
         }
 
+        // This request is the one now waiting at the provider — remember it so the next request queues
+        // behind it in OUR queue instead of being handed over too.
+        _queueStore.SetInFlight(broadcasterId, entry);
+
+        await LogAndAnnounceAsync(
+            tenantId,
+            broadcasterId,
+            trackInfo,
+            requestedBy,
+            cancellationToken
+        );
+        return Result.Success();
+    }
+
+    /// <summary>The accepted-request side effects, identical whether the request went straight to the
+    /// provider or is waiting its turn: the log line, the analytics fact, and the fresh queue snapshot the
+    /// dashboard and sr_queue overlay render.</summary>
+    private async Task LogAndAnnounceAsync(
+        Guid tenantId,
+        string broadcasterId,
+        TrackInfo trackInfo,
+        string? requestedBy,
+        CancellationToken cancellationToken
+    )
+    {
         _logger.LogInformation(
             "Queued track '{Track}' for {BroadcasterId} (requested by {RequestedBy})",
             trackInfo.TrackName,
@@ -500,15 +539,13 @@ public sealed class MusicService : IMusicService
                 BroadcasterId = tenantId,
                 UserId = requestedBy ?? "anonymous",
                 UserDisplayName = requestedBy ?? "anonymous",
-                TrackUri = trackUri,
+                TrackUri = trackInfo.TrackUri,
                 TrackName = trackInfo.TrackName,
             },
             cancellationToken
         );
 
         await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
-
-        return Result.Success();
     }
 
     public async Task<Result> SetVolumeAsync(
@@ -1067,6 +1104,52 @@ public sealed class MusicService : IMusicService
                     e.Item.DurationMs / 1000
                 ))
                 .ToList();
+    }
+
+    /// <inheritdoc cref="ISongRequestHandover.HandOverNextAsync"/>
+    public async Task HandOverNextAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return;
+
+        FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
+        SongRequestEntry? next = queue?.Peek();
+        if (next is null)
+            return;
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null)
+            return;
+
+        try
+        {
+            if (!await provider.AddToQueueAsync(tenantId, next.TrackUri, cancellationToken))
+                return;
+        }
+        catch (Exception ex)
+            when (ex
+                    is PremiumRequiredException
+                        or NoActiveDeviceException
+                        or MusicAuthenticationFailedException
+                        or MusicForbiddenException
+            )
+        {
+            // Nothing playable right now (no device, dead token, non-Premium). The request keeps its place
+            // at the head of the queue: the next playback tick tries again, and no viewer loses a request
+            // because the streamer's player happened to be closed for a moment.
+            _logger.LogDebug(
+                ex,
+                "Could not hand '{Track}' to the provider for {BroadcasterId} — it stays queued.",
+                next.TrackName,
+                broadcasterId
+            );
+            return;
+        }
+
+        _queueStore.SetInFlight(broadcasterId, next);
     }
 
     /// <summary>Takes one rejected entry back out of the fair queue and returns the caller's failure —

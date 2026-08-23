@@ -20,11 +20,12 @@ using NomNomzBot.Infrastructure.Tests.Identity;
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
 /// <summary>
-/// Every accepted song request must reach the provider's own queue — not just ours. The fair queue is a
-/// display/ordering mirror of what is pending; Spotify is what actually plays the audio. An earlier
-/// version only pushed when our queue held one entry ("nothing ahead of it"), which silently worked
-/// while the queue reset every DI scope and broke the moment the queue became a real singleton: from
-/// the second request onward nothing ever reached Spotify and requests only accumulated locally.
+/// Exactly ONE request is handed to the provider at a time. That is what makes the fair queue real: the
+/// tracks behind the current one stay in OUR queue, where a viewer's first request can still be re-ranked
+/// ahead of someone else's third. Handing the whole queue over would freeze the order at arrival time and
+/// reduce the fair queue to decoration. The reconciler hands the next one over when playback moves on;
+/// what this file pins is the request path's half — push exactly one, queue the rest, and never report a
+/// failed push as a success.
 /// </summary>
 public sealed class MusicServiceQueuePushTests
 {
@@ -38,10 +39,9 @@ public sealed class MusicServiceQueuePushTests
             """.Replace("__ID__", id);
 
     [Fact]
-    public async Task Every_request_is_pushed_to_the_provider_queue_not_only_the_first()
+    public async Task Only_the_first_request_reaches_the_provider_the_rest_wait_in_the_fair_queue()
     {
         (MusicService sut, RecordingHttpHandler handler) = Build();
-        RespondQueuePush(handler, HttpStatusCode.NoContent);
 
         Result first = await RequestAsync(sut, handler, "a1", "viewer1");
         Result second = await RequestAsync(sut, handler, "a2", "viewer2");
@@ -50,26 +50,28 @@ public sealed class MusicServiceQueuePushTests
         first.IsSuccess.Should().BeTrue();
         second.IsSuccess.Should().BeTrue();
         third.IsSuccess.Should().BeTrue();
-        QueuePushCount(handler).Should().Be(3);
-        (await sut.GetQueueAsync(ChannelId.ToString())).Queue.Should().HaveCount(3);
+        QueuePushCount(handler)
+            .Should()
+            .Be(1, "only the track now waiting to play belongs at the provider");
+        // All three are accepted and ordered by US — and the order is the distinction that matters, not
+        // the count: three separate viewers each get rank 1, so arrival order holds here.
+        (await sut.GetQueueAsync(ChannelId.ToString()))
+            .Queue.Select(i => i.TrackName)
+            .Should()
+            .Equal("Song a1", "Song a2", "Song a3");
     }
 
     [Fact]
-    public async Task A_failed_push_on_a_later_request_rolls_back_only_that_request()
+    public async Task A_failed_push_takes_only_that_request_back_out_and_lets_the_next_one_through()
     {
         (MusicService sut, RecordingHttpHandler handler) = Build();
-        RespondQueuePush(handler, HttpStatusCode.NoContent);
 
-        await RequestAsync(sut, handler, "b1", "viewer1");
-        await RequestAsync(sut, handler, "b2", "viewer1");
-
-        // The next push fails with Spotify's no-active-device reason (routes are first-match-wins, so
-        // the success route has to go before the failure one can answer).
+        // Nothing is at the provider yet, so this request is the one that gets pushed — and the push fails.
         handler.ClearRoutes();
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
             HttpStatusCode.OK,
-            SearchJson("b3")
+            SearchJson("b1")
         );
         handler.RespondWhen(
             r =>
@@ -82,13 +84,23 @@ public sealed class MusicServiceQueuePushTests
             """{"error":{"status":404,"reason":"NO_ACTIVE_DEVICE","message":"No active device"}}"""
         );
 
-        Result failed = await sut.AddToQueueAsync(ChannelId.ToString(), "song b3", "viewer1");
+        Result failed = await sut.AddToQueueAsync(ChannelId.ToString(), "song b1", "viewer1");
 
         failed.ErrorCode.Should().Be("NO_ACTIVE_DEVICE");
-        // Only the rejected entry is rolled back — the viewer's two accepted requests survive.
         (await sut.GetQueueAsync(ChannelId.ToString()))
             .Queue.Should()
-            .HaveCount(2);
+            .BeEmpty(
+                "a request that never reached the provider is not left behind pretending to be live"
+            );
+
+        // Nothing was left marked as in-flight either, so the next request is still handed over.
+        Result recovered = await RequestAsync(sut, handler, "b2", "viewer1");
+
+        recovered.IsSuccess.Should().BeTrue();
+        (await sut.GetQueueAsync(ChannelId.ToString()))
+            .Queue.Select(i => i.TrackName)
+            .Should()
+            .Equal("Song b2");
     }
 
     private static int QueuePushCount(RecordingHttpHandler handler) =>

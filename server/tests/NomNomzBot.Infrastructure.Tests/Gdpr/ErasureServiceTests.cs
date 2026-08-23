@@ -17,6 +17,8 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Models.Crypto;
 using NomNomzBot.Application.Contracts.Gdpr;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -58,7 +60,188 @@ public sealed class ErasureServiceTests
     private static string HashOf(Guid userId) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(userId.ToString())));
 
-    private static Harness Build(ISubjectKeyService? subjectKeysOverride = null)
+    /// <summary>
+    /// The erasure pipeline anonymises the user's profile and revokes their auth BEFORE it reaches the
+    /// vault, all inside one transaction, and reports a vault refusal as a failed Result rather than an
+    /// exception. Without the commit guard that attempt would COMMIT: the subject's name and email would
+    /// stay scrubbed while their OAuth tokens survived untouched — an erasure that reports failure but
+    /// has already half-happened, and a compliance record that says it did not.
+    /// </summary>
+    [Fact]
+    public async Task RequestErasureAsync_when_the_vault_refuses_leaves_the_subject_untouched()
+    {
+        Harness h = Build(decorateVault: inner => new RefusingRevokeVault(inner));
+        await SeedUsersAsync(h.Db);
+        await StoreConnectionAsync(h.Vault, SubjectChannel, SubjectUser, "subject-access-token");
+
+        Result<ErasureRequestDto> refused = await h.Sut.RequestErasureAsync(
+            SelfErasure(SubjectUser)
+        );
+
+        refused.IsFailure.Should().BeTrue("the vault refused, so the erasure could not complete");
+
+        await using GdprTestDbContext reader = h.Database.NewContext();
+        User subject = await reader
+            .Users.IgnoreQueryFilters()
+            .SingleAsync(u => u.Id == SubjectUser);
+        // Assert the DISTINCTION, not a count: the identifying fields must be exactly as seeded, and the
+        // anonymisation flag must not be set — a half-applied erasure ticks IsAnonymized while leaving
+        // the tokens live, which is the state a committed failed attempt produces.
+        subject.IsAnonymized.Should().BeFalse("no part of a failed erasure may stick");
+        subject.Username.Should().Be("subject");
+        subject.DisplayName.Should().Be("Subject");
+    }
+
+    /// <summary>The real vault for everything except revocation, which it refuses — the failure the
+    /// pipeline reports as a Result AFTER it has already written the anonymised profile.</summary>
+    private sealed class RefusingRevokeVault(IIntegrationTokenVault inner) : IIntegrationTokenVault
+    {
+        public Task<Result<IntegrationConnectionDto>> UpsertConnectionAsync(
+            UpsertConnectionDto request,
+            CancellationToken cancellationToken = default
+        ) => inner.UpsertConnectionAsync(request, cancellationToken);
+
+        public Task<Result> StoreTokensAsync(
+            Guid connectionId,
+            StoreTokensDto tokens,
+            IReadOnlyList<string>? grantedScopes = null,
+            CancellationToken cancellationToken = default
+        ) => inner.StoreTokensAsync(connectionId, tokens, grantedScopes, cancellationToken);
+
+        public Task<Result<DecryptedTokenDto>> GetAccessTokenAsync(
+            Guid connectionId,
+            CancellationToken cancellationToken = default
+        ) => inner.GetAccessTokenAsync(connectionId, cancellationToken);
+
+        public Task<Result<DecryptedTokenDto>> GetRefreshTokenAsync(
+            Guid connectionId,
+            CancellationToken cancellationToken = default
+        ) => inner.GetRefreshTokenAsync(connectionId, cancellationToken);
+
+        public Task<Result> MarkRefreshFailureAsync(
+            Guid connectionId,
+            string error,
+            CancellationToken cancellationToken = default
+        ) => inner.MarkRefreshFailureAsync(connectionId, error, cancellationToken);
+
+        public Task<Result> RevokeConnectionAsync(
+            Guid connectionId,
+            string reason,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Failure("The vault is unavailable.", "VAULT_UNAVAILABLE"));
+
+        public Task<Result<IReadOnlyList<IntegrationConnectionDto>>> ListConnectionsAsync(
+            Guid? broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => inner.ListConnectionsAsync(broadcasterId, cancellationToken);
+    }
+
+    /// <summary>
+    /// The opt-out withdraws each consent in turn, and every withdrawal FLUSHES inside the shared
+    /// transaction. When a later one fails the whole opt-out is refused — so the earlier withdrawal must
+    /// roll back with it. Without the commit guard the failed attempt commits: the subject is left half
+    /// opted-out (marketing withdrawn, leaderboard still granted) while the audit trail records a failure,
+    /// which is precisely the state a GDPR record must never be in. Asserts WHICH consent survived, not
+    /// how many rows exist — a count check passes on either arrangement.
+    /// </summary>
+    [Fact]
+    public async Task RequestOptOutAsync_when_a_later_withdrawal_fails_restores_every_consent()
+    {
+        Harness h = Build(decorateConsents: inner => new RefusingWithdrawalConsents(
+            inner,
+            refuseType: "leaderboard_opt_in"
+        ));
+        await SeedUsersAsync(h.Db);
+        string subjectHash = HashOf(SubjectUser);
+        h.Db.ConsentRecords.AddRange(
+            new ConsentRecord
+            {
+                BroadcasterId = SubjectChannel,
+                SubjectUserId = SubjectUser,
+                SubjectIdHash = subjectHash,
+                ConsentType = "marketing",
+                Status = "granted",
+                LawfulBasis = "consent",
+                GrantedAt = DateTime.UtcNow,
+            },
+            new ConsentRecord
+            {
+                BroadcasterId = SubjectChannel,
+                SubjectUserId = SubjectUser,
+                SubjectIdHash = subjectHash,
+                ConsentType = "leaderboard_opt_in",
+                Status = "granted",
+                LawfulBasis = "consent",
+                GrantedAt = DateTime.UtcNow,
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<ErasureRequestDto> refused = await h.Sut.RequestOptOutAsync(
+            new(SubjectUser, null, "self_service")
+        );
+
+        refused.IsFailure.Should().BeTrue("one withdrawal failed, so the opt-out did not complete");
+
+        await using GdprTestDbContext reader = h.Database.NewContext();
+        List<ConsentRecord> consents = await reader
+            .ConsentRecords.AsNoTracking()
+            .Where(r => r.SubjectUserId == SubjectUser)
+            .OrderBy(r => r.ConsentType)
+            .ToListAsync();
+        consents
+            .Select(r => (r.ConsentType, r.Status))
+            .Should()
+            .Equal(("leaderboard_opt_in", "granted"), ("marketing", "granted"));
+    }
+
+    /// <summary>The real consent service except for one consent type, whose withdrawal it refuses —
+    /// a mid-loop failure AFTER an earlier withdrawal has already been flushed.</summary>
+    private sealed class RefusingWithdrawalConsents(IConsentService inner, string refuseType)
+        : IConsentService
+    {
+        public Task<Result<ConsentRecordDto>> GrantAsync(
+            GrantConsentRequest request,
+            CancellationToken cancellationToken = default
+        ) => inner.GrantAsync(request, cancellationToken);
+
+        public Task<Result> WithdrawAsync(
+            Guid subjectUserId,
+            Guid? broadcasterId,
+            string consentType,
+            CancellationToken cancellationToken = default
+        ) =>
+            consentType == refuseType
+                ? Task.FromResult(
+                    Result.Failure("The consent ledger is unavailable.", "CONSENT_UNAVAILABLE")
+                )
+                : inner.WithdrawAsync(subjectUserId, broadcasterId, consentType, cancellationToken);
+
+        public Task<Result<bool>> HasActiveConsentAsync(
+            Guid subjectUserId,
+            Guid? broadcasterId,
+            string consentType,
+            CancellationToken cancellationToken = default
+        ) =>
+            inner.HasActiveConsentAsync(
+                subjectUserId,
+                broadcasterId,
+                consentType,
+                cancellationToken
+            );
+
+        public Task<Result<IReadOnlyList<ConsentRecordDto>>> ListForSubjectAsync(
+            Guid subjectUserId,
+            Guid? broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => inner.ListForSubjectAsync(subjectUserId, broadcasterId, cancellationToken);
+    }
+
+    private static Harness Build(
+        ISubjectKeyService? subjectKeysOverride = null,
+        Func<IIntegrationTokenVault, IIntegrationTokenVault>? decorateVault = null,
+        Func<IConsentService, IConsentService>? decorateConsents = null
+    )
     {
         GdprSqliteDatabase database = GdprSqliteDatabase.Open();
         GdprTestDbContext db = database.NewContext();
@@ -86,9 +269,9 @@ public sealed class ErasureServiceTests
         ErasureService sut = new(
             db,
             new GdprTestUnitOfWork(db),
-            vault,
+            decorateVault is null ? vault : decorateVault(vault),
             subjectKeys,
-            consents,
+            decorateConsents is null ? consents : decorateConsents(consents),
             bus,
             TimeProvider.System,
             NullLogger<ErasureService>.Instance

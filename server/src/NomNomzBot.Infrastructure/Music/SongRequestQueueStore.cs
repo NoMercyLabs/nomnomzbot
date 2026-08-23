@@ -35,6 +35,19 @@ namespace NomNomzBot.Infrastructure.Music;
 /// once at startup, before any live traffic, to replay a fresh persisted queue back into an empty one.
 /// </para>
 /// </summary>
+/// <summary>
+/// Hands the next pending song request to the music provider. Split out from <c>IMusicService</c> because
+/// only <see cref="SongRequestQueueReconciler"/> needs it: the reconciler knows WHEN the provider is free
+/// (it watches live playback), while <c>MusicService</c> knows HOW to reach the provider for a tenant.
+/// </summary>
+public interface ISongRequestHandover
+{
+    /// <summary>Pops the fair queue's head, pushes it to the provider, and records it as in-flight.
+    /// Does nothing when the queue is empty or the provider is unreachable — a request that could not be
+    /// handed over stays at the head of the queue for the next attempt rather than being dropped.</summary>
+    Task HandOverNextAsync(string broadcasterId, CancellationToken cancellationToken = default);
+}
+
 public interface ISongRequestQueueStore
 {
     /// <summary>Returns the channel's queue, creating an empty one atomically if none exists yet.</summary>
@@ -42,6 +55,18 @@ public interface ISongRequestQueueStore
 
     /// <summary>Returns the channel's queue if one has ever been created; null otherwise (never creates one).</summary>
     FairQueue<SongRequestEntry>? TryGet(string broadcasterId);
+
+    /// <summary>
+    /// The one request this channel has handed to the provider and is waiting on — null when the
+    /// provider holds nothing of ours. The fair queue is the authority on ORDER, so only a single track
+    /// is ever pushed ahead: everything behind it stays in our queue where a later request can still be
+    /// re-ranked ahead of it. Pushing the whole queue to the provider would freeze that order the moment
+    /// each request arrived and make the fair queue decorative.
+    /// </summary>
+    SongRequestEntry? GetInFlight(string broadcasterId);
+
+    /// <summary>Records (or clears, with null) the request currently handed to the provider.</summary>
+    void SetInFlight(string broadcasterId, SongRequestEntry? entry);
 
     /// <summary>
     /// Replays a persisted queue back into memory at startup (S001b), in the exact order it was
@@ -60,12 +85,24 @@ public interface ISongRequestQueueStore
 public sealed class SongRequestQueueStore : ISongRequestQueueStore
 {
     private readonly ConcurrentDictionary<string, FairQueue<SongRequestEntry>> _queues = new();
+    private readonly ConcurrentDictionary<string, SongRequestEntry> _inFlight = new();
 
     public FairQueue<SongRequestEntry> GetOrCreate(string broadcasterId) =>
         _queues.GetOrAdd(broadcasterId, static _ => new FairQueue<SongRequestEntry>());
 
     public FairQueue<SongRequestEntry>? TryGet(string broadcasterId) =>
         _queues.TryGetValue(broadcasterId, out FairQueue<SongRequestEntry>? queue) ? queue : null;
+
+    public SongRequestEntry? GetInFlight(string broadcasterId) =>
+        _inFlight.TryGetValue(broadcasterId, out SongRequestEntry? entry) ? entry : null;
+
+    public void SetInFlight(string broadcasterId, SongRequestEntry? entry)
+    {
+        if (entry is null)
+            _inFlight.TryRemove(broadcasterId, out _);
+        else
+            _inFlight[broadcasterId] = entry;
+    }
 
     public void Restore(
         string broadcasterId,

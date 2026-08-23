@@ -342,6 +342,12 @@ public static class DependencyInjection
         // restore that replays it back into the (freshly empty) singleton store above before any live
         // traffic can reach it.
         services.AddScoped<Music.ISongRequestQueuePersistence, Music.SongRequestQueuePersistence>();
+        // The handover seam the reconciler uses to push the next request. Resolved FROM the registered
+        // IMusicService so both views share one scoped instance — provider resolution, capability gating
+        // and the queue store must be the same objects the request path used.
+        services.AddScoped<Music.ISongRequestHandover>(sp =>
+            (Music.MusicService)sp.GetRequiredService<Application.Music.Services.IMusicService>()
+        );
         services.AddHostedService<Music.SongRequestQueueRestoreHostedService>();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
