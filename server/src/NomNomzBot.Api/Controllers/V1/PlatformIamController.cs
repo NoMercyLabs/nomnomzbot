@@ -24,15 +24,18 @@ namespace NomNomzBot.Api.Controllers.V1;
 /// accounts to platform principals and granting granular platform permissions. Each action carries the
 /// Plane-C policy (policy name = <c>IamPermission.Key</c> verbatim, enforced by
 /// <c>PlatformIamAuthorizationHandler</c>, audited on SaaS); the service re-asserts the same keys internally,
-/// resolving the ACTING principal from the caller's user id (self-host with zero principals → implicit-full,
-/// so <c>Guid.Empty</c> as the acting id is correct there).
+/// resolving the ACTING principal via <see cref="IIamCallerPrincipalResolverService"/> — a resolve failure
+/// DENIES the action rather than substituting <c>Guid.Empty</c> (fix D2 item 4).
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/platform/iam")]
 [Authorize]
 [Tags("Admin")]
-public class PlatformIamController(IPlatformIamService iam, ICurrentUserService currentUser)
-    : BaseController
+public class PlatformIamController(
+    IPlatformIamService iam,
+    ICurrentUserService currentUser,
+    IIamCallerPrincipalResolverService actingPrincipalResolver
+) : BaseController
 {
     /// <summary>The role catalog with each role's permission bundle — the role picker.</summary>
     [HttpGet("roles")]
@@ -71,10 +74,13 @@ public class PlatformIamController(IPlatformIamService iam, ICurrentUserService 
     public async Task<IActionResult> CreatePrincipal(
         [FromBody] CreatePrincipalRequest request,
         CancellationToken ct
-    ) =>
-        ResultResponse(
-            await iam.CreatePrincipalAsync(await ActingPrincipalIdAsync(ct), request, ct)
-        );
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<IamPrincipalDto>(null!));
+        return ResultResponse(await iam.CreatePrincipalAsync(acting.Value, request, ct));
+    }
 
     /// <summary>Deactivates a principal and clears the employee's platform marker (the demote). Self-deactivation is refused.</summary>
     [HttpPost("principals/{principalId:guid}/deactivate")]
@@ -83,23 +89,26 @@ public class PlatformIamController(IPlatformIamService iam, ICurrentUserService 
         Guid principalId,
         [FromQuery] string? reason,
         CancellationToken ct
-    ) =>
-        ResultResponse(
-            await iam.DeactivatePrincipalAsync(
-                await ActingPrincipalIdAsync(ct),
-                principalId,
-                reason,
-                ct
-            )
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting);
+        return ResultResponse(
+            await iam.DeactivatePrincipalAsync(acting.Value, principalId, reason, ct)
         );
+    }
 
     /// <summary>Reactivates a principal and restores the employee's platform marker.</summary>
     [HttpPost("principals/{principalId:guid}/reactivate")]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
-    public async Task<IActionResult> ReactivatePrincipal(Guid principalId, CancellationToken ct) =>
-        ResultResponse(
-            await iam.ReactivatePrincipalAsync(await ActingPrincipalIdAsync(ct), principalId, ct)
-        );
+    public async Task<IActionResult> ReactivatePrincipal(Guid principalId, CancellationToken ct)
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting);
+        return ResultResponse(await iam.ReactivatePrincipalAsync(acting.Value, principalId, ct));
+    }
 
     /// <summary>Assigns a role to a principal, optionally tenant-scoped and time-boxed.</summary>
     [HttpPost("assignments")]
@@ -108,10 +117,14 @@ public class PlatformIamController(IPlatformIamService iam, ICurrentUserService 
     public async Task<IActionResult> AssignRole(
         [FromBody] AssignIamRoleRequest request,
         CancellationToken ct
-    ) =>
-        ResultResponse(
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<IamRoleAssignmentDto>(null!));
+        return ResultResponse(
             await iam.AssignRoleAsync(
-                await ActingPrincipalIdAsync(ct),
+                acting.Value,
                 request.PrincipalId,
                 request.RoleId,
                 request.ScopeChannelId,
@@ -120,6 +133,7 @@ public class PlatformIamController(IPlatformIamService iam, ICurrentUserService 
                 ct
             )
         );
+    }
 
     /// <summary>Revokes a role assignment (sets <c>RevokedAt</c>; already-revoked is a no-op).</summary>
     [HttpDelete("assignments/{assignmentId:guid}")]
@@ -128,26 +142,20 @@ public class PlatformIamController(IPlatformIamService iam, ICurrentUserService 
         Guid assignmentId,
         [FromQuery] string? reason,
         CancellationToken ct
-    ) =>
-        ResultResponse(
-            await iam.RevokeAssignmentAsync(
-                await ActingPrincipalIdAsync(ct),
-                assignmentId,
-                reason,
-                ct
-            )
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting);
+        return ResultResponse(
+            await iam.RevokeAssignmentAsync(acting.Value, assignmentId, reason, ct)
         );
+    }
 
     /// <summary>
-    /// The caller's IAM principal id for the service's internal re-check. On self-host (zero principals) the
-    /// caller has no principal row and the service short-circuits to allow — <c>Guid.Empty</c> is correct there.
+    /// The caller's IAM principal id for the service's internal re-check, via the shared resolver (fix D2 item
+    /// 4) — a resolve failure DENIES rather than substituting <c>Guid.Empty</c>.
     /// </summary>
-    private async Task<Guid> ActingPrincipalIdAsync(CancellationToken ct)
-    {
-        if (!Guid.TryParse(currentUser.UserId, out Guid userId))
-            return Guid.Empty;
-
-        Result<IamPrincipalDto?> principal = await iam.ResolvePrincipalAsync(userId, ct);
-        return principal is { IsSuccess: true, Value: not null } ? principal.Value.Id : Guid.Empty;
-    }
+    private Task<Result<Guid>> ActingPrincipalIdAsync(CancellationToken ct) =>
+        actingPrincipalResolver.ResolveActingPrincipalIdAsync(currentUser.UserId, ct);
 }

@@ -14,23 +14,29 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
 /// <summary>
-/// Plane-C platform IAM (roles-permissions §3.7). On self-host no <c>IamPrincipal</c>s exist, so every
-/// authorize short-circuits to true with no audit (the operator is implicitly full). On SaaS, a principal's
-/// effective permissions are the union over its active, non-expired, in-scope role assignments, every
-/// authorize is written to the append-only audit log, and management ops are themselves gated on iam:* keys.
+/// Plane-C platform IAM (roles-permissions §3.7). On self-host every authorize short-circuits to true with no
+/// audit (the operator is implicitly full) — decided from the DEPLOYMENT MODE (fix D2), never from whether any
+/// <c>IamPrincipal</c> row exists: the self-host owner is bootstrapped with a real principal + role assignment
+/// (<c>AuthService.MintPlatformOwnerPrincipalAsync</c>), so principal existence alone can no longer distinguish
+/// self-host from SaaS. On SaaS, a principal's effective permissions are the union over its active, non-expired,
+/// in-scope role assignments, every authorize is written to the append-only audit log, and management ops are
+/// themselves gated on iam:* keys.
 /// </summary>
 public sealed class PlatformIamService(
     IApplicationDbContext db,
     IEventBus eventBus,
-    TimeProvider clock
+    TimeProvider clock,
+    DeploymentContext deploymentContext
 ) : IPlatformIamService
 {
     private const string ManagePermission = "iam:manage";
@@ -46,7 +52,7 @@ public sealed class PlatformIamService(
         string? targetResource = null
     )
     {
-        if (!await IsSaasAsync(cancellationToken))
+        if (!IsSaas)
             return Result.Success(true); // self-host → owner = full, no audit
 
         IamPrincipal? principal = await db.IamPrincipals.FirstOrDefaultAsync(
@@ -386,11 +392,15 @@ public sealed class PlatformIamService(
             user.IsPlatformPrincipal = isPlatformPrincipal;
     }
 
-    public async Task<bool> HasAnyPrincipalsAsync(CancellationToken cancellationToken = default) =>
-        await IsSaasAsync(cancellationToken);
+    public Task<bool> HasAnyPrincipalsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(IsSaas);
 
-    private async Task<bool> IsSaasAsync(CancellationToken ct) =>
-        await db.IamPrincipals.AnyAsync(ct);
+    /// <summary>
+    /// Deployment-mode fact (fix D2), read once from the DI-resolved <see cref="DeploymentContext"/> — never
+    /// derived from row counts. Self-host is implicitly-full regardless of how many <c>IamPrincipal</c> rows
+    /// exist (the owner now has a real one from bootstrap); only SaaS enforces + audits.
+    /// </summary>
+    private bool IsSaas => deploymentContext.Mode == DeploymentMode.Saas;
 
     private async Task<bool> HasPermissionAsync(
         Guid principalId,
@@ -399,7 +409,7 @@ public sealed class PlatformIamService(
         CancellationToken ct
     )
     {
-        if (!await IsSaasAsync(ct))
+        if (!IsSaas)
             return true; // self-host → owner = full
         return (await EffectivePermissionsAsync(principalId, scopeChannelId, ct)).Contains(
             permissionKey

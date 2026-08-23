@@ -24,8 +24,10 @@ namespace NomNomzBot.Api.Controllers.V1;
 /// <summary>
 /// Plane-C privileged tenant operations (stream-admin.md §5 platform rows) — suspend/reinstate tenants,
 /// audited support access, and the Plane-C audit search. Each action carries the IAM policy (entry gate,
-/// audited); the service re-asserts the same key per call with the tenant-targeted audit row. Extends the
-/// read-only <c>AdminController</c> surface under the same <c>admin</c> route.
+/// audited); the service re-asserts the same key per call with the tenant-targeted audit row, resolving the
+/// ACTING principal via <see cref="IIamCallerPrincipalResolverService"/> — a resolve failure DENIES the
+/// action rather than substituting <c>Guid.Empty</c> (fix D2 item 4). Extends the read-only
+/// <c>AdminController</c> surface under the same <c>admin</c> route.
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/admin")]
@@ -33,8 +35,8 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Tags("Admin")]
 public class PlatformAdminController(
     IPlatformAdminService admin,
-    IPlatformIamService iam,
-    ICurrentUserService currentUser
+    ICurrentUserService currentUser,
+    IIamCallerPrincipalResolverService actingPrincipalResolver
 ) : BaseController
 {
     /// <summary>Paged tenant listing with search/status/live filters.</summary>
@@ -49,9 +51,13 @@ public class PlatformAdminController(
         CancellationToken ct
     )
     {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<PagedList<AdminTenantDto>>(null!));
+
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
         Result<PagedList<AdminTenantDto>> result = await admin.ListTenantsAsync(
-            await ActingPrincipalIdAsync(ct),
+            acting.Value,
             new(search, status, isLive),
             pagination,
             ct
@@ -65,10 +71,13 @@ public class PlatformAdminController(
     [HttpGet("tenants/{broadcasterId:guid}")]
     [Authorize(Policy = IamPermissionKeys.TenantRead)]
     [ProducesResponseType<StatusResponseDto<AdminTenantDetailDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetTenant(Guid broadcasterId, CancellationToken ct) =>
-        ResultResponse(
-            await admin.GetTenantAsync(await ActingPrincipalIdAsync(ct), broadcasterId, ct)
-        );
+    public async Task<IActionResult> GetTenant(Guid broadcasterId, CancellationToken ct)
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<AdminTenantDetailDto>(null!));
+        return ResultResponse(await admin.GetTenantAsync(acting.Value, broadcasterId, ct));
+    }
 
     /// <summary>Suspends a tenant (<c>suspended</c> | <c>platform_banned</c>) — enforced by the bot lifecycle and tenant resolution.</summary>
     [HttpPost("tenants/{broadcasterId:guid}/suspend")]
@@ -77,15 +86,15 @@ public class PlatformAdminController(
         Guid broadcasterId,
         [FromBody] SuspendTenantRequest request,
         CancellationToken ct
-    ) =>
-        ResultResponse(
-            await admin.SuspendTenantAsync(
-                await ActingPrincipalIdAsync(ct),
-                broadcasterId,
-                request,
-                ct
-            )
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting);
+        return ResultResponse(
+            await admin.SuspendTenantAsync(acting.Value, broadcasterId, request, ct)
         );
+    }
 
     /// <summary>Reinstates a suspended tenant to <c>active</c>.</summary>
     [HttpPost("tenants/{broadcasterId:guid}/reinstate")]
@@ -94,15 +103,15 @@ public class PlatformAdminController(
         Guid broadcasterId,
         [FromBody] ReinstateTenantRequest request,
         CancellationToken ct
-    ) =>
-        ResultResponse(
-            await admin.ReinstateTenantAsync(
-                await ActingPrincipalIdAsync(ct),
-                broadcasterId,
-                request.Justification,
-                ct
-            )
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting);
+        return ResultResponse(
+            await admin.ReinstateTenantAsync(acting.Value, broadcasterId, request.Justification, ct)
         );
+    }
 
     /// <summary>Begins audited support access to one tenant (time-boxed, tenant-narrowed role assignment).</summary>
     [HttpPost("tenants/{broadcasterId:guid}/access")]
@@ -112,23 +121,26 @@ public class PlatformAdminController(
         Guid broadcasterId,
         [FromBody] BeginTenantAccessRequest request,
         CancellationToken ct
-    ) =>
-        ResultResponse(
-            await admin.BeginTenantAccessAsync(
-                await ActingPrincipalIdAsync(ct),
-                broadcasterId,
-                request,
-                ct
-            )
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<TenantAccessGrantDto>(null!));
+        return ResultResponse(
+            await admin.BeginTenantAccessAsync(acting.Value, broadcasterId, request, ct)
         );
+    }
 
     /// <summary>Ends a support-access grant (revokes the assignment).</summary>
     [HttpDelete("access/{accessGrantId:guid}")]
     [Authorize(Policy = IamPermissionKeys.TenantAccess)]
-    public async Task<IActionResult> EndTenantAccess(Guid accessGrantId, CancellationToken ct) =>
-        ResultResponse(
-            await admin.EndTenantAccessAsync(await ActingPrincipalIdAsync(ct), accessGrantId, ct)
-        );
+    public async Task<IActionResult> EndTenantAccess(Guid accessGrantId, CancellationToken ct)
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting);
+        return ResultResponse(await admin.EndTenantAccessAsync(acting.Value, accessGrantId, ct));
+    }
 
     /// <summary>
     /// Begins an act-as impersonation of a registered user — mints an access-only token carrying that
@@ -141,15 +153,15 @@ public class PlatformAdminController(
         Guid userId,
         [FromBody] ImpersonateUserRequest req,
         CancellationToken ct
-    ) =>
-        ResultResponse(
-            await admin.StartImpersonationAsync(
-                await ActingPrincipalIdAsync(ct),
-                userId,
-                req.Justification,
-                ct
-            )
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<ImpersonationTokenDto>(null!));
+        return ResultResponse(
+            await admin.StartImpersonationAsync(acting.Value, userId, req.Justification, ct)
         );
+    }
 
     /// <summary>Paged Plane-C audit search by principal/tenant/permission/outcome/time.</summary>
     [HttpGet("audit")]
@@ -166,9 +178,13 @@ public class PlatformAdminController(
         CancellationToken ct
     )
     {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<PagedList<IamAuditEntryDto>>(null!));
+
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
         Result<PagedList<IamAuditEntryDto>> result = await admin.SearchAuditAsync(
-            await ActingPrincipalIdAsync(ct),
+            acting.Value,
             new(principalId, targetBroadcasterId, permission, outcome, from, to),
             pagination,
             ct
@@ -179,17 +195,11 @@ public class PlatformAdminController(
     }
 
     /// <summary>
-    /// The caller's IAM principal id for the service's audited re-check. Self-host (zero principals) has no
-    /// principal row and the service short-circuits to allow — <c>Guid.Empty</c> is correct there.
+    /// The caller's IAM principal id for the service's audited re-check, via the shared resolver (fix D2 item
+    /// 4) — a resolve failure DENIES rather than substituting <c>Guid.Empty</c>.
     /// </summary>
-    private async Task<Guid> ActingPrincipalIdAsync(CancellationToken ct)
-    {
-        if (!Guid.TryParse(currentUser.UserId, out Guid userId))
-            return Guid.Empty;
-
-        Result<IamPrincipalDto?> principal = await iam.ResolvePrincipalAsync(userId, ct);
-        return principal is { IsSuccess: true, Value: not null } ? principal.Value.Id : Guid.Empty;
-    }
+    private Task<Result<Guid>> ActingPrincipalIdAsync(CancellationToken ct) =>
+        actingPrincipalResolver.ResolveActingPrincipalIdAsync(currentUser.UserId, ct);
 }
 
 /// <summary>Body for the reinstate action — the justification lands in the audit row.</summary>

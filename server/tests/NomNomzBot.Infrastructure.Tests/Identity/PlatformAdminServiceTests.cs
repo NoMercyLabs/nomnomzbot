@@ -16,11 +16,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Auth;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -43,7 +45,7 @@ public sealed class PlatformAdminServiceTests
         FakeTimeProvider clock = new(Now);
         PlatformAdminService sut = new(
             db,
-            new PlatformIamService(db, bus, clock),
+            new PlatformIamService(db, bus, clock, new(DeploymentMode.Saas)),
             Jwt(),
             bus,
             clock
@@ -104,9 +106,7 @@ public sealed class PlatformAdminServiceTests
                     Category = IamCategory.Iam,
                 }
             );
-            db.IamRolePermissions.Add(
-                new() { RoleId = roleId, PermissionId = permissionId }
-            );
+            db.IamRolePermissions.Add(new() { RoleId = roleId, PermissionId = permissionId });
         }
         db.IamRoleAssignments.Add(
             new()
@@ -161,9 +161,7 @@ public sealed class PlatformAdminServiceTests
                     Category = IamCategory.Iam,
                 }
             );
-            db.IamRolePermissions.Add(
-                new() { RoleId = roleId, PermissionId = permissionId }
-            );
+            db.IamRolePermissions.Add(new() { RoleId = roleId, PermissionId = permissionId });
         }
         db.IamRoleAssignments.Add(
             new()
@@ -245,21 +243,11 @@ public sealed class PlatformAdminServiceTests
         Guid tenant = SeedTenant(db);
         await db.SaveChangesAsync();
 
-        (
-            await sut.SuspendTenantAsync(
-                unpermitted,
-                tenant,
-                new("active", "nope")
-            )
-        )
+        (await sut.SuspendTenantAsync(unpermitted, tenant, new("active", "nope")))
             .ErrorCode.Should()
             .Be("VALIDATION_FAILED");
 
-        Result denied = await sut.SuspendTenantAsync(
-            unpermitted,
-            tenant,
-            new("suspended", "nope")
-        );
+        Result denied = await sut.SuspendTenantAsync(unpermitted, tenant, new("suspended", "nope"));
         denied.ErrorCode.Should().Be("FORBIDDEN");
         (await db.Channels.SingleAsync(c => c.Id == tenant)).Status.Should().Be("active");
         // The denial itself was audited.
@@ -275,11 +263,7 @@ public sealed class PlatformAdminServiceTests
         Guid principal = SeedPrincipal(db, "tenant:suspend");
         Guid tenant = SeedTenant(db);
         await db.SaveChangesAsync();
-        await sut.SuspendTenantAsync(
-            principal,
-            tenant,
-            new("platform_banned", "spam")
-        );
+        await sut.SuspendTenantAsync(principal, tenant, new("platform_banned", "spam"));
 
         Result result = await sut.ReinstateTenantAsync(principal, tenant, "appeal accepted");
 
@@ -385,11 +369,7 @@ public sealed class PlatformAdminServiceTests
         Guid active = SeedTenant(db, "active_chan");
         Guid banned = SeedTenant(db, "banned_chan");
         await db.SaveChangesAsync();
-        await sut.SuspendTenantAsync(
-            principal,
-            banned,
-            new("platform_banned", "spam")
-        );
+        await sut.SuspendTenantAsync(principal, banned, new("platform_banned", "spam"));
 
         Result<PagedList<AdminTenantDto>> suspendedOnly = await sut.ListTenantsAsync(
             principal,

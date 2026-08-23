@@ -60,6 +60,14 @@ public sealed class AuthService : IAuthService
     // Self-host makes the first onboarded account the platform admin (the owner IS the admin); SaaS does not.
     private readonly bool _isSelfHost;
 
+    // D2 bootstrap wiring: the seeded system role the self-host owner (or the configured initial admin) is
+    // minted into on promotion — IamCatalogSeeder's "platform-super-admin" (roles-permissions.md §C.2).
+    private const string PlatformOwnerRoleName = "platform-super-admin";
+
+    // The service-account principal attributed as the ACTING principal for bootstrap-time IAM writes, so a
+    // bootstrap role assignment is never attributed to Guid.Empty (fix D2 item 3).
+    private const string SystemPrincipalName = "system-bootstrap";
+
     // SelfHostLite is single-streamer: a second login attaches to the existing channel instead of creating one.
     private readonly DeploymentMode _deploymentMode;
 
@@ -331,6 +339,7 @@ public sealed class AuthService : IAuthService
         )
         {
             user.IsPlatformPrincipal = true;
+            await MintPlatformOwnerPrincipalAsync(user.Id, cancellationToken);
             _logger.LogInformation(
                 "Bootstrapped platform admin (self-host first owner or configured id): {TwitchUserId}",
                 user.TwitchUserId
@@ -421,12 +430,7 @@ public sealed class AuthService : IAuthService
         if (connection.IsSuccess)
             await _vault.StoreTokensAsync(
                 connection.Value.Id,
-                new(
-                    tokens.AccessToken,
-                    tokens.RefreshToken,
-                    AppToken: null,
-                    tokens.ExpiresAt
-                ),
+                new(tokens.AccessToken, tokens.RefreshToken, AppToken: null, tokens.ExpiresAt),
                 tokens.Scopes,
                 cancellationToken
             );
@@ -473,6 +477,89 @@ public sealed class AuthService : IAuthService
 
         _logger.LogInformation("User {UserId} authenticated via Twitch OAuth", user.Id);
         return Result.Success(BuildAuthResult(session.Value, user));
+    }
+
+    /// <summary>
+    /// D2 bootstrap fix: promoting a user to platform owner must mint a REAL <c>IamPrincipal</c> + a
+    /// <c>platform-super-admin</c> role assignment, not just the <c>IsPlatformPrincipal</c> marker. Without
+    /// this, <c>PlatformIamService</c> had nothing to attribute audited Plane-C writes to for the self-host
+    /// owner, and deciding "is this SaaS" from "does any <c>IamPrincipal</c> row exist" meant creating a
+    /// second principal (e.g. a service account) would flip a self-host deployment into default-deny and lock
+    /// the owner out. Idempotent: re-running bootstrap for an already-minted owner adds neither a duplicate
+    /// principal nor a duplicate assignment. Internal so NomNomzBot.Infrastructure.Tests can exercise it
+    /// directly without driving the full Twitch login flow.
+    /// </summary>
+    internal async Task MintPlatformOwnerPrincipalAsync(Guid userId, CancellationToken ct)
+    {
+        IamPrincipal? principal = await _db.IamPrincipals.FirstOrDefaultAsync(
+            p => p.UserId == userId,
+            ct
+        );
+        if (principal is null)
+        {
+            principal = new()
+            {
+                PrincipalType = IamPrincipalType.Employee,
+                UserId = userId,
+                Name = "Platform Owner",
+                IsActive = true,
+            };
+            _db.IamPrincipals.Add(principal);
+        }
+        else
+        {
+            principal.IsActive = true;
+        }
+
+        IamRole? ownerRole = await _db.IamRoles.FirstOrDefaultAsync(
+            r => r.Name == PlatformOwnerRoleName,
+            ct
+        );
+        if (ownerRole is null)
+            return; // the IAM catalog seeder has not run yet; the next login retries idempotently
+
+        bool hasAssignment = await _db.IamRoleAssignments.AnyAsync(
+            a => a.PrincipalId == principal.Id && a.RoleId == ownerRole.Id && a.RevokedAt == null,
+            ct
+        );
+        if (hasAssignment)
+            return;
+
+        Guid systemPrincipalId = await EnsureSystemPrincipalIdAsync(ct);
+        _db.IamRoleAssignments.Add(
+            new()
+            {
+                PrincipalId = principal.Id,
+                RoleId = ownerRole.Id,
+                AssignedByPrincipalId = systemPrincipalId,
+                Reason = "self-host owner bootstrap",
+            }
+        );
+    }
+
+    /// <summary>
+    /// The system service-account principal attributed as the ACTING principal for bootstrap-time IAM writes
+    /// (fix D2 item 3) — created once, idempotently, so a bootstrap role assignment is never attributed to
+    /// <see cref="Guid.Empty"/>.
+    /// </summary>
+    private async Task<Guid> EnsureSystemPrincipalIdAsync(CancellationToken ct)
+    {
+        IamPrincipal? system = await _db.IamPrincipals.FirstOrDefaultAsync(
+            p =>
+                p.PrincipalType == IamPrincipalType.ServiceAccount && p.Name == SystemPrincipalName,
+            ct
+        );
+        if (system is not null)
+            return system.Id;
+
+        system = new()
+        {
+            PrincipalType = IamPrincipalType.ServiceAccount,
+            Name = SystemPrincipalName,
+            IsActive = true,
+        };
+        _db.IamPrincipals.Add(system);
+        return system.Id;
     }
 
     // ─── Device Code Flow login (no client secret) ─────────────────────────────
@@ -736,12 +823,7 @@ public sealed class AuthService : IAuthService
 
         await _vault.StoreTokensAsync(
             connection.Value.Id,
-            new(
-                tokens.AccessToken,
-                tokens.RefreshToken,
-                AppToken: null,
-                tokens.ExpiresAt
-            ),
+            new(tokens.AccessToken, tokens.RefreshToken, AppToken: null, tokens.ExpiresAt),
             tokens.Scopes,
             cancellationToken
         );
@@ -906,12 +988,7 @@ public sealed class AuthService : IAuthService
 
         await _vault.StoreTokensAsync(
             connection.Value.Id,
-            new(
-                tokens.AccessToken,
-                tokens.RefreshToken,
-                AppToken: null,
-                tokens.ExpiresAt
-            ),
+            new(tokens.AccessToken, tokens.RefreshToken, AppToken: null, tokens.ExpiresAt),
             tokens.Scopes,
             cancellationToken
         );
@@ -1122,12 +1199,7 @@ public sealed class AuthService : IAuthService
             user.CreatedAt,
             user.UpdatedAt
         );
-        return new(
-            session.AccessToken,
-            session.RawRefreshToken,
-            session.AccessExpiresAt,
-            userDto
-        );
+        return new(session.AccessToken, session.RawRefreshToken, session.AccessExpiresAt, userDto);
     }
 
     private async Task<TwitchUserInfo?> GetUserFromTokenAsync(

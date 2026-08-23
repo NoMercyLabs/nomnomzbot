@@ -13,16 +13,19 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.Identity;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
 /// <summary>
-/// Proves Plane-C platform IAM (roles-permissions §3.7): self-host (no principals) authorizes everything with
-/// no audit; on SaaS a principal is allowed only if its role assignments grant the permission, every decision
+/// Proves Plane-C platform IAM (roles-permissions §3.7): self-host authorizes everything with no audit
+/// REGARDLESS of how many <c>IamPrincipal</c> rows exist (fix D2 — the deployment mode decides, never a row
+/// count); on SaaS a principal is allowed only if its role assignments grant the permission, every decision
 /// is audited + evented; effective permissions are the scoped union over active assignments; management ops
 /// are gated; revocation removes a permission; and a service-account is created with its key returned once.
 /// </summary>
@@ -30,11 +33,13 @@ public sealed class PlatformIamServiceTests
 {
     private static readonly DateTimeOffset Now = new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero);
 
-    private static (PlatformIamService Sut, AuthDbContext Db, RecordingEventBus Bus) Build()
+    private static (PlatformIamService Sut, AuthDbContext Db, RecordingEventBus Bus) Build(
+        DeploymentMode mode = DeploymentMode.SelfHostLite
+    )
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         RecordingEventBus bus = new();
-        PlatformIamService sut = new(db, bus, new FakeTimeProvider(Now));
+        PlatformIamService sut = new(db, bus, new FakeTimeProvider(Now), new(mode));
         return (sut, db, bus);
     }
 
@@ -65,9 +70,7 @@ public sealed class PlatformIamServiceTests
                 Category = IamCategory.Iam,
             }
         );
-        db.IamRolePermissions.Add(
-            new() { RoleId = roleId, PermissionId = permissionId }
-        );
+        db.IamRolePermissions.Add(new() { RoleId = roleId, PermissionId = permissionId });
         db.IamRoleAssignments.Add(
             new()
             {
@@ -98,10 +101,49 @@ public sealed class PlatformIamServiceTests
         bus.Published.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Fix D2 item 1: the regression this whole slice exists to close. Before the fix, "is this SaaS" was
+    /// decided by "does any IamPrincipal row exist" — so creating a single service-account principal (e.g.
+    /// the platform onboarding a support tool) flipped a self-host deployment into default-deny and locked
+    /// the owner out of every Plane-C route, even though the deployment mode never changed. The fact must be
+    /// the deployment mode, not a row count.
+    /// </summary>
+    [Fact]
+    public async Task Self_host_still_authorizes_the_owner_after_a_service_account_principal_exists()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.SelfHostLite);
+        // Creating ONE principal (e.g. a service account onboarded for automation) must not change the
+        // deployment-mode fact the whole plane keys on.
+        db.IamPrincipals.Add(
+            new()
+            {
+                PrincipalType = IamPrincipalType.ServiceAccount,
+                Name = "ci-bot",
+                IsActive = true,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<bool> ownerCheck = await sut.AuthorizePlatformAsync(
+            Guid.NewGuid(), // the owner has no principal row of their own in this scenario
+            "iam:manage",
+            targetBroadcasterId: null,
+            breakGlass: false,
+            justification: null
+        );
+
+        ownerCheck
+            .Value.Should()
+            .BeTrue("self-host stays implicitly-full regardless of principal rows");
+        (await db.IamAuditLogs.CountAsync()).Should().Be(0);
+    }
+
     [Fact]
     public async Task Saas_allows_a_held_permission_and_audits_it()
     {
-        (PlatformIamService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        (PlatformIamService sut, AuthDbContext db, RecordingEventBus bus) = Build(
+            DeploymentMode.Saas
+        );
         Guid principalId = SeedPrincipalWithPermission(db, "iam:tenant:read");
         await db.SaveChangesAsync();
 
@@ -126,7 +168,7 @@ public sealed class PlatformIamServiceTests
     [Fact]
     public async Task Saas_denies_an_unheld_permission_and_audits_it()
     {
-        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
         Guid principalId = SeedPrincipalWithPermission(db, "iam:tenant:read");
         await db.SaveChangesAsync();
 
@@ -145,7 +187,7 @@ public sealed class PlatformIamServiceTests
     [Fact]
     public async Task Effective_permissions_respect_channel_scope()
     {
-        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
         Guid channel = Guid.NewGuid();
         Guid principalId = SeedPrincipalWithPermission(db, "iam:tenant:read", scope: channel);
         await db.SaveChangesAsync();
@@ -162,7 +204,7 @@ public sealed class PlatformIamServiceTests
     [Fact]
     public async Task Assign_requires_manage_then_grants_the_role()
     {
-        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
         Guid manager = SeedPrincipalWithPermission(db, "iam:manage");
         Guid target = Guid.NewGuid();
         Guid roleId = Guid.NewGuid();
@@ -204,7 +246,7 @@ public sealed class PlatformIamServiceTests
     [Fact]
     public async Task Revoke_removes_the_permission_from_the_effective_set()
     {
-        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
         Guid manager = SeedPrincipalWithPermission(db, "iam:manage");
         await db.SaveChangesAsync();
         IamRoleAssignment assignment = await db.IamRoleAssignments.FirstAsync(a =>
@@ -219,7 +261,7 @@ public sealed class PlatformIamServiceTests
     [Fact]
     public async Task Create_service_account_returns_the_key_once_and_stores_only_a_hash()
     {
-        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
         Guid creator = SeedPrincipalWithPermission(db, "iam:principal:create");
         await db.SaveChangesAsync();
 
@@ -244,7 +286,7 @@ public sealed class PlatformIamServiceTests
     [Fact]
     public async Task Create_employee_without_a_user_id_is_rejected()
     {
-        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
         Guid creator = SeedPrincipalWithPermission(db, "iam:principal:create");
         await db.SaveChangesAsync();
 
@@ -267,7 +309,7 @@ public sealed class PlatformIamServiceTests
     [Fact]
     public async Task Create_employee_promotes_the_backing_user_to_platform_principal()
     {
-        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
         Guid creator = SeedPrincipalWithPermission(db, "iam:principal:create");
         User user = NewUser("promoted");
         db.Users.Add(user);
@@ -295,7 +337,7 @@ public sealed class PlatformIamServiceTests
     [Fact]
     public async Task Create_employee_for_an_unknown_user_is_rejected()
     {
-        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
         Guid creator = SeedPrincipalWithPermission(db, "iam:principal:create");
         await db.SaveChangesAsync();
 
@@ -316,7 +358,7 @@ public sealed class PlatformIamServiceTests
     [Fact]
     public async Task Deactivate_clears_the_user_marker_and_reactivate_restores_it()
     {
-        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
         Guid manager = SeedPrincipalWithPermission(db, "iam:manage");
         User user = NewUser("demotee");
         user.IsPlatformPrincipal = true;
@@ -352,7 +394,7 @@ public sealed class PlatformIamServiceTests
     [Fact]
     public async Task A_principal_cannot_deactivate_itself()
     {
-        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
         Guid manager = SeedPrincipalWithPermission(db, "iam:manage");
         await db.SaveChangesAsync();
 
@@ -365,7 +407,7 @@ public sealed class PlatformIamServiceTests
     [Fact]
     public async Task List_roles_returns_each_role_with_its_permission_bundle()
     {
-        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
         SeedPrincipalWithPermission(db, "iam:manage"); // seeds one role bound to iam:manage
         db.IamRoles.Add(
             new()
@@ -391,7 +433,7 @@ public sealed class PlatformIamServiceTests
     [Fact]
     public async Task List_principals_carries_only_active_assignments()
     {
-        (PlatformIamService sut, AuthDbContext db, _) = Build();
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
         Guid principalId = SeedPrincipalWithPermission(db, "iam:manage");
         Guid roleId = Guid.NewGuid();
         db.IamRoles.Add(new() { Id = roleId, Name = "stale-role" });
