@@ -60,9 +60,9 @@ earned capability.
 | **SD7** | **Every action is explainable.** Each enforcement records the normalized text, the signals that fired, their weights, and the resulting score. No black-box bans. |
 | **SD8** | **Established regulars are immune — absolutely.** A long-term active participant is **never** auto-actioned by this subsystem, at any confidence, by any signal, from any source. The engine may flag for a human; it may not delete, hold, time out, ban, or block. This is a hard invariant, not a high threshold. |
 | **SD9** | **Presence is never an offence.** No account is ever actioned for being silent, for being new, or for arriving at the same moment as an attack. Every action requires a signal *that account itself* produced. Bursts and spikes select a **window to scrutinise**, never a set to punish. |
+| **SD10** | **Account risk multiplies, it never adds.** Score = content signal × account-risk coefficient, so zero content signal is zero score whatever the account looks like. Nobody is ever actioned for *what they are* — only for *what they said*. The two marks that describe silence are pinned at ×1.0 and move nothing (§L1.1). |
 | **SD11** | **Standing is portable, and positive evidence outranks negative.** A viewer who is a mod or VIP anywhere, subscribed anywhere, or carrying real watch time on this instance is **semi-trusted by default** and cannot be auto-banned or auto-timed-out — the engine may delete and flag, a human decides the rest. Positive standing is checked **first**, and it can zero a risk coefficient outright (§L1.2). |
 | **SD12** | **We are not the chat host — a message cannot be held.** Twitch, YouTube, Kick and X publish the message the instant it is sent. Our only pre-emptive lever is the platform's *own* controls (blocked terms, AutoMod, followers-only, slow, Shield Mode); everything else is reaction. `Hold` exists only on surfaces we publish ourselves (§5.1). |
-| **SD10** | **Account risk multiplies, it never adds.** Score = content signal × account-risk coefficient, so zero content signal is zero score whatever the account looks like. Nobody is ever actioned for *what they are* — only for *what they said*. The two marks that describe silence are pinned at ×1.0 and move nothing (§L1.1). |
 
 ---
 
@@ -224,17 +224,60 @@ most enthusiastic people in the room.
 
 So a campaign is not defined by the message. It is defined by **who is sending it**:
 
-> **A cohort is a campaign only when at least 80% of its members have no positive standing
-> (§L1.2).** If regulars, subs, mods-elsewhere, or viewers with watch time are pasting it, it is
-> community behaviour, and it is not a campaign — no matter how identical the text.
+> **A cohort is a campaign only when at least 80% of everyone posting the skeleton has no positive
+> standing (§L1.2).** If regulars, subs, mods-elsewhere, or viewers with watch time are pasting it,
+> it is community behaviour, and it is not a campaign — no matter how identical the text.
 
-The membership rules that follow from that:
+Two different sets, and conflating them is the classic error:
 
-- Semi-Trusted and Established members are removed from the cohort **before** the 80% is computed,
-  never counted toward it.
+| Set | Who is in it | Purpose |
+|---|---|---|
+| **Qualification set** | **everyone** who posted the skeleton in the window, standing or not | decides *whether* this is a campaign |
+| **Action set** | qualification set **minus** every Semi-Trusted and Established member | decides *who* can be acted on |
+
+Standing viewers count toward qualification — that is exactly how they vouch for the phrase — and
+are then excluded from action by SD11. A standing viewer can never be punished by a campaign, and
+can always exonerate one.
+
 - A cohort failing the threshold produces **no action at all** — not a downgraded one. It is
   recorded as `community_pattern` for the mod feed, and the skeleton is *not* added to the corpus.
 - A cohort passing it still actions each member on their own evidence (SD9), never as a set.
+
+#### L3.0.1 — Strangers start, regulars join: the exoneration window
+
+The live case, and the one that decides whether this system is safe: twenty no-standing accounts
+post a phrase, it qualifies at 100%, actions fire — and *then* the regulars pile in, because it
+was a joke, a raid greeting, or the community mocking the spam.
+
+**A cohort's verdict stays open for the life of its window, and it can only ever soften.**
+
+| | |
+|---|---|
+| **Qualify** | ≥ 80% no-standing, minimum 5 distinct accounts |
+| **De-qualify** | drops below **65%** — a hysteresis band, so a cohort hovering at the line cannot flap |
+| **Window** | 10 minutes from first match, extended by each new match, capped at 30 |
+| **Direction** | one-way. A cohort that de-qualifies never re-qualifies within its window. |
+
+On de-qualification the system **reverses itself**, because the premise the actions rested on no
+longer holds:
+
+1. All further action stops immediately.
+2. Every timeout and ban this campaign issued is **automatically undone** — untimeout, unban —
+   and each reversal is logged with the campaign as its cause.
+3. Deleted messages stay deleted (cheap, and a mod restores in one click), but the whole batch
+   lands in the review queue flagged `campaign_dequalified`.
+4. The skeleton is **removed** from the local corpus and withdrawn from any pending network
+   contribution.
+5. The operator is alerted, with the reason: *"N regulars joined this pattern; it is not spam."*
+
+Reversal is automatic, not a suggestion. Waiting for a mod to notice means someone stays banned
+through the rest of the stream for laughing along, which is the failure SD0 exists to prevent.
+
+**The tuning knob is a real trade-off, and it is the operator's to make.** Requiring a 30-second
+head start before acting makes exoneration nearly always beat the ban, at the cost of thirty
+seconds of visible spam. Acting instantly catches the spam but leans on reversal. Both are honest;
+the delay is `ActionDelaySeconds` in §6, defaulting to **8 seconds** — long enough for a regular
+to react, short enough that the room does not fill.
 
 **Channel-benign learning.** A skeleton repeatedly posted by standing viewers in a channel is
 marked benign **for that channel** and stops contributing to correlation there. Communities get to
@@ -472,6 +515,8 @@ New entities under `Domain/Moderation/Entities/`:
 | `ReporterTrust` | Per-channel contribution history and earned reporter score |
 | `ViewerStanding` | Portable positive standing (SD11): mod/VIP/sub elsewhere, watch-time totals here and instance-wide, partner/affiliate, resolved tier + why |
 | `LockdownWindow` | An SD0 room-tightening: platform, settings changed **and their prior values**, trigger, expiry, restored-at |
+| `SpamDefensePolicy` | Per-channel settings (§6), with a pinned/tracking flag per field |
+| `SpamDefenseDefaults` | Platform-wide defaults every channel inherits until it pins a field (global, admin-edited) |
 
 Extended: `UserTrustScore` gains the L1 component breakdown so a tier is explainable, not just a
 number, plus the per-channel participation counters that earn **Established** (first-message-at,
@@ -479,25 +524,98 @@ message count, distinct-active-days, last-upheld-strike-at).
 
 ---
 
-## 6. Frontend
+## 6. Configuration — every knob, two surfaces
+
+Nothing in this design is a magic number buried in code. Every threshold named anywhere in this
+spec is a stored, editable setting with a documented default, a range, and a plain-language
+explanation of what moving it costs. The operator can see the whole machine.
+
+**Two surfaces, identical editor.** The channel page edits `SpamDefensePolicy` (per-channel); the
+platform-admin page edits `SpamDefenseDefaults` (the ships-with values every new channel inherits).
+Same component, same validation, same copy — only the scope differs, so learning one teaches the
+other. A channel setting left untouched **tracks the default** and updates when the default moves;
+editing it pins it, and a "reset to default" restores tracking. The admin page shows how many
+channels have pinned each field, so a default change never silently misses the channels that
+overrode it.
+
+### 6.1 The knobs
+
+| Group | Setting | Default | Notes |
+|---|---|---|---|
+| **Master** | `IsEnabled` | on | kill switch |
+| | `DryRun` | **on for the first 7 days** | detects and logs, acts on nothing — see §6.2 |
+| **Layers** | `L0`–`L5` enable | all on | each layer independently disableable |
+| **Trust tiers** | thresholds for Newcomer / Known / Regular | §L4 table | age, follow age, message count |
+| | Established: days, messages, distinct active days, strike-free days | 90 / 300 / 30 / 180 | the SD8 immunity gate |
+| | Semi-Trusted routes: watch-hours here, instance-wide | 10 / 25 | each route individually toggleable |
+| **Capabilities** | the capability → minimum-tier grid | §L4 | editable per row |
+| | non-Latin script gate | **off** | SD2 |
+| **Content** | SimHash Hamming distance | 3 | 0 disables near-duplicate matching |
+| | minimum skeleton length | 8 | guards short-skeleton false positives |
+| **Campaign** | `QualifyPercent` | 80 | ≥ this share with no standing → campaign |
+| | `DeQualifyPercent` | 65 | below this → exonerate and reverse |
+| | `MinCohortSize` | 5 | |
+| | `WindowSeconds` / `MaxWindowSeconds` | 600 / 1800 | |
+| | `ActionDelaySeconds` | 8 | the exoneration head start (§L3.0.1) |
+| | `AutoReverseOnDeQualify` | **on** | off is allowed but warned against |
+| **Bursts** | follow-spike factor over baseline | 5× | self-calibrating baseline |
+| | join-burst factor over baseline | 4× | |
+| **Lockdown** | which platform controls to engage, per platform | §5.1 | checkboxes over the real capability map |
+| | duration, auto-extend, max duration | 15 / on / 60 min | |
+| **Network** | subscribe / contribute | subscribe on, contribute **off** | opt-in, SD3 |
+| | corroborations before a quarantined signature acts | 3 | |
+| **Escalation** | action per confidence tier, and the strike ladder | §L5 | routes into `ModerationEscalationService` |
+
+Ranges are enforced server-side, and the four SD invariants are **not settings**: SD0, SD8, SD9,
+SD11 and SD12 have no knob, because a switch that turns off "never punish a regular" is a switch
+someone eventually flips at 3am during a raid.
+
+### 6.2 Dry run is the default, and it is the whole safety story
+
+A new channel starts in **dry run for 7 days**: every layer evaluates, every detection is recorded
+with its full explanation, and **nothing is acted on**. The dashboard shows exactly what *would*
+have happened.
+
+The operator turns enforcement on when they have looked at a week of their own chat and agree with
+the verdicts. If the system would have banned a regular, they see it in a list instead of in an
+apology. Dry run is also available permanently, and is the recommended state for a channel that
+just wants the visibility.
+
+Changing any threshold offers a **replay**: re-run the last 7 days of recorded detections against
+the new value and show what changes, before saving. Tuning a spam filter blind is how
+over-correction happens, so we do not make anyone do it.
+
+## 7. Frontend
 
 Under Moderation in the dashboard:
 
-- **Spam Defense** — master toggle, per-layer toggles, the capability/tier table as an editable
-  grid, channel toggles (non-Latin gate, lockdown behaviour), network subscription state.
-- **Review Queue** — held messages with the normalized skeleton and the signals that fired
-  shown inline; approve (credits trust) / delete / ban.
-- **Campaigns** — detected cohorts, their representative message, member count, bulk undo.
+- **Spam Defense** — the §6 knobs in full, grouped as that table is: master + dry run, layer
+  toggles, the trust-tier thresholds, the capability grid, campaign and burst thresholds, the
+  lockdown control map, network subscription. Every field shows its default, whether this channel
+  has pinned it, a one-line plain explanation of what moving it costs, and a **replay** preview
+  against the last 7 days before saving. Invariant settings (SD0/SD8/SD9/SD11/SD12) render as
+  stated guarantees, not switches.
+- **Review Queue** — deletions awaiting review, each with the normalized skeleton and the signals
+  that fired shown inline; restore (credits trust) / uphold / escalate to a ban.
+- **Campaigns** — detected cohorts, their representative message, the qualification percentage
+  live, member count, and bulk undo. De-qualified cohorts show what was auto-reversed and why
+  (§L3.0.1). `community_pattern` cohorts are listed too, so the operator can see the catches the
+  system declined to make.
 - **Detections** — the audit log, filterable by signal, with per-detection explanation (SD7).
 - **Follow-bot blocks** — spike batches with each block's own reason shown, and a bulk-restore
   action per batch (SD9). Immune/flagged-only entries are labelled as such, so a mod can see the
   system *chose not to act* on a regular and why.
 
-Every surface is role-gated per `frontend-ia.md`; the capability table is manage-floor.
+**Platform admin** gets the same editor at `Admin → Spam Defense Defaults`: identical component
+and copy, scoped to `SpamDefenseDefaults`, plus a per-field count of how many channels have pinned
+it — so a default change never silently misses the channels that overrode it.
+
+Every surface is role-gated per `frontend-ia.md`; the capability table is manage-floor and the
+admin defaults page is platform-admin only.
 
 ---
 
-## 7. Testing
+## 8. Testing
 
 The bar (`CLAUDE.md` testing standard) is behaviour, not surface.
 
@@ -515,7 +633,7 @@ The bar (`CLAUDE.md` testing standard) is behaviour, not surface.
 - **Follow spike** — a burst against a calibrated baseline produces blocks, and asserts that
   **zero bans** were issued.
 
-### 7.1 Invariant tests — these two may never be allowed to rot
+### 8.1 Invariant tests — these two may never be allowed to rot
 
 **SD8 — Established immunity.** For *every* signal the engine can produce, an Established viewer
 emitting it asserts `ActionTaken == Flag` and asserts the message still posted. Written as a
@@ -529,6 +647,13 @@ seconds; 15 are subs, regulars, or carry watch time. Assert **no** `SpamCampaign
 actions, a `community_pattern` record instead, and that the skeleton is neither added to the local
 corpus nor queued for network contribution. Then re-run with all 40 as fresh no-standing accounts
 and assert a campaign *is* created — the test must be able to fail in both directions.
+
+**L3.0.1 — exoneration reverses itself.** A cohort qualifies at 100% no-standing and issues bans;
+then enough standing viewers post the same skeleton to drop it under 65%. Assert every ban and
+timeout the campaign issued is **automatically reversed**, that the skeleton is removed from the
+local corpus and withdrawn from pending contribution, that the deletion batch is queued flagged
+`campaign_dequalified`, and that the operator alert fired. Then assert the hysteresis: a cohort
+sitting at 72% neither qualifies nor de-qualifies repeatedly — one transition, not flapping.
 
 **SD11 — Semi-Trusted can never be auto-banned.** Table-driven over the full signal enum, and over
 each route into Semi-Trusted (mod elsewhere, VIP elsewhere, sub elsewhere, watch time here, watch
@@ -561,7 +686,7 @@ afterwards.
 
 ---
 
-## 8. Build Order
+## 9. Build Order
 
 1. L0 Normalizer + its corpus tests. Standalone, zero dependencies, immediately useful — wiring
    it into the existing `ChatFilterService` alone kills most current evasion.
