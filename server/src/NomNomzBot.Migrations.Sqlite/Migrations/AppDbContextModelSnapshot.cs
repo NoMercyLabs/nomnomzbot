@@ -326,6 +326,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.HasIndex("BroadcasterId", "ViewerUserId");
 
+                    b.HasIndex("BroadcasterId", "ViewerUserId", "StreamId")
+                        .IsUnique();
+
                     b.ToTable("WatchSessions");
                 });
 

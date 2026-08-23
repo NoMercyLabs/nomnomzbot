@@ -28,6 +28,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Configuration;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using NomNomzBot.Infrastructure.Platform.Security;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
@@ -325,21 +326,9 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
             .Ignore(e => e.Channel)
             .Ignore(e => e.Tags)
             .Ignore(e => e.ContentLabels);
-        // SQLite refuses to translate ORDER BY / comparisons on DateTimeOffset columns (it has no native
-        // type for one) — ChannelAnalyticsService orders streams by StartedAt, so this needs the same UTC
-        // ticks conversion as ScheduledPipelineTask above; see OUT-OF-SCOPE re: the production config gap.
-        b.Entity<NomNomzBot.Domain.Stream.Entities.Stream>()
-            .Property(e => e.StartedAt)
-            .HasConversion(
-                v => v == null ? (long?)null : v.Value.UtcTicks,
-                v => v == null ? (DateTimeOffset?)null : new DateTimeOffset(v.Value, TimeSpan.Zero)
-            );
-        b.Entity<NomNomzBot.Domain.Stream.Entities.Stream>()
-            .Property(e => e.EndedAt)
-            .HasConversion(
-                v => v == null ? (long?)null : v.Value.UtcTicks,
-                v => v == null ? (DateTimeOffset?)null : new DateTimeOffset(v.Value, TimeSpan.Zero)
-            );
+        // StartedAt/EndedAt DateTimeOffset comparison/ORDER BY translation on SQLite is handled model-wide
+        // by ApplySqliteCompatibility (see the call at the end of this method) — S004e made the per-entity
+        // UTC-ticks conversion a model-level concern, closing the drift risk of hand-rolling it per column.
         b.Entity<ChannelEvent>().HasKey(e => e.Id);
         b.Entity<ChannelEvent>().Ignore(e => e.Channel).Ignore(e => e.User);
         b.Entity<NomNomzBot.Domain.Commands.Entities.CommandUsage>().HasKey(e => e.Id);
@@ -421,25 +410,9 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<NomNomzBot.Domain.Commands.Entities.Pipeline>()
             .Ignore(e => e.Channel)
             .Ignore(e => e.Steps);
-        // DueAt/CreatedAt/FiredAt are DateTimeOffset — the SQLite provider (unlike InMemory) refuses to
-        // translate ORDER BY / relational comparisons (<=, <) on its default TEXT-mapped DateTimeOffset
-        // columns, which the sweeper's `t.DueAt <= now` depends on. Converting to UTC ticks (a plain INTEGER
-        // column) makes every comparison operator translatable — the same fix production self-host-lite
-        // (which also runs on SQLite, via ScheduledPipelineTaskConfiguration) will need; see OUT-OF-SCOPE.
-        b.Entity<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask>()
-            .HasKey(e => e.Id);
-        b.Entity<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask>()
-            .Property(e => e.DueAt)
-            .HasConversion(v => v.UtcTicks, v => new DateTimeOffset(v, TimeSpan.Zero));
-        b.Entity<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask>()
-            .Property(e => e.CreatedAt)
-            .HasConversion(v => v.UtcTicks, v => new DateTimeOffset(v, TimeSpan.Zero));
-        b.Entity<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask>()
-            .Property(e => e.FiredAt)
-            .HasConversion(
-                v => v == null ? (long?)null : v.Value.UtcTicks,
-                v => v == null ? (DateTimeOffset?)null : new DateTimeOffset(v.Value, TimeSpan.Zero)
-            );
+        // DueAt/CreatedAt/FiredAt are DateTimeOffset — comparison/ORDER BY translation on SQLite (the
+        // sweeper's `t.DueAt <= now`) is handled model-wide by ApplySqliteCompatibility below.
+        b.Entity<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask>().HasKey(e => e.Id);
         b.Ignore<NomNomzBot.Domain.Commands.Entities.PipelineStep>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.EventJournal>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.TenantSequence>();
@@ -460,6 +433,24 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
                 e.ChatterHash,
             })
             .IsUnique();
+
+        // Mirrors WatchSessionConfiguration (S004f): one open/derived session per (channel, viewer,
+        // stream) — DB-enforced so WatchSessionConcurrencyTests can prove GetOrOpenAsync's insert race
+        // converges on a single row instead of relying on unenforced application logic alone.
+        b.Entity<NomNomzBot.Domain.Analytics.Entities.WatchSession>()
+            .HasIndex(e => new
+            {
+                e.BroadcasterId,
+                e.ViewerUserId,
+                e.StreamId,
+            })
+            .IsUnique();
+
+        // Model-wide DateTimeOffset → UTC-ticks conversion (S004e) — replaces the per-entity converters
+        // this harness used to hand-roll on Stream.StartedAt/EndedAt and ScheduledPipelineTask's
+        // DueAt/CreatedAt/FiredAt columns, so SQLite can translate ORDER BY / relational comparisons on
+        // every DateTimeOffset column without drifting one call-site at a time.
+        b.ApplySqliteCompatibility();
     }
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──

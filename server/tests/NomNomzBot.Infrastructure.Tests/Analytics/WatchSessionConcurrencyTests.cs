@@ -130,6 +130,170 @@ public sealed class WatchSessionConcurrencyTests
             );
     }
 
+    /// <summary>
+    /// Proves S004f: <see cref="WatchSessionProjection"/>'s private <c>GetOrOpenAsync</c> no longer mints a
+    /// duplicate <see cref="WatchSession"/> row when N concurrent folds race to open the SAME
+    /// (BroadcasterId, ViewerUserId, StreamId) session — before the fix, <c>WatchSessionConfiguration</c>
+    /// carried no unique index on that triple, so every racing insert committed independently. Every task
+    /// here uses the IDENTICAL <c>OccurredAt</c> so the session's <c>DurationSeconds</c> delta is 0 for all
+    /// of them (isolating the INSERT race this slice fixes from the separate, already-atomic
+    /// ViewerProfile.TotalWatchSeconds fold and the unrelated session-duration read-modify-write).
+    /// </summary>
+    [Fact]
+    public async Task Concurrent_GetOrOpenAsync_calls_for_the_same_key_mint_exactly_one_session_row()
+    {
+        string dbName = $"watchsession-open-race-{Guid.NewGuid():N}";
+        const int concurrency = 20;
+        const string streamId = "shared-open-race-stream";
+
+        using (AuthDbContext seed = AuthTestBuilder.NewContext(dbName))
+        {
+            (ViewerResolver resolver, _) = BuildResolver(seed);
+            ViewerProfile? primed = await resolver.ResolveAsync(
+                Channel,
+                "twitch",
+                ViewerExternalId,
+                "watcher",
+                "Watcher",
+                CancellationToken.None
+            );
+            primed.Should().NotBeNull();
+            await seed.SaveChangesAsync();
+        }
+
+        Task[] tasks = Enumerable
+            .Range(1, concurrency)
+            .Select(_ =>
+                Task.Run(async () =>
+                {
+                    using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
+                    (ViewerResolver resolver, IUserService _) = BuildResolver(db);
+                    ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
+                    live.GetCoveringStreamIdAsync(
+                            Arg.Any<Guid>(),
+                            Arg.Any<DateTime>(),
+                            Arg.Any<CancellationToken>()
+                        )
+                        .Returns(streamId);
+                    WatchSessionProjection sut = new(db, resolver, live);
+
+                    Result result = await sut.ApplyAsync(ChatEvent(BaseTime));
+                    result.IsSuccess.Should().BeTrue();
+                })
+            )
+            .ToArray();
+
+        await Task.WhenAll(tasks);
+
+        using AuthDbContext verify = AuthTestBuilder.NewContext(dbName);
+        List<WatchSession> rows = verify
+            .WatchSessions.IgnoreQueryFilters()
+            .Where(s => s.BroadcasterId == Channel && s.StreamId == streamId)
+            .ToList();
+
+        rows.Should()
+            .HaveCount(
+                1,
+                "the unique index on (BroadcasterId, ViewerUserId, StreamId) plus GetOrOpenAsync's "
+                    + "insert-conflict fallback must converge every racing caller on ONE session row"
+            );
+    }
+
+    /// <summary>
+    /// Guards the fix's insert-conflict fallback against a regression on the NORMAL (no-conflict) path: N
+    /// concurrent first-activity folds for N DIFFERENT streams (distinct keys, no pre-seed — unlike
+    /// <see cref="Concurrent_folds_across_independent_sessions_accumulate_the_shared_profile_total_without_loss"/>,
+    /// which pre-seeds so its concurrency is isolated to the ViewerProfile total fold) must each open exactly
+    /// ONE session of its OWN, at its OWN correct StartedAt, with none of GetOrOpenAsync's new "insert failed,
+    /// re-read the winner" fallback path ever triggering (there is no conflict to trigger it) and none of the
+    /// N sessions merging into another's row.
+    /// </summary>
+    [Fact]
+    public async Task Concurrent_opens_across_distinct_stream_keys_each_mint_their_own_correct_session()
+    {
+        string dbName = $"watchsession-distinct-open-{Guid.NewGuid():N}";
+        const int concurrency = 15;
+
+        Guid viewerUserId;
+        using (AuthDbContext seed = AuthTestBuilder.NewContext(dbName))
+        {
+            (ViewerResolver resolver, IUserService _) = BuildResolver(seed);
+            ViewerProfile? primed = await resolver.ResolveAsync(
+                Channel,
+                "twitch",
+                ViewerExternalId,
+                "watcher",
+                "Watcher",
+                CancellationToken.None
+            );
+            primed.Should().NotBeNull();
+            await seed.SaveChangesAsync();
+            viewerUserId = primed!.ViewerUserId;
+        }
+
+        // No pre-seeding: every task's FIRST activity for its OWN stream races GetOrOpenAsync's INSERT path
+        // concurrently with every other task's insert for a DIFFERENT key — proving the unique index + the
+        // insert-conflict fallback added in this slice never cross-wires unrelated keys.
+        DateTime[] openedAt = Enumerable
+            .Range(1, concurrency)
+            .Select(i => BaseTime.AddSeconds(i * 10))
+            .ToArray();
+        Task[] tasks = Enumerable
+            .Range(1, concurrency)
+            .Select(i =>
+                Task.Run(async () =>
+                {
+                    using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
+                    (ViewerResolver resolver, IUserService _) = BuildResolver(db);
+                    ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
+                    live.GetCoveringStreamIdAsync(
+                            Arg.Any<Guid>(),
+                            Arg.Any<DateTime>(),
+                            Arg.Any<CancellationToken>()
+                        )
+                        .Returns($"distinct-stream-{i}");
+                    WatchSessionProjection sut = new(db, resolver, live);
+
+                    Result result = await sut.ApplyAsync(ChatEvent(openedAt[i - 1]));
+                    result.IsSuccess.Should().BeTrue();
+                })
+            )
+            .ToArray();
+
+        await Task.WhenAll(tasks);
+
+        using AuthDbContext verify = AuthTestBuilder.NewContext(dbName);
+        List<WatchSession> rows = verify
+            .WatchSessions.IgnoreQueryFilters()
+            .Where(s => s.BroadcasterId == Channel && s.ViewerUserId == viewerUserId)
+            .ToList()
+            .OrderBy(s => int.Parse(s.StreamId!.Split('-')[^1]))
+            .ToList();
+
+        rows.Should()
+            .HaveCount(
+                concurrency,
+                "each task's key is DISTINCT — no conflict should ever collapse two of them into one row"
+            );
+        for (int i = 0; i < concurrency; i++)
+        {
+            WatchSession row = rows[i];
+            row.StreamId.Should().Be($"distinct-stream-{i + 1}");
+            // A freshly-opened session always starts at DurationSeconds 0 (StartedAt == EndedAt == its own
+            // first activity) — proves this task's insert landed on ITS OWN row, not a stray fallback re-read
+            // of some OTHER task's winning insert.
+            row.DurationSeconds.Should().Be(0);
+        }
+
+        // ViewerProfile accumulation must stay 0 too — every fold above is a fresh open (0 delta by
+        // construction), so any non-zero total here would mean a fold mistakenly extended a PRE-EXISTING row
+        // instead of opening its own.
+        ViewerProfile profile = verify
+            .ViewerProfiles.IgnoreQueryFilters()
+            .Single(p => p.BroadcasterId == Channel && p.ViewerUserId == viewerUserId);
+        profile.TotalWatchSeconds.Should().Be(0);
+    }
+
     private static (ViewerResolver Resolver, IUserService UserService) BuildResolver(
         AuthDbContext db
     )

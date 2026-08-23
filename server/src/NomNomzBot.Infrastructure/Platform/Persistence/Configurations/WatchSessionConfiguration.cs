@@ -23,5 +23,16 @@ public class WatchSessionConfiguration : IEntityTypeConfiguration<WatchSession>
         builder.HasIndex(e => e.StreamId);
         builder.HasIndex(e => e.CreatedAt);
         builder.HasIndex(e => new { e.BroadcasterId, e.ViewerUserId }); // erasure scrub + watch history
+
+        // One open/derived session per (channel, viewer, stream) — DB-enforced so a concurrent
+        // GetOrOpenAsync race mints at most one row instead of double-counting watch time.
+        builder
+            .HasIndex(e => new
+            {
+                e.BroadcasterId,
+                e.ViewerUserId,
+                e.StreamId,
+            })
+            .IsUnique();
     }
 }

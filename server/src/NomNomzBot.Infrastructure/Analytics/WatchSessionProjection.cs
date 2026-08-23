@@ -172,7 +172,7 @@ public sealed class WatchSessionProjection(
     )
     {
         // IgnoreQueryFilters: tenant-less projection-driver / rebuild scope — the ITenantScoped filter would hide
-        // the open session just committed for this (broadcaster, viewer, stream), causing a re-insert + 23505.
+        // the open session just committed for this (broadcaster, viewer, stream), causing a re-insert attempt.
         WatchSession? session = await db
             .WatchSessions.IgnoreQueryFilters()
             .FirstOrDefaultAsync(
@@ -182,20 +182,47 @@ public sealed class WatchSessionProjection(
                     && s.StreamId == streamId,
                 ct
             );
-        if (session is null)
+        if (session is not null)
+            return session;
+
+        session = new()
         {
-            session = new()
-            {
-                BroadcasterId = broadcasterId,
-                ViewerProfileId = profile.Id,
-                ViewerUserId = profile.ViewerUserId,
-                StreamId = streamId,
-                StartedAt = at,
-                EndedAt = at,
-                CreatedAt = at,
-            };
-            db.WatchSessions.Add(session);
+            BroadcasterId = broadcasterId,
+            ViewerProfileId = profile.Id,
+            ViewerUserId = profile.ViewerUserId,
+            StreamId = streamId,
+            StartedAt = at,
+            EndedAt = at,
+            CreatedAt = at,
+        };
+        db.WatchSessions.Add(session);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return session;
         }
-        return session;
+        catch (DbUpdateException)
+        {
+            // A concurrent GetOrOpenAsync won the unique-index race for this (broadcaster, viewer, stream) —
+            // this attempt's row was rejected. Detach it (it is not the row EF's identity map should hand
+            // back) and re-read the winner's row so every caller converges on the SAME session.
+            if (db is DbContext dbContext)
+                dbContext.Entry(session).State = EntityState.Detached;
+
+            WatchSession? winner = await db
+                .WatchSessions.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(
+                    s =>
+                        s.BroadcasterId == broadcasterId
+                        && s.ViewerUserId == profile.ViewerUserId
+                        && s.StreamId == streamId,
+                    ct
+                );
+            return winner
+                ?? throw new InvalidOperationException(
+                    $"WatchSession unique-index conflict for broadcaster {broadcasterId}, viewer "
+                        + $"{profile.ViewerUserId}, stream {streamId} but no winning row could be re-read."
+                );
+        }
     }
 }
