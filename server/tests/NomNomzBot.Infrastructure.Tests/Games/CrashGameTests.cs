@@ -16,6 +16,7 @@ using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Games;
 using NomNomzBot.Application.Games.Services;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Infrastructure.Economy;
@@ -310,6 +311,7 @@ public sealed class CrashGameTests
         LiveGameEngine engine = new(
             db,
             games,
+            Substitute.For<IChatProvider>(),
             new RecordingNotifier(),
             new LiveGameCatalog([new CrashGame()]),
             new FixedOverlayResolver(),

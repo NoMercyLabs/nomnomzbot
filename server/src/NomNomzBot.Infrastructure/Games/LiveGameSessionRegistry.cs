@@ -37,6 +37,9 @@ public sealed class LiveGameSessionRuntime
     public LiveGamePhase Phase { get; set; } = LiveGamePhase.Lobby;
     public DateTime? NextTickAt { get; set; }
 
+    /// <summary>Resets on every successful clock advance; the runner force-cancels once this hits its threshold.</summary>
+    public int TickFailureCount { get; set; }
+
     /// <summary>Set once the session settles or cancels — late chat/ticks bounce off instead of reviving it.</summary>
     public bool Terminal { get; set; }
 }

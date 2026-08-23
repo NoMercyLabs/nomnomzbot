@@ -36,6 +36,13 @@ public sealed class LiveGameRunner(
     ILogger<LiveGameRunner> logger
 ) : BackgroundService
 {
+    /// <summary>
+    /// S006 part 3: a session that fails its clock advance this many times in a row can never self-resolve
+    /// (a persistently broken game hook, a poisoned state bag, …) — it is force-cancelled and refunded
+    /// rather than left running (and its stakes stuck) forever.
+    /// </summary>
+    internal const int MaxConsecutiveTickFailures = 3;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try
@@ -45,38 +52,76 @@ public sealed class LiveGameRunner(
             using PeriodicTimer timer = new(TimeSpan.FromSeconds(1), clock);
             while (await timer.WaitForNextTickAsync(stoppingToken))
                 foreach (LiveGameSessionRuntime runtime in registry.Snapshot())
-                {
-                    DateTime now = clock.GetUtcNow().UtcDateTime;
-                    bool lobbyDue =
-                        runtime.Phase == Application.Games.LiveGamePhase.Lobby
-                        && now >= runtime.JoinClosesAt;
-                    bool tickDue = runtime.NextTickAt is { } due && now >= due;
-                    if (runtime.Terminal || (!lobbyDue && !tickDue))
-                        continue;
-                    try
-                    {
-                        await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
-                        LiveGameEngine engine =
-                            scope.ServiceProvider.GetRequiredService<LiveGameEngine>();
-                        await engine.AdvanceClockAsync(runtime.BroadcasterId, stoppingToken);
-                    }
-                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-                    {
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(
-                            ex,
-                            "Live game clock advance failed for session {SessionId}",
-                            runtime.SessionId
-                        );
-                    }
-                }
+                    await AdvanceRuntimeAsync(runtime, stoppingToken);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
             // Normal shutdown.
+        }
+    }
+
+    /// <summary>
+    /// One runtime's wall-clock sweep: skips sessions with nothing due, drives the engine when the lobby
+    /// closes or a tick is due, and force-cancels after <see cref="MaxConsecutiveTickFailures"/> consecutive
+    /// failures. Extracted from <see cref="ExecuteAsync"/> so it is directly testable (same seam as
+    /// <see cref="SweepOrphanedSessionsAsync"/>).
+    /// </summary>
+    internal async Task AdvanceRuntimeAsync(LiveGameSessionRuntime runtime, CancellationToken ct)
+    {
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        bool lobbyDue =
+            runtime.Phase == Application.Games.LiveGamePhase.Lobby && now >= runtime.JoinClosesAt;
+        bool tickDue = runtime.NextTickAt is { } due && now >= due;
+        if (runtime.Terminal || (!lobbyDue && !tickDue))
+            return;
+
+        try
+        {
+            await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+            LiveGameEngine engine = scope.ServiceProvider.GetRequiredService<LiveGameEngine>();
+            await engine.AdvanceClockAsync(runtime.BroadcasterId, ct);
+            runtime.TickFailureCount = 0;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            runtime.TickFailureCount++;
+            logger.LogError(
+                ex,
+                "Live game clock advance failed for session {SessionId} ({Count} consecutive)",
+                runtime.SessionId,
+                runtime.TickFailureCount
+            );
+            if (runtime.TickFailureCount < MaxConsecutiveTickFailures)
+                return;
+
+            try
+            {
+                await using AsyncServiceScope cancelScope = scopeFactory.CreateAsyncScope();
+                LiveGameEngine cancelEngine =
+                    cancelScope.ServiceProvider.GetRequiredService<LiveGameEngine>();
+                await cancelEngine.ForceCancelStuckSessionAsync(
+                    runtime.BroadcasterId,
+                    runtime.SessionId,
+                    ct
+                );
+                logger.LogError(
+                    "Live game session {SessionId} force-cancelled after {Count} consecutive tick failures",
+                    runtime.SessionId,
+                    runtime.TickFailureCount
+                );
+            }
+            catch (Exception cancelEx)
+            {
+                logger.LogError(
+                    cancelEx,
+                    "Force-cancel failed for stuck live game session {SessionId}",
+                    runtime.SessionId
+                );
+            }
         }
     }
 

@@ -19,6 +19,7 @@ using NomNomzBot.Application.Games;
 using NomNomzBot.Application.Games.Dtos;
 using NomNomzBot.Application.Games.Services;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Domain.Economy.Events;
@@ -36,6 +37,7 @@ namespace NomNomzBot.Infrastructure.Games;
 public sealed class LiveGameEngine(
     IApplicationDbContext db,
     IGameService games,
+    IChatProvider chat,
     IWidgetEventNotifier overlay,
     ILiveGameCatalog catalog,
     ILiveGameOverlayResolver overlayResolver,
@@ -310,10 +312,17 @@ public sealed class LiveGameEngine(
                         new(runtime.SessionId, runtime.GameConfigId, viewerUserId, stakeAmount),
                         ct
                     );
-                    // A joiner who cannot pay is skipped silently — spamming per-viewer rejections
-                    // would drown the room while a round runs.
+                    // A joiner who cannot pay must know why they are not in the round — silence here
+                    // reads as a swallowed message, not a fair outcome.
                     if (staked.IsFailure)
+                    {
+                        await chat.SendMessageAsync(
+                            broadcasterId,
+                            $"@{displayName} you can't join — {staked.ErrorMessage}",
+                            ct
+                        );
                         return;
+                    }
                     runtime.Stakes[viewerUserId] = staked.Value;
                     accountId = staked.Value.AccountId;
                 }
@@ -400,6 +409,42 @@ public sealed class LiveGameEngine(
         }
     }
 
+    /// <summary>
+    /// The runner's last resort (S006 part 3): after N consecutive tick failures a session can never
+    /// self-resolve, so this force-cancels it — refunding every stake exactly like a host cancel — instead
+    /// of leaving the round (and the viewers' entry fees) stuck forever.
+    /// </summary>
+    internal async Task ForceCancelStuckSessionAsync(
+        Guid broadcasterId,
+        Guid sessionId,
+        CancellationToken ct
+    )
+    {
+        if (
+            !registry.TryGet(broadcasterId, out LiveGameSessionRuntime? runtime)
+            || runtime.SessionId != sessionId
+        )
+            return;
+
+        await runtime.Gate.WaitAsync(ct);
+        try
+        {
+            if (runtime.Terminal)
+                return;
+            GameSession? session = await db.GameSessions.FirstOrDefaultAsync(
+                s => s.Id == sessionId,
+                ct
+            );
+            if (session is null)
+                return;
+            await CancelInternalAsync(runtime, session, "runner_stuck", ct);
+        }
+        finally
+        {
+            runtime.Gate.Release();
+        }
+    }
+
     // ── The engine ↔ game loop plumbing ──
 
     private async Task ApplyTransitionAsync(
@@ -454,26 +499,28 @@ public sealed class LiveGameEngine(
             );
         }
 
-        int winnerCount = 0;
-        long totalPaidOut = 0;
         Result<LiveGameSettlementResult> settled = await games.SettleLiveGameAsync(
             runtime.BroadcasterId,
             new(runtime.SessionId, runtime.GameConfigId, session.GameType, awards),
             ct
         );
-        if (settled.IsSuccess)
+        if (settled.IsFailure)
         {
-            winnerCount = settled.Value.WinnerCount;
-            totalPaidOut = settled.Value.TotalPaidOut;
-        }
-        else
+            // A settle failure must never silently drop stakes: nobody was paid, so every entry fee is
+            // still owed — cancel the round through the same refund path as any other cancel instead of
+            // marking it Settled with money unaccounted for.
             logger.LogWarning(
-                "Live game {SessionId} settlement failed: {Error} ({Code})",
+                "Live game {SessionId} settlement failed: {Error} ({Code}) — cancelling and refunding",
                 runtime.SessionId,
                 settled.ErrorMessage,
                 settled.ErrorCode
             );
+            await CancelInternalAsync(runtime, session, "settlement_failed", ct);
+            return;
+        }
 
+        int winnerCount = settled.Value.WinnerCount;
+        long totalPaidOut = settled.Value.TotalPaidOut;
         DateTime now = clock.GetUtcNow().UtcDateTime;
         session.Status = GameSessionStatus.Settled;
         session.ResolvedAt = now;
