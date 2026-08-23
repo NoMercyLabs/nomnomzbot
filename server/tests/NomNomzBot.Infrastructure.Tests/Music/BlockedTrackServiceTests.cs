@@ -109,17 +109,11 @@ public sealed class BlockedTrackServiceTests
 
         (await sut.IsBlockedAsync(ChannelB, "spotify:track:rick1")).Should().BeFalse();
 
-        Result<PagedList<BlockedTrackDto>> listB = await sut.ListAsync(
-            ChannelB,
-            new(1, 25)
-        );
+        Result<PagedList<BlockedTrackDto>> listB = await sut.ListAsync(ChannelB, new(1, 25));
         listB.Value.Items.Should().BeEmpty();
 
         // And channel B cannot unblock channel A's row.
-        Result<PagedList<BlockedTrackDto>> listA = await sut.ListAsync(
-            ChannelA,
-            new(1, 25)
-        );
+        Result<PagedList<BlockedTrackDto>> listA = await sut.ListAsync(ChannelA, new(1, 25));
         Guid rowId = listA.Value.Items.Single().Id;
         (await sut.UnblockAsync(ChannelB, rowId)).ErrorCode.Should().Be("NOT_FOUND");
         (await sut.IsBlockedAsync(ChannelA, "spotify:track:rick1")).Should().BeTrue();
@@ -129,19 +123,10 @@ public sealed class BlockedTrackServiceTests
     public async Task List_returns_the_channel_blocks_newest_first_with_totals()
     {
         (BlockedTrackService sut, _) = Build();
-        await sut.BlockAsync(
-            ChannelA,
-            new("spotify", "spotify:track:one", "One")
-        );
-        await sut.BlockAsync(
-            ChannelA,
-            new("youtube", "yt:video:two", "Two", "loud", "twitch-9")
-        );
+        await sut.BlockAsync(ChannelA, new("spotify", "spotify:track:one", "One"));
+        await sut.BlockAsync(ChannelA, new("youtube", "yt:video:two", "Two", "loud", "twitch-9"));
 
-        Result<PagedList<BlockedTrackDto>> page = await sut.ListAsync(
-            ChannelA,
-            new(1, 25)
-        );
+        Result<PagedList<BlockedTrackDto>> page = await sut.ListAsync(ChannelA, new(1, 25));
 
         page.Value.TotalCount.Should().Be(2);
         page.Value.Items.Should().HaveCount(2);

@@ -146,9 +146,7 @@ public class UsersController : BaseController
 
     /// <summary>Get all channels a user appears in (as broadcaster or moderation role).</summary>
     [HttpGet("{userId}/channels")]
-    [ProducesResponseType<
-        StatusResponseDto<List<UserChannelAppearanceDto>>
-    >(
+    [ProducesResponseType<StatusResponseDto<List<UserChannelAppearanceDto>>>(
         StatusCodes.Status200OK
     )]
     public async Task<IActionResult> GetUserChannels(string userId, CancellationToken ct)
@@ -158,8 +156,10 @@ public class UsersController : BaseController
         if (callerId != userId && !isAdmin)
             return UnauthorizedResponse("You may only view your own channel list.");
 
-        Result<List<UserChannelAppearanceDto>> result =
-            await _userService.GetUserChannelsAsync(userId, ct);
+        Result<List<UserChannelAppearanceDto>> result = await _userService.GetUserChannelsAsync(
+            userId,
+            ct
+        );
         return ResultResponse(result);
     }
 

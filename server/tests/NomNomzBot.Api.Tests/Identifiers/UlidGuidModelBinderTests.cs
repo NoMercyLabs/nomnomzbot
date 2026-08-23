@@ -47,9 +47,7 @@ public sealed class UlidGuidModelBinderTests
 
     private static async Task<DefaultModelBindingContext> BindAsync(Type modelType, string? value)
     {
-        ValueProviderResult result = value is null
-            ? ValueProviderResult.None
-            : new(new(value));
+        ValueProviderResult result = value is null ? ValueProviderResult.None : new(new(value));
         DefaultModelBindingContext context = ContextFor(modelType, result);
         await new UlidGuidModelBinder().BindModelAsync(context);
         return context;

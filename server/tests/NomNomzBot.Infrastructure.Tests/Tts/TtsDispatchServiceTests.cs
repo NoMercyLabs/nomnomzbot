@@ -848,12 +848,7 @@ public sealed class TtsDispatchServiceTests
             .SynthesizeAsync("gg chat", "default-voice", Arg.Any<CancellationToken>());
 
         // Writing a rule through the service must evict the cache — the very next dispatch speaks the new form.
-        (
-            await h.Lexicon.CreateAsync(
-                Tenant,
-                new() { Phrase = "gg", Replacement = "good game" }
-            )
-        )
+        (await h.Lexicon.CreateAsync(Tenant, new() { Phrase = "gg", Replacement = "good game" }))
             .IsSuccess.Should()
             .BeTrue();
 

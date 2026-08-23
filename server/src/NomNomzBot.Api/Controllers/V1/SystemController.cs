@@ -160,9 +160,7 @@ public class SystemController : BaseController
             )
         );
 
-        return Ok(
-            new StatusResponseDto<SystemStatusDto> { Data = new(ready, checks) }
-        );
+        return Ok(new StatusResponseDto<SystemStatusDto> { Data = new(ready, checks) });
     }
 
     /// <summary>

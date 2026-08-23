@@ -174,17 +174,14 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
         Set<NomNomzBot.Domain.Community.Entities.ChatPollVote>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
-    public DbSet<ErasureRequest> ErasureRequests =>
-        Set<ErasureRequest>();
+    public DbSet<ErasureRequest> ErasureRequests => Set<ErasureRequest>();
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
     public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
-    public DbSet<CryptoKey> CryptoKeys =>
-        Set<CryptoKey>();
-    public DbSet<KeyUsageBinding> KeyUsageBindings =>
-        Set<KeyUsageBinding>();
+    public DbSet<CryptoKey> CryptoKeys => Set<CryptoKey>();
+    public DbSet<KeyUsageBinding> KeyUsageBindings => Set<KeyUsageBinding>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey> EventSubjectKeys =>
         Set<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey>();
 
@@ -238,11 +235,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
 
         // Mapped standalone (navs ignored, Channel.Moderators already ignored above) so the
         // ChannelAccessService tests can exercise the moderator-grant branch of tenant resolution.
-        b.Entity<ChannelModerator>()
-            .HasKey(e => new { e.ChannelId, e.UserId });
-        b.Entity<ChannelModerator>()
-            .Ignore(e => e.Channel)
-            .Ignore(e => e.User);
+        b.Entity<ChannelModerator>().HasKey(e => new { e.ChannelId, e.UserId });
+        b.Entity<ChannelModerator>().Ignore(e => e.Channel).Ignore(e => e.User);
 
         // Service is scalar-only (the Scopes string[] materializes on InMemory), so it maps cleanly (nav ignored)
         // — mapped so the IntegrationOAuthService mirror test can prove the connect flow writes the legacy
@@ -283,9 +277,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
             .Ignore(e => e.Tags)
             .Ignore(e => e.ContentLabels);
         b.Entity<ChannelEvent>().HasKey(e => e.Id);
-        b.Entity<ChannelEvent>()
-            .Ignore(e => e.Channel)
-            .Ignore(e => e.User);
+        b.Entity<ChannelEvent>().Ignore(e => e.Channel).Ignore(e => e.User);
         b.Entity<NomNomzBot.Domain.Commands.Entities.CommandUsage>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Commands.Entities.CommandUsage>().Ignore(e => e.Command);
 
@@ -373,8 +365,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     }
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<ChannelModerator> ChannelModerators =>
-        Set<ChannelModerator>();
+    public DbSet<ChannelModerator> ChannelModerators => Set<ChannelModerator>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Service> Services =>
         Set<NomNomzBot.Domain.Platform.Entities.Service>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Command> Commands =>
@@ -417,8 +408,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Giveaways.Entities.GiveawayCodePool>();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
         Set<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode>();
-    public DbSet<ChannelEvent> ChannelEvents =>
-        Set<ChannelEvent>();
+    public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         Set<NomNomzBot.Domain.Stream.Entities.Stream>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
@@ -427,16 +417,13 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Platform.Entities.Storage>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
         throw new NotSupportedException();
-    public DbSet<Permission> Permissions =>
-        throw new NotSupportedException();
+    public DbSet<Permission> Permissions => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.ChannelFeature> ChannelFeatures =>
         throw new NotSupportedException();
     public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>
         throw new NotSupportedException();
-    public DbSet<BotAccount> BotAccounts =>
-        Set<BotAccount>();
-    public DbSet<IpcDevModeKey> IpcDevModeKeys =>
-        Set<IpcDevModeKey>();
+    public DbSet<BotAccount> BotAccounts => Set<BotAccount>();
+    public DbSet<IpcDevModeKey> IpcDevModeKeys => Set<IpcDevModeKey>();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection> DiscordGuildConnections =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig> DiscordNotificationConfigs =>
@@ -447,8 +434,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch> DiscordNotificationDispatches =>
         throw new NotSupportedException();
-    public DbSet<ChannelSubscription> ChannelSubscriptions =>
-        throw new NotSupportedException();
+    public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Vts.Entities.VtsConnection> VtsConnections =>
         Set<NomNomzBot.Domain.Vts.Entities.VtsConnection>();
     public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
@@ -469,12 +455,10 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsApprovalQueueEntry> TtsApprovalQueueEntries =>
         throw new NotSupportedException();
-    public DbSet<Pronoun> Pronouns =>
-        Set<Pronoun>();
+    public DbSet<Pronoun> Pronouns => Set<Pronoun>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog> DeletionAuditLogs =>
         throw new NotSupportedException();
-    public DbSet<ComplianceAuditLog> ComplianceAuditLogs =>
-        throw new NotSupportedException();
+    public DbSet<ComplianceAuditLog> ComplianceAuditLogs => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         Set<NomNomzBot.Domain.Commands.Entities.Timer>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.EventResponse> EventResponses =>
@@ -521,32 +505,21 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
 
     // Roles & permissions (Plane A/B) — mapped (simple scalar/enum entities materialize on InMemory) so the
     // role-resolver tests can seed/query them through this harness.
-    public DbSet<ChannelMembership> ChannelMemberships =>
-        Set<ChannelMembership>();
+    public DbSet<ChannelMembership> ChannelMemberships => Set<ChannelMembership>();
     public DbSet<ChannelCommunityStanding> ChannelCommunityStandings =>
         Set<ChannelCommunityStanding>();
-    public DbSet<ActionDefinition> ActionDefinitions =>
-        Set<ActionDefinition>();
-    public DbSet<ChannelActionOverride> ChannelActionOverrides =>
-        Set<ChannelActionOverride>();
-    public DbSet<PermitGrant> PermitGrants =>
-        Set<PermitGrant>();
-    public DbSet<ChannelMissingScope> ChannelMissingScopes =>
-        Set<ChannelMissingScope>();
+    public DbSet<ActionDefinition> ActionDefinitions => Set<ActionDefinition>();
+    public DbSet<ChannelActionOverride> ChannelActionOverrides => Set<ChannelActionOverride>();
+    public DbSet<PermitGrant> PermitGrants => Set<PermitGrant>();
+    public DbSet<ChannelMissingScope> ChannelMissingScopes => Set<ChannelMissingScope>();
 
     // Platform IAM (Plane C) — mapped (simple scalar entities) so the IAM-service tests seed through this harness.
-    public DbSet<IamPermission> IamPermissions =>
-        Set<IamPermission>();
-    public DbSet<IamRole> IamRoles =>
-        Set<IamRole>();
-    public DbSet<IamRolePermission> IamRolePermissions =>
-        Set<IamRolePermission>();
-    public DbSet<IamPrincipal> IamPrincipals =>
-        Set<IamPrincipal>();
-    public DbSet<IamRoleAssignment> IamRoleAssignments =>
-        Set<IamRoleAssignment>();
-    public DbSet<IamAuditLog> IamAuditLogs =>
-        Set<IamAuditLog>();
+    public DbSet<IamPermission> IamPermissions => Set<IamPermission>();
+    public DbSet<IamRole> IamRoles => Set<IamRole>();
+    public DbSet<IamRolePermission> IamRolePermissions => Set<IamRolePermission>();
+    public DbSet<IamPrincipal> IamPrincipals => Set<IamPrincipal>();
+    public DbSet<IamRoleAssignment> IamRoleAssignments => Set<IamRoleAssignment>();
+    public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();
 
     // Economy — currency core (mapped so the economy-service tests can seed/query through this harness).
     public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyConfig> CurrencyConfigs =>

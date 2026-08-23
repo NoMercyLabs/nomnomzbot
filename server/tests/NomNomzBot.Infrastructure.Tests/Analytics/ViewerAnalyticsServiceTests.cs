@@ -83,11 +83,7 @@ public sealed class ViewerAnalyticsServiceTests
         await SeedProfileAsync(db, ViewerB, "Bob", 20);
 
         PagedList<ViewerProfileListItemDto> page = (
-            await sut.ListProfilesAsync(
-                Channel,
-                new(Sort: ViewerProfileSort.Messages),
-                new()
-            )
+            await sut.ListProfilesAsync(Channel, new(Sort: ViewerProfileSort.Messages), new())
         ).Value;
 
         page.TotalCount.Should().Be(2);

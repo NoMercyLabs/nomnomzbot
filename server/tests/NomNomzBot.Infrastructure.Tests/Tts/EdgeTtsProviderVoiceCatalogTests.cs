@@ -141,10 +141,9 @@ public sealed class EdgeTtsProviderVoiceCatalogTests
     [Fact]
     public async Task GetVoicesAsync_ReturnsTheLiveList_FetchedFromTheReadAloudEndpoint()
     {
-        StubHandler handler = new(_ => new(HttpStatusCode.OK)
-        {
-            Content = new StringContent(SamplePayload),
-        });
+        StubHandler handler = new(_ =>
+            new(HttpStatusCode.OK) { Content = new StringContent(SamplePayload) }
+        );
 
         IReadOnlyList<TtsVoiceInfo> voices = await Build(handler).GetVoicesAsync();
 
@@ -185,10 +184,9 @@ public sealed class EdgeTtsProviderVoiceCatalogTests
     [Fact]
     public async Task GetVoicesAsync_MalformedPayload_ReturnsTheCuratedFallback()
     {
-        StubHandler handler = new(_ => new(HttpStatusCode.OK)
-        {
-            Content = new StringContent("<html>maintenance</html>"),
-        });
+        StubHandler handler = new(_ =>
+            new(HttpStatusCode.OK) { Content = new StringContent("<html>maintenance</html>") }
+        );
 
         IReadOnlyList<TtsVoiceInfo> voices = await Build(handler).GetVoicesAsync();
 
@@ -235,10 +233,9 @@ public sealed class EdgeTtsProviderVoiceCatalogTests
         );
         await db.SaveChangesAsync();
 
-        StubHandler handler = new(_ => new(HttpStatusCode.OK)
-        {
-            Content = new StringContent(SamplePayload),
-        });
+        StubHandler handler = new(_ =>
+            new(HttpStatusCode.OK) { Content = new StringContent(SamplePayload) }
+        );
         TtsVoiceCatalogSync sync = new(
             [Build(handler)],
             db,

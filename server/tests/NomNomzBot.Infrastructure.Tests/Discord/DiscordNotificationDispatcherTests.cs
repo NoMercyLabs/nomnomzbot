@@ -27,9 +27,7 @@ namespace NomNomzBot.Infrastructure.Tests.Discord;
 /// </summary>
 public sealed class DiscordNotificationDispatcherTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 22, 18, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 22, 18, 0, 0, TimeSpan.Zero));
 
     [Fact]
     public async Task DispatchAsync_RendersTemplate_PostsToConfiguredChannel_AndLogsSent()
@@ -106,11 +104,7 @@ public sealed class DiscordNotificationDispatcherTests
         // First dispatch → sent.
         await using (DiscordTestDbContext db = database.NewContext())
         {
-            Result<DiscordDispatchOutcomeDto> first = await NewDispatcher(
-                    db,
-                    gateway,
-                    new()
-                )
+            Result<DiscordDispatchOutcomeDto> first = await NewDispatcher(db, gateway, new())
                 .DispatchAsync(request);
             first.Value.Status.Should().Be("sent");
         }
@@ -118,11 +112,7 @@ public sealed class DiscordNotificationDispatcherTests
         // Second dispatch with the SAME dedupe key → skipped_dupe, no second post.
         await using (DiscordTestDbContext db = database.NewContext())
         {
-            Result<DiscordDispatchOutcomeDto> second = await NewDispatcher(
-                    db,
-                    gateway,
-                    new()
-                )
+            Result<DiscordDispatchOutcomeDto> second = await NewDispatcher(db, gateway, new())
                 .DispatchAsync(request);
             second.Value.Status.Should().Be("skipped_dupe");
         }
@@ -156,19 +146,9 @@ public sealed class DiscordNotificationDispatcherTests
         RecordingGateway gateway = new();
 
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordNotificationDispatcher dispatcher = NewDispatcher(
-            db,
-            gateway,
-            new()
-        );
+        DiscordNotificationDispatcher dispatcher = NewDispatcher(db, gateway, new());
         Result<DiscordDispatchOutcomeDto> result = await dispatcher.DispatchAsync(
-            new(
-                channel,
-                "go_live",
-                "go_live:s1",
-                null,
-                new Dictionary<string, string>()
-            )
+            new(channel, "go_live", "go_live:s1", null, new Dictionary<string, string>())
         );
 
         result.Value.Status.Should().Be("skipped");
@@ -188,19 +168,9 @@ public sealed class DiscordNotificationDispatcherTests
         };
 
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordNotificationDispatcher dispatcher = NewDispatcher(
-            db,
-            gateway,
-            new()
-        );
+        DiscordNotificationDispatcher dispatcher = NewDispatcher(db, gateway, new());
         Result<DiscordDispatchOutcomeDto> result = await dispatcher.DispatchAsync(
-            new(
-                channel,
-                "go_live",
-                "go_live:s9",
-                null,
-                new Dictionary<string, string>()
-            )
+            new(channel, "go_live", "go_live:s9", null, new Dictionary<string, string>())
         );
 
         result.Value.Status.Should().Be("failed");
@@ -223,11 +193,7 @@ public sealed class DiscordNotificationDispatcherTests
 
         await using (DiscordTestDbContext db = database.NewContext())
         {
-            Result<DiscordDispatchOutcomeDto> result = await NewDispatcher(
-                    db,
-                    gateway,
-                    new()
-                )
+            Result<DiscordDispatchOutcomeDto> result = await NewDispatcher(db, gateway, new())
                 .DispatchAsync(
                     new(
                         channel,
@@ -286,13 +252,7 @@ public sealed class DiscordNotificationDispatcherTests
         await using DiscordTestDbContext db = database.NewContext();
         await NewDispatcher(db, gateway, new())
             .DispatchAsync(
-                new(
-                    channel,
-                    "go_live",
-                    "go_live:s2",
-                    null,
-                    new Dictionary<string, string>()
-                )
+                new(channel, "go_live", "go_live:s2", null, new Dictionary<string, string>())
             );
 
         // Only the active member is DMed — the opted-out row is history, not a recipient.
@@ -314,13 +274,7 @@ public sealed class DiscordNotificationDispatcherTests
         await using DiscordTestDbContext db = database.NewContext();
         await NewDispatcher(db, gateway, new())
             .DispatchAsync(
-                new(
-                    channel,
-                    "go_live",
-                    "go_live:s3",
-                    null,
-                    new Dictionary<string, string>()
-                )
+                new(channel, "go_live", "go_live:s3", null, new Dictionary<string, string>())
             );
 
         gateway.DmOpens.Should().BeEmpty();
@@ -346,19 +300,9 @@ public sealed class DiscordNotificationDispatcherTests
 
         await using (DiscordTestDbContext db = database.NewContext())
         {
-            Result<DiscordDispatchOutcomeDto> result = await NewDispatcher(
-                    db,
-                    gateway,
-                    new()
-                )
+            Result<DiscordDispatchOutcomeDto> result = await NewDispatcher(db, gateway, new())
                 .DispatchAsync(
-                    new(
-                        channel,
-                        "go_live",
-                        "go_live:s4",
-                        null,
-                        new Dictionary<string, string>()
-                    )
+                    new(channel, "go_live", "go_live:s4", null, new Dictionary<string, string>())
                 );
             result.Value.Status.Should().Be("sent"); // the channel outcome is untouched by DM failures
         }
@@ -425,13 +369,7 @@ public sealed class DiscordNotificationDispatcherTests
         {
             await NewDispatcher(db, gateway, new())
                 .DispatchAsync(
-                    new(
-                        channel,
-                        "go_live",
-                        "go_live:s5",
-                        null,
-                        new Dictionary<string, string>()
-                    )
+                    new(channel, "go_live", "go_live:s5", null, new Dictionary<string, string>())
                 );
         }
 
@@ -473,13 +411,7 @@ public sealed class DiscordNotificationDispatcherTests
         {
             await NewDispatcher(db, gateway, new())
                 .DispatchAsync(
-                    new(
-                        channel,
-                        "go_live",
-                        "go_live:s6",
-                        null,
-                        new Dictionary<string, string>()
-                    )
+                    new(channel, "go_live", "go_live:s6", null, new Dictionary<string, string>())
                 );
         }
 
@@ -520,14 +452,7 @@ public sealed class DiscordNotificationDispatcherTests
             new RecordingEventBus(),
             Clock
         );
-        return new(
-            db,
-            guildService,
-            gateway,
-            new TemplateEngine(),
-            bus,
-            Clock
-        );
+        return new(db, guildService, gateway, new TemplateEngine(), bus, Clock);
     }
 
     private static async Task<Guid> SeedChannelAsync(DiscordSqliteTestDatabase database)

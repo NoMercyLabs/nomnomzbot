@@ -32,9 +32,7 @@ public sealed class CurrencyAccountServiceTests
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000a1");
     private static readonly Guid Viewer = Guid.Parse("0192a000-0000-7000-8000-0000000000a2");
     private static readonly Guid Viewer2 = Guid.Parse("0192a000-0000-7000-8000-0000000000a3");
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero));
 
     private static (
         CurrencyAccountService Sut,

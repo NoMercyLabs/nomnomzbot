@@ -68,13 +68,7 @@ public sealed class EventSubGapBackfillServiceTests
             .Returns(Result.Success(new TwitchPage<TwitchChannelFollower>([], null, 0)));
 
         return (
-            new(
-                points,
-                channels,
-                journal,
-                bus,
-                NullLogger<EventSubGapBackfillService>.Instance
-            ),
+            new(points, channels, journal, bus, NullLogger<EventSubGapBackfillService>.Instance),
             points,
             channels,
             journal,

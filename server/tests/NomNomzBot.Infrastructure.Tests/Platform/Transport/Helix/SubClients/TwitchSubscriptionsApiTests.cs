@@ -112,11 +112,7 @@ public class TwitchSubscriptionsApiTests
         TwitchSubscriptionsApi api = Build(transport, TwitchScopes.ChannelReadSubscriptions);
 
         Result<TwitchPage<TwitchBroadcasterSubscription>> result =
-            await api.GetBroadcasterSubscriptionsAsync(
-                Tenant,
-                ["100", "200"],
-                new()
-            );
+            await api.GetBroadcasterSubscriptionsAsync(Tenant, ["100", "200"], new());
 
         result.IsSuccess.Should().BeTrue();
         transport.LastRequest!.Query.Should().Contain(q => q.Key == "user_id" && q.Value == "100");

@@ -45,8 +45,7 @@ public sealed class UserIdentityServiceTests
         return services.BuildServiceProvider();
     }
 
-    private static UserIdentityService NewService(IServiceScope scope) =>
-        NewService(scope, new());
+    private static UserIdentityService NewService(IServiceScope scope) => NewService(scope, new());
 
     private static UserIdentityService NewService(IServiceScope scope, RecordingEventBus events) =>
         new(
@@ -221,17 +220,7 @@ public sealed class UserIdentityServiceTests
         RecordingEventBus events = new();
 
         Result<UserIdentityDto> result = await NewService(scope, events)
-            .LinkAsync(
-                userId,
-                new(
-                    "Kick",
-                    "k-1",
-                    "kicker",
-                    "Kicker",
-                    "https://cdn/k.png",
-                    null
-                )
-            );
+            .LinkAsync(userId, new("Kick", "k-1", "kicker", "Kicker", "https://cdn/k.png", null));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Provider.Should().Be("kick");
@@ -265,10 +254,7 @@ public sealed class UserIdentityServiceTests
         Guid userId = await SeedUserWithPrimaryAsync(db, "twitch", "100");
         UserIdentityService svc = NewService(scope);
 
-        await svc.LinkAsync(
-            userId,
-            new("kick", "k-1", "kicker", null, null, null)
-        );
+        await svc.LinkAsync(userId, new("kick", "k-1", "kicker", null, null, null));
         Result<UserIdentityDto> second = await svc.LinkAsync(
             userId,
             new("kick", "k-1", "kicker-renamed", null, null, null)
@@ -292,10 +278,7 @@ public sealed class UserIdentityServiceTests
         Guid otherId = await SeedUserWithPrimaryAsync(db, "twitch", "200");
 
         Result<UserIdentityDto> result = await NewService(scope)
-            .LinkAsync(
-                otherId,
-                new("kick", "k-1", "kicker", null, null, null)
-            );
+            .LinkAsync(otherId, new("kick", "k-1", "kicker", null, null, null));
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("IDENTITY_ALREADY_LINKED");
@@ -314,10 +297,7 @@ public sealed class UserIdentityServiceTests
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         Guid userId = await SeedUserWithPrimaryAsync(db, "twitch", "100");
         UserIdentityService svc = NewService(scope);
-        await svc.LinkAsync(
-            userId,
-            new("kick", "k-1", "kicker", null, null, null)
-        );
+        await svc.LinkAsync(userId, new("kick", "k-1", "kicker", null, null, null));
 
         Result<UserIdentityDto> result = await svc.LinkAsync(
             userId,
@@ -342,10 +322,7 @@ public sealed class UserIdentityServiceTests
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         Guid userId = await SeedUserWithPrimaryAsync(db, "twitch", "100");
         UserIdentityService svc = NewService(scope);
-        await svc.LinkAsync(
-            userId,
-            new("kick", "k-1", "kicker", null, null, null)
-        );
+        await svc.LinkAsync(userId, new("kick", "k-1", "kicker", null, null, null));
         Guid primaryId = (await db.UserIdentities.SingleAsync(i => i.IsPrimary)).Id;
 
         Result result = await svc.UnlinkAsync(userId, primaryId);
@@ -401,10 +378,7 @@ public sealed class UserIdentityServiceTests
         Guid userId = await SeedUserWithPrimaryAsync(db, "twitch", "100");
         RecordingEventBus events = new();
         UserIdentityService svc = NewService(scope, events);
-        await svc.LinkAsync(
-            userId,
-            new("kick", "k-1", "kicker", null, null, null)
-        );
+        await svc.LinkAsync(userId, new("kick", "k-1", "kicker", null, null, null));
         Guid kickId = (await db.UserIdentities.SingleAsync(i => i.Provider == "kick")).Id;
 
         Result result = await svc.UnlinkAsync(userId, kickId);
@@ -450,10 +424,7 @@ public sealed class UserIdentityServiceTests
         Guid userId = await SeedUserWithPrimaryAsync(db, "twitch", "100");
         RecordingEventBus events = new();
         UserIdentityService svc = NewService(scope, events);
-        await svc.LinkAsync(
-            userId,
-            new("kick", "k-1", "kicker", null, null, null)
-        );
+        await svc.LinkAsync(userId, new("kick", "k-1", "kicker", null, null, null));
         Guid kickId = (await db.UserIdentities.SingleAsync(i => i.Provider == "kick")).Id;
 
         Result<UserIdentityDto> result = await svc.SetPrimaryAsync(userId, kickId);

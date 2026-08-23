@@ -50,12 +50,9 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<Domain.Automation.Entities.AutomationApiToken>();
     public DbSet<TtsConfig> TtsConfigs => Set<TtsConfig>();
     public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
-    public DbSet<Redemption> Redemptions =>
-        Set<Redemption>();
-    public DbSet<RedemptionTimer> RedemptionTimers =>
-        throw new NotSupportedException();
-    public DbSet<ChatTrigger> ChatTriggers =>
-        throw new NotSupportedException();
+    public DbSet<Redemption> Redemptions => Set<Redemption>();
+    public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
+    public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>
@@ -87,8 +84,7 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
-    public DbSet<ErasureRequest> ErasureRequests =>
-        Set<ErasureRequest>();
+    public DbSet<ErasureRequest> ErasureRequests => Set<ErasureRequest>();
     public DbSet<ChannelModerator> ChannelModerators => Set<ChannelModerator>();
     public DbSet<Service> Services => Set<Service>();
     public DbSet<Reward> Rewards => Set<Reward>();
@@ -99,10 +95,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<Widget> Widgets => Set<Widget>();
-    public DbSet<WidgetVersion> WidgetVersions =>
-        throw new NotSupportedException();
-    public DbSet<WidgetGalleryItem> WidgetGalleryItems =>
-        throw new NotSupportedException();
+    public DbSet<WidgetVersion> WidgetVersions => throw new NotSupportedException();
+    public DbSet<WidgetGalleryItem> WidgetGalleryItems => throw new NotSupportedException();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
     public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
@@ -139,10 +133,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Integrations.Entities.IntegrationConnection>();
     public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationToken> IntegrationTokens =>
         Set<NomNomzBot.Domain.Integrations.Entities.IntegrationToken>();
-    public DbSet<CryptoKey> CryptoKeys =>
-        Set<CryptoKey>();
-    public DbSet<KeyUsageBinding> KeyUsageBindings =>
-        Set<KeyUsageBinding>();
+    public DbSet<CryptoKey> CryptoKeys => Set<CryptoKey>();
+    public DbSet<KeyUsageBinding> KeyUsageBindings => Set<KeyUsageBinding>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey> EventSubjectKeys =>
         Set<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey>();
     public DbSet<DiscordGuildConnection> DiscordGuildConnections => Set<DiscordGuildConnection>();
@@ -160,15 +152,13 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<TtsLexiconEntry> TtsLexiconEntries => throw new NotSupportedException();
     public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries => Set<TtsApprovalQueueEntry>();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => Set<DeletionAuditLog>();
-    public DbSet<ComplianceAuditLog> ComplianceAuditLogs =>
-        Set<ComplianceAuditLog>();
+    public DbSet<ComplianceAuditLog> ComplianceAuditLogs => Set<ComplianceAuditLog>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         Set<NomNomzBot.Domain.Commands.Entities.Timer>();
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
     public DbSet<WatchStreak> WatchStreaks => Set<WatchStreak>();
     public DbSet<Pipeline> Pipelines => Set<Pipeline>();
-    public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks =>
-        throw new NotSupportedException();
+    public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
     public DbSet<PipelineStep> PipelineSteps => Set<PipelineStep>();
     public DbSet<PipelineStepCondition> PipelineStepConditions => Set<PipelineStepCondition>();
     public DbSet<PipelineExecution> PipelineExecutions => Set<PipelineExecution>();
@@ -192,30 +182,19 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.EventStore.Entities.TenantSequence>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint> ProjectionCheckpoints =>
         Set<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint>();
-    public DbSet<ChannelMembership> ChannelMemberships =>
-        Set<ChannelMembership>();
+    public DbSet<ChannelMembership> ChannelMemberships => Set<ChannelMembership>();
     public DbSet<ChannelCommunityStanding> ChannelCommunityStandings =>
         Set<ChannelCommunityStanding>();
-    public DbSet<ActionDefinition> ActionDefinitions =>
-        Set<ActionDefinition>();
-    public DbSet<ChannelActionOverride> ChannelActionOverrides =>
-        Set<ChannelActionOverride>();
-    public DbSet<PermitGrant> PermitGrants =>
-        Set<PermitGrant>();
-    public DbSet<ChannelMissingScope> ChannelMissingScopes =>
-        throw new NotSupportedException();
-    public DbSet<IamPermission> IamPermissions =>
-        Set<IamPermission>();
-    public DbSet<IamRole> IamRoles =>
-        Set<IamRole>();
-    public DbSet<IamRolePermission> IamRolePermissions =>
-        Set<IamRolePermission>();
-    public DbSet<IamPrincipal> IamPrincipals =>
-        Set<IamPrincipal>();
-    public DbSet<IamRoleAssignment> IamRoleAssignments =>
-        Set<IamRoleAssignment>();
-    public DbSet<IamAuditLog> IamAuditLogs =>
-        Set<IamAuditLog>();
+    public DbSet<ActionDefinition> ActionDefinitions => Set<ActionDefinition>();
+    public DbSet<ChannelActionOverride> ChannelActionOverrides => Set<ChannelActionOverride>();
+    public DbSet<PermitGrant> PermitGrants => Set<PermitGrant>();
+    public DbSet<ChannelMissingScope> ChannelMissingScopes => throw new NotSupportedException();
+    public DbSet<IamPermission> IamPermissions => Set<IamPermission>();
+    public DbSet<IamRole> IamRoles => Set<IamRole>();
+    public DbSet<IamRolePermission> IamRolePermissions => Set<IamRolePermission>();
+    public DbSet<IamPrincipal> IamPrincipals => Set<IamPrincipal>();
+    public DbSet<IamRoleAssignment> IamRoleAssignments => Set<IamRoleAssignment>();
+    public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();
     public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyConfig> CurrencyConfigs =>
         Set<NomNomzBot.Domain.Economy.Entities.CurrencyConfig>();
     public DbSet<NomNomzBot.Domain.Economy.Entities.EarningRule> EarningRules =>
@@ -276,8 +255,7 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Webhooks.Entities.OutboundWebhookDelivery>();
     public DbSet<NomNomzBot.Domain.Webhooks.Entities.InboundWebhookEndpoint> InboundWebhookEndpoints =>
         Set<NomNomzBot.Domain.Webhooks.Entities.InboundWebhookEndpoint>();
-    public DbSet<HttpEgressAllowlist> HttpEgressAllowlists =>
-        Set<HttpEgressAllowlist>();
+    public DbSet<HttpEgressAllowlist> HttpEgressAllowlists => Set<HttpEgressAllowlist>();
     public DbSet<NomNomzBot.Domain.Analytics.Entities.ViewerProfile> ViewerProfiles =>
         Set<NomNomzBot.Domain.Analytics.Entities.ViewerProfile>();
     public DbSet<NomNomzBot.Domain.Analytics.Entities.WatchSession> WatchSessions =>
@@ -290,10 +268,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily>();
     public DbSet<NomNomzBot.Domain.Analytics.Entities.ChannelChatterDay> ChannelChatterDays =>
         Set<NomNomzBot.Domain.Analytics.Entities.ChannelChatterDay>();
-    public DbSet<FeatureFlag> FeatureFlags =>
-        Set<FeatureFlag>();
-    public DbSet<FeatureFlagOverride> FeatureFlagOverrides =>
-        Set<FeatureFlagOverride>();
+    public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
+    public DbSet<FeatureFlagOverride> FeatureFlagOverrides => Set<FeatureFlagOverride>();
     public DbSet<NomNomzBot.Domain.CustomCode.Entities.CodeScript> CodeScripts =>
         Set<NomNomzBot.Domain.CustomCode.Entities.CodeScript>();
     public DbSet<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion> CodeScriptVersions =>

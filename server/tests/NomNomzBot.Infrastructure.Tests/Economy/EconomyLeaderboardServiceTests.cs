@@ -86,15 +86,7 @@ public sealed class EconomyLeaderboardServiceTests
 
         Result<LeaderboardConfigDto> updated = await sut.UpsertConfigAsync(
             Channel,
-            new(
-                created.Value.Id,
-                "earned",
-                "channel",
-                "alltime",
-                false,
-                5,
-                null
-            )
+            new(created.Value.Id, "earned", "channel", "alltime", false, 5, null)
         );
         updated.Value.Metric.Should().Be("earned");
         updated.Value.TopN.Should().Be(5);
@@ -194,15 +186,7 @@ public sealed class EconomyLeaderboardServiceTests
         Guid configId = (
             await sut.UpsertConfigAsync(
                 Channel,
-                new(
-                    null,
-                    "earned",
-                    "channel",
-                    "monthly",
-                    true,
-                    10,
-                    null
-                )
+                new(null, "earned", "channel", "monthly", true, 10, null)
             )
         )
             .Value

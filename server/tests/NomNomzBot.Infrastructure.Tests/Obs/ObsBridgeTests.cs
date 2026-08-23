@@ -146,10 +146,7 @@ public sealed class ObsBridgeTests
             {
                 pushedCommand = ci.ArgAt<Guid>(1);
                 // The bridge acks out-of-band, like the hub would — the raw wire shape.
-                commands.Complete(
-                    pushedCommand,
-                    new(true, """{ "ok": true }""", null)
-                );
+                commands.Complete(pushedCommand, new(true, """{ "ok": true }""", null));
                 return Task.CompletedTask;
             });
 

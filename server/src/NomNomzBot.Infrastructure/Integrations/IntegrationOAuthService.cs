@@ -260,12 +260,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
 
         Result store = await _vault.StoreTokensAsync(
             connection.Value.Id,
-            new(
-                tokens.AccessToken,
-                tokens.RefreshToken,
-                AppToken: null,
-                tokens.ExpiresAt
-            ),
+            new(tokens.AccessToken, tokens.RefreshToken, AppToken: null, tokens.ExpiresAt),
             grantedScopes,
             cancellationToken
         );

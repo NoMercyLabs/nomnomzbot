@@ -216,8 +216,7 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
 
     // ── Everything else on IApplicationDbContext is unused by this proof ──
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
-    public DbSet<ErasureRequest> ErasureRequests =>
-        throw new NotSupportedException();
+    public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
     public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Service> Services =>
@@ -284,10 +283,8 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
     public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationToken> IntegrationTokens =>
         throw new NotSupportedException();
     public DbSet<CryptoKey> CryptoKeys => throw new NotSupportedException();
-    public DbSet<KeyUsageBinding> KeyUsageBindings =>
-        throw new NotSupportedException();
-    public DbSet<EventSubjectKey> EventSubjectKeys =>
-        throw new NotSupportedException();
+    public DbSet<KeyUsageBinding> KeyUsageBindings => throw new NotSupportedException();
+    public DbSet<EventSubjectKey> EventSubjectKeys => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection> DiscordGuildConnections =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig> DiscordNotificationConfigs =>
@@ -322,8 +319,7 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
     public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog> DeletionAuditLogs =>
         throw new NotSupportedException();
-    public DbSet<ComplianceAuditLog> ComplianceAuditLogs =>
-        throw new NotSupportedException();
+    public DbSet<ComplianceAuditLog> ComplianceAuditLogs => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.EventResponse> EventResponses =>

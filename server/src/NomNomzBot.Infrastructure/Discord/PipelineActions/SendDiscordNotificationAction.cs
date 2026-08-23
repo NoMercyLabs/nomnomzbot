@@ -58,13 +58,7 @@ public sealed class SendDiscordNotificationAction : ICommandAction
         };
 
         Result<DiscordDispatchOutcomeDto> result = await _dispatcher.DispatchAsync(
-            new(
-                ctx.BroadcasterId,
-                triggerType,
-                dedupeKey,
-                StreamId: null,
-                templateData
-            ),
+            new(ctx.BroadcasterId, triggerType, dedupeKey, StreamId: null, templateData),
             ctx.CancellationToken
         );
 

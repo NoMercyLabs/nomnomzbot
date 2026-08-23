@@ -100,9 +100,7 @@ public sealed class SongChangedProjectorTests
         RecordingEventBus bus = new();
         SongChangedProjector sut = new(musicManage, bus, new FakeTimeProvider(Now));
 
-        await sut.HandleAsync(
-            new() { BroadcasterId = Guid.Empty, IsPlaying = false }
-        );
+        await sut.HandleAsync(new() { BroadcasterId = Guid.Empty, IsPlaying = false });
 
         bus.Published.Should().BeEmpty();
     }
@@ -116,9 +114,7 @@ public sealed class SongChangedProjectorTests
 
         // No TrackName / no Provider — the same "nothing playing" state GetNowPlayingAsync used to
         // signal by returning null, now read straight off the event.
-        await sut.HandleAsync(
-            new() { BroadcasterId = ChannelId, IsPlaying = false }
-        );
+        await sut.HandleAsync(new() { BroadcasterId = ChannelId, IsPlaying = false });
 
         bus.Published.Should().BeEmpty();
     }

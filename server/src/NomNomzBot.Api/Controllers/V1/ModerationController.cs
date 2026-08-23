@@ -1226,9 +1226,7 @@ public class ModerationController : BaseController
             .Where(c => c.Id == broadcasterId)
             .Select(c => c.ShoutoutTemplate)
             .FirstOrDefaultAsync(ct);
-        return Ok(
-            new StatusResponseDto<ShoutoutTemplateDto> { Data = new(template) }
-        );
+        return Ok(new StatusResponseDto<ShoutoutTemplateDto> { Data = new(template) });
     }
 
     /// <summary>Sets (or clears, with a null/empty template) the channel's custom shoutout announcement template.</summary>

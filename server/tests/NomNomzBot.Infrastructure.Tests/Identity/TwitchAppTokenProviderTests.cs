@@ -33,10 +33,7 @@ public sealed class TwitchAppTokenProviderTests
     public async Task GetAppToken_MintsViaClientCredentials_ReturnsTheIssuedToken()
     {
         RecordingAppTokenHandler handler = new();
-        TwitchAppTokenProvider provider = Build(
-            handler,
-            new("cid-42", "sec-99")
-        );
+        TwitchAppTokenProvider provider = Build(handler, new("cid-42", "sec-99"));
 
         Result<string> result = await provider.GetAppTokenAsync();
 

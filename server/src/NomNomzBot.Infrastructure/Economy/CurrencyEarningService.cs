@@ -198,13 +198,7 @@ public sealed class CurrencyEarningService(
                 ),
                 ct
             );
-            results.Add(
-                new(
-                    viewer.ViewerUserId,
-                    credited.IsSuccess ? credited.Value : 0,
-                    false
-                )
-            );
+            results.Add(new(viewer.ViewerUserId, credited.IsSuccess ? credited.Value : 0, false));
         }
         return Result.Success<IReadOnlyList<EarnResultDto>>(results);
     }

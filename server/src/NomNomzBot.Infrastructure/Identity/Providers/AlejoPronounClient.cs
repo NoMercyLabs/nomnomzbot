@@ -134,12 +134,7 @@ public sealed class AlejoPronounClient : IAlejoPronounClient
                 continue;
 
             records.Add(
-                new(
-                    entry.Value.Subject,
-                    entry.Value.Object,
-                    entry.Value.Singular,
-                    entry.Key
-                )
+                new(entry.Value.Subject, entry.Value.Object, entry.Value.Singular, entry.Key)
             );
         }
 

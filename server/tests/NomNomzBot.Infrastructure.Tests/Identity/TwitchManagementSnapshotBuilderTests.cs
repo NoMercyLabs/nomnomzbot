@@ -86,11 +86,7 @@ public sealed class TwitchManagementSnapshotBuilderTests
             )
             .Returns(
                 Result.Success(
-                    new TwitchPage<TwitchModerator>(
-                        [new("tw-mod", "modlogin", "ModName")],
-                        null,
-                        1
-                    )
+                    new TwitchPage<TwitchModerator>([new("tw-mod", "modlogin", "ModName")], null, 1)
                 )
             );
         channels

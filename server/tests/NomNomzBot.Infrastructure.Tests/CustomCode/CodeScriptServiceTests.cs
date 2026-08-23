@@ -73,9 +73,7 @@ public sealed class CodeScriptServiceTests
     {
         (CodeScriptService sut, AuthDbContext db, _) = Build();
 
-        Result<CodeScriptDetailDto> r = await sut.CreateAsync(
-            new("bad", null, "var x = (((;")
-        );
+        Result<CodeScriptDetailDto> r = await sut.CreateAsync(new("bad", null, "var x = (((;"));
 
         r.ErrorCode.Should().Be("VALIDATION_FAILED");
         db.CodeScriptVersions.Single().ValidationStatus.Should().Be("rejected");
@@ -88,9 +86,7 @@ public sealed class CodeScriptServiceTests
         (CodeScriptService sut, _, _) = Build();
         await sut.CreateAsync(new("dup", null, "var x = 1;"));
 
-        Result<CodeScriptDetailDto> r = await sut.CreateAsync(
-            new("dup", null, "var y = 2;")
-        );
+        Result<CodeScriptDetailDto> r = await sut.CreateAsync(new("dup", null, "var y = 2;"));
 
         r.ErrorCode.Should().Be("ALREADY_EXISTS");
     }
@@ -99,9 +95,7 @@ public sealed class CodeScriptServiceTests
     public async Task CreateVersion_appends_and_hot_swaps_when_published()
     {
         (CodeScriptService sut, AuthDbContext db, _) = Build();
-        Guid id = (await sut.CreateAsync(new("s", null, "var x = 1;")))
-            .Value
-            .Id;
+        Guid id = (await sut.CreateAsync(new("s", null, "var x = 1;"))).Value.Id;
 
         Result<CodeScriptVersionDto> r = await sut.CreateVersionAsync(
             id,

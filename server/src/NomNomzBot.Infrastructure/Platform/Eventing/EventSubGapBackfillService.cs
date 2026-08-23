@@ -220,11 +220,7 @@ public sealed class EventSubGapBackfillService : IEventSubGapBackfillService
         while (keepPaging)
         {
             Result<TwitchPage<TwitchChannelFollower>> page =
-                await _channels.GetChannelFollowersAsync(
-                    broadcasterId,
-                    new(cursor),
-                    ct
-                );
+                await _channels.GetChannelFollowersAsync(broadcasterId, new(cursor), ct);
             if (page.IsFailure)
             {
                 if (found.Count == 0)

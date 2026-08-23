@@ -159,12 +159,7 @@ public sealed class DiscordGuildService : IDiscordGuildService
 
             Result storeTokens = await _vault.StoreTokensAsync(
                 vaultConnection.Value.Id,
-                new(
-                    oauth.AccessToken,
-                    oauth.RefreshToken,
-                    AppToken: null,
-                    oauth.ExpiresAt
-                ),
+                new(oauth.AccessToken, oauth.RefreshToken, AppToken: null, oauth.ExpiresAt),
                 oauth.Scopes,
                 ct
             );

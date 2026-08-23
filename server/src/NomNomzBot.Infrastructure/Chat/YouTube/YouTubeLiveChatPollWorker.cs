@@ -385,10 +385,7 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
                     // YouTube has no login concept — the lowercased display name is the denormalized handle.
                     UserLogin = message.AuthorDisplayName.ToLowerInvariant(),
                     Message = message.DisplayText,
-                    Fragments =
-                    [
-                        new() { Type = "text", Text = message.DisplayText },
-                    ],
+                    Fragments = [new() { Type = "text", Text = message.DisplayText }],
                     Badges = [],
                     IsSubscriber = message.IsMember,
                     IsVip = false,

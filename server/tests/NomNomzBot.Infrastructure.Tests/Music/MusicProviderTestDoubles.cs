@@ -136,11 +136,6 @@ internal static class YouTubeProviderFactory
             NullLogger<YouTubeAccessTokenProvider>.Instance
         );
 
-        return new(
-            factory,
-            configuration,
-            accessTokens,
-            NullLogger<YouTubeMusicProvider>.Instance
-        );
+        return new(factory, configuration, accessTokens, NullLogger<YouTubeMusicProvider>.Instance);
     }
 }

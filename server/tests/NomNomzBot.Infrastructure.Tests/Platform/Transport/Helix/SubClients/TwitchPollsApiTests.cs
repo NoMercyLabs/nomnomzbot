@@ -62,11 +62,7 @@ public class TwitchPollsApiTests
         CapturingHelixTransport transport = new();
         TwitchPollsApi api = Build(transport); // no scopes granted
 
-        Result<TwitchPage<TwitchPoll>> result = await api.GetPollsAsync(
-            Tenant,
-            null,
-            new()
-        );
+        Result<TwitchPage<TwitchPoll>> result = await api.GetPollsAsync(Tenant, null, new());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);
@@ -83,11 +79,7 @@ public class TwitchPollsApiTests
             new StubScopeTokenResolver(TwitchScopes.ChannelReadPolls)
         );
 
-        Result<TwitchPage<TwitchPoll>> result = await api.GetPollsAsync(
-            Tenant,
-            null,
-            new()
-        );
+        Result<TwitchPage<TwitchPoll>> result = await api.GetPollsAsync(Tenant, null, new());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.NotFound);
@@ -133,10 +125,7 @@ public class TwitchPollsApiTests
         CapturingHelixTransport transport = new();
         TwitchPollsApi api = Build(transport);
 
-        Result<TwitchPoll> result = await api.CreatePollAsync(
-            Tenant,
-            new("Q?", [new("A")], 60)
-        );
+        Result<TwitchPoll> result = await api.CreatePollAsync(Tenant, new("Q?", [new("A")], 60));
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);

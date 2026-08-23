@@ -201,13 +201,7 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
                 }
             );
             entries.Add(
-                new(
-                    rank,
-                    account.ViewerUserId,
-                    account.Id,
-                    account.ViewerTwitchUserId,
-                    value
-                )
+                new(rank, account.ViewerUserId, account.Id, account.ViewerTwitchUserId, value)
             );
             rank++;
         }

@@ -43,10 +43,7 @@ public class TwitchModeratorsApiTests
         CapturingHelixTransport transport = new();
         TwitchModeratorsApi api = Build(transport); // no scopes granted
 
-        Result<TwitchPage<TwitchModerator>> result = await api.GetModeratorsAsync(
-            Tenant,
-            new()
-        );
+        Result<TwitchPage<TwitchModerator>> result = await api.GetModeratorsAsync(Tenant, new());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);
@@ -94,10 +91,7 @@ public class TwitchModeratorsApiTests
             new StubScopeTokenResolver(TwitchScopes.ModerationRead)
         );
 
-        Result<TwitchPage<TwitchModerator>> result = await api.GetModeratorsAsync(
-            Tenant,
-            new()
-        );
+        Result<TwitchPage<TwitchModerator>> result = await api.GetModeratorsAsync(Tenant, new());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.NotFound);
@@ -164,10 +158,7 @@ public class TwitchModeratorsApiTests
         CapturingHelixTransport transport = new();
         TwitchModeratorsApi api = Build(transport);
 
-        Result<TwitchPage<TwitchVip>> result = await api.GetVipsAsync(
-            Tenant,
-            new()
-        );
+        Result<TwitchPage<TwitchVip>> result = await api.GetVipsAsync(Tenant, new());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);
@@ -179,11 +170,7 @@ public class TwitchModeratorsApiTests
     {
         CapturingHelixTransport transport = new()
         {
-            PageResult = new TwitchPage<TwitchVip>(
-                [new("7", "VipName", "viplogin")],
-                "next",
-                0
-            ),
+            PageResult = new TwitchPage<TwitchVip>([new("7", "VipName", "viplogin")], "next", 0),
         };
         TwitchModeratorsApi api = Build(transport, TwitchScopes.ChannelReadVips);
 

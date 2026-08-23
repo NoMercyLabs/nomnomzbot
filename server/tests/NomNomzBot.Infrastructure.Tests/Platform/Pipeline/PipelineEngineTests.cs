@@ -162,16 +162,7 @@ public class InfraPipelineEngineTests
         );
 
         string graphJsonCache = System.Text.Json.JsonSerializer.Serialize(
-            new PipelineDefinition
-            {
-                Steps =
-                [
-                    new()
-                    {
-                        Action = new() { Type = "music_play" },
-                    },
-                ],
-            }
+            new PipelineDefinition { Steps = [new() { Action = new() { Type = "music_play" } }] }
         );
 
         PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(graphJsonCache));

@@ -136,10 +136,7 @@ public class TwitchUsersApiTests
         CapturingHelixTransport transport = new();
         TwitchUsersApi api = Build(transport);
 
-        Result<TwitchPage<TwitchBlockedUser>> result = await api.GetBlockListAsync(
-            Tenant,
-            new()
-        );
+        Result<TwitchPage<TwitchBlockedUser>> result = await api.GetBlockListAsync(Tenant, new());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);

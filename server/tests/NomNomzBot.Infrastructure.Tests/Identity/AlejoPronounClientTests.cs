@@ -46,9 +46,7 @@ public sealed class AlejoPronounClientTests
     [Fact]
     public async Task Parses_the_keyed_payload_into_records()
     {
-        IReadOnlyList<PronounRecord>? records = await Client(
-                new(HttpStatusCode.OK, Payload)
-            )
+        IReadOnlyList<PronounRecord>? records = await Client(new(HttpStatusCode.OK, Payload))
             .FetchAsync();
 
         records.Should().NotBeNull();

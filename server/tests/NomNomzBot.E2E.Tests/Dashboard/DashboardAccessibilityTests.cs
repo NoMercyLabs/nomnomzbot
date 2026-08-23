@@ -59,10 +59,7 @@ public sealed class DashboardAccessibilityTests
         );
         IPage page = await browser.NewPageAsync();
 
-        await page.GotoAsync(
-            $"{E2ESettings.BaseUrl}/",
-            new() { WaitUntil = WaitUntilState.Load }
-        );
+        await page.GotoAsync($"{E2ESettings.BaseUrl}/", new() { WaitUntil = WaitUntilState.Load });
 
         // App-ready signal baked into the boot page: the #nnz-boot overlay hides itself (display:none)
         // the instant Compose paints its first frame (window.__nnzAppReady). Waiting on that is far more
@@ -76,9 +73,7 @@ public sealed class DashboardAccessibilityTests
         // PROOF 1 — Playwright observes the Compose render surface. The dashboard mounts into a <canvas>;
         // its visibility proves the app is up and Playwright can see it in the DOM.
         ILocator canvas = page.Locator("canvas");
-        await Assertions
-            .Expect(canvas.First)
-            .ToBeVisibleAsync(new() { Timeout = 15_000 });
+        await Assertions.Expect(canvas.First).ToBeVisibleAsync(new() { Timeout = 15_000 });
 
         // PROOF 2 (experiment) — does Compose publish role-bearing accessibility nodes?
         // Count common interactive/landmark roles. Note the boot overlay itself declares role="status";

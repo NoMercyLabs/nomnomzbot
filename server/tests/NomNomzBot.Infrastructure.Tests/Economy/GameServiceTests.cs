@@ -33,9 +33,7 @@ public sealed class GameServiceTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000b1");
     private static readonly Guid Player = Guid.Parse("0192a000-0000-7000-8000-0000000000b2");
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero));
 
     private sealed class FixedRandomizer(double value) : IGameRandomizer
     {
@@ -127,10 +125,7 @@ public sealed class GameServiceTests
         );
         Guid game = SeedGame(db, winChance: 50, payout: 2);
 
-        Result<GamePlayResultDto> result = await sut.PlayAsync(
-            Channel,
-            new(game, Player, 20, 0)
-        );
+        Result<GamePlayResultDto> result = await sut.PlayAsync(Channel, new(game, Player, 20, 0));
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.Outcome.Should().Be("Win");
@@ -148,10 +143,7 @@ public sealed class GameServiceTests
         (GameService sut, EventStoreTestDbContext db, _) = New(database, roll: 0.9);
         Guid game = SeedGame(db, winChance: 50, payout: 2);
 
-        Result<GamePlayResultDto> result = await sut.PlayAsync(
-            Channel,
-            new(game, Player, 20, 0)
-        );
+        Result<GamePlayResultDto> result = await sut.PlayAsync(Channel, new(game, Player, 20, 0));
 
         result.Value.Outcome.Should().Be("Lose");
         result.Value.PayoutAmount.Should().Be(0);
@@ -247,9 +239,7 @@ public sealed class GameServiceTests
             category: GameCategory.Minigame
         );
 
-        (await sut.PlayAsync(Channel, new(game, Player, 10, 0)))
-            .IsSuccess.Should()
-            .BeTrue();
+        (await sut.PlayAsync(Channel, new(game, Player, 10, 0))).IsSuccess.Should().BeTrue();
         (await sut.PlayAsync(Channel, new(game, Player, 10, 0)))
             .ErrorCode.Should()
             .Be("PER_STREAM_LIMIT");
@@ -263,9 +253,7 @@ public sealed class GameServiceTests
         // Gambling, cooldown explicitly 0 — the floor must still bite so !coinflip can't be machine-gunned.
         Guid game = SeedGame(db, category: GameCategory.Gambling, cooldown: 0);
 
-        (await sut.PlayAsync(Channel, new(game, Player, 10, 0)))
-            .IsSuccess.Should()
-            .BeTrue();
+        (await sut.PlayAsync(Channel, new(game, Player, 10, 0))).IsSuccess.Should().BeTrue();
         (await sut.PlayAsync(Channel, new(game, Player, 10, 0)))
             .ErrorCode.Should()
             .Be("ON_COOLDOWN");
@@ -279,12 +267,8 @@ public sealed class GameServiceTests
         // A minigame has no economy-loop abuse to guard, so a 0 cooldown means back-to-back plays are allowed.
         Guid game = SeedGame(db, category: GameCategory.Minigame, cooldown: 0);
 
-        (await sut.PlayAsync(Channel, new(game, Player, 10, 0)))
-            .IsSuccess.Should()
-            .BeTrue();
-        (await sut.PlayAsync(Channel, new(game, Player, 10, 0)))
-            .IsSuccess.Should()
-            .BeTrue();
+        (await sut.PlayAsync(Channel, new(game, Player, 10, 0))).IsSuccess.Should().BeTrue();
+        (await sut.PlayAsync(Channel, new(game, Player, 10, 0))).IsSuccess.Should().BeTrue();
     }
 
     [Fact]

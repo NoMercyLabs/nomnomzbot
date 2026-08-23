@@ -109,14 +109,7 @@ public sealed class EngagementEarningHandler(
         // Raid units = viewer count — lets the rate scale with raid size if desired.
         await earning.ApplyEarningAsync(
             @event.BroadcasterId,
-            new(
-                viewerUserId.Value,
-                "Raid",
-                @event.ViewerCount,
-                @event.EventId,
-                null,
-                null
-            ),
+            new(viewerUserId.Value, "Raid", @event.ViewerCount, @event.EventId, null, null),
             cancellationToken
         );
     }

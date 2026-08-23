@@ -40,11 +40,7 @@ public sealed class WebhookRetryProcessorTests
         dispatcher
             .AttemptDeliveryAsync(Arg.Any<OutboundWebhookDelivery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(WebhookDeliveryStatus.Delivered));
-        return (
-            new(db, dispatcher, new FakeTimeProvider(Now)),
-            db,
-            dispatcher
-        );
+        return (new(db, dispatcher, new FakeTimeProvider(Now)), db, dispatcher);
     }
 
     private static async Task SeedAsync(

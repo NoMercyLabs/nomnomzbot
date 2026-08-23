@@ -27,9 +27,7 @@ namespace NomNomzBot.Infrastructure.Tests.Discord;
 /// </summary>
 public sealed class DiscordNotificationRoleServiceTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 22, 14, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 22, 14, 0, 0, TimeSpan.Zero));
 
     [Fact]
     public async Task CreateRoleAsync_PersistsRole_ThenDuplicateRoleIsAlreadyExists()

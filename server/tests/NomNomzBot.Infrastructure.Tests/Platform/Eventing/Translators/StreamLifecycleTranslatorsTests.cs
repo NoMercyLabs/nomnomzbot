@@ -27,9 +27,7 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing.Translators;
 /// </summary>
 public sealed class StreamLifecycleTranslatorsTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 
     private static EventSubNotification Notification(Guid tenant, string type, string payload)
     {

@@ -314,10 +314,7 @@ public sealed class EngagementServiceTests
     {
         Harness h = Build();
 
-        await h.Sut.UpdateConfigAsync(
-            Channel,
-            new(true, true, true, [5, 10, 25], 8)
-        );
+        await h.Sut.UpdateConfigAsync(Channel, new(true, true, true, [5, 10, 25], 8));
 
         EngagementConfigDto dto = (await h.Sut.GetConfigAsync(Channel)).Value;
         dto.FirstTimeChatterEnabled.Should().BeTrue();
@@ -333,10 +330,7 @@ public sealed class EngagementServiceTests
         Harness h = Build();
 
         NomNomzBot.Application.Common.Models.Result<EngagementConfigDto> result =
-            await h.Sut.UpdateConfigAsync(
-                Channel,
-                new(true, false, false, [0, -1], 5)
-            );
+            await h.Sut.UpdateConfigAsync(Channel, new(true, false, false, [0, -1], 5));
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");

@@ -40,9 +40,7 @@ internal sealed class SocketIoFrameSource(IHttpClientFactory httpClientFactory) 
             ct
         );
 
-        Channel<string> frames = Channel.CreateUnbounded<string>(
-            new() { SingleReader = true }
-        );
+        Channel<string> frames = Channel.CreateUnbounded<string>(new() { SingleReader = true });
 
         using SocketIO client = new(
             endpoint,

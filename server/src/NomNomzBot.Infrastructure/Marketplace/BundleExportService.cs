@@ -348,9 +348,7 @@ public class BundleExportService : IBundleExportService
                 };
                 string entryPath = BundleConventions.EntryPath(BundleFormat.SoundType, slug);
                 await WriteJsonEntryAsync(archive, entryPath, export, ct);
-                manifestItems.Add(
-                    new(BundleFormat.SoundType, sound.Name, entryPath, [])
-                );
+                manifestItems.Add(new(BundleFormat.SoundType, sound.Name, entryPath, []));
             }
 
             foreach (ChannelAsset asset in assets.Values)
@@ -382,9 +380,7 @@ public class BundleExportService : IBundleExportService
                 };
                 string entryPath = BundleConventions.EntryPath(BundleFormat.AssetType, slug);
                 await WriteJsonEntryAsync(archive, entryPath, export, ct);
-                manifestItems.Add(
-                    new(BundleFormat.AssetType, asset.Name, entryPath, [])
-                );
+                manifestItems.Add(new(BundleFormat.AssetType, asset.Name, entryPath, []));
             }
 
             foreach (CustomDataSource dataSource in dataSources.Values)

@@ -46,10 +46,7 @@ public sealed class LinkPreviewServiceTests
     [Fact]
     public async Task Parses_open_graph_tags_into_a_preview()
     {
-        Result<LinkPreview?> result = await Service(
-                new(Html, "text/html"),
-                new FakeCache()
-            )
+        Result<LinkPreview?> result = await Service(new(Html, "text/html"), new FakeCache())
             .FetchAsync(new("https://example.com/page"));
 
         result.IsSuccess.Should().BeTrue();

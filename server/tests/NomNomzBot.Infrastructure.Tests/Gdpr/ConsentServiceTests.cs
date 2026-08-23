@@ -173,11 +173,7 @@ public sealed class ConsentServiceTests
             .IsSuccess.Should()
             .BeTrue();
         // Platform-wide ToS row (null broadcaster).
-        (
-            await h.Sut.GrantAsync(
-                new(Subject, null, "tos_privacy", "contract", null, null, null)
-            )
-        )
+        (await h.Sut.GrantAsync(new(Subject, null, "tos_privacy", "contract", null, null, null)))
             .IsSuccess.Should()
             .BeTrue();
 

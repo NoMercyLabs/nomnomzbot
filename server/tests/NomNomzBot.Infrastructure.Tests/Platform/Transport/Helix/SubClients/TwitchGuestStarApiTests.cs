@@ -131,10 +131,7 @@ public class TwitchGuestStarApiTests
         CapturingHelixTransport transport = new();
         TwitchGuestStarApi api = Build(transport);
 
-        Result result = await api.UpdateChannelSettingsAsync(
-            Tenant,
-            new(SlotCount: 4)
-        );
+        Result result = await api.UpdateChannelSettingsAsync(Tenant, new(SlotCount: 4));
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);

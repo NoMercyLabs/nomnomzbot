@@ -42,12 +42,7 @@ public sealed class ModerationEscalationServiceTests
     private static UpsertEscalationPolicyRequest EnabledPolicy(int windowHours = 168) =>
         new(
             IsEnabled: true,
-            Ladder:
-            [
-                new(1, "warn", null),
-                new(2, "timeout", 60),
-                new(3, "ban", null),
-            ],
+            Ladder: [new(1, "warn", null), new(2, "timeout", 60), new(3, "ban", null)],
             OffenseWindowHours: windowHours,
             CountAutoModViolations: false
         );
@@ -161,47 +156,19 @@ public sealed class ModerationEscalationServiceTests
         (
             await sut.UpsertPolicyAsync(
                 Channel,
-                new(
-                    true,
-                    [
-                        new(2, "warn", null),
-                        new(1, "ban", null),
-                    ],
-                    168,
-                    false
-                )
+                new(true, [new(2, "warn", null), new(1, "ban", null)], 168, false)
             )
         )
             .ErrorCode.Should()
             .Be("VALIDATION_FAILED");
 
         // Unknown action.
-        (
-            await sut.UpsertPolicyAsync(
-                Channel,
-                new(
-                    true,
-                    [new(1, "vaporize", null)],
-                    168,
-                    false
-                )
-            )
-        )
+        (await sut.UpsertPolicyAsync(Channel, new(true, [new(1, "vaporize", null)], 168, false)))
             .ErrorCode.Should()
             .Be("VALIDATION_FAILED");
 
         // Timeout step without a duration.
-        (
-            await sut.UpsertPolicyAsync(
-                Channel,
-                new(
-                    true,
-                    [new(1, "timeout", null)],
-                    168,
-                    false
-                )
-            )
-        )
+        (await sut.UpsertPolicyAsync(Channel, new(true, [new(1, "timeout", null)], 168, false)))
             .ErrorCode.Should()
             .Be("VALIDATION_FAILED");
     }

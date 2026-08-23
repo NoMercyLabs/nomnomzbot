@@ -61,9 +61,7 @@ public sealed class OutboundWebhookDispatcherTests
             .Render(Arg.Any<string>(), Arg.Any<IReadOnlyDictionary<string, string>>())
             .Returns(ci => ci.ArgAt<string>(0));
         IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
-        factory
-            .CreateClient(Arg.Any<string>())
-            .Returns(_ => new(new StubHandler(status)));
+        factory.CreateClient(Arg.Any<string>()).Returns(_ => new(new StubHandler(status)));
         RecordingEventBus bus = new();
         OutboundWebhookDispatcher sut = new(
             db,

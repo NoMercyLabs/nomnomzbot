@@ -122,16 +122,7 @@ public class TwitchCharityApiTests
         CapturingHelixTransport transport = new()
         {
             PageResult = new TwitchPage<TwitchCharityDonation>(
-                [
-                    new(
-                        "d-1",
-                        "c-1",
-                        "9001",
-                        "donor",
-                        "Donor",
-                        new(2500, 2, "USD")
-                    ),
-                ],
+                [new("d-1", "c-1", "9001", "donor", "Donor", new(2500, 2, "USD"))],
                 "cursor",
                 0
             ),
@@ -139,10 +130,7 @@ public class TwitchCharityApiTests
         TwitchCharityApi api = Build(transport, TwitchScopes.ChannelReadCharity);
 
         Result<TwitchPage<TwitchCharityDonation>> result =
-            await api.GetCharityCampaignDonationsAsync(
-                Tenant,
-                new(After: "abc", PageSize: 50)
-            );
+            await api.GetCharityCampaignDonationsAsync(Tenant, new(After: "abc", PageSize: 50));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.NextCursor.Should().Be("cursor");

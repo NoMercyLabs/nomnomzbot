@@ -30,13 +30,7 @@ public class TwitchSearchApiTests
         CapturingHelixTransport transport = new()
         {
             PageResult = new TwitchPage<TwitchSearchCategory>(
-                [
-                    new(
-                        "509658",
-                        "Just Chatting",
-                        "https://box-art/{width}x{height}.jpg"
-                    ),
-                ],
+                [new("509658", "Just Chatting", "https://box-art/{width}x{height}.jpg")],
                 "next",
                 1
             ),

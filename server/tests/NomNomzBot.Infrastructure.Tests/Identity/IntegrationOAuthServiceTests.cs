@@ -617,10 +617,7 @@ public sealed class IntegrationOAuthServiceTests
     public async Task GetStatus_NoDiscordConnection_ReportsDiscordDisconnected_AlongsideGenericProviders()
     {
         // No Discord connection seeded; the generic providers also unconnected (vault empty).
-        (IntegrationOAuthService service, _, _, _) = Build(
-            new(),
-            new FakeDiscordGuildService()
-        );
+        (IntegrationOAuthService service, _, _, _) = Build(new(), new FakeDiscordGuildService());
 
         Result<IReadOnlyList<IntegrationStatusDto>> status = await service.GetStatusAsync(Tenant);
 

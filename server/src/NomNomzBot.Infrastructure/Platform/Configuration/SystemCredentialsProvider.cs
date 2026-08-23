@@ -114,11 +114,7 @@ public sealed class SystemCredentialsProvider(
     public static TokenProtectionContext ContextFor(string key)
     {
         int dot = key.IndexOf('.');
-        return new(
-            "system",
-            dot > 0 ? key[..dot] : "system",
-            dot > 0 ? key[(dot + 1)..] : key
-        );
+        return new("system", dot > 0 ? key[..dot] : "system", dot > 0 ? key[(dot + 1)..] : key);
     }
 
     // appsettings sections are PascalCase (Twitch / Spotify / YouTube / Discord); the provider tokens are

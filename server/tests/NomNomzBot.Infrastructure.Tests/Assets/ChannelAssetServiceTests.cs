@@ -407,10 +407,7 @@ public sealed class ChannelAssetServiceTests
             uploaded.IsSuccess.Should().BeTrue(uploaded.ErrorMessage);
         }
 
-        Result<PagedList<ChannelAssetDto>> page = await service.ListAsync(
-            Channel,
-            new(1, 2)
-        );
+        Result<PagedList<ChannelAssetDto>> page = await service.ListAsync(Channel, new(1, 2));
 
         page.Value.Items.Should().HaveCount(2);
         page.Value.TotalCount.Should().Be(3);

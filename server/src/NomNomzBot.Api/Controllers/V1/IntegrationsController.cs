@@ -97,9 +97,7 @@ public class IntegrationsController : BaseController
             ))
             .ToList();
 
-        return Ok(
-            new StatusResponseDto<IntegrationsResponse> { Data = new(result) }
-        );
+        return Ok(new StatusResponseDto<IntegrationsResponse> { Data = new(result) });
     }
 
     // ── Disconnect integration ────────────────────────────────────────────────

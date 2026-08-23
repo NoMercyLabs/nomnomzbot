@@ -30,9 +30,7 @@ public sealed class CurrencyEarningServiceTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000c1");
     private static readonly Guid Viewer = Guid.Parse("0192a000-0000-7000-8000-0000000000c2");
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero));
 
     private static (
         CurrencyEarningService Sut,
@@ -191,18 +189,8 @@ public sealed class CurrencyEarningServiceTests
             Channel,
             new(
                 [
-                    new(
-                        present,
-                        PresentSeconds: 120,
-                        PresenceVerified: true,
-                        RoleLevel: 0
-                    ),
-                    new(
-                        absent,
-                        PresentSeconds: 120,
-                        PresenceVerified: false,
-                        RoleLevel: 0
-                    ),
+                    new(present, PresentSeconds: 120, PresenceVerified: true, RoleLevel: 0),
+                    new(absent, PresentSeconds: 120, PresenceVerified: false, RoleLevel: 0),
                 ],
                 WindowSeconds: 60,
                 StreamId: null

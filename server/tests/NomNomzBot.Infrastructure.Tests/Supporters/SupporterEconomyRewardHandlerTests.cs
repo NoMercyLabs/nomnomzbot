@@ -34,9 +34,7 @@ public sealed class SupporterEconomyRewardHandlerTests
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000d1");
     private static readonly Guid Viewer = Guid.Parse("0192a000-0000-7000-8000-0000000000d2");
     private static readonly Guid EventRowId = Guid.Parse("0192a000-0000-7000-8000-0000000000d3");
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 7, 16, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 7, 16, 12, 0, 0, TimeSpan.Zero));
 
     private static (SupporterEconomyRewardHandler Handler, EventStoreTestDbContext Db) New(
         SqliteTestDatabase database

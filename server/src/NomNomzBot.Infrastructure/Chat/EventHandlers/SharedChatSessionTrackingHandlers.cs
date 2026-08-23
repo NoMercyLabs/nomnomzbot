@@ -25,11 +25,7 @@ public sealed class SharedChatSessionBeganHandler(ISharedChatSessionTracker trac
     {
         tracker.SetSession(
             @event.BroadcasterId,
-            new(
-                @event.SessionId,
-                @event.HostBroadcasterId,
-                @event.Participants
-            )
+            new(@event.SessionId, @event.HostBroadcasterId, @event.Participants)
         );
         return Task.CompletedTask;
     }
@@ -43,11 +39,7 @@ public sealed class SharedChatSessionUpdatedHandler(ISharedChatSessionTracker tr
     {
         tracker.SetSession(
             @event.BroadcasterId,
-            new(
-                @event.SessionId,
-                @event.HostBroadcasterId,
-                @event.Participants
-            )
+            new(@event.SessionId, @event.HostBroadcasterId, @event.Participants)
         );
         return Task.CompletedTask;
     }

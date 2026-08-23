@@ -734,12 +734,7 @@ public sealed class LegacyChannelEventMapper
             if (id is null || title is null)
                 continue;
             result.Add(
-                new(
-                    id,
-                    title,
-                    Int(choice, "Votes") ?? 0,
-                    Int(choice, "ChannelPointsVotes") ?? 0
-                )
+                new(id, title, Int(choice, "Votes") ?? 0, Int(choice, "ChannelPointsVotes") ?? 0)
             );
         }
 

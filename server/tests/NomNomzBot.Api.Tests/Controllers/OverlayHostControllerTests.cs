@@ -33,11 +33,7 @@ public sealed class OverlayHostControllerTests
     private static OverlayHostController WithManifest(params OverlayWidgetEntry[] widgets)
     {
         IWidgetService service = Substitute.For<IWidgetService>();
-        OverlayManifest manifest = new(
-            Guid.NewGuid(),
-            "nonce",
-            new(widgets)
-        );
+        OverlayManifest manifest = new(Guid.NewGuid(), "nonce", new(widgets));
         service
             .GetOverlayManifestAsync(Token, Arg.Any<CancellationToken>())
             .Returns(Result<OverlayManifest>.Success(manifest));
@@ -68,9 +64,7 @@ public sealed class OverlayHostControllerTests
     public async Task Serves_a_vue_widget_as_a_standalone_spa_with_its_injected_config()
     {
         OverlayHostController sut = WithManifest(
-            VueEntry(
-                new() { ["maxMessages"] = 5, ["accentColor"] = "#abcdef" }
-            )
+            VueEntry(new() { ["maxMessages"] = 5, ["accentColor"] = "#abcdef" })
         );
 
         string html = await BodyOf(
@@ -174,9 +168,7 @@ public sealed class OverlayHostControllerTests
     public async Task Injected_settings_cannot_break_out_of_the_script()
     {
         OverlayHostController sut = WithManifest(
-            VueEntry(
-                new() { ["evil"] = "</script><script>alert(1)</script>" }
-            )
+            VueEntry(new() { ["evil"] = "</script><script>alert(1)</script>" })
         );
 
         string html = await BodyOf(

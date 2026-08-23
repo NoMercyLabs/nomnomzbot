@@ -129,11 +129,7 @@ public static class LegacyImportCli
         Progress<long> readProgress = new(read => Log($"import-read: {read} rows scanned"));
         Progress<long> appendProgress = new(done => Log($"import: {done} appended"));
 
-        LegacyChannelEventImporter importer = new(
-            journal,
-            new(),
-            NullLogger.Instance
-        );
+        LegacyChannelEventImporter importer = new(journal, new(), NullLogger.Instance);
         LegacySqliteChannelEventSource source = new(legacyPath.Value);
 
         Log("legacy-import: phase 1/2 — importing legacy events onto the journal…");

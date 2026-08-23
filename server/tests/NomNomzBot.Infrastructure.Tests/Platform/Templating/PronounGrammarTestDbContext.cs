@@ -105,8 +105,7 @@ internal sealed class PronounGrammarTestDbContext : DbContext, IApplicationDbCon
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
-    public DbSet<ErasureRequest> ErasureRequests =>
-        throw new NotSupportedException();
+    public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Service> Services => throw new NotSupportedException();
     public DbSet<Command> Commands => throw new NotSupportedException();
@@ -152,10 +151,8 @@ internal sealed class PronounGrammarTestDbContext : DbContext, IApplicationDbCon
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
         throw new NotSupportedException();
     public DbSet<Widget> Widgets => throw new NotSupportedException();
-    public DbSet<WidgetVersion> WidgetVersions =>
-        throw new NotSupportedException();
-    public DbSet<WidgetGalleryItem> WidgetGalleryItems =>
-        throw new NotSupportedException();
+    public DbSet<WidgetVersion> WidgetVersions => throw new NotSupportedException();
+    public DbSet<WidgetGalleryItem> WidgetGalleryItems => throw new NotSupportedException();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
     public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
@@ -182,10 +179,8 @@ internal sealed class PronounGrammarTestDbContext : DbContext, IApplicationDbCon
     public DbSet<IntegrationConnection> IntegrationConnections => throw new NotSupportedException();
     public DbSet<IntegrationToken> IntegrationTokens => throw new NotSupportedException();
     public DbSet<CryptoKey> CryptoKeys => throw new NotSupportedException();
-    public DbSet<KeyUsageBinding> KeyUsageBindings =>
-        throw new NotSupportedException();
-    public DbSet<EventSubjectKey> EventSubjectKeys =>
-        throw new NotSupportedException();
+    public DbSet<KeyUsageBinding> KeyUsageBindings => throw new NotSupportedException();
+    public DbSet<EventSubjectKey> EventSubjectKeys => throw new NotSupportedException();
     public DbSet<DiscordGuildConnection> DiscordGuildConnections =>
         throw new NotSupportedException();
     public DbSet<DiscordNotificationConfig> DiscordNotificationConfigs =>
@@ -211,14 +206,12 @@ internal sealed class PronounGrammarTestDbContext : DbContext, IApplicationDbCon
     public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries =>
         throw new NotSupportedException();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
-    public DbSet<ComplianceAuditLog> ComplianceAuditLogs =>
-        throw new NotSupportedException();
+    public DbSet<ComplianceAuditLog> ComplianceAuditLogs => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
-    public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks =>
-        throw new NotSupportedException();
+    public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
         throw new NotSupportedException();
     public DbSet<PipelineStep> PipelineSteps => throw new NotSupportedException();
@@ -250,8 +243,7 @@ internal sealed class PronounGrammarTestDbContext : DbContext, IApplicationDbCon
     public DbSet<ChannelMembership> ChannelMemberships => throw new NotSupportedException();
     public DbSet<ChannelCommunityStanding> ChannelCommunityStandings =>
         throw new NotSupportedException();
-    public DbSet<ActionDefinition> ActionDefinitions =>
-        throw new NotSupportedException();
+    public DbSet<ActionDefinition> ActionDefinitions => throw new NotSupportedException();
     public DbSet<ChannelActionOverride> ChannelActionOverrides => throw new NotSupportedException();
     public DbSet<PermitGrant> PermitGrants => throw new NotSupportedException();
     public DbSet<ChannelMissingScope> ChannelMissingScopes => throw new NotSupportedException();
@@ -271,8 +263,7 @@ internal sealed class PronounGrammarTestDbContext : DbContext, IApplicationDbCon
     public DbSet<GamePlay> GamePlays => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         throw new NotSupportedException();
-    public DbSet<GameSession> GameSessions =>
-        throw new NotSupportedException();
+    public DbSet<GameSession> GameSessions => throw new NotSupportedException();
     public DbSet<ViewerAgeConsent> ViewerAgeConsents => throw new NotSupportedException();
     public DbSet<SavingsJar> SavingsJars => throw new NotSupportedException();
     public DbSet<SavingsJarMembership> SavingsJarMemberships => throw new NotSupportedException();

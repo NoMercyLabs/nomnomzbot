@@ -32,11 +32,7 @@ public sealed class AdminServiceHealthTests
         services.AddLogging();
         services
             .AddHealthChecks()
-            .AddCheck(
-                "database",
-                () => new(databaseStatus, "probe result"),
-                tags: ["db"]
-            );
+            .AddCheck("database", () => new(databaseStatus, "probe result"), tags: ["db"]);
         ServiceProvider provider = services.BuildServiceProvider();
 
         IPlatformBotReadinessGate gate = Substitute.For<IPlatformBotReadinessGate>();

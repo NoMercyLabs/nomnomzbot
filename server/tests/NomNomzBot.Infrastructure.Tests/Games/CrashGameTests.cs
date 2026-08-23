@@ -320,9 +320,7 @@ public sealed class CrashGameTests
             NullLogger<LiveGameEngine>.Instance
         );
 
-        (await engine.StartAsync(Channel, new("crash", null)))
-            .IsSuccess.Should()
-            .BeTrue();
+        (await engine.StartAsync(Channel, new("crash", null))).IsSuccess.Should().BeTrue();
         await engine.HandleChatInputAsync(Channel, PlayerA, "Alice", "!crash");
         await engine.HandleChatInputAsync(Channel, PlayerB, "Bob", "!crash");
 

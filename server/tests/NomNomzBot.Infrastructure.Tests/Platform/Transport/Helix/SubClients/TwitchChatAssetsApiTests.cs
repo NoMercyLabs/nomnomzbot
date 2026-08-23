@@ -43,10 +43,7 @@ public class TwitchChatAssetsApiTests
         CapturingHelixTransport transport = new();
         TwitchChatAssetsApi api = Build(transport); // no scopes granted
 
-        Result<TwitchPage<TwitchChatter>> result = await api.GetChattersAsync(
-            Tenant,
-            new()
-        );
+        Result<TwitchPage<TwitchChatter>> result = await api.GetChattersAsync(Tenant, new());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);
@@ -152,14 +149,7 @@ public class TwitchChatAssetsApiTests
         {
             ListResult = new List<TwitchGlobalEmote>
             {
-                new(
-                    "555",
-                    "Kappa",
-                    new("g1", "g2", "g4"),
-                    ["static"],
-                    ["1.0"],
-                    ["light"]
-                ),
+                new("555", "Kappa", new("g1", "g2", "g4"), ["static"], ["1.0"], ["light"]),
             },
         };
         TwitchChatAssetsApi api = Build(transport);
@@ -231,18 +221,7 @@ public class TwitchChatAssetsApiTests
         CapturingHelixTransport transport = new()
         {
             PageResult = new TwitchPage<TwitchUserEmote>(
-                [
-                    new(
-                        "777",
-                        "prime",
-                        "prime",
-                        "set-x",
-                        "owner-x",
-                        ["static"],
-                        ["1.0"],
-                        ["light"]
-                    ),
-                ],
+                [new("777", "prime", "prime", "set-x", "owner-x", ["static"], ["1.0"], ["light"])],
                 "next",
                 0
             ),
@@ -423,10 +402,7 @@ public class TwitchChatAssetsApiTests
         {
             ListResult = new List<TwitchChatBadgeSet>
             {
-                new(
-                    "admin",
-                    [new("1", "a1", "a2", "a4", "Admin", "", "", "")]
-                ),
+                new("admin", [new("1", "a1", "a2", "a4", "Admin", "", "", "")]),
             },
         };
         TwitchChatAssetsApi api = Build(transport);
@@ -448,10 +424,7 @@ public class TwitchChatAssetsApiTests
             SingleResult = new TwitchSharedChatSession(
                 "359bce59-fa4e-41a5-bd6f-9bc0c8360485",
                 TwitchId,
-                [
-                    new(TwitchId),
-                    new("487263401"),
-                ],
+                [new(TwitchId), new("487263401")],
                 DateTimeOffset.Parse("2024-09-29T19:45:37Z"),
                 DateTimeOffset.Parse("2024-09-29T19:45:37Z")
             ),

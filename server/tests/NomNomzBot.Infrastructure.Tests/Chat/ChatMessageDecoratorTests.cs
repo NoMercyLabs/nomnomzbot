@@ -147,12 +147,7 @@ public sealed class ChatMessageDecoratorTests
             .GetFeaturesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(Result.Success(dtos)));
 
-        return new(
-            adapters,
-            features,
-            cache,
-            NullLogger<ChatMessageDecorator>.Instance
-        );
+        return new(adapters, features, cache, NullLogger<ChatMessageDecorator>.Instance);
     }
 
     private static ChatMessageReceivedEvent Event(string text) =>

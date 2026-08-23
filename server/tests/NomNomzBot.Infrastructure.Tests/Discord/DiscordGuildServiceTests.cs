@@ -27,9 +27,7 @@ namespace NomNomzBot.Infrastructure.Tests.Discord;
 /// </summary>
 public sealed class DiscordGuildServiceTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero));
 
     [Fact]
     public async Task UpsertFromOAuthAsync_CreatesConnection_AndVaultsTheBotToken()
@@ -111,11 +109,7 @@ public sealed class DiscordGuildServiceTests
         // And the gate now reports active.
         await using (DiscordTestDbContext db = database.NewContext())
         {
-            DiscordGuildService service = NewService(
-                db,
-                new(),
-                new()
-            );
+            DiscordGuildService service = NewService(db, new(), new());
             Result<bool> active = await service.IsLinkActiveAsync(channel, connectionId);
             active.Value.Should().BeTrue();
         }

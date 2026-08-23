@@ -111,12 +111,7 @@ public sealed class ChatBadgeResolverTests
         FakeCache cache = new();
         await cache.SetAsync<IReadOnlyList<TwitchChatBadgeSet>>(
             ChatBadgeCacheKeys.Global,
-            [
-                new(
-                    "moderator",
-                    [new("1", null!, null!, null!, "Title", "Desc", "", "")]
-                ),
-            ]
+            [new("moderator", [new("1", null!, null!, null!, "Title", "Desc", "", "")])]
         );
 
         IReadOnlyList<ResolvedChatBadge> resolved = await new ChatBadgeResolver(cache).ResolveAsync(
@@ -135,23 +130,7 @@ public sealed class ChatBadgeResolverTests
         FakeCache cache = new();
         await cache.SetAsync<IReadOnlyList<TwitchChatBadgeSet>>(
             ChatBadgeCacheKeys.Global,
-            [
-                new(
-                    "subscriber",
-                    [
-                        new(
-                            "0",
-                            "https://badge/sub/1",
-                            null!,
-                            "",
-                            "T",
-                            "D",
-                            "",
-                            ""
-                        ),
-                    ]
-                ),
-            ]
+            [new("subscriber", [new("0", "https://badge/sub/1", null!, "", "T", "D", "", "")])]
         );
 
         IReadOnlyList<ResolvedChatBadge> resolved = await new ChatBadgeResolver(cache).ResolveAsync(

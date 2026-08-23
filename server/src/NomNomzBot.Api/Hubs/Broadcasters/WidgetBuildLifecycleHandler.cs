@@ -40,11 +40,7 @@ public sealed class WidgetBuildLifecycleHandler(IWidgetNotifier notifier)
         notifier.SendCompileFailedAsync(
             @event.BroadcasterId.ToString(),
             @event.WidgetId.ToString(),
-            new(
-                @event.WidgetId.ToString(),
-                @event.VersionNumber,
-                @event.BuildError
-            ),
+            new(@event.WidgetId.ToString(), @event.VersionNumber, @event.BuildError),
             cancellationToken
         );
 }

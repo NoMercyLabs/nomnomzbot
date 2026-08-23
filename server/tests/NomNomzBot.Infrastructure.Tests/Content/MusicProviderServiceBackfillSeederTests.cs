@@ -178,10 +178,7 @@ public sealed class MusicProviderServiceBackfillSeederTests
     }
 
     private static Task<string?> Unseal(Harness h, string cipherText, string field) =>
-        h.Protector.TryUnprotectAsync(
-            cipherText,
-            new(Tenant.ToString(), Provider, field)
-        );
+        h.Protector.TryUnprotectAsync(cipherText, new(Tenant.ToString(), Provider, field));
 
     /// <summary>A fixed app-credentials resolver — the backfill needs the client id/secret the mirror seals for refresh.</summary>
     private sealed class FixedCredentials : ISystemCredentialsProvider
@@ -189,10 +186,7 @@ public sealed class MusicProviderServiceBackfillSeederTests
         public Task<SystemAppCredentials?> GetAsync(
             string provider,
             CancellationToken cancellationToken = default
-        ) =>
-            Task.FromResult<SystemAppCredentials?>(
-                new(ClientId, ClientSecret)
-            );
+        ) => Task.FromResult<SystemAppCredentials?>(new(ClientId, ClientSecret));
 
         public Task<string?> GetClientIdAsync(
             string provider,

@@ -737,13 +737,7 @@ public class CommunityController : BaseController
             if (entry is not null)
             {
                 banHistory.Add(
-                    new(
-                        $"ban:{userId}",
-                        entry.BannedBy,
-                        entry.Reason,
-                        entry.BannedAt,
-                        null
-                    )
+                    new($"ban:{userId}", entry.BannedBy, entry.Reason, entry.BannedAt, null)
                 );
             }
         }

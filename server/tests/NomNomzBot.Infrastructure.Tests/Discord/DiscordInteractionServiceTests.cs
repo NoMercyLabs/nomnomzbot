@@ -31,9 +31,7 @@ namespace NomNomzBot.Infrastructure.Tests.Discord;
 /// </summary>
 public sealed class DiscordInteractionServiceTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 7, 5, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 7, 5, 12, 0, 0, TimeSpan.Zero));
 
     [Fact]
     public async Task Handle_Ping_ReturnsExactPongJson()
@@ -41,8 +39,7 @@ public sealed class DiscordInteractionServiceTests
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
         await using DiscordTestDbContext db = database.NewContext();
 
-        Result<string> reply = await NewService(db, new(), new())
-            .HandleAsync("""{"type":1}""");
+        Result<string> reply = await NewService(db, new(), new()).HandleAsync("""{"type":1}""");
 
         reply.IsSuccess.Should().BeTrue(reply.ErrorMessage);
         reply.Value.Should().Be("""{"type":1}""");
@@ -106,8 +103,7 @@ public sealed class DiscordInteractionServiceTests
         RecordingGateway gateway = new();
 
         await using (DiscordTestDbContext db = database.NewContext())
-            await NewService(db, gateway, new())
-                .HandleAsync(ComponentPayload(roleId, "member-42"));
+            await NewService(db, gateway, new()).HandleAsync(ComponentPayload(roleId, "member-42"));
 
         RecordingEventBus bus = new();
         Result<string> reply;
@@ -146,8 +142,7 @@ public sealed class DiscordInteractionServiceTests
                 roleId.ToString("N")
             );
         await using DiscordTestDbContext db = database.NewContext();
-        Result<string> reply = await NewService(db, gateway, new())
-            .HandleAsync(payload);
+        Result<string> reply = await NewService(db, gateway, new()).HandleAsync(payload);
 
         reply.IsSuccess.Should().BeTrue(reply.ErrorMessage);
         gateway.RoleAdds.Should().ContainSingle();
@@ -245,8 +240,7 @@ public sealed class DiscordInteractionServiceTests
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
         await using DiscordTestDbContext db = database.NewContext();
 
-        Result<string> reply = await NewService(db, new(), new())
-            .HandleAsync(body);
+        Result<string> reply = await NewService(db, new(), new()).HandleAsync(body);
 
         reply.IsFailure.Should().BeTrue();
         reply.ErrorCode.Should().Be("VALIDATION_FAILED");

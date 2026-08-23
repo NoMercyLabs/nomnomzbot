@@ -165,9 +165,7 @@ public sealed class ChatDecorationFeatureTogglingTests
         ILinkPreviewService previews = Substitute.For<ILinkPreviewService>();
         previews
             .FetchAsync(Arg.Any<Uri>(), Arg.Any<CancellationToken>())
-            .Returns(
-                Result.Success<LinkPreview?>(new("example.com", "Example", null, null))
-            );
+            .Returns(Result.Success<LinkPreview?>(new("example.com", "Example", null, null)));
         ChatMessageDecorator decorator = new(
             [new ExplodeTextAdapter(), new LinkPreviewAdapter(previews), new ImplodeTextAdapter()],
             features,
@@ -210,11 +208,7 @@ public sealed class ChatDecorationFeatureTogglingTests
             ChatDecorationRulesCacheInvalidator
         >();
         ServiceProvider provider = services.BuildServiceProvider();
-        return new(
-            provider,
-            NullLogger<EventBus>.Instance,
-            new(NullLogger<EventLogger>.Instance)
-        );
+        return new(provider, NullLogger<EventBus>.Instance, new(NullLogger<EventLogger>.Instance));
     }
 
     // The real emote-resolving chain (mirrors ChatMessageDecoratorTests.EmoteChain).

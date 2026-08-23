@@ -222,11 +222,7 @@ public class StreamController : BaseController
         // scope) rather than swallowing it.
         Result<PlatformStreamInfoApplied> update = await _platformApi.UpdateStreamInfoAsync(
             tenantId,
-            new(
-                Title: request.Title,
-                CategoryName: request.GameName,
-                Tags: request.Tags
-            ),
+            new(Title: request.Title, CategoryName: request.GameName, Tags: request.Tags),
             ct
         );
         if (update.IsFailure)
@@ -272,9 +268,7 @@ public class StreamController : BaseController
 
         if (ctx is not null)
         {
-            return Ok(
-                new StatusResponseDto<StreamStatusDto> { Data = new(ctx.IsLive, 0) }
-            );
+            return Ok(new StatusResponseDto<StreamStatusDto> { Data = new(ctx.IsLive, 0) });
         }
 
         Result<ChannelDto> result = await _channelService.GetAsync(channelId, ct);

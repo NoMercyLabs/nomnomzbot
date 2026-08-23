@@ -86,10 +86,7 @@ public sealed class MusicServiceBlockedAdmissionTests
     public async Task The_block_is_tenant_scoped_channel_B_queues_the_same_track()
     {
         (MusicService sut, _, BlockedTrackService blocks) = Build(ChannelA, ChannelB);
-        await blocks.BlockAsync(
-            ChannelA,
-            new("spotify", "spotify:track:q1", "Song Q")
-        );
+        await blocks.BlockAsync(ChannelA, new("spotify", "spotify:track:q1", "Song Q"));
 
         Result admittedB = await sut.AddToQueueAsync(
             ChannelB.ToString(),
@@ -106,10 +103,7 @@ public sealed class MusicServiceBlockedAdmissionTests
     {
         // The public SR page and dashboard submit raw queries, not URIs — the gate must hold there too.
         (MusicService sut, _, BlockedTrackService blocks) = Build(ChannelA, ChannelB);
-        await blocks.BlockAsync(
-            ChannelA,
-            new("spotify", "spotify:track:q1", "Song Q")
-        );
+        await blocks.BlockAsync(ChannelA, new("spotify", "spotify:track:q1", "Song Q"));
 
         Result admitted = await sut.AddToQueueAsync(
             ChannelA.ToString(),

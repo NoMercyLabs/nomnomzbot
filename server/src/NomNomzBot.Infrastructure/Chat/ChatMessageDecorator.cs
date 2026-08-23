@@ -102,11 +102,7 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
             }
         }
 
-        return new()
-        {
-            Fragments = context.Fragments,
-            Badges = context.ResolvedBadges,
-        };
+        return new() { Fragments = context.Fragments, Badges = context.ResolvedBadges };
     }
 
     // The set of enabled decoration feature keys for the channel: each feature ON unless an explicit toggle disables it

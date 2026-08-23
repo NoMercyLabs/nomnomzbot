@@ -97,13 +97,7 @@ public sealed class FederationPeerServiceTests
         FederationPeerDto registered = (await sut.RegisterPeerAsync(Req())).Value;
         await sut.TrustPeerAsync(registered.Id, Actor);
 
-        (
-            await sut.RevokePeerAsync(
-                registered.Id,
-                new("manual", Blocked: false),
-                Actor
-            )
-        )
+        (await sut.RevokePeerAsync(registered.Id, new("manual", Blocked: false), Actor))
             .IsSuccess.Should()
             .BeTrue();
 
@@ -124,13 +118,7 @@ public sealed class FederationPeerServiceTests
         (
             await sut.AddPeerKeyAsync(
                 registered.Id,
-                new(
-                    "PUB2",
-                    "k1",
-                    FederationKeyAlgorithm.RsaSha256,
-                    Now.UtcDateTime,
-                    null
-                )
+                new("PUB2", "k1", FederationKeyAlgorithm.RsaSha256, Now.UtcDateTime, null)
             )
         )
             .ErrorCode.Should()

@@ -69,8 +69,7 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
     public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
     public DbSet<CryptoKey> CryptoKeys => Set<CryptoKey>();
-    public DbSet<KeyUsageBinding> KeyUsageBindings =>
-        Set<KeyUsageBinding>();
+    public DbSet<KeyUsageBinding> KeyUsageBindings => Set<KeyUsageBinding>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey> EventSubjectKeys =>
         Set<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
@@ -184,8 +183,7 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
-    public DbSet<Configuration> Configurations =>
-        throw new NotSupportedException();
+    public DbSet<Configuration> Configurations => throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
     public DbSet<Permission> Permissions => throw new NotSupportedException();
     public DbSet<ChannelFeature> ChannelFeatures => throw new NotSupportedException();

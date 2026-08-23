@@ -52,10 +52,7 @@ public sealed class OsSecureStoreKeyVault : IKeyVault
     )
     {
         EncryptionOptions opts = options.Value;
-        _kek = new(
-            () => ResolveKek(opts, logger),
-            LazyThreadSafetyMode.ExecutionAndPublication
-        );
+        _kek = new(() => ResolveKek(opts, logger), LazyThreadSafetyMode.ExecutionAndPublication);
         _kekReference = string.IsNullOrWhiteSpace(opts.Key)
             ? "os-secure-store:dpapi"
             : "config:hkdf";

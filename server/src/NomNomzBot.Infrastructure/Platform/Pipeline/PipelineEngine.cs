@@ -447,9 +447,7 @@ public sealed class PipelineEngine : IPipelineEngine
                 };
             }
 
-            definition.Steps.Add(
-                new() { Action = action, Condition = condition }
-            );
+            definition.Steps.Add(new() { Action = action, Condition = condition });
         }
 
         return definition;

@@ -31,14 +31,7 @@ public class TwitchGamesApiTests
         {
             ListResult =
                 (IReadOnlyList<TwitchGame>)
-                    [
-                        new(
-                            "509658",
-                            "Just Chatting",
-                            "https://box-art/{width}x{height}.jpg",
-                            "417"
-                        ),
-                    ],
+                    [new("509658", "Just Chatting", "https://box-art/{width}x{height}.jpg", "417")],
         };
         TwitchGamesApi api = new(transport);
 
@@ -108,14 +101,7 @@ public class TwitchGamesApiTests
         CapturingHelixTransport transport = new()
         {
             PageResult = new TwitchPage<TwitchGame>(
-                [
-                    new(
-                        "33214",
-                        "Fortnite",
-                        "https://box-art/fortnite-{width}x{height}.jpg",
-                        "1905"
-                    ),
-                ],
+                [new("33214", "Fortnite", "https://box-art/fortnite-{width}x{height}.jpg", "1905")],
                 "next",
                 1
             ),

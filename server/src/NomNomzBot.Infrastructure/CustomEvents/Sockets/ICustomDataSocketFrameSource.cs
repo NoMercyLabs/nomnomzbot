@@ -58,10 +58,7 @@ internal sealed class ClientWebSocketDataFrameSource : ICustomDataSocketFrameSou
             bool overCap = false;
             while (socket.State == WebSocketState.Open && !ct.IsCancellationRequested)
             {
-                WebSocketReceiveResult result = await socket.ReceiveAsync(
-                    new(buffer),
-                    ct
-                );
+                WebSocketReceiveResult result = await socket.ReceiveAsync(new(buffer), ct);
                 if (result.MessageType == WebSocketMessageType.Close)
                     yield break;
                 if (result.MessageType != WebSocketMessageType.Text)

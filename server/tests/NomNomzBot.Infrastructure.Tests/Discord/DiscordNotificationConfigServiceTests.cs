@@ -49,16 +49,7 @@ public sealed class DiscordNotificationConfigServiceTests
             Result<DiscordNotificationConfigDto> result = await service.CreateConfigAsync(
                 channel,
                 connectionId,
-                new(
-                    "go_live",
-                    true,
-                    "chan-123",
-                    null,
-                    "{{broadcaster}} live",
-                    embed,
-                    null,
-                    null
-                )
+                new("go_live", true, "chan-123", null, "{{broadcaster}} live", embed, null, null)
             );
             result.IsSuccess.Should().BeTrue(result.ErrorMessage);
             created = result.Value;

@@ -40,8 +40,7 @@ public sealed class InMemoryRateLimiterPartitionStore : IRateLimiterPartitionSto
         Window current = _windows.AddOrUpdate(
             partitionKey,
             _ => new(now + window, 1),
-            (_, existing) =>
-                existing.ResetAt <= now ? new(now + window, 1) : existing.Increment()
+            (_, existing) => existing.ResetAt <= now ? new(now + window, 1) : existing.Increment()
         );
 
         bool acquired = current.Count <= permitLimit;

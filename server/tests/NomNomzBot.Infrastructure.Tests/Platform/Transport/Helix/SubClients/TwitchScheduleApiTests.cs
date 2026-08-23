@@ -58,10 +58,7 @@ public class TwitchScheduleApiTests
         {
             SingleResult = Schedule(Segment()) with
             {
-                Vacation = new(
-                    DateTimeOffset.UnixEpoch,
-                    DateTimeOffset.UnixEpoch.AddDays(7)
-                ),
+                Vacation = new(DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddDays(7)),
             },
         };
         TwitchScheduleApi api = Build(transport);
@@ -97,10 +94,7 @@ public class TwitchScheduleApiTests
 
         // The controller default (100) exceeds Twitch's schedule cap of 25 — Twitch rejects that with 400 (the
         // bug that made the page 502). The sub-client must clamp `first` to 25 so the request succeeds.
-        Result<TwitchSchedule> result = await api.GetScheduleAsync(
-            Tenant,
-            new(PageSize: 100)
-        );
+        Result<TwitchSchedule> result = await api.GetScheduleAsync(Tenant, new(PageSize: 100));
 
         result.IsSuccess.Should().BeTrue();
         transport.LastRequest!.Query.Should().Contain(q => q.Key == "first" && q.Value == "25");

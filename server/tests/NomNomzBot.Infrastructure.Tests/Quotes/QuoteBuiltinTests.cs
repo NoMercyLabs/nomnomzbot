@@ -34,9 +34,7 @@ namespace NomNomzBot.Infrastructure.Tests.Quotes;
 /// </summary>
 public sealed class QuoteBuiltinTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 
     private static readonly Guid InvokerId = Guid.Parse("0192b000-0000-7000-8000-0000000000c1");
 

@@ -76,10 +76,7 @@ public sealed class CommunityRosterServiceTests
         (CommunityRosterService sut, AuthDbContext db, ITwitchModeratorsApi mods) = Build();
         StubRoster(
             mods,
-            [
-                new("tw-mod-1", "modone", "ModOne"),
-                new("tw-mod-2", "modtwo", "ModTwo"),
-            ],
+            [new("tw-mod-1", "modone", "ModOne"), new("tw-mod-2", "modtwo", "ModTwo")],
             [new("tw-vip-1", "VipOne", "vipone")]
         );
 
@@ -194,11 +191,7 @@ public sealed class CommunityRosterServiceTests
         mods.GetModeratorsAsync(Channel, Arg.Any<TwitchPageRequest>(), Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success(
-                    new TwitchPage<TwitchModerator>(
-                        [new("tw-mod-1", "modone", "ModOne")],
-                        null,
-                        1
-                    )
+                    new TwitchPage<TwitchModerator>([new("tw-mod-1", "modone", "ModOne")], null, 1)
                 )
             );
         mods.GetVipsAsync(Channel, Arg.Any<TwitchPageRequest>(), Arg.Any<CancellationToken>())

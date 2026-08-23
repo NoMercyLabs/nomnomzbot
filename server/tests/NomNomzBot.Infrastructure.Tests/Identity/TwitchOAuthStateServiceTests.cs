@@ -26,9 +26,7 @@ public sealed class TwitchOAuthStateServiceTests
     {
         TwitchOAuthStateService svc = new(new FakeCache());
 
-        string nonce = await svc.IssueAsync(
-            new("channel_bot", ChannelId: "abc")
-        );
+        string nonce = await svc.IssueAsync(new("channel_bot", ChannelId: "abc"));
 
         nonce.Should().NotBeNullOrWhiteSpace();
         TwitchOAuthFlowState? consumed = await svc.ConsumeAsync(nonce);

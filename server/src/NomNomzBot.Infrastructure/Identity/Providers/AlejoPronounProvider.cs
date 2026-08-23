@@ -45,13 +45,7 @@ public sealed class AlejoPronounProvider : IPronounProvider
             string subject = record.Subject.ToLowerInvariant();
             string obj = record.Object.ToLowerInvariant();
             string name = subject == obj ? subject : $"{subject}/{obj}";
-            catalog[record.Key] = new(
-                record.Key,
-                subject,
-                obj,
-                record.Singular,
-                name
-            );
+            catalog[record.Key] = new(record.Key, subject, obj, record.Singular, name);
         }
 
         return catalog;

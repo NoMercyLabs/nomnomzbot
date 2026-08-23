@@ -179,11 +179,7 @@ public sealed class SupporterConnectionServiceTests
     public async Task UpsertAsync_ASecondSecret_RotatesTheSameEndpoint_NeverDuplicates()
     {
         (SupporterConnectionService service, SupporterTestDbContext db) = await BuildAsync();
-        await service.UpsertAsync(
-            Tenant,
-            Actor,
-            new("kofi", "webhook", "first-token", null, true)
-        );
+        await service.UpsertAsync(Tenant, Actor, new("kofi", "webhook", "first-token", null, true));
 
         Result<SupporterConnectionDto> rotated = await service.UpsertAsync(
             Tenant,
@@ -244,13 +240,7 @@ public sealed class SupporterConnectionServiceTests
         Result<SupporterConnectionDto> result = await service.UpsertAsync(
             Tenant,
             Actor,
-            new(
-                "patreon",
-                "webhook",
-                null,
-                Guid.NewGuid(),
-                IsEnabled: true
-            )
+            new("patreon", "webhook", null, Guid.NewGuid(), IsEnabled: true)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -372,11 +362,7 @@ public sealed class SupporterConnectionServiceTests
     public async Task DeleteThenReconnect_LeavesASingleRow()
     {
         (SupporterConnectionService service, SupporterTestDbContext db) = await BuildAsync();
-        await service.UpsertAsync(
-            Tenant,
-            Actor,
-            new("kofi", "webhook", null, null, true)
-        );
+        await service.UpsertAsync(Tenant, Actor, new("kofi", "webhook", null, null, true));
 
         Result deleted = await service.DeleteAsync(Tenant, Actor, "kofi");
         deleted.IsSuccess.Should().BeTrue();

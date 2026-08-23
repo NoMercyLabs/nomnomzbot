@@ -61,11 +61,7 @@ public sealed class PickListServiceTests
             PickListService service = NewService(db, bus);
             Result<PickListDto> result = await service.CreateAsync(
                 channel,
-                new(
-                    "fight_moves",
-                    "Fight lines",
-                    ["{user} bonks {target}", "swings wildly"]
-                )
+                new("fight_moves", "Fight lines", ["{user} bonks {target}", "swings wildly"])
             );
 
             result.IsSuccess.Should().BeTrue(result.ErrorMessage);
@@ -110,10 +106,7 @@ public sealed class PickListServiceTests
         await using (PickListTestDbContext db = database.NewContext())
         {
             PickListService service = NewService(db, bus);
-            await service.CreateAsync(
-                channel,
-                new("greetings", null, ["hi"])
-            );
+            await service.CreateAsync(channel, new("greetings", null, ["hi"]));
         }
 
         await using (PickListTestDbContext db = database.NewContext())
@@ -196,11 +189,7 @@ public sealed class PickListServiceTests
         await using (PickListTestDbContext db = database.NewContext())
         {
             PickListService service = NewService(db, bus);
-            id = (
-                await service.CreateAsync(channel, new("orig", "old", ["a"]))
-            )
-                .Value
-                .Id;
+            id = (await service.CreateAsync(channel, new("orig", "old", ["a"]))).Value.Id;
         }
 
         await using (PickListTestDbContext db = database.NewContext())
@@ -236,11 +225,7 @@ public sealed class PickListServiceTests
         await using (PickListTestDbContext db = database.NewContext())
         {
             PickListService service = NewService(db, bus);
-            idA = (
-                await service.CreateAsync(channel, new("aaa", null, ["1"]))
-            )
-                .Value
-                .Id;
+            idA = (await service.CreateAsync(channel, new("aaa", null, ["1"]))).Value.Id;
             await service.CreateAsync(channel, new("bbb", null, ["2"]));
         }
 
@@ -276,11 +261,7 @@ public sealed class PickListServiceTests
         await using (PickListTestDbContext db = database.NewContext())
         {
             PickListService service = NewService(db, bus);
-            id = (
-                await service.CreateAsync(channel, new("temp", null, ["x"]))
-            )
-                .Value
-                .Id;
+            id = (await service.CreateAsync(channel, new("temp", null, ["x"]))).Value.Id;
         }
 
         await using (PickListTestDbContext db = database.NewContext())
@@ -318,10 +299,7 @@ public sealed class PickListServiceTests
         {
             PickListService service = NewService(db, bus);
             await service.CreateAsync(channel, new("alpha", null, ["a1"]));
-            await service.CreateAsync(
-                channel,
-                new("beta", null, ["b1", "b2"])
-            );
+            await service.CreateAsync(channel, new("beta", null, ["b1", "b2"]));
         }
 
         await using PickListTestDbContext readDb = database.NewContext();
@@ -344,10 +322,7 @@ public sealed class PickListServiceTests
         await using (PickListTestDbContext db = database.NewContext())
         {
             PickListService service = NewService(db, bus);
-            await service.CreateAsync(
-                channel,
-                new("moves", null, [.. entries])
-            );
+            await service.CreateAsync(channel, new("moves", null, [.. entries]));
         }
 
         await using PickListTestDbContext readDb = database.NewContext();
@@ -436,14 +411,8 @@ public sealed class PickListServiceTests
         await using (PickListTestDbContext db = database.NewContext())
         {
             PickListService service = NewService(db, bus);
-            await service.CreateAsync(
-                channelA,
-                new("shared", null, ["a-one"])
-            );
-            await service.CreateAsync(
-                channelB,
-                new("shared", null, ["b-one"])
-            );
+            await service.CreateAsync(channelA, new("shared", null, ["a-one"]));
+            await service.CreateAsync(channelB, new("shared", null, ["b-one"]));
         }
 
         await using PickListTestDbContext readDb = database.NewContext();

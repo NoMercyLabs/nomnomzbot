@@ -66,11 +66,7 @@ public sealed class ScriptTestRunServiceTests
             db
         );
 
-        return (
-            new(db, tenant, new JintScriptExecutor(), broker, bridgeFactory),
-            db,
-            storage
-        );
+        return (new(db, tenant, new JintScriptExecutor(), broker, bridgeFactory), db, storage);
     }
 
     private static async Task<Guid> SeedAsync(

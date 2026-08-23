@@ -279,10 +279,7 @@ public sealed class DashboardEventClassTests
         string id = Channel.ToString();
 
         await notifier.SendStreamStatusAsync(id, new(true, null, null, null, null));
-        await notifier.SendConfigChangedAsync(
-            id,
-            new(id, "commands", null, "updated")
-        );
+        await notifier.SendConfigChangedAsync(id, new(id, "commands", null, "updated"));
 
         clients.Received(2).Group($"channel-{id}");
     }

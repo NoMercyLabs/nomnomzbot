@@ -221,12 +221,7 @@ public sealed class GiveawayServiceTests
         Harness harness = Build();
         Guid giveawayId = await SeedOpenGiveawayAsync(
             harness,
-            new(
-                "Paid Drop",
-                GiveawayEntryMode.Keyword,
-                Keyword: "!win",
-                EntryCost: 25
-            )
+            new("Paid Drop", GiveawayEntryMode.Keyword, Keyword: "!win", EntryCost: 25)
         );
         Guid viewer = SeedViewer(harness.Db, "111");
 
@@ -268,12 +263,7 @@ public sealed class GiveawayServiceTests
         Harness harness = Build();
         Guid giveawayId = await SeedOpenGiveawayAsync(
             harness,
-            new(
-                "Paid Drop",
-                GiveawayEntryMode.Keyword,
-                Keyword: "!win",
-                EntryCost: 25
-            )
+            new("Paid Drop", GiveawayEntryMode.Keyword, Keyword: "!win", EntryCost: 25)
         );
         Guid viewer = SeedViewer(harness.Db, "111");
         harness
@@ -369,12 +359,7 @@ public sealed class GiveawayServiceTests
         Harness harness = Build();
         Guid giveawayId = await SeedOpenGiveawayAsync(
             harness,
-            new(
-                "Two Winners",
-                GiveawayEntryMode.Keyword,
-                Keyword: "!win",
-                WinnerCount: 2
-            )
+            new("Two Winners", GiveawayEntryMode.Keyword, Keyword: "!win", WinnerCount: 2)
         );
 
         // The OWNER enters too — the draw must never pick them (D4).

@@ -85,10 +85,7 @@ public sealed class VtsBridgeTests
             .Returns(ci =>
             {
                 pushedPayload = ci.ArgAt<string>(2);
-                commands.Complete(
-                    ci.ArgAt<Guid>(1),
-                    new(true, """{ "modelID": "m1" }""", null)
-                );
+                commands.Complete(ci.ArgAt<Guid>(1), new(true, """{ "modelID": "m1" }""", null));
                 return Task.CompletedTask;
             });
 

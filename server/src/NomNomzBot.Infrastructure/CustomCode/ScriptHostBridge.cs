@@ -511,12 +511,7 @@ public sealed class ScriptHostBridge(
         // The service is the ONE assignment path (same as the dashboard/mod override) — it validates the
         // voice against the synthesizable catalogue, so an unknown voice is a typed failure → null.
         Result<UserTtsVoiceDto> set = ttsConfig
-            .SetUserVoiceAsync(
-                broadcasterId,
-                platformUserId,
-                new() { VoiceId = voiceId },
-                ct
-            )
+            .SetUserVoiceAsync(broadcasterId, platformUserId, new() { VoiceId = voiceId }, ct)
             .GetAwaiter()
             .GetResult();
         return set.IsSuccess ? "ok" : null;

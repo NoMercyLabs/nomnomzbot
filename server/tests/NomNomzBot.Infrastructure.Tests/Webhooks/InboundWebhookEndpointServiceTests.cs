@@ -157,20 +157,12 @@ public sealed class InboundWebhookEndpointServiceTests
         (InboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         InboundWebhookEndpointDto created = (await sut.CreateAsync(Channel, Actor, Req())).Value;
 
-        await sut.UpdateAsync(
-            Channel,
-            created.Id,
-            new() { Name = "renamed" }
-        );
+        await sut.UpdateAsync(Channel, created.Id, new() { Name = "renamed" });
         db.InboundWebhookEndpoints.Single()
             .VerificationSecretEnvelope.Should()
             .Be("sealed:topsecret");
 
-        await sut.UpdateAsync(
-            Channel,
-            created.Id,
-            new() { VerificationSecret = "rotated" }
-        );
+        await sut.UpdateAsync(Channel, created.Id, new() { VerificationSecret = "rotated" });
         db.InboundWebhookEndpoints.Single()
             .VerificationSecretEnvelope.Should()
             .Be("sealed:rotated");
@@ -239,9 +231,7 @@ public sealed class InboundWebhookEndpointServiceTests
 
         (await sut.DeleteAsync(Channel, created.Id)).IsSuccess.Should().BeTrue();
 
-        (await sut.ListAsync(Channel, new(1, 25, null, null)))
-            .Value.Items.Should()
-            .BeEmpty();
+        (await sut.ListAsync(Channel, new(1, 25, null, null))).Value.Items.Should().BeEmpty();
         bus.Published.OfType<ChannelConfigChangedEvent>()
             .Should()
             .ContainSingle(e => e.Domain == "webhooks" && e.Action == "deleted");

@@ -462,13 +462,7 @@ public class AutomationPairingService : IAutomationPairingService
                     GraphJsonCache = JsonSerializer.Serialize(
                         new PipelineDefinition
                         {
-                            Steps =
-                            [
-                                new()
-                                {
-                                    Action = new() { Type = actionType },
-                                },
-                            ],
+                            Steps = [new() { Action = new() { Type = actionType } }],
                         }
                     ),
                 }

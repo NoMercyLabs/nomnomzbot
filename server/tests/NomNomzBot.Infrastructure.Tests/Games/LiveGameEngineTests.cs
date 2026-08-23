@@ -271,14 +271,9 @@ public sealed class LiveGameEngineTests
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         Harness h = New(database, new FakeGame());
         SeedConfig(h.Db);
-        (await h.Engine.StartAsync(Channel, new("fake_game", null)))
-            .IsSuccess.Should()
-            .BeTrue();
+        (await h.Engine.StartAsync(Channel, new("fake_game", null))).IsSuccess.Should().BeTrue();
 
-        Result<GameSessionDto> second = await h.Engine.StartAsync(
-            Channel,
-            new("fake_game", null)
-        );
+        Result<GameSessionDto> second = await h.Engine.StartAsync(Channel, new("fake_game", null));
 
         second.IsFailure.Should().BeTrue();
         second.ErrorCode.Should().Be("SESSION_ALREADY_ACTIVE");
@@ -379,12 +374,7 @@ public sealed class LiveGameEngineTests
         };
         h.Db.GameSessions.Add(orphan);
         await h.Db.SaveChangesAsync(CancellationToken.None);
-        (
-            await h.Games.StakeLiveGameEntryAsync(
-                Channel,
-                new(orphan.Id, configId, PlayerA, 40)
-            )
-        )
+        (await h.Games.StakeLiveGameEntryAsync(Channel, new(orphan.Id, configId, PlayerA, 40)))
             .IsSuccess.Should()
             .BeTrue();
 

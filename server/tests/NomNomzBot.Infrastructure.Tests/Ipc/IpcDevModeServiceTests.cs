@@ -116,10 +116,7 @@ public sealed class IpcDevModeServiceTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         FakeTimeProvider clock = new();
         IpcDevModeService service = NewService(db, DeploymentMode.SelfHostLite, clock);
-        Result<IpcDevModeKeyDto> created = await service.CreateKeyAsync(
-            Actor,
-            new(null, null)
-        );
+        Result<IpcDevModeKeyDto> created = await service.CreateKeyAsync(Actor, new(null, null));
 
         Result accepted = await service.AuthenticateConnectionAsync(created.Value!.PlaintextKey!);
         accepted.IsSuccess.Should().BeTrue(accepted.ErrorMessage);
@@ -166,11 +163,7 @@ public sealed class IpcDevModeServiceTests
     public async Task Revoke_of_an_unknown_key_is_not_found()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        IpcDevModeService service = NewService(
-            db,
-            DeploymentMode.SelfHostLite,
-            new()
-        );
+        IpcDevModeService service = NewService(db, DeploymentMode.SelfHostLite, new());
 
         Result result = await service.RevokeKeyAsync(Guid.CreateVersion7());
 
@@ -225,10 +218,7 @@ public sealed class IpcDevModeServiceTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         FakeTimeProvider clock = new();
         IpcDevModeService selfHost = NewService(db, DeploymentMode.SelfHostFull, clock);
-        Result<IpcDevModeKeyDto> created = await selfHost.CreateKeyAsync(
-            Actor,
-            new(null, null)
-        );
+        Result<IpcDevModeKeyDto> created = await selfHost.CreateKeyAsync(Actor, new(null, null));
 
         IpcDevModeService saas = NewService(db, DeploymentMode.Saas, clock);
 
@@ -238,10 +228,7 @@ public sealed class IpcDevModeServiceTests
         rejected.IsFailure.Should().BeTrue("a valid key must not authenticate on SaaS");
         rejected.ErrorCode.Should().Be("FORBIDDEN");
 
-        Result<IpcDevModeKeyDto> refusedCreate = await saas.CreateKeyAsync(
-            Actor,
-            new(null, null)
-        );
+        Result<IpcDevModeKeyDto> refusedCreate = await saas.CreateKeyAsync(Actor, new(null, null));
         refusedCreate.IsFailure.Should().BeTrue();
         refusedCreate.ErrorCode.Should().Be("SERVICE_UNAVAILABLE");
     }

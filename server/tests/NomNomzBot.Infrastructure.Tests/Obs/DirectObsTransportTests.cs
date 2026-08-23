@@ -191,10 +191,7 @@ public sealed class DirectObsTransportTests
         Task<Result<ObsResponse>> send = h.Transport.SendAsync(
             Channel,
             Guid.CreateVersion7(),
-            new(
-                "SetCurrentProgramScene",
-                new Dictionary<string, object?> { ["sceneName"] = "BRB" }
-            )
+            new("SetCurrentProgramScene", new Dictionary<string, object?> { ["sceneName"] = "BRB" })
         );
         string requestId = await ReplyToFirstRequestAsync(
             h.Socket,

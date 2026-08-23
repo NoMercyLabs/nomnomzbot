@@ -372,9 +372,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                 // welcome the loop will complete (a private TCS would never be signaled → the caller hangs).
                 if (_receiveLoop is null || _startWelcome is null)
                 {
-                    _startWelcome = new(
-                        TaskCreationOptions.RunContinuationsAsynchronously
-                    );
+                    _startWelcome = new(TaskCreationOptions.RunContinuationsAsynchronously);
                     _runCts?.Cancel();
                     _runCts = new();
                     CancellationToken runToken = _runCts.Token;

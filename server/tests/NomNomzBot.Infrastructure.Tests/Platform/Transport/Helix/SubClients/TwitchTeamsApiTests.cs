@@ -98,10 +98,7 @@ public class TwitchTeamsApiTests
                 "6358",
                 "staff",
                 "Twitch Staff",
-                [
-                    new("1234", "dallas", "Dallas"),
-                    new("5678", "cooler", "Cooler"),
-                ],
+                [new("1234", "dallas", "Dallas"), new("5678", "cooler", "Cooler")],
                 "https://bg/image.png",
                 "https://banner/image.png",
                 "We are Twitch.",

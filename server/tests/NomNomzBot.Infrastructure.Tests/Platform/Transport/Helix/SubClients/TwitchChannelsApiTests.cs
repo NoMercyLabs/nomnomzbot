@@ -93,10 +93,7 @@ public class TwitchChannelsApiTests
         CapturingHelixTransport transport = new();
         TwitchChannelsApi api = Build(transport); // no scopes granted
 
-        Result result = await api.ModifyChannelInformationAsync(
-            Tenant,
-            new(Title: "new")
-        );
+        Result result = await api.ModifyChannelInformationAsync(Tenant, new(Title: "new"));
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);

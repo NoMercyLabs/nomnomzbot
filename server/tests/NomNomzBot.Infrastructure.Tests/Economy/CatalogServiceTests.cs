@@ -30,9 +30,7 @@ public sealed class CatalogServiceTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000d1");
     private static readonly Guid Buyer = Guid.Parse("0192a000-0000-7000-8000-0000000000d2");
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero));
 
     private static (CatalogService Sut, EventStoreTestDbContext Db, RecordingEventBus Bus) New(
         SqliteTestDatabase database,

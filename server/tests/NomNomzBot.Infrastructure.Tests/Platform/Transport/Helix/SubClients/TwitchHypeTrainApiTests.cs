@@ -84,13 +84,7 @@ public class TwitchHypeTrainApiTests
                     1000,
                     [
                         new("123", "pogchamp", "PogChamp", "bits", 50),
-                        new(
-                            "456",
-                            "kappa",
-                            "Kappa",
-                            "subscription",
-                            45
-                        ),
+                        new("456", "kappa", "Kappa", "subscription", 45),
                     ],
                     [new("456", "pogchamp", "PogChamp")],
                     DateTimeOffset.Parse("2020-07-15T17:16:03.17106713Z"),
@@ -98,16 +92,8 @@ public class TwitchHypeTrainApiTests
                     "golden_kappa",
                     true
                 ),
-                new(
-                    6,
-                    2850,
-                    DateTimeOffset.Parse("2020-04-24T20:12:21.003802269Z")
-                ),
-                new(
-                    16,
-                    23850,
-                    DateTimeOffset.Parse("2020-04-27T20:12:21.003802269Z")
-                )
+                new(6, 2850, DateTimeOffset.Parse("2020-04-24T20:12:21.003802269Z")),
+                new(16, 23850, DateTimeOffset.Parse("2020-04-27T20:12:21.003802269Z"))
             ),
         };
         TwitchHypeTrainApi api = Build(transport, TwitchScopes.ChannelReadHypeTrain);
@@ -145,11 +131,7 @@ public class TwitchHypeTrainApiTests
         {
             SingleResult = new TwitchHypeTrainStatus(
                 null,
-                new(
-                    6,
-                    2850,
-                    DateTimeOffset.Parse("2020-04-24T20:12:21.003802269Z")
-                ),
+                new(6, 2850, DateTimeOffset.Parse("2020-04-24T20:12:21.003802269Z")),
                 null
             ),
         };

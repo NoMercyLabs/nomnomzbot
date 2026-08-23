@@ -49,11 +49,7 @@ public sealed class PublicSongRequestControllerTests
             .ResolveAsync("nope", Arg.Any<CancellationToken>())
             .Returns(Result.Failure<SongRequestPageDto>("Unknown song-request page.", "NOT_FOUND"));
 
-        IActionResult result = await controller.Submit(
-            "nope",
-            new() { Query = "a song" },
-            default
-        );
+        IActionResult result = await controller.Submit("nope", new() { Query = "a song" }, default);
 
         result.Should().BeOfType<NotFoundObjectResult>();
     }
@@ -66,11 +62,7 @@ public sealed class PublicSongRequestControllerTests
             .ResolveAsync("tok", Arg.Any<CancellationToken>())
             .Returns(Result.Success(Page(accepting: false)));
 
-        IActionResult result = await controller.Submit(
-            "tok",
-            new() { Query = "a song" },
-            default
-        );
+        IActionResult result = await controller.Submit("tok", new() { Query = "a song" }, default);
 
         result.Should().BeOfType<ConflictObjectResult>();
     }

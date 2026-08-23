@@ -133,14 +133,8 @@ public class TwitchBitsApiTests
             ["1.5"] = "https://cdn/1.5.png",
         };
         TwitchCheermoteImages images = new(
-            new(
-                new(animatedScales),
-                new(staticScales)
-            ),
-            new(
-                new(animatedScales),
-                new(staticScales)
-            )
+            new(new(animatedScales), new(staticScales)),
+            new(new(animatedScales), new(staticScales))
         );
         CapturingHelixTransport transport = new()
         {

@@ -67,11 +67,7 @@ public sealed class TwitchPlatformApi : IPlatformApi
 
         Result applied = await _channels.ModifyChannelInformationAsync(
             broadcasterId,
-            new(
-                Title: update.Title,
-                GameId: gameId,
-                Tags: update.Tags
-            ),
+            new(Title: update.Title, GameId: gameId, Tags: update.Tags),
             cancellationToken
         );
         if (applied.IsFailure)

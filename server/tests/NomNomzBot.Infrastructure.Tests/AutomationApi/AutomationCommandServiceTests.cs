@@ -244,10 +244,7 @@ public sealed class AutomationCommandServiceTests
     {
         Harness h = Build();
 
-        Result message = await h.Service.SendChatAsync(
-            Principal(),
-            new() { Text = "hello chat" }
-        );
+        Result message = await h.Service.SendChatAsync(Principal(), new() { Text = "hello chat" });
         message.IsSuccess.Should().BeTrue(message.ErrorMessage);
         await h
             .Chat.Received(1)
@@ -395,10 +392,7 @@ public sealed class AutomationCommandServiceTests
     {
         Harness h = Build();
         h.Music.GetDevicesAsync(Channel.ToString(), Arg.Any<CancellationToken>())
-            .Returns(
-                (IReadOnlyList<MusicDeviceDto>)
-                    [new("dev-1", "Laptop", "Computer", true, 80)]
-            );
+            .Returns((IReadOnlyList<MusicDeviceDto>)[new("dev-1", "Laptop", "Computer", true, 80)]);
 
         Result<IReadOnlyList<AutomationDeviceDto>> result = await h.Service.GetDevicesAsync(
             Principal()

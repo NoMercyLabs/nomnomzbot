@@ -200,9 +200,7 @@ public sealed class MediaShareServiceTests
     [Fact]
     public async Task Submit_OverCap_RejectsDurationExceeded_NoWrite()
     {
-        Harness h = Build(
-            new(MediaShareSourceType.TwitchClip, "long", "Long", 240, null)
-        );
+        Harness h = Build(new(MediaShareSourceType.TwitchClip, "long", "Long", 240, null));
         SeedConfig(h.Db, maxDuration: 180);
 
         Result<MediaShareRequestDto> result = await h.Sut.SubmitAsync(Channel, Viewer, Req());
@@ -448,10 +446,7 @@ public sealed class MediaShareServiceTests
     {
         Harness h = Build();
 
-        await h.Sut.UpdateConfigAsync(
-            Channel,
-            new(true, false, true, false, 90, 250, 10, 30)
-        );
+        await h.Sut.UpdateConfigAsync(Channel, new(true, false, true, false, 90, 250, 10, 30));
 
         MediaShareConfigDto dto = (await h.Sut.GetConfigAsync(Channel)).Value;
         dto.IsEnabled.Should().BeTrue();

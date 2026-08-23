@@ -199,10 +199,7 @@ public class ChannelBotController : BaseController
 
         // Issue a single-use, server-side CSRF state nonce holding the flow + tenant id, so the channel-bot
         // association cannot be forged by tampering with the state (§5). Only the opaque nonce leaves us.
-        string state = await _oauthState.IssueAsync(
-            new("channel_bot", ChannelId: channelId),
-            ct
-        );
+        string state = await _oauthState.IssueAsync(new("channel_bot", ChannelId: channelId), ct);
 
         Result<string> authUrl = await _authService.GetTwitchChannelBotOAuthUrl(
             tenantId,
@@ -212,9 +209,7 @@ public class ChannelBotController : BaseController
         );
         if (authUrl.IsFailure)
             return ResultResponse(authUrl);
-        return Ok(
-            new StatusResponseDto<OAuthStartDto> { Data = new(authUrl.Value, state) }
-        );
+        return Ok(new StatusResponseDto<OAuthStartDto> { Data = new(authUrl.Value, state) });
     }
 
     /// <summary>Get white-label bot status for a specific channel.</summary>

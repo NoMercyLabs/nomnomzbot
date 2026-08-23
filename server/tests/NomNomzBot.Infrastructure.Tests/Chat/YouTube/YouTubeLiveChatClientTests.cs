@@ -356,10 +356,7 @@ public sealed class YouTubeLiveChatClientTests
         StubHttpMessageHandler handler = new((HttpStatusCode.OK, "{}"));
         YouTubeLiveChatClient sut = Build(handler);
 
-        Result<string> result = await sut.UpdateActiveBroadcastTitleAsync(
-            Token,
-            new('t', 101)
-        );
+        Result<string> result = await sut.UpdateActiveBroadcastTitleAsync(Token, new('t', 101));
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");

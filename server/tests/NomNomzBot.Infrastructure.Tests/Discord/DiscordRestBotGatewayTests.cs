@@ -415,12 +415,7 @@ public sealed class DiscordRestBotGatewayTests
         ServiceProvider provider = services.BuildServiceProvider();
         IHttpClientFactory factory = provider.GetRequiredService<IHttpClientFactory>();
 
-        return new(
-            factory,
-            db,
-            vault,
-            NullLogger<DiscordRestBotGateway>.Instance
-        );
+        return new(factory, db, vault, NullLogger<DiscordRestBotGateway>.Instance);
     }
 
     private static IIntegrationTokenVault VaultReturning(Guid connectionId, string token)

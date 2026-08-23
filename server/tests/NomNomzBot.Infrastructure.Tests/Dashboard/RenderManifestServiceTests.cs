@@ -91,10 +91,7 @@ public class RenderManifestServiceTests
         [new("spotify", "Spotify", "Music", "Now playing overlays", Connected: true, "dj_cat")];
 
     private static MissingScopesDto SampleScopes() =>
-        new(
-            "connected",
-            [new("channel:read:redemptions", ["song_requests"], true, false)]
-        );
+        new("connected", [new("channel:read:redemptions", ["song_requests"], true, false)]);
 
     private sealed record Harness(
         RenderManifestService Service,

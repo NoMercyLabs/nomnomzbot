@@ -117,10 +117,7 @@ public sealed class VtsConnectionServiceTests
     public async Task Rotate_replaces_the_bridge_credential()
     {
         (VtsConnectionService sut, VtsTestDbContext db) = Build();
-        await sut.UpsertAsync(
-            Channel,
-            new() { Mode = "bridge", IsEnabled = true }
-        );
+        await sut.UpsertAsync(Channel, new() { Mode = "bridge", IsEnabled = true });
 
         Result<VtsConnectionDto> first = await sut.RotateBridgeTokenAsync(Channel);
         string tokenBefore = (await db.VtsConnections.SingleAsync()).BridgeToken!;

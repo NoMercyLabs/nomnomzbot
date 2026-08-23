@@ -67,12 +67,7 @@ public sealed class MediaSourceResolverTests
             )
             .Build();
 
-        return new(
-            clipsApi,
-            factory,
-            config,
-            NullLogger<MediaSourceResolver>.Instance
-        );
+        return new(clipsApi, factory, config, NullLogger<MediaSourceResolver>.Instance);
     }
 
     private static ITwitchClipsApi BuildClipsApi(params TwitchClip[] clips)

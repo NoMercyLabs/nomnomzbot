@@ -82,11 +82,7 @@ public class ChannelsController : BaseController
         if (ownChannel != Guid.Empty)
         {
             Result<TwitchPage<TwitchModeratedChannel>> moderated =
-                await _moderators.GetModeratedChannelsAsync(
-                    ownChannel,
-                    new(),
-                    ct
-                );
+                await _moderators.GetModeratedChannelsAsync(ownChannel, new(), ct);
             if (moderated.IsSuccess)
                 moderatedIds = [.. moderated.Value.Items.Select(m => m.BroadcasterId)];
         }
@@ -182,11 +178,7 @@ public class ChannelsController : BaseController
             return Ok(new StatusResponseDto<List<ModeratedChannelDto>> { Data = [] });
 
         Result<TwitchPage<TwitchModeratedChannel>> moderatedResult =
-            await _moderators.GetModeratedChannelsAsync(
-                moderatorChannelId,
-                new(),
-                ct
-            );
+            await _moderators.GetModeratedChannelsAsync(moderatorChannelId, new(), ct);
         IReadOnlyList<TwitchModeratedChannel> moderated = moderatedResult.IsSuccess
             ? moderatedResult.Value.Items
             : [];
@@ -247,11 +239,7 @@ public class ChannelsController : BaseController
             return UnauthorizedResponse("You do not moderate this channel.");
 
         Result<TwitchPage<TwitchModeratedChannel>> moderatedResult =
-            await _moderators.GetModeratedChannelsAsync(
-                moderatorChannelId,
-                new(),
-                ct
-            );
+            await _moderators.GetModeratedChannelsAsync(moderatorChannelId, new(), ct);
         TwitchModeratedChannel? match = moderatedResult.IsSuccess
             ? moderatedResult.Value.Items.FirstOrDefault(m =>
                 m.BroadcasterId == twitchBroadcasterId

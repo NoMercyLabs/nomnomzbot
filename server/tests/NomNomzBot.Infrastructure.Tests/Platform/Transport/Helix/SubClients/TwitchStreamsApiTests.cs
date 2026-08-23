@@ -291,15 +291,7 @@ public class TwitchStreamsApiTests
                         [
                             new(
                                 "v1",
-                                [
-                                    new(
-                                        "m1",
-                                        DateTimeOffset.UnixEpoch,
-                                        "clip it",
-                                        300,
-                                        "https://vod"
-                                    ),
-                                ]
+                                [new("m1", DateTimeOffset.UnixEpoch, "clip it", 300, "https://vod")]
                             ),
                         ]
                     ),
@@ -338,11 +330,7 @@ public class TwitchStreamsApiTests
         };
         TwitchStreamsApi api = Build(transport, TwitchScopes.UserReadBroadcast);
 
-        await api.GetStreamMarkersAsync(
-            Tenant,
-            "987",
-            new(After: "p", PageSize: 5)
-        );
+        await api.GetStreamMarkersAsync(Tenant, "987", new(After: "p", PageSize: 5));
 
         transport.LastRequest!.Query.Should().Contain(q => q.Key == "video_id" && q.Value == "987");
         transport.LastRequest.Query.Should().NotContain(q => q.Key == "user_id");

@@ -39,9 +39,7 @@ public sealed class SharedChatBanSharePublisherTests
     public async Task A_ban_in_a_session_from_a_sharing_channel_is_offered_with_the_session_id()
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
-        db.SharedBanSettings.Add(
-            new() { BroadcasterId = Origin, ShareOutgoingBans = true }
-        );
+        db.SharedBanSettings.Add(new() { BroadcasterId = Origin, ShareOutgoingBans = true });
         await db.SaveChangesAsync();
         SharedChatSessionTracker sessions = new();
         sessions.SetSession(Origin, new("session-9", "host-1", []));

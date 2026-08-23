@@ -73,11 +73,7 @@ public sealed class TimerManagementServiceTests
         TimerDto created = (await sut.CreateAsync(Channel.ToString(), Req())).Value;
         bus.Published.Clear();
 
-        await sut.UpdateAsync(
-            Channel.ToString(),
-            created.Id,
-            new() { IntervalMinutes = 45 }
-        );
+        await sut.UpdateAsync(Channel.ToString(), created.Id, new() { IntervalMinutes = 45 });
 
         bus.Published.OfType<ChannelConfigChangedEvent>()
             .Should()
@@ -110,11 +106,7 @@ public sealed class TimerManagementServiceTests
 
         // Flipped back to a loop via update; other fields (name) untouched.
         TimerDto updated = (
-            await sut.UpdateAsync(
-                Channel.ToString(),
-                created.Id,
-                new() { FireOnce = false }
-            )
+            await sut.UpdateAsync(Channel.ToString(), created.Id, new() { FireOnce = false })
         ).Value;
         updated.FireOnce.Should().BeFalse("update cleared one-shot mode");
         updated.Name.Should().Be("welcome-once", "an unset field is left as-is");

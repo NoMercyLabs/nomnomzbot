@@ -154,14 +154,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
                 UserDisplayName = payload.Sender.Username ?? string.Empty,
                 UserLogin = Login(payload.Sender),
                 Message = payload.Content ?? string.Empty,
-                Fragments =
-                [
-                    new()
-                    {
-                        Type = "text",
-                        Text = payload.Content ?? string.Empty,
-                    },
-                ],
+                Fragments = [new() { Type = "text", Text = payload.Content ?? string.Empty }],
                 Badges = [],
                 IsSubscriber = badgeTypes.Contains("subscriber", StringComparer.OrdinalIgnoreCase),
                 IsVip = badgeTypes.Contains("vip", StringComparer.OrdinalIgnoreCase),

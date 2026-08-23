@@ -77,6 +77,5 @@ public sealed class TtsProfanityCensor : ITtsProfanityCensor
     }
 
     /// <summary>Keeps the first character (preserving its case) and replaces the rest with asterisks.</summary>
-    private static string Mask(string word) =>
-        string.Concat(word[..1], new('*', word.Length - 1));
+    private static string Mask(string word) => string.Concat(word[..1], new('*', word.Length - 1));
 }

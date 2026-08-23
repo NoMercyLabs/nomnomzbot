@@ -185,11 +185,7 @@ public sealed class TtsConfigServiceTests
     public async Task ClearByokKey_wipes_the_envelope_and_the_flag()
     {
         (TtsConfigService sut, TtsTestDbContext db, _) = Build();
-        await sut.SetByokKeyAsync(
-            Channel,
-            "elevenlabs",
-            new() { ApiKey = "el-secret" }
-        );
+        await sut.SetByokKeyAsync(Channel, "elevenlabs", new() { ApiKey = "el-secret" });
 
         Result<TtsConfigDto> result = await sut.ClearByokKeyAsync(Channel, "elevenlabs");
 

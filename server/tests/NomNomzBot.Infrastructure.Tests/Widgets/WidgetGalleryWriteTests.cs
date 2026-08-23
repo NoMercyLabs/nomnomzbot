@@ -33,9 +33,7 @@ public sealed class WidgetGalleryWriteTests
     private static readonly Guid Submitter = Guid.Parse("0192a000-0000-7000-8000-0000000000f1");
     private static readonly Guid Reviewer = Guid.Parse("0192a000-0000-7000-8000-0000000000f2");
     private static readonly PaginationParams FirstPage = new(1, 25);
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 7, 17, 16, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 7, 17, 16, 0, 0, TimeSpan.Zero));
 
     private static SubmitGalleryItemRequest Submission(
         string url = "https://www.github.com/acme/confetti-widget.git",

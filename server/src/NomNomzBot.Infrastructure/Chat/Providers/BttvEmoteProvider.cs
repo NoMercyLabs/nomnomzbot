@@ -84,14 +84,7 @@ public sealed class BttvEmoteProvider : IThirdPartyEmoteProvider
                 ["3"] = $"https://cdn.betterttv.net/emote/{emote.Id}/3x",
             };
             result.Add(
-                new(
-                    EmoteProvider.Bttv,
-                    emote.Id,
-                    emote.Code,
-                    urls,
-                    emote.Animated,
-                    emote.Modifier
-                )
+                new(EmoteProvider.Bttv, emote.Id, emote.Code, urls, emote.Animated, emote.Modifier)
             );
         }
 

@@ -62,8 +62,7 @@ public sealed class IdentityRekeyBehaviorTests
             Set<NomNomzBot.Domain.Rewards.Entities.Redemption>();
         public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
             throw new NotSupportedException();
-        public DbSet<ChatTrigger> ChatTriggers =>
-            throw new NotSupportedException();
+        public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>
@@ -370,8 +369,7 @@ public sealed class IdentityRekeyBehaviorTests
             inner.Redemptions;
         public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
             throw new NotSupportedException();
-        public DbSet<ChatTrigger> ChatTriggers =>
-            throw new NotSupportedException();
+        public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>
@@ -395,8 +393,7 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<NomNomzBot.Domain.Moderation.Entities.ChatFilter> ChatFilters =>
             throw new NotSupportedException();
         public DbSet<ConsentRecord> ConsentRecords => inner.ConsentRecords;
-        public DbSet<ErasureRequest> ErasureRequests =>
-            throw new NotSupportedException();
+        public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
         public DbSet<Channel> Channels => inner.Channels;
         public DbSet<Command> Commands => inner.Commands;
 
@@ -404,8 +401,7 @@ public sealed class IdentityRekeyBehaviorTests
             inner.SaveChangesAsync(ct);
 
         // The resolver only reads Users/Channels; the remaining surface is unused here.
-        public DbSet<ChannelModerator> ChannelModerators =>
-            throw new NotSupportedException();
+        public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Platform.Entities.Service> Services =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Rewards.Entities.Reward> Rewards =>
@@ -446,8 +442,7 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
             throw new NotSupportedException();
-        public DbSet<ChannelEvent> ChannelEvents =>
-            throw new NotSupportedException();
+        public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
@@ -456,28 +451,21 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
             throw new NotSupportedException();
-        public DbSet<Permission> Permissions =>
-            throw new NotSupportedException();
+        public DbSet<Permission> Permissions => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Platform.Entities.ChannelFeature> ChannelFeatures =>
             throw new NotSupportedException();
         public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>
             throw new NotSupportedException();
-        public DbSet<BotAccount> BotAccounts =>
-            throw new NotSupportedException();
-        public DbSet<AuthSession> AuthSessions =>
-            throw new NotSupportedException();
-        public DbSet<RefreshToken> RefreshTokens =>
-            throw new NotSupportedException();
-        public DbSet<IpcDevModeKey> IpcDevModeKeys =>
-            throw new NotSupportedException();
+        public DbSet<BotAccount> BotAccounts => throw new NotSupportedException();
+        public DbSet<AuthSession> AuthSessions => throw new NotSupportedException();
+        public DbSet<RefreshToken> RefreshTokens => throw new NotSupportedException();
+        public DbSet<IpcDevModeKey> IpcDevModeKeys => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationConnection> IntegrationConnections =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Integrations.Entities.IntegrationToken> IntegrationTokens =>
             throw new NotSupportedException();
-        public DbSet<CryptoKey> CryptoKeys =>
-            throw new NotSupportedException();
-        public DbSet<KeyUsageBinding> KeyUsageBindings =>
-            throw new NotSupportedException();
+        public DbSet<CryptoKey> CryptoKeys => throw new NotSupportedException();
+        public DbSet<KeyUsageBinding> KeyUsageBindings => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.EventStore.Entities.EventSubjectKey> EventSubjectKeys =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection> DiscordGuildConnections =>
@@ -490,8 +478,7 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch> DiscordNotificationDispatches =>
             throw new NotSupportedException();
-        public DbSet<ChannelSubscription> ChannelSubscriptions =>
-            throw new NotSupportedException();
+        public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Vts.Entities.VtsConnection> VtsConnections =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
@@ -512,16 +499,13 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Tts.Entities.TtsApprovalQueueEntry> TtsApprovalQueueEntries =>
             throw new NotSupportedException();
-        public DbSet<Pronoun> Pronouns =>
-            throw new NotSupportedException();
+        public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog> DeletionAuditLogs =>
             throw new NotSupportedException();
-        public DbSet<ComplianceAuditLog> ComplianceAuditLogs =>
-            throw new NotSupportedException();
+        public DbSet<ComplianceAuditLog> ComplianceAuditLogs => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
             throw new NotSupportedException();
-        public DbSet<EventResponse> EventResponses =>
-            throw new NotSupportedException();
+        public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Rewards.Entities.WatchStreak> WatchStreaks =>
             throw new NotSupportedException();
         public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks =>
@@ -554,30 +538,20 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint> ProjectionCheckpoints =>
             throw new NotSupportedException();
-        public DbSet<ChannelMembership> ChannelMemberships =>
-            throw new NotSupportedException();
+        public DbSet<ChannelMembership> ChannelMemberships => throw new NotSupportedException();
         public DbSet<ChannelCommunityStanding> ChannelCommunityStandings =>
             throw new NotSupportedException();
-        public DbSet<ActionDefinition> ActionDefinitions =>
-            throw new NotSupportedException();
+        public DbSet<ActionDefinition> ActionDefinitions => throw new NotSupportedException();
         public DbSet<ChannelActionOverride> ChannelActionOverrides =>
             throw new NotSupportedException();
-        public DbSet<PermitGrant> PermitGrants =>
-            throw new NotSupportedException();
-        public DbSet<ChannelMissingScope> ChannelMissingScopes =>
-            throw new NotSupportedException();
-        public DbSet<IamPermission> IamPermissions =>
-            throw new NotSupportedException();
-        public DbSet<IamRole> IamRoles =>
-            throw new NotSupportedException();
-        public DbSet<IamRolePermission> IamRolePermissions =>
-            throw new NotSupportedException();
-        public DbSet<IamPrincipal> IamPrincipals =>
-            throw new NotSupportedException();
-        public DbSet<IamRoleAssignment> IamRoleAssignments =>
-            throw new NotSupportedException();
-        public DbSet<IamAuditLog> IamAuditLogs =>
-            throw new NotSupportedException();
+        public DbSet<PermitGrant> PermitGrants => throw new NotSupportedException();
+        public DbSet<ChannelMissingScope> ChannelMissingScopes => throw new NotSupportedException();
+        public DbSet<IamPermission> IamPermissions => throw new NotSupportedException();
+        public DbSet<IamRole> IamRoles => throw new NotSupportedException();
+        public DbSet<IamRolePermission> IamRolePermissions => throw new NotSupportedException();
+        public DbSet<IamPrincipal> IamPrincipals => throw new NotSupportedException();
+        public DbSet<IamRoleAssignment> IamRoleAssignments => throw new NotSupportedException();
+        public DbSet<IamAuditLog> IamAuditLogs => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyConfig> CurrencyConfigs =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Economy.Entities.EarningRule> EarningRules =>

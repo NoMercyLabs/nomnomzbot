@@ -35,9 +35,7 @@ namespace NomNomzBot.Infrastructure.Tests.Import;
 /// </summary>
 public sealed class ProviderImportServiceTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 7, 17, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 7, 17, 12, 0, 0, TimeSpan.Zero));
 
     private static ProviderImportService NewService(ImportTestDbContext db)
     {
@@ -242,11 +240,7 @@ public sealed class ProviderImportServiceTests
 
         StreamElementsExport export = new()
         {
-            Quotes =
-            [
-                new() { Text = "GG well played" },
-                new() { Text = "gg well played" },
-            ],
+            Quotes = [new() { Text = "GG well played" }, new() { Text = "gg well played" }],
         };
 
         ImportSummary summary;

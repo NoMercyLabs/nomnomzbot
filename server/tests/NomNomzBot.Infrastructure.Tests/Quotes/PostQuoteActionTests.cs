@@ -29,9 +29,7 @@ namespace NomNomzBot.Infrastructure.Tests.Quotes;
 /// </summary>
 public sealed class PostQuoteActionTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 
     /// <summary>A chat provider that records exactly what was sent so the test can assert the real side effect.</summary>
     private sealed class RecordingChatProvider : IChatProvider

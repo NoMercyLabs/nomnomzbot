@@ -112,10 +112,7 @@ public sealed class AgeConsentServiceTests
     {
         (AgeConsentService sut, AuthDbContext db, RecordingEventBus bus) = Build();
         Guid viewer = SeedUser(db, Now.UtcDateTime.AddYears(-1));
-        await sut.GrantAsync(
-            Channel,
-            new(viewer, "self_confirm", null, null)
-        );
+        await sut.GrantAsync(Channel, new(viewer, "self_confirm", null, null));
 
         Result<AgeConsentDto> revoke = await sut.RevokeAsync(Channel, viewer);
 

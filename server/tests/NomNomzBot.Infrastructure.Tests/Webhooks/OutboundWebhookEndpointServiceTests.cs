@@ -59,11 +59,7 @@ public sealed class OutboundWebhookEndpointServiceTests
             )
             .Returns(Result.Success(Guid.Parse("0192a000-0000-7000-8000-0000000000cc")));
         RecordingEventBus bus = new();
-        return (
-            new(db, protector, keys, new FakeTimeProvider(Now), bus),
-            db,
-            bus
-        );
+        return (new(db, protector, keys, new FakeTimeProvider(Now), bus), db, bus);
     }
 
     private static async Task SeedAllowlistAsync(AuthDbContext db, string fqdn = "api.example.com")

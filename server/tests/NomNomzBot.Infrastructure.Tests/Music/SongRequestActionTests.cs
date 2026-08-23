@@ -159,9 +159,6 @@ public sealed class SongRequestActionTests
         new()
         {
             Type = "song_request",
-            Parameters = new()
-            {
-                ["query"] = JsonSerializer.SerializeToElement(query),
-            },
+            Parameters = new() { ["query"] = JsonSerializer.SerializeToElement(query) },
         };
 }

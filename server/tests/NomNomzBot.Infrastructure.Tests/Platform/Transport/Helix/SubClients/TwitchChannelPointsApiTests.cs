@@ -349,12 +349,7 @@ public class TwitchChannelPointsApiTests
         TwitchChannelPointsApi api = Build(transport);
 
         Result<IReadOnlyList<TwitchCustomRewardRedemption>> result =
-            await api.UpdateRedemptionStatusAsync(
-                Tenant,
-                "reward-1",
-                ["r1"],
-                new("FULFILLED")
-            );
+            await api.UpdateRedemptionStatusAsync(Tenant, "reward-1", ["r1"], new("FULFILLED"));
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);

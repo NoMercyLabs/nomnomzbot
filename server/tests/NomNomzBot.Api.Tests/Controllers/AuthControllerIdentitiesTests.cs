@@ -42,10 +42,7 @@ public sealed class AuthControllerIdentitiesTests
             Substitute.For<ISessionService>()
         )
         {
-            ControllerContext = new()
-            {
-                HttpContext = new DefaultHttpContext { User = user },
-            },
+            ControllerContext = new() { HttpContext = new DefaultHttpContext { User = user } },
         };
 
     [Fact]

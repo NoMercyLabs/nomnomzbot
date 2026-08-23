@@ -56,11 +56,7 @@ public sealed class ChannelAnalyticsServiceTests
         await SeedDailyAsync(db, new(2026, 6, 21), 20);
 
         IReadOnlyList<ChannelAnalyticsDailyDto> series = (
-            await sut.GetDailySeriesAsync(
-                Channel,
-                new(2026, 6, 20),
-                new(2026, 6, 22)
-            )
+            await sut.GetDailySeriesAsync(Channel, new(2026, 6, 20), new(2026, 6, 22))
         ).Value;
 
         series.Select(s => s.TotalMessages).Should().Equal(10, 20, 30);

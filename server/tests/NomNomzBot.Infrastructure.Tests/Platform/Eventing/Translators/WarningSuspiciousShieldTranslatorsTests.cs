@@ -26,9 +26,7 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing.Translators;
 /// </summary>
 public sealed class WarningSuspiciousShieldTranslatorsTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 
     private static EventSubNotification Notification(Guid tenant, string type, string payload)
     {
@@ -264,10 +262,7 @@ public sealed class WarningSuspiciousShieldTranslatorsTests
         published.ModeratorDisplayName.Should().Be("ParticularlyParticular123");
         published
             .StartedAt.Should()
-            .Be(
-                new(2026, 6, 20, 11, 0, 3, TimeSpan.Zero),
-                "started_at is parsed from the payload"
-            );
+            .Be(new(2026, 6, 20, 11, 0, 3, TimeSpan.Zero), "started_at is parsed from the payload");
         published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
@@ -302,10 +297,7 @@ public sealed class WarningSuspiciousShieldTranslatorsTests
         published.ModeratorDisplayName.Should().Be("ParticularlyParticular123");
         published
             .EndedAt.Should()
-            .Be(
-                new(2026, 6, 20, 11, 30, 23, TimeSpan.Zero),
-                "ended_at is parsed from the payload"
-            );
+            .Be(new(2026, 6, 20, 11, 30, 23, TimeSpan.Zero), "ended_at is parsed from the payload");
         published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 }

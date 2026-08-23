@@ -226,12 +226,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
 
         await _vault.StoreTokensAsync(
             connection.Id,
-            new(
-                result.AccessToken,
-                result.RefreshToken,
-                AppToken: null,
-                result.ExpiresAt
-            ),
+            new(result.AccessToken, result.RefreshToken, AppToken: null, result.ExpiresAt),
             result.Scopes,
             ct
         );

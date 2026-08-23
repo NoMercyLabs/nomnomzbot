@@ -149,11 +149,7 @@ internal sealed class CustomDataSocketHostedService : BackgroundService, IAsyncD
                 ? null
                 : await protector.TryUnprotectAsync(
                     source.AuthSecretCipher,
-                    new(
-                        source.BroadcasterId.ToString(),
-                        SecretProvider,
-                        source.Id.ToString()
-                    ),
+                    new(source.BroadcasterId.ToString(), SecretProvider, source.Id.ToString()),
                     ct
                 );
 

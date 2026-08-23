@@ -154,10 +154,7 @@ public sealed class PermitActionTests
             new()
             {
                 Type = "permit",
-                Parameters = new()
-                {
-                    ["duration_minutes"] = JsonSerializer.SerializeToElement(30),
-                },
+                Parameters = new() { ["duration_minutes"] = JsonSerializer.SerializeToElement(30) },
             }
         );
 

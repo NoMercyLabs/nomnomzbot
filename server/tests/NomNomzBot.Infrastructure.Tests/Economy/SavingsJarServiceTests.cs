@@ -32,9 +32,7 @@ public sealed class SavingsJarServiceTests
     private static readonly Guid Owner = Guid.Parse("0192a000-0000-7000-8000-0000000000e1");
     private static readonly Guid Partner = Guid.Parse("0192a000-0000-7000-8000-0000000000e2");
     private static readonly Guid Viewer = Guid.Parse("0192a000-0000-7000-8000-0000000000e3");
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero));
 
     private static (SavingsJarService Sut, EventStoreTestDbContext Db, RecordingEventBus Bus) New(
         SqliteTestDatabase database
@@ -133,10 +131,7 @@ public sealed class SavingsJarServiceTests
         (SavingsJarService sut, EventStoreTestDbContext db, RecordingEventBus bus) = New(database);
         Guid jarId = await CreateJarAsync(sut, goal: 30); // reaching 30 crosses the goal
 
-        Result<JarMovementDto> result = await sut.ContributeAsync(
-            Owner,
-            new(jarId, Viewer, 30)
-        );
+        Result<JarMovementDto> result = await sut.ContributeAsync(Owner, new(jarId, Viewer, 30));
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.JarBalanceAfter.Should().Be(30);
@@ -163,10 +158,7 @@ public sealed class SavingsJarServiceTests
         (SavingsJarService sut, _, _) = New(database);
         Guid jarId = await CreateJarAsync(sut, open: false);
 
-        Result<JarMovementDto> result = await sut.ContributeAsync(
-            Owner,
-            new(jarId, Viewer, 10)
-        );
+        Result<JarMovementDto> result = await sut.ContributeAsync(Owner, new(jarId, Viewer, 10));
 
         result.ErrorCode.Should().Be("JAR_NOT_OPEN");
     }
@@ -210,9 +202,7 @@ public sealed class SavingsJarServiceTests
         owner.ContributionCapPerStream = 50;
         db.SaveChanges();
 
-        (await sut.ContributeAsync(Owner, new(jarId, Viewer, 30)))
-            .IsSuccess.Should()
-            .BeTrue();
+        (await sut.ContributeAsync(Owner, new(jarId, Viewer, 30))).IsSuccess.Should().BeTrue();
         (await sut.ContributeAsync(Owner, new(jarId, Viewer, 30)))
             .ErrorCode.Should()
             .Be("JAR_CAP_EXCEEDED"); // 30 already + 30 > 50

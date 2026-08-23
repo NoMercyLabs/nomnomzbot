@@ -33,9 +33,7 @@ namespace NomNomzBot.Infrastructure.Tests.Widgets;
 /// </summary>
 public sealed class WidgetServiceOverlayTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
     private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
 
     private static WidgetService NewService(
@@ -521,15 +519,7 @@ public sealed class WidgetServiceOverlayTests
             .Returns(
                 new MusicQueue(
                     null,
-                    [
-                        new(
-                            "Song B",
-                            "Artist B",
-                            "https://example.com/b.png",
-                            180_000,
-                            "viewer1"
-                        ),
-                    ]
+                    [new("Song B", "Artist B", "https://example.com/b.png", 180_000, "viewer1")]
                 )
             );
 

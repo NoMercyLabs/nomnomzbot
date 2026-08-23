@@ -60,10 +60,7 @@ public class RolesController(
         );
         if (result.IsFailure)
             return ResultResponse(result);
-        return GetPaginatedResponse(
-            result.Value,
-            new() { Page = page, Take = pageSize }
-        );
+        return GetPaginatedResponse(result.Value, new() { Page = page, Take = pageSize });
     }
 
     /// <summary>Assign or change a user's management role on the channel, recorded as a bot grant.</summary>

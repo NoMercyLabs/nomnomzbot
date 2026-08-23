@@ -46,10 +46,7 @@ public sealed class ShoutoutActionTests
         new()
         {
             Type = "shoutout",
-            Parameters = new()
-            {
-                ["user_id"] = JsonSerializer.SerializeToElement(userId),
-            },
+            Parameters = new() { ["user_id"] = JsonSerializer.SerializeToElement(userId) },
         };
 
     /// <summary>Minimal stand-in for the real resolver's <c>{key}</c> substitution — enough to prove the

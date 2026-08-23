@@ -95,10 +95,7 @@ public class DiscordOAuthController : BaseController
         // Single-use, server-side CSRF state nonce (the channel id + optional loopback redirect are held
         // server-side, never in the query string) so a forged callback cannot bind a Discord guild to a
         // channel the caller did not choose, nor bounce the result to an unvetted target.
-        string state = await _oauthState.IssueAsync(
-            new(channelId, redirect_uri),
-            ct
-        );
+        string state = await _oauthState.IssueAsync(new(channelId, redirect_uri), ct);
 
         string authUrl =
             "https://discord.com/api/oauth2/authorize"

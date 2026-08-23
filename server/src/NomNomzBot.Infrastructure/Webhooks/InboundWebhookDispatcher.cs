@@ -67,11 +67,7 @@ public sealed class InboundWebhookDispatcher(
 
         string? secret = await tokenProtector.TryUnprotectAsync(
             endpoint.VerificationSecretEnvelope,
-            new(
-                endpoint.BroadcasterId.ToString(),
-                "webhook:in",
-                endpoint.Id.ToString()
-            ),
+            new(endpoint.BroadcasterId.ToString(), "webhook:in", endpoint.Id.ToString()),
             ct
         );
         if (secret is null)

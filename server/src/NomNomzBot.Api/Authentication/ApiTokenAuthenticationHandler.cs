@@ -73,8 +73,6 @@ public sealed class ApiTokenAuthenticationHandler
             ],
             SchemeName
         );
-        return AuthenticateResult.Success(
-            new(new(identity), SchemeName)
-        );
+        return AuthenticateResult.Success(new(new(identity), SchemeName));
     }
 }

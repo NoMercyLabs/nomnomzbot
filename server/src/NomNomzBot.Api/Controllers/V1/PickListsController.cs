@@ -102,9 +102,7 @@ public class PickListsController : BaseController
         if (pick.IsFailure)
             return ResultResponse(pick);
 
-        return Ok(
-            new StatusResponseDto<PickListPreviewDto> { Data = new(pick.Value) }
-        );
+        return Ok(new StatusResponseDto<PickListPreviewDto> { Data = new(pick.Value) });
     }
 
     /// <summary>Create a new pick-list, returning 201 with its id.</summary>

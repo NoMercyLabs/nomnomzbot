@@ -194,20 +194,7 @@ public sealed class MusicStatePollingService : BackgroundService
     )
     {
         ChannelPlaybackSnapshot next = nowPlaying is null
-            ? new(
-                false,
-                null,
-                0,
-                100,
-                observedAt,
-                true,
-                true,
-                true,
-                true,
-                true,
-                true,
-                true
-            )
+            ? new(false, null, 0, 100, observedAt, true, true, true, true, true, true, true)
             : new ChannelPlaybackSnapshot(
                 nowPlaying.IsPlaying,
                 nowPlaying.TrackName,

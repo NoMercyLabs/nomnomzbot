@@ -33,8 +33,6 @@ public sealed class SharedChatSessionTracker : ISharedChatSessionTracker
             _sessions.TryGetValue(broadcasterId, out SharedChatSessionInfo? current)
             && current.SessionId == sessionId
         )
-            _sessions.TryRemove(
-                new(broadcasterId, current)
-            );
+            _sessions.TryRemove(new(broadcasterId, current));
     }
 }

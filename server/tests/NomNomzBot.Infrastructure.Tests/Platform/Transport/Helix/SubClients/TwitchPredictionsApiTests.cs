@@ -46,14 +46,7 @@ public class TwitchPredictionsApiTests
             "Who wins?",
             status == "RESOLVED" ? "out-1" : null,
             [
-                new(
-                    "out-1",
-                    "Blue team",
-                    10,
-                    5000,
-                    [new("u1", "U1", "u1", 1000, 0)],
-                    "BLUE"
-                ),
+                new("out-1", "Blue team", 10, 5000, [new("u1", "U1", "u1", 1000, 0)], "BLUE"),
                 new("out-2", "Pink team", 3, 1200, null, "PINK"),
             ],
             120,
@@ -150,11 +143,7 @@ public class TwitchPredictionsApiTests
 
         Result<TwitchPrediction> result = await api.CreatePredictionAsync(
             Tenant,
-            new(
-                "Who wins?",
-                [new("Blue"), new("Pink")],
-                120
-            )
+            new("Who wins?", [new("Blue"), new("Pink")], 120)
         );
 
         result.IsFailure.Should().BeTrue();
@@ -167,11 +156,7 @@ public class TwitchPredictionsApiTests
     {
         CapturingHelixTransport transport = new() { SingleResult = SamplePrediction() };
         TwitchPredictionsApi api = Build(transport, TwitchScopes.ChannelManagePredictions);
-        CreatePredictionRequest request = new(
-            "Who wins?",
-            [new("Blue"), new("Pink")],
-            120
-        );
+        CreatePredictionRequest request = new("Who wins?", [new("Blue"), new("Pink")], 120);
 
         Result<TwitchPrediction> result = await api.CreatePredictionAsync(Tenant, request);
 

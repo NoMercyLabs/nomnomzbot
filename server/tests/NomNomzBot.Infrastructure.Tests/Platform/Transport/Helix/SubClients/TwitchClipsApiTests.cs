@@ -198,10 +198,7 @@ public class TwitchClipsApiTests
             new StubScopeTokenResolver()
         );
 
-        Result<TwitchPage<TwitchClip>> result = await api.GetClipsByBroadcasterAsync(
-            Tenant,
-            new()
-        );
+        Result<TwitchPage<TwitchClip>> result = await api.GetClipsByBroadcasterAsync(Tenant, new());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.NotFound);

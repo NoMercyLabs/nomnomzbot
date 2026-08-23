@@ -110,9 +110,7 @@ public sealed class TtsConfigServiceSearchVoicesTests
         TtsTestDbContext db = await SeededCatalogueAsync();
         TtsConfigService sut = Build(db);
 
-        Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(
-            new(Q: "gaming")
-        );
+        Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(new(Q: "gaming"));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Should().ContainSingle().Which.Id.Should().Be("en-GB-SoniaNeural");
@@ -124,9 +122,7 @@ public sealed class TtsConfigServiceSearchVoicesTests
         TtsTestDbContext db = await SeededCatalogueAsync();
         TtsConfigService sut = Build(db);
 
-        Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(
-            new(Q: "aria")
-        );
+        Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(new(Q: "aria"));
 
         result
             .Value.Items.Select(v => v.Id)
@@ -155,9 +151,7 @@ public sealed class TtsConfigServiceSearchVoicesTests
         TtsTestDbContext db = await SeededCatalogueAsync();
         TtsConfigService sut = Build(db);
 
-        Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(
-            new(Accent: "british")
-        );
+        Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(new(Accent: "british"));
 
         result.Value.Items.Should().ContainSingle().Which.Id.Should().Be("en-GB-SoniaNeural");
     }

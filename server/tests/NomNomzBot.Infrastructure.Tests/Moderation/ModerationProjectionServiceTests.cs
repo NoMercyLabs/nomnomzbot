@@ -89,10 +89,7 @@ public sealed class ModerationProjectionServiceTests
     /// <summary>The clean-slate score for the same tenure the seeded subject has.</summary>
     private static double CleanScoreAt(DateTime nowUtc) =>
         Infrastructure.Music.TrustScoreCalculator.Calculate(
-            new()
-            {
-                AccountAgeMonths = (nowUtc - T0.AddYears(-2)).TotalDays / 30.44,
-            }
+            new() { AccountAgeMonths = (nowUtc - T0.AddYears(-2)).TotalDays / 30.44 }
         );
 
     [Fact]

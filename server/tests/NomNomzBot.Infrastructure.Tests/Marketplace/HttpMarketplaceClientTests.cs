@@ -114,10 +114,9 @@ public sealed class HttpMarketplaceClientTests
     public async Task Download_streams_the_bundle_bytes()
     {
         byte[] payload = Encoding.UTF8.GetBytes("PK-this-is-the-bundle");
-        ScriptedHandler handler = new(_ => new(HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent(payload),
-        });
+        ScriptedHandler handler = new(_ =>
+            new(HttpStatusCode.OK) { Content = new ByteArrayContent(payload) }
+        );
         HttpMarketplaceClient client = Build(handler);
 
         Result<System.IO.Stream> result = await client.DownloadAsync("itm_1");
@@ -217,9 +216,7 @@ public sealed class HttpMarketplaceClientTests
         ScriptedHandler handler = new(_ => throw new HttpRequestException("connection refused"));
         HttpMarketplaceClient client = Build(handler);
 
-        Result<PagedList<MarketplaceItemDto>> search = await client.SearchAsync(
-            new()
-        );
+        Result<PagedList<MarketplaceItemDto>> search = await client.SearchAsync(new());
         Result<System.IO.Stream> download = await client.DownloadAsync("itm_1");
 
         search.IsFailure.Should().BeTrue();

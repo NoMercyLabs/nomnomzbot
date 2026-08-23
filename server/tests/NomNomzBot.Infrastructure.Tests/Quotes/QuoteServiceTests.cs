@@ -29,9 +29,7 @@ namespace NomNomzBot.Infrastructure.Tests.Quotes;
 /// </summary>
 public sealed class QuoteServiceTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 
     private static QuoteService NewService(QuoteTestDbContext db, RecordingEventBus bus)
     {
@@ -232,10 +230,7 @@ public sealed class QuoteServiceTests
         await using (QuoteTestDbContext db = database.NewContext())
         {
             QuoteService service = NewService(db, bus);
-            await service.AddAsync(
-                channel,
-                new("original", "Alice", "Game A", null, null)
-            );
+            await service.AddAsync(channel, new("original", "Alice", "Game A", null, null));
         }
 
         await using (QuoteTestDbContext db = database.NewContext())
@@ -274,10 +269,7 @@ public sealed class QuoteServiceTests
                 channel,
                 new("the lag is real", "Stoney_Eagle", null, null, null)
             );
-            await service.AddAsync(
-                channel,
-                new("gg well played", "OtherUser", null, null, null)
-            );
+            await service.AddAsync(channel, new("gg well played", "OtherUser", null, null, null));
         }
 
         await using QuoteTestDbContext readDb = database.NewContext();
@@ -326,11 +318,7 @@ public sealed class QuoteServiceTests
         a.Value.Text.Should().Be("a-one");
         b.Value.Text.Should().Be("b-one");
 
-        Result<PagedList<QuoteDto>> listA = await reader.ListAsync(
-            channelA,
-            new(null),
-            new(1, 25)
-        );
+        Result<PagedList<QuoteDto>> listA = await reader.ListAsync(channelA, new(null), new(1, 25));
         listA.Value.Items.Should().ContainSingle().Which.Text.Should().Be("a-one");
     }
 }

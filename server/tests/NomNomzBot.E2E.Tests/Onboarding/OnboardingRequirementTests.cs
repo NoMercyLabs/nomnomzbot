@@ -51,10 +51,7 @@ public sealed class OnboardingRequirementTests : PageTest
     public async Task Setup_wizard_connects_an_account_and_reaches_the_dashboard()
     {
         // 1. A fresh instance with no streamer account routes to the setup wizard.
-        await Page.GotoAsync(
-            $"{E2ESettings.BaseUrl}/",
-            new() { WaitUntil = WaitUntilState.Load }
-        );
+        await Page.GotoAsync($"{E2ESettings.BaseUrl}/", new() { WaitUntil = WaitUntilState.Load });
         await Page.WaitForFunctionAsync(
             "() => { const b = document.getElementById('nnz-boot'); return b !== null && b.style.display === 'none'; }"
         );
@@ -76,12 +73,7 @@ public sealed class OnboardingRequirementTests : PageTest
         await Assertions.Expect(deviceCode).ToBeVisibleAsync();
 
         // 4. After approval the app lands on the dashboard home — assert a home landmark is rendered.
-        ILocator dashboardHome = Page.GetByRole(
-            AriaRole.Heading,
-            new() { Name = "Dashboard" }
-        );
-        await Assertions
-            .Expect(dashboardHome)
-            .ToBeVisibleAsync(new() { Timeout = 30_000 });
+        ILocator dashboardHome = Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" });
+        await Assertions.Expect(dashboardHome).ToBeVisibleAsync(new() { Timeout = 30_000 });
     }
 }

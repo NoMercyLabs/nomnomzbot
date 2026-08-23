@@ -156,11 +156,7 @@ public sealed class QuoteBuiltin : IBuiltinCommand
         Result<QuoteDto> edited = await _quotes.EditAsync(
             context.BroadcasterId,
             number.Value,
-            new(
-                text.Trim(),
-                existing.Value.QuotedDisplayName,
-                existing.Value.ContextGame
-            ),
+            new(text.Trim(), existing.Value.QuotedDisplayName, existing.Value.ContextGame),
             ct
         );
 

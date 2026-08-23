@@ -107,9 +107,7 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
                 ct
             );
         return Result.Success(
-            policy is null
-                ? new(false, DefaultLadder, 168, false)
-                : ToDto(policy)
+            policy is null ? new(false, DefaultLadder, 168, false) : ToDto(policy)
         );
     }
 

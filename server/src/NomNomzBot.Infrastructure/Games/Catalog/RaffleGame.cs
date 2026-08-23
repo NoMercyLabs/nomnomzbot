@@ -90,9 +90,7 @@ public sealed class RaffleGame : ILiveGame
             GameOutcome outcome = won
                 ? (payout > player.Stake * 5 ? GameOutcome.Jackpot : GameOutcome.Win)
                 : GameOutcome.Lose;
-            awards.Add(
-                new(player.UserId, player.AccountId, player.Stake, outcome, payout)
-            );
+            awards.Add(new(player.UserId, player.AccountId, player.Stake, outcome, payout));
             results.Add(
                 new()
                 {

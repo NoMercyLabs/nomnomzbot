@@ -90,11 +90,7 @@ public sealed class ObsControlServiceTests
     {
         Harness h = Build(request =>
             request.RequestType == "GetSceneItemId"
-                ? new(
-                    true,
-                    new Dictionary<string, object?> { ["sceneItemId"] = 42d },
-                    null
-                )
+                ? new(true, new Dictionary<string, object?> { ["sceneItemId"] = 42d }, null)
                 : new ObsResponse(true, null, null)
         );
 
@@ -151,11 +147,7 @@ public sealed class ObsControlServiceTests
     {
         Harness h = Build(request =>
             request.RequestType == "GetSceneItemId"
-                ? new(
-                    true,
-                    new Dictionary<string, object?> { ["sceneItemId"] = 7d },
-                    null
-                )
+                ? new(true, new Dictionary<string, object?> { ["sceneItemId"] = 7d }, null)
                 : new ObsResponse(true, null, null)
         );
         ObsSetSourceAction action = new(h.Service);
@@ -231,11 +223,7 @@ public sealed class ObsControlServiceTests
                     null
                 ),
                 // The image source has no audio — OBS rejects these two calls.
-                "GetInputMute" or "GetInputVolume" => new(
-                    false,
-                    null,
-                    "input has no audio"
-                ),
+                "GetInputMute" or "GetInputVolume" => new(false, null, "input has no audio"),
                 _ => new(true, null, null),
             }
         );

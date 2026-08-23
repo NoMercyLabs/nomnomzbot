@@ -109,14 +109,7 @@ public sealed class AutomationPairingServiceTests
 
         return new()
         {
-            Service = new(
-                cache,
-                tokens,
-                limiter,
-                db,
-                actions ?? [],
-                clock
-            ),
+            Service = new(cache, tokens, limiter, db, actions ?? [], clock),
             Db = db,
             Cache = cache,
             Limiter = limiter,

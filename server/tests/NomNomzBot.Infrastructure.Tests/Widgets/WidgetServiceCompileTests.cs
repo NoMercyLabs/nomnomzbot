@@ -35,9 +35,7 @@ namespace NomNomzBot.Infrastructure.Tests.Widgets;
 /// </summary>
 public sealed class WidgetServiceCompileTests
 {
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 
     private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
 

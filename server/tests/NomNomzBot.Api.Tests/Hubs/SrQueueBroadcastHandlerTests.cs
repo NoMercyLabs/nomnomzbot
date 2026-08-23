@@ -54,11 +54,7 @@ public sealed class SrQueueBroadcastHandlerTests
             new()
             {
                 BroadcasterId = channel,
-                Items =
-                [
-                    new("Song A", "viewer1", 210),
-                    new("Song B", "viewer2", 185),
-                ],
+                Items = [new("Song A", "viewer1", 210), new("Song B", "viewer2", 185)],
             }
         );
 

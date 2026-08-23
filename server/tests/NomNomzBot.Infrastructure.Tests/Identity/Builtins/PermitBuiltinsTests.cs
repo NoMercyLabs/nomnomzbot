@@ -78,18 +78,7 @@ public sealed class PermitBuiltinsTests
             .Returns(
                 targetExists
                     ? Result.Success<IReadOnlyList<TwitchUser>>([
-                        new(
-                            "tw-target",
-                            "someone",
-                            "Someone",
-                            "",
-                            "",
-                            "",
-                            "",
-                            "",
-                            0,
-                            Now
-                        ),
+                        new("tw-target", "someone", "Someone", "", "", "", "", "", 0, Now),
                     ])
                     : Result.Success<IReadOnlyList<TwitchUser>>([])
             );

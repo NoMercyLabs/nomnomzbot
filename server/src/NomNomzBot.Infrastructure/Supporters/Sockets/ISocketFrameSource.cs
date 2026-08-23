@@ -94,10 +94,7 @@ internal sealed class ClientWebSocketFrameSource : ISocketFrameSource
                 using MemoryStream frame = new();
                 while (socket.State == WebSocketState.Open && !ct.IsCancellationRequested)
                 {
-                    WebSocketReceiveResult result = await socket.ReceiveAsync(
-                        new(buffer),
-                        ct
-                    );
+                    WebSocketReceiveResult result = await socket.ReceiveAsync(new(buffer), ct);
                     if (result.MessageType == WebSocketMessageType.Close)
                         yield break;
                     if (result.MessageType != WebSocketMessageType.Text)
@@ -148,12 +145,7 @@ internal sealed class ClientWebSocketFrameSource : ISocketFrameSource
         {
             if (socket.State != WebSocketState.Open)
                 return;
-            await socket.SendAsync(
-                new(bytes),
-                WebSocketMessageType.Text,
-                endOfMessage: true,
-                ct
-            );
+            await socket.SendAsync(new(bytes), WebSocketMessageType.Text, endOfMessage: true, ct);
         }
     }
 }

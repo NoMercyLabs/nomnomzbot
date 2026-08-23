@@ -202,11 +202,7 @@ public sealed class DiscordNotificationRoleService : IDiscordNotificationRoleSer
         Result<string> posted = await _gateway.PostButtonMessageAsync(
             broadcasterId,
             buttonChannelId,
-            new(
-                $"Click to toggle the **{role.RoleName ?? "notify"}** role.",
-                role.Id,
-                roleLabel
-            ),
+            new($"Click to toggle the **{role.RoleName ?? "notify"}** role.", role.Id, roleLabel),
             ct
         );
         if (posted.IsFailure)

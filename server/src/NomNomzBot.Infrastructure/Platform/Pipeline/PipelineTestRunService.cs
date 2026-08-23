@@ -102,10 +102,7 @@ public sealed class PipelineTestRunService(
             TriggeredByDisplayName = "Test Run",
             MessageId = null,
             RawMessage = string.Empty,
-            InitialVariables = new(
-                request.Variables,
-                StringComparer.OrdinalIgnoreCase
-            ),
+            InitialVariables = new(request.Variables, StringComparer.OrdinalIgnoreCase),
         };
 
         PipelineExecutionResult result = await engine.ExecuteAsync(

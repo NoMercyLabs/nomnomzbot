@@ -253,12 +253,7 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
     )
     {
         ProcessRunResult run = await _process.RunAsync(
-            new(
-                _esbuildPath,
-                arguments,
-                StandardInput: null,
-                WorkingDirectory: workDir
-            ),
+            new(_esbuildPath, arguments, StandardInput: null, WorkingDirectory: workDir),
             cancellationToken
         );
 

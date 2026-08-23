@@ -68,10 +68,7 @@ public sealed class EsbuildWidgetMultiFileTests : IClassFixture<VueSfcCompilerFi
                 + "document.body.appendChild(el);\n",
             ["lib/util.ts"] = $"export const GREETING: string = '{CrossFileMarker}';\n",
         };
-        WidgetBuildInput input = new(
-            new("index.tsx", "widget", "react", []),
-            files
-        );
+        WidgetBuildInput input = new(new("index.tsx", "widget", "react", []), files);
 
         Result<WidgetBuildOutput> result = await RealBuild().BuildAsync(input);
 
@@ -110,9 +107,7 @@ public sealed class EsbuildWidgetMultiFileTests : IClassFixture<VueSfcCompilerFi
             ["index.tsx"] = "import { X } from './lib/x';\nexport default X;\n",
             ["lib/x.ts"] = "export const X = 1;\n",
         };
-        await service.BuildAsync(
-            new(new("index.tsx", "widget", "react", []), multiFile)
-        );
+        await service.BuildAsync(new(new("index.tsx", "widget", "react", []), multiFile));
 
         captured.Should().HaveCount(2);
         captured.Should().OnlyContain(r => r.FileName == "esbuild");
@@ -201,10 +196,7 @@ public sealed class EsbuildWidgetMultiFileTests : IClassFixture<VueSfcCompilerFi
         {
             ["index.tsx"] = "import _ from 'lodash';\nexport default () => _.identity(1);\n",
         };
-        WidgetBuildInput input = new(
-            new("index.tsx", "widget", "react", ["lodash"]),
-            files
-        );
+        WidgetBuildInput input = new(new("index.tsx", "widget", "react", ["lodash"]), files);
 
         IProcessRunner runner = Substitute.For<IProcessRunner>();
         Result<WidgetBuildOutput> result = await FakeBuild(runner).BuildAsync(input);
@@ -232,10 +224,7 @@ public sealed class EsbuildWidgetMultiFileTests : IClassFixture<VueSfcCompilerFi
         {
             ["index.tsx"] = "import { createApp } from 'vue';\nexport default createApp;\n",
         };
-        WidgetBuildInput input = new(
-            new("index.tsx", "widget", "react", ["vue"]),
-            files
-        );
+        WidgetBuildInput input = new(new("index.tsx", "widget", "react", ["vue"]), files);
 
         Result<WidgetBuildOutput> result = await FakeBuild(runner).BuildAsync(input);
 
@@ -261,10 +250,7 @@ public sealed class EsbuildWidgetMultiFileTests : IClassFixture<VueSfcCompilerFi
     public async Task A_file_path_that_escapes_the_project_is_rejected_before_touching_disk()
     {
         Dictionary<string, string> files = new() { ["../evil.ts"] = "export default 1;" };
-        WidgetBuildInput input = new(
-            new("../evil.ts", "widget", "react", []),
-            files
-        );
+        WidgetBuildInput input = new(new("../evil.ts", "widget", "react", []), files);
 
         IProcessRunner runner = Substitute.For<IProcessRunner>();
         Result<WidgetBuildOutput> result = await FakeBuild(runner).BuildAsync(input);

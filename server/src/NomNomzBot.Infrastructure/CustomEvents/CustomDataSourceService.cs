@@ -156,11 +156,7 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         {
             source.AuthSecretCipher = await _tokenProtector.ProtectAsync(
                 request.AuthSecret,
-                new(
-                    broadcasterId.ToString(),
-                    "customdata",
-                    source.Id.ToString()
-                ),
+                new(broadcasterId.ToString(), "customdata", source.Id.ToString()),
                 ct
             );
         }
@@ -219,11 +215,7 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         {
             source.AuthSecretCipher = await _tokenProtector.ProtectAsync(
                 request.AuthSecret,
-                new(
-                    broadcasterId.ToString(),
-                    "customdata",
-                    source.Id.ToString()
-                ),
+                new(broadcasterId.ToString(), "customdata", source.Id.ToString()),
                 ct
             );
         }

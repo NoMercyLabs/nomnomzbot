@@ -117,8 +117,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
             int floorLevel,
             DangerTier tier = DangerTier.Low,
             bool grant = true
-        ) =>
-            s.Add(new(key, defaultLevel, floorLevel, tier, grant, AuthPlane.Management));
+        ) => s.Add(new(key, defaultLevel, floorLevel, tier, grant, AuthPlane.Management));
 
         // Commands / pipelines / responses / timers — reads (and non-mutating pipeline validation) default to
         // the Moderator base but the broadcaster may lower them to Vip.
@@ -164,16 +163,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // Roles & permits & code
         M("roles:read", Mod);
         M("roles:manage", Broadcaster, DangerTier.Critical, grant: false);
-        s.Add(
-            new(
-                "permit:issue",
-                Broadcaster,
-                Editor,
-                DangerTier.Low,
-                true,
-                AuthPlane.Management
-            )
-        );
+        s.Add(new("permit:issue", Broadcaster, Editor, DangerTier.Low, true, AuthPlane.Management));
         M("code:script:author", Broadcaster, DangerTier.Critical);
 
         // Discord (not permit-grantable)
@@ -454,9 +444,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
 
         // ── Community plane (Default = Floor = Everyone(0), Tier = Low, Grant = true) ──
         void C(string key) =>
-            s.Add(
-                new(key, Everyone, Everyone, DangerTier.Low, true, AuthPlane.Community)
-            );
+            s.Add(new(key, Everyone, Everyone, DangerTier.Low, true, AuthPlane.Community));
 
         C("music:request:submit");
         C("moderation:report:file");
@@ -480,16 +468,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // §5): a participant reads their OWN wallet via the self-bound GET /accounts/me (Everyone), so the keyed
         // GET /accounts/{viewerUserId} route floors at Moderator. Seeding it at Everyone leaked every viewer's
         // balance to every other viewer.
-        s.Add(
-            new(
-                "economy:account:read",
-                Mod,
-                Mod,
-                DangerTier.Low,
-                true,
-                AuthPlane.Community
-            )
-        );
+        s.Add(new("economy:account:read", Mod, Mod, DangerTier.Low, true, AuthPlane.Community));
         C("economy:consent:read");
         C("economy:consent:write");
         C("economy:consent:revoke");

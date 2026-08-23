@@ -53,12 +53,7 @@ public sealed class WidgetsControllerUlidRouteTests
             .Returns(Result.Failure<WidgetVersionDetail>("short-circuit", "STOP"));
 
         await NewController(service)
-            .CompileWidget(
-                "chan",
-                wire,
-                new() { SourceCode = "x" },
-                CancellationToken.None
-            );
+            .CompileWidget("chan", wire, new() { SourceCode = "x" }, CancellationToken.None);
 
         received.Should().Be(widgetGuid.ToString());
     }

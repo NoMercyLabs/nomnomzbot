@@ -34,9 +34,7 @@ public sealed class FollowAgeTemplateResolverTests
 
     private readonly PronounGrammarTestDbContext _db;
     private readonly ITwitchChannelsApi _channels = Substitute.For<ITwitchChannelsApi>();
-    private readonly FakeTimeProvider _time = new(
-        new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)
-    );
+    private readonly FakeTimeProvider _time = new(new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
     private readonly TemplateResolver _resolver;
 
     public FollowAgeTemplateResolverTests()
@@ -87,12 +85,7 @@ public sealed class FollowAgeTemplateResolverTests
             .GetChannelFollowerAsync(Channel, "555", Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<TwitchChannelFollower?>(
-                    new(
-                        "555",
-                        "eve",
-                        "Eve",
-                        new(2024, 11, 1, 0, 0, 0, TimeSpan.Zero)
-                    )
+                    new("555", "eve", "Eve", new(2024, 11, 1, 0, 0, 0, TimeSpan.Zero))
                 )
             );
 

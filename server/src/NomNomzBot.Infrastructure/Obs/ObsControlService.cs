@@ -123,13 +123,7 @@ public class ObsControlService : IObsControlService
         Guid broadcasterId,
         string inputName,
         CancellationToken ct = default
-    ) =>
-        SendStatusAsync(
-            broadcasterId,
-            "ToggleInputMute",
-            new() { ["inputName"] = inputName },
-            ct
-        );
+    ) => SendStatusAsync(broadcasterId, "ToggleInputMute", new() { ["inputName"] = inputName }, ct);
 
     public Task<Result> SetInputVolumeAsync(
         Guid broadcasterId,
@@ -304,11 +298,7 @@ public class ObsControlService : IObsControlService
         SendStatusAsync(
             broadcasterId,
             "PressInputPropertiesButton",
-            new()
-            {
-                ["inputName"] = inputName,
-                ["propertyName"] = "refreshnocache",
-            },
+            new() { ["inputName"] = inputName, ["propertyName"] = "refreshnocache" },
             ct
         );
 
@@ -505,10 +495,7 @@ public class ObsControlService : IObsControlService
         foreach ((string Name, string Kind) input in raw)
         {
             probes.Add(
-                new(
-                    "GetInputMute",
-                    new Dictionary<string, object?> { ["inputName"] = input.Name }
-                )
+                new("GetInputMute", new Dictionary<string, object?> { ["inputName"] = input.Name })
             );
             probes.Add(
                 new(

@@ -333,12 +333,7 @@ public sealed class MusicPipelineActionsTests
         IMusicService music = Substitute.For<IMusicService>();
         music
             .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
-            .Returns(
-                new MusicQueue(
-                    null,
-                    [new("Other Pick", "B", null, 100, "SomeoneElse")]
-                )
-            );
+            .Returns(new MusicQueue(null, [new("Other Pick", "B", null, 100, "SomeoneElse")]));
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
 

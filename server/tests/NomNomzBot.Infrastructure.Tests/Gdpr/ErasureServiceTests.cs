@@ -643,11 +643,7 @@ public sealed class ErasureServiceTests
         Harness h = Build();
         using GdprSqliteDatabase _ = h.Database;
         await SeedUsersAsync(h.Db);
-        (
-            await h.Sut.RequestExportAsync(
-                new(SubjectUser, null, "self_service")
-            )
-        )
+        (await h.Sut.RequestExportAsync(new(SubjectUser, null, "self_service")))
             .IsSuccess.Should()
             .BeTrue();
         (await h.Sut.RequestExportAsync(new(OtherUser, null, "self_service")))

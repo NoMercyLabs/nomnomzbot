@@ -187,9 +187,7 @@ public sealed class CrashGame : ILiveGame
                 cashMultiplier is null ? GameOutcome.Lose
                 : payout > player.Stake * 5 ? GameOutcome.Jackpot
                 : GameOutcome.Win;
-            awards.Add(
-                new(player.UserId, player.AccountId, player.Stake, outcome, payout)
-            );
+            awards.Add(new(player.UserId, player.AccountId, player.Stake, outcome, payout));
             results.Add(
                 new()
                 {

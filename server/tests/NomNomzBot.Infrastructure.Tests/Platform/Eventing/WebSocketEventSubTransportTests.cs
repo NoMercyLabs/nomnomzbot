@@ -120,11 +120,7 @@ public sealed class WebSocketEventSubTransportTests
         FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
         CapturingSink sink = new();
         ScriptedChannel channel = new([Welcome("session-A"), NotificationFrame]);
-        WebSocketEventSubTransport transport = NewTransport(
-            new(channel),
-            clock,
-            sink
-        );
+        WebSocketEventSubTransport transport = NewTransport(new(channel), clock, sink);
 
         await transport.StartAsync();
         await sink.WaitForNotificationsAsync(1);
@@ -148,11 +144,7 @@ public sealed class WebSocketEventSubTransportTests
         FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
         CapturingSink sink = new();
         ScriptedChannel channel = new([Welcome("session-A"), UserUpdateNotificationFrame]);
-        WebSocketEventSubTransport transport = NewTransport(
-            new(channel),
-            clock,
-            sink
-        );
+        WebSocketEventSubTransport transport = NewTransport(new(channel), clock, sink);
 
         await transport.StartAsync();
         await sink.WaitForNotificationsAsync(1);
@@ -172,11 +164,7 @@ public sealed class WebSocketEventSubTransportTests
         FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
         CapturingSink sink = new();
         ScriptedChannel channel = new([Welcome("session-A"), WhisperNotificationFrame]);
-        WebSocketEventSubTransport transport = NewTransport(
-            new(channel),
-            clock,
-            sink
-        );
+        WebSocketEventSubTransport transport = NewTransport(new(channel), clock, sink);
 
         await transport.StartAsync();
         await sink.WaitForNotificationsAsync(1);
@@ -260,11 +248,7 @@ public sealed class WebSocketEventSubTransportTests
         FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
         CapturingSink sink = new();
         ScriptedChannel channel = new([Welcome("session-A"), RevocationFrame]);
-        WebSocketEventSubTransport transport = NewTransport(
-            new(channel),
-            clock,
-            sink
-        );
+        WebSocketEventSubTransport transport = NewTransport(new(channel), clock, sink);
 
         await transport.StartAsync();
         await sink.WaitForRevocationsAsync(1);
@@ -339,9 +323,7 @@ public sealed class WebSocketEventSubTransportTests
             CancellationToken ct
         )
         {
-            _revocations.Enqueue(
-                new(twitchSubscriptionId, subscriptionType, status)
-            );
+            _revocations.Enqueue(new(twitchSubscriptionId, subscriptionType, status));
             return Task.CompletedTask;
         }
 
@@ -377,9 +359,7 @@ public sealed class WebSocketEventSubTransportTests
             _connected.Enqueue(uri);
             Interlocked.Increment(ref _connections);
             ScriptedChannel channel =
-                _channels.Count > 0
-                    ? _channels.Dequeue()
-                    : new([], idleAfterScript: true);
+                _channels.Count > 0 ? _channels.Dequeue() : new([], idleAfterScript: true);
             return Task.FromResult<IWebSocketChannel>(channel);
         }
 

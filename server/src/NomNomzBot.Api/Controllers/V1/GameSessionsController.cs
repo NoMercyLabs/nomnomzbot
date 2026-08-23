@@ -85,11 +85,7 @@ public class GameSessionsController(
             return BadRequestResponse("Invalid channel id.");
         Guid? startedBy = TryGetCaller(out Guid caller) ? caller : null;
         return ResultResponse(
-            await engine.StartAsync(
-                broadcasterId,
-                new(request.GameType, startedBy),
-                ct
-            )
+            await engine.StartAsync(broadcasterId, new(request.GameType, startedBy), ct)
         );
     }
 

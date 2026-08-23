@@ -307,12 +307,7 @@ public sealed class LiveGameEngine(
                     stakeAmount = ResolveStake(tokens, runtime.Config);
                     Result<LiveGameStakeResult> staked = await games.StakeLiveGameEntryAsync(
                         broadcasterId,
-                        new(
-                            runtime.SessionId,
-                            runtime.GameConfigId,
-                            viewerUserId,
-                            stakeAmount
-                        ),
+                        new(runtime.SessionId, runtime.GameConfigId, viewerUserId, stakeAmount),
                         ct
                     );
                     // A joiner who cannot pay is skipped silently — spamming per-viewer rejections
@@ -463,12 +458,7 @@ public sealed class LiveGameEngine(
         long totalPaidOut = 0;
         Result<LiveGameSettlementResult> settled = await games.SettleLiveGameAsync(
             runtime.BroadcasterId,
-            new(
-                runtime.SessionId,
-                runtime.GameConfigId,
-                session.GameType,
-                awards
-            ),
+            new(runtime.SessionId, runtime.GameConfigId, session.GameType, awards),
             ct
         );
         if (settled.IsSuccess)

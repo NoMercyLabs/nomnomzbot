@@ -83,11 +83,7 @@ public sealed class TwitchStandingSnapshotBuilder(
                     ct
                 );
                 if (userId is { } id)
-                    byUser[id] = new(
-                        id,
-                        CommunityStanding.Subscriber,
-                        sub.Tier
-                    );
+                    byUser[id] = new(id, CommunityStanding.Subscriber, sub.Tier);
                 else
                     subsComplete = false;
             }

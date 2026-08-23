@@ -297,9 +297,7 @@ public sealed class BundleParityTypesTests
         ).Value;
 
         CodeScriptDetailDto script = (
-            await h.CodeScripts.CreateAsync(
-                new("greeter", "Greets chat", "export {};")
-            )
+            await h.CodeScripts.CreateAsync(new("greeter", "Greets chat", "export {};"))
         ).Value;
         Result<CodeScriptVersionDto> project = await h.CodeScripts.SaveProjectAsync(
             script.Id,
@@ -832,9 +830,7 @@ public sealed class BundleParityTypesTests
     )
     {
         CodeScriptDetailDto script = (
-            await h.CodeScripts.CreateAsync(
-                new("greeter", "Greets chat", "export {};")
-            )
+            await h.CodeScripts.CreateAsync(new("greeter", "Greets chat", "export {};"))
         ).Value;
         PipelineDto pipeline = (
             await h.Pipelines.CreateAsync(
@@ -1074,10 +1070,7 @@ public sealed class BundleParityTypesTests
 
         // A pre-existing, unrelated pick list must survive the uninstall untouched.
         PickListDto keeper = (
-            await target.PickLists.CreateAsync(
-                OtherChannel,
-                new("keep_me", null, ["stays"])
-            )
+            await target.PickLists.CreateAsync(OtherChannel, new("keep_me", null, ["stays"]))
         ).Value;
 
         Result uninstalled = await target.Import.UninstallAsync(OtherChannel, installed.Id, Actor);

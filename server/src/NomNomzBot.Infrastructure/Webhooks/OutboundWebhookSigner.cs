@@ -38,10 +38,6 @@ public sealed class OutboundWebhookSigner : IOutboundWebhookSigner
                 "v1," + Convert.ToBase64String(HMACSHA256.HashData(secret, signedContent))
             );
 
-        return new(
-            webhookId,
-            timestampUnixSeconds.ToString(),
-            string.Join(' ', signatures)
-        );
+        return new(webhookId, timestampUnixSeconds.ToString(), string.Join(' ', signatures));
     }
 }

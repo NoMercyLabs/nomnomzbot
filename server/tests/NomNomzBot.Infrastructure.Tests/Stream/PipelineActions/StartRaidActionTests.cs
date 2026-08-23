@@ -77,11 +77,7 @@ public sealed class StartRaidActionTests
             .StartRaidAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new TwitchRaid(DateTimeOffset.UnixEpoch, false)));
         ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
-        return (
-            new(raids, users, NullLogger<StartRaidAction>.Instance),
-            raids,
-            users
-        );
+        return (new(raids, users, NullLogger<StartRaidAction>.Instance), raids, users);
     }
 
     [Fact]

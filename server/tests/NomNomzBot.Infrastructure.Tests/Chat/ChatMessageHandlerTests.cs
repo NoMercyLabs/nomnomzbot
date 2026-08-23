@@ -169,10 +169,7 @@ public sealed class ChatMessageHandlerTests
         ctx.CommandPrefix = "?";
         AddTemplateCommand(ctx, "hello", "Hi there");
 
-        (ChatMessageHandler sut, _, IEventBus bus) = BuildWithGames(
-            ctx,
-            new()
-        );
+        (ChatMessageHandler sut, _, IEventBus bus) = BuildWithGames(ctx, new());
 
         await sut.HandleAsync(MessageEvent("?hello"), CancellationToken.None);
 
@@ -194,10 +191,7 @@ public sealed class ChatMessageHandlerTests
         ctx.CommandPrefix = "?";
         AddTemplateCommand(ctx, "hello", "Hi there");
 
-        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(
-            ctx,
-            new()
-        );
+        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(ctx, new());
 
         await sut.HandleAsync(MessageEvent("!hello"), CancellationToken.None);
 
@@ -378,9 +372,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         builtin.Captured.Should().NotBeNull();
-        builtin
-            .Captured!.Personality.Should()
-            .Be(PersonalityTone.Sassy);
+        builtin.Captured!.Personality.Should().Be(PersonalityTone.Sassy);
         builtin.Captured!.CustomResponseTemplate.Should().Be("OVERRIDE {uptime}");
     }
 
@@ -414,9 +406,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         builtin.Captured.Should().NotBeNull();
-        builtin
-            .Captured!.Personality.Should()
-            .Be(PersonalityTone.Informative);
+        builtin.Captured!.Personality.Should().Be(PersonalityTone.Informative);
         builtin.Captured!.CustomResponseTemplate.Should().BeNull();
     }
 

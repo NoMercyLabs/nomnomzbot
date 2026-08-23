@@ -222,10 +222,7 @@ public sealed class KickApiClientTests
         );
         KickApiClient sut = Build(handler);
 
-        Result result = await sut.SubscribeAsync(
-            Token,
-            [new("chat.message.sent", 1)]
-        );
+        Result result = await sut.SubscribeAsync(Token, [new("chat.message.sent", 1)]);
 
         result.IsFailure.Should().BeTrue();
         result.ErrorMessage.Should().Contain("subscription limit reached");

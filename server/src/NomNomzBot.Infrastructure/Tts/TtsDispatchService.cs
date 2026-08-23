@@ -448,11 +448,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         if (string.IsNullOrWhiteSpace(provider))
             provider = config.DefaultProvider;
 
-        await _ttsOverlay.SpeakAsync(
-            broadcasterId,
-            new(text, voiceId, provider, CueId: null),
-            ct
-        );
+        await _ttsOverlay.SpeakAsync(broadcasterId, new(text, voiceId, provider, CueId: null), ct);
 
         _db.TtsUsageRecords.Add(
             new()
@@ -518,12 +514,11 @@ public sealed class TtsDispatchService : ITtsDispatchService
             // mode synthesizes through the shared operator-configured service.
             if (config.Mode == "byok")
             {
-                Result<ITtsProvider> provider =
-                    await _byokProviders.CreateForChannelAsync(
-                        broadcasterId,
-                        config.DefaultProvider,
-                        ct
-                    );
+                Result<ITtsProvider> provider = await _byokProviders.CreateForChannelAsync(
+                    broadcasterId,
+                    config.DefaultProvider,
+                    ct
+                );
                 if (provider.IsFailure)
                     return await PublishRejectAsync(
                         broadcasterId,
@@ -533,8 +528,11 @@ public sealed class TtsDispatchService : ITtsDispatchService
                         "SERVICE_UNAVAILABLE",
                         ct
                     );
-                TtsSynthesisResult byokSynth =
-                    await provider.Value.SynthesizeAsync(text, voiceId, ct);
+                TtsSynthesisResult byokSynth = await provider.Value.SynthesizeAsync(
+                    text,
+                    voiceId,
+                    ct
+                );
                 synth = new(
                     byokSynth.AudioData,
                     byokSynth.DurationMs,

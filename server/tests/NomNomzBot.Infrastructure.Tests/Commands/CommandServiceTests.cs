@@ -35,10 +35,7 @@ public sealed class CommandServiceTests
         IPipelineEngine pipelineEngine = Substitute.For<IPipelineEngine>();
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         RecordingEventBus bus = new();
-        return (
-            new(db, pipelineEngine, registry, bus, Billing.TestTiers.Unlimited()),
-            bus
-        );
+        return (new(db, pipelineEngine, registry, bus, Billing.TestTiers.Unlimited()), bus);
     }
 
     private static CreateCommandDto Req(string name = "hello") => new() { Name = name };
@@ -80,11 +77,7 @@ public sealed class CommandServiceTests
         CommandDto created = (await sut.CreateAsync(Channel.ToString(), Req())).Value;
         bus.Published.Clear();
 
-        await sut.UpdateAsync(
-            Channel.ToString(),
-            created.Name,
-            new() { CooldownSeconds = 30 }
-        );
+        await sut.UpdateAsync(Channel.ToString(), created.Name, new() { CooldownSeconds = 30 });
 
         bus.Published.OfType<ChannelConfigChangedEvent>()
             .Should()
@@ -100,11 +93,7 @@ public sealed class CommandServiceTests
     {
         (CommandService sut, RecordingEventBus bus) = Build();
 
-        Result<CommandDto> result = await sut.UpdateAsync(
-            Channel.ToString(),
-            "missing",
-            new()
-        );
+        Result<CommandDto> result = await sut.UpdateAsync(Channel.ToString(), "missing", new());
 
         result.IsSuccess.Should().BeFalse();
         bus.Published.Should().BeEmpty();

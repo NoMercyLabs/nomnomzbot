@@ -111,8 +111,7 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
     public DbSet<User> Users => throw new NotSupportedException();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
-    public DbSet<ErasureRequest> ErasureRequests =>
-        throw new NotSupportedException();
+    public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
     public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Service> Services => throw new NotSupportedException();
@@ -149,10 +148,8 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<Widget> Widgets => throw new NotSupportedException();
-    public DbSet<WidgetVersion> WidgetVersions =>
-        throw new NotSupportedException();
-    public DbSet<WidgetGalleryItem> WidgetGalleryItems =>
-        throw new NotSupportedException();
+    public DbSet<WidgetVersion> WidgetVersions => throw new NotSupportedException();
+    public DbSet<WidgetGalleryItem> WidgetGalleryItems => throw new NotSupportedException();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
     public DbSet<RecordEntity> Records => throw new NotSupportedException();
@@ -164,8 +161,7 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
-    public DbSet<Configuration> Configurations =>
-        throw new NotSupportedException();
+    public DbSet<Configuration> Configurations => throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
     public DbSet<Command> Commands => throw new NotSupportedException();
     public DbSet<DomainTimer> Timers => throw new NotSupportedException();
@@ -178,12 +174,9 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
     public DbSet<RefreshToken> RefreshTokens => throw new NotSupportedException();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => throw new NotSupportedException();
     public DbSet<IntegrationToken> IntegrationTokens => throw new NotSupportedException();
-    public DbSet<CryptoKey> CryptoKeys =>
-        throw new NotSupportedException();
-    public DbSet<KeyUsageBinding> KeyUsageBindings =>
-        throw new NotSupportedException();
-    public DbSet<EventSubjectKey> EventSubjectKeys =>
-        throw new NotSupportedException();
+    public DbSet<CryptoKey> CryptoKeys => throw new NotSupportedException();
+    public DbSet<KeyUsageBinding> KeyUsageBindings => throw new NotSupportedException();
+    public DbSet<EventSubjectKey> EventSubjectKeys => throw new NotSupportedException();
     public DbSet<DiscordGuildConnection> DiscordGuildConnections =>
         throw new NotSupportedException();
     public DbSet<DiscordNotificationConfig> DiscordNotificationConfigs =>
@@ -210,26 +203,17 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
-    public DbSet<ComplianceAuditLog> ComplianceAuditLogs =>
-        throw new NotSupportedException();
+    public DbSet<ComplianceAuditLog> ComplianceAuditLogs => throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
-    public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks =>
-        throw new NotSupportedException();
-    public DbSet<Pipeline> Pipelines =>
-        throw new NotSupportedException();
-    public DbSet<PipelineStep> PipelineSteps =>
-        throw new NotSupportedException();
-    public DbSet<PipelineStepCondition> PipelineStepConditions =>
-        throw new NotSupportedException();
-    public DbSet<PipelineExecution> PipelineExecutions =>
-        throw new NotSupportedException();
-    public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands =>
-        throw new NotSupportedException();
-    public DbSet<CommandCooldownState> CommandCooldownStates =>
-        throw new NotSupportedException();
-    public DbSet<NamedCounter> NamedCounters =>
-        throw new NotSupportedException();
+    public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
+    public DbSet<Pipeline> Pipelines => throw new NotSupportedException();
+    public DbSet<PipelineStep> PipelineSteps => throw new NotSupportedException();
+    public DbSet<PipelineStepCondition> PipelineStepConditions => throw new NotSupportedException();
+    public DbSet<PipelineExecution> PipelineExecutions => throw new NotSupportedException();
+    public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => throw new NotSupportedException();
+    public DbSet<CommandCooldownState> CommandCooldownStates => throw new NotSupportedException();
+    public DbSet<NamedCounter> NamedCounters => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Engagement.Entities.EngagementConfig> EngagementConfigs =>
@@ -240,8 +224,7 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.MediaShare.Entities.MediaShareRequest> MediaShareRequests =>
         throw new NotSupportedException();
-    public DbSet<CommandUsage> CommandUsages =>
-        throw new NotSupportedException();
+    public DbSet<CommandUsage> CommandUsages => throw new NotSupportedException();
     public DbSet<EventJournal> EventJournals => throw new NotSupportedException();
     public DbSet<TenantSequence> TenantSequences => throw new NotSupportedException();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => throw new NotSupportedException();
@@ -251,8 +234,7 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
     public DbSet<ActionDefinition> ActionDefinitions => throw new NotSupportedException();
     public DbSet<ChannelActionOverride> ChannelActionOverrides => throw new NotSupportedException();
     public DbSet<PermitGrant> PermitGrants => throw new NotSupportedException();
-    public DbSet<ChannelMissingScope> ChannelMissingScopes =>
-        throw new NotSupportedException();
+    public DbSet<ChannelMissingScope> ChannelMissingScopes => throw new NotSupportedException();
     public DbSet<IamPermission> IamPermissions => throw new NotSupportedException();
     public DbSet<IamRole> IamRoles => throw new NotSupportedException();
     public DbSet<IamRolePermission> IamRolePermissions => throw new NotSupportedException();
@@ -269,8 +251,7 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
     public DbSet<GamePlay> GamePlays => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         throw new NotSupportedException();
-    public DbSet<GameSession> GameSessions =>
-        throw new NotSupportedException();
+    public DbSet<GameSession> GameSessions => throw new NotSupportedException();
     public DbSet<ViewerAgeConsent> ViewerAgeConsents => throw new NotSupportedException();
     public DbSet<SavingsJar> SavingsJars => throw new NotSupportedException();
     public DbSet<SavingsJarMembership> SavingsJarMemberships => throw new NotSupportedException();

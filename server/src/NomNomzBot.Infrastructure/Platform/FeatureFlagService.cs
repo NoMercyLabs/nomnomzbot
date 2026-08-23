@@ -68,12 +68,7 @@ public sealed class FeatureFlagService(
     {
         FeatureFlag? flag = await db.FeatureFlags.FirstOrDefaultAsync(f => f.Key == flagKey, ct);
         if (flag is null)
-            return new(
-                Exists: false,
-                Enabled: false,
-                Reason: null,
-                RequiredTier: null
-            ); // no gate defined
+            return new(Exists: false, Enabled: false, Reason: null, RequiredTier: null); // no gate defined
 
         // 1. An unexpired per-tenant override is the highest-precedence input.
         DateTime now = clock.GetUtcNow().UtcDateTime;
@@ -93,36 +88,21 @@ public sealed class FeatureFlagService(
 
         // 2. Global toggle.
         if (!flag.IsEnabledGlobally)
-            return new(
-                true,
-                false,
-                FeatureEntitlementReason.Unavailable,
-                null
-            );
+            return new(true, false, FeatureEntitlementReason.Unavailable, null);
 
         // 3. Deterministic rollout-% bucket.
         if (
             flag.RolloutPercentage < 100
             && Bucket(broadcasterId, flagKey) >= flag.RolloutPercentage
         )
-            return new(
-                true,
-                false,
-                FeatureEntitlementReason.Unavailable,
-                null
-            );
+            return new(true, false, FeatureEntitlementReason.Unavailable, null);
 
         // 4. Deployment-mode gate.
         if (
             flag.DeploymentMode is not null
             && !await DeploymentModeMatchesAsync(flag, broadcasterId, ct)
         )
-            return new(
-                true,
-                false,
-                FeatureEntitlementReason.Deployment,
-                null
-            );
+            return new(true, false, FeatureEntitlementReason.Deployment, null);
 
         // 5. Tier floor — the tenant's active tier must rank at or above the flag's minimum (fail closed).
         if (flag.MinTierKey is not null)
@@ -133,12 +113,7 @@ public sealed class FeatureFlagService(
                 ct
             );
             if (atLeast.IsFailure || !atLeast.Value)
-                return new(
-                    true,
-                    false,
-                    FeatureEntitlementReason.RequiresTier,
-                    flag.MinTierKey
-                );
+                return new(true, false, FeatureEntitlementReason.RequiresTier, flag.MinTierKey);
         }
 
         return new(true, true, null, null);

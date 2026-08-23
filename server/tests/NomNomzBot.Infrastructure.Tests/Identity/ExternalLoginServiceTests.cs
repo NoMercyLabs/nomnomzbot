@@ -88,10 +88,7 @@ public sealed class ExternalLoginServiceTests
             connectionId
         );
 
-        Result<AuthResultDto> result = await svc.LoginAsync(
-            proof,
-            new("web", null, null)
-        );
+        Result<AuthResultDto> result = await svc.LoginAsync(proof, new("web", null, null));
 
         result.IsSuccess.Should().BeTrue();
         result.Value.AccessToken.Should().Be("access-tok");

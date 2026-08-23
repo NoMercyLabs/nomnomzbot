@@ -85,11 +85,7 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
         return service.AccessToken is not null
             ? await _tokenProtector.TryUnprotectAsync(
                 service.AccessToken,
-                new(
-                    service.BroadcasterId?.ToString() ?? "_platform",
-                    ProviderName,
-                    "access"
-                ),
+                new(service.BroadcasterId?.ToString() ?? "_platform", ProviderName, "access"),
                 cancellationToken
             )
             : null;

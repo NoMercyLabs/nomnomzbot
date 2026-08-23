@@ -169,10 +169,7 @@ public class TwitchModerationApiTests
         CapturingHelixTransport transport = new();
         TwitchModerationApi api = Build(transport);
 
-        Result<TwitchPage<TwitchBannedUser>> result = await api.GetBannedUsersAsync(
-            Tenant,
-            new()
-        );
+        Result<TwitchPage<TwitchBannedUser>> result = await api.GetBannedUsersAsync(Tenant, new());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);

@@ -73,15 +73,8 @@ public sealed class GiveawayCodeCustodyTests
     public async Task Codes_are_ciphertext_at_rest_and_reads_are_masked()
     {
         (GiveawayCodePoolService pools, AuthDbContext db) = BuildPools();
-        Result<CodePoolDto> pool = await pools.CreatePoolAsync(
-            Tenant,
-            new("Steam Keys")
-        );
-        await pools.AddCodesAsync(
-            Tenant,
-            pool.Value.Id,
-            new([new("AAAA-BBBB-CCCC")])
-        );
+        Result<CodePoolDto> pool = await pools.CreatePoolAsync(Tenant, new("Steam Keys"));
+        await pools.AddCodesAsync(Tenant, pool.Value.Id, new([new("AAAA-BBBB-CCCC")]));
 
         // At rest: exactly the protector's output under the TENANT-BOUND context — the real
         // implementation is AES-GCM, so this proves the code went through the sealed-custody path
@@ -103,15 +96,8 @@ public sealed class GiveawayCodeCustodyTests
     public async Task The_broadcaster_reveal_is_the_one_plaintext_path()
     {
         (GiveawayCodePoolService pools, AuthDbContext db) = BuildPools();
-        Result<CodePoolDto> pool = await pools.CreatePoolAsync(
-            Tenant,
-            new("Keys")
-        );
-        await pools.AddCodesAsync(
-            Tenant,
-            pool.Value.Id,
-            new([new("SECRET-1")])
-        );
+        Result<CodePoolDto> pool = await pools.CreatePoolAsync(Tenant, new("Keys"));
+        await pools.AddCodesAsync(Tenant, pool.Value.Id, new([new("SECRET-1")]));
         GiveawayCode code = db.GiveawayCodes.Single();
         GiveawayWinner winner = new()
         {
@@ -140,10 +126,7 @@ public sealed class GiveawayCodeCustodyTests
     public async Task A_pool_backing_an_active_giveaway_cannot_be_deleted()
     {
         (GiveawayCodePoolService pools, AuthDbContext db) = BuildPools();
-        Result<CodePoolDto> pool = await pools.CreatePoolAsync(
-            Tenant,
-            new("Keys")
-        );
+        Result<CodePoolDto> pool = await pools.CreatePoolAsync(Tenant, new("Keys"));
         db.Giveaways.Add(
             new()
             {

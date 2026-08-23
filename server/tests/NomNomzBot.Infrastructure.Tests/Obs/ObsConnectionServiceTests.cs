@@ -110,25 +110,16 @@ public sealed class ObsConnectionServiceTests
     public async Task Password_null_keeps_and_empty_clears_the_stored_secret()
     {
         (ObsConnectionService sut, ObsTestDbContext db) = Build();
-        await sut.UpsertAsync(
-            Channel,
-            new() { Mode = "direct", Password = "keep-me" }
-        );
+        await sut.UpsertAsync(Channel, new() { Mode = "direct", Password = "keep-me" });
 
         // Null = leave the secret alone (an ordinary settings save never wipes it).
-        await sut.UpsertAsync(
-            Channel,
-            new() { Mode = "direct", Host = "192.168.2.50" }
-        );
+        await sut.UpsertAsync(Channel, new() { Mode = "direct", Host = "192.168.2.50" });
         ObsConnection afterKeep = await db.ObsConnections.SingleAsync();
         afterKeep.PasswordCipher.Should().Be("sealed(keep-me)");
         afterKeep.Host.Should().Be("192.168.2.50");
 
         // Empty string = deliberate clear.
-        await sut.UpsertAsync(
-            Channel,
-            new() { Mode = "direct", Password = "" }
-        );
+        await sut.UpsertAsync(Channel, new() { Mode = "direct", Password = "" });
         (await db.ObsConnections.SingleAsync()).PasswordCipher.Should().BeNull();
         (await sut.GetPasswordForTransportAsync(Channel)).Should().BeNull();
     }

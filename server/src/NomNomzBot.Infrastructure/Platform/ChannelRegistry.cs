@@ -286,9 +286,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
     {
         try
         {
-            using JsonDocument doc = JsonDocument.Parse(
-                optionsJson
-            );
+            using JsonDocument doc = JsonDocument.Parse(optionsJson);
             return doc.RootElement.ValueKind == JsonValueKind.Array
                 ? doc.RootElement.GetArrayLength()
                 : 0;

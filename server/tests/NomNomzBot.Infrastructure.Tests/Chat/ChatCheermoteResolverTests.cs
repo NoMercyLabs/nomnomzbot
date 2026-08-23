@@ -32,20 +32,12 @@ public sealed class ChatCheermoteResolverTests
             color,
             new(
                 new(
-                    new(
-                        new Dictionary<string, string> { ["1"] = $"{baseUrl}/light-anim" }
-                    ),
-                    new(
-                        new Dictionary<string, string> { ["1"] = $"{baseUrl}/light-static" }
-                    )
+                    new(new Dictionary<string, string> { ["1"] = $"{baseUrl}/light-anim" }),
+                    new(new Dictionary<string, string> { ["1"] = $"{baseUrl}/light-static" })
                 ),
                 new(
-                    new(
-                        new Dictionary<string, string> { ["1"] = $"{baseUrl}/dark-anim" }
-                    ),
-                    new(
-                        new Dictionary<string, string> { ["1"] = $"{baseUrl}/dark-static" }
-                    )
+                    new(new Dictionary<string, string> { ["1"] = $"{baseUrl}/dark-anim" }),
+                    new(new Dictionary<string, string> { ["1"] = $"{baseUrl}/dark-static" })
                 )
             ),
             CanCheer: true,

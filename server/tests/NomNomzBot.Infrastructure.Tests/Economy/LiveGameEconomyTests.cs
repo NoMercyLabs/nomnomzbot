@@ -38,9 +38,7 @@ public sealed class LiveGameEconomyTests
     private static readonly Guid PlayerA = Guid.Parse("0192a000-0000-7000-8000-0000000000c2");
     private static readonly Guid PlayerB = Guid.Parse("0192a000-0000-7000-8000-0000000000c3");
     private static readonly Guid Session = Guid.Parse("0192a000-0000-7000-8000-0000000000c9");
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 7, 17, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 7, 17, 12, 0, 0, TimeSpan.Zero));
 
     private sealed class FixedRandomizer : IGameRandomizer
     {
@@ -173,16 +171,10 @@ public sealed class LiveGameEconomyTests
         Guid game = SeedGame(db);
 
         LiveGameStakeResult stakeA = (
-            await sut.StakeLiveGameEntryAsync(
-                Channel,
-                new(Session, game, PlayerA, 40)
-            )
+            await sut.StakeLiveGameEntryAsync(Channel, new(Session, game, PlayerA, 40))
         ).Value;
         LiveGameStakeResult stakeB = (
-            await sut.StakeLiveGameEntryAsync(
-                Channel,
-                new(Session, game, PlayerB, 40)
-            )
+            await sut.StakeLiveGameEntryAsync(Channel, new(Session, game, PlayerB, 40))
         ).Value;
         bus.Published.Clear();
 
@@ -257,10 +249,7 @@ public sealed class LiveGameEconomyTests
         (GameService sut, EventStoreTestDbContext db, _) = New(database);
         Guid game = SeedGame(db);
         LiveGameStakeResult stake = (
-            await sut.StakeLiveGameEntryAsync(
-                Channel,
-                new(Session, game, PlayerA, 40)
-            )
+            await sut.StakeLiveGameEntryAsync(Channel, new(Session, game, PlayerA, 40))
         ).Value;
         LiveGameSettlement settlement = new(
             Session,
@@ -300,16 +289,10 @@ public sealed class LiveGameEconomyTests
         (GameService sut, EventStoreTestDbContext db, _) = New(database);
         Guid game = SeedGame(db);
         LiveGameStakeResult stakeA = (
-            await sut.StakeLiveGameEntryAsync(
-                Channel,
-                new(Session, game, PlayerA, 40)
-            )
+            await sut.StakeLiveGameEntryAsync(Channel, new(Session, game, PlayerA, 40))
         ).Value;
         LiveGameStakeResult stakeB = (
-            await sut.StakeLiveGameEntryAsync(
-                Channel,
-                new(Session, game, PlayerB, 25)
-            )
+            await sut.StakeLiveGameEntryAsync(Channel, new(Session, game, PlayerB, 25))
         ).Value;
         // Player A settled (a crash mid-settlement left B un-settled).
         await sut.SettleLiveGameAsync(

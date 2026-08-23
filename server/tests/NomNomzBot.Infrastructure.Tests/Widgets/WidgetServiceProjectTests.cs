@@ -40,9 +40,7 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
 {
     private const string CrossFileMarker = "NNZ_PROJECT_CROSSFILE_MARKER";
 
-    private static readonly FakeTimeProvider Clock = new(
-        new(2026, 7, 16, 12, 0, 0, TimeSpan.Zero)
-    );
+    private static readonly FakeTimeProvider Clock = new(new(2026, 7, 16, 12, 0, 0, TimeSpan.Zero));
 
     private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
 

@@ -124,14 +124,7 @@ public sealed class GdprBuiltinsTests
         ErasureConfirmationTracker tracker = new(clock);
         GdprSelfServiceExecutor executor = new(erasure, users, composer, tracker);
 
-        return new(
-            new(executor),
-            new(executor),
-            new(executor),
-            erasure,
-            users,
-            clock
-        );
+        return new(new(executor), new(executor), new(executor), erasure, users, clock);
     }
 
     [Fact]

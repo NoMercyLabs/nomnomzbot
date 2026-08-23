@@ -50,27 +50,19 @@ public sealed class RecordingHelixHandler(IEnumerable<Func<HttpResponseMessage>>
         );
 
         Func<HttpResponseMessage> next =
-            _responses.Count > 0
-                ? _responses.Dequeue()
-                : () => new(HttpStatusCode.OK);
+            _responses.Count > 0 ? _responses.Dequeue() : () => new(HttpStatusCode.OK);
 
         return next();
     }
 
     public static HttpResponseMessage Json(HttpStatusCode status, string body)
     {
-        return new(status)
-        {
-            Content = new StringContent(body, Encoding.UTF8, "application/json"),
-        };
+        return new(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
     }
 
     public static HttpResponseMessage Text(HttpStatusCode status, string body, string mediaType)
     {
-        return new(status)
-        {
-            Content = new StringContent(body, Encoding.UTF8, mediaType),
-        };
+        return new(status) { Content = new StringContent(body, Encoding.UTF8, mediaType) };
     }
 
     public static HttpResponseMessage WithRateLimitHeaders(

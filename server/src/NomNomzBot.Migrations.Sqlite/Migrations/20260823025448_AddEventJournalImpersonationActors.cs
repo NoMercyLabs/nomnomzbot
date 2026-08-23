@@ -15,18 +15,21 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 name: "ImpersonationSessionId",
                 table: "EventJournals",
                 type: "TEXT",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.AddColumn<Guid>(
                 name: "OnBehalfOfUserId",
                 table: "EventJournals",
                 type: "TEXT",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_EventJournal_OnBehalfOfUserId",
                 table: "EventJournals",
-                column: "OnBehalfOfUserId");
+                column: "OnBehalfOfUserId"
+            );
         }
 
         /// <inheritdoc />
@@ -34,15 +37,12 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
         {
             migrationBuilder.DropIndex(
                 name: "IX_EventJournal_OnBehalfOfUserId",
-                table: "EventJournals");
+                table: "EventJournals"
+            );
 
-            migrationBuilder.DropColumn(
-                name: "ImpersonationSessionId",
-                table: "EventJournals");
+            migrationBuilder.DropColumn(name: "ImpersonationSessionId", table: "EventJournals");
 
-            migrationBuilder.DropColumn(
-                name: "OnBehalfOfUserId",
-                table: "EventJournals");
+            migrationBuilder.DropColumn(name: "OnBehalfOfUserId", table: "EventJournals");
         }
     }
 }

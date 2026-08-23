@@ -135,12 +135,7 @@ public sealed class ChatFilterExecutionHandlerTests
             Channel,
             new(
                 IsEnabled: true,
-                Ladder:
-                [
-                    new(1, "warn", null),
-                    new(2, "timeout", 60),
-                    new(3, "ban", null),
-                ],
+                Ladder: [new(1, "warn", null), new(2, "timeout", 60), new(3, "ban", null)],
                 OffenseWindowHours: 168,
                 CountAutoModViolations: false
             )
@@ -192,11 +187,7 @@ public sealed class ChatFilterExecutionHandlerTests
             Channel,
             new(
                 IsEnabled: true,
-                Ladder:
-                [
-                    new(1, "warn", null),
-                    new(2, "timeout", 60),
-                ],
+                Ladder: [new(1, "warn", null), new(2, "timeout", 60)],
                 OffenseWindowHours: 168,
                 CountAutoModViolations: false
             )

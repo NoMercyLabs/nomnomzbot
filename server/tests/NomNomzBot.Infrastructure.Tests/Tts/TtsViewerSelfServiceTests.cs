@@ -149,11 +149,7 @@ public sealed class TtsViewerSelfServiceTests
 
         (await config.GetOwnVoiceAsync(Channel, ViewerId)).Value.Should().BeNull();
 
-        await config.SetOwnVoiceAsync(
-            Channel,
-            ViewerId,
-            new() { VoiceId = "en-US-GuyNeural" }
-        );
+        await config.SetOwnVoiceAsync(Channel, ViewerId, new() { VoiceId = "en-US-GuyNeural" });
 
         Result<UserTtsVoiceDto?> after = await config.GetOwnVoiceAsync(Channel, ViewerId);
         after.Value!.VoiceId.Should().Be("en-US-GuyNeural");
