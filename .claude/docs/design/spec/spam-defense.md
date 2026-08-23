@@ -308,10 +308,20 @@ consuming them has no normalizer. Under L0 all six collapse to two skeletons, an
 mutation of them is covered without anyone adding a line. That is the whole argument for
 normalizing before matching, written out by the people doing it the hard way.
 
-**Therefore:** we seed from these by hand, as *skeletons* — normalize each entry through L0,
-deduplicate, keep what survives, and attribute the sources in the seed migration. We do not vendor
-any file, and the known-bot **account** ids are treated as a starting hint for L1, never as a
-standing auto-ban list (SD9: every block needs that account's own evidence).
+**The seed corpus is built** — `data/spam-seed-corpus.md`. All 176 raw terms from the three
+sources were pushed through the L0 algorithm and deduplicated to **119 phrase skeletons + 16
+malicious domains**; 41 entries (23%) fell away as duplicates-under-normalization or artefacts. No file is
+vendored; the entries are our own normalized derivations, with sources attributed per skeleton.
+
+Measured against the motivating case: `VI EWERS ON THE STREAM` plus four mutations no list
+contains (combining marks + Cyrillic, leetspeak, fullwidth, plain) → **one skeleton**.
+
+Measured limit, also recorded there: exact-skeleton match does not unify `bestviewers` with
+`bestviewerson`. SimHash near-duplicate matching is what closes that, which is why L2 carries both
+rather than either alone.
+
+The known-bot **account** ids in the `dak` list are a starting hint for L1, never a standing
+auto-ban list (SD9: every block needs that account's own evidence).
 
 Commercially this is the honest SaaS hook: the hosted tier's value is *the network*, not the
 software. `saas` deployment mode remains restricted to NoMercy Labs per license.
