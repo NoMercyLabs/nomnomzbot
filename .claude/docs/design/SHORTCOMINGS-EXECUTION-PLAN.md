@@ -29,15 +29,16 @@ Slice IDs are stable; the order is the queue.
 - **S003** Spotify visible state — 401/403 → `needs_reauth`/`forbidden` on the integration status +
   Music page; vault is the single token source (drop the `Services` mirror read) (U·A2). Done-when: a
   revoked token shows on the Integrations card and `!sr` says why; music reads no `Services` row.
-- **S004d** Analytics projections race + the InMemory harness blocking its fix. Confirmed NOT single-writer:
-  `EventStoreController.cs:115-131,158-171` (Replay / RebuildProjections) call `IProjectionRunner` directly with no
-  `IRunOnceGuard` lease — that lease (`EventStoreProjectionDriver.cs:97-103`) only serializes driver instances
-  across replicas, never a manual rebuild racing the driver’s own 15s tick for the same broadcaster+projection.
-  This is the observed Npgsql 23505 on `IX_ChannelAnalyticsDailies_BroadcasterId_ActivityDate`.
-  `ChannelAnalyticsDailyProjection.cs` (GetOrCreate + every switch-case accumulator) and
-  `WatchSessionProjection.cs:97` stay read-modify-write because the fix needs `ExecuteUpdateAsync`, which the shared
-  InMemory `AuthDbContext` test harness (~40 files) cannot run. Done-when: that harness runs on a relational
-  provider, both projections are atomic/upsert-safe, and a test reproduces the rebuild-vs-tick race and passes.
+- **S004e** SQLite `DateTimeOffset` translation — BROKEN ON THE DEFAULT SELF-HOST RUNTIME. SQLite refuses to translate
+  DateTimeOffset comparisons/ORDER BY, so `ScheduledPipelineService.cs:277` (`t.DueAt <= now`) and `ChannelAnalyticsService`’s
+  stream `OrderBy(StartedAt)` throw on `self_host_lite` while working on Postgres. Invisible until the harness left EF InMemory
+  (S004d). Sweep the whole tree for DateTimeOffset used in a translated predicate/ordering, not just these two.
+  Done-when: scheduled pipelines fire and stream analytics order correctly on SQLite, proven on the SQLite harness.
+- **S004f** `WatchSessionConfiguration.cs` has no unique index on (BroadcasterId, ViewerUserId, StreamId) — concurrent
+  `GetOrOpenAsync` can mint duplicate session rows. Done-when: the DB rejects the duplicate and the code handles it.
+- **S004g** `EventStoreController.cs:115-171` Replay/RebuildProjections take no `IRunOnceGuard` lease, so a manual rebuild
+  races the driver’s 15s tick. S004d’s atomic upserts absorb the damage; the lease would stop it at the source.
+  Done-when: a rebuild started while the driver is mid-tick for the same broadcaster+projection waits or is refused.
 - **S005** Earning dedupe unique index + escalation atomic increment (S·F12, F13). Done-when: duplicate
   event credit blocked by the DB; two concurrent offenses compound.
 - **S006** Live-game money — settle failure refunds or parks retryable; can't-pay joiner feedback;
