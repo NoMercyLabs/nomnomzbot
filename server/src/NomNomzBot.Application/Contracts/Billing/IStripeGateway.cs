@@ -55,4 +55,11 @@ public interface IStripeGateway
         bool prorate,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Refunds the payment behind <paramref name="stripeInvoiceId"/> in full (platform-admin <c>billing:refund</c>,
+    /// monetization-billing.md §5.3). Resolves the invoice's payment intent host-side and issues the Stripe refund;
+    /// the local <c>Invoice</c> row is marked <c>Refunded</c> by the caller once this succeeds.
+    /// </summary>
+    Task<Result> RefundInvoiceAsync(string stripeInvoiceId, CancellationToken cancellationToken = default);
 }
