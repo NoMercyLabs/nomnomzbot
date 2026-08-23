@@ -47,8 +47,11 @@ public sealed class IamCatalogSeeder : ISeeder
         (IamPermissionKeys.AuditRead, IamCategory.Audit, false),
         (IamPermissionKeys.FeatureFlagWrite, IamCategory.FeatureFlag, true),
         (IamPermissionKeys.BillingRead, IamCategory.Billing, false),
+        (IamPermissionKeys.BillingWrite, IamCategory.Billing, true),
         (IamPermissionKeys.BillingRefund, IamCategory.Billing, true),
         (IamPermissionKeys.PlatformAnalyticsRead, IamCategory.Tenant, false),
+        // GDPR erasure of another subject — destructive, distinct from the tenant:access support-visit key.
+        (IamPermissionKeys.ComplianceErasure, IamCategory.Tenant, true),
         // Gallery review approves community code that renders on streamers' overlays — sensitive.
         (IamPermissionKeys.GalleryReview, IamCategory.Iam, true),
         // IPC dev-mode keys open a tokenless local control surface — sensitive, owner-only.
@@ -71,8 +74,10 @@ public sealed class IamCatalogSeeder : ISeeder
                 IamPermissionKeys.AuditRead,
                 IamPermissionKeys.FeatureFlagWrite,
                 IamPermissionKeys.BillingRead,
+                IamPermissionKeys.BillingWrite,
                 IamPermissionKeys.BillingRefund,
                 IamPermissionKeys.PlatformAnalyticsRead,
+                IamPermissionKeys.ComplianceErasure,
                 IamPermissionKeys.GalleryReview,
                 IamPermissionKeys.SystemIpcManage,
                 IamPermissionKeys.UserImpersonate,
@@ -96,9 +101,17 @@ public sealed class IamCatalogSeeder : ISeeder
                 IamPermissionKeys.TenantAccess,
                 IamPermissionKeys.AuditRead,
                 IamPermissionKeys.GalleryReview,
+                IamPermissionKeys.ComplianceErasure,
             ]
         ),
-        ("platform-billing", [IamPermissionKeys.BillingRead, IamPermissionKeys.BillingRefund]),
+        (
+            "platform-billing",
+            [
+                IamPermissionKeys.BillingRead,
+                IamPermissionKeys.BillingWrite,
+                IamPermissionKeys.BillingRefund,
+            ]
+        ),
         (
             "platform-iam-admin",
             [
