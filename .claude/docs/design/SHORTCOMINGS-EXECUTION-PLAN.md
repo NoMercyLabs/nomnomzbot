@@ -55,9 +55,10 @@ Slice IDs are stable; the order is the queue.
   quotes, pick lists, timers, giveaways, …) has `DeletedAt` and no `DeletedBy`, so nothing deleted in the dashboard can be
   attributed. Dozens of entities, so scope it as one base-entity change plus a migration sweep, not per-entity edits.
   Done-when: a soft delete records the actor, and a test proves it for at least three unrelated entity types.
-- **S014** Moderation feedback — announcement result; approve-unban confirm; `afterWrite` errors in
-  every state; Warn keeps reason; availability flags for escalation/shared-ban/nuke cards; per-viewer
-  read errors visible (U·B3). Done-when: a failed write is always visible.
+- **S014b** Frontend `afterWrite` errors are swallowed — `app/composeApp/.../feature/*/state/*Controller.kt` handlers discard a
+  failed write's error, so the dashboard can show a success state for a write the backend rejected. Confirmed frontend-only by
+  S014 (0805bc29) via grep; no backend equivalent exists. Done-when: a rejected write surfaces its reason in the UI and the
+  optimistic state rolls back, proven for at least three unrelated feature controllers.
 - **S015** Filters truth — regex save-time check + tester; invalid regex not silently literal; empty
   allow-list warning; filter-conflict warning; stats not `Contains("ban")`; Helix already-actioned
   handling; `WarningAcknowledgedEvent` handler (S·F17–19, U·B3 backend). Done-when: stats = journal.
