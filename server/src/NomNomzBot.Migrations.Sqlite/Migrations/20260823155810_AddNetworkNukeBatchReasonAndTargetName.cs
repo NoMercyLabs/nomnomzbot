@@ -15,26 +15,24 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 table: "NetworkNukeBatches",
                 type: "TEXT",
                 maxLength: 500,
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.AddColumn<string>(
                 name: "TargetDisplayName",
                 table: "NetworkNukeBatches",
                 type: "TEXT",
                 maxLength: 100,
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Reason",
-                table: "NetworkNukeBatches");
+            migrationBuilder.DropColumn(name: "Reason", table: "NetworkNukeBatches");
 
-            migrationBuilder.DropColumn(
-                name: "TargetDisplayName",
-                table: "NetworkNukeBatches");
+            migrationBuilder.DropColumn(name: "TargetDisplayName", table: "NetworkNukeBatches");
         }
     }
 }

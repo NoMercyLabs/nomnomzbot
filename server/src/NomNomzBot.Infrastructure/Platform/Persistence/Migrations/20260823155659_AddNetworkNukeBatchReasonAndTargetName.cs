@@ -15,26 +15,24 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 table: "NetworkNukeBatches",
                 type: "character varying(500)",
                 maxLength: 500,
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.AddColumn<string>(
                 name: "TargetDisplayName",
                 table: "NetworkNukeBatches",
                 type: "character varying(100)",
                 maxLength: 100,
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Reason",
-                table: "NetworkNukeBatches");
+            migrationBuilder.DropColumn(name: "Reason", table: "NetworkNukeBatches");
 
-            migrationBuilder.DropColumn(
-                name: "TargetDisplayName",
-                table: "NetworkNukeBatches");
+            migrationBuilder.DropColumn(name: "TargetDisplayName", table: "NetworkNukeBatches");
         }
     }
 }
