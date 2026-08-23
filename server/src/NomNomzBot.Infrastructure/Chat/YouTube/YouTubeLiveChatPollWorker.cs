@@ -82,16 +82,22 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         {
             try
             {
-                await TickAsync(stoppingToken);
+                try
+                {
+                    await TickAsync(stoppingToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // The delay MUST still run on a throwing tick — otherwise a persistent failure (DB down,
+                    // etc.) spins the loop hot with zero backoff, hammering whatever just failed.
+                    _logger.LogError(ex, "YouTubeLiveChatPollWorker tick failed");
+                }
+
                 await Task.Delay(TickInterval, _timeProvider, stoppingToken);
             }
             catch (OperationCanceledException)
             {
                 break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "YouTubeLiveChatPollWorker tick failed");
             }
         }
     }

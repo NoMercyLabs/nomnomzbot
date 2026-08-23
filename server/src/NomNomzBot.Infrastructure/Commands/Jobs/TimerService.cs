@@ -74,16 +74,22 @@ public sealed class TimerService : BackgroundService
         {
             try
             {
-                await TickAsync(stoppingToken);
-                await Task.Delay(TickInterval, stoppingToken);
+                try
+                {
+                    await TickAsync(stoppingToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // The delay MUST still run on a throwing tick — otherwise a persistent failure spins the
+                    // loop hot with zero backoff, hammering whatever just failed.
+                    _logger.LogError(ex, "TimerService tick failed");
+                }
+
+                await Task.Delay(TickInterval, _timeProvider, stoppingToken);
             }
             catch (OperationCanceledException)
             {
                 break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "TimerService tick failed");
             }
         }
     }

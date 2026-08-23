@@ -154,4 +154,61 @@ public sealed class ScheduledPipelineExpiryServiceTests
             .Status.Should()
             .Be(ScheduledPipelineTaskStatus.Pending);
     }
+
+    /// <summary>
+    /// S037 — a throwing tick used to skip its inter-tick delay (the delay sat INSIDE the try, so an
+    /// exception jumped straight past it), spinning the loop hot against whatever just failed. The delay
+    /// now runs whether the tick threw or not: a second attempt must NOT happen until a full
+    /// <c>TickInterval</c> (5s) has elapsed on the (fake, controllable) clock.
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_WhenTickThrows_StillWaitsTheFullIntervalBeforeRetrying()
+    {
+        FakeTimeProvider clock = new(Start);
+        ThrowingScopeFactory scopeFactory = new();
+
+        ScheduledPipelineExpiryService sut = new(
+            scopeFactory,
+            clock,
+            NullLogger<ScheduledPipelineExpiryService>.Instance
+        );
+
+        using CancellationTokenSource cts = new();
+        await sut.StartAsync(cts.Token);
+        try
+        {
+            await WaitUntilAsync(() => scopeFactory.CallCount >= 1);
+            scopeFactory.CallCount.Should().Be(1);
+
+            clock.Advance(TimeSpan.FromSeconds(4));
+            await Task.Delay(50, CancellationToken.None);
+            scopeFactory.CallCount.Should().Be(1, "the failing tick's delay has not elapsed yet");
+
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await WaitUntilAsync(() => scopeFactory.CallCount >= 2);
+            scopeFactory.CallCount.Should().Be(2);
+        }
+        finally
+        {
+            await sut.StopAsync(CancellationToken.None);
+        }
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        for (int i = 0; i < 100 && !condition(); i++)
+            await Task.Delay(10, CancellationToken.None);
+    }
+
+    /// <summary>A scope factory that always fails to create a scope — simulates a throwing tick.</summary>
+    private sealed class ThrowingScopeFactory : IServiceScopeFactory
+    {
+        public int CallCount { get; private set; }
+
+        public IServiceScope CreateScope()
+        {
+            CallCount++;
+            throw new InvalidOperationException("scope boom");
+        }
+    }
 }

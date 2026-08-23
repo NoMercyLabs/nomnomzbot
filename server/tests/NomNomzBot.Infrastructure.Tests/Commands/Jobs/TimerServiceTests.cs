@@ -314,4 +314,60 @@ public sealed class TimerServiceTests
         await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
         h.Db.Timers.Single(t => t.Id == timer.Id).NextMessageIndex.Should().Be(0);
     }
+
+    /// <summary>
+    /// S037 — a throwing tick used to skip its inter-tick delay (the delay sat INSIDE the try, so an
+    /// exception jumped straight past it), spinning the loop hot. The delay now runs whether the tick
+    /// threw or not: a second tick attempt must NOT happen until a full <c>TickInterval</c> has elapsed on
+    /// the (fake, controllable) clock.
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_WhenTickThrows_StillWaitsTheFullIntervalBeforeRetrying()
+    {
+        FakeTimeProvider clock = new(Now);
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.GetAll().Returns(_ => throw new InvalidOperationException("registry boom"));
+
+        ServiceProvider provider = new ServiceCollection().BuildServiceProvider();
+        TimerService service = new(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            registry,
+            Substitute.For<ITemplateResolver>(),
+            clock,
+            NullLogger<TimerService>.Instance
+        );
+
+        using CancellationTokenSource cts = new();
+        await service.StartAsync(cts.Token);
+        try
+        {
+            // Let the background loop's first (throwing) tick run and reach its delay.
+            await WaitUntilAsync(() => registry.ReceivedCalls().Count() >= 1);
+            registry.ReceivedCalls().Count().Should().Be(1);
+
+            // Advancing LESS than the 30s interval must not release the delay — no second tick yet.
+            clock.Advance(TimeSpan.FromSeconds(29));
+            await Task.Delay(50, CancellationToken.None);
+            registry
+                .ReceivedCalls()
+                .Count()
+                .Should()
+                .Be(1, "the failing tick's delay has not elapsed yet");
+
+            // Crossing the interval releases the delay and the loop retries exactly once more.
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await WaitUntilAsync(() => registry.ReceivedCalls().Count() >= 2);
+            registry.ReceivedCalls().Count().Should().Be(2);
+        }
+        finally
+        {
+            await service.StopAsync(CancellationToken.None);
+        }
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        for (int i = 0; i < 100 && !condition(); i++)
+            await Task.Delay(10, CancellationToken.None);
+    }
 }
