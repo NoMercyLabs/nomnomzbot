@@ -84,6 +84,10 @@
       Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"
       Version="10.0.8"
     />
+    <PackageVersion
+      Include="Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions"
+      Version="10.0.8"
+    />
   </ItemGroup>
   <!-- SQLitePCLRaw native bundle: the 2.1.11 transitively pulled by Microsoft.Data.Sqlite / EFCore.Sqlite
        carries GHSA-2m69-gcr7-jv3q (high). Pin the whole family to the patched 3.50.x line; transitive pinning

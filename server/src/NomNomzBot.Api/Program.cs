@@ -420,40 +420,32 @@ try
 
     if (bootUsesDurableTier)
     {
-        healthChecks
-            .AddNpgSql(
-                builder.Configuration.GetConnectionString("DefaultConnection")
-                    ?? "Host=localhost;Database=nomnomzbot;Username=postgres;Password=postgres",
-                name: "postgresql",
-                tags: ["db", "ready"]
-            )
-            .AddCheck(
+        healthChecks.AddNpgSql(
+            builder.Configuration.GetConnectionString("DefaultConnection")
+                ?? "Host=localhost;Database=nomnomzbot;Username=postgres;Password=postgres",
+            name: "postgresql",
+            tags: ["db", "ready"]
+        );
+
+        // S038: pings the app's real singleton IConnectionMultiplexer (registered in
+        // AddInfrastructure only when the cache provider is Redis) instead of opening a throwaway
+        // connection that can succeed while the shared one is broken. When Redis isn't configured at
+        // all there is nothing to probe — report healthy on the documented in-memory fallback.
+        string? redisConnectionString =
+            builder.Configuration.GetConnectionString("Redis")
+            ?? builder.Configuration["Redis:ConnectionString"];
+        if (string.IsNullOrWhiteSpace(redisConnectionString))
+        {
+            healthChecks.AddCheck(
                 "redis",
-                () =>
-                {
-                    string? redisCs =
-                        builder.Configuration.GetConnectionString("Redis")
-                        ?? builder.Configuration["Redis:ConnectionString"];
-                    if (string.IsNullOrWhiteSpace(redisCs))
-                        return HealthCheckResult.Healthy(
-                            "Redis not configured — using in-memory cache"
-                        );
-                    try
-                    {
-                        using StackExchange.Redis.ConnectionMultiplexer conn =
-                            StackExchange.Redis.ConnectionMultiplexer.Connect(
-                                redisCs + ",connectTimeout=2000,syncTimeout=2000"
-                            );
-                        conn.GetDatabase().Ping();
-                        return HealthCheckResult.Healthy();
-                    }
-                    catch (Exception ex)
-                    {
-                        return HealthCheckResult.Unhealthy(ex.Message);
-                    }
-                },
+                () => HealthCheckResult.Healthy("Redis not configured — using in-memory cache"),
                 tags: ["cache", "ready"]
             );
+        }
+        else
+        {
+            healthChecks.AddCheck<RedisHealthCheck>("redis", tags: ["cache", "ready"]);
+        }
     }
     else
     {

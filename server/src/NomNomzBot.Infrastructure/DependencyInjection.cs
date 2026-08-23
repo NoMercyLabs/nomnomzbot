@@ -149,6 +149,13 @@ public static class DependencyInjection
                             sqliteOptions.MigrationsAssembly("NomNomzBot.Migrations.Sqlite");
                         }
                     );
+
+                    // S038: WAL + busy-timeout on every connection this DbContext opens — see the
+                    // interceptor's own doc comment for why this is the common-path fix, not an edge case
+                    // (SQLite is the self-host default runtime).
+                    options.AddInterceptors(
+                        new Platform.Persistence.Interceptors.SqliteResilienceInterceptor()
+                    );
                 }
                 else
                 {
@@ -161,6 +168,13 @@ public static class DependencyInjection
                         {
                             npgsqlOptions.MigrationsAssembly(
                                 typeof(AppDbContext).Assembly.FullName
+                            );
+                            // S038: transient Postgres blips (connection reset, brief unreachability)
+                            // otherwise surface as a hard 500 on whatever request happened to be mid-query.
+                            npgsqlOptions.EnableRetryOnFailure(
+                                maxRetryCount: 5,
+                                maxRetryDelay: TimeSpan.FromSeconds(10),
+                                errorCodesToAdd: null
                             );
                         }
                     );
@@ -323,6 +337,12 @@ public static class DependencyInjection
         // per HTTP request / chat dispatch would otherwise reset the queue on every call. Singleton, keyed
         // per-tenant internally (Music.ISongRequestQueueStore); every FairQueue<T> mutation is lock-protected.
         services.AddSingleton<Music.ISongRequestQueueStore, Music.SongRequestQueueStore>();
+
+        // S001b — durable mirror of the fair queue (write-through on every mutation) + the once-at-startup
+        // restore that replays it back into the (freshly empty) singleton store above before any live
+        // traffic can reach it.
+        services.AddScoped<Music.ISongRequestQueuePersistence, Music.SongRequestQueuePersistence>();
+        services.AddHostedService<Music.SongRequestQueueRestoreHostedService>();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
         services.AddScoped<Application.Chat.Services.IChatMessageDecorator, ChatMessageDecorator>();
@@ -808,11 +828,20 @@ public static class DependencyInjection
             });
             services.AddSingleton<ICacheService, DistributedCacheService>();
 
-            // One shared multiplexer backs the distributed rate-limiter counter store.
+            // One shared multiplexer backs the distributed rate-limiter counter store. S038: AbortOnConnectFail
+            // defaults to true, so a Redis blip at boot (or a reconnect attempt later) makes .Connect() THROW —
+            // taking the whole process down with it. Force it false: the multiplexer is handed back even while
+            // disconnected and keeps retrying in the background, so the bot degrades (falls through to whatever
+            // the caller does when a Redis-backed read/write fails) instead of refusing to start or crashing.
             services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(_ =>
-                StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnectionString)
-            );
+            {
+                StackExchange.Redis.ConfigurationOptions redisOptions =
+                    StackExchange.Redis.ConfigurationOptions.Parse(redisConnectionString);
+                redisOptions.AbortOnConnectFail = false;
+                return StackExchange.Redis.ConnectionMultiplexer.Connect(redisOptions);
+            });
             services.AddSingleton<IRateLimiterPartitionStore, RedisRateLimiterPartitionStore>();
+            services.AddSingleton<Platform.Deployment.RedisHealthCheck>();
         }
         else
         {

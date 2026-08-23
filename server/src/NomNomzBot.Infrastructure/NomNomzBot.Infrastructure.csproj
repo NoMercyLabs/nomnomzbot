@@ -67,6 +67,10 @@
     <PackageReference Include="Stripe.net" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+    <!-- IHealthCheck for the Redis singleton-multiplexer probe (RedisHealthCheck) — this is a plain
+         class library (no Microsoft.AspNetCore.App FrameworkReference), so the abstractions package is
+         referenced explicitly rather than riding in transitively the way it does in the Api Sdk.Web project. -->
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions" />
     <PackageReference Include="Newtonsoft.Json" />
     <!-- Sanitizes the opt-in subscriber chat-HTML fragment (HtmlFragmentAdapter). AngleSharp is referenced
          directly (not just transitively) so its CVE-clean 1.5.2 pin from Directory.Packages.props is the
