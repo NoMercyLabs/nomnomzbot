@@ -40,9 +40,6 @@ Slice IDs are stable; the order is the queue.
   when a command misbehaves, and the dashboard has nothing to show. Found by S008 (80e9fd58) while threading run outcomes.
   Done-when: every pipeline run persists its outcome and per-step log, and a test proves a failed run is retrievable with the
   failing step identified.
-- **S010** Outbound chat shaping — per-platform length chunking (Twitch 500 / YouTube 200 / Kick 500 /
-  X 280), duplicate-line variation, per-channel-per-platform token-bucket send queue with coalescing
-  (U·C7). Done-when: 100 simultaneous sends → rate-limited, coalesced, none dropped by length.
 - **S011** Bot-line prefix (D5) — channel setting `BotLinePrefix` (none/`*`/`#`/emoji) applied on the
   streamer's-own-account sends; Settings field. Done-when: prefix appears on bot-typed lines only.
 - **S012** Moderation accidental ban — timeout duration presets + hard block on unparseable; rule and
