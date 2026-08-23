@@ -115,6 +115,40 @@ public sealed class StripeGateway : IStripeGateway
         }
     }
 
+    public async Task<Result> RefundInvoiceAsync(
+        string stripeInvoiceId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (_client is null)
+            return Result.Failure("Stripe billing is not configured.", "SERVICE_UNAVAILABLE");
+
+        try
+        {
+            Invoice invoice = await new InvoiceService(_client).GetAsync(
+                stripeInvoiceId,
+                cancellationToken: cancellationToken
+            );
+            string? paymentIntentId = invoice.PaymentIntentId;
+            if (string.IsNullOrWhiteSpace(paymentIntentId))
+                return Result.Failure(
+                    "This invoice has no payment intent to refund (unpaid or zero-amount invoice).",
+                    "VALIDATION_FAILED"
+                );
+
+            RefundCreateOptions options = new() { PaymentIntent = paymentIntentId };
+            await new RefundService(_client).CreateAsync(
+                options,
+                cancellationToken: cancellationToken
+            );
+            return Result.Success();
+        }
+        catch (StripeException ex)
+        {
+            return Result.Failure($"Stripe refund failed: {ex.Message}", "SERVICE_UNAVAILABLE");
+        }
+    }
+
     public async Task<Result<BillingPortalDto>> CreateBillingPortalSessionAsync(
         string stripeSubscriptionId,
         string returnUrl,
