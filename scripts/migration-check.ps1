@@ -23,8 +23,13 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = (Join-Path $PSScriptRoot '..' | Resolve-Path).Path
 $server = Join-Path $repo 'server'
-$infra = 'src/NomNomzBot.Infrastructure'
-$api = 'src/NomNomzBot.Api'
+# The two providers keep SEPARATE migration assemblies, each with its own design-time factory.
+# NomNomzBot.Infrastructure's factory is hardcoded to Npgsql AND the Api startup project resolves that
+# same factory, so pointing the SQLite leg at either one silently tests Postgres instead (found by
+# S001b). For SQLite the migrations project must also be the STARTUP project, so EF picks up
+# SqliteDesignTimeDbContextFactory.
+$infra = if ($Provider -eq 'Sqlite') { 'src/NomNomzBot.Migrations.Sqlite' } else { 'src/NomNomzBot.Infrastructure' }
+$api = if ($Provider -eq 'Sqlite') { 'src/NomNomzBot.Migrations.Sqlite' } else { 'src/NomNomzBot.Api' }
 
 function Invoke-Ef([string[]]$EfArgs, [hashtable]$EnvVars) {
     foreach ($k in $EnvVars.Keys) { Set-Item -Path "env:$k" -Value $EnvVars[$k] }
@@ -57,8 +62,10 @@ Push-Location $server
     Where-Object { $_ -match '^\d{14}_' }
 Pop-Location
 if ($migrations.Count -lt 2) { throw 'need at least two migrations to test an upgrade' }
-[string]$newest = $migrations[-1].Trim()
-[string]$previous = $migrations[-2].Trim()
+# `migrations list` annotates unapplied entries with a trailing "(Pending)" — strip it, or it gets
+# passed to `database update` as part of the migration name and the update fails.
+[string]$newest = ($migrations[-1] -replace '\s*\(Pending\)\s*$', '').Trim()
+[string]$previous = ($migrations[-2] -replace '\s*\(Pending\)\s*$', '').Trim()
 Write-Host "   previous = $previous"
 Write-Host "   newest   = $newest"
 

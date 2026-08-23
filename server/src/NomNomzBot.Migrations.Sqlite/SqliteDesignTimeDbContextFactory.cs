@@ -25,9 +25,17 @@ public sealed class SqliteDesignTimeDbContextFactory : IDesignTimeDbContextFacto
 {
     public AppDbContext CreateDbContext(string[] args)
     {
+        // Honour NOMNOMZ_DATA_DIR the same way the running app does (SelfHostDataPaths). Without this, a
+        // tool that points the factory at a throwaway database silently migrates ./nomnomz.db instead —
+        // which made scripts/migration-check.ps1 report on a database it had never touched.
+        string? dataDir = Environment.GetEnvironmentVariable("NOMNOMZ_DATA_DIR");
+        string databaseFile = string.IsNullOrWhiteSpace(dataDir)
+            ? "./nomnomz.db"
+            : Path.Combine(dataDir, "nomnomz.db");
+
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         optionsBuilder.UseSqlite(
-            "Data Source=./nomnomz.db",
+            $"Data Source={databaseFile}",
             sqliteOptions => sqliteOptions.MigrationsAssembly("NomNomzBot.Migrations.Sqlite")
         );
         return new(optionsBuilder.Options);
