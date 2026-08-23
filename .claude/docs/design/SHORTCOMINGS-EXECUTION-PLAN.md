@@ -44,9 +44,9 @@ Slice IDs are stable; the order is the queue.
   (billing writes + refund), `ComplianceController` (GDPR erasure). `AdminController:180` is the only action already on
   `SecuritySensitiveRateLimitPolicy` (added by S098e) — that policy is the pattern to spread. Run this sweep after
   S086c/S086e land, since they hold three of those files.
-- **S111c** Desktop app polish — firewall hint; log file with a size cap and a documented path; session-expiry
-  refresh; window state persisted; app icon + stamped version (`/health/version` is hardcoded 1.0.0.0); macOS
-  data dir (U·E5). Done-when: a restart restores window state and the version endpoint reports the build.
+- **S111d** `/health/version` reports the build — the API endpoint still returns a hardcoded `1.0.0.0`; stamp it from
+  the build the way S111c stamped the desktop app (single version literal feeding both). Done-when: `/health/version`
+  returns the built assembly's version, asserted by a test.
 - **S086c** IAM audit + guard gaps (U·D2 remainder, untouched by S086) — assign/revoke/create/deactivate/reactivate
   write no `IamAuditLog` row (`PlatformIamService.cs:171-236,324-371`); create is non-transactional and can flush an
   orphan principal (`:106-169`); duplicate/inactive-target assignments allowed (`:200`); the last `iam:manage` holder
