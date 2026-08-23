@@ -23,6 +23,7 @@ using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Analytics;
 using NomNomzBot.Infrastructure.EventStore;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -67,7 +68,8 @@ public sealed class ReadModelRebuildFromJournalTests
             journal,
             new EventUpcasterRegistry([]),
             db,
-            Clock
+            Clock,
+            new NoOpRunOnceGuard()
         );
 
         // Incremental fold of every projection to the head, then snapshot the whole read model.

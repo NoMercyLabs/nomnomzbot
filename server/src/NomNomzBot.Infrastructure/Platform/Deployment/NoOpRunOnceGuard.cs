@@ -8,27 +8,43 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using NomNomzBot.Application.Common.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Platform.Deployment;
 
 /// <summary>
-/// The self-host (lite/full) run-once guard: a single process owns everything, so the lease is always granted
-/// (platform-conventions §3.8). Migrate / seed / singleton workers run unconditionally — there is no cluster to
-/// coordinate against.
+/// The self-host (lite/full) run-once guard: there is no CLUSTER to coordinate against (platform-conventions
+/// §3.8), so a lease always succeeds against another PROCESS. It still enforces genuine mutual exclusion WITHIN
+/// this one process, though: two async call sites in the same process can race for the same named resource (e.g.
+/// the projection driver's periodic tick and an operator's manual replay/rebuild hitting the same
+/// projection+channel — S004g). A named, non-reentrant in-process lock — held from acquire to lease dispose —
+/// covers that race without needing a database round-trip; <paramref name="ttl"/> is unused because release is
+/// always explicit (the lease is disposed, never abandoned, on every code path that acquires it).
 /// </summary>
 public sealed class NoOpRunOnceGuard : IRunOnceGuard
 {
-    private static readonly IAsyncDisposable GrantedLease = new NoOpLease();
+    private static readonly ConcurrentDictionary<string, byte> Held = new();
 
     public Task<IAsyncDisposable?> TryAcquireAsync(
         string resourceName,
         TimeSpan ttl,
         CancellationToken cancellationToken = default
-    ) => Task.FromResult<IAsyncDisposable?>(GrantedLease);
+    ) =>
+        Task.FromResult<IAsyncDisposable?>(
+            Held.TryAdd(resourceName, 0) ? new InProcessLease(resourceName) : null
+        );
 
-    private sealed class NoOpLease : IAsyncDisposable
+    private sealed class InProcessLease : IAsyncDisposable
     {
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        private readonly string _resourceName;
+
+        public InProcessLease(string resourceName) => _resourceName = resourceName;
+
+        public ValueTask DisposeAsync()
+        {
+            Held.TryRemove(_resourceName, out _);
+            return ValueTask.CompletedTask;
+        }
     }
 }

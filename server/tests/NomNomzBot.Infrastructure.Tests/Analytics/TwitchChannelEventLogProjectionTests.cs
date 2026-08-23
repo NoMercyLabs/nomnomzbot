@@ -23,6 +23,7 @@ using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Analytics;
 using NomNomzBot.Infrastructure.EventStore;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 using NomNomzBot.Infrastructure.Tests.EventStore;
 using NSubstitute;
 
@@ -220,7 +221,15 @@ public sealed class TwitchChannelEventLogProjectionTests
         ReadModelRebuildDbContext db,
         EventJournalService journal,
         IProjection projection
-    ) => new([projection], journal, new EventUpcasterRegistry([]), db, Clock);
+    ) =>
+        new(
+            [projection],
+            journal,
+            new EventUpcasterRegistry([]),
+            db,
+            Clock,
+            new NoOpRunOnceGuard()
+        );
 
     private static async Task AppendAsync(
         EventJournalService journal,

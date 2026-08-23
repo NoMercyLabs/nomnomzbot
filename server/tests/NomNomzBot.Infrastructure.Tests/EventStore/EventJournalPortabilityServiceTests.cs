@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Infrastructure.EventStore;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.EventStore;
@@ -97,7 +98,14 @@ public sealed class EventJournalPortabilityServiceTests
             await journal.AppendAsync(CounterEvent(source, 3, version: 2, field: "amount"));
 
             CounterProjection sourceProjection = new();
-            ProjectionRunner sourceRunner = new([sourceProjection], journal, upcasters, db, Clock);
+            ProjectionRunner sourceRunner = new(
+                [sourceProjection],
+                journal,
+                upcasters,
+                db,
+                Clock,
+                new NoOpRunOnceGuard()
+            );
             await sourceRunner.RunOnceAsync(CounterProjection.ProjectionName, source);
             baseline = sourceProjection.State["hits"];
             baseline.Should().Be(15);
@@ -138,7 +146,8 @@ public sealed class EventJournalPortabilityServiceTests
             targetJournal,
             targetUpcasters,
             targetContext,
-            Clock
+            Clock,
+            new NoOpRunOnceGuard()
         );
         Result<long> applied = await targetRunner.RunOnceAsync(
             CounterProjection.ProjectionName,
@@ -404,7 +413,14 @@ public sealed class EventJournalPortabilityServiceTests
 
         // Folding the target proves the consequence: the v1 increment (4) was upcast and summed with the v2 (6).
         CounterProjection projection = new();
-        ProjectionRunner runner = new([projection], targetJournal, upcasters, targetContext, Clock);
+        ProjectionRunner runner = new(
+            [projection],
+            targetJournal,
+            upcasters,
+            targetContext,
+            Clock,
+            new NoOpRunOnceGuard()
+        );
         await runner.RunOnceAsync(CounterProjection.ProjectionName, target);
         projection
             .State["hits"]

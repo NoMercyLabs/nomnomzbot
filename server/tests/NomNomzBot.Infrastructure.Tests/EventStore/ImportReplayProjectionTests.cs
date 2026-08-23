@@ -18,6 +18,7 @@ using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.EventStore;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.EventStore;
@@ -50,7 +51,15 @@ public sealed class ImportReplayProjectionTests
         EventStoreTestDbContext db,
         EventJournalService journal,
         ImportReplayProjection projection
-    ) => new([projection], journal, new EventUpcasterRegistry([]), db, Clock);
+    ) =>
+        new(
+            [projection],
+            journal,
+            new EventUpcasterRegistry([]),
+            db,
+            Clock,
+            new NoOpRunOnceGuard()
+        );
 
     private static AppendEventRequest ImportedFollow(Guid tenant, string userId)
     {

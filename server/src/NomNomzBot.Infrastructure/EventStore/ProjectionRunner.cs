@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Domain.EventStore.Entities;
@@ -24,22 +25,35 @@ namespace NomNomzBot.Infrastructure.EventStore;
 /// incremental fold because <c>ApplyAsync</c> is idempotent. A fault parks the checkpoint at
 /// <c>Status=faulted</c> without advancing past the bad event.
 /// </summary>
+/// <remarks>
+/// Every entry point (the background driver's periodic tick via <see cref="RunOnceAsync"/>, and an operator's
+/// manual replay/rebuild via either method) takes the SAME <see cref="IRunOnceGuard"/> lease before touching a
+/// given projection+scope, keyed identically (event-store.md §3.3). Two writers folding the same journal position
+/// into the same read model concurrently duplicate work at best (S004d already made the writes themselves atomic,
+/// so it no longer corrupts data) — the lease turns that into a clean, honest refusal instead: the caller that
+/// loses the race gets <c>PROJECTION_RUN_IN_PROGRESS</c> immediately rather than a silent no-op or a wait with no
+/// visible feedback. A short retry (the driver ticks every 15s) is cheap and always correct here, so refuse-fast
+/// beats a blocking wait.
+/// </remarks>
 public sealed class ProjectionRunner : IProjectionRunner
 {
     private const int BatchSize = 500;
+    private static readonly TimeSpan LeaseTtl = TimeSpan.FromMinutes(10);
 
     private readonly IEnumerable<IProjection> _projections;
     private readonly IEventJournal _journal;
     private readonly IEventUpcasterRegistry _upcasters;
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _clock;
+    private readonly IRunOnceGuard _runOnceGuard;
 
     public ProjectionRunner(
         IEnumerable<IProjection> projections,
         IEventJournal journal,
         IEventUpcasterRegistry upcasters,
         IApplicationDbContext db,
-        TimeProvider clock
+        TimeProvider clock,
+        IRunOnceGuard runOnceGuard
     )
     {
         _projections = projections;
@@ -47,6 +61,7 @@ public sealed class ProjectionRunner : IProjectionRunner
         _upcasters = upcasters;
         _db = db;
         _clock = clock;
+        _runOnceGuard = runOnceGuard;
     }
 
     public async Task<Result<long>> RunOnceAsync(
@@ -58,6 +73,14 @@ public sealed class ProjectionRunner : IProjectionRunner
         Result<IProjection> projection = Resolve(projectionName);
         if (projection.IsFailure)
             return Result.Failure<long>(projection.ErrorMessage!, projection.ErrorCode);
+
+        await using IAsyncDisposable? lease = await _runOnceGuard.TryAcquireAsync(
+            LeaseKey(projectionName, broadcasterId),
+            LeaseTtl,
+            cancellationToken
+        );
+        if (lease is null)
+            return AlreadyRunning(projectionName, broadcasterId);
 
         ProjectionCheckpoint checkpoint = await GetOrCreateCheckpointAsync(
             projectionName,
@@ -78,6 +101,14 @@ public sealed class ProjectionRunner : IProjectionRunner
         Result<IProjection> projection = Resolve(projectionName);
         if (projection.IsFailure)
             return Result.Failure<long>(projection.ErrorMessage!, projection.ErrorCode);
+
+        await using IAsyncDisposable? lease = await _runOnceGuard.TryAcquireAsync(
+            LeaseKey(projectionName, broadcasterId),
+            LeaseTtl,
+            cancellationToken
+        );
+        if (lease is null)
+            return AlreadyRunning(projectionName, broadcasterId);
 
         Result reset = await projection.Value.ResetAsync(broadcasterId, cancellationToken);
         if (reset.IsFailure)
@@ -102,6 +133,19 @@ public sealed class ProjectionRunner : IProjectionRunner
             progress
         );
     }
+
+    // The lease key covers exactly the contention that matters: the same projection folding the same
+    // broadcaster's (or the platform's, for a global projection) stream from two call sites at once — the driver's
+    // tick and an operator's manual replay/rebuild.
+    private static string LeaseKey(string projectionName, Guid? broadcasterId) =>
+        $"projection-runner:{projectionName}:{broadcasterId?.ToString() ?? "platform"}";
+
+    private static Result<long> AlreadyRunning(string projectionName, Guid? broadcasterId) =>
+        Result.Failure<long>(
+            $"Projection '{projectionName}' is already running for this "
+                + (broadcasterId is null ? "platform stream." : "channel."),
+            "PROJECTION_RUN_IN_PROGRESS"
+        );
 
     // Reads forward batches from the checkpoint to the head, upcasts each event, applies it, and advances the
     // checkpoint after each committed batch. Global projections read the cross-tenant stream by Id; tenant

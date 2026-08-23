@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Infrastructure.EventStore;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.EventStore;
@@ -71,7 +72,8 @@ public sealed class ProjectionRunnerTests
             journal,
             new EventUpcasterRegistry([]),
             db,
-            Clock
+            Clock,
+            new NoOpRunOnceGuard()
         );
 
         Result<long> applied = await runner.RunOnceAsync(CounterProjection.ProjectionName, tenant);
@@ -108,7 +110,8 @@ public sealed class ProjectionRunnerTests
             journal,
             new EventUpcasterRegistry([]),
             db,
-            Clock
+            Clock,
+            new NoOpRunOnceGuard()
         );
 
         // Incremental fold to the head.
@@ -156,7 +159,14 @@ public sealed class ProjectionRunnerTests
 
         CounterProjection projection = new();
         EventUpcasterRegistry registry = new([new CounterV1ToV2Upcaster()]);
-        ProjectionRunner runner = new([projection], journal, registry, db, Clock);
+        ProjectionRunner runner = new(
+            [projection],
+            journal,
+            registry,
+            db,
+            Clock,
+            new NoOpRunOnceGuard()
+        );
 
         Result<long> applied = await runner.RunOnceAsync(CounterProjection.ProjectionName, tenant);
 
@@ -186,7 +196,8 @@ public sealed class ProjectionRunnerTests
             journal,
             new EventUpcasterRegistry([]),
             db,
-            Clock
+            Clock,
+            new NoOpRunOnceGuard()
         );
         await runner.RunOnceAsync(CounterProjection.ProjectionName, tenant);
 
