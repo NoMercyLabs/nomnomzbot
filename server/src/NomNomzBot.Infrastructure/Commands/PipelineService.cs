@@ -11,6 +11,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -24,11 +25,17 @@ public class PipelineService : IPipelineService
 {
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
+    private readonly ICommandConfigValidator _validator;
 
-    public PipelineService(IApplicationDbContext db, IEventBus eventBus)
+    public PipelineService(
+        IApplicationDbContext db,
+        IEventBus eventBus,
+        ICommandConfigValidator validator
+    )
     {
         _db = db;
         _eventBus = eventBus;
+        _validator = validator;
     }
 
     public async Task<Result<PagedList<PipelineListItemDto>>> ListAsync(
@@ -101,6 +108,16 @@ public class PipelineService : IPipelineService
                 "VALIDATION_FAILED"
             );
 
+        Result<string?> graphValidation = await ValidateAndSerializeGraphAsync(
+            request.GraphJsonCache,
+            ct
+        );
+        if (!graphValidation.IsSuccess)
+            return Result.Failure<PipelineDto>(
+                graphValidation.ErrorMessage,
+                graphValidation.ErrorCode
+            );
+
         PipelineEntity entity = new()
         {
             BroadcasterId = broadcaster,
@@ -108,9 +125,7 @@ public class PipelineService : IPipelineService
             Description = request.Description,
             IsEnabled = request.IsEnabled,
             TriggerKind = request.TriggerKind,
-            GraphJsonCache = request.GraphJsonCache is not null
-                ? JsonSerializer.Serialize(request.GraphJsonCache)
-                : null,
+            GraphJsonCache = graphValidation.Value,
         };
 
         _db.Pipelines.Add(entity);
@@ -150,7 +165,19 @@ public class PipelineService : IPipelineService
         if (request.TriggerKind is not null)
             entity.TriggerKind = request.TriggerKind;
         if (request.GraphJsonCache is not null)
-            entity.GraphJsonCache = JsonSerializer.Serialize(request.GraphJsonCache);
+        {
+            Result<string?> graphValidation = await ValidateAndSerializeGraphAsync(
+                request.GraphJsonCache,
+                ct
+            );
+            if (!graphValidation.IsSuccess)
+                return Result.Failure<PipelineDto>(
+                    graphValidation.ErrorMessage,
+                    graphValidation.ErrorCode
+                );
+
+            entity.GraphJsonCache = graphValidation.Value;
+        }
 
         await _db.SaveChangesAsync(ct);
         await PublishConfigChangedAsync(broadcaster, entity.Id, "updated", ct);
@@ -199,6 +226,69 @@ public class PipelineService : IPipelineService
                 Action = action,
             },
             ct
+        );
+
+    /// <summary>
+    /// Save-time gate (S007): re-serializes the incoming graph to its exact wire JSON, deserializes it as
+    /// the same <see cref="PipelineDefinition"/> shape <see cref="Platform.Pipeline.PipelineEngine"/> reads
+    /// at execution time, and runs it through the existing <see cref="ICommandConfigValidator"/> — the same
+    /// rules the optional "validate" editor endpoint enforces. Any client that skips that endpoint (import,
+    /// automation, direct API) is now blocked here instead of failing live in front of viewers.
+    /// Returns the exact JSON to persist on success, or a typed failure that leaves the caller's existing
+    /// stored graph untouched.
+    /// </summary>
+    private async Task<Result<string?>> ValidateAndSerializeGraphAsync(
+        object? graphJsonCache,
+        CancellationToken ct
+    )
+    {
+        if (graphJsonCache is null)
+            return Result.Success<string?>(null);
+
+        string rawJson = JsonSerializer.Serialize(graphJsonCache);
+
+        PipelineDefinition? definition;
+        try
+        {
+            definition = JsonSerializer.Deserialize<PipelineDefinition>(rawJson);
+        }
+        catch (JsonException ex)
+        {
+            return Result.Failure<string?>(
+                $"Pipeline graph is not valid JSON: {ex.Message}",
+                "INVALID_GRAPH"
+            );
+        }
+
+        Result<PipelineValidationResult> validation = await _validator.ValidatePipelineAsync(
+            ToValidatorInput(definition ?? new PipelineDefinition()),
+            ct
+        );
+
+        if (!validation.IsSuccess)
+            return Result.Failure<string?>(validation.ErrorMessage, validation.ErrorCode);
+
+        if (!validation.Value.IsValid)
+            return Result.Failure<string?>(
+                validation.Value.ErrorMessage,
+                validation.Value.ErrorCode
+            );
+
+        return Result.Success<string?>(rawJson);
+    }
+
+    /// <summary>Maps the engine's action/condition graph shape onto the validator's input contract.</summary>
+    private static PipelineGraphInput ToValidatorInput(PipelineDefinition definition) =>
+        new(
+            definition
+                .Steps.Select(step => new PipelineStepInput(
+                    step.Action.Type,
+                    step.Action.Parameters?.ToDictionary(kv => kv.Key, kv => (object?)kv.Value)
+                        ?? new Dictionary<string, object?>(),
+                    step.Condition?.Type,
+                    step.Condition?.Parameters?.ToDictionary(kv => kv.Key, kv => (object?)kv.Value)
+                ))
+                .ToList()
         );
 
     private static PipelineDto ToDto(PipelineEntity p)
