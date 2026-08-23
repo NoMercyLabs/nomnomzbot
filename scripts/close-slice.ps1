@@ -36,6 +36,12 @@ while ($i -lt $lines.Length) {
                -not $lines[$i].StartsWith('## ') -and
                $lines[$i].Trim() -ne '---') { $i++ }
         foreach ($f in $Follow) { $kept.Add($f) }
+        # a bullet block absorbs the blank line that separated it from a following heading;
+        # put it back so sections keep their spacing as slices are deleted over time
+        if ($i -lt $lines.Length -and $lines[$i].StartsWith('## ') -and
+            $kept.Count -gt 0 -and $kept[$kept.Count - 1].Trim() -ne '') {
+            $kept.Add('')
+        }
         continue
     }
     $kept.Add($line)

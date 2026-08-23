@@ -54,6 +54,7 @@ Slice IDs are stable; the order is the queue.
   failed write's error, so the dashboard can show a success state for a write the backend rejected. Confirmed frontend-only by
   S014 (0805bc29) via grep; no backend equivalent exists. Done-when: a rejected write surfaces its reason in the UI and the
   optimistic state rolls back, proven for at least three unrelated feature controllers.
+
 ## Phase 1 — runtime stability of EXISTING plumbing
 
 - **S035** SignalR hardening — `WithStatefulReconnect()`; OverlayHub many-widgets-per-connection;
