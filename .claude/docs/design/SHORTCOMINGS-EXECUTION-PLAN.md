@@ -35,8 +35,11 @@ Slice IDs are stable; the order is the queue.
 
 - **S035** SignalR hardening — `WithStatefulReconnect()`; OverlayHub many-widgets-per-connection;
   overlay token out of the query string + throttle (U·B5/B7). 🔒 backplane for multi-replica.
-- **S036** Token refresh — per-connection refresh lock (Twitch/Kick/YouTube/X); sweep at boot, every
-  provider (U·B7). Done-when: two concurrent refreshes → one provider call.
+- **S036b** Two token-custody gaps S036 (23f1e119) named but did not close: `SpotifyMusicProvider`'s vaulted refresh has the
+  identical unguarded-concurrent-refresh shape as Twitch/Kick, and `IYouTubeAccessTokenProvider` keeps custody on the legacy
+  flat `Service` table rather than `IIntegrationTokenVault` — a second custody path. Done-when: Spotify refresh goes through
+  `ConnectionRefreshGate` with the same two-concurrent-callers test, and YouTube custody is on the vault or the split is
+  documented as deliberate with the reason.
 - **S037** Worker backoff — delay out of the try in YouTube poll / scheduled-pipeline expiry /
   TimerService / redemption-timer expiry (U·B7). Done-when: a throwing tick sleeps its interval (test each).
 - **S038** DB/Redis resilience — Redis `abortConnect=false` + degrade; health check pings the singleton;
