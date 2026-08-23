@@ -29,8 +29,12 @@ Slice IDs are stable; the order is the queue.
 - **S003** Spotify visible state — 401/403 → `needs_reauth`/`forbidden` on the integration status +
   Music page; vault is the single token source (drop the `Services` mirror read) (U·A2). Done-when: a
   revoked token shows on the Integrations card and `!sr` says why; music reads no `Services` row.
-- **S004** Atomic balances — `CurrencyAccount` + `SavingsJar` update-where (S·F11, F11b). Done-when:
-  concurrent double-spend test cannot overdraw.
+- **S004b** Finish the read-modify-write sweep — S004 (89a45dd4) made `CurrencyAccount.Balance` and
+  `SavingsJar.Balance` atomic, but the same shape survives at `Economy/CatalogService.cs:328,406`
+  (`StockRemaining` — a genuine oversell: two concurrent purchases of the last item both pass the check) and
+  `Widgets/WidgetService.cs:302` (`item.InstallCount += 1`, a lost-count). Use the SAME mechanism S004 chose.
+  Done-when: N concurrent purchases of a 1-stock item yield exactly one sale and stock never goes negative;
+  N concurrent installs increment the count exactly N times.
 - **S005** Earning dedupe unique index + escalation atomic increment (S·F12, F13). Done-when: duplicate
   event credit blocked by the DB; two concurrent offenses compound.
 - **S006** Live-game money — settle failure refunds or parks retryable; can't-pay joiner feedback;
