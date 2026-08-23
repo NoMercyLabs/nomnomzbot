@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -28,6 +29,7 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 
@@ -35,34 +37,61 @@ namespace NomNomzBot.Infrastructure.Tests.Moderation;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over just the entities the <c>ModerationService</c> tests
-/// exercise — on the EF Core InMemory provider. The production <c>AppDbContext</c> is Npgsql-bound (jsonb
-/// complex types) and cannot host a test provider, so only <see cref="RecordEntity"/> (AutoMod-config +
-/// action rows), <see cref="Channel"/> (the broadcaster-guard's <c>TwitchChannelId</c> lookup), and
-/// <see cref="User"/> (target-username resolution on a recorded action) are mapped; every other
-/// <see cref="IApplicationDbContext"/> set throws, since no exercised path reaches it. Mirrors the
-/// "declare every DbSet, auto-ignore the unmapped ones by reflection" shape of
+/// exercise — on a REAL relational SQLite connection (S005b; InMemory retired). The production
+/// <c>AppDbContext</c> is Npgsql-bound (jsonb complex types) and cannot host a test provider, so only
+/// <see cref="RecordEntity"/> (AutoMod-config + action rows), <see cref="Channel"/> (the broadcaster-guard's
+/// <c>TwitchChannelId</c> lookup), and <see cref="User"/> (target-username resolution on a recorded action) are
+/// mapped; every other <see cref="IApplicationDbContext"/> set throws, since no exercised path reaches it.
+/// Mirrors the "declare every DbSet, auto-ignore the unmapped ones by reflection" shape of
 /// <c>Commands/CommandsTestDbContext.cs</c>.
-///
-/// NOTE (S005/F13): <c>ModerationEscalationService</c>'s atomic <c>ExecuteUpdateAsync</c> increment is not
-/// supported AT ALL by this InMemory provider. Switching this shared context wholesale to a relational SQLite
-/// connection was tried and reverted — several OTHER services sharing this context
-/// (<c>SharedBanService.TrustedListAsync</c>'s client-projecting `OrderBy`) rely on InMemory's permissive
-/// client-eval and fail to translate on a real relational provider, an unrelated pre-existing gap far outside
-/// this slice's blast radius. <see cref="NomNomzBot.Infrastructure.Tests.Moderation.ChatFilterExecutionHandlerTests"/>
-/// — the one consumer here that exercises <c>ModerationEscalationService</c> — instead builds its OWN
-/// dedicated relational SQLite context; every other consumer of THIS InMemory context is untouched.
+/// <para>
+/// S005 found <c>SharedBanService.TrustedListAsync</c>'s client-projecting <c>OrderBy</c> only tolerated by
+/// InMemory's permissive client-eval and reverted the SQLite move rather than fix out of scope; S005b fixes
+/// that query (order before projecting into the DTO record) and completes the move — every entity mapped here
+/// is a plain-scalar row (no jsonb/DateTimeOffset columns), so no provider-compatibility conversions are needed
+/// beyond <see cref="ProviderCompatibilityExtensions.ApplySqliteCompatibility"/>, called for parity with every
+/// other SQLite-backed test harness in this project.
+/// </para>
 /// </summary>
 internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDbContext
 {
-    private ModerationServiceTestDbContext(DbContextOptions<ModerationServiceTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance — opened by New() and closed by
+    // this context's own Dispose/DisposeAsync overrides. Each test builds its own isolated context (no
+    // restart-simulation reuse across contexts in this suite), so there is no need for AuthTestContext's
+    // shared-cache-by-name keep-alive registry.
+    private readonly SqliteConnection _connection;
 
-    public static ModerationServiceTestDbContext New() =>
-        new(
+    private ModerationServiceTestDbContext(
+        DbContextOptions<ModerationServiceTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static ModerationServiceTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        ModerationServiceTestDbContext db = new(
             new DbContextOptionsBuilder<ModerationServiceTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+                .UseSqlite(connection)
+                .Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<RecordEntity> Records => Set<RecordEntity>();
 
@@ -88,6 +117,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
             e.Ignore(c => c.Moderators);
             e.Ignore(c => c.Streams);
             e.Ignore(c => c.Events);
+            e.Ignore(c => c.Tags);
+            e.Ignore(c => c.ContentLabels);
         });
 
         b.Entity<User>(e =>
@@ -122,6 +153,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =
