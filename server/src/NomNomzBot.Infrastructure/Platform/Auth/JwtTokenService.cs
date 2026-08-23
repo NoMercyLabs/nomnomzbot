@@ -67,10 +67,14 @@ public sealed class JwtTokenService : IJwtTokenService
             _ => BuildSymmetric(jwtSection),
         };
 
+        // Pinned to the single algorithm THIS instance signs with (S098b) — without ValidAlgorithms, the
+        // handler accepts any algorithm compatible with the key type (e.g. a token forged with a different
+        // HMAC variant against the same secret), an alg-confusion surface the missing pin left open.
         _validationParameters = new()
         {
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = validationKey,
+            ValidAlgorithms = [_signingCredentials.Algorithm],
             ValidateIssuer = true,
             ValidIssuer = _issuer,
             ValidateAudience = true,
@@ -149,6 +153,8 @@ public sealed class JwtTokenService : IJwtTokenService
             return null;
         }
     }
+
+    public TokenValidationParameters GetValidationParameters() => _validationParameters;
 
     private static (SigningCredentials, SecurityKey) BuildSymmetric(IConfigurationSection jwt)
     {

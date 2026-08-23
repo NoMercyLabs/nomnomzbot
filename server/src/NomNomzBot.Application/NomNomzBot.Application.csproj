@@ -21,5 +21,9 @@
     <PackageReference Include="Mapster" />
     <PackageReference Include="Mapster.DependencyInjection" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <!-- TokenValidationParameters is the exposed shape of IJwtTokenService.GetValidationParameters() (S098b) —
+         Api's JwtBearer setup builds ITS bearer validation from the same factory that signs tokens, so the
+         accepted algorithm set can never drift from what the service actually signs with. -->
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" />
   </ItemGroup>
 </Project>

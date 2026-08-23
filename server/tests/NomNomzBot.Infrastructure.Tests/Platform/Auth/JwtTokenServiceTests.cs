@@ -277,4 +277,45 @@ public class JwtTokenServiceTests
         svc.ValidateAccessToken(string.Empty).Should().BeNull();
         svc.ValidateAccessToken("not.a.valid.token").Should().BeNull();
     }
+
+    // ─── GetValidationParameters — algorithm pinning (S098b) ───────────────────
+
+    [Fact]
+    public void GetValidationParameters_PinsValidAlgorithmsToHmacSha256()
+    {
+        JwtTokenService svc = Create();
+
+        svc.GetValidationParameters()
+            .ValidAlgorithms.Should()
+            .BeEquivalentTo([Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256]);
+    }
+
+    [Fact]
+    public void ValidateAccessToken_TokenSignedWithDifferentAlgorithm_UnderTheSameKey_IsRejected()
+    {
+        // Same secret, but the token is minted with HS384 instead of the HS256 the service is pinned to.
+        // Without a ValidAlgorithms pin, a symmetric key of sufficient length validates under either
+        // algorithm — the pin is the only thing standing between this and an accepted cross-algorithm token.
+        const string sharedSecret = "super-secret-key-that-is-at-least-32-bytes-long!";
+        JwtTokenService svc = Create(key: sharedSecret);
+
+        Microsoft.IdentityModel.Tokens.SymmetricSecurityKey key = new(
+            System.Text.Encoding.UTF8.GetBytes(sharedSecret)
+        );
+        Microsoft.IdentityModel.Tokens.SigningCredentials hs384Credentials = new(
+            key,
+            Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha384
+        );
+        System.IdentityModel.Tokens.Jwt.JwtSecurityToken hs384Token = new(
+            issuer: "TestIssuer",
+            audience: "TestAudience",
+            claims: [new Claim(ClaimTypes.NameIdentifier, UserId.ToString())],
+            expires: DateTime.UtcNow.AddMinutes(60),
+            signingCredentials: hs384Credentials
+        );
+        string tokenString =
+            new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().WriteToken(hs384Token);
+
+        svc.ValidateAccessToken(tokenString).Should().BeNull();
+    }
 }

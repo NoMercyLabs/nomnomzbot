@@ -715,6 +715,11 @@ public static class DependencyInjection
 
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
+        // Session revocation (S098b) — immediate logout / impersonation-end invalidation of an in-flight
+        // access token via its `sid` claim. Singleton: composes the already-singleton IMemoryCache for the
+        // short-lived local check window; the durable side is the shared ICacheService (Redis/memory).
+        services.AddSingleton<ISessionRevocationService, SessionRevocationService>();
+
         // OAuth token vault (identity-auth §3.4) — scoped (DbContext); not I<X>Service-named, so explicit.
         services.AddScoped<
             Application.Identity.Services.IIntegrationTokenVault,

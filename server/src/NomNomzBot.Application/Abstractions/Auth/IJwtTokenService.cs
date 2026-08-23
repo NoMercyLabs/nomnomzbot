@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
 
 namespace NomNomzBot.Application.Abstractions.Auth;
 
@@ -49,4 +50,13 @@ public interface IJwtTokenService
     /// No state change.
     /// </summary>
     ClaimsPrincipal? ValidateAccessToken(string token);
+
+    /// <summary>
+    /// The exact <see cref="TokenValidationParameters"/> this instance signs with — issuer, audience,
+    /// signing key(s), AND <see cref="TokenValidationParameters.ValidAlgorithms"/> pinned to the single
+    /// algorithm this instance uses (HS256 / RS256 / ES256). The Api host's JwtBearer scheme MUST build its
+    /// bearer validation from this, never a hand-rolled duplicate, so the accepted algorithm set can never
+    /// drift from what actually signs tokens (S098b — closes the missing-ValidAlgorithms gap).
+    /// </summary>
+    TokenValidationParameters GetValidationParameters();
 }
