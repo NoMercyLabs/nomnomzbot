@@ -15,7 +15,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 table: "CurrencyLedgerEntries",
                 columns: new[] { "BroadcasterId", "ViewerUserId", "EventId", "EntryType" },
                 unique: true,
-                filter: "\"EventId\" IS NOT NULL");
+                filter: "\"EventId\" IS NOT NULL"
+            );
         }
 
         /// <inheritdoc />
@@ -23,7 +24,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
         {
             migrationBuilder.DropIndex(
                 name: "IX_CurrencyLedgerEntries_Broadcaster_Viewer_EventId_EntryType",
-                table: "CurrencyLedgerEntries");
+                table: "CurrencyLedgerEntries"
+            );
         }
     }
 }

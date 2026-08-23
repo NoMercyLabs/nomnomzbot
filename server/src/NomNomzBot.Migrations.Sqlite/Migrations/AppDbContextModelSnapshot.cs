@@ -4133,6 +4133,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<DateTime?>("BotJoinedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("BotLinePrefix")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("CommandPrefix")
                         .IsRequired()
                         .ValueGeneratedOnAdd()

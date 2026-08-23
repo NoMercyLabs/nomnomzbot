@@ -171,16 +171,14 @@ public sealed class PipelineServiceValidationTests
         Result<PipelineDto> updateResult = await service.UpdateAsync(
             Broadcaster.ToString(),
             created.Value.Id,
-            new UpdatePipelineDto
-            {
-                GraphJsonCache = GraphWith(ValidStep(), ValidStep()),
-            }
+            new UpdatePipelineDto { GraphJsonCache = GraphWith(ValidStep(), ValidStep()) }
         );
 
         updateResult.IsSuccess.Should().BeTrue();
 
         PipelineEntity persisted = await db.Pipelines.SingleAsync();
-        JsonDocument.Parse(persisted.GraphJsonCache!)
+        JsonDocument
+            .Parse(persisted.GraphJsonCache!)
             .RootElement.GetProperty("steps")
             .GetArrayLength()
             .Should()

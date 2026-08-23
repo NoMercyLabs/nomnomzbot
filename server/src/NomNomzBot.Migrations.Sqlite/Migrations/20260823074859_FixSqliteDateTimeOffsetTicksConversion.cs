@@ -18,7 +18,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 nullable: true,
                 oldClrType: typeof(DateTimeOffset),
                 oldType: "TEXT",
-                oldNullable: true);
+                oldNullable: true
+            );
 
             migrationBuilder.AlterColumn<long>(
                 name: "EndedAt",
@@ -27,7 +28,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 nullable: true,
                 oldClrType: typeof(DateTimeOffset),
                 oldType: "TEXT",
-                oldNullable: true);
+                oldNullable: true
+            );
 
             migrationBuilder.AlterColumn<long>(
                 name: "FiredAt",
@@ -36,7 +38,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 nullable: true,
                 oldClrType: typeof(DateTimeOffset),
                 oldType: "TEXT",
-                oldNullable: true);
+                oldNullable: true
+            );
 
             migrationBuilder.AlterColumn<long>(
                 name: "DueAt",
@@ -44,7 +47,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 type: "INTEGER",
                 nullable: false,
                 oldClrType: typeof(DateTimeOffset),
-                oldType: "TEXT");
+                oldType: "TEXT"
+            );
 
             migrationBuilder.AlterColumn<long>(
                 name: "CreatedAt",
@@ -52,7 +56,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 type: "INTEGER",
                 nullable: false,
                 oldClrType: typeof(DateTimeOffset),
-                oldType: "TEXT");
+                oldType: "TEXT"
+            );
         }
 
         /// <inheritdoc />
@@ -65,7 +70,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 nullable: true,
                 oldClrType: typeof(long),
                 oldType: "INTEGER",
-                oldNullable: true);
+                oldNullable: true
+            );
 
             migrationBuilder.AlterColumn<DateTimeOffset>(
                 name: "EndedAt",
@@ -74,7 +80,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 nullable: true,
                 oldClrType: typeof(long),
                 oldType: "INTEGER",
-                oldNullable: true);
+                oldNullable: true
+            );
 
             migrationBuilder.AlterColumn<DateTimeOffset>(
                 name: "FiredAt",
@@ -83,7 +90,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 nullable: true,
                 oldClrType: typeof(long),
                 oldType: "INTEGER",
-                oldNullable: true);
+                oldNullable: true
+            );
 
             migrationBuilder.AlterColumn<DateTimeOffset>(
                 name: "DueAt",
@@ -91,7 +99,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 type: "TEXT",
                 nullable: false,
                 oldClrType: typeof(long),
-                oldType: "INTEGER");
+                oldType: "INTEGER"
+            );
 
             migrationBuilder.AlterColumn<DateTimeOffset>(
                 name: "CreatedAt",
@@ -99,7 +108,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 type: "TEXT",
                 nullable: false,
                 oldClrType: typeof(long),
-                oldType: "INTEGER");
+                oldType: "INTEGER"
+            );
         }
     }
 }
