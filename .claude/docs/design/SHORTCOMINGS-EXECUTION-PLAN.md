@@ -32,9 +32,6 @@ Slice IDs are stable; the order is the queue.
   DB-level test (covered only via `GetActiveProviderAuthStatusAsync`), so a stale value could reach the card unnoticed.
   Done-when: the card and the Music page show the state with a one-click reconnect for `needs_reauth`, en+nl strings, and a
   test asserts the DTO served from the database carries the right status.
-- **S006** Live-game money — settle failure refunds or parks retryable; can't-pay joiner feedback;
-  runner force-cancel+refund after N tick failures (U·B2 b5). Done-when: forced settle failure refunds
-  every stake (test); a stuck runtime self-cancels.
 - **S008b** `PipelineExecution` is a dead table — the entity/table from schema H.4 has ZERO writers anywhere:
   `Status`, `ErrorMessage` and `StepLogsJson` are never persisted, so there is no execution history for a streamer to look at
   when a command misbehaves, and the dashboard has nothing to show. Found by S008 (80e9fd58) while threading run outcomes.
