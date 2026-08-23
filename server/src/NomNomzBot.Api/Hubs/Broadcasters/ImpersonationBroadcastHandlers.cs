@@ -9,8 +9,10 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -23,27 +25,28 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 /// session rides on an <c>IamRoleAssignment</c> (<see cref="ImpersonationStartedEvent.AccessGrantId"/>)
 /// whose <c>ScopeChannelId</c> names the affected tenant and whose <c>Reason</c> carries the support
 /// session's justification — neither field is on the event itself, so the handler resolves both from the
-/// grant row. Pushed as a dashboard alert to the affected tenant only, never platform-wide; a grant with no
-/// channel scope (platform-wide grant, not a per-tenant support session) is not this handler's concern and
-/// is silently skipped.
+/// grant row via <see cref="ImpersonationGrantLookup"/>.
 /// </summary>
 public sealed class ImpersonationStartedBroadcastHandler(
     IDashboardNotifier notifier,
-    IApplicationDbContext db
+    IApplicationDbContext db,
+    ILogger<ImpersonationStartedBroadcastHandler> logger
 ) : IEventHandler<ImpersonationStartedEvent>
 {
     public async Task HandleAsync(ImpersonationStartedEvent @event, CancellationToken ct = default)
     {
-        var grant = await db
-            .IamRoleAssignments.Where(a => a.Id == @event.AccessGrantId)
-            .Select(a => new { a.ScopeChannelId, a.Reason })
-            .FirstOrDefaultAsync(ct);
+        ImpersonationGrantLookup.Grant? grant = await ImpersonationGrantLookup.ResolveAsync(
+            db,
+            @event.AccessGrantId,
+            logger,
+            ct
+        );
 
-        if (grant is null || grant.ScopeChannelId is null || grant.ScopeChannelId == Guid.Empty)
+        if (grant is null)
             return;
 
         await notifier.SendAlertAsync(
-            grant.ScopeChannelId.Value.ToString(),
+            grant.ScopeChannelId.ToString(),
             new AlertDto(
                 "impersonation_started",
                 "A NomNomzBot operator started acting as a user on your channel.",
@@ -64,25 +67,32 @@ public sealed class ImpersonationStartedBroadcastHandler(
 /// <summary>
 /// Tells the affected tenant owner that the operator's act-as impersonation session ended
 /// (<see cref="ImpersonationStartedBroadcastHandler"/> — same event/grant relationship, mirrored for the
-/// end of session). Pushed as a dashboard alert to the affected tenant only.
+/// end of session). Ending impersonation is precisely when the backing grant gets revoked, so the lookup
+/// reads with <see cref="ImpersonationGrantLookup.ResolveAsync"/> which bypasses global query filters —
+/// a revoked (or otherwise filtered) grant row must still resolve, since a notification that silently
+/// disappears exactly when it matters is worse than none: the audit trail would otherwise imply the owner
+/// was told when they were not.
 /// </summary>
 public sealed class ImpersonationEndedBroadcastHandler(
     IDashboardNotifier notifier,
-    IApplicationDbContext db
+    IApplicationDbContext db,
+    ILogger<ImpersonationEndedBroadcastHandler> logger
 ) : IEventHandler<ImpersonationEndedEvent>
 {
     public async Task HandleAsync(ImpersonationEndedEvent @event, CancellationToken ct = default)
     {
-        var grant = await db
-            .IamRoleAssignments.Where(a => a.Id == @event.AccessGrantId)
-            .Select(a => new { a.ScopeChannelId, a.Reason })
-            .FirstOrDefaultAsync(ct);
+        ImpersonationGrantLookup.Grant? grant = await ImpersonationGrantLookup.ResolveAsync(
+            db,
+            @event.AccessGrantId,
+            logger,
+            ct
+        );
 
-        if (grant is null || grant.ScopeChannelId is null || grant.ScopeChannelId == Guid.Empty)
+        if (grant is null)
             return;
 
         await notifier.SendAlertAsync(
-            grant.ScopeChannelId.Value.ToString(),
+            grant.ScopeChannelId.ToString(),
             new AlertDto(
                 "impersonation_ended",
                 "A NomNomzBot operator stopped acting as a user on your channel.",
@@ -96,5 +106,48 @@ public sealed class ImpersonationEndedBroadcastHandler(
             ),
             ct
         );
+    }
+}
+
+/// <summary>
+/// Shared grant resolution for both impersonation broadcast handlers — neither
+/// <see cref="ImpersonationStartedEvent"/> nor <see cref="ImpersonationEndedEvent"/> carries the affected
+/// tenant or the support session's reason directly, so both are read off the backing
+/// <see cref="IamRoleAssignment"/> by <c>AccessGrantId</c>. <c>IgnoreQueryFilters()</c>
+/// is used deliberately: the grant row for an ENDED session has typically just been revoked (and could in
+/// future gain a soft-delete or tenant-scope filter), and the whole point of this lookup is the owner
+/// notification must not depend on the row still being "live" by whatever filter the model applies.
+/// </summary>
+internal static class ImpersonationGrantLookup
+{
+    public sealed record Grant(Guid ScopeChannelId, string? Reason);
+
+    public static async Task<Grant?> ResolveAsync(
+        IApplicationDbContext db,
+        Guid accessGrantId,
+        ILogger logger,
+        CancellationToken ct
+    )
+    {
+        var row = await db
+            .IamRoleAssignments.IgnoreQueryFilters()
+            .Where(a => a.Id == accessGrantId)
+            .Select(a => new { a.ScopeChannelId, a.Reason })
+            .FirstOrDefaultAsync(ct);
+
+        if (row is null)
+        {
+            logger.LogWarning(
+                "Impersonation broadcast: no IamRoleAssignment found for AccessGrantId {AccessGrantId} — "
+                    + "the tenant owner was NOT notified.",
+                accessGrantId
+            );
+            return null;
+        }
+
+        if (row.ScopeChannelId is null || row.ScopeChannelId == Guid.Empty)
+            return null;
+
+        return new Grant(row.ScopeChannelId.Value, row.Reason);
     }
 }
