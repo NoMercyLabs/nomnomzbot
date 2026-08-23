@@ -71,7 +71,11 @@ public sealed class MarketplaceServiceTests
             bus,
             Billing.TestTiers.Unlimited()
         );
-        PipelineService pipelines = new(db, bus);
+        ICommandConfigValidator permissiveValidator = Substitute.For<ICommandConfigValidator>();
+        permissiveValidator
+            .ValidatePipelineAsync(Arg.Any<PipelineGraphInput>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(PipelineValidationResult.Valid()));
+        PipelineService pipelines = new(db, bus, permissiveValidator);
         CustomDataSourceService dataSources = new(
             db,
             Substitute.For<ITokenProtector>(),
