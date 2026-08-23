@@ -26,9 +26,6 @@ Slice IDs are stable; the order is the queue.
   agree, but a bot restart mid-stream still drops every viewer’s pending request with no warning. Streamers restart the bot
   during a show (config change, update, crash). Done-when: the queue survives a restart with order and requester intact,
   and a viewer whose request was dropped is never silently ignored — either it is restored or the channel is told.
-- **S002** Provider queue/skip outcomes — `AddToQueueAsync`/skip bool honoured; NO_ACTIVE_DEVICE,
-  auth failures, premium-required become distinct error codes + chat replies (U·B4 b2). Done-when: each
-  failure class replies differently (tests per class).
 - **S003** Spotify visible state — 401/403 → `needs_reauth`/`forbidden` on the integration status +
   Music page; vault is the single token source (drop the `Services` mirror read) (U·A2). Done-when: a
   revoked token shows on the Integrations card and `!sr` says why; music reads no `Services` row.
