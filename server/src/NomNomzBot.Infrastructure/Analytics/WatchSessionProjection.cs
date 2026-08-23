@@ -93,25 +93,35 @@ public sealed class WatchSessionProjection(
         // The OPEN session's EndedAt/DurationSeconds are extended via a CAS-guarded ExecuteUpdateAsync
         // instead of a plain tracked read-modify-write (S004h): two concurrent folds of the SAME
         // already-open session (e.g. the driver's tick racing a manual rebuild/replay) previously both read
-        // the same stale EndedAt, each independently re-derived "elapsed since StartedAt" as ITS OWN
-        // DurationSeconds, and both deltas were folded into ViewerProfile.TotalWatchSeconds below —
+        // the same stale EndedAt, each independently re-derived elapsed-since-StartedAt as ITS OWN
+        // DurationSeconds, and both deltas were folded into ViewerProfile.TotalWatchSeconds below --
         // double-/over-counting the overlapping window instead of converging on the true wall-clock bound
-        // (measured: 15 concurrent folds of one open session inflated the total to 660s against a 150s real
-        // bound). The WHERE guard below only commits an extension while the row's EndedAt still matches what
-        // this call last observed; a losing CAS re-reads the (now newer) row and retries, so the delta it
-        // eventually folds is always the true, non-overlapping extension of the CURRENT row.
+        // (measured: 15 concurrent folds of one open session inflated ViewerProfile.TotalWatchSeconds to
+        // 430s against a 150s real bound). The WHERE guard below only commits an extension while the row's
+        // EndedAt still matches what THIS attempt last observed; a losing CAS re-reads the (now newer) row's
+        // untracked, fresh state and retries, so the delta eventually folded is always the true,
+        // non-overlapping extension of the CURRENT row.
+        WatchSession trackedSession = session; // the identity-mapped instance GetOrOpenAsync returned
+        WatchSession current = session; // this attempt's observed state -- reassigned fresh on each retry
         long watchSecondsDelta;
+        long finalDurationSeconds;
+        int finalMessageCount;
+        bool finalPresenceConfirmed;
+        DateTime finalEndedAt;
         long sessionId = session.Id;
         while (true)
         {
-            DateTime observedEndedAt = session.EndedAt ?? session.StartedAt;
+            DateTime observedEndedAt = current.EndedAt ?? current.StartedAt;
             watchSecondsDelta =
                 @event.OccurredAt > observedEndedAt
                     ? (long)(@event.OccurredAt - observedEndedAt).TotalSeconds
                     : 0;
-            DateTime newEndedAt = watchSecondsDelta > 0 ? @event.OccurredAt : observedEndedAt;
+            finalEndedAt = watchSecondsDelta > 0 ? @event.OccurredAt : observedEndedAt;
             int messageIncrement = isChatMessage ? 1 : 0;
-            DateTime? guardEndedAt = session.EndedAt;
+            finalDurationSeconds = current.DurationSeconds + watchSecondsDelta;
+            finalMessageCount = current.MessageCountInSession + messageIncrement;
+            finalPresenceConfirmed = current.PresenceConfirmed || presenceThresholdMet;
+            DateTime? guardEndedAt = current.EndedAt;
 
             int updatedRows = await db
                 .WatchSessions.IgnoreQueryFilters()
@@ -119,7 +129,7 @@ public sealed class WatchSessionProjection(
                 .ExecuteUpdateAsync(
                     setters =>
                         setters
-                            .SetProperty(s => s.EndedAt, newEndedAt)
+                            .SetProperty(s => s.EndedAt, finalEndedAt)
                             .SetProperty(
                                 s => s.DurationSeconds,
                                 s => s.DurationSeconds + watchSecondsDelta
@@ -138,12 +148,36 @@ public sealed class WatchSessionProjection(
             if (updatedRows > 0)
                 break;
 
-            // Lost the CAS race — another concurrent fold of this SAME session committed between our read
-            // and our write attempt. Re-read the row's now-current state and retry the extension against it.
-            session = await db
+            // Lost the CAS race -- another concurrent fold of this SAME session committed between our read
+            // and our write attempt. Re-read the row's now-current state (untracked, so it reflects the
+            // ACTUAL persisted row rather than the identity map's stale tracked instance) and retry.
+            current = await db
                 .WatchSessions.IgnoreQueryFilters()
                 .AsNoTracking()
                 .FirstAsync(s => s.Id == sessionId, cancellationToken);
+        }
+
+        // ExecuteUpdateAsync bypasses the change tracker, so keep the ORIGINAL tracked trackedSession
+        // instance (the one GetOrOpenAsync's identity-mapped query would hand back to any later lookup of
+        // this same row IN THIS UNIT OF WORK -- including a subsequent GetOrOpenAsync call, and the
+        // caller's own reads) in sync with what was actually just persisted, without re-persisting it as a
+        // redundant, potentially stale overwrite on a later SaveChangesAsync (mirrors the ViewerProfile
+        // sync below).
+        trackedSession.EndedAt = finalEndedAt;
+        trackedSession.DurationSeconds = finalDurationSeconds;
+        trackedSession.MessageCountInSession = finalMessageCount;
+        trackedSession.PresenceConfirmed = finalPresenceConfirmed;
+        if (db is DbContext dbSessionContext)
+        {
+            EntityEntry<WatchSession> sessionEntry = dbSessionContext.Entry(trackedSession);
+            sessionEntry.Property(s => s.EndedAt).OriginalValue = finalEndedAt;
+            sessionEntry.Property(s => s.EndedAt).IsModified = false;
+            sessionEntry.Property(s => s.DurationSeconds).OriginalValue = finalDurationSeconds;
+            sessionEntry.Property(s => s.DurationSeconds).IsModified = false;
+            sessionEntry.Property(s => s.MessageCountInSession).OriginalValue = finalMessageCount;
+            sessionEntry.Property(s => s.MessageCountInSession).IsModified = false;
+            sessionEntry.Property(s => s.PresenceConfirmed).OriginalValue = finalPresenceConfirmed;
+            sessionEntry.Property(s => s.PresenceConfirmed).IsModified = false;
         }
 
         // The per-viewer total (analytics M.1 — {user.watchtime}, community hours-watched, viewer-analytics
