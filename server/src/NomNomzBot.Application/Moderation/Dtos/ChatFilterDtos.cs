@@ -57,3 +57,19 @@ public sealed record UpdateChatFilterRequest
     public bool? IsEnabled { get; init; }
     public bool? IsCaseSensitive { get; init; }
 }
+
+/// <summary>Dry-runs a pattern the dashboard editor is not (yet) saving, against one sample message.</summary>
+public sealed record TestChatFilterRequest
+{
+    public required ChatFilterType FilterType { get; init; }
+    public string? Pattern { get; init; }
+    public List<string>? Terms { get; init; }
+    public required string SampleMessage { get; init; }
+    public bool IsCaseSensitive { get; init; }
+}
+
+/// <summary>
+/// The tester's verdict: whether the pattern compiles at all (<see cref="CompileError"/> is non-null when it does
+/// not — the same reason the save path would reject it) and, when it compiles, whether the sample matched.
+/// </summary>
+public sealed record ChatFilterTestResult(bool IsMatch, string? CompileError);

@@ -51,4 +51,11 @@ public interface IChatFilterService
 
     /// <summary>Soft-deletes a filter. <c>NOT_FOUND</c> if absent.</summary>
     Task<Result> DeleteAsync(Guid broadcasterId, Guid filterId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Dry-runs a pattern against one sample message without persisting anything — the dashboard editor's "test
+    /// this filter" seam. Never throws on a bad pattern: an invalid regex comes back as a non-matching result
+    /// carrying the compile error, exactly the reason the save path would have rejected it.
+    /// </summary>
+    Result<ChatFilterTestResult> TestPattern(TestChatFilterRequest request);
 }

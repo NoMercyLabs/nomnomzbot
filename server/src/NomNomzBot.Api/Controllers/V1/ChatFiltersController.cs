@@ -143,4 +143,17 @@ public class ChatFiltersController : BaseController
             return ResultResponse(result);
         return NoContent();
     }
+
+    /// <summary>
+    /// Dry-run a candidate pattern against one sample message — the dashboard editor's "test this filter" seam.
+    /// Nothing is persisted; an invalid regex comes back as a non-match carrying the compile error rather than an
+    /// error response, so the editor can show it inline.
+    /// </summary>
+    [RequireAction("moderation:filter:read")]
+    [HttpPost("test")]
+    [ProducesResponseType<StatusResponseDto<ChatFilterTestResult>>(StatusCodes.Status200OK)]
+    public IActionResult TestFilter([FromBody] TestChatFilterRequest request)
+    {
+        return ResultResponse(_chatFilters.TestPattern(request));
+    }
 }

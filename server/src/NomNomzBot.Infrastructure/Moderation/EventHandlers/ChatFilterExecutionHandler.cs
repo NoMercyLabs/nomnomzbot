@@ -25,6 +25,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Moderation;
 
 namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 
@@ -234,7 +235,7 @@ public sealed partial class ChatFilterExecutionHandler(
             RegexOptions options = filter.IsCaseSensitive
                 ? RegexOptions.None
                 : RegexOptions.IgnoreCase;
-            return Regex.IsMatch(message, filter.Pattern, options, TimeSpan.FromMilliseconds(100));
+            return Regex.IsMatch(message, filter.Pattern, options, ChatFilterService.MatchTimeout);
         }
         catch (ArgumentException)
         {

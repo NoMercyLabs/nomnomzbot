@@ -27,6 +27,15 @@ namespace NomNomzBot.Infrastructure.Moderation;
 /// </summary>
 public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterService
 {
+    /// <summary>
+    /// Cap on a single regex evaluation — both at save-time validation and at hot-path matching
+    /// (<see cref="Moderation.EventHandlers.ChatFilterExecutionHandler"/> uses the same value). 100ms is generous
+    /// for any legitimate moderation pattern against a single chat message, while short enough that a catastrophic
+    /// backtracking pattern (e.g. <c>(a+)+$</c>) throws <see cref="RegexMatchTimeoutException"/> long before it
+    /// could stall the chat pipeline for other channels.
+    /// </summary>
+    public static readonly TimeSpan MatchTimeout = TimeSpan.FromMilliseconds(100);
+
     public async Task<Result<PagedList<ChatFilterDto>>> ListAsync(
         Guid broadcasterId,
         PaginationParams pagination,
@@ -177,14 +186,104 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
             return Result.Success();
         if (string.IsNullOrEmpty(pattern))
             return Result.Failure("A regex filter needs a pattern.", "VALIDATION_FAILED");
+
+        string? compileError = TryCompile(pattern);
+        return compileError is null
+            ? Result.Success()
+            : Result.Failure(
+                $"The regex pattern does not compile: {compileError}",
+                "VALIDATION_FAILED"
+            );
+    }
+
+    /// <summary>
+    /// Compiles <paramref name="pattern"/> with the shared <see cref="MatchTimeout"/> and returns the .NET regex
+    /// parser's own diagnostic (it names the offending position and reason, e.g. "Not enough )'s") on failure, or
+    /// <see langword="null"/> when the pattern is well-formed. Never falls back to treating the pattern as a
+    /// literal string — a bad regex is always reported, never silently reinterpreted.
+    /// </summary>
+    private static string? TryCompile(string pattern)
+    {
         try
         {
-            _ = Regex.Match(string.Empty, pattern);
-            return Result.Success();
+            _ = new Regex(pattern, RegexOptions.None, MatchTimeout);
+            return null;
         }
-        catch (ArgumentException)
+        catch (ArgumentException ex)
         {
-            return Result.Failure("The regex pattern does not compile.", "VALIDATION_FAILED");
+            return ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// Dashboard "test this filter" seam (moderation.md J.6): compiles the candidate pattern/terms without
+    /// persisting anything and reports whether the sample message would have matched. A regex that fails to
+    /// compile comes back as a non-match carrying <see cref="ChatFilterTestResult.CompileError"/> rather than
+    /// throwing or silently falling back to literal matching.
+    /// </summary>
+    public Result<ChatFilterTestResult> TestPattern(TestChatFilterRequest request)
+    {
+        switch (request.FilterType)
+        {
+            case ChatFilterType.Regex:
+                if (string.IsNullOrEmpty(request.Pattern))
+                    return Result.Success(
+                        new ChatFilterTestResult(false, "A pattern is required.")
+                    );
+
+                string? compileError = TryCompile(request.Pattern);
+                if (compileError is not null)
+                    return Result.Success(new ChatFilterTestResult(false, compileError));
+
+                RegexOptions options = request.IsCaseSensitive
+                    ? RegexOptions.None
+                    : RegexOptions.IgnoreCase;
+                try
+                {
+                    bool isMatch = Regex.IsMatch(
+                        request.SampleMessage,
+                        request.Pattern,
+                        options,
+                        MatchTimeout
+                    );
+                    return Result.Success(new ChatFilterTestResult(isMatch, null));
+                }
+                catch (RegexMatchTimeoutException)
+                {
+                    return Result.Success(
+                        new ChatFilterTestResult(
+                            false,
+                            $"The pattern did not finish matching within {MatchTimeout.TotalMilliseconds}ms — likely catastrophic backtracking."
+                        )
+                    );
+                }
+
+            case ChatFilterType.Blocklist:
+                StringComparison comparison = request.IsCaseSensitive
+                    ? StringComparison.Ordinal
+                    : StringComparison.OrdinalIgnoreCase;
+                bool blocklistMatch =
+                    request.Terms?.Any(term =>
+                        !string.IsNullOrEmpty(term)
+                        && request.SampleMessage.Contains(term, comparison)
+                    )
+                    ?? false;
+                return Result.Success(new ChatFilterTestResult(blocklistMatch, null));
+
+            case ChatFilterType.LinkPolicy:
+                bool hasUrl = Regex.IsMatch(
+                    request.SampleMessage,
+                    @"https?://[^\s]+",
+                    RegexOptions.IgnoreCase,
+                    MatchTimeout
+                );
+                return Result.Success(new ChatFilterTestResult(hasUrl, null));
+
+            default:
+                return Result.Failure<ChatFilterTestResult>(
+                    "Unknown filter type.",
+                    "VALIDATION_FAILED"
+                );
         }
     }
 
