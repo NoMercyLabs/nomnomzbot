@@ -96,6 +96,23 @@ public sealed class SongRequestBuiltinTests
     }
 
     [Fact]
+    public async Task A_duplicate_request_carries_the_reason_naming_who_already_has_it()
+    {
+        // The refusal is only useful if the viewer learns the track is already coming and who asked for
+        // it — the generic "couldn't reach the music service" wording would be a lie here.
+        SongRequestBuiltin sut = Build(
+            requestResult: Result.Failure<MusicTrack>(
+                "\"Song Q\" is already in the queue (requested by viewer1).",
+                "DUPLICATE_TRACK"
+            )
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context("song q", roleLevel: 0));
+
+        result.Value.Should().Be("\"Song Q\" is already in the queue (requested by viewer1).");
+    }
+
+    [Fact]
     public async Task A_dead_connection_tells_the_viewer_it_needs_to_be_reconnected()
     {
         // S003 — a live 401 (SpotifyMusicProvider's classification, not just a missing token) reaches
