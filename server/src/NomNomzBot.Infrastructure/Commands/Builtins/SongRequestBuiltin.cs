@@ -88,6 +88,9 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                 {
                     "TRACK_BLOCKED" => requested.ErrorMessage!,
                     "SERVICE_UNAVAILABLE" => NoProviderMessage(context.RoleLevel),
+                    "NO_ACTIVE_DEVICE" => requested.ErrorMessage!,
+                    "PREMIUM_REQUIRED" => requested.ErrorMessage!,
+                    "MUSIC_AUTH_FAILED" => requested.ErrorMessage!,
                     _ =>
                         $"Couldn't reach the music service for \"{query}\" — try again in a moment.",
                 }

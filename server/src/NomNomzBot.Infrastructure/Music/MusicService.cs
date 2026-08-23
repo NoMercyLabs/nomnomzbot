@@ -159,16 +159,47 @@ public sealed class MusicService : IMusicService
         if (!HasCapability(provider, MusicProviderCapabilities.Skip))
             return Unsupported("skipping");
 
-        SongRequestEntry? next = null;
+        FairQueue<SongRequestEntry>? fairQueue = _queueStore.TryGet(broadcasterId);
+        SongRequestEntry? next = fairQueue?.Dequeue();
+
+        if (next is not null)
+        {
+            // Push the newly-head-of-queue track onto the provider's own queue. A failure here must
+            // not silently vanish the request: put it straight back into the fair queue (nothing was
+            // lost) and fail the skip itself with the same typed reason a viewer would get from !sr,
+            // rather than reporting the skip as done while the next track never reached the provider.
+            try
+            {
+                bool pushed = await provider.AddToQueueAsync(
+                    tenantId,
+                    next.TrackUri,
+                    cancellationToken
+                );
+                if (!pushed)
+                {
+                    fairQueue!.Enqueue(next.RequestedBy, next);
+                    return ProviderErrorOnSkip();
+                }
+            }
+            catch (PremiumRequiredException)
+            {
+                fairQueue!.Enqueue(next.RequestedBy, next);
+                return PremiumRequiredOnSkip();
+            }
+            catch (NoActiveDeviceException)
+            {
+                fairQueue!.Enqueue(next.RequestedBy, next);
+                return NoActiveDeviceOnSkip();
+            }
+            catch (MusicAuthenticationFailedException)
+            {
+                fairQueue!.Enqueue(next.RequestedBy, next);
+                return AuthFailedOnSkip();
+            }
+        }
+
         try
         {
-            // Dequeue next from fair queue and add to provider queue
-            next = DequeueNext(broadcasterId);
-            if (next is not null)
-            {
-                await provider.AddToQueueAsync(tenantId, next.TrackUri, cancellationToken);
-            }
-
             await provider.SkipAsync(tenantId, cancellationToken);
         }
         catch (PremiumRequiredException ex)
@@ -394,20 +425,37 @@ public sealed class MusicService : IMusicService
         queue.Enqueue(requestedBy ?? "anonymous", entry);
 
         // If nothing is in the provider's queue, add immediately
+        // If nothing was already ahead of it, this request is the head of the queue — push it onto the
+        // provider's own queue immediately so it starts as soon as the current track ends. A failure here
+        // means the request never reached the provider at all: it is NOT left behind as a phantom entry
+        // in our own fair queue pretending to be live — it is removed, and the caller gets the real,
+        // typed reason instead of a false "queued" success.
         int queueSize = queue.Count;
         if (queueSize <= 1)
         {
             try
             {
-                await provider.AddToQueueAsync(tenantId, trackUri, cancellationToken);
+                bool pushed = await provider.AddToQueueAsync(tenantId, trackUri, cancellationToken);
+                if (!pushed)
+                {
+                    queue.RemoveByOwner(requestedBy ?? "anonymous");
+                    return ProviderErrorOnQueue(trackInfo.TrackName);
+                }
             }
             catch (PremiumRequiredException)
             {
-                // The request stays in OUR fair queue; only the provider-side push needs Premium.
-                _logger.LogDebug(
-                    "Provider-side queue push skipped for {BroadcasterId}: Premium required",
-                    broadcasterId
-                );
+                queue.RemoveByOwner(requestedBy ?? "anonymous");
+                return PremiumRequiredOnQueue(trackInfo.TrackName);
+            }
+            catch (NoActiveDeviceException)
+            {
+                queue.RemoveByOwner(requestedBy ?? "anonymous");
+                return NoActiveDeviceOnQueue(trackInfo.TrackName);
+            }
+            catch (MusicAuthenticationFailedException)
+            {
+                queue.RemoveByOwner(requestedBy ?? "anonymous");
+                return AuthFailedOnQueue(trackInfo.TrackName);
             }
         }
 
@@ -606,6 +654,58 @@ public sealed class MusicService : IMusicService
 
     private static Result PremiumRequired(PremiumRequiredException ex) =>
         Result.Failure(ex.Message, "PREMIUM_REQUIRED");
+
+    // ── Queue-admission failure replies (!sr / AddToQueueAsync) ────────────────
+    // Each carries the track name, since the viewer just asked for that specific song and the reply
+    // needs to make clear which request failed and whether trying again is worth it.
+
+    private static Result NoActiveDeviceOnQueue(string trackName) =>
+        Result.Failure(
+            $"Couldn't queue \"{trackName}\" — nothing is playing on any device right now. Start playback and try again.",
+            "NO_ACTIVE_DEVICE"
+        );
+
+    private static Result AuthFailedOnQueue(string trackName) =>
+        Result.Failure(
+            $"Couldn't queue \"{trackName}\" — the music connection needs to be reconnected.",
+            "MUSIC_AUTH_FAILED"
+        );
+
+    private static Result PremiumRequiredOnQueue(string trackName) =>
+        Result.Failure(
+            $"Couldn't queue \"{trackName}\" — a Premium account is required for that.",
+            "PREMIUM_REQUIRED"
+        );
+
+    private static Result ProviderErrorOnQueue(string trackName) =>
+        Result.Failure(
+            $"Couldn't queue \"{trackName}\" — the music service had a problem. Try again in a moment.",
+            "PROVIDER_ERROR"
+        );
+
+    // ── Skip failure replies — the next track couldn't be pushed to the provider, so it was put
+    // back at the head of the fair queue rather than lost. ─────────────────────────────────────
+
+    private static Result NoActiveDeviceOnSkip() =>
+        Result.Failure(
+            "Skip failed — nothing is playing on any device right now. Start playback and try again.",
+            "NO_ACTIVE_DEVICE"
+        );
+
+    private static Result AuthFailedOnSkip() =>
+        Result.Failure(
+            "Skip failed — the music connection needs to be reconnected.",
+            "MUSIC_AUTH_FAILED"
+        );
+
+    private static Result PremiumRequiredOnSkip() =>
+        Result.Failure("Skip failed — a Premium account is required for that.", "PREMIUM_REQUIRED");
+
+    private static Result ProviderErrorOnSkip() =>
+        Result.Failure(
+            "Skip failed — the music service had a problem. Try again in a moment.",
+            "PROVIDER_ERROR"
+        );
 
     public async Task<bool> RemoveFromQueueAsync(
         string broadcasterId,

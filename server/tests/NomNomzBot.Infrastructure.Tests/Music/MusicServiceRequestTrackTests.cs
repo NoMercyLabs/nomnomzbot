@@ -63,6 +63,18 @@ public sealed class MusicServiceRequestTrackTests
             HttpStatusCode.InternalServerError,
             "{}"
         );
+        // The queue was empty, so admission pushes the resolved track straight to the provider — the
+        // push must succeed for the request as a whole to succeed (S002: a failed push is a failed
+        // request, not a silently-ignored one).
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Post
+                && r.RequestUri!.AbsolutePath.EndsWith(
+                    "/me/player/queue",
+                    StringComparison.Ordinal
+                ),
+            HttpStatusCode.NoContent
+        );
 
         Result<MusicTrack> result = await sut.RequestTrackAsync(
             ChannelId.ToString(),
@@ -86,6 +98,16 @@ public sealed class MusicServiceRequestTrackTests
             r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
             HttpStatusCode.OK,
             SearchJson
+        );
+        // The queue was empty, so admission pushes the resolved track straight to the provider (S002).
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Post
+                && r.RequestUri!.AbsolutePath.EndsWith(
+                    "/me/player/queue",
+                    StringComparison.Ordinal
+                ),
+            HttpStatusCode.NoContent
         );
 
         Result<MusicTrack> result = await sut.RequestTrackAsync(

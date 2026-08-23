@@ -10,6 +10,7 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -395,6 +396,16 @@ public sealed class SpotifyMusicProvider
         return await GetTokenAsync(broadcasterId, cancellationToken);
     }
 
+    /// <summary>
+    /// Pushes a track onto Spotify's player queue. A dead/expired connection throws
+    /// <see cref="MusicAuthenticationFailedException"/> (no token to send), no active playback device
+    /// throws <see cref="NoActiveDeviceException"/> (404 reason <c>NO_ACTIVE_DEVICE</c>, after
+    /// <see cref="SendPlayerCommandAsync"/>'s own last-known-device retry already failed), and a
+    /// non-Premium account throws <see cref="PremiumRequiredException"/> (raised inside
+    /// <see cref="SendPlayerCommandAsync"/>). Any other unsuccessful response (an unrecognised
+    /// provider failure — 5xx, malformed body, …) returns <c>false</c> rather than throwing, so the
+    /// caller still gets a definite outcome instead of the request silently vanishing.
+    /// </summary>
     public async Task<bool> AddToQueueAsync(
         Guid broadcasterId,
         string trackUri,
@@ -403,7 +414,7 @@ public sealed class SpotifyMusicProvider
     {
         string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
-            return false;
+            throw new MusicAuthenticationFailedException(ProviderName);
 
         string url = $"{SpotifyApiBase}/me/player/queue?uri={Uri.EscapeDataString(trackUri)}";
         HttpResponseMessage? response = await SendPlayerCommandAsync(
@@ -415,7 +426,16 @@ public sealed class SpotifyMusicProvider
             cancellationToken
         );
 
-        return response?.IsSuccessStatusCode == true;
+        if (response?.IsSuccessStatusCode == true)
+            return true;
+
+        if (
+            response is { StatusCode: HttpStatusCode.NotFound }
+            && await IsNoActiveDeviceAsync(response, cancellationToken)
+        )
+            throw new NoActiveDeviceException(ProviderName);
+
+        return false;
     }
 
     // ─── Transport (capability-gated members) ────────────────────────────────
@@ -1460,6 +1480,12 @@ public sealed class SpotifyMusicProvider
         try
         {
             response = await _http.SendAsync(BuildRequest(method, url, body), cancellationToken);
+            // Buffer the body up front: a failed response's error envelope is inspected here
+            // (premium/no-active-device) AND, on AddToQueueAsync, a second time by the caller to
+            // distinguish NO_ACTIVE_DEVICE from any other provider failure — a live network stream
+            // is forward-only, so without buffering the caller's re-read would see an empty body.
+            if (response.Content is not null)
+                await response.Content.LoadIntoBufferAsync();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -1504,10 +1530,14 @@ public sealed class SpotifyMusicProvider
             }
 
             if (transfer.IsSuccessStatusCode)
+            {
                 response = await _http.SendAsync(
                     BuildRequest(method, url, body),
                     cancellationToken
                 );
+                if (response.Content is not null)
+                    await response.Content.LoadIntoBufferAsync();
+            }
         }
 
         if (response.IsSuccessStatusCode)
@@ -1516,20 +1546,32 @@ public sealed class SpotifyMusicProvider
         return response;
     }
 
-    private static async Task<bool> IsNoActiveDeviceAsync(
+    private static Task<bool> IsNoActiveDeviceAsync(
         HttpResponseMessage response,
+        CancellationToken cancellationToken
+    ) => ErrorReasonIsAsync(response, "NO_ACTIVE_DEVICE", cancellationToken);
+
+    /// <summary>
+    /// Reads Spotify's <c>{"error":{"reason":"..."}}</c> envelope off an unsuccessful response and
+    /// compares its <c>reason</c>. Uses <c>ReadAsStringAsync</c> + <c>JsonSerializer.Deserialize</c>
+    /// rather than <c>HttpContent.ReadFromJsonAsync</c> because the latter disposes the content stream
+    /// once read — this response is inspected for more than one reason across the retry/recovery path
+    /// (premium check, no-active-device check, and again by <see cref="AddToQueueAsync"/> to
+    /// distinguish its own typed failure), so every caller needs a repeatable read of the same body.
+    /// </summary>
+    private static async Task<bool> ErrorReasonIsAsync(
+        HttpResponseMessage response,
+        string reason,
         CancellationToken cancellationToken
     )
     {
         try
         {
-            SpotifyErrorEnvelope? envelope =
-                await response.Content.ReadFromJsonAsync<SpotifyErrorEnvelope>(
-                    cancellationToken: cancellationToken
-                );
+            string body = await response.Content.ReadAsStringAsync(cancellationToken);
+            SpotifyErrorEnvelope? envelope = JsonSerializer.Deserialize<SpotifyErrorEnvelope>(body);
             return string.Equals(
                 envelope?.Error?.Reason,
-                "NO_ACTIVE_DEVICE",
+                reason,
                 StringComparison.OrdinalIgnoreCase
             );
         }
@@ -1565,28 +1607,10 @@ public sealed class SpotifyMusicProvider
         }
     }
 
-    private static async Task<bool> IsPremiumRequiredAsync(
+    private static Task<bool> IsPremiumRequiredAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken
-    )
-    {
-        try
-        {
-            SpotifyErrorEnvelope? envelope =
-                await response.Content.ReadFromJsonAsync<SpotifyErrorEnvelope>(
-                    cancellationToken: cancellationToken
-                );
-            return string.Equals(
-                envelope?.Error?.Reason,
-                "PREMIUM_REQUIRED",
-                StringComparison.OrdinalIgnoreCase
-            );
-        }
-        catch (Exception)
-        {
-            return false;
-        }
-    }
+    ) => ErrorReasonIsAsync(response, "PREMIUM_REQUIRED", cancellationToken);
 
     // ─── Mapping ─────────────────────────────────────────────────────────────
 
