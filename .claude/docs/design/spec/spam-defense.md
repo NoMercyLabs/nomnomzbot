@@ -59,6 +59,7 @@ earned capability.
 | **SD7** | **Every action is explainable.** Each enforcement records the normalized text, the signals that fired, their weights, and the resulting score. No black-box bans. |
 | **SD8** | **Established regulars are immune — absolutely.** A long-term active participant is **never** auto-actioned by this subsystem, at any confidence, by any signal, from any source. The engine may flag for a human; it may not delete, hold, time out, ban, or block. This is a hard invariant, not a high threshold. |
 | **SD9** | **Presence is never an offence.** No account is ever actioned for being silent, for being new, or for arriving at the same moment as an attack. Every action requires a signal *that account itself* produced. Bursts and spikes select a **window to scrutinise**, never a set to punish. |
+| **SD10** | **Account risk multiplies, it never adds.** Score = content signal × account-risk coefficient, so zero content signal is zero score whatever the account looks like. Nobody is ever actioned for *what they are* — only for *what they said*. The two marks that describe silence are pinned at ×1.0 and move nothing (§L1.1). |
 
 ---
 
@@ -103,19 +104,38 @@ One corpus entry now covers both, and every future respacing of it.
 
 ### L1 — Account Risk
 
-A per-message risk score from account properties, cached per user per channel.
+Account properties, cached per user per channel.
 
-| Signal | Weight |
+| Mark | Multiplier |
 |---|---|
-| Account age < 7d / < 30d / < 6mo | high / medium / low |
-| Not following, or following < 24h | medium |
-| First message ever in this channel | medium |
-| Default profile (no avatar, empty bio, zero streams) | low |
-| Username matches generated-handle pattern (`word` + 4–8 digits, or high-entropy) | medium |
-| Zero chat history platform-wide across this instance's channels | medium |
+| Account age < 7d / < 30d / < 6mo | ×1.6 / ×1.3 / ×1.1 |
+| Not following, or following < 24h | ×1.2 |
+| Default profile (no avatar, empty bio, zero streams) | ×1.15 |
+| Username matches generated-handle pattern (`word` + 4–8 digits, or high-entropy) | ×1.4 |
+| First message ever in this channel | **×1.0 — a mark, never a multiplier** |
+| Zero chat history across this instance's channels | **×1.0 — a mark, never a multiplier** |
 
-Persisted onto the existing `UserTrustScore` entity (`TrustScore` / `HeatScore`) rather than a
-parallel store.
+#### L1.1 — L1 multiplies, it never adds (the lurker's-first-word rule)
+
+**Final score = ContentSignalScore × AccountRiskMultiplier.** L1 is a *coefficient*, and there is
+no additive path from it into the score. The consequence is the point:
+
+> **Content signal of zero × any multiplier = zero.** An account with every risk mark on it,
+> saying something ordinary, scores zero and is not evaluated further.
+
+An account cannot be actioned for *what it is*. Only for *what it said*. L1 decides how hard a
+suspicious message is judged; it can never make an unsuspicious one suspicious.
+
+The two marks pinned at ×1.0 are the ones that describe **silence**, and they are deliberately
+inert. "First message ever" and "no chat history" are the definition of a lurker finally speaking
+— the single most sympathetic person in the channel, and under any additive scheme the one who
+stacks two mediums for the crime of having been quiet. They are recorded, they show in the mod's
+explanation, and they move nothing. A ten-year lurker's first word is scored exactly like a
+regular's thousandth.
+
+They earn their keep in one place only: **corroboration**. Where a content signal has *already*
+fired, they can raise a Medium to High — which per SD1 means a `Hold` into the review queue, not
+an action. Silence never bans anyone.
 
 ### L2 — Content Signals
 
@@ -259,6 +279,7 @@ Per **SD1**:
 | **High** — cosmetic-abuse chars, corpus hit, confirmed campaign cohort, malicious link | Act immediately: delete + timeout/ban per the channel's escalation policy. Logged, explainable, one-click undo. |
 | **Medium** — capability not yet earned (a Newcomer's first link), promo shape without a corpus hit | **Hold**: the message does not post, and lands in the mod review queue. Approving it also credits the sender's trust. |
 | **Low** — a single weak signal | Flag only. Visible to mods in the chat feed, no action. |
+| **Zero** — no content signal fired | Nothing. No record beyond the routine trust-counter update. Per SD10 this is where every silent, new, or odd-looking account saying something ordinary lands, regardless of its marks. |
 
 `ChatFilterAction` already carries `Delete / Timeout / Hold / Flag / Escalate`, and
 `ModerationEscalationService` already owns the strike ladder — L5 routes into both rather than
@@ -391,6 +412,13 @@ table-driven test over the full signal enum, so **adding a new signal without co
 the build** — the immunity cannot decay as the system grows. Plus: an Established viewer who
 quotes a live campaign's exact spam text is asserted absent from the resulting `SpamCampaign`
 member set, and unactioned.
+
+**SD10 — L1 cannot act alone.** Construct the worst-looking account the risk table can describe —
+2 days old, not following, default profile, generated-handle username, zero history anywhere,
+first message ever — and have it say `hi`. Assert final score `0`, `ActionTaken == None`, and that
+the message posted. Then assert the *stored explanation* still lists all six marks, so a mod can
+see the system looked and chose not to act. Repeat for a plain greeting in Japanese with the
+non-Latin gate off, and for a greeting containing an emote.
 
 **SD9 — Lurker safety.** A synthetic viral moment: 500 accounts follow inside 60 seconds, 480 of
 them ordinary profiles with real history, 20 matching known-bot patterns. Assert exactly 20
