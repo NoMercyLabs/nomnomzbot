@@ -10,6 +10,19 @@
     }
   ],
   "paths": {
+    "/oauth-relay": {
+      "get": {
+        "tags": [
+          "OAuthRelay"
+        ],
+        "summary": "Serve the relay page that posts the OAuth callback params to the opener window and auto-closes.",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/action-permissions": {
       "get": {
         "tags": [
@@ -844,6 +857,96 @@
         }
       }
     },
+    "/api/v{version}/admin/billing/invoices/{invoiceId}/refund": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Refund a paid invoice in full via Stripe; marks the local invoice `Refunded`.",
+        "parameters": [
+          {
+            "name": "invoiceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/admin/stats": {
       "get": {
         "tags": [
@@ -1493,6 +1596,116 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfListOfPlatformEventDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/admin/security/rotate-encryption-key": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "KEK-rotation re-wrap pass (gdpr-crypto): re-wraps every stored DEK from\r\nstring RotateEncryptionKeyRequestDto.PreviousKey to\r\nstring RotateEncryptionKeyRequestDto.CurrentKey so a rotated `Encryption:Key` does not\r\norphan stored secrets. Idempotent — a second call re-wraps nothing.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotateEncryptionKeyRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotateEncryptionKeyRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotateEncryptionKeyRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfDekRotationSummary"
                 }
               }
             }
@@ -3854,6 +4067,13 @@
             }
           },
           {
+            "name": "return_route",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "version",
             "in": "path",
             "required": true,
@@ -3931,7 +4151,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Handle the OAuth callback from Twitch. Exchanges the authorization code for\r\nplatform tokens. If a mobile `redirect_uri` was passed in the original\r\nrequest, the browser is redirected to the app's deep link with tokens in the\r\nquery string. Otherwise returns a JSON response (for web clients).",
+        "summary": "Handle the OAuth callback from Twitch. Exchanges the authorization code for platform tokens and returns\r\nthem in a JSON body (S098c: a mobile `redirect_uri` no longer carries any token in the query string\r\n— mobile is a native client and reads its tokens from this response body like any other native caller).\r\nThe served-web flow is the only success path that still redirects, and only the short-lived access\r\ntoken rides in that redirect's URL fragment.",
         "parameters": [
           {
             "name": "code",
@@ -4854,7 +5074,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Refresh an expired access token.",
+        "summary": "Refresh an expired access token. Custody — cookie (web) vs body (native) — is decided by whether the\r\nrequest itself carries the `nnz_refresh_token` HttpOnly cookie; a caller-controlled `?client=`\r\nquery flag is never consulted (S098c — it let any caller flip which custody path a request took). A\r\ncookie-borne refresh additionally requires an allowed Origin: `SameSite=Lax` alone still lets a\r\ntop-level cross-site navigation attach the cookie, so a forged Origin/Referer is rejected outright. A\r\nbody-borne (native) refresh carries no ambient browser credential, so it is not subject to that check.",
         "parameters": [
           {
             "name": "client",
@@ -12633,6 +12853,202 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/overlay-token": {
+      "get": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "The channel's overlay token — every widget/overlay browser-source URL's `?token=`.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfstring"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/overlay-token/rotate": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Mints a new overlay token — every existing widget/overlay URL for this channel stops working.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfstring"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/join": {
       "post": {
         "tags": [
@@ -18391,7 +18807,7 @@
         "tags": [
           "Compliance"
         ],
-        "summary": "Erase a subject's data on their behalf (broadcaster- or platform-initiated). The requester kind is\r\nconstrained to the operator plane — a body claiming `self_service` is rejected by validation.",
+        "summary": "Erase a subject's data on their behalf (broadcaster- or platform-initiated). The requester kind is\r\nconstrained to the operator plane — a body claiming `self_service` is rejected by validation.\r\nGated on `compliance:erasure` — a destructive, irreversible action distinct from the\r\nsupport-visit `tenant:access` key; holding tenant:access alone must not permit erasure.",
         "parameters": [
           {
             "name": "version",
@@ -23732,6 +24148,29 @@
         }
       }
     },
+    "/api/v{version}/discord/interactions": {
+      "post": {
+        "tags": [
+          "Discord"
+        ],
+        "summary": "Receive one Discord interaction: verify the Ed25519 signature over the raw bytes (401 on any failure), then route and answer with the interaction-response JSON.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/integrations/discord/callback/start": {
       "get": {
         "tags": [
@@ -25501,6 +25940,104 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfEventJournalImportSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/event-store/channels/{channelId}/replay": {
+      "post": {
+        "tags": [
+          "EventStore"
+        ],
+        "summary": "Replays every imported-but-not-yet-replayed event for the channel, in their original order, through the\r\nSAME live-handler path a real Twitch event takes — so pipeline triggers, TTS-enabled commands, and reward\r\nhandling actually re-run for the imported history instead of just sitting silently in the journal. Owner-\r\nonly. Idempotent: only advances past NEW imported rows since the last replay, so calling it again after\r\nnothing new was imported is a safe no-op. Cannot touch another channel's events — the runner reads only\r\nthis resolved tenant's own stream (event-store §3.3).",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOflong"
                 }
               }
             }
@@ -31702,6 +32239,37 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v{version}/webhooks/in/{token}": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Ingest a token-addressed webhook delivery: guard content-type and the 256 KiB size cap, buffer the raw bytes, dispatch, and answer with a bare status code.",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -42090,6 +42658,216 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/moderation/shoutout-template": {
+      "get": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "The channel's custom shoutout announcement template (the `shoutout` pipeline action posts this,\r\nresolved via the normal template-variable engine, alongside every native Twitch shoutout). Null/empty\r\nmeans the built-in default is used.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfShoutoutTemplateDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Sets (or clears, with a null/empty template) the channel's custom shoutout announcement template.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoutoutTemplateDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoutoutTemplateDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoutoutTemplateDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/music/config": {
       "get": {
         "tags": [
@@ -46143,6 +46921,402 @@
         }
       }
     },
+    "/api/v{version}/overlay/spotify-token": {
+      "get": {
+        "tags": [
+          "Overlay"
+        ],
+        "summary": "A short-lived scoped Spotify access token for the OBS playback widget's in-browser Web Playback SDK\r\nplayer. Never the refresh token; the widget re-fetches this whenever the SDK's `getOAuthToken`\r\ncallback fires (roughly hourly, matching Spotify's own token lifetime).",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfstring"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/overlay/now-playing": {
+      "get": {
+        "tags": [
+          "Overlay"
+        ],
+        "summary": "The current playback state, so a `now_playing` widget can render the real track the instant it mounts\r\ninstead of showing nothing until the next `now_playing` hub event arrives. `Data` is null when\r\nnothing is currently playing.",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfOverlayNowPlayingSnapshot"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/overlay/storage/{key}": {
+      "get": {
+        "tags": [
+          "Overlay"
+        ],
+        "summary": "A single script-storage value for this channel, so a widget can bootstrap durable game/session state\r\n(e.g. the current holder of a hot-potato reward) the instant it mounts instead of waiting for the next\r\nlive event.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfstring"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/overlay/queue": {
+      "get": {
+        "tags": [
+          "Overlay"
+        ],
+        "summary": "The channel's current playback queue (excluding the now-playing track).",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfMusicQueueItem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/overlay/bundle/{widgetId}": {
       "get": {
         "tags": [
@@ -49338,7 +50512,7 @@
         "tags": [
           "Admin"
         ],
-        "summary": "Begins an act-as impersonation of a registered user — mints an access-only token carrying that\r\nuser's identity and roles (never the operator's). Justification is mandatory and audited.",
+        "summary": "Begins an act-as impersonation of a registered user — mints an access-only token carrying that\r\nuser's identity and roles (never the operator's), clamped to the remaining lifetime of the OPEN\r\nsupport session named by Guid ImpersonateUserRequest.AccessGrantId. Justification is\r\nmandatory and audited. SaaS-only; rate-limited (S089a).",
         "parameters": [
           {
             "name": "userId",
@@ -49446,6 +50620,96 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfImpersonationTokenDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/admin/impersonation/{accessGrantId}": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Ends an impersonation session — the minted token fails authentication on its next request.",
+        "parameters": [
+          {
+            "name": "accessGrantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               }
             }
@@ -73278,6 +74542,57 @@
         },
         "description": "The machine-readable export result. `Document` carries the full Newtonsoft-serialized JSON export\r\ndocument inline (as-built extension of the spec shape — the self-service endpoint hands the document\r\nstraight to the caller; there is no file store behind `ExportLocation`, which is the API path that\r\nidentifies the request)."
       },
+      "DekRotationFailure": {
+        "required": [
+          "cryptoKeyId",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "cryptoKeyId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "description": "One DEK per record's wrapped material under CryptoKeyId could not be unwrapped with\r\neither the previous or the current root key — it is orphaned (crypto-shredded in all but name) and is\r\nreported rather than silently dropped from the pass."
+      },
+      "DekRotationSummary": {
+        "required": [
+          "rewrappedCount",
+          "alreadyCurrentCount",
+          "failures"
+        ],
+        "type": "object",
+        "properties": {
+          "rewrappedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "alreadyCurrentCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "failures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DekRotationFailure"
+            }
+          }
+        },
+        "description": "Outcome of one Task&lt;Result&lt;DekRotationSummary&gt;&gt; IDekRotationService.RotateAllDeksAsync(string previousRootKey, string currentRootKey, CancellationToken cancellationToken = default(CancellationToken)) pass."
+      },
       "DeviceBotPollDto": {
         "required": [
           "status"
@@ -75942,20 +77257,27 @@
       },
       "ImpersonateUserRequest": {
         "required": [
+          "accessGrantId",
           "justification"
         ],
         "type": "object",
         "properties": {
+          "accessGrantId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
           "justification": {
             "type": "string"
           }
         },
-        "description": "Request to begin an act-as impersonation of a registered user — justification is mandatory (stream-admin.md §4)."
+        "description": "Request to begin an act-as impersonation of a registered user — justification is mandatory, and\r\nGuid ImpersonateUserRequest.AccessGrantId must name an OPEN support-access grant (BeginTenantAccessRequest)\r\nbelonging to the caller: minting is refused without one (S089a stream-admin.md §4)."
       },
       "ImpersonationTokenDto": {
         "required": [
           "accessToken",
           "expiresAt",
+          "sessionId",
           "user"
         ],
         "type": "object",
@@ -75967,11 +77289,16 @@
             "type": "string",
             "format": "date-time"
           },
+          "sessionId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
           "user": {
             "$ref": "#/components/schemas/UserDto"
           }
         },
-        "description": "The minted act-as token for an impersonation session: an access-only JWT carrying the TARGET user's\r\nidentity + roles (never the operator's), its expiry, and the impersonated user's profile (stream-admin.md §4)."
+        "description": "The minted act-as token for an impersonation session: an access-only JWT carrying the TARGET user's\r\nidentity + roles (never the operator's), its expiry (clamped to the backing support session's remaining\r\ntime), the session id to end it with, and the impersonated user's profile (stream-admin.md §4)."
       },
       "ImportConflictPolicy": {
         "type": "integer",
@@ -77645,6 +78972,45 @@
         },
         "description": "Full music queue including now playing and upcoming tracks."
       },
+      "MusicQueueItem": {
+        "required": [
+          "trackName",
+          "artist",
+          "imageUrl",
+          "durationMs",
+          "requestedBy"
+        ],
+        "type": "object",
+        "properties": {
+          "trackName": {
+            "type": "string"
+          },
+          "artist": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "requestedBy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "An item in the music playback queue."
+      },
       "NetworkBanResultDto": {
         "required": [
           "attempted",
@@ -78536,6 +79902,76 @@
           }
         },
         "description": "The public, token-resolved overlay manifest (widgets-overlays.md §4). The single read an OBS browser source\r\nneeds: the channel's enabled, successfully-built widgets, each with the URL to fetch its compiled bundle, the\r\ncontent hash (cache-bust key), its render-time trust tier, and its live settings + event subscriptions."
+      },
+      "OverlayNowPlayingSnapshot": {
+        "required": [
+          "isPlaying",
+          "track",
+          "artist",
+          "artUrl",
+          "provider",
+          "trackUri",
+          "durationMs",
+          "progressMs",
+          "observedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "isPlaying": {
+            "type": "boolean"
+          },
+          "track": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "artist": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "artUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "provider": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "trackUri": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "progressMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "The current playback state for an overlay token's channel, field-for-field identical to the\r\n`now_playing` widget event payload (`WidgetNowPlayingHandler`) — a `now_playing` widget fetches\r\nthis once on mount so it can render the real current track immediately instead of waiting for the next\r\nplayback change to arrive over the hub."
       },
       "OverlayWidgetEntry": {
         "required": [
@@ -82096,6 +83532,21 @@
           }
         }
       },
+      "RotateEncryptionKeyRequestDto": {
+        "required": [
+          "previousKey",
+          "currentKey"
+        ],
+        "type": "object",
+        "properties": {
+          "previousKey": {
+            "type": "string"
+          },
+          "currentKey": {
+            "type": "string"
+          }
+        }
+      },
       "SaveCredentialRequest": {
         "required": [
           "clientId",
@@ -83015,6 +84466,20 @@
         "properties": {
           "targetTwitchUserId": {
             "type": "string"
+          }
+        }
+      },
+      "ShoutoutTemplateDto": {
+        "required": [
+          "template"
+        ],
+        "type": "object",
+        "properties": {
+          "template": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -84110,6 +85575,36 @@
               },
               {
                 "$ref": "#/components/schemas/DataExportDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfDekRotationSummary": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DekRotationSummary"
               }
             ]
           },
@@ -85902,6 +87397,35 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfMusicQueueItem": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/MusicQueueItem"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfIReadOnlyListOfObsInputDto": {
         "type": "object",
         "properties": {
@@ -86862,6 +88386,34 @@
           }
         }
       },
+      "StatusResponseDtoOflong": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfMediaShareConfigDto": {
         "type": "object",
         "properties": {
@@ -87483,6 +89035,36 @@
           }
         }
       },
+      "StatusResponseDtoOfOverlayNowPlayingSnapshot": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OverlayNowPlayingSnapshot"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfPairingCodeDto": {
         "type": "object",
         "properties": {
@@ -88036,6 +89618,36 @@
               },
               {
                 "$ref": "#/components/schemas/SharedBanTrustedChannelDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfShoutoutTemplateDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ShoutoutTemplateDto"
               }
             ]
           },
@@ -94770,6 +96382,9 @@
   },
   "tags": [
     {
+      "name": "OAuthRelay"
+    },
+    {
       "name": "ActionPermissions"
     },
     {
@@ -94884,13 +96499,13 @@
       "name": "Import"
     },
     {
+      "name": "Webhooks"
+    },
+    {
       "name": "Integrations"
     },
     {
       "name": "System"
-    },
-    {
-      "name": "Webhooks"
     },
     {
       "name": "LiveOps"
