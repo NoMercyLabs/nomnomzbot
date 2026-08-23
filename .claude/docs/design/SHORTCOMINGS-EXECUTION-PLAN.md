@@ -62,8 +62,6 @@ Slice IDs are stable; the order is the queue.
 - **S016** Dead config honoured or removed — command Prefix/Match modes wired; `overlay` response type
   implemented; `Pipeline.IsEnabled` honoured in registry/timer/executor (U·B1). Done-when: each toggle
   changes runtime behaviour (test per field).
-- **S017** Stale caches — pipeline create/update/delete invalidates command + chat-trigger caches;
-  timer fire resolves `PipelineStep`-first (U·B1, S·F3). Done-when: edit → next run uses new graph.
 - **S018** Raid flow — `start_raid` fires first, tolerates already-raiding, live pre-check,
   lookup-vs-not-found, `missing_scope` → re-grant flow, publishes `RaidSentEvent`; shoutout cooldown
   skip visible; `{args.N}` strips `@` (U·A1). Done-when: raid preset in S044 can run every step or name
