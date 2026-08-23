@@ -59,9 +59,6 @@ Slice IDs are stable; the order is the queue.
   failed write's error, so the dashboard can show a success state for a write the backend rejected. Confirmed frontend-only by
   S014 (0805bc29) via grep; no backend equivalent exists. Done-when: a rejected write surfaces its reason in the UI and the
   optimistic state rolls back, proven for at least three unrelated feature controllers.
-- **S015** Filters truth — regex save-time check + tester; invalid regex not silently literal; empty
-  allow-list warning; filter-conflict warning; stats not `Contains("ban")`; Helix already-actioned
-  handling; `WarningAcknowledgedEvent` handler (S·F17–19, U·B3 backend). Done-when: stats = journal.
 - **S016** Dead config honoured or removed — command Prefix/Match modes wired; `overlay` response type
   implemented; `Pipeline.IsEnabled` honoured in registry/timer/executor (U·B1). Done-when: each toggle
   changes runtime behaviour (test per field).
