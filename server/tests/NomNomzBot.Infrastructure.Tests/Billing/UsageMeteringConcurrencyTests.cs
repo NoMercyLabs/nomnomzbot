@@ -30,6 +30,7 @@ namespace NomNomzBot.Infrastructure.Tests.Billing;
 /// and the cold-start insert race (no row exists yet for the period, so the unique index on
 /// (BroadcasterId, MetricKey, PeriodStart) is contended too).
 /// </summary>
+[Collection("SqliteFileConcurrency")]
 public sealed class UsageMeteringConcurrencyTests : IDisposable
 {
     private static readonly Guid Channel = Guid.Parse("0192c000-0000-7000-8000-0000000000f1");
@@ -45,9 +46,27 @@ public sealed class UsageMeteringConcurrencyTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
-        if (File.Exists(_dbPath))
-            File.Delete(_dbPath);
+        // S119: SqliteConnection.ClearAllPools() flushes EVERY pooled native handle process-wide, including
+        // ones other test classes running concurrently (xUnit's default cross-class parallelism) are
+        // actively using — a documented source of a native e_sqlite3 crash with no managed exception and no
+        // dump. Scope the flush to THIS test's own connection string so it only releases handles this test
+        // opened.
+        using (SqliteConnection ownPool = new(ConnectionString))
+            SqliteConnection.ClearPool(ownPool);
+
+        foreach (
+            string path in new[]
+            {
+                _dbPath,
+                $"{_dbPath}-wal",
+                $"{_dbPath}-shm",
+                $"{_dbPath}-journal",
+            }
+        )
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
     }
 
     private EventStoreTestDbContext NewContext()

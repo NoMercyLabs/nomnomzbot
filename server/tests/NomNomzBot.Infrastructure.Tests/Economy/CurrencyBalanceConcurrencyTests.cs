@@ -30,6 +30,7 @@ namespace NomNomzBot.Infrastructure.Tests.Economy;
 /// by SQLite's own locking rather than by C# awaiting one connection — the same interleaving a
 /// read-modify-write race depends on to lose an update.
 /// </summary>
+[Collection("SqliteFileConcurrency")]
 public sealed class CurrencyBalanceConcurrencyTests : IDisposable
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000f1");
@@ -47,9 +48,27 @@ public sealed class CurrencyBalanceConcurrencyTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
-        if (File.Exists(_dbPath))
-            File.Delete(_dbPath);
+        // S119: SqliteConnection.ClearAllPools() flushes EVERY pooled native handle process-wide, including
+        // ones other test classes running concurrently (xUnit's default cross-class parallelism) are
+        // actively using — a documented source of a native e_sqlite3 crash with no managed exception and no
+        // dump. Scope the flush to THIS test's own connection string so it only releases handles this test
+        // opened.
+        using (SqliteConnection ownPool = new(ConnectionString))
+            SqliteConnection.ClearPool(ownPool);
+
+        foreach (
+            string path in new[]
+            {
+                _dbPath,
+                $"{_dbPath}-wal",
+                $"{_dbPath}-shm",
+                $"{_dbPath}-journal",
+            }
+        )
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
     }
 
     private EventStoreTestDbContext NewContext()

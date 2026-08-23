@@ -36,6 +36,7 @@ namespace NomNomzBot.Infrastructure.Tests.Widgets;
 /// <c>WidgetSqliteTestDatabase</c>'s single kept-open <c>:memory:</c> connection), so the race is genuinely
 /// arbitrated by SQLite's own locking rather than by C# awaiting one connection.
 /// </summary>
+[Collection("SqliteFileConcurrency")]
 public sealed class WidgetGalleryInstallConcurrencyTests : IDisposable
 {
     private static readonly FakeTimeProvider Clock = new(new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero));
@@ -49,9 +50,27 @@ public sealed class WidgetGalleryInstallConcurrencyTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
-        if (File.Exists(_dbPath))
-            File.Delete(_dbPath);
+        // S119: SqliteConnection.ClearAllPools() flushes EVERY pooled native handle process-wide, including
+        // ones other test classes running concurrently (xUnit's default cross-class parallelism) are
+        // actively using — a documented source of a native e_sqlite3 crash with no managed exception and no
+        // dump. Scope the flush to THIS test's own connection string so it only releases handles this test
+        // opened.
+        using (SqliteConnection ownPool = new(ConnectionString))
+            SqliteConnection.ClearPool(ownPool);
+
+        foreach (
+            string path in new[]
+            {
+                _dbPath,
+                $"{_dbPath}-wal",
+                $"{_dbPath}-shm",
+                $"{_dbPath}-journal",
+            }
+        )
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
     }
 
     private WidgetTestDbContext NewContext()
