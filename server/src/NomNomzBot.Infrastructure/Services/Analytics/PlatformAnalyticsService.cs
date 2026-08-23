@@ -13,15 +13,21 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Domain.Analytics.Entities;
+using NomNomzBot.Domain.Enums.Deployment;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 
 namespace NomNomzBot.Infrastructure.Services.Analytics;
 
 /// <summary>
-/// SaaS-only cross-tenant platform stats (analytics.md §3.4). Self-gates on the deployment profile: a deployment
-/// with no platform IAM principals is self-host, where there is no cross-tenant view, so it returns
+/// SaaS-only cross-tenant platform stats (analytics.md §3.4). Self-gates on the deployment mode (fix D2 —
+/// read from <see cref="DeploymentContext"/>, never derived from whether any <c>IamPrincipal</c> row exists,
+/// since self-host now bootstraps a real owner principal): self-host has no cross-tenant view, so it returns
 /// <c>FEATURE_DISABLED</c>. On SaaS it folds the no-PII channel aggregate (M.8) across every tenant.
 /// </summary>
-public sealed class PlatformAnalyticsService(IApplicationDbContext db) : IPlatformAnalyticsService
+public sealed class PlatformAnalyticsService(
+    IApplicationDbContext db,
+    DeploymentContext deploymentContext
+) : IPlatformAnalyticsService
 {
     private const int MaxRangeDays = 366;
 
@@ -37,9 +43,8 @@ public sealed class PlatformAnalyticsService(IApplicationDbContext db) : IPlatfo
                 "VALIDATION_FAILED"
             );
 
-        // SaaS iff platform IAM is provisioned; self-host has no cross-tenant plane.
-        bool isSaas = await db.IamPrincipals.AnyAsync(ct);
-        if (!isSaas)
+        // SaaS iff the deployment mode says so (fix D2); self-host has no cross-tenant plane.
+        if (deploymentContext.Mode != DeploymentMode.Saas)
             return Result.Failure<PlatformAnalyticsDto>(
                 "Platform analytics is available on the hosted platform only.",
                 "FEATURE_DISABLED"
