@@ -42,7 +42,13 @@ public sealed class SendMessageAction : ICommandAction
             ctx.BroadcasterId,
             ctx.CancellationToken
         );
-        await _chat.SendMessageAsync(ctx.BroadcasterId, resolved, ctx.CancellationToken);
-        return ActionResult.Success(resolved);
+        bool sent = await _chat.SendMessageAsync(
+            ctx.BroadcasterId,
+            resolved,
+            ctx.CancellationToken
+        );
+        return sent
+            ? ActionResult.Success(resolved)
+            : ActionResult.Failure("send_message could not be delivered");
     }
 }

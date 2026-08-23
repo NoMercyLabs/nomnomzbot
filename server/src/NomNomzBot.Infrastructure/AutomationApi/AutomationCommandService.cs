@@ -270,8 +270,15 @@ public class AutomationCommandService : IAutomationCommandService
 
         if (request.ReplyToMessageId is { } replyTo)
         {
-            await _chat.SendReplyAsync(principal.BroadcasterId, replyTo, request.Text, ct);
-            return Result.Success();
+            bool replySent = await _chat.SendReplyAsync(
+                principal.BroadcasterId,
+                replyTo,
+                request.Text,
+                ct
+            );
+            return replySent
+                ? Result.Success()
+                : Result.Failure("The chat reply could not be sent.", "SERVICE_UNAVAILABLE");
         }
 
         bool sent = await _chat.SendMessageAsync(principal.BroadcasterId, request.Text, ct);

@@ -315,12 +315,12 @@ internal sealed class SpyChatProvider : IChatProvider
         return Task.FromResult(true);
     }
 
-    public Task SendReplyAsync(
+    public Task<bool> SendReplyAsync(
         Guid broadcasterId,
         string replyToMessageId,
         string message,
         CancellationToken cancellationToken = default
-    ) => Task.CompletedTask;
+    ) => Task.FromResult(true);
 
     public Task TimeoutUserAsync(
         Guid broadcasterId,

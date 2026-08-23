@@ -111,7 +111,11 @@ public sealed class PipelineTestRunService(
         );
 
         bool anyStepFailed = result.StepLogs.Any(l => !l.Succeeded);
-        bool success = result.Outcome == PipelineOutcome.Completed && !anyStepFailed;
+        // Stopped is a deliberate `stop`/`stop_on_match` step — the run still did its intended work.
+        // PartiallyFailed (a failed action broke the run early) must never count as success.
+        bool success =
+            result.Outcome is PipelineOutcome.Completed or PipelineOutcome.Stopped
+            && !anyStepFailed;
 
         string? error = result.ErrorMessage;
         if (error is null && anyStepFailed)

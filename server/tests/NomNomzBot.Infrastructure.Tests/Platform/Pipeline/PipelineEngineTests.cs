@@ -229,7 +229,8 @@ public class InfraPipelineEngineTests
 
         PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
 
-        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        // The second step is a deliberate `stop` — Stopped, not Completed (see the dedicated Stopped test).
+        result.Outcome.Should().Be(PipelineOutcome.Stopped);
         result.StepLogs.Should().HaveCount(2);
     }
 
@@ -356,6 +357,75 @@ public class InfraPipelineEngineTests
         { /* expected cancellations */
         }
         ctsList.ForEach(cts => cts.Dispose());
+    }
+
+    // ─── Outcome threading (S008) ───────────────────────────────────────────────
+
+    [Fact]
+    public async Task ExecuteAsync_MiddleStepSendFails_ReturnsPartiallyFailed()
+    {
+        // A middle step that fails to send must break the run and report PartiallyFailed — never
+        // Completed — and the third step must never run.
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendMessageAsync(Arg.Any<Guid>(), "first", Arg.Any<CancellationToken>()).Returns(true);
+        chat.SendMessageAsync(Arg.Any<Guid>(), "second", Arg.Any<CancellationToken>())
+            .Returns(false);
+        chat.SendMessageAsync(Arg.Any<Guid>(), "third", Arg.Any<CancellationToken>()).Returns(true);
+
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci => Task.FromResult((string)ci[0]));
+
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);
+        NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext db =
+            Substitute.For<NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext>();
+
+        PipelineEngine engine = new(
+            db,
+            registry,
+            [new NomNomzBot.Infrastructure.Chat.PipelineActions.SendMessageAction(chat, resolver)],
+            [],
+            NullLogger<PipelineEngine>.Instance,
+            TimeProvider.System
+        );
+
+        const string json = """
+            {
+              "steps": [
+                {"action":{"type":"send_message","message":"first"}},
+                {"action":{"type":"send_message","message":"second"}},
+                {"action":{"type":"send_message","message":"third"}}
+              ]
+            }
+            """;
+
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
+
+        result.Outcome.Should().Be(PipelineOutcome.PartiallyFailed);
+        result.StepsExecuted.Should().Be(1, "only the first step's send actually succeeded");
+        result.StepLogs.Should().HaveCount(2, "the run breaks after the failing second step");
+        result.StepLogs[1].Succeeded.Should().BeFalse();
+        await chat.DidNotReceive()
+            .SendMessageAsync(Arg.Any<Guid>(), "third", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_StopAction_ReturnsStopped_NotCompleted()
+    {
+        // A deliberate stop is a distinct outcome from a plain finish — the command still did its work.
+        PipelineEngine engine = CreateEngine();
+        const string json = """{"steps":[{"action":{"type":"stop"}}]}""";
+
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
+
+        result.Outcome.Should().Be(PipelineOutcome.Stopped);
     }
 
     // ─── StopOnMatch ──────────────────────────────────────────────────────────

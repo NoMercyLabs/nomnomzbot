@@ -77,7 +77,7 @@ public sealed class HelixChatProvider : IChatPlatform
         CancellationToken cancellationToken = default
     ) => PostChatMessageAsync(broadcasterId, message, null, cancellationToken);
 
-    public Task SendReplyAsync(
+    public Task<bool> SendReplyAsync(
         Guid broadcasterId,
         string replyToMessageId,
         string message,

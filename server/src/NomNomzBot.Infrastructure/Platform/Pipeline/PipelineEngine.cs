@@ -237,6 +237,13 @@ public sealed class PipelineEngine : IPipelineEngine
         int executed = 0;
         int skipped = 0;
 
+        // Distinguishes WHY the loop broke early: a failed action (fail-CLOSED, no continue_on_error)
+        // must report PartiallyFailed, never Completed — a run that never reached its last step because
+        // something broke must never masquerade as a clean finish. A deliberate `stop` action or a
+        // matched `stop_on_match` step is Stopped instead: the command did its intended work.
+        bool failedBreak = false;
+        bool stoppedDeliberately = false;
+
         for (int i = 0; i < definition.Steps.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
@@ -291,6 +298,7 @@ public sealed class PipelineEngine : IPipelineEngine
                     }
                 );
                 // Fail-CLOSED: an unhandled exception from an action aborts the pipeline.
+                failedBreak = true;
                 break;
             }
 
@@ -321,18 +329,27 @@ public sealed class PipelineEngine : IPipelineEngine
             else if (!step.ContinueOnError)
             {
                 // Fail-CLOSED: a failed action stops the pipeline unless the step opts in to continue.
+                failedBreak = true;
                 break;
             }
 
-            // Check stop flag
+            // Check stop flag — a deliberate stop, not a failure.
             if (ctx.ShouldStop || (step.StopOnMatch && actionResult.Succeeded))
+            {
+                stoppedDeliberately = true;
                 break;
+            }
         }
+
+        PipelineOutcome outcome =
+            failedBreak ? PipelineOutcome.PartiallyFailed
+            : stoppedDeliberately ? PipelineOutcome.Stopped
+            : PipelineOutcome.Completed;
 
         return new()
         {
             ExecutionId = ctx.ExecutionId,
-            Outcome = PipelineOutcome.Completed,
+            Outcome = outcome,
             Duration = _timeProvider.GetUtcNow() - startedAt,
             StepsExecuted = executed,
             StepsSkipped = skipped,

@@ -123,8 +123,14 @@ public sealed class ChatCommandEffectiveLevelTests
 
         await sut.HandleAsync(BadgelessEvent($"!{CommandKey}"), CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
-        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default);
+        // S008: permission-denied is no longer silent — the invoker gets exactly ONE denial notice
+        // (a reply here rejected by the unconfigured substitute, so it falls back to a plain mention).
+        await chat.Received(1)
+            .SendMessageAsync(
+                Broadcaster,
+                "@Viewer You don't have permission to use that command.",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -136,8 +142,12 @@ public sealed class ChatCommandEffectiveLevelTests
 
         await sut.HandleAsync(BadgelessEvent($"!{CommandKey}"), CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
-        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default);
+        await chat.Received(1)
+            .SendMessageAsync(
+                Broadcaster,
+                "@Viewer You don't have permission to use that command.",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     // ── no regression + the hot-path short-circuit ─────────────────────────────

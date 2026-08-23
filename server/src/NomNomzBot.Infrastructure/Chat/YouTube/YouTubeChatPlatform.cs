@@ -82,7 +82,7 @@ public sealed class YouTubeChatPlatform : IChatPlatform
         return sent.IsSuccess;
     }
 
-    public Task SendReplyAsync(
+    public Task<bool> SendReplyAsync(
         Guid broadcasterId,
         string replyToMessageId,
         string message,

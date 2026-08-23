@@ -53,7 +53,7 @@ public sealed class ChatPlatformRouter : IChatProvider
             cancellationToken
         );
 
-    public async Task SendReplyAsync(
+    public async Task<bool> SendReplyAsync(
         Guid broadcasterId,
         string replyToMessageId,
         string message,

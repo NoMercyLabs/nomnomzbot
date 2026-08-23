@@ -42,12 +42,29 @@ public sealed class SendReplyAction : ICommandAction
             ctx.BroadcasterId,
             ctx.CancellationToken
         );
-        await _chat.SendReplyAsync(
+        bool sent = await _chat.SendReplyAsync(
             ctx.BroadcasterId,
             ctx.MessageId,
             resolved,
             ctx.CancellationToken
         );
-        return ActionResult.Success(resolved);
+
+        if (sent)
+            return ActionResult.Success(resolved);
+
+        // The reply form was rejected (e.g. a deleted/invalid parent message) — fall back to a plain
+        // line that still addresses the triggering user via an inline mention, rather than dropping
+        // the response silently.
+        bool fallbackSent = await _chat.SendMessageAsync(
+            ctx.BroadcasterId,
+            $"@{ctx.TriggeredByDisplayName} {resolved}",
+            ctx.CancellationToken
+        );
+
+        return fallbackSent
+            ? ActionResult.Success(resolved)
+            : ActionResult.Failure(
+                "send_reply could not be delivered (reply and fallback both failed)"
+            );
     }
 }

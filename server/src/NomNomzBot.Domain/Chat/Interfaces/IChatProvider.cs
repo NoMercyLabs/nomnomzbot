@@ -31,7 +31,15 @@ public interface IChatProvider
         CancellationToken cancellationToken = default
     );
 
-    Task SendReplyAsync(
+    /// <summary>
+    /// Sends a chat message threaded as a reply to <paramref name="replyToMessageId"/>. Returns <c>true</c> when
+    /// the reply was accepted; <c>false</c> when it could NOT be sent (no connection, dead token, or the platform
+    /// rejected the reply form — e.g. Twitch refusing a reply to a deleted/invalid parent message). Never throws
+    /// for an expected send failure, so a swallowed failure can never masquerade as a successful send. Callers
+    /// that must still reach the user despite a rejected reply form fall back to <see cref="SendMessageAsync"/>
+    /// with an inline mention.
+    /// </summary>
+    Task<bool> SendReplyAsync(
         Guid broadcasterId,
         string replyToMessageId,
         string message,

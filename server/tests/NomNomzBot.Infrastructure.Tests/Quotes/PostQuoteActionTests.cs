@@ -46,12 +46,12 @@ public sealed class PostQuoteActionTests
             return Task.FromResult(true);
         }
 
-        public Task SendReplyAsync(
+        public Task<bool> SendReplyAsync(
             Guid broadcasterId,
             string replyToMessageId,
             string message,
             CancellationToken ct = default
-        ) => Task.CompletedTask;
+        ) => Task.FromResult(true);
 
         public Task TimeoutUserAsync(
             Guid broadcasterId,

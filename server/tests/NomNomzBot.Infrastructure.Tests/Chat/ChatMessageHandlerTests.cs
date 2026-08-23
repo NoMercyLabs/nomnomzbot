@@ -632,6 +632,263 @@ public sealed class ChatMessageHandlerTests
         still!.Terminal.Should().BeFalse();
     }
 
+    // ── S008: pipeline outcome threading, gate notices, reply fallback ──────
+
+    [Fact]
+    public async Task Permission_denied_command_sends_exactly_one_denial_notice()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands["modonly"] = new()
+        {
+            Name = "modonly",
+            TemplateResponses = ["Hi"],
+            GlobalCooldown = 0,
+            UserCooldown = 0,
+            MinPermissionLevel = 10,
+            Tier = "template",
+        };
+
+        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithBus(ctx);
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
+
+        await sut.HandleAsync(MessageEvent("!modonly"), CancellationToken.None);
+
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                "msg-1",
+                "You don't have permission to use that command.",
+                Arg.Any<CancellationToken>()
+            );
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await bus.DidNotReceiveWithAnyArgs()
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+                default!,
+                default
+            );
+    }
+
+    [Fact]
+    public async Task Cooldown_blocked_command_sends_exactly_one_cooldown_notice()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands["spam"] = new()
+        {
+            Name = "spam",
+            TemplateResponses = ["Hi"],
+            GlobalCooldown = 30,
+            UserCooldown = 0,
+            MinPermissionLevel = 0,
+            Tier = "template",
+        };
+
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+        IBuiltinCommandCatalog builtins = Substitute.For<IBuiltinCommandCatalog>();
+        builtins.Get(Arg.Any<string>()).Returns((IBuiltinCommand?)null);
+        ICooldownManager cooldowns = Substitute.For<ICooldownManager>();
+        cooldowns.IsOnCooldown(Broadcaster.ToString(), "spam").Returns(true);
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
+        IEventBus bus = Substitute.For<IEventBus>();
+
+        ChatMessageHandler sut = new(
+            registry,
+            Substitute.For<IServiceScopeFactory>(),
+            cooldowns,
+            chat,
+            Substitute.For<IPipelineEngine>(),
+            builtins,
+            Substitute.For<ITemplateResolver>(),
+            bus,
+            new(),
+            TimeProvider.System,
+            NullLogger<ChatMessageHandler>.Instance
+        );
+
+        await sut.HandleAsync(MessageEvent("!spam"), CancellationToken.None);
+
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                "msg-1",
+                "That command is still on cooldown.",
+                Arg.Any<CancellationToken>()
+            );
+        await bus.DidNotReceiveWithAnyArgs()
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+                default!,
+                default
+            );
+    }
+
+    [Fact]
+    public async Task Pipeline_partially_failed_sends_exactly_one_failure_notice_and_marks_the_run_failed()
+    {
+        // A middle step failing to send must not be reported as a clean finish (S008): the run reports
+        // PartiallyFailed, the invoker gets exactly ONE failure notice, and the execution fact records it
+        // as failed (the analytics feed every projection folds from).
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands["broken"] = new()
+        {
+            Name = "broken",
+            TemplateResponses = [],
+            GlobalCooldown = 0,
+            UserCooldown = 0,
+            MinPermissionLevel = 0,
+            Tier = "pipeline",
+            PipelineGraphJson = "{\"steps\":[{\"action\":{\"type\":\"send_message\"}}]}",
+        };
+
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
+        IEventBus bus = Substitute.For<IEventBus>();
+        IPipelineEngine pipeline = Substitute.For<IPipelineEngine>();
+        pipeline
+            .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new PipelineExecutionResult
+                {
+                    ExecutionId = "exec-2",
+                    Outcome = PipelineOutcome.PartiallyFailed,
+                    Duration = TimeSpan.Zero,
+                    StepsExecuted = 0,
+                    Total = 2,
+                }
+            );
+
+        ChatMessageHandler sut = new(
+            registry,
+            Substitute.For<IServiceScopeFactory>(),
+            Substitute.For<ICooldownManager>(),
+            chat,
+            pipeline,
+            Substitute.For<IBuiltinCommandCatalog>(),
+            Substitute.For<ITemplateResolver>(),
+            bus,
+            new(),
+            TimeProvider.System,
+            NullLogger<ChatMessageHandler>.Instance
+        );
+
+        await sut.HandleAsync(MessageEvent("!broken"), CancellationToken.None);
+
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                "msg-1",
+                "Sorry, that command hit a snag and didn't finish.",
+                Arg.Any<CancellationToken>()
+            );
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.CommandName == "broken" && !e.Succeeded
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Pipeline_fully_completed_sends_no_extra_chatter()
+    {
+        // Regression guard: a clean Completed run must NOT trigger the new failure-notice path.
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands["clean"] = new()
+        {
+            Name = "clean",
+            TemplateResponses = [],
+            GlobalCooldown = 0,
+            UserCooldown = 0,
+            MinPermissionLevel = 0,
+            Tier = "pipeline",
+            PipelineGraphJson = "{\"steps\":[]}",
+        };
+
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        IEventBus bus = Substitute.For<IEventBus>();
+        IPipelineEngine pipeline = Substitute.For<IPipelineEngine>();
+        pipeline
+            .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new PipelineExecutionResult
+                {
+                    ExecutionId = "exec-3",
+                    Outcome = PipelineOutcome.Completed,
+                    Duration = TimeSpan.Zero,
+                }
+            );
+
+        ChatMessageHandler sut = new(
+            registry,
+            Substitute.For<IServiceScopeFactory>(),
+            Substitute.For<ICooldownManager>(),
+            chat,
+            pipeline,
+            Substitute.For<IBuiltinCommandCatalog>(),
+            Substitute.For<ITemplateResolver>(),
+            bus,
+            new(),
+            TimeProvider.System,
+            NullLogger<ChatMessageHandler>.Instance
+        );
+
+        await sut.HandleAsync(MessageEvent("!clean"), CancellationToken.None);
+
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default);
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Reply_form_rejected_falls_back_to_a_plain_mention_and_still_reports_success()
+    {
+        // Twitch refuses the reply form (e.g. a deleted/invalid parent message) — the response must still
+        // reach the user, this time as a plain line with an inline mention since the reply header is no
+        // longer there to address them.
+        ChannelContext ctx = NewChannelContext();
+        (ChatMessageHandler sut, IChatProvider chat) = Build(ctx);
+        chat.SendReplyAsync(Broadcaster, "msg-1", BuiltinResponse, Arg.Any<CancellationToken>())
+            .Returns(false);
+        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
+
+        await chat.Received(1)
+            .SendMessageAsync(
+                Broadcaster,
+                $"@Viewer {BuiltinResponse}",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     // ── shared scaffolding ──────────────────────────────────────────────────
 
     private static ChannelContext NewChannelContext() =>

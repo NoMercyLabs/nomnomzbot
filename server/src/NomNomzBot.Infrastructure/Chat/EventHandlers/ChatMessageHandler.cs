@@ -227,10 +227,16 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     cancellationToken
                 )
             )
+            {
+                await SendPermissionDeniedNoticeAsync(@event, cancellationToken);
                 return;
+            }
 
             if (_cooldowns.IsOnCooldown(cooldownChannelKey, commandName))
+            {
+                await SendCooldownNoticeAsync(@event, cancellationToken);
                 return;
+            }
 
             if (builtin.DefaultCooldownSeconds > 0)
                 _cooldowns.SetCooldown(
@@ -285,6 +291,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 @event.UserDisplayName,
                 @event.BroadcasterId
             );
+            await SendPermissionDeniedNoticeAsync(@event, cancellationToken);
             return;
         }
 
@@ -296,6 +303,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 commandName,
                 @event.BroadcasterId
             );
+            await SendCooldownNoticeAsync(@event, cancellationToken);
             return;
         }
 
@@ -311,6 +319,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 @event.UserDisplayName,
                 @event.BroadcasterId
             );
+            await SendCooldownNoticeAsync(@event, cancellationToken);
             return;
         }
 
@@ -366,10 +375,18 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 );
 
                 // Stopped is a deliberate Stop action mid-pipeline — the command still did its work.
+                // PartiallyFailed (a step broke the run early) is the one outcome the invoker was never
+                // told about before — the pipeline may have sent nothing to chat before it broke, so send
+                // exactly one failure notice here instead of leaving the caller guessing.
+                bool pipelineSucceeded =
+                    pipelineResult.Outcome is PipelineOutcome.Completed or PipelineOutcome.Stopped;
+                if (!pipelineSucceeded)
+                    await SendPipelineFailureNoticeAsync(@event, cancellationToken);
+
                 await PublishExecutedAsync(
                     @event,
                     command.Name,
-                    pipelineResult.Outcome is PipelineOutcome.Completed or PipelineOutcome.Stopped,
+                    pipelineSucceeded,
                     cancellationToken
                 );
             }
@@ -487,19 +504,52 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     /// Sends a command / built-in RESPONSE back to the caller as a native reply threaded under their triggering
     /// message (Twitch reply), rather than a separate message that @-mentions them — the reply header already
     /// names the recipient, so built-ins no longer prefix "@user". Falls back to a plain send only when there is
-    /// no parent message id to reply to (e.g. a non-Twitch source that doesn't carry one).
+    /// no parent message id to reply to (e.g. a non-Twitch source that doesn't carry one), OR when the reply
+    /// form itself was rejected (e.g. a deleted/invalid parent message) — in that case the fallback still
+    /// addresses the user via an inline mention, since the reply header is no longer there to do it. Returns the
+    /// REAL send outcome — a failed transport send is never reported to the caller as delivered.
     /// </summary>
-    private async Task SendResponseAsync(
+    private async Task<bool> SendResponseAsync(
         ChatMessageReceivedEvent @event,
         string text,
         CancellationToken ct
     )
     {
         if (string.IsNullOrEmpty(@event.MessageId))
-            await _chat.SendMessageAsync(@event.BroadcasterId, text, ct);
-        else
-            await _chat.SendReplyAsync(@event.BroadcasterId, @event.MessageId, text, ct);
+            return await _chat.SendMessageAsync(@event.BroadcasterId, text, ct);
+
+        if (await _chat.SendReplyAsync(@event.BroadcasterId, @event.MessageId, text, ct))
+            return true;
+
+        return await _chat.SendMessageAsync(
+            @event.BroadcasterId,
+            $"@{@event.UserDisplayName} {text}",
+            ct
+        );
     }
+
+    /// <summary>
+    /// The single fixed notice sent to the invoker when a gate silently blocked their command before —
+    /// cooldown and permission-denied used to return with no chat line at all, leaving the caller guessing
+    /// whether the bot even saw the message. Exactly ONE line per gated invocation, never zero, never both.
+    /// </summary>
+    private Task SendCooldownNoticeAsync(ChatMessageReceivedEvent @event, CancellationToken ct) =>
+        SendResponseAsync(@event, "That command is still on cooldown.", ct);
+
+    private Task SendPermissionDeniedNoticeAsync(
+        ChatMessageReceivedEvent @event,
+        CancellationToken ct
+    ) => SendResponseAsync(@event, "You don't have permission to use that command.", ct);
+
+    /// <summary>
+    /// The single fixed notice sent to the invoker when a pipeline-backed command run PartiallyFailed
+    /// (a step broke the run early) — without this the invoker has no way to know their command hit a snag,
+    /// since a partially-run pipeline may have sent nothing to chat itself before failing.
+    /// </summary>
+    private Task SendPipelineFailureNoticeAsync(
+        ChatMessageReceivedEvent @event,
+        CancellationToken ct
+    ) => SendResponseAsync(@event, "Sorry, that command hit a snag and didn't finish.", ct);
 
     /// <summary>
     /// Publishes the single command-execution fact (<see cref="CommandExecutedEvent"/>) the hub broadcast,

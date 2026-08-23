@@ -53,7 +53,7 @@ public sealed class KickChatPlatform : IChatPlatform
         CancellationToken cancellationToken = default
     ) => await SendCoreAsync(broadcasterId, message, replyToMessageId: null, cancellationToken);
 
-    public async Task SendReplyAsync(
+    public async Task<bool> SendReplyAsync(
         Guid broadcasterId,
         string replyToMessageId,
         string message,

@@ -62,6 +62,14 @@ public enum PipelineOutcome
     Completed,
     Stopped,
     Failed,
+
+    /// <summary>
+    /// A step broke the run early because an action FAILED (fail-closed, no <c>continue_on_error</c>) —
+    /// distinct from <see cref="Completed"/> (every step ran or was skipped by a condition) and
+    /// <see cref="Stopped"/> (a deliberate <c>stop</c> action or a matched <c>stop_on_match</c> step).
+    /// A run that never reached its last step because something broke must never report success.
+    /// </summary>
+    PartiallyFailed,
     TimedOut,
     Cancelled,
 }
