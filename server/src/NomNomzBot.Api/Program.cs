@@ -174,10 +174,7 @@ try
         NomNomzBot.Application.Sound.Services.ISoundClipOverlayNotifier,
         SoundClipOverlayNotifierAdapter
     >();
-    builder.Services.AddScoped<
-        ITtsOverlayNotifier,
-        TtsOverlayNotifierAdapter
-    >();
+    builder.Services.AddScoped<ITtsOverlayNotifier, TtsOverlayNotifierAdapter>();
     builder.Services.AddScoped<
         NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier,
         WidgetEventNotifierAdapter
@@ -190,14 +187,8 @@ try
 
     // Hub broadcast-layer viewer enrichment (avatar/pronouns/community standing) — the store does the DB read,
     // the enricher cache-gates it so a burst of hub events for the same viewer is one DB read, not N.
-    builder.Services.AddScoped<
-        IHubUserEnrichmentStore,
-        HubUserEnrichmentStore
-    >();
-    builder.Services.AddScoped<
-        IHubUserEnricher,
-        HubUserEnricher
-    >();
+    builder.Services.AddScoped<IHubUserEnrichmentStore, HubUserEnrichmentStore>();
+    builder.Services.AddScoped<IHubUserEnricher, HubUserEnricher>();
 
     // Register event handlers declared in the API layer (e.g. ChatMessageBroadcastHandler)
     builder.Services.AddEventHandlersFromAssembly(typeof(Program).Assembly);
@@ -461,8 +452,7 @@ try
     bool bootUsesDurableTier =
         DeploymentModeResolver.DbProviderFor(bootMode) == DbProviderKind.Postgres;
 
-    IHealthChecksBuilder healthChecks =
-        builder.Services.AddHealthChecks();
+    IHealthChecksBuilder healthChecks = builder.Services.AddHealthChecks();
 
     if (bootUsesDurableTier)
     {
@@ -495,9 +485,7 @@ try
                     }
                     catch (Exception ex)
                     {
-                        return HealthCheckResult.Unhealthy(
-                            ex.Message
-                        );
+                        return HealthCheckResult.Unhealthy(ex.Message);
                     }
                 },
                 tags: ["cache", "ready"]
@@ -508,16 +496,10 @@ try
         // Lite: the readiness DB probe is a SQLite reachability check via the bound AppDbContext, and the
         // cache/bus are in-process (always healthy — nothing external to reach).
         healthChecks
-            .AddDbContextCheck<AppDbContext>(
-                name: "sqlite",
-                tags: ["db", "ready"]
-            )
+            .AddDbContextCheck<AppDbContext>(name: "sqlite", tags: ["db", "ready"])
             .AddCheck(
                 "cache",
-                () =>
-                    HealthCheckResult.Healthy(
-                        "In-process cache/bus (no external dependency)"
-                    ),
+                () => HealthCheckResult.Healthy("In-process cache/bus (no external dependency)"),
                 tags: ["cache", "ready"]
             );
     }
@@ -684,8 +666,7 @@ try
     app.UseMiddleware<GlobalExceptionMiddleware>();
     app.UseMiddleware<RequestLoggingMiddleware>();
 
-    // Baseline security response headers on every response, static pages included (§9). CSP is intentionally
-    // left to the page layer once a client CSP model is finalized; these four are safe defaults for an API.
+    // Baseline security response headers on every response, static pages included (§9).
     app.Use(
         async (ctx, next) =>
         {
@@ -697,6 +678,9 @@ try
             await next();
         }
     );
+    // HSTS (outside Development, HTTPS responses only) + the dashboard's Content-Security-Policy on HTML
+    // responses only — the overlay/widget host and Scalar keep their own self-managed CSP (S098d).
+    app.UseMiddleware<SecurityHeadersMiddleware>();
 
     // Public-facing pages (overlays, song-request) are delivered by the widget system — compiled bundles served
     // by the bot and CDN-cached for SaaS (widgets-overlays.md), not the old static web/ folder, which is removed.
