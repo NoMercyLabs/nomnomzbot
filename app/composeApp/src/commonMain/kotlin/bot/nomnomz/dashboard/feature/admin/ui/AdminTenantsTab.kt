@@ -37,6 +37,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.Dialog
 import bot.nomnomz.dashboard.core.designsystem.component.DialogDescription
@@ -54,9 +55,15 @@ import bot.nomnomz.dashboard.core.network.AdminTenant
 import bot.nomnomz.dashboard.core.network.AdminTenantDetail
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
+import bot.nomnomz.dashboard.feature.admin.state.ImpersonationRefusal
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.admin_cancel
+import nomnomzbot.composeapp.generated.resources.admin_impersonate_desc
+import nomnomzbot.composeapp.generated.resources.admin_impersonate_error_no_session
+import nomnomzbot.composeapp.generated.resources.admin_impersonate_error_not_permitted
+import nomnomzbot.composeapp.generated.resources.admin_impersonate_justification
+import nomnomzbot.composeapp.generated.resources.admin_impersonate_title
 import nomnomzbot.composeapp.generated.resources.admin_tenant_ban
 import nomnomzbot.composeapp.generated.resources.admin_tenant_close
 import nomnomzbot.composeapp.generated.resources.admin_tenant_deployment
@@ -102,6 +109,7 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
     var searchText: String by remember { mutableStateOf(state.tenantSearch) }
     var suspendFor: AdminTenant? by remember { mutableStateOf(null) }
     var reinstateFor: AdminTenant? by remember { mutableStateOf(null) }
+    var impersonateFor: AdminTenantDetail? by remember { mutableStateOf(null) }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
@@ -160,8 +168,8 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
             detail = detail,
             onDismiss = { controller.closeTenant() },
             onImpersonate = {
-                controller.closeTenant()
-                scope.launch { controller.impersonate(detail.ownerUserId) }
+                controller.clearActionError()
+                impersonateFor = detail
             },
             onSuspend = { controller.clearActionError(); suspendFor = state.tenants.firstOrNull { it.id == detail.id } ?: AdminTenant(detail.id, detail.name, detail.twitchChannelId, detail.status, detail.billingTierKey, false, detail.createdAt, detail.suspendedAt) },
             onReinstate = { controller.clearActionError(); reinstateFor = state.tenants.firstOrNull { it.id == detail.id } ?: AdminTenant(detail.id, detail.name, detail.twitchChannelId, detail.status, detail.billingTierKey, false, detail.createdAt, detail.suspendedAt) },
@@ -186,6 +194,68 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
                 reinstateFor = null
             },
         )
+    }
+
+    impersonateFor?.let { detail ->
+        ImpersonateDialog(
+            subjectDisplayName = detail.ownerDisplayName,
+            refusal = state.impersonationRefusal,
+            onDismiss = { controller.clearActionError(); impersonateFor = null },
+            onConfirm = { justification ->
+                scope.launch {
+                    controller.impersonateTenantOwner(
+                        broadcasterId = detail.id,
+                        subjectUserId = detail.ownerUserId,
+                        subjectDisplayName = detail.ownerDisplayName,
+                        justification = justification,
+                    )
+                    // A refusal keeps the dialog open (with its specific message); success has already swapped
+                    // the session by the time this resumes, so closing here is safe either way.
+                    if (state.impersonationRefusal == null && state.actionError == null) impersonateFor = null
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun ImpersonateDialog(
+    subjectDisplayName: String,
+    refusal: ImpersonationRefusal?,
+    onDismiss: () -> Unit,
+    onConfirm: (justification: String) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
+    var justification: String by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        DialogTitle(text = stringResource(Res.string.admin_impersonate_title, subjectDisplayName))
+        DialogDescription(text = stringResource(Res.string.admin_impersonate_desc))
+        when (refusal) {
+            ImpersonationRefusal.NoOpenSupportSession ->
+                ActionErrorBanner(message = stringResource(Res.string.admin_impersonate_error_no_session))
+            ImpersonationRefusal.NotPermitted ->
+                ActionErrorBanner(message = stringResource(Res.string.admin_impersonate_error_not_permitted))
+            null -> Unit
+        }
+        AppTextField(
+            value = justification,
+            onValueChange = { justification = it },
+            label = stringResource(Res.string.admin_impersonate_justification),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(modifier = Modifier.height(spacing.s1))
+        DialogFooter {
+            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
+            Button(
+                onClick = { onConfirm(justification) },
+                enabled = justification.isNotBlank(),
+                variant = ButtonVariant.Destructive,
+            ) {
+                Text(text = stringResource(Res.string.admin_tenant_impersonate))
+            }
+        }
     }
 }
 
@@ -311,7 +381,7 @@ private fun SuspendDialog(onDismiss: () -> Unit, onConfirm: (newStatus: String, 
             Button(
                 onClick = { onConfirm(STATUS_SUSPENDED, reason) },
                 enabled = reason.isNotBlank(),
-                variant = bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant.Destructive,
+                variant = ButtonVariant.Destructive,
             ) { Text(text = stringResource(Res.string.admin_tenant_suspend)) }
         }
     }

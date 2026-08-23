@@ -14,9 +14,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 // Proves the real session state machine that drives the App gate (frontend.md §5/§6). The gate renders
 // Connect while NotConnected and the Main shell while Connected, so these phase transitions ARE the routing
@@ -97,10 +100,17 @@ class SessionStoreTest {
 
         // Enter act-as: the active bearer becomes the target's, the flag names them — and NOTHING persists
         // (the vault still holds the operator's original token, so a relaunch never restores an act-as session).
-        store.beginImpersonation(targetAccessToken = "target-jwt", targetDisplayName = "Target User")
+        val expiresAt: Instant = Instant.parse("2030-01-01T00:00:00Z")
+        store.beginImpersonation(
+            targetAccessToken = "target-jwt",
+            targetDisplayName = "Target User",
+            expiresAt = expiresAt,
+            accessGrantId = "grant-1",
+        )
 
         assertEquals("target-jwt", store.accessToken())
         assertEquals("Target User", store.impersonating.value?.displayName)
+        assertEquals("grant-1", store.impersonating.value?.accessGrantId)
         assertEquals(tokens, vault.stored["profile-1"]) // custody untouched — only the in-memory token swapped
 
         // Exit act-as: the operator's own token is restored and the flag clears.
@@ -108,6 +118,31 @@ class SessionStoreTest {
 
         assertEquals("jwt-access-token", store.accessToken())
         assertNull(store.impersonating.value)
+    }
+
+    @Test
+    fun active_impersonation_reports_the_session_only_while_it_has_not_expired() = runTest {
+        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore(), FakeChannelStore())
+        store.connect(profile, tokens)
+        val expiresAt: Instant = Instant.parse("2030-01-01T00:00:00Z")
+        store.beginImpersonation(
+            targetAccessToken = "target-jwt",
+            targetDisplayName = "Target User",
+            expiresAt = expiresAt,
+            accessGrantId = "grant-1",
+        )
+
+        // Before expiry: the banner must see an active session.
+        val beforeExpiry: Instant = Instant.fromEpochSeconds(expiresAt.epochSeconds - 60)
+        assertEquals("Target User", store.activeImpersonation(beforeExpiry)?.displayName)
+
+        // The raw flag is still non-null past expiry — SessionStore does not auto-clear it — but
+        // activeImpersonation, what the banner must gate on, must not report it as active any more.
+        val afterExpiry: Instant = Instant.fromEpochSeconds(expiresAt.epochSeconds + 60)
+        assertTrue(store.impersonating.value != null)
+        assertNull(store.activeImpersonation(afterExpiry))
+        assertFalse(store.impersonating.value!!.isExpired(beforeExpiry))
+        assertTrue(store.impersonating.value!!.isExpired(afterExpiry))
     }
 
     @Test

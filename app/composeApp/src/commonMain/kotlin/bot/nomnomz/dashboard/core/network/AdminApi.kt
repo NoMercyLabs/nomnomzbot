@@ -134,22 +134,23 @@ data class AdminGrantTierRequest(
 // ─── Impersonation (admin act-as) ────────────────────────────────────────────
 
 /**
- * The minted act-as session — the server `ImpersonationTokenDto`: a short-lived [accessToken] for the target
- * user, its [expiresAt], and the target [user]. The nested user is the backend `UserDto`; we reuse
- * [UserSearchResult] (the contract-guarded `UserDto` map) rather than [AdminUser] — the latter's required
- * `login`/`role`/`channelCount` are absent from `UserDto` and would fail deserialization. Only [displayName]
- * is needed here (for the "Acting as …" banner).
+ * The minted act-as session — the server `ImpersonationTokenDto`. Minting REQUIRES an already-open,
+ * audited support session (a [TenantAccessGrant]); the token's [expiresAt] is clamped to that grant's
+ * remaining time server-side. There is no nested user object on this contract — the caller already knows
+ * the subject's display name (it drove the confirm dialog) and passes it straight to
+ * [bot.nomnomz.dashboard.core.connection.SessionStore.beginImpersonation] for the "Acting as …" banner.
  */
 @Serializable
-data class ImpersonationPayload(
+data class ImpersonationTokenDto(
     val accessToken: String,
     val expiresAt: String,
-    val user: UserSearchResult,
+    val sessionId: String,
+    val subjectUserId: String,
 )
 
-/** Request body for [AdminApi.impersonate] — the audit justification the backend records for the act-as. */
+/** Request body for [AdminApi.impersonate] — the open support session this act-as token is minted under. */
 @Serializable
-data class ImpersonateBody(val justification: String)
+data class ImpersonateUserRequest(val accessGrantId: String)
 
 // ─── API interface + implementation ──────────────────────────────────────────
 
@@ -176,7 +177,11 @@ interface AdminApi {
     suspend fun grantFounderBadge(broadcasterId: String): ApiResult<Unit>
 
     // Impersonation (admin act-as)
-    suspend fun impersonate(userId: String): ApiResult<ImpersonationPayload>
+    /** Mints an act-as token for [subjectUserId], scoped to the already-open [accessGrantId] support session. */
+    suspend fun impersonate(subjectUserId: String, accessGrantId: String): ApiResult<ImpersonationTokenDto>
+
+    /** Ends the act-as session — the minted token is revoked server-side and stops authenticating immediately. */
+    suspend fun endImpersonation(accessGrantId: String): ApiResult<Unit>
 }
 
 class AdminApiImpl(private val client: ApiClient) : AdminApi {
@@ -229,14 +234,12 @@ class AdminApiImpl(private val client: ApiClient) : AdminApi {
     override suspend fun grantFounderBadge(broadcasterId: String): ApiResult<Unit> =
         client.postUnit("api/v1/admin/billing/channels/$broadcasterId/grant-founder")
 
-    override suspend fun impersonate(userId: String): ApiResult<ImpersonationPayload> =
+    override suspend fun impersonate(subjectUserId: String, accessGrantId: String): ApiResult<ImpersonationTokenDto> =
         client.postEnvelope(
-            "api/v1/admin/users/$userId/impersonate",
-            ImpersonateBody(justification = IMPERSONATION_JUSTIFICATION),
+            "api/v1/admin/users/$subjectUserId/impersonate",
+            ImpersonateUserRequest(accessGrantId = accessGrantId),
         )
 
-    private companion object {
-        // Recorded in the backend act-as audit trail (there is no per-call justification input in the panel).
-        const val IMPERSONATION_JUSTIFICATION: String = "Admin act-as from the platform dashboard."
-    }
+    override suspend fun endImpersonation(accessGrantId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/admin/impersonate/$accessGrantId/end")
 }

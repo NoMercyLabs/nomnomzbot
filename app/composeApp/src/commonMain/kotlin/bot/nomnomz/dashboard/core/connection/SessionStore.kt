@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 // The active-connection + session Store (frontend.md §4/§6). Global, long-lived, injected; exposes
 // StateFlow the App gate observes. This is the real direct-connect store — it holds the active
@@ -71,8 +73,18 @@ class SessionStore(
     /** The currently-selected managed channel, or null while loading. */
     val activeChannelId: StateFlow<String?> = _activeChannelId.asStateFlow()
 
-    /** The user the operator is currently acting as, or null when not impersonating. */
+    /**
+     * The user the operator is currently acting as, or null when not impersonating. This is the RAW flag —
+     * it does not re-check expiry on its own (nothing ticks it), so a stale read past [ImpersonationInfo.expiresAt]
+     * is possible between reads. Callers that render the "Acting as …" banner must gate on [activeImpersonation]
+     * instead, which never reports an expired session as active.
+     */
     val impersonating: StateFlow<ImpersonationInfo?> = _impersonating.asStateFlow()
+
+    /** [impersonating], but null once [ImpersonationInfo.expiresAt] has passed — the banner must never claim an
+     * impersonation is active after its time-boxed support session has run out. */
+    fun activeImpersonation(now: Instant = Clock.System.now()): ImpersonationInfo? =
+        _impersonating.value?.takeUnless { it.isExpired(now) }
 
     /** Switch the active managed channel. Each page controller picks this up on its next load. */
     fun switchChannel(channelId: String) {
@@ -112,10 +124,15 @@ class SessionStore(
      * survives a reload. [endImpersonation] restores the stashed token. Re-entrant guard: a second begin while
      * already impersonating keeps the ORIGINAL operator token stashed (never overwrites it with an act-as token).
      */
-    fun beginImpersonation(targetAccessToken: String, targetDisplayName: String) {
+    fun beginImpersonation(
+        targetAccessToken: String,
+        targetDisplayName: String,
+        expiresAt: Instant,
+        accessGrantId: String,
+    ) {
         if (stashedOperatorToken == null) stashedOperatorToken = tokens?.accessToken
         updateAccessToken(targetAccessToken)
-        _impersonating.value = ImpersonationInfo(targetDisplayName)
+        _impersonating.value = ImpersonationInfo(targetDisplayName, expiresAt, accessGrantId)
     }
 
     /**
@@ -250,8 +267,15 @@ class SessionStore(
  */
 data class RestorableSession(val profile: ConnectionProfile, val tokens: SessionTokens?)
 
-/** The user the operator is currently acting as (admin impersonation) — its display name drives the banner. */
-data class ImpersonationInfo(val displayName: String)
+/**
+ * The user the operator is currently acting as (admin impersonation): the [displayName] drives the "Acting
+ * as …" banner, [expiresAt] is the time-boxed support session's remaining life (the server clamps the
+ * token's own expiry to it), and [accessGrantId] is what "Stop impersonating" calls the end endpoint with.
+ */
+data class ImpersonationInfo(val displayName: String, val expiresAt: Instant, val accessGrantId: String) {
+    /** True once [now] has reached or passed [expiresAt] — the session is no longer valid, active-in-name-only. */
+    fun isExpired(now: Instant): Boolean = now >= expiresAt
+}
 
 /** The signed-in streamer identity surfaced to the shell (frontend.md §6). */
 data class SessionUser(

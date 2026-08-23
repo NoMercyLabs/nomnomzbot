@@ -24,24 +24,26 @@ import bot.nomnomz.dashboard.core.network.AdminSystem
 import bot.nomnomz.dashboard.core.network.AdminTenant
 import bot.nomnomz.dashboard.core.network.AdminTenantDetail
 import bot.nomnomz.dashboard.core.network.AdminUser
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AssignRoleBody
 import bot.nomnomz.dashboard.core.network.AuthApi
-import bot.nomnomz.dashboard.core.network.CurrentUser
-import bot.nomnomz.dashboard.core.network.ImpersonationPayload
 import bot.nomnomz.dashboard.core.network.BeginTenantAccessBody
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
+import bot.nomnomz.dashboard.core.network.CurrentUser
 import bot.nomnomz.dashboard.core.network.FeatureFlag
 import bot.nomnomz.dashboard.core.network.IamAuditEntry
 import bot.nomnomz.dashboard.core.network.IamPrincipal
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
 import bot.nomnomz.dashboard.core.network.IamRole
+import bot.nomnomz.dashboard.core.network.ImpersonationTokenDto
 import bot.nomnomz.dashboard.core.network.InviteCode
 import bot.nomnomz.dashboard.core.network.PlatformAdminApi
 import bot.nomnomz.dashboard.core.network.PlatformEvent
 import bot.nomnomz.dashboard.core.network.PlatformIamApi
 import bot.nomnomz.dashboard.core.network.ReinstateTenantBody
 import bot.nomnomz.dashboard.core.network.SuspendTenantBody
+import bot.nomnomz.dashboard.core.network.TenantAccessGrant
 import bot.nomnomz.dashboard.core.realtime.AdminHubClient
 import bot.nomnomz.dashboard.core.realtime.AdminHubEvent
 import bot.nomnomz.dashboard.core.realtime.AdminLogEntry
@@ -52,6 +54,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.datetime.Instant
 
 data class AdminState(
     val stats: AdminStats? = null,
@@ -95,7 +98,20 @@ data class AdminState(
     val auditError: String? = null,
     /** A surfaced write-action error (e.g. self-deactivation VALIDATION_FAILED). Cleared on next action. */
     val actionError: String? = null,
+    // ── Impersonation (admin act-as) ──
+    /** Set alongside [actionError] when a mint attempt fails for one of these two RECOGNIZED reasons, so the
+     * confirm dialog can render a calm, specific explanation instead of the raw server message. Null for any
+     * other failure (network error, unexpected 5xx, …) — those still surface via [actionError] alone. */
+    val impersonationRefusal: ImpersonationRefusal? = null,
 )
+
+/** The two refusals the impersonation confirm dialog must explain specifically, per the server contract. */
+enum class ImpersonationRefusal {
+    /** No open, audited support session for this tenant — minting is refused until one is begun. */
+    NoOpenSupportSession,
+    /** The caller's role does not carry the impersonation grant (SaaS + platform-owner only). */
+    NotPermitted,
+}
 
 /**
  * The platform-admin panel's holder. Beyond the read-only stats/channels/users/flags/billing it drives the
@@ -412,28 +428,70 @@ class AdminController(
     // ── Impersonation (admin act-as) ────────────────────────────────────────────
 
     /**
-     * Act as [userId]: mint an impersonation token, swap the in-memory session onto it, and re-resolve the whole
-     * shell as that user — identity (`/me` → setUser), management access, the channel roster, and every live hub
-     * (via [reconnectAll], so the sockets re-handshake on the new token). The operator's own token is stashed in
-     * the [SessionStore] for [exitImpersonation] to restore. Failures surface on [AdminState.actionError].
+     * Act as the owner of [broadcasterId]: open an audited, time-boxed support session for [justification] (the
+     * confirm dialog requires non-blank text), mint an impersonation token scoped to that session, swap the
+     * in-memory session onto it, and re-resolve the whole shell as that user — identity (`/me` → setUser),
+     * management access, the channel roster, and every live hub (via [reconnectAll], so the sockets re-handshake
+     * on the new token). The operator's own token is stashed in the [SessionStore] for [exitImpersonation] to
+     * restore. A blank justification never reaches the network — the dialog's own submit gate should already
+     * prevent it, but this is the second, authoritative gate. Recognized refusals (no open session for this
+     * tenant, not permitted) land on [AdminState.impersonationRefusal] with a calm, specific message; anything
+     * else still surfaces via [AdminState.actionError].
      */
-    suspend fun impersonate(userId: String) {
-        _state.value = _state.value.copy(actionError = null)
-        val payload: ImpersonationPayload =
-            when (val result: ApiResult<ImpersonationPayload> = api.impersonate(userId)) {
+    suspend fun impersonateTenantOwner(broadcasterId: String, subjectUserId: String, subjectDisplayName: String, justification: String) {
+        _state.value = _state.value.copy(actionError = null, impersonationRefusal = null)
+        val trimmedJustification: String = justification.trim()
+        if (trimmedJustification.isEmpty()) return
+
+        val grant: TenantAccessGrant =
+            when (val result = platformAdminApi.beginAccess(broadcasterId, BeginTenantAccessBody(justification = trimmedJustification))) {
                 is ApiResult.Ok -> result.value
                 is ApiResult.Failure -> {
-                    _state.value = _state.value.copy(actionError = result.error.message)
+                    _state.value = _state.value.copy(
+                        actionError = result.error.message,
+                        impersonationRefusal = classifyImpersonationRefusal(result.error),
+                    )
                     return
                 }
             }
-        sessionStore?.beginImpersonation(payload.accessToken, payload.user.displayName)
+
+        val token: ImpersonationTokenDto =
+            when (val result: ApiResult<ImpersonationTokenDto> = api.impersonate(subjectUserId, grant.id)) {
+                is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> {
+                    _state.value = _state.value.copy(
+                        actionError = result.error.message,
+                        impersonationRefusal = classifyImpersonationRefusal(result.error),
+                    )
+                    return
+                }
+            }
+
+        sessionStore?.beginImpersonation(
+            targetAccessToken = token.accessToken,
+            targetDisplayName = subjectDisplayName,
+            expiresAt = Instant.parse(token.expiresAt),
+            accessGrantId = grant.id,
+        )
         reResolveIdentity()
     }
 
-    /** Leave act-as: restore the operator's token and re-resolve the shell back to the operator. */
+    /** Recognizes the two refusals the confirm dialog must explain specifically; everything else is generic. */
+    private fun classifyImpersonationRefusal(error: ApiError): ImpersonationRefusal? = when (error.code) {
+        "NoOpenSupportSession" -> ImpersonationRefusal.NoOpenSupportSession
+        "NotPermitted", "Forbidden" -> ImpersonationRefusal.NotPermitted
+        else -> null
+    }
+
+    /**
+     * Leave act-as: end the support-scoped act-as token server-side (best-effort — the operator must be able to
+     * exit even if the revoke call itself fails), restore the operator's token, and re-resolve the shell back to
+     * the operator. A no-op when not currently impersonating.
+     */
     suspend fun exitImpersonation() {
-        sessionStore?.endImpersonation()
+        val info = sessionStore?.impersonating?.value ?: return
+        api.endImpersonation(info.accessGrantId)
+        sessionStore.endImpersonation()
         reResolveIdentity()
     }
 

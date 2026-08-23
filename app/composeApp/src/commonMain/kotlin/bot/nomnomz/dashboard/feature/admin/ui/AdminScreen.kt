@@ -372,9 +372,6 @@ private fun UsersTab(state: AdminState, controller: AdminController) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
-    val scope = rememberCoroutineScope()
-    // The operator's own id — never offer "act as yourself".
-    val currentUserId: String? = controller.currentUserId
 
     Column(
         modifier = Modifier
@@ -404,20 +401,13 @@ private fun UsersTab(state: AdminState, controller: AdminController) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
                         ) {
+                            // Act-as is offered from the Tenants tab (a support session is scoped to a tenant, not
+                            // a bare user id) — see TenantDetailDrawer's "Impersonate owner" in AdminTenantsTab.kt.
                             Text(
                                 text = stringResource(Res.string.admin_user_channels, user.channelCount),
                                 style = typography.xs,
                                 color = tokens.mutedForeground,
                             )
-                            if (currentUserId == null || user.id != currentUserId) {
-                                Button(
-                                    onClick = { scope.launch { controller.impersonate(user.id) } },
-                                    variant = ButtonVariant.Outline,
-                                    size = ButtonSize.Sm,
-                                ) {
-                                    Text(text = stringResource(Res.string.admin_impersonate))
-                                }
-                            }
                         }
                     }
                     if (index < state.users.lastIndex) {

@@ -222,7 +222,9 @@
     <string name="shell_reconnect_retry">Try again</string>
     <string name="shell_reconnect_close">Dismiss</string>
     <string name="shell_impersonation_banner">Acting as %1$s</string>
-    <string name="shell_impersonation_exit">Exit</string>
+    <string name="shell_impersonation_expires">Ends in %1$d min</string>
+    <string name="shell_impersonation_expires_soon">Ends in under a minute</string>
+    <string name="shell_impersonation_exit">Stop impersonating</string>
     <string name="shell_profile_view_as_viewer">View as viewer</string>
     <string name="shell_preview_banner">Previewing the viewer experience</string>
     <string name="shell_preview_exit">Exit preview</string>
@@ -2718,6 +2720,11 @@
     <string name="admin_user_role">Role: %1$s</string>
     <string name="admin_user_channels">Channels: %1$d</string>
     <string name="admin_impersonate">Impersonate</string>
+    <string name="admin_impersonate_title">Impersonate %1$s?</string>
+    <string name="admin_impersonate_desc">This mints a real, time-boxed access token and is recorded in the audit log. State why you need it.</string>
+    <string name="admin_impersonate_justification">Justification</string>
+    <string name="admin_impersonate_error_no_session">No open support session for this tenant. Try again in a moment, or check the audit log for what happened to it.</string>
+    <string name="admin_impersonate_error_not_permitted">Your role does not permit impersonation. This requires the platform-owner role on a SaaS deployment.</string>
     <string name="admin_system_version">Version: %1$s</string>
     <string name="admin_system_memory">Memory: %1$d MB</string>
     <string name="admin_system_cpu">CPU: %1$.1f%%</string>
