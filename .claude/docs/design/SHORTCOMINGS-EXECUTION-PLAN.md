@@ -59,9 +59,6 @@ Slice IDs are stable; the order is the queue.
   failed write's error, so the dashboard can show a success state for a write the backend rejected. Confirmed frontend-only by
   S014 (0805bc29) via grep; no backend equivalent exists. Done-when: a rejected write surfaces its reason in the UI and the
   optimistic state rolls back, proven for at least three unrelated feature controllers.
-- **S016** Dead config honoured or removed — command Prefix/Match modes wired; `overlay` response type
-  implemented; `Pipeline.IsEnabled` honoured in registry/timer/executor (U·B1). Done-when: each toggle
-  changes runtime behaviour (test per field).
 - **S018** Raid flow — `start_raid` fires first, tolerates already-raiding, live pre-check,
   lookup-vs-not-found, `missing_scope` → re-grant flow, publishes `RaidSentEvent`; shoutout cooldown
   skip visible; `{args.N}` strips `@` (U·A1). Done-when: raid preset in S044 can run every step or name
