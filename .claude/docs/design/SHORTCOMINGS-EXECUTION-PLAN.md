@@ -40,12 +40,6 @@ Slice IDs are stable; the order is the queue.
   when a command misbehaves, and the dashboard has nothing to show. Found by S008 (80e9fd58) while threading run outcomes.
   Done-when: every pipeline run persists its outcome and per-step log, and a test proves a failed run is retrievable with the
   failing step identified.
-- **S009b (finishes S009 — the self-host half is currently INERT)** `BotSelfEchoGuard` (45d11ad0) checks
-  `BotEmittedLine.Marker`, but no send path stamps it: `HelixChatProvider`, the Kick send path and the YouTube send path never
-  call `BotEmittedLine.Stamp`. So on self-host — where the bot types as the streamer's OWN account (D5) — the loop guard does
-  nothing in production, which is precisely the configuration it exists to protect. Done-when: every outbound line is stamped
-  on all three platforms, a real send→ingest round trip does not re-trigger the bot, and the streamer's own human command still
-  works (the S009 regression test must stay green).
 - **S010** Outbound chat shaping — per-platform length chunking (Twitch 500 / YouTube 200 / Kick 500 /
   X 280), duplicate-line variation, per-channel-per-platform token-bucket send queue with coalescing
   (U·C7). Done-when: 100 simultaneous sends → rate-limited, coalesced, none dropped by length.
