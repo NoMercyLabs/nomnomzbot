@@ -38,13 +38,11 @@ Slice IDs are stable; the order is the queue.
   (billing writes + refund), `ComplianceController` (GDPR erasure). `AdminController:180` is the only action already on
   `SecuritySensitiveRateLimitPolicy` (added by S098e) — that policy is the pattern to spread. Run this sweep after
   S086c/S086e land, since they hold three of those files.
-- **S089** Impersonation made safe (owner decision: this is the owner's lowest-level support tool — FULL act-as stays; it is a
-  restricted SaaS action held by the platform owner role only) — requires an explicit support session (reason, expiry,
-  session id) and the token lifetime is clamped to it; `act` claim honoured only for that principal; every write journalled
-  with BOTH actors + session id and mirrored to `IamAuditLog`; mints rate-limited; refresh disabled for act-as tokens;
-  tenant owner notified on begin/end; UI confirm + justification; spec amended (U·D4). Done-when: an impersonated write
-  shows operator + subject in one audit query; self-host exposes no impersonation route.
-
+- **S089c** Impersonated writes carry both actors — `EventJournal.OnBehalfOfUserId`/`ImpersonationSessionId` exist and
+  round-trip (S089a, cdabd0a7) but nothing populates them for writes made DURING an impersonated request, so the
+  plan’s literal Done-when ("an impersonated write shows operator + subject in one audit query") is not yet met.
+  Needs the ambient context through `ICurrentUserService` + `EventJournalService`, and every affected test fake updated.
+  Done-when: a normal service write on an act-as request journals operator + subject + session id; a normal request leaves them null.
 ## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
 
 - **S001** Song-request queue store — `IMusicService` queue out of the scoped instance into a singleton
