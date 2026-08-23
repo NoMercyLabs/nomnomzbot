@@ -438,7 +438,12 @@ internal sealed class DiscordSqliteTestDatabase : IDisposable
         DbContextOptions<DiscordTestDbContext> options =
             new DbContextOptionsBuilder<DiscordTestDbContext>()
                 .UseSqlite(_connection)
-                .AddInterceptors(new SoftDeleteInterceptor(TimeProvider.System))
+                .AddInterceptors(
+                    new SoftDeleteInterceptor(
+                        TimeProvider.System,
+                        new NomNomzBot.Infrastructure.Tests.Platform.Persistence.NullCurrentUserService()
+                    )
+                )
                 .Options;
         return new(options);
     }

@@ -388,7 +388,12 @@ internal sealed class PickListSqliteTestDatabase : IDisposable
         DbContextOptions<PickListTestDbContext> options =
             new DbContextOptionsBuilder<PickListTestDbContext>()
                 .UseSqlite(_connection)
-                .AddInterceptors(new SoftDeleteInterceptor(TimeProvider.System))
+                .AddInterceptors(
+                    new SoftDeleteInterceptor(
+                        TimeProvider.System,
+                        new NomNomzBot.Infrastructure.Tests.Platform.Persistence.NullCurrentUserService()
+                    )
+                )
                 .Options;
         return new(options);
     }

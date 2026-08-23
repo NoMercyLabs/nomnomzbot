@@ -32,8 +32,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
 /// impersonated subject, matching the journal-write convention (S089c). A restore (DeletedAt reset
 /// to null) clears DeletedBy back to null — a live row has no "deleted by".
 /// </summary>
-public sealed class SoftDeleteInterceptor(TimeProvider timeProvider, ICurrentUserService currentUser)
-    : SaveChangesInterceptor
+public sealed class SoftDeleteInterceptor(
+    TimeProvider timeProvider,
+    ICurrentUserService currentUser
+) : SaveChangesInterceptor
 {
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,

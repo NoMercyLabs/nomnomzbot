@@ -449,7 +449,12 @@ internal sealed class ImportSqliteTestDatabase : IDisposable
         DbContextOptions<ImportTestDbContext> options =
             new DbContextOptionsBuilder<ImportTestDbContext>()
                 .UseSqlite(_connection)
-                .AddInterceptors(new SoftDeleteInterceptor(TimeProvider.System))
+                .AddInterceptors(
+                    new SoftDeleteInterceptor(
+                        TimeProvider.System,
+                        new NomNomzBot.Infrastructure.Tests.Platform.Persistence.NullCurrentUserService()
+                    )
+                )
                 .Options;
         return new(options);
     }

@@ -430,7 +430,12 @@ internal sealed class QuoteSqliteTestDatabase : IDisposable
         DbContextOptions<QuoteTestDbContext> options =
             new DbContextOptionsBuilder<QuoteTestDbContext>()
                 .UseSqlite(_connection)
-                .AddInterceptors(new SoftDeleteInterceptor(TimeProvider.System))
+                .AddInterceptors(
+                    new SoftDeleteInterceptor(
+                        TimeProvider.System,
+                        new NomNomzBot.Infrastructure.Tests.Platform.Persistence.NullCurrentUserService()
+                    )
+                )
                 .Options;
         return new(options);
     }

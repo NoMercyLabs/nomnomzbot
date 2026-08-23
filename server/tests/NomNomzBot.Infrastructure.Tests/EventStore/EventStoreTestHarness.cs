@@ -530,11 +530,22 @@ internal sealed class SqliteTestDatabase : IDisposable
         return db;
     }
 
-    public EventStoreTestDbContext NewContext()
+    public EventStoreTestDbContext NewContext() => NewContext([]);
+
+    /// <summary>
+    /// S013d: lets a test wire the real <c>SoftDeleteInterceptor</c> (or others) onto this harness's
+    /// context without changing the plain <see cref="NewContext()"/> behavior every other consumer
+    /// already relies on — adding it unconditionally would silently convert their existing
+    /// hard-delete <c>Remove()</c> calls into soft deletes.
+    /// </summary>
+    public EventStoreTestDbContext NewContext(
+        IEnumerable<Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor> interceptors
+    )
     {
         DbContextOptions<EventStoreTestDbContext> options =
             new DbContextOptionsBuilder<EventStoreTestDbContext>()
                 .UseSqlite(_connectionString)
+                .AddInterceptors(interceptors)
                 .Options;
         EventStoreTestDbContext context = new(options);
         context.Database.OpenConnection();

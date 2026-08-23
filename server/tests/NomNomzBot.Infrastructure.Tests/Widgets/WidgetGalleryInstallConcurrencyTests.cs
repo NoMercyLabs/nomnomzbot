@@ -78,7 +78,12 @@ public sealed class WidgetGalleryInstallConcurrencyTests : IDisposable
         DbContextOptions<WidgetTestDbContext> options =
             new DbContextOptionsBuilder<WidgetTestDbContext>()
                 .UseSqlite(ConnectionString)
-                .AddInterceptors(new SoftDeleteInterceptor(Clock))
+                .AddInterceptors(
+                    new SoftDeleteInterceptor(
+                        Clock,
+                        new NomNomzBot.Infrastructure.Tests.Platform.Persistence.NullCurrentUserService()
+                    )
+                )
                 .Options;
         return new(options);
     }

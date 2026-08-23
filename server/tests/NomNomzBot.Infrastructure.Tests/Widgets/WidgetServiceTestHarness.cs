@@ -409,7 +409,12 @@ internal sealed class WidgetSqliteTestDatabase : IDisposable
         DbContextOptions<WidgetTestDbContext> options =
             new DbContextOptionsBuilder<WidgetTestDbContext>()
                 .UseSqlite(_connection)
-                .AddInterceptors(new SoftDeleteInterceptor(TimeProvider.System))
+                .AddInterceptors(
+                    new SoftDeleteInterceptor(
+                        TimeProvider.System,
+                        new NomNomzBot.Infrastructure.Tests.Platform.Persistence.NullCurrentUserService()
+                    )
+                )
                 .Options;
         return new(options);
     }

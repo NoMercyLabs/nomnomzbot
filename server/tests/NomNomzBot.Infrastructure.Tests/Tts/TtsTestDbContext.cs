@@ -52,7 +52,8 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
                 // stamps DeletedAt exactly as the real AppDbContext does.
                 .AddInterceptors(
                     new NomNomzBot.Infrastructure.Platform.Persistence.Interceptors.SoftDeleteInterceptor(
-                        TimeProvider.System
+                        TimeProvider.System,
+                        new NomNomzBot.Infrastructure.Tests.Platform.Persistence.NullCurrentUserService()
                     )
                 )
                 .Options
