@@ -306,6 +306,60 @@ public sealed class ShoutoutActionTests
         await tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!, default);
     }
 
+    /// <summary>
+    /// A shoutout skipped by cooldown must be visible to the invoker as a distinguishable, non-generic
+    /// outcome — not collapsed into the same bare "success" a real shoutout produces, and not silent (a
+    /// debug-only log the chat-side caller never sees). Proves the returned Output actually names the reason,
+    /// and that no shoutout/announcement Helix calls happen while the cooldown is live.
+    /// </summary>
+    [Fact]
+    public async Task A_shoutout_skipped_by_global_cooldown_reports_a_distinguishable_visible_outcome()
+    {
+        ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
+        chat.SendShoutoutAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        chat.SendAnnouncementAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([User("123456", "numerictarget")]));
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        ChannelContext channelCtx = new()
+        {
+            BroadcasterId = Channel,
+            TwitchChannelId = "tw-channel",
+            ChannelName = "stoney",
+        };
+        channelCtx.LastGlobalShoutout = TimeProvider.System.GetUtcNow();
+        registry.Get(Channel).Returns(channelCtx);
+
+        ShoutoutAction sut = new(
+            chat,
+            users,
+            registry,
+            AuthTestBuilder.NewContext(),
+            Substitute.For<ITemplateResolver>(),
+            Substitute.For<ITtsDispatchService>(),
+            TimeProvider.System,
+            NullLogger<ShoutoutAction>.Instance
+        );
+
+        ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
+
+        result.Succeeded.Should().BeTrue();
+        result.Output.Should().NotBeNullOrWhiteSpace();
+        result.Output.Should().Contain("cooldown");
+        await chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendAnnouncementAsync(default, default!, default, default);
+    }
+
     [Fact]
     public async Task A_template_override_wins_over_the_channels_stored_template_and_resolves_variables()
     {
