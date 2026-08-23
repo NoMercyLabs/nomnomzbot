@@ -21,12 +21,6 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
 
-- **S004g-verify** The run-once lease test is itself flaky — `EventStore/ProjectionRunnerLeaseTests.cs:136-137`
-  (`Rebuild_ForDifferentBroadcaster_ProceedsUnaffected_WhileAnotherIsInFlight`) failed once in 6 full-suite runs. S004g
-  (cb30a41d) added that lease to stop a manual rebuild racing the driver tick, so a flaky lease test is the shape of a real
-  race in the LOCK ITSELF, not merely a slow test — a lease that occasionally admits two holders is worse than none, because
-  the caller now trusts it. Done-when: the cause is named (test timing vs. genuine lease race, with file:line), the
-  production defect fixed if there is one, and the class passes 10 consecutive full-suite runs.
 - **S001** Song-request queue store — `IMusicService` queue out of the scoped instance into a singleton
   store (U·B4 b1). Done-when: `!sr` → `!queue` → `GET /queue` agree across requests (test with two scopes).
 - **S002** Provider queue/skip outcomes — `AddToQueueAsync`/skip bool honoured; NO_ACTIVE_DEVICE,
@@ -41,9 +35,6 @@ Slice IDs are stable; the order is the queue.
   inflated watch stats. Separate from the duplicate-row defect S004f closed. Use the S004 mechanism.
   Done-when: N concurrent folds of one open session accumulate exactly the real elapsed time, asserted against the bound.
   **Wait for S119** (test-host crash fix) before adding another file-backed concurrency test.
-- **S004g** `EventStoreController.cs:115-171` Replay/RebuildProjections take no `IRunOnceGuard` lease, so a manual rebuild
-  races the driver’s 15s tick. S004d’s atomic upserts absorb the damage; the lease would stop it at the source.
-  Done-when: a rebuild started while the driver is mid-tick for the same broadcaster+projection waits or is refused.
 - **S005** Earning dedupe unique index + escalation atomic increment (S·F12, F13). Done-when: duplicate
   event credit blocked by the DB; two concurrent offenses compound.
 - **S006** Live-game money — settle failure refunds or parks retryable; can't-pay joiner feedback;
