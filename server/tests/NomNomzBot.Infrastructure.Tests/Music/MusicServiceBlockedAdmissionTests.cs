@@ -153,7 +153,14 @@ public sealed class MusicServiceBlockedAdmissionTests
 
         RecordingEventBus bus = new();
         BlockedTrackService blocks = new(db);
-        MusicService sut = new([spotify], db, bus, blocks, NullLogger<MusicService>.Instance);
+        MusicService sut = new(
+            [spotify],
+            db,
+            bus,
+            blocks,
+            new SongRequestQueueStore(),
+            NullLogger<MusicService>.Instance
+        );
         return (sut, bus, blocks);
     }
 

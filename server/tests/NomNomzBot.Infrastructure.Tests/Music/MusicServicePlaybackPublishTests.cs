@@ -116,6 +116,7 @@ public sealed class MusicServicePlaybackPublishTests
             db,
             bus,
             new BlockedTrackService(db),
+            new SongRequestQueueStore(),
             NullLogger<MusicService>.Instance
         );
 
@@ -163,6 +164,7 @@ public sealed class MusicServicePlaybackPublishTests
             db,
             bus,
             new BlockedTrackService(db),
+            new SongRequestQueueStore(),
             NullLogger<MusicService>.Instance
         );
         return (sut, bus, handler);

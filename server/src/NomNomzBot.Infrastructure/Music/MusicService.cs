@@ -37,17 +37,15 @@ public sealed class MusicService : IMusicService
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
     private readonly IBlockedTrackService _blockedTracks;
+    private readonly ISongRequestQueueStore _queueStore;
     private readonly ILogger<MusicService> _logger;
-
-    // Per-channel song request queues (channelId → fair queue)
-    private readonly Dictionary<string, FairQueue<SongRequestEntry>> _queues = new();
-    private readonly Lock _queueLock = new();
 
     public MusicService(
         IEnumerable<IMusicProvider> providers,
         IApplicationDbContext db,
         IEventBus eventBus,
         IBlockedTrackService blockedTracks,
+        ISongRequestQueueStore queueStore,
         ILogger<MusicService> logger
     )
     {
@@ -55,6 +53,7 @@ public sealed class MusicService : IMusicService
         _db = db;
         _eventBus = eventBus;
         _blockedTracks = blockedTracks;
+        _queueStore = queueStore;
         _logger = logger;
     }
 
@@ -219,11 +218,7 @@ public sealed class MusicService : IMusicService
     {
         NowPlaying? nowPlaying = await GetNowPlayingAsync(broadcasterId, cancellationToken);
 
-        FairQueue<SongRequestEntry>? queue;
-        lock (_queueLock)
-        {
-            _queues.TryGetValue(broadcasterId, out queue);
-        }
+        FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
 
         IReadOnlyList<MusicQueueItem> items = queue is null
             ? []
@@ -393,17 +388,9 @@ public sealed class MusicService : IMusicService
             requestedBy ?? "anonymous"
         );
 
-        // Add to fair queue
-        FairQueue<SongRequestEntry> queue;
-        lock (_queueLock)
-        {
-            if (!_queues.TryGetValue(broadcasterId, out queue!))
-            {
-                queue = new();
-                _queues[broadcasterId] = queue;
-            }
-        }
-
+        // Add to fair queue — via the singleton store, so this entry is visible to every later
+        // DI scope (next chat command, next dashboard request), not just this one.
+        FairQueue<SongRequestEntry> queue = _queueStore.GetOrCreate(broadcasterId);
         queue.Enqueue(requestedBy ?? "anonymous", entry);
 
         // If nothing is in the provider's queue, add immediately
@@ -626,13 +613,8 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken = default
     )
     {
-        bool removed;
-        lock (_queueLock)
-        {
-            removed =
-                _queues.TryGetValue(broadcasterId, out FairQueue<SongRequestEntry>? queue)
-                && queue.RemoveAt(position);
-        }
+        FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
+        bool removed = queue is not null && queue.RemoveAt(position);
 
         if (removed && Guid.TryParse(broadcasterId, out Guid tenantId))
             await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
@@ -935,39 +917,20 @@ public sealed class MusicService : IMusicService
 
     private IReadOnlyList<SongRequestQueueSnapshotItem> SnapshotQueue(string broadcasterId)
     {
-        lock (_queueLock)
-        {
-            return _queues.TryGetValue(broadcasterId, out FairQueue<SongRequestEntry>? queue)
-                ? queue
-                    .GetSnapshot()
-                    .Take(QueueSnapshotSize)
-                    .Select(e => new SongRequestQueueSnapshotItem(
-                        e.Item.TrackName,
-                        e.Item.RequestedBy,
-                        e.Item.DurationMs / 1000
-                    ))
-                    .ToList()
-                : [];
-        }
+        FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
+        return queue is null
+            ? []
+            : queue
+                .GetSnapshot()
+                .Take(QueueSnapshotSize)
+                .Select(e => new SongRequestQueueSnapshotItem(
+                    e.Item.TrackName,
+                    e.Item.RequestedBy,
+                    e.Item.DurationMs / 1000
+                ))
+                .ToList();
     }
 
-    private SongRequestEntry? DequeueNext(string broadcasterId)
-    {
-        lock (_queueLock)
-        {
-            return _queues.TryGetValue(broadcasterId, out FairQueue<SongRequestEntry>? queue)
-                ? queue.Dequeue()
-                : null;
-        }
-    }
+    private SongRequestEntry? DequeueNext(string broadcasterId) =>
+        _queueStore.TryGet(broadcasterId)?.Dequeue();
 }
-
-/// <summary>An item in the per-channel song request queue.</summary>
-internal sealed record SongRequestEntry(
-    string TrackUri,
-    string TrackName,
-    string Artist,
-    string? ImageUrl,
-    int DurationMs,
-    string RequestedBy
-);

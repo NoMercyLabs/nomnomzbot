@@ -319,6 +319,10 @@ public static class DependencyInjection
         services.AddSingleton<Application.Chat.Services.IChatColorMemory, ChatColorMemory>();
         // Per-channel pre-mute volume memory so unmute restores the real prior level (cache-only). Stateless → singleton.
         services.AddSingleton<Application.Music.Services.IMuteVolumeMemory, MuteVolumeMemory>();
+        // The song-request queue must outlive the scoped MusicService instance that mutates it — one instance
+        // per HTTP request / chat dispatch would otherwise reset the queue on every call. Singleton, keyed
+        // per-tenant internally (Music.ISongRequestQueueStore); every FairQueue<T> mutation is lock-protected.
+        services.AddSingleton<Music.ISongRequestQueueStore, Music.SongRequestQueueStore>();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
         services.AddScoped<Application.Chat.Services.IChatMessageDecorator, ChatMessageDecorator>();

@@ -277,6 +277,7 @@ public sealed class MusicServiceCapabilityGatingTests
             db,
             new RecordingEventBus(),
             new BlockedTrackService(db),
+            new SongRequestQueueStore(),
             NullLogger<MusicService>.Instance
         );
         return (sut, handler);
