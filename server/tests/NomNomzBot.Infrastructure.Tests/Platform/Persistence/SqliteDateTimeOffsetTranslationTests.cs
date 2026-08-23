@@ -36,9 +36,16 @@ public sealed class SqliteDateTimeOffsetTranslationTests : IDisposable
         $"nomnomz_dto_translation_{Guid.NewGuid():N}.db"
     );
 
+    private string ConnectionString => $"Data Source={_dbPath}";
+
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
+        // S119b: scope the pool flush to THIS test's own connection string — ClearAllPools() releases
+        // pooled native handles process-wide, including ones other test classes running in parallel are
+        // actively using (the S119 host-crash root cause).
+        using (SqliteConnection ownPool = new(ConnectionString))
+            SqliteConnection.ClearPool(ownPool);
+
         if (File.Exists(_dbPath))
             File.Delete(_dbPath);
     }
