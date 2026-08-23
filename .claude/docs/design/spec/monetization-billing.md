@@ -390,15 +390,16 @@ All under `api/v1/`. Tenant endpoints (`BillingController`, §5.1) sit on the **
 
 `[ApiVersion("1.0")] [Route("api/v{version:apiVersion}/admin/billing")] [Authorize] [Tags("Admin")]`
 
-Plane-C IAM gate per the §5 **Role gate** preamble (`AuthorizePlatformAsync` + `[Authorize(Policy = "<key>")]` where the policy name is the permission key verbatim). The `targetBroadcasterId` passed to `AuthorizePlatformAsync` is the route `{broadcasterId}` on the channel-scoped grant actions and `null` for the platform-global invite-code actions. Reads gate on `billing:read`; refund/credit-style grants gate on `billing:refund`; plan/tier and platform-IAM administration gate on `iam:manage`.
+Plane-C IAM gate per the §5 **Role gate** preamble (`AuthorizePlatformAsync` + `[Authorize(Policy = "<key>")]` where the policy name is the permission key verbatim). The `targetBroadcasterId` passed to `AuthorizePlatformAsync` is the route `{broadcasterId}` on the channel-scoped grant actions and `null` for the platform-global invite-code actions. Reads gate on `billing:read`; every billing write (invite create/revoke, tier and founder grants) gates on `billing:write`; refunds gate on `billing:refund`. Billing never gates on `iam:manage` — the `platform-billing` role holds the billing keys and nothing else.
 
 | Verb | Route | Request | Response | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|
 | GET | `/invites` | `[FromQuery] PageRequestDto` | `PaginatedResponse<InviteCodeDto>` | platform · `billing:read` |
-| POST | `/invites` | `CreateInviteCodeRequest` | `StatusResponseDto<InviteCodeDto>` | platform · `iam:manage` |
-| POST | `/invites/{inviteCodeId}/revoke` | — | `StatusResponseDto<object>` | platform · `iam:manage` |
-| POST | `/channels/{broadcasterId}/grant-tier` | `{ "tierId": guid, "isInviteOnlyGrant": bool }` | `StatusResponseDto<SubscriptionDto>` | platform · `iam:manage` |
-| POST | `/channels/{broadcasterId}/grant-founder` | — | `StatusResponseDto<FoundersBadgeDto>` | platform · `iam:manage` |
+| POST | `/invites` | `CreateInviteCodeRequest` | `StatusResponseDto<InviteCodeDto>` | platform · `billing:write` |
+| POST | `/invites/{inviteCodeId}/revoke` | — | `StatusResponseDto<object>` | platform · `billing:write` |
+| POST | `/channels/{broadcasterId}/grant-tier` | `{ "tierId": guid, "isInviteOnlyGrant": bool }` | `StatusResponseDto<SubscriptionDto>` | platform · `billing:write` |
+| POST | `/channels/{broadcasterId}/grant-founder` | — | `StatusResponseDto<FoundersBadgeDto>` | platform · `billing:write` |
+| POST | `/invoices/{invoiceId}/refund` | — | `StatusResponseDto<object>` | platform · `billing:refund` |
 
 ---
 
