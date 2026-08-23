@@ -71,6 +71,7 @@ public interface IModerationService
     Task<Result> DeleteRuleAsync(
         string broadcasterId,
         int ruleId,
+        string? actorId = null,
         CancellationToken cancellationToken = default
     );
 

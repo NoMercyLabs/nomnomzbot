@@ -28,6 +28,7 @@ public class ModerationService : IModerationService
 {
     private const string RuleRecordType = "moderation_rule";
     private const string ActionRecordType = "moderation_action";
+    private const string RuleAuditRecordType = "moderation_rule_action";
     private const string NoteRecordType = "user_note";
     private const int NoteMaxLength = 2000;
 
@@ -302,6 +303,7 @@ public class ModerationService : IModerationService
     public async Task<Result> DeleteRuleAsync(
         string broadcasterId,
         int ruleId,
+        string? actorId = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -315,6 +317,24 @@ public class ModerationService : IModerationService
 
         if (record is null)
             return Result.Failure($"Moderation rule '{ruleId}' was not found.", "NOT_FOUND");
+
+        ModerationRuleData? ruleData = TryDeserializeRule(record, tenantId);
+
+        // Record the deletion to the channel's audit trail BEFORE the row is removed — mirrors
+        // CommandService.DeleteAsync (S013): a destructive, no-undo action with nothing else naming who did it
+        // once the Record row is gone. Kept as its own record type so this rule-authoring event is never mixed
+        // with ActionRecordType's Twitch-target (viewer ban/timeout) assumptions.
+        _db.Records.Add(
+            new Record
+            {
+                BroadcasterId = tenantId,
+                RecordType = RuleAuditRecordType,
+                Data = JsonSerializer.Serialize(
+                    new RuleAuditActionData { Action = "rule_deleted", Subject = ruleData?.Name }
+                ),
+                UserId = actorId ?? tenantId.ToString(),
+            }
+        );
 
         _db.Records.Remove(record);
         await _db.SaveChangesAsync(cancellationToken);
@@ -1943,5 +1963,12 @@ public class ModerationService : IModerationService
         public string SubjectTwitchUserId { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
         public bool Pinned { get; set; }
+    }
+
+    /// <summary>The recorded shape of a <see cref="RuleAuditRecordType"/> row — one destructive rule-authoring event.</summary>
+    private sealed class RuleAuditActionData
+    {
+        public string Action { get; set; } = string.Empty;
+        public string? Subject { get; set; }
     }
 }

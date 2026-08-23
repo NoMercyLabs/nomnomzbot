@@ -288,7 +288,8 @@ public class ModerationController : BaseController
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteRule(string channelId, int ruleId, CancellationToken ct)
     {
-        Result result = await _moderationService.DeleteRuleAsync(channelId, ruleId, ct);
+        string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        Result result = await _moderationService.DeleteRuleAsync(channelId, ruleId, actorId, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return NoContent();
