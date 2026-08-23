@@ -54,6 +54,11 @@ public sealed class TwitchEventSubHostedService
     private DateTimeOffset? _lastEventAt;
     private volatile int _activeSubscriptionCount;
 
+    // Per-owner (bot / each broadcaster) enabled-subscription count, refreshed on every RECONNECT welcome
+    // (twitch-eventsub §7 hardening) — the previous single process-wide _activeSubscriptionCount could not tell
+    // one tenant's healthy re-registration apart from another's silent failure in a multi-tenant deployment.
+    private readonly ConcurrentDictionary<string, int> _subscriptionCountByOwner = new();
+
     // Per-tenant watermark of the last notification actually delivered — the gap-backfill start bound on a
     // reconnect welcome. Guid-keyed (not the process-wide _lastEventAt) so one broadcaster's activity never
     // masks another's gap in a multi-tenant deployment. No entry yet ⇒ nothing to backfill for that tenant
@@ -231,19 +236,29 @@ public sealed class TwitchEventSubHostedService
         lock (_welcomedLock)
             firstWelcome = _welcomedOwners.Add(ownerKey);
 
+        int ownerSubscriptionCount = _subscriptionCountByOwner.GetValueOrDefault(ownerKey);
         if (!firstWelcome)
         {
-            _activeSubscriptionCount = await ReRegisterOwnerAsync(ownerKey, ct);
+            ownerSubscriptionCount = await ReRegisterOwnerAsync(ownerKey, ct);
+            _subscriptionCountByOwner[ownerKey] = ownerSubscriptionCount;
+            _activeSubscriptionCount = _subscriptionCountByOwner.Values.Sum();
             await BackfillOwnerGapAsync(ownerKey, ct);
         }
+
+        // A broadcaster-owned session's key IS the tenant Guid (EventSubOwnerKeys.For) — surface it on the
+        // event so a per-broadcaster consumer (e.g. the needs-reauth self-heal below) can act on it; the shared
+        // bot session carries no single tenant, so it stays the platform sentinel.
+        Guid connectedBroadcasterId = Guid.TryParse(ownerKey, out Guid parsedOwner)
+            ? parsedOwner
+            : Guid.Empty;
 
         await _eventBus.PublishAsync(
             new EventSubConnectedEvent
             {
-                BroadcasterId = Guid.Empty,
+                BroadcasterId = connectedBroadcasterId,
                 Transport = _transport.Kind,
                 SessionId = sessionId,
-                ActiveSubscriptionCount = _activeSubscriptionCount,
+                ActiveSubscriptionCount = ownerSubscriptionCount,
                 OccurredAt = _clock.GetUtcNow(),
             },
             ct
@@ -315,6 +330,32 @@ public sealed class TwitchEventSubHostedService
                 subscriptionType,
                 dispatched.ErrorMessage
             );
+    }
+
+    public async Task OnSessionDisconnectedAsync(
+        string ownerKey,
+        string? sessionId,
+        string reason,
+        TimeSpan nextRetryIn,
+        CancellationToken ct
+    )
+    {
+        Guid disconnectedBroadcasterId = Guid.TryParse(ownerKey, out Guid parsedOwner)
+            ? parsedOwner
+            : Guid.Empty;
+
+        await _eventBus.PublishAsync(
+            new EventSubDisconnectedEvent
+            {
+                BroadcasterId = disconnectedBroadcasterId,
+                Transport = _transport.Kind,
+                SessionId = sessionId,
+                Reason = reason,
+                NextRetryIn = nextRetryIn,
+                OccurredAt = _clock.GetUtcNow(),
+            },
+            ct
+        );
     }
 
     public async Task OnRevocationAsync(
@@ -911,11 +952,47 @@ public sealed class TwitchEventSubHostedService
         );
     }
 
+    /// <summary>
+    /// The registry's enabled-subscription count for one token owner's session, refreshed on that owner's
+    /// last RECONNECT welcome (twitch-eventsub §7). 0 for an owner that has never welcomed (including a
+    /// brand-new process, where the startup reconcile — not a welcome — subscribed the desired set).
+    /// </summary>
+    public int GetOwnerSubscriptionCount(string ownerKey) =>
+        _subscriptionCountByOwner.GetValueOrDefault(ownerKey);
+
     public async Task<Result> ReconnectAsync(CancellationToken ct = default)
     {
+        // A WebSocket session is per-OWNER (twitch-eventsub §3.3 — Twitch forbids different users' subs on one
+        // session), so a full reconnect must re-open EVERY owner's session, not just the bot's default one.
+        // Capture the known owner set BEFORE stopping: the WebSocket transport's StopAsync clears its session
+        // dictionary, so KnownOwnerKeys would read empty if queried after. The bot owner is always included even
+        // on a from-scratch start (its session backs chat-read for every channel); _welcomedOwners is unioned in
+        // too as a belt-and-braces source (an owner that welcomed but whose transport-tracked session already
+        // dropped before this reconnect still gets re-opened).
+        HashSet<string> ownerKeys = [EventSubOwnerKeys.Bot, .. _transport.KnownOwnerKeys];
+        lock (_welcomedLock)
+            ownerKeys.UnionWith(_welcomedOwners);
+
         await _transport.StopAsync(ct);
-        Result<EventSubTransportHandle> restarted = await _transport.StartAsync(ct);
-        return restarted.IsFailure ? restarted : Result.Success();
+
+        List<string> failures = [];
+        foreach (string ownerKey in ownerKeys)
+        {
+            Result<EventSubTransportHandle> reopened = await _transport.EnsureSessionAsync(
+                ownerKey,
+                ct
+            );
+            if (reopened.IsFailure)
+                failures.Add($"{ownerKey}: {reopened.ErrorMessage}");
+        }
+
+        return failures.Count == 0
+            ? Result.Success()
+            : Result.Failure(
+                $"Failed to reopen {failures.Count} of {ownerKeys.Count} EventSub session(s).",
+                "SERVICE_UNAVAILABLE",
+                string.Join("; ", failures)
+            );
     }
 
     // ── Internals ───────────────────────────────────────────────────────────

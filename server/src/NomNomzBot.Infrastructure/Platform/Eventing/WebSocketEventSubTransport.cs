@@ -111,6 +111,21 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
             .Max();
 
     /// <summary>
+    /// Every token-owner key with a session ever opened this process (bot + one per broadcaster),
+    /// snapshotted at call time. Used by <see cref="ReconnectAsync"/> callers (twitch-eventsub §7 hardening) to
+    /// re-open EVERY owner's session after a full transport restart — not just the bot's default session.
+    /// </summary>
+    public IReadOnlyCollection<string> KnownOwnerKeys => [.. _sessions.Keys];
+
+    /// <summary>
+    /// The base (pre-jitter) backoff delay scheduled before each reconnect attempt for the given owner's
+    /// session, in issue order (e.g. 1s, 2s, 4s, 8s, … capped at 64s). Diagnostic + test seam: full jitter makes
+    /// the ACTUAL delay random, but the doubling schedule itself is deterministic and worth asserting on.
+    /// </summary>
+    public IReadOnlyList<TimeSpan> GetBackoffScheduleForOwner(string ownerKey) =>
+        _sessions.TryGetValue(ownerKey, out WsSession? session) ? session.BackoffSchedule : [];
+
+    /// <summary>
     /// Binds the lifecycle sink (the hosted service). Set once before <see cref="StartAsync"/>; each session's
     /// receive loop forwards welcome / notification / revocation frames to it (welcome carries the owner key).
     /// </summary>
@@ -292,6 +307,16 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
             ct
         ) ?? Task.CompletedTask;
 
+    private Task ForwardDisconnectedAsync(
+        string ownerKey,
+        string? sessionId,
+        string reason,
+        TimeSpan nextRetryIn,
+        CancellationToken ct
+    ) =>
+        _sink?.OnSessionDisconnectedAsync(ownerKey, sessionId, reason, nextRetryIn, ct)
+        ?? Task.CompletedTask;
+
     private Task ForwardRevocationAsync(
         string twitchSubscriptionId,
         string subscriptionType,
@@ -332,6 +357,11 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         private TimeSpan _keepaliveTimeout = TimeSpan.FromSeconds(40);
         private DateTimeOffset? _lastReconnectAt;
 
+        // Every base (pre-jitter) backoff delay scheduled so far, in issue order — the doubling schedule is
+        // deterministic even though WithJitter randomizes the ACTUAL wait, so this is what a test (or an
+        // operator reading diagnostics) can assert against.
+        private readonly List<TimeSpan> _backoffSchedule = [];
+
         // Completed by the receive loop on the FIRST welcome. Shared across concurrent EnsureStartedAsync callers
         // (the hosted-service start and BotLifecycleService both open the bot session on boot) so the second
         // caller awaits the SAME signal instead of a private TCS the loop never completes — which would hang.
@@ -354,6 +384,16 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
 
         public string? SessionId => _sessionId;
         public DateTimeOffset? LastReconnectAt => _lastReconnectAt;
+
+        /// <summary>Snapshot of every base backoff delay scheduled so far, in issue order.</summary>
+        public IReadOnlyList<TimeSpan> BackoffSchedule
+        {
+            get
+            {
+                lock (_stateLock)
+                    return [.. _backoffSchedule];
+            }
+        }
 
         public async Task<Result<string>> EnsureStartedAsync(CancellationToken ct)
         {
@@ -385,15 +425,24 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                 welcomeTask = _startWelcome.Task;
             }
 
-            // Wait for the first welcome (or cancellation) so the caller gets a usable session id.
-            Task completed = await Task.WhenAny(welcomeTask, Task.Delay(Timeout.Infinite, ct));
-            if (completed != welcomeTask)
+            // Wait for the first welcome (or cancellation) so the caller gets a usable session id. WaitAsync(ct)
+            // registers a single lightweight callback on ct and disposes it the moment EITHER side completes —
+            // unlike the previous Task.WhenAny(welcomeTask, Task.Delay(Timeout.Infinite, ct)), whose Delay task
+            // (and its ct registration) stayed alive, unobserved, for the lifetime of ct whenever welcomeTask won
+            // the race first (the common case: BotLifecycleService and the hosted service both start the bot
+            // session on boot, so most callers here win on an already-signaled welcome). No orphaned task or
+            // registration survives this call once it returns, for either outcome.
+            try
+            {
+                return Result.Success(await welcomeTask.WaitAsync(ct));
+            }
+            catch (OperationCanceledException)
+            {
                 return Result.Failure<string>(
                     "EventSub WebSocket start cancelled before welcome.",
                     "SERVICE_UNAVAILABLE"
                 );
-
-            return Result.Success(await welcomeTask);
+            }
         }
 
         public async Task StopAsync()
@@ -444,6 +493,8 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
 
             while (!ct.IsCancellationRequested)
             {
+                string? droppedSessionId = _sessionId;
+                string reason;
                 try
                 {
                     connectUrl = await ConnectAndReceiveAsync(connectUrl, firstWelcome, ct);
@@ -456,18 +507,31 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                 }
                 catch (KeepaliveTimeoutException)
                 {
+                    reason = "keepalive timeout";
                     _logger.LogWarning(
                         "EventSub WS ({Owner}) keepalive timeout; reconnecting in {Backoff:g}",
                         _ownerKey,
                         backoff
                     );
                 }
+                catch (UnexpectedCloseException close)
+                {
+                    reason =
+                        $"closed by server (code {close.CloseStatus?.ToString() ?? "unknown"} — {close.CloseStatusDescription ?? "none"})";
+                    _logger.LogWarning(
+                        "EventSub WS ({Owner}) {Reason}; reconnecting in {Backoff:g}",
+                        _ownerKey,
+                        reason,
+                        backoff
+                    );
+                }
                 catch (Exception ex)
                 {
+                    reason = ex.GetType().Name;
                     _logger.LogWarning(
                         "EventSub WS ({Owner}) dropped ({Reason}); reconnecting in {Backoff:g}",
                         _ownerKey,
-                        ex.GetType().Name,
+                        reason,
                         backoff
                     );
                 }
@@ -476,7 +540,20 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                 if (ct.IsCancellationRequested)
                     break;
 
-                // Exponential backoff capped at 64 s, plus full jitter, so a fleet does not thunder Twitch.
+                // Exponential backoff capped at 64 s, plus full jitter, so a fleet does not thunder Twitch. The
+                // pre-jitter schedule is recorded so a caller (test or diagnostics) can assert the doubling
+                // sequence even though the actual delay is randomized.
+                lock (_stateLock)
+                    _backoffSchedule.Add(backoff);
+
+                await _owner.ForwardDisconnectedAsync(
+                    _ownerKey,
+                    droppedSessionId,
+                    reason,
+                    backoff,
+                    ct
+                );
+
                 try
                 {
                     await Task.Delay(WithJitter(backoff), _clock, ct);
@@ -541,8 +618,18 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                         throw new KeepaliveTimeoutException();
                     }
 
+                    // A Close frame here is Twitch (or the network) dropping us unexpectedly — e.g. close code
+                    // 4003 "connection unused" (no subscriptions bound in time) or 4004 "reconnect grace time
+                    // expired". This is NEVER a clean, planned handoff (that is the "session_reconnect" MESSAGE
+                    // handled below, which returns its own reconnect_url) — treating it as one previously let
+                    // RunWithReconnectAsync's catch-free return path reset backoff to 1s and immediately
+                    // reconnect, tight-spinning against Twitch on a server-side close. Throwing routes it through
+                    // the SAME catch(Exception) block as any other drop, so exponential backoff applies here too.
                     if (result.MessageType == WebSocketMessageType.Close)
-                        return DefaultWsUrl;
+                        throw new UnexpectedCloseException(
+                            result.CloseStatus,
+                            result.CloseStatusDescription
+                        );
 
                     frame.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
                 } while (!result.EndOfMessage);
@@ -686,6 +773,21 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         DateTimeOffset.TryParse(raw, out DateTimeOffset parsed) ? parsed : DateTimeOffset.UtcNow;
 
     private sealed class KeepaliveTimeoutException : Exception;
+
+    /// <summary>
+    /// A server- or network-initiated Close frame (e.g. Twitch close code 4003/4004/4005/4006/4007) — always an
+    /// unplanned drop, distinct from the planned "session_reconnect" MESSAGE (which carries its own
+    /// reconnect_url and never throws). Routes through the exponential-backoff catch path instead of the
+    /// zero-delay "clean URL swap" return.
+    /// </summary>
+    private sealed class UnexpectedCloseException(
+        WebSocketCloseStatus? closeStatus,
+        string? closeStatusDescription
+    ) : Exception
+    {
+        public WebSocketCloseStatus? CloseStatus { get; } = closeStatus;
+        public string? CloseStatusDescription { get; } = closeStatusDescription;
+    }
 
     // ── Wire frame shapes (System.Text.Json, snake_case Web defaults) ──
     private sealed class WireEnvelope

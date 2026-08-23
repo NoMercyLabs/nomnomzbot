@@ -97,7 +97,10 @@ public sealed class WebSocketEventSubTransportTests
     {
         FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
         CapturingSink sink = new();
-        ScriptedChannel channel = new([Welcome("session-A")]);
+        // idleAfterScript: this test proves welcome capture, not the post-welcome close/backoff behavior (S033
+        // covers that separately) — an idle channel keeps the session alive so SessionId stays "session-A"
+        // instead of the connection immediately cycling into its next (unexpectedly-closed) reconnect attempt.
+        ScriptedChannel channel = new([Welcome("session-A")], idleAfterScript: true);
         ScriptedChannelFactory factory = new(channel);
         WebSocketEventSubTransport transport = NewTransport(factory, clock, sink);
 
@@ -187,8 +190,9 @@ public sealed class WebSocketEventSubTransportTests
             Welcome("session-A"),
             ReconnectFrame("wss://reconnect.example/ws"),
         ]);
-        // Second channel: a fresh welcome (B) — the swapped connection.
-        ScriptedChannel second = new([Welcome("session-B")]);
+        // Second channel: a fresh welcome (B) — the swapped connection. Idle after so the test's SessionId
+        // assertion below observes the settled session, not an immediately-following unexpected-close cycle.
+        ScriptedChannel second = new([Welcome("session-B")], idleAfterScript: true);
         ScriptedChannelFactory factory = new(first, second);
         WebSocketEventSubTransport transport = NewTransport(factory, clock, sink);
 
@@ -243,6 +247,56 @@ public sealed class WebSocketEventSubTransportTests
     }
 
     [Fact]
+    public async Task UnexpectedClose_AppliesExponentialBackoff_AndForwardsADisconnectedNotice()
+    {
+        // The S033 bug: a server-side Close frame (e.g. Twitch code 4003 "connection unused" / 4004 "reconnect
+        // grace expired") was treated identically to a clean "script ended, swap URL" return, resetting backoff
+        // to 1s and reconnecting immediately — a tight spin against Twitch. Four successive channels, each
+        // delivering one welcome then closing, must now be separated by a DOUBLING backoff (1s, 2s, 4s) — proven
+        // by the transport's recorded pre-jitter schedule, not merely "it retried".
+        FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
+        CapturingSink sink = new();
+        ScriptedChannelFactory factory = new(
+            new ScriptedChannel([Welcome("session-A")]),
+            new ScriptedChannel([Welcome("session-B")]),
+            new ScriptedChannel([Welcome("session-C")]),
+            // Idle after D's welcome: the assertions below read the schedule right after the 4th welcome, and
+            // an idle channel keeps that from racing a 4th close/backoff cycle that starts before the read.
+            new ScriptedChannel([Welcome("session-D")], idleAfterScript: true)
+        );
+        WebSocketEventSubTransport transport = NewTransport(factory, clock, sink);
+
+        await transport.StartAsync();
+
+        // Full jitter makes the ACTUAL delay <= the scheduled base backoff, so stepping the virtual clock by 1s
+        // at a time — well past the 1+2+4=7s worst case — always crosses whatever fraction was actually drawn.
+        for (int i = 0; i < 60 && sink.Welcomes.Count < 4; i++)
+        {
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await Task.Delay(15);
+        }
+
+        sink.Welcomes.Should().Equal("session-A", "session-B", "session-C", "session-D");
+
+        IReadOnlyList<TimeSpan> schedule = transport.GetBackoffScheduleForOwner(
+            EventSubOwnerKeys.Bot
+        );
+        schedule
+            .Should()
+            .Equal(
+                [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4)],
+                "each successive unexpected close must double the backoff, never reset it to 1s"
+            );
+
+        // The sink learns about the drop (dashboard "degraded" diagnostic) — not just Twitch.
+        await sink.WaitForDisconnectsAsync(3);
+        sink.Disconnects.Should().HaveCount(3);
+        sink.Disconnects.Should().OnlyContain(d => d.OwnerKey == EventSubOwnerKeys.Bot);
+
+        await transport.StopAsync();
+    }
+
+    [Fact]
     public async Task Revocation_IsForwardedToSink_WithSubscriptionIdAndStatus()
     {
         FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
@@ -277,15 +331,24 @@ public sealed class WebSocketEventSubTransportTests
         string Status
     );
 
+    private sealed record CapturedDisconnect(
+        string OwnerKey,
+        string? SessionId,
+        string Reason,
+        TimeSpan NextRetryIn
+    );
+
     private sealed class CapturingSink : IEventSubNotificationSink
     {
         private readonly ConcurrentQueue<string> _welcomes = new();
         private readonly ConcurrentQueue<CapturedNotification> _notifications = new();
         private readonly ConcurrentQueue<CapturedRevocation> _revocations = new();
+        private readonly ConcurrentQueue<CapturedDisconnect> _disconnects = new();
 
         public IReadOnlyList<string> Welcomes => _welcomes.ToList();
         public IReadOnlyList<CapturedNotification> Notifications => _notifications.ToList();
         public IReadOnlyList<CapturedRevocation> Revocations => _revocations.ToList();
+        public IReadOnlyList<CapturedDisconnect> Disconnects => _disconnects.ToList();
 
         public Task OnSessionWelcomeAsync(string sessionId, string ownerKey, CancellationToken ct)
         {
@@ -327,6 +390,18 @@ public sealed class WebSocketEventSubTransportTests
             return Task.CompletedTask;
         }
 
+        public Task OnSessionDisconnectedAsync(
+            string ownerKey,
+            string? sessionId,
+            string reason,
+            TimeSpan nextRetryIn,
+            CancellationToken ct
+        )
+        {
+            _disconnects.Enqueue(new(ownerKey, sessionId, reason, nextRetryIn));
+            return Task.CompletedTask;
+        }
+
         public Task WaitForWelcomesAsync(int count) => WaitUntil(() => _welcomes.Count >= count);
 
         public Task WaitForNotificationsAsync(int count) =>
@@ -334,6 +409,9 @@ public sealed class WebSocketEventSubTransportTests
 
         public Task WaitForRevocationsAsync(int count) =>
             WaitUntil(() => _revocations.Count >= count);
+
+        public Task WaitForDisconnectsAsync(int count) =>
+            WaitUntil(() => _disconnects.Count >= count);
 
         private static async Task WaitUntil(Func<bool> predicate)
         {

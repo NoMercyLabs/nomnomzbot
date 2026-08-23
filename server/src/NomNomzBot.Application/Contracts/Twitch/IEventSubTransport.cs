@@ -58,6 +58,13 @@ public interface IEventSubTransport
     /// </summary>
     string? CurrentSessionId(string ownerKey);
 
+    /// <summary>
+    /// Every token-owner key with a session ever opened this process (twitch-eventsub §7 hardening). A full
+    /// transport reconnect (<c>ITwitchEventSubService.ReconnectAsync</c>) must re-open EVERY owner's session,
+    /// not only the default one — this is the seam it reads to know the full set.
+    /// </summary>
+    IReadOnlyCollection<string> KnownOwnerKeys { get; }
+
     /// <summary><c>DELETE /eventsub/subscriptions?id=</c>. Idempotent (404 → Success).</summary>
     Task<Result> DeleteSubscriptionAsync(
         string twitchSubscriptionId,

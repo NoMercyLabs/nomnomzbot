@@ -68,12 +68,23 @@ public sealed class TwitchEventSubReconnectTests
         IPlatformBotReadinessGate gate = Substitute.For<IPlatformBotReadinessGate>();
         gate.IsPlatformBotConfiguredAsync(Arg.Any<CancellationToken>()).Returns(true);
 
+        IEventSubGapBackfillService backfill = Substitute.For<IEventSubGapBackfillService>();
+        backfill
+            .BackfillGapAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<DateTimeOffset>(),
+                Arg.Any<DateTimeOffset>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(0));
+
         // The context is a single shared instance (singleton): the hosted service opens a fresh DI scope per
         // call, so a per-scope/transient context would lose the registry between SubscribeAsync calls.
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton<IApplicationDbContext>(db)
             .AddScoped<ITwitchIdentityResolver>(_ => resolver)
             .AddScoped<IPlatformBotReadinessGate>(_ => gate)
+            .AddScoped<IEventSubGapBackfillService>(_ => backfill)
             .AddScoped<INotificationDispatcher>(_ =>
                 dispatcher ?? Substitute.For<INotificationDispatcher>()
             )
@@ -208,6 +219,60 @@ public sealed class TwitchEventSubReconnectTests
         // The next reconcile pass retries the create (a pending row is never parked).
         await service.SubscribeAsync(tenant, "channel.cheer");
         transport.CreatedTypes.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task ReconnectAsync_reopens_every_owner_session_not_just_the_bot()
+    {
+        // S033: a full transport reconnect previously only re-opened the bot's default session
+        // (_transport.StartAsync() == EnsureSessionAsync(Bot)) — a broadcaster's OWN session (per
+        // twitch-eventsub §3.3, one WS session per token owner) was silently left closed. Prove that with MORE
+        // THAN ONE owner already known, ReconnectAsync re-opens EACH one, not only the bot's.
+        Guid tenantA = Guid.CreateVersion7();
+        Guid tenantB = Guid.CreateVersion7();
+        RecordingEventSubTransport transport = new();
+        (TwitchEventSubHostedService service, _) = Build(transport);
+
+        // Establish sessions for the bot AND two distinct broadcaster owners before the reconnect.
+        await service.SubscribeAsync(tenantA, "channel.subscribe"); // broadcaster-owned session for tenantA
+        await service.SubscribeAsync(tenantB, "channel.cheer"); // broadcaster-owned session for tenantB
+        await service.SubscribeAsync(tenantA, "channel.chat.message"); // bot-owned session
+        transport.EnsuredOwners.Clear();
+
+        Result reconnected = await service.ReconnectAsync();
+
+        reconnected.IsSuccess.Should().BeTrue(reconnected.ErrorMessage);
+        transport.EnsuredOwners.Should().Contain(EventSubOwnerKeys.Bot);
+        transport.EnsuredOwners.Should().Contain(tenantA.ToString());
+        transport.EnsuredOwners.Should().Contain(tenantB.ToString());
+    }
+
+    [Fact]
+    public async Task OnSessionWelcome_reconnect_records_a_correct_per_owner_subscription_count()
+    {
+        // S033: a single process-wide _activeSubscriptionCount could not tell one tenant's healthy
+        // re-registration apart from another's silent failure. Two owners, two different enabled-topic counts —
+        // GetOwnerSubscriptionCount must report each owner's OWN count, not a shared/aggregate number.
+        Guid tenantA = Guid.CreateVersion7();
+        Guid tenantB = Guid.CreateVersion7();
+        RecordingEventSubTransport transport = new(startSessionId: "sess-1");
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+
+        // tenantA: two broadcaster-owned topics. tenantB: one.
+        Seed(db, tenantA, "channel.subscribe", version: "1", status: "enabled");
+        Seed(db, tenantA, "channel.follow", version: "2", status: "enabled");
+        Seed(db, tenantB, "channel.cheer", version: "1", status: "enabled");
+
+        // A first welcome per owner is a no-op re-register (startup reconcile's job); only a RECONNECT welcome
+        // (owner already seen) drives ReRegisterOwnerAsync — so welcome each owner twice.
+        await service.OnSessionWelcomeAsync("s1", tenantA.ToString(), CancellationToken.None);
+        await service.OnSessionWelcomeAsync("s1", tenantA.ToString(), CancellationToken.None);
+        await service.OnSessionWelcomeAsync("s1", tenantB.ToString(), CancellationToken.None);
+        await service.OnSessionWelcomeAsync("s1", tenantB.ToString(), CancellationToken.None);
+
+        service.GetOwnerSubscriptionCount(tenantA.ToString()).Should().Be(2);
+        service.GetOwnerSubscriptionCount(tenantB.ToString()).Should().Be(1);
+        service.GetOwnerSubscriptionCount("some-owner-never-welcomed").Should().Be(0);
     }
 
     [Fact]
@@ -658,8 +723,15 @@ public sealed class TwitchEventSubReconnectTests
         /// <summary>Every subscription id passed to delete (proves stale-session cleanup / reconcile pruning).</summary>
         public List<string> Deletes { get; } = [];
 
-        /// <summary>Every owner key a create was routed to (proves per-owner session routing).</summary>
+        /// <summary>Every owner key a create was routed to, in issue order (proves per-owner session routing).</summary>
         public List<string> EnsuredOwners { get; } = [];
+
+        // Distinct from EnsuredOwners (an ORDERED log a test may .Clear() to isolate a later phase): this is the
+        // durable "every owner ever ensured" set ITwitchEventSubService.ReconnectAsync reads via KnownOwnerKeys,
+        // and it must survive a log clear the same way the real transport's session dictionary does.
+        private readonly HashSet<string> _knownOwners = [];
+
+        public IReadOnlyCollection<string> KnownOwnerKeys => _knownOwners;
 
         public Task<Result<EventSubTransportHandle>> StartAsync(CancellationToken ct = default) =>
             Task.FromResult(
@@ -674,6 +746,7 @@ public sealed class TwitchEventSubReconnectTests
         )
         {
             EnsuredOwners.Add(ownerKey);
+            _knownOwners.Add(ownerKey);
             return Task.FromResult(
                 Result.Success(
                     new EventSubTransportHandle { Kind = Kind, SessionId = startSessionId }

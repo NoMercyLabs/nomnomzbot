@@ -46,4 +46,18 @@ public interface IEventSubNotificationSink
     /// WebSocket session, so a welcome re-registers only that owner's slice, not the whole registry.
     /// </summary>
     Task OnSessionWelcomeAsync(string sessionId, string ownerKey, CancellationToken ct);
+
+    /// <summary>
+    /// The token owner's session dropped (keepalive timeout, unexpected close, network error) and a reconnect
+    /// with backoff is scheduled (twitch-eventsub §7 hardening). A dashboard-visible "degraded" diagnostic —
+    /// distinct from <see cref="OnRevocationAsync"/>, which means the authorization itself is gone; this means
+    /// only the transport hiccuped and is already retrying.
+    /// </summary>
+    Task OnSessionDisconnectedAsync(
+        string ownerKey,
+        string? sessionId,
+        string reason,
+        TimeSpan nextRetryIn,
+        CancellationToken ct
+    );
 }
