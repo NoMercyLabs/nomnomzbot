@@ -21,12 +21,18 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 0-S — security first (owner, 2026-08-22: "security is tight" beats "features start working")
 
-- **S098** Security baseline — the 7 non-`BaseController` controllers get `[ApiController]` + a limiter; access tokens
-  stay 60 min but a cached `sid` revocation check runs per request so logout / impersonation-end invalidates in-flight
-  tokens (owner decision); `ValidAlgorithms` pinned and bearer validation built from the token-service factory; refresh
-  custody by cookie presence not `?client=`; drop the fragment refresh path; Origin/CSRF check on cookie refresh; HSTS +
-  CSP for the SPA entry; `ENCRYPTION_KEY` rotation pass that re-wraps (fail loud, never blank) (U·E6). Done-when: every
-  anonymous route is rate-limited (test enumerates controllers); logout invalidates in-flight access tokens.
+- **S098b** Token validation hardening — access tokens stay 60 min but a cached `sid` revocation check runs per request
+  so logout / impersonation-end invalidates in-flight tokens (owner decision); `ValidAlgorithms` pinned and bearer
+  validation built from the token-service factory (`Program.cs:256-265`) (U·E6). Done-when: logout invalidates an
+  in-flight access token.
+- **S098c** Refresh custody — by cookie presence, not `?client=` (`AuthController.cs:1079`); drop the fragment refresh
+  path (`:552`); Origin/CSRF check on cookie refresh (U·E6). Done-when: a cross-origin cookie refresh is rejected and no
+  refresh token ever appears in a URL.
+- **S098d** HSTS + CSP for the SPA entry; `ENCRYPTION_KEY` rotation pass that re-wraps (fail loud, never blank)
+  (`SystemCredentialsProvider.cs:50`) (U·E6). Done-when: rotation re-wraps every secret; a wrong key fails loud.
+- **S115** Repo-wide CSharpier drift — `dotnet csharpier check .` fails on ~230 committed files (2551 checked), so the
+  per-commit format gate in `CLAUDE.md` is currently unenforceable. Done-when: `dotnet csharpier check .` is clean on a
+  quiet tree and stays the gate.
 - **S114** Rate-limit tiers by task type (owner: got rate-limited toggling cheap options — the single `"api"` bucket
   is wrong) — replace the one policy with named tiers: `read` (generous, per user), `write-cheap` (toggles/config, generous),
   `write-expensive` (synthesis, uploads, fan-out, per channel), `auth` (strict, per IP), `anonymous` (overlay/webhook/
