@@ -14,6 +14,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Domain.Enums.Deployment;
@@ -23,6 +24,7 @@ using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Deployment;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -38,20 +40,42 @@ public sealed class PlatformAdminServiceTests
     private static readonly DateTimeOffset Now = new(2026, 7, 17, 3, 0, 0, TimeSpan.Zero);
     private static readonly PaginationParams Page = new(1, 25, null, null);
 
-    private static (PlatformAdminService Sut, AuthDbContext Db, RecordingEventBus Bus) Build()
+    private static (
+        PlatformAdminService Sut,
+        AuthDbContext Db,
+        RecordingEventBus Bus,
+        ISessionRevocationService Revocation
+    ) Build(DeploymentMode mode = DeploymentMode.Saas)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         RecordingEventBus bus = new();
         FakeTimeProvider clock = new(Now);
+        ISessionRevocationService revocation = Substitute.For<ISessionRevocationService>();
         PlatformAdminService sut = new(
             db,
-            new PlatformIamService(db, bus, clock, new(DeploymentMode.Saas)),
+            new PlatformIamService(db, bus, clock, new(mode)),
             Jwt(),
             bus,
-            clock
+            clock,
+            new(mode),
+            revocation
         );
-        return (sut, db, bus);
+        return (sut, db, bus, revocation);
     }
+
+    /// <summary>Seeds an OPEN, time-boxed support-access grant for <paramref name="principal"/> — the session an impersonation mint is required to ride on (S089a).</summary>
+    private static Guid SeedOpenGrant(AuthDbContext db, Guid principal, DateTime expiresAt) =>
+        db
+            .IamRoleAssignments.Add(
+                new()
+                {
+                    PrincipalId = principal,
+                    AssignedByPrincipalId = principal,
+                    ExpiresAt = expiresAt,
+                    Reason = "support session",
+                }
+            )
+            .Entity.Id;
 
     /// <summary>
     /// A real HS256 token service on the system clock (so a minted token is valid "now" for
@@ -203,7 +227,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task Suspend_flips_the_lifecycle_columns_audits_and_publishes()
     {
-        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _) = Build();
         Guid principal = SeedPrincipal(db, "tenant:suspend");
         Guid tenant = SeedTenant(db);
         await db.SaveChangesAsync();
@@ -238,7 +262,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task Suspend_rejects_an_invalid_status_and_requires_the_permission()
     {
-        (PlatformAdminService sut, AuthDbContext db, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
         Guid unpermitted = SeedPrincipal(db, "tenant:read"); // holds a key, but not tenant:suspend
         Guid tenant = SeedTenant(db);
         await db.SaveChangesAsync();
@@ -259,7 +283,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task Reinstate_restores_active_and_clears_the_suspension_fields()
     {
-        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _) = Build();
         Guid principal = SeedPrincipal(db, "tenant:suspend");
         Guid tenant = SeedTenant(db);
         await db.SaveChangesAsync();
@@ -278,7 +302,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task BeginTenantAccess_creates_a_scoped_timeboxed_support_assignment()
     {
-        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _) = Build();
         Guid principal = SeedPrincipal(db, "tenant:access");
         Guid tenant = SeedTenant(db);
         db.IamRoles.Add(new() { Id = Guid.NewGuid(), Name = "platform-support" });
@@ -313,7 +337,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task BeginTenantAccess_requires_a_justification()
     {
-        (PlatformAdminService sut, AuthDbContext db, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
         Guid principal = SeedPrincipal(db, "tenant:access");
         Guid tenant = SeedTenant(db);
         await db.SaveChangesAsync();
@@ -330,7 +354,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task EndTenantAccess_revokes_own_grant_and_rejects_a_foreign_one()
     {
-        (PlatformAdminService sut, AuthDbContext db, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
         Guid principal = SeedPrincipal(db, "tenant:access");
         Guid other = SeedPrincipal(db, "tenant:access");
         Guid tenant = SeedTenant(db);
@@ -364,7 +388,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task ListTenants_filters_by_status_and_GetTenant_returns_the_detail()
     {
-        (PlatformAdminService sut, AuthDbContext db, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
         Guid principal = SeedPrincipal(db, "tenant:read", "tenant:suspend");
         Guid active = SeedTenant(db, "active_chan");
         Guid banned = SeedTenant(db, "banned_chan");
@@ -389,7 +413,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task SearchAudit_filters_by_permission_and_target()
     {
-        (PlatformAdminService sut, AuthDbContext db, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
         Guid principal = SeedPrincipal(db, "audit:read", "tenant:suspend");
         Guid tenant = SeedTenant(db);
         await db.SaveChangesAsync();
@@ -412,22 +436,28 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task StartImpersonation_mints_a_target_scoped_token_that_never_leaks_the_operators_admin_role()
     {
-        (PlatformAdminService sut, AuthDbContext db, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
 
         // A platform-marked admin (whose OWN login would carry the `admin` role) acting as a plain viewer.
         Guid adminUserId = SeedUser(db, "operator", isPlatformPrincipal: true);
         Guid principal = SeedPrincipalFor(db, adminUserId, "operator", "user:impersonate");
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
+        // The grant's expiry gates the SESSION check via PlatformAdminService's fake clock ("Now"), but
+        // also clamps the minted JWT's `exp` — and JWT validation below runs on the REAL system clock
+        // (Jwt() uses TimeProvider.System), so the clamp cap must be in the real future too.
+        Guid grant = SeedOpenGrant(db, principal, DateTime.UtcNow.AddHours(1));
         await db.SaveChangesAsync();
 
         Result<ImpersonationTokenDto> result = await sut.StartImpersonationAsync(
             principal,
             targetUserId,
+            grant,
             "repro ticket 42"
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.User.Id.Should().Be(targetUserId.ToString());
+        result.Value.SessionId.Should().Be(grant);
 
         // Decode: identity + roles are the TARGET's.
         JwtTokenService verifier = Jwt();
@@ -442,6 +472,9 @@ public sealed class PlatformAdminServiceTests
                 "the operator's admin role must never ride an impersonation token"
             );
 
+        // sid is the backing grant id itself — ending the grant revokes exactly this token's session.
+        token.FindFirstValue(JwtTokenService.SessionClaim).Should().Be(grant.ToString());
+
         // The operator is named ONLY on the non-authoritative `act` claim (read raw — no auth path reads it).
         JwtSecurityToken raw = new JwtSecurityTokenHandler().ReadJwtToken(result.Value.AccessToken);
         raw.Claims.Should()
@@ -452,11 +485,11 @@ public sealed class PlatformAdminServiceTests
         // The returned expiry is the token's own `exp` — an access-only token (no refresh minted).
         result.Value.ExpiresAt.Should().Be(raw.ValidTo);
 
-        // The audited authorize named WHO was impersonated on the append-only log.
+        // The audited authorize named WHO was impersonated AND under WHICH session in ONE audit row.
         IamAuditLog audit = await db.IamAuditLogs.SingleAsync(a =>
             a.Permission == "user:impersonate"
         );
-        audit.TargetResource.Should().Be(targetUserId.ToString());
+        audit.TargetResource.Should().Be($"user:{targetUserId}|session:{grant}");
         audit.Justification.Should().Be("repro ticket 42");
         audit.Outcome.Should().Be(IamOutcome.Allowed);
     }
@@ -464,16 +497,19 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task StartImpersonation_carries_the_targets_admin_role_when_the_target_is_itself_an_admin()
     {
-        (PlatformAdminService sut, AuthDbContext db, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
         Guid adminUserId = SeedUser(db, "operator", isPlatformPrincipal: true);
         Guid principal = SeedPrincipalFor(db, adminUserId, "operator", "user:impersonate");
         // The TARGET is itself a platform principal — the token must reflect the TARGET's roles, so `admin` IS present.
         Guid targetAdminId = SeedUser(db, "coadmin", isPlatformPrincipal: true);
+        // Real-clock expiry — see the note in the previous test (validates against TimeProvider.System).
+        Guid grant = SeedOpenGrant(db, principal, DateTime.UtcNow.AddHours(1));
         await db.SaveChangesAsync();
 
         Result<ImpersonationTokenDto> result = await sut.StartImpersonationAsync(
             principal,
             targetAdminId,
+            grant,
             "audit the co-admin"
         );
 
@@ -490,7 +526,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task StartImpersonation_without_the_permission_is_forbidden_audited_and_mints_no_token()
     {
-        (PlatformAdminService sut, AuthDbContext db, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
         Guid unpermitted = SeedPrincipal(db, "tenant:read"); // holds a key, but not user:impersonate
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
         await db.SaveChangesAsync();
@@ -498,6 +534,7 @@ public sealed class PlatformAdminServiceTests
         Result<ImpersonationTokenDto> denied = await sut.StartImpersonationAsync(
             unpermitted,
             targetUserId,
+            Guid.NewGuid(), // no grant exists at all — permission is checked (and denied) first regardless
             "no key"
         );
 
@@ -511,17 +548,133 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task StartImpersonation_requires_a_justification_and_a_known_target()
     {
-        (PlatformAdminService sut, AuthDbContext db, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "user:impersonate");
+        Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
+        Guid grant = SeedOpenGrant(db, principal, Now.UtcDateTime.AddHours(1));
+        await db.SaveChangesAsync();
+
+        (await sut.StartImpersonationAsync(principal, targetUserId, grant, "   "))
+            .ErrorCode.Should()
+            .Be("VALIDATION_FAILED");
+
+        (await sut.StartImpersonationAsync(principal, Guid.NewGuid(), grant, "unknown target"))
+            .ErrorCode.Should()
+            .Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task StartImpersonation_without_an_open_support_session_is_refused()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
         Guid principal = SeedPrincipal(db, "user:impersonate");
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
         await db.SaveChangesAsync();
 
-        (await sut.StartImpersonationAsync(principal, targetUserId, "   "))
+        // No grant at all.
+        (await sut.StartImpersonationAsync(principal, targetUserId, Guid.NewGuid(), "no session"))
             .ErrorCode.Should()
-            .Be("VALIDATION_FAILED");
+            .Be("SESSION_REQUIRED");
 
-        (await sut.StartImpersonationAsync(principal, Guid.NewGuid(), "unknown target"))
+        // An EXPIRED grant does not count as open.
+        Guid expired = SeedOpenGrant(db, principal, Now.UtcDateTime.AddMinutes(-1));
+        await db.SaveChangesAsync();
+        (await sut.StartImpersonationAsync(principal, targetUserId, expired, "expired session"))
+            .ErrorCode.Should()
+            .Be("SESSION_REQUIRED");
+    }
+
+    [Fact]
+    public async Task StartImpersonation_clamps_the_token_expiry_to_the_sessions_remaining_time()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "user:impersonate");
+        Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
+        // The support session expires in 5 minutes — far shorter than the configured 60-minute JWT lifetime.
+        DateTime sessionExpiry = Now.UtcDateTime.AddMinutes(5);
+        Guid grant = SeedOpenGrant(db, principal, sessionExpiry);
+        await db.SaveChangesAsync();
+
+        Result<ImpersonationTokenDto> result = await sut.StartImpersonationAsync(
+            principal,
+            targetUserId,
+            grant,
+            "short session"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.ExpiresAt.Should().Be(sessionExpiry);
+    }
+
+    [Fact]
+    public async Task EndImpersonation_revokes_the_sid_so_the_same_token_stops_authenticating()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, ISessionRevocationService revocation) =
+            Build();
+        Guid principal = SeedPrincipal(db, "user:impersonate");
+        Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
+        Guid grant = SeedOpenGrant(db, principal, Now.UtcDateTime.AddHours(1));
+        await db.SaveChangesAsync();
+        Result<ImpersonationTokenDto> started = await sut.StartImpersonationAsync(
+            principal,
+            targetUserId,
+            grant,
+            "ticket"
+        );
+        started.IsSuccess.Should().BeTrue(started.ErrorMessage);
+
+        Result ended = await sut.EndImpersonationAsync(principal, grant);
+
+        ended.IsSuccess.Should().BeTrue(ended.ErrorMessage);
+        (await db.IamRoleAssignments.SingleAsync(a => a.Id == grant))
+            .RevokedAt.Should()
+            .Be(Now.UtcDateTime);
+        // The exact `sid` the minted token carries (the grant id) was handed to the revocation store —
+        // the SAME token now fails SessionRevocationCheck on its next request.
+        await revocation.Received(1).RevokeAsync(grant, Arg.Any<CancellationToken>());
+
+        // Ending it twice is NOT_FOUND (no longer active).
+        (await sut.EndImpersonationAsync(principal, grant))
             .ErrorCode.Should()
             .Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task Impersonation_is_refused_outright_on_self_host()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build(DeploymentMode.SelfHostFull);
+        Guid principal = SeedPrincipal(db, "user:impersonate");
+        Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
+        Guid grant = SeedOpenGrant(db, principal, Now.UtcDateTime.AddHours(1));
+        await db.SaveChangesAsync();
+
+        (
+            await sut.StartImpersonationAsync(
+                principal,
+                targetUserId,
+                grant,
+                "no self-host impersonation"
+            )
+        )
+            .ErrorCode.Should()
+            .Be("NOT_SUPPORTED");
+
+        (await sut.EndImpersonationAsync(principal, grant)).ErrorCode.Should().Be("NOT_SUPPORTED");
+    }
+
+    [Fact]
+    public async Task Impersonation_is_denied_for_a_non_owner_platform_principal_on_SaaS()
+    {
+        // platform-support no longer bundles user:impersonate (S089a) — a support principal holding
+        // every OTHER support key is still denied the ability to mint an impersonation token.
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        Guid support = SeedPrincipal(db, "tenant:read", "tenant:access", "audit:read");
+        Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
+        Guid grant = SeedOpenGrant(db, support, Now.UtcDateTime.AddHours(1));
+        await db.SaveChangesAsync();
+
+        (await sut.StartImpersonationAsync(support, targetUserId, grant, "not the owner"))
+            .ErrorCode.Should()
+            .Be("FORBIDDEN");
     }
 }

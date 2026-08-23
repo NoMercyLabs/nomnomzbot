@@ -282,6 +282,8 @@ public sealed class EventJournalService : IEventJournal
             ActorUserId = request.ActorUserId,
             ActorExternalUserId = request.ActorExternalUserId,
             ActorProvider = request.ActorProvider,
+            OnBehalfOfUserId = request.OnBehalfOfUserId,
+            ImpersonationSessionId = request.ImpersonationSessionId,
             Metadata = request.MetadataJson,
             OccurredAt = DateTime.SpecifyKind(request.OccurredAt, DateTimeKind.Utc),
             RecordedAt = recordedAt,
@@ -461,6 +463,8 @@ public sealed class EventJournalService : IEventJournal
             e.ActorProvider,
             e.Metadata,
             e.OccurredAt,
-            e.RecordedAt
+            e.RecordedAt,
+            e.OnBehalfOfUserId,
+            e.ImpersonationSessionId
         );
 }

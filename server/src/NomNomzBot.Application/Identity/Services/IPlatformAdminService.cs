@@ -80,13 +80,29 @@ public interface IPlatformAdminService
     /// Begins an act-as impersonation of a registered user: mints an ACCESS-ONLY JWT (no refresh) carrying the
     /// TARGET user's identity, tenant and roles — computed exactly as a normal login for the target, NEVER the
     /// operator's — with the acting operator recorded only in the non-authoritative <c>act</c>/<c>act_name</c>
-    /// claims. Justification is mandatory and the target user id lands on the audit row. Requires
-    /// <c>user:impersonate</c>.
+    /// claims. <paramref name="accessGrantId"/> must name an OPEN, time-boxed support-access grant
+    /// (<see cref="BeginTenantAccessAsync"/>) belonging to the caller: minting is refused without one, and the
+    /// token's expiry is clamped to the grant's remaining time, never longer. SaaS-only — refused on
+    /// self-host. Justification is mandatory; the target user id AND the session both land on the audit row.
+    /// Requires <c>user:impersonate</c> (owner-only — not bundled into platform-support).
     /// </summary>
     Task<Result<ImpersonationTokenDto>> StartImpersonationAsync(
         Guid actingPrincipalId,
         Guid targetUserId,
+        Guid accessGrantId,
         string justification,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Ends an impersonation session: revokes the backing support-access grant AND the minted token's
+    /// <c>sid</c> through <see cref="Abstractions.Auth.ISessionRevocationService"/>, so the same token fails
+    /// authentication on its very next request. <c>NOT_FOUND</c> unless the grant is the caller's and still
+    /// active. SaaS-only. Requires <c>user:impersonate</c>.
+    /// </summary>
+    Task<Result> EndImpersonationAsync(
+        Guid actingPrincipalId,
+        Guid accessGrantId,
         CancellationToken ct = default
     );
 

@@ -11,7 +11,9 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -144,10 +146,13 @@ public class PlatformAdminController(
 
     /// <summary>
     /// Begins an act-as impersonation of a registered user — mints an access-only token carrying that
-    /// user's identity and roles (never the operator's). Justification is mandatory and audited.
+    /// user's identity and roles (never the operator's), clamped to the remaining lifetime of the OPEN
+    /// support session named by <see cref="ImpersonateUserRequest.AccessGrantId"/>. Justification is
+    /// mandatory and audited. SaaS-only; rate-limited (S089a).
     /// </summary>
     [HttpPost("users/{userId:guid}/impersonate")]
     [Authorize(Policy = IamPermissionKeys.UserImpersonate)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     [ProducesResponseType<StatusResponseDto<ImpersonationTokenDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Impersonate(
         Guid userId,
@@ -159,8 +164,26 @@ public class PlatformAdminController(
         if (acting.IsFailure)
             return ResultResponse(acting.WithValue<ImpersonationTokenDto>(null!));
         return ResultResponse(
-            await admin.StartImpersonationAsync(acting.Value, userId, req.Justification, ct)
+            await admin.StartImpersonationAsync(
+                acting.Value,
+                userId,
+                req.AccessGrantId,
+                req.Justification,
+                ct
+            )
         );
+    }
+
+    /// <summary>Ends an impersonation session — the minted token fails authentication on its next request.</summary>
+    [HttpDelete("impersonation/{accessGrantId:guid}")]
+    [Authorize(Policy = IamPermissionKeys.UserImpersonate)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    public async Task<IActionResult> EndImpersonation(Guid accessGrantId, CancellationToken ct)
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting);
+        return ResultResponse(await admin.EndImpersonationAsync(acting.Value, accessGrantId, ct));
     }
 
     /// <summary>Paged Plane-C audit search by principal/tenant/permission/outcome/time.</summary>

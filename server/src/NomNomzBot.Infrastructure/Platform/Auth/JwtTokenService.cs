@@ -92,7 +92,8 @@ public sealed class JwtTokenService : IJwtTokenService
         IEnumerable<string>? roles = null,
         string? idp = null,
         string? actorUserId = null,
-        string? actorUsername = null
+        string? actorUsername = null,
+        DateTime? maxExpiresAt = null
     )
     {
         List<Claim> claims =
@@ -128,11 +129,14 @@ public sealed class JwtTokenService : IJwtTokenService
                 claims.Add(new(ActorNameClaim, actorUsername));
         }
 
+        DateTime defaultExpiry = _timeProvider.GetUtcNow().UtcDateTime.Add(_expiration);
+        DateTime expires = maxExpiresAt is { } cap && cap < defaultExpiry ? cap : defaultExpiry;
+
         JwtSecurityToken token = new(
             issuer: _issuer,
             audience: _audience,
             claims: claims,
-            expires: _timeProvider.GetUtcNow().UtcDateTime.Add(_expiration),
+            expires: expires,
             signingCredentials: _signingCredentials
         );
 

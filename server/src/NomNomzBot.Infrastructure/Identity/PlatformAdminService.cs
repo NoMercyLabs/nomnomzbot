@@ -16,10 +16,12 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -34,7 +36,9 @@ public sealed class PlatformAdminService(
     IPlatformIamService iam,
     IJwtTokenService jwt,
     IEventBus eventBus,
-    TimeProvider clock
+    TimeProvider clock,
+    DeploymentContext deployment,
+    ISessionRevocationService sessionRevocation
 ) : IPlatformAdminService
 {
     /// <summary>The seeded role a support-access grant assigns, narrowed to the target tenant (§3.2).</summary>
@@ -304,28 +308,55 @@ public sealed class PlatformAdminService(
     public async Task<Result<ImpersonationTokenDto>> StartImpersonationAsync(
         Guid actingPrincipalId,
         Guid targetUserId,
+        Guid accessGrantId,
         string justification,
         CancellationToken ct = default
     )
     {
+        // Restricted SaaS-only support tool (owner decision, S089a) — self-host exposes no impersonation
+        // capability at all, so this refuses unconditionally regardless of caller or grant state.
+        if (deployment.Mode != DeploymentMode.Saas)
+            return Result.Failure<ImpersonationTokenDto>(
+                "Impersonation is not available on self-host.",
+                "NOT_SUPPORTED"
+            );
+
         if (string.IsNullOrWhiteSpace(justification))
             return Result.Failure<ImpersonationTokenDto>(
                 "A justification is required to impersonate a user.",
                 "VALIDATION_FAILED"
             );
 
-        // Gate + audit FIRST — the target user id rides the audit row (TargetResource) so the append-only log
-        // names WHO was impersonated. A denial short-circuits before any token is minted.
+        // Gate + audit FIRST — the target user id AND the backing session ride the audit row
+        // (TargetResource) in one row, so a single audit query names WHO impersonated WHOM under WHICH
+        // session, whether the mint goes on to succeed or fails the session check below. A permission
+        // denial short-circuits before any token is minted or the grant is even looked up.
         Result authorized = await RequireAsync(
             actingPrincipalId,
             "user:impersonate",
             null,
             justification,
             ct,
-            targetResource: targetUserId.ToString()
+            targetResource: $"user:{targetUserId}|session:{accessGrantId}"
         );
         if (authorized.IsFailure)
             return authorized.WithValue<ImpersonationTokenDto>(null!);
+
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        IamRoleAssignment? grant = await db.IamRoleAssignments.FirstOrDefaultAsync(
+            a =>
+                a.Id == accessGrantId
+                && a.PrincipalId == actingPrincipalId
+                && a.RevokedAt == null
+                && a.ExpiresAt != null
+                && a.ExpiresAt > now,
+            ct
+        );
+        if (grant is null)
+            return Result.Failure<ImpersonationTokenDto>(
+                "An open, time-boxed support session is required to impersonate a user.",
+                "SESSION_REQUIRED"
+            );
 
         User? target = await db.Users.FirstOrDefaultAsync(u => u.Id == targetUserId, ct);
         if (target is null)
@@ -347,20 +378,99 @@ public sealed class PlatformAdminService(
 
         // CRITICAL INVARIANT: roles + identity are the TARGET's, computed the same way SessionService.RolesFor
         // does for a normal login. The operator's `admin` role is NEVER carried onto an impersonation token —
-        // an access-only token (no refresh) that grants exactly the impersonated user's access.
+        // an access-only token (no refresh) that grants exactly the impersonated user's access. `sid` is the
+        // GRANT id itself: ending the grant (EndImpersonationAsync) revokes this exact session, and the
+        // token's lifetime is clamped to never outlive the grant.
         string accessToken = jwt.GenerateAccessToken(
             target.Id,
             target.Username,
             tenantId,
-            Guid.NewGuid(),
+            accessGrantId,
             RolesFor(target),
             idp: target.Platform,
             actorUserId: actorUserId,
-            actorUsername: actor?.Name
+            actorUsername: actor?.Name,
+            maxExpiresAt: grant.ExpiresAt
         );
 
         DateTime expiresAt = new JwtSecurityTokenHandler().ReadJwtToken(accessToken).ValidTo;
-        return Result.Success(new ImpersonationTokenDto(accessToken, expiresAt, ToDto(target)));
+
+        await eventBus.PublishAsync(
+            new ImpersonationStartedEvent
+            {
+                BroadcasterId = Guid.Empty,
+                OperatorPrincipalId = actingPrincipalId,
+                TargetUserId = targetUserId,
+                AccessGrantId = accessGrantId,
+                ExpiresAt = expiresAt,
+            },
+            ct
+        );
+
+        return Result.Success(
+            new ImpersonationTokenDto(accessToken, expiresAt, accessGrantId, ToDto(target))
+        );
+    }
+
+    public async Task<Result> EndImpersonationAsync(
+        Guid actingPrincipalId,
+        Guid accessGrantId,
+        CancellationToken ct = default
+    )
+    {
+        if (deployment.Mode != DeploymentMode.Saas)
+            return Result.Failure("Impersonation is not available on self-host.", "NOT_SUPPORTED");
+
+        Result authorized = await RequireAsync(
+            actingPrincipalId,
+            "user:impersonate",
+            null,
+            null,
+            ct,
+            targetResource: $"session:{accessGrantId}"
+        );
+        if (authorized.IsFailure)
+            return authorized;
+
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        IamRoleAssignment? grant = await db.IamRoleAssignments.FirstOrDefaultAsync(
+            a => a.Id == accessGrantId && a.PrincipalId == actingPrincipalId && a.RevokedAt == null,
+            ct
+        );
+        if (grant is null)
+            return Result.Failure("No active support session of yours matches.", "NOT_FOUND");
+
+        string? startResource = await db
+            .IamAuditLogs.Where(l =>
+                l.PrincipalId == actingPrincipalId
+                && l.Permission == "user:impersonate"
+                && l.TargetResource != null
+                && l.TargetResource.Contains($"session:{accessGrantId}")
+            )
+            .OrderByDescending(l => l.OccurredAt)
+            .Select(l => l.TargetResource)
+            .FirstOrDefaultAsync(ct);
+        Guid? targetUserId = ParseTargetUserId(startResource);
+
+        grant.RevokedAt = now;
+        await db.SaveChangesAsync(ct);
+
+        // Revokes the exact `sid` the impersonation token carries — the SAME token fails authentication on
+        // its very next request (S098b's revocation check), immediately, with no dependency on token expiry.
+        await sessionRevocation.RevokeAsync(accessGrantId, ct);
+
+        await eventBus.PublishAsync(
+            new ImpersonationEndedEvent
+            {
+                BroadcasterId = Guid.Empty,
+                OperatorPrincipalId = actingPrincipalId,
+                TargetUserId = targetUserId ?? Guid.Empty,
+                AccessGrantId = accessGrantId,
+            },
+            ct
+        );
+
+        return Result.Success();
     }
 
     public async Task<Result<PagedList<IamAuditEntryDto>>> SearchAuditAsync(
@@ -451,6 +561,25 @@ public sealed class PlatformAdminService(
     /// </summary>
     private static IEnumerable<string> RolesFor(User user) =>
         user.IsPlatformPrincipal ? ["user", "admin"] : ["user"];
+
+    /// <summary>
+    /// Recovers the target user id from the <c>"user:{id}|session:{id}"</c> <c>TargetResource</c> shape
+    /// written by <see cref="StartImpersonationAsync"/>'s audit row — the only durable record linking a
+    /// session id back to who was impersonated under it.
+    /// </summary>
+    private static Guid? ParseTargetUserId(string? targetResource)
+    {
+        if (string.IsNullOrEmpty(targetResource))
+            return null;
+        string[] parts = targetResource.Split('|');
+        string? userPart = parts.FirstOrDefault(p =>
+            p.StartsWith("user:", StringComparison.Ordinal)
+        );
+        return
+            userPart is not null && Guid.TryParse(userPart.AsSpan("user:".Length), out Guid userId)
+            ? userId
+            : null;
+    }
 
     /// <summary>The impersonated user's profile, mirroring <c>UserService.ToDto</c> (LastLoginAt = UpdatedAt).</summary>
     private static UserDto ToDto(User u) =>

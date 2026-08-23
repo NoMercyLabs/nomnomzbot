@@ -29,7 +29,12 @@ public sealed record AppendEventRequest(
     Guid? CausationId = null,
     Guid? ActorUserId = null,
     string? ActorExternalUserId = null,
-    string? ActorProvider = null // twitch|kick|youtube|twitter — the namespace of ActorExternalUserId
+    string? ActorProvider = null, // twitch|kick|youtube|twitter — the namespace of ActorExternalUserId
+    // Act-as impersonation dual-actor trail (S089a): when the write was made under impersonation,
+    // ActorUserId names the OPERATOR and these two name who they were acting as and under which
+    // support session — so an impersonated write never loses its true author.
+    Guid? OnBehalfOfUserId = null,
+    Guid? ImpersonationSessionId = null
 );
 
 /// <summary>An immutable journal row as read back by projections / replay / the audit UI.</summary>
@@ -51,7 +56,11 @@ public sealed record EventRecord(
     string? ActorProvider,
     string MetadataJson,
     DateTime OccurredAt,
-    DateTime RecordedAt
+    DateTime RecordedAt,
+    // Act-as impersonation dual-actor trail (S089a) — see AppendEventRequest. Trailing + optional so
+    // every existing positional AND named-arg construction of this record stays source-compatible.
+    Guid? OnBehalfOfUserId = null,
+    Guid? ImpersonationSessionId = null
 );
 
 // ---- Journal query (audit UI) ----

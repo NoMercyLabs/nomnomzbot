@@ -60,6 +60,12 @@ public class EventJournalConfiguration : IEntityTypeConfiguration<EventJournal>
         builder.Property(e => e.ActorExternalUserId).HasMaxLength(50);
         builder.Property(e => e.ActorProvider).HasMaxLength(20);
 
+        builder.Property(e => e.OnBehalfOfUserId);
+        builder
+            .HasIndex(e => e.OnBehalfOfUserId)
+            .HasDatabaseName("IX_EventJournal_OnBehalfOfUserId");
+        builder.Property(e => e.ImpersonationSessionId);
+
         builder.Property(e => e.Metadata).IsRequired();
 
         builder.Property(e => e.OccurredAt).IsRequired();

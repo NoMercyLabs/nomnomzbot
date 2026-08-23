@@ -28,6 +28,23 @@ public interface IJwtTokenService
     /// non-authoritative <c>act</c>/<c>act_name</c> claims name the operator ACTING AS the subject, while
     /// <c>sub</c> and the roles remain the impersonated user's — no authorization path reads <c>act</c>.
     /// </summary>
+    /// <param name="userId">The internal user id — becomes the <c>sub</c> claim.</param>
+    /// <param name="username">The subject's username — becomes the <c>ClaimTypes.Name</c> claim.</param>
+    /// <param name="broadcasterId">The resolved tenant (channel), if any — becomes the <c>tenant</c> claim.</param>
+    /// <param name="sessionId">The auth-session id — becomes the <c>sid</c> claim.</param>
+    /// <param name="roles">The subject's roles, added as <c>ClaimTypes.Role</c> claims.</param>
+    /// <param name="idp">The login provider this session authenticated with — becomes the <c>idp</c> claim.</param>
+    /// <param name="actorUserId">
+    /// When set, this is an act-as (impersonation) token: the operator's id rides the non-authoritative
+    /// <c>act</c> claim while <paramref name="userId"/>/<paramref name="roles"/> stay the impersonated
+    /// subject's.
+    /// </param>
+    /// <param name="actorUsername">The operator's display name, alongside <paramref name="actorUserId"/>.</param>
+    /// <param name="maxExpiresAt">
+    /// When supplied, the minted token's expiry is <c>min(now + configured lifetime, maxExpiresAt)</c> —
+    /// never later than this instant. Used to clamp an act-as (impersonation) token's lifetime to its
+    /// backing support session's remaining time (S089a); omitted for a normal login token.
+    /// </param>
     string GenerateAccessToken(
         Guid userId,
         string username,
@@ -36,7 +53,8 @@ public interface IJwtTokenService
         IEnumerable<string>? roles = null,
         string? idp = null,
         string? actorUserId = null,
-        string? actorUsername = null
+        string? actorUsername = null,
+        DateTime? maxExpiresAt = null
     );
 
     /// <summary>

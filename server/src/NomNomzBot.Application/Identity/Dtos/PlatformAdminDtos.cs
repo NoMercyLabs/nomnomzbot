@@ -63,14 +63,24 @@ public sealed record TenantAccessGrantDto(
     DateTime? RevokedAt
 );
 
-/// <summary>Request to begin an act-as impersonation of a registered user — justification is mandatory (stream-admin.md §4).</summary>
-public sealed record ImpersonateUserRequest(string Justification);
+/// <summary>
+/// Request to begin an act-as impersonation of a registered user — justification is mandatory, and
+/// <see cref="AccessGrantId"/> must name an OPEN support-access grant (<see cref="BeginTenantAccessRequest"/>)
+/// belonging to the caller: minting is refused without one (S089a stream-admin.md §4).
+/// </summary>
+public sealed record ImpersonateUserRequest(Guid AccessGrantId, string Justification);
 
 /// <summary>
 /// The minted act-as token for an impersonation session: an access-only JWT carrying the TARGET user's
-/// identity + roles (never the operator's), its expiry, and the impersonated user's profile (stream-admin.md §4).
+/// identity + roles (never the operator's), its expiry (clamped to the backing support session's remaining
+/// time), the session id to end it with, and the impersonated user's profile (stream-admin.md §4).
 /// </summary>
-public sealed record ImpersonationTokenDto(string AccessToken, DateTime ExpiresAt, UserDto User);
+public sealed record ImpersonationTokenDto(
+    string AccessToken,
+    DateTime ExpiresAt,
+    Guid SessionId,
+    UserDto User
+);
 
 /// <summary>Plane-C audit-log search filters (stream-admin.md §4).</summary>
 public sealed record AuditSearchQuery(

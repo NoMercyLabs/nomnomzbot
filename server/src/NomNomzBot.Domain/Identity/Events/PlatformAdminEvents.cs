@@ -43,3 +43,27 @@ public sealed class TenantAccessGrantedEvent : DomainEventBase
     public required bool BreakGlass { get; init; }
     public DateTime? ExpiresAt { get; init; }
 }
+
+/// <summary>
+/// Fired when an operator begins act-as impersonation of a registered user under an open support session
+/// (S089a) — the tenant owner is notified via the same owner-notification path as
+/// <see cref="TenantAccessGrantedEvent"/> (no separate broadcast handler exists yet for this event; wiring
+/// it is tracked as a follow-up, same gap S086f is closing for tenant-access grants).
+/// </summary>
+public sealed class ImpersonationStartedEvent : DomainEventBase
+{
+    public required Guid OperatorPrincipalId { get; init; }
+    public required Guid TargetUserId { get; init; }
+
+    /// <summary>The open support-access grant (<c>IamRoleAssignment.Id</c>) this impersonation session rides on — also the minted token's <c>sid</c>.</summary>
+    public required Guid AccessGrantId { get; init; }
+    public required DateTime ExpiresAt { get; init; }
+}
+
+/// <summary>Fired when an operator ends an act-as impersonation session (<see cref="ImpersonationStartedEvent"/>), revoking the minted token immediately.</summary>
+public sealed class ImpersonationEndedEvent : DomainEventBase
+{
+    public required Guid OperatorPrincipalId { get; init; }
+    public required Guid TargetUserId { get; init; }
+    public required Guid AccessGrantId { get; init; }
+}

@@ -62,8 +62,19 @@ public class EventJournal
     /// <summary>The event id that caused this event (lineage).</summary>
     public Guid? CausationId { get; set; }
 
-    /// <summary>Internal surrogate of the actor (FK→Users).</summary>
+    /// <summary>Internal surrogate of the actor (FK→Users) — the operator when this row was written under
+    /// act-as impersonation, so an impersonated write's true author is never lost.</summary>
     public Guid? ActorUserId { get; set; }
+
+    /// <summary>
+    /// The user this write was performed ON BEHALF OF — set only when <see cref="ActorUserId"/> was
+    /// impersonating someone at write time (S089a). Together with <see cref="ImpersonationSessionId"/> this
+    /// is the dual-actor trail act-as impersonation must leave on every write it makes.
+    /// </summary>
+    public Guid? OnBehalfOfUserId { get; set; }
+
+    /// <summary>The impersonation session (the backing support-access grant id, also the token's <c>sid</c>) this write was made under, when <see cref="OnBehalfOfUserId"/> is set.</summary>
+    public Guid? ImpersonationSessionId { get; set; }
 
     /// <summary>
     /// The actor's platform-specific external user id (hashed PII when present); <c>null</c> for

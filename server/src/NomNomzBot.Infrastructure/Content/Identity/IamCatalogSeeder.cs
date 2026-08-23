@@ -84,13 +84,14 @@ public sealed class IamCatalogSeeder : ISeeder
             ]
         ),
         (
+            // Act-as impersonation is a restricted, owner-only support tool (S089a) — deliberately NOT
+            // bundled here even though platform-support otherwise covers audited tenant access.
             "platform-support",
             [
                 IamPermissionKeys.TenantRead,
                 IamPermissionKeys.TenantAccess,
                 IamPermissionKeys.AuditRead,
                 IamPermissionKeys.PlatformAnalyticsRead,
-                IamPermissionKeys.UserImpersonate,
             ]
         ),
         (

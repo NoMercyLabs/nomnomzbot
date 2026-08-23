@@ -3338,11 +3338,17 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<int>("EventVersion")
                         .HasColumnType("INTEGER");
 
+                    b.Property<Guid?>("ImpersonationSessionId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Metadata")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("OnBehalfOfUserId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Payload")
@@ -3386,6 +3392,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.HasIndex("OccurredAt")
                         .HasDatabaseName("IX_EventJournal_OccurredAt");
+
+                    b.HasIndex("OnBehalfOfUserId")
+                        .HasDatabaseName("IX_EventJournal_OnBehalfOfUserId");
 
                     b.HasIndex("SubjectKeyId")
                         .HasDatabaseName("IX_EventJournal_SubjectKeyId");
