@@ -29,13 +29,15 @@ Slice IDs are stable; the order is the queue.
 - **S003** Spotify visible state — 401/403 → `needs_reauth`/`forbidden` on the integration status +
   Music page; vault is the single token source (drop the `Services` mirror read) (U·A2). Done-when: a
   revoked token shows on the Integrations card and `!sr` says why; music reads no `Services` row.
-- **S004c** Last read-modify-write sites — `Billing/UsageMeteringService.cs:73` (`record.Quantity += quantity`
-  then SaveChanges) loses billing usage under concurrency, i.e. undercharged revenue; `Analytics/`
-  `ChannelAnalyticsDailyProjection.cs:107,113,117,221` and `WatchSessionProjection.cs:97` use the same `+=`
-  accumulator shape (probably single-writer today — establish whether the projection runner can ever run two
-  writers for one key, and either make them atomic or add the test that pins single-writer). Same mechanism as
-  S004/S004b. Done-when: N concurrent metering calls record exactly N units; the projection question is answered
-  by a test, not an assumption.
+- **S004d** Analytics projections race + the InMemory harness blocking its fix. Confirmed NOT single-writer:
+  `EventStoreController.cs:115-131,158-171` (Replay / RebuildProjections) call `IProjectionRunner` directly with no
+  `IRunOnceGuard` lease — that lease (`EventStoreProjectionDriver.cs:97-103`) only serializes driver instances
+  across replicas, never a manual rebuild racing the driver’s own 15s tick for the same broadcaster+projection.
+  This is the observed Npgsql 23505 on `IX_ChannelAnalyticsDailies_BroadcasterId_ActivityDate`.
+  `ChannelAnalyticsDailyProjection.cs` (GetOrCreate + every switch-case accumulator) and
+  `WatchSessionProjection.cs:97` stay read-modify-write because the fix needs `ExecuteUpdateAsync`, which the shared
+  InMemory `AuthDbContext` test harness (~40 files) cannot run. Done-when: that harness runs on a relational
+  provider, both projections are atomic/upsert-safe, and a test reproduces the rebuild-vs-tick race and passes.
 - **S005** Earning dedupe unique index + escalation atomic increment (S·F12, F13). Done-when: duplicate
   event credit blocked by the DB; two concurrent offenses compound.
 - **S006** Live-game money — settle failure refunds or parks retryable; can't-pay joiner feedback;
