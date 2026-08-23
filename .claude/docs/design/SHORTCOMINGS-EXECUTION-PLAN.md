@@ -28,11 +28,6 @@ Slice IDs are stable; the order is the queue.
 - **S098c** Refresh custody — by cookie presence, not `?client=` (`AuthController.cs:1079`); drop the fragment refresh
   path (`:552`); Origin/CSRF check on cookie refresh (U·E6). Done-when: a cross-origin cookie refresh is rejected and no
   refresh token ever appears in a URL.
-- **S098e** `ENCRYPTION_KEY` rotation — a REACHABLE re-wrap pass. (Audit correction, traced 2026-08-23: secrets are
-  not silently blanked — `TokenProtector.cs:112-120` fails closed with a typed Result and 17 call sites treat the null
-  as "needs re-auth". The real gap: `ISubjectKeyService.RotateKeyAsync` (`SubjectKeyService.cs:313`) only retires the
-  DEK forward, never re-wraps stored ciphertext, and has zero callers.) Done-when: A→B rotation re-wraps every stored
-  secret, is idempotent, reports failures loudly, and is reachable from an admin surface.
 - **S115** Repo-wide CSharpier drift — `dotnet csharpier check .` fails on ~230 committed files (2551 checked), so the
   per-commit format gate in `CLAUDE.md` is currently unenforceable. Done-when: `dotnet csharpier check .` is clean on a
   quiet tree and stays the gate.
@@ -61,9 +56,6 @@ Slice IDs are stable; the order is the queue.
   `TenantAccessGrantedEvent` and the flag-change sites (`FeatureFlagAdminService.cs:87,136,161`) have zero consumers.
   Done-when: every IAM mutation lands an audit row naming target+role+scope, and the last `iam:manage` holder cannot
   be removed.
-- **S088** Suspension enforced — `Channel.Status` checked in tenant resolution; bot parts + EventSub
-  session revoked on suspend; handler on `TenantSuspensionChangedEvent` (U·D3). Done-when: a suspended
-  tenant's dashboard and bot stop within one tick.
 - **S089** Impersonation made safe (owner decision: this is the owner's lowest-level support tool — FULL act-as stays; it is a
   restricted SaaS action held by the platform owner role only) — requires an explicit support session (reason, expiry,
   session id) and the token lifetime is clamped to it; `act` claim honoured only for that principal; every write journalled
