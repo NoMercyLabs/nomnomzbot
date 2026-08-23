@@ -31,11 +31,17 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
     private const int QueueSnapshotSize = 10;
 
     private readonly ISongRequestQueueStore _queueStore;
+    private readonly ISongRequestQueuePersistence _queuePersistence;
     private readonly IEventBus _eventBus;
 
-    public SongRequestQueueReconciler(ISongRequestQueueStore queueStore, IEventBus eventBus)
+    public SongRequestQueueReconciler(
+        ISongRequestQueueStore queueStore,
+        ISongRequestQueuePersistence queuePersistence,
+        IEventBus eventBus
+    )
     {
         _queueStore = queueStore;
+        _queuePersistence = queuePersistence;
         _eventBus = eventBus;
     }
 
@@ -63,6 +69,8 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
         );
         if (dropped == 0)
             return;
+
+        await _queuePersistence.SyncAsync(broadcasterId, queue.GetSnapshot(), cancellationToken);
 
         await _eventBus.PublishAsync(
             new SongRequestQueueChangedEvent

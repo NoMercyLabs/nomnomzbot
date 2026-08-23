@@ -39,6 +39,7 @@ public sealed class MusicService : IMusicService
     private readonly IEventBus _eventBus;
     private readonly IBlockedTrackService _blockedTracks;
     private readonly ISongRequestQueueStore _queueStore;
+    private readonly ISongRequestQueuePersistence _queuePersistence;
     private readonly ILogger<MusicService> _logger;
     private readonly IIntegrationCapabilityStore _capabilities;
 
@@ -48,6 +49,7 @@ public sealed class MusicService : IMusicService
         IEventBus eventBus,
         IBlockedTrackService blockedTracks,
         ISongRequestQueueStore queueStore,
+        ISongRequestQueuePersistence queuePersistence,
         ILogger<MusicService> logger,
         IIntegrationCapabilityStore capabilities
     )
@@ -57,9 +59,19 @@ public sealed class MusicService : IMusicService
         _eventBus = eventBus;
         _blockedTracks = blockedTracks;
         _queueStore = queueStore;
+        _queuePersistence = queuePersistence;
         _logger = logger;
         _capabilities = capabilities;
     }
+
+    /// <summary>Write-through persistence checkpoint (S001b) — called immediately after every in-memory
+    /// fair-queue mutation, before the caller sees success, so a hard kill right after never loses a
+    /// mutation the caller was told happened.</summary>
+    private Task SyncPersistedQueueAsync(
+        string broadcasterId,
+        FairQueue<SongRequestEntry> queue,
+        CancellationToken cancellationToken
+    ) => _queuePersistence.SyncAsync(broadcasterId, queue.GetSnapshot(), cancellationToken);
 
     public async Task<IReadOnlyList<MusicTrack>> SearchAsync(
         string broadcasterId,
@@ -409,6 +421,7 @@ public sealed class MusicService : IMusicService
         // Add to fair queue — via the singleton store, so this entry is visible to every later
         // DI scope (next chat command, next dashboard request), not just this one.
         queue.Enqueue(requestedBy ?? "anonymous", entry);
+        await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
 
         // EVERY accepted request is handed to the provider's own queue — that queue is what actually
         // plays the audio; ours is the pending/ordering mirror the dashboard and sr_queue overlay render
@@ -422,23 +435,53 @@ public sealed class MusicService : IMusicService
         {
             bool pushed = await provider.AddToQueueAsync(tenantId, trackUri, cancellationToken);
             if (!pushed)
-                return RollBack(queue, entry, ProviderErrorOnQueue(trackInfo.TrackName));
+                return await RollBackAsync(
+                    broadcasterId,
+                    queue,
+                    entry,
+                    ProviderErrorOnQueue(trackInfo.TrackName),
+                    cancellationToken
+                );
         }
         catch (PremiumRequiredException)
         {
-            return RollBack(queue, entry, PremiumRequiredOnQueue(trackInfo.TrackName));
+            return await RollBackAsync(
+                broadcasterId,
+                queue,
+                entry,
+                PremiumRequiredOnQueue(trackInfo.TrackName),
+                cancellationToken
+            );
         }
         catch (NoActiveDeviceException)
         {
-            return RollBack(queue, entry, NoActiveDeviceOnQueue(trackInfo.TrackName));
+            return await RollBackAsync(
+                broadcasterId,
+                queue,
+                entry,
+                NoActiveDeviceOnQueue(trackInfo.TrackName),
+                cancellationToken
+            );
         }
         catch (MusicAuthenticationFailedException)
         {
-            return RollBack(queue, entry, AuthFailedOnQueue(trackInfo.TrackName));
+            return await RollBackAsync(
+                broadcasterId,
+                queue,
+                entry,
+                AuthFailedOnQueue(trackInfo.TrackName),
+                cancellationToken
+            );
         }
         catch (MusicForbiddenException)
         {
-            return RollBack(queue, entry, ForbiddenOnQueue(trackInfo.TrackName));
+            return await RollBackAsync(
+                broadcasterId,
+                queue,
+                entry,
+                ForbiddenOnQueue(trackInfo.TrackName),
+                cancellationToken
+            );
         }
 
         _logger.LogInformation(
@@ -707,8 +750,12 @@ public sealed class MusicService : IMusicService
         FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
         bool removed = queue is not null && queue.RemoveAt(position);
 
-        if (removed && Guid.TryParse(broadcasterId, out Guid tenantId))
-            await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
+        if (removed)
+        {
+            await SyncPersistedQueueAsync(broadcasterId, queue!, cancellationToken);
+            if (Guid.TryParse(broadcasterId, out Guid tenantId))
+                await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
+        }
 
         return removed;
     }
@@ -1024,13 +1071,16 @@ public sealed class MusicService : IMusicService
 
     /// <summary>Takes one rejected entry back out of the fair queue and returns the caller's failure —
     /// only that entry, never the requester's other pending requests.</summary>
-    private static Result RollBack(
+    private async Task<Result> RollBackAsync(
+        string broadcasterId,
         FairQueue<SongRequestEntry> queue,
         SongRequestEntry entry,
-        Result failure
+        Result failure,
+        CancellationToken cancellationToken
     )
     {
         queue.RemoveFirst(e => ReferenceEquals(e, entry));
+        await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
         return failure;
     }
 
