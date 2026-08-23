@@ -29,12 +29,11 @@ Slice IDs are stable; the order is the queue.
 - **S003** Spotify visible state — 401/403 → `needs_reauth`/`forbidden` on the integration status +
   Music page; vault is the single token source (drop the `Services` mirror read) (U·A2). Done-when: a
   revoked token shows on the Integrations card and `!sr` says why; music reads no `Services` row.
-- **S004h** Open watch-session duration is still a read-modify-write — `WatchSessionProjection.cs:~89-92` mutates the
-  OPEN session’s `DurationSeconds`/`EndedAt` on a tracked entity, so concurrent folds of one already-open session lose or
-  over-accumulate watch time. Measured: 15 concurrent folds produced 660s against a 150s real bound — streamers would see
-  inflated watch stats. Separate from the duplicate-row defect S004f closed. Use the S004 mechanism.
-  Done-when: N concurrent folds of one open session accumulate exactly the real elapsed time, asserted against the bound.
-  **Wait for S119** (test-host crash fix) before adding another file-backed concurrency test.
+- **S004i** Last known read-modify-write — `Analytics/ChannelAnalyticsDailyProjection.cs:331`
+  (`(OccurredAt - LastSeenAt).TotalSeconds` mutated on a tracked entity). Flagged out-of-scope twice now (536d066a, then
+  again by S004h) — same shape as the watch-time inflation S004h fixed (430s recorded against a 150s bound). Use the
+  established atomic mechanism. Done-when: N concurrent folds accumulate exactly the real elapsed seconds, and a repo-wide
+  grep for the mutate-then-save shape returns nothing outstanding (report the count — this closes the class opened by S004).
 - **S005** Earning dedupe unique index + escalation atomic increment (S·F12, F13). Done-when: duplicate
   event credit blocked by the DB; two concurrent offenses compound.
 - **S006** Live-game money — settle failure refunds or parks retryable; can't-pay joiner feedback;
