@@ -25,12 +25,6 @@ Slice IDs are stable; the order is the queue.
 - **S115** Repo-wide CSharpier drift — `dotnet csharpier check .` fails on ~230 committed files (2551 checked), so the
   per-commit format gate in `CLAUDE.md` is currently unenforceable. Done-when: `dotnet csharpier check .` is clean on a
   quiet tree and stays the gate.
-- **S118** Finish the rate-limit tier assignment — S114 (342e248c) tiered the counted controllers, but the sweep is
-  incomplete: `TtsQueueController` (synthesis), `CodeScriptsController` (script execution) and `MarketplaceController`
-  (install) have expensive actions still on a cheap/class-level tier, and `FeatureFlagAdminController.List` (GET) sits on
-  `admin` rather than `read` because the controller declares its own policy. Done-when: every action whose cost is
-  synthesis / execution / upload / fan-out is on `write-expensive`, every plain GET is on `read`, proven by a test that
-  enumerates actions and fails on an untiered expensive one.
 ## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
 
 - **S001** Song-request queue store — `IMusicService` queue out of the scoped instance into a singleton
