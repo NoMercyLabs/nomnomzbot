@@ -46,9 +46,17 @@ Slice IDs are stable; the order is the queue.
   moderator can still fumble a duration and get a rejection instead of a picker. Note the audit correction: non-numeric text
   never reached the backend (`DurationSeconds` is `int?`, model binding 400s it) — the real risk was 0/negative, now blocked.
   Done-when: the timeout control offers 60s / 10m / 1h / 24h / 7d plus custom, en+nl, and an explicit separate Ban action.
-- **S013** Destructive actions carry reason + confirm — community Ban (reason + timeout option),
-  nuke reason/matchTerm + display name, Moderation "Verwijderen" + Commands delete behind confirm
-  (U·B3, K). Done-when: every destructive dialog asks; reason lands in the mod log.
+- **S013b** Destructive-action dialogs (frontend, backend now ready — S013 1e2426e6): (1) community Ban dialog needs a reason
+  field and a timeout-vs-permanent toggle wired to `DurationSeconds`/`Reason` on `actions/ban`; (2) the nuke dialog must require
+  Reason/MatchTerm and the batch history must render `TargetDisplayName` instead of a raw Twitch id; (3) Commands delete and
+  Moderation "Verwijderen" need confirm dialogs — the backend audits both now, the client asks nothing. en+nl strings.
+  Done-when: no destructive action in the dashboard fires without a confirm, and every reason reaches the mod log.
+- **S013c** `ModerationService.DeleteRuleAsync` hard-deletes and publishes a domain event with no actor — same shape as the
+  command-delete gap S013 fixed, found in its inventory and left. Done-when: deleting a rule leaves an audit row naming who did it.
+- **S013d** SYSTEMIC: soft deletes record *when* but never *who* — every `SoftDeletableEntity` (widgets, sounds, assets, rewards,
+  quotes, pick lists, timers, giveaways, …) has `DeletedAt` and no `DeletedBy`, so nothing deleted in the dashboard can be
+  attributed. Dozens of entities, so scope it as one base-entity change plus a migration sweep, not per-entity edits.
+  Done-when: a soft delete records the actor, and a test proves it for at least three unrelated entity types.
 - **S014** Moderation feedback — announcement result; approve-unban confirm; `afterWrite` errors in
   every state; Warn keeps reason; availability flags for escalation/shared-ban/nuke cards; per-viewer
   read errors visible (U·B3). Done-when: a failed write is always visible.
