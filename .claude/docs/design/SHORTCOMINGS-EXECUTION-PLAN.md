@@ -30,11 +30,6 @@ Slice IDs are stable; the order is the queue.
   retention, but no API or dashboard surface exposes them, so a streamer debugging a misbehaving command still cannot see
   why it failed. Done-when: a run history endpoint exists (paged, tenant-scoped, failures filterable) and the dashboard shows
   the failing step for a `PartiallyFailed` run.
-- **S013b** Destructive-action dialogs (frontend, backend now ready — S013 1e2426e6): (1) community Ban dialog needs a reason
-  field and a timeout-vs-permanent toggle wired to `DurationSeconds`/`Reason` on `actions/ban`; (2) the nuke dialog must require
-  Reason/MatchTerm and the batch history must render `TargetDisplayName` instead of a raw Twitch id; (3) Commands delete and
-  Moderation "Verwijderen" need confirm dialogs — the backend audits both now, the client asks nothing. en+nl strings.
-  Done-when: no destructive action in the dashboard fires without a confirm, and every reason reaches the mod log.
 - **S014b** Frontend `afterWrite` errors are swallowed — `app/composeApp/.../feature/*/state/*Controller.kt` handlers discard a
   failed write's error, so the dashboard can show a success state for a write the backend rejected. Confirmed frontend-only by
   S014 (0805bc29) via grep; no backend equivalent exists. Done-when: a rejected write surfaces its reason in the UI and the
