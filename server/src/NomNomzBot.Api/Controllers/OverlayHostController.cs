@@ -12,6 +12,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
@@ -32,6 +33,7 @@ namespace NomNomzBot.Api.Controllers;
 [Route("overlay")]
 [AllowAnonymous]
 [ApiExplorerSettings(IgnoreApi = true)]
+[EnableRateLimiting("api")]
 public sealed class OverlayHostController : ControllerBase
 {
     private readonly IWidgetService _widgetService;

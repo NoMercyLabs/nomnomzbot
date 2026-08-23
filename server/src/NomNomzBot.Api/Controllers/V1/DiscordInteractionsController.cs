@@ -12,6 +12,7 @@ using System.Text;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 
@@ -29,10 +30,12 @@ namespace NomNomzBot.Api.Controllers.V1;
 /// routed by <see cref="IDiscordInteractionService"/> (PING→PONG handshake, opt-in button toggles), whose
 /// interaction-response JSON is returned verbatim within Discord's 3-second deadline.
 /// </summary>
+[ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/discord/interactions")]
 [AllowAnonymous]
 [Tags("Discord")]
+[EnableRateLimiting("api")]
 public class DiscordInteractionsController : ControllerBase
 {
     /// <summary>Interaction payloads are small JSON; anything bigger is not Discord.</summary>

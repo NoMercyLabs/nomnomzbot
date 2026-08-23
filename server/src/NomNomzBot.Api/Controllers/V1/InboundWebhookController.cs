@@ -13,6 +13,7 @@ using System.Text;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.DTOs.Webhooks;
@@ -27,10 +28,12 @@ namespace NomNomzBot.Api.Controllers.V1;
 /// (Deferred: the 2-tier IP/endpoint rate limiter awaits the partitioned rate-limit store; the token + signature
 /// remain the security boundary.)
 /// </summary>
+[ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/webhooks/in")]
 [AllowAnonymous]
 [Tags("Webhooks")]
+[EnableRateLimiting("api")]
 public class InboundWebhookController(IInboundWebhookDispatcher dispatcher, TimeProvider clock)
     : ControllerBase
 {

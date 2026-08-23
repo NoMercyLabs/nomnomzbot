@@ -10,6 +10,7 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace NomNomzBot.Api.Controllers;
 
@@ -26,6 +27,7 @@ namespace NomNomzBot.Api.Controllers;
 [Route("overlay")]
 [AllowAnonymous]
 [ApiExplorerSettings(IgnoreApi = true)]
+[EnableRateLimiting("api")]
 public sealed class OverlaySdkController : ControllerBase
 {
     private const string Sdk = """

@@ -10,6 +10,7 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace NomNomzBot.Api.Controllers;
 
@@ -24,8 +25,10 @@ namespace NomNomzBot.Api.Controllers;
 /// picks up the markers as before.
 /// </para>
 /// </summary>
+[ApiController]
 [Route("oauth-relay")]
 [AllowAnonymous]
+[EnableRateLimiting("api")]
 public class OAuthRelayController : ControllerBase
 {
     private const string Html = """

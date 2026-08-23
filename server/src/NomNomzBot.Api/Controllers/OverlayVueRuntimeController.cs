@@ -11,6 +11,7 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace NomNomzBot.Api.Controllers;
 
@@ -26,6 +27,7 @@ namespace NomNomzBot.Api.Controllers;
 [Route("overlay")]
 [AllowAnonymous]
 [ApiExplorerSettings(IgnoreApi = true)]
+[EnableRateLimiting("api")]
 public sealed class OverlayVueRuntimeController : ControllerBase
 {
     // The runtime is ~104 kb; read it out of the Infrastructure assembly once and cache the string for every

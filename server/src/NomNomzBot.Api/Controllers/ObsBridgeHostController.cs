@@ -10,6 +10,7 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace NomNomzBot.Api.Controllers;
 
@@ -42,6 +43,7 @@ namespace NomNomzBot.Api.Controllers;
 [Route("obs-bridge")]
 [AllowAnonymous]
 [ApiExplorerSettings(IgnoreApi = true)]
+[EnableRateLimiting("api")]
 public sealed class ObsBridgeHostController : ControllerBase
 {
     private const string Html = """
