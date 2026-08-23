@@ -28,4 +28,5 @@ public enum InvoiceStatus
     Paid,
     Void,
     Uncollectible,
+    Refunded,
 }
