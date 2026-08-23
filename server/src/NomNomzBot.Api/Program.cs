@@ -240,24 +240,24 @@ try
         builder.Configuration["AllowedHosts"] = $"{baseUri.Host};localhost;127.0.0.1";
     }
 
+    // Bearer validation is built from the SAME token-service factory that signs access tokens (S098b) —
+    // a hand-rolled TokenValidationParameters here previously hardcoded HS256 with no ValidAlgorithms pin,
+    // so it silently diverged the moment Jwt:Algorithm selected RS256/ES256. This throwaway instance reads
+    // the identical Jwt:* configuration the DI-registered singleton uses; it mints no tokens, only exposes
+    // the validation parameters (including the pinned ValidAlgorithms) the real signer already computed.
+    NomNomzBot.Application.Abstractions.Auth.IJwtTokenService bearerValidationFactory =
+        new NomNomzBot.Infrastructure.Platform.Auth.JwtTokenService(builder.Configuration, TimeProvider.System);
+    TokenValidationParameters bearerValidationParameters = bearerValidationFactory.GetValidationParameters();
+
     builder
         .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
-            options.TokenValidationParameters = new()
-            {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "nomnomzbot",
-                ValidAudience = builder.Configuration["Jwt:Audience"] ?? "nomnomzbot",
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
-            };
+            options.TokenValidationParameters = bearerValidationParameters;
 
-            // Allow JWT from SignalR query string
             options.Events = new()
             {
+                // Allow JWT from SignalR query string
                 OnMessageReceived = ctx =>
                 {
                     StringValues accessToken = ctx.Request.Query["access_token"];
@@ -265,6 +265,26 @@ try
                     if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
                         ctx.Token = accessToken;
                     return Task.CompletedTask;
+                },
+                // Immediate session revocation (S098b, owner decision): logout / impersonation-end revoke
+                // the token's `sid` claim; a still-unexpired access token carrying a revoked sid must stop
+                // authenticating on its very next request, without shortening the 60-minute access-token
+                // lifetime. The revocation check is cached (ISessionRevocationService), so this costs one
+                // fast local-cache lookup per request, not a store round-trip every time.
+                OnTokenValidated = async ctx =>
+                {
+                    NomNomzBot.Application.Abstractions.Auth.ISessionRevocationService revocation =
+                        ctx.HttpContext.RequestServices.GetRequiredService<NomNomzBot.Application.Abstractions.Auth.ISessionRevocationService>();
+                    if (
+                        await NomNomzBot.Api.Authentication.SessionRevocationCheck.IsSessionRevokedAsync(
+                            ctx.Principal,
+                            revocation,
+                            ctx.HttpContext.RequestAborted
+                        )
+                    )
+                    {
+                        ctx.Fail("Session has been revoked.");
+                    }
                 },
             };
         })
@@ -413,6 +433,14 @@ try
                         }
                 );
             }
+        );
+
+        // Security-sensitive admin actions (e.g. KEK-rotation re-wrap): 3 req/min per caller — far
+        // stricter than "api", because even an authenticated platform admin must not spam an operation
+        // that walks and re-wraps every stored DEK.
+        options.AddPolicy(
+            NomNomzBot.Api.RateLimiting.SecuritySensitiveRateLimitPolicy.PolicyName,
+            NomNomzBot.Api.RateLimiting.SecuritySensitiveRateLimitPolicy.Partition
         );
 
         options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

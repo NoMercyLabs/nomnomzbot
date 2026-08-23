@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -176,6 +177,7 @@ public class AdminController : BaseController
     /// </summary>
     [HttpPost("security/rotate-encryption-key")]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [EnableRateLimiting(NomNomzBot.Api.RateLimiting.SecuritySensitiveRateLimitPolicy.PolicyName)]
     [ProducesResponseType<StatusResponseDto<DekRotationSummary>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> RotateEncryptionKey(
         [FromBody] RotateEncryptionKeyRequestDto request,
