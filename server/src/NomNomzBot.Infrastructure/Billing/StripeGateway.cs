@@ -125,11 +125,21 @@ public sealed class StripeGateway : IStripeGateway
 
         try
         {
+            // Stripe.net 52 moved the invoice → payment-intent link off the invoice itself: an invoice can
+            // carry multiple attempts under Payments, each wrapping a payment-intent/charge/payment-record
+            // union. Expand it explicitly and take the successfully-paid attempt's payment-intent id.
+            InvoiceGetOptions getOptions = new()
+            {
+                Expand = ["payments.data.payment.payment_intent"],
+            };
             Invoice invoice = await new InvoiceService(_client).GetAsync(
                 stripeInvoiceId,
+                getOptions,
                 cancellationToken: cancellationToken
             );
-            string? paymentIntentId = invoice.PaymentIntentId;
+            string? paymentIntentId = invoice
+                .Payments?.Data?.FirstOrDefault(p => p.Status == "paid")
+                ?.Payment?.PaymentIntentId;
             if (string.IsNullOrWhiteSpace(paymentIntentId))
                 return Result.Failure(
                     "This invoice has no payment intent to refund (unpaid or zero-amount invoice).",
