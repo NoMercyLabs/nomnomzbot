@@ -17,7 +17,7 @@ Three distinct attacks, commonly conflated:
 |---|---|---|
 | **Chat promo spam** | An account joins, posts one promo message ("best viewers on the stream — TG @…"), leaves | Delete + ban. It will never chat again. |
 | **Follow / view bots** | Thousands of accounts follow or lurk; they never chat | **Block**, not ban. A ban on an account that never speaks is wasted API budget and pollutes the ban list. |
-| **Hate raid** | 50–500 accounts arrive in seconds, each posting slur/harassment content | Mass-ban the cohort + emergency channel lockdown. |
+| **Hate raid** | 50–500 accounts arrive in seconds, each posting slur/harassment content | Lockdown **first** (SD0), then ban each account on its own evidence (SD9) — never the cohort as a set. |
 
 ### 1.1 Why a word list loses
 
@@ -51,7 +51,7 @@ earned capability.
 | # | Decision |
 |---|---|
 | **SD0** | **A legitimate viewer is never punished. This governs every other decision here.** Where confidence is imperfect, the system acts on **the room, not the person** — it tightens the platform's own chat rules for everyone, reversibly, instead of punishing an individual it is not certain about. Tightening a room inconveniences people for minutes; a wrong ban costs someone a community. When those two trade off, the room loses every time. Any rule below that would punish an individual on imperfect confidence is wrong, and SD0 wins. |
-| **SD1** | **Split enforcement by confidence.** High-confidence signals act immediately (ban/timeout/block), logged with one-click mod undo. Trust-gated capabilities route to a silent review queue instead of an action. |
+| **SD1** | **Split enforcement by confidence.** High-confidence signals act immediately (ban/timeout/block), logged with one-click mod undo. Medium confidence — an unearned capability, a promo shape without a corpus hit — is a **reversible delete queued for mod review** and never touches the account. Subject to the SD8/SD11 ceilings, which cap what any confidence may do to someone with standing. |
 | **SD2** | **Three charset tiers, not one gate.** Cosmetic-abuse characters are blocked at every tier for everyone; homoglyph script-mixing is detected within a token; whole non-Latin scripts are trust-gated per-channel, **default OFF**. |
 | **SD3** | **Curated + earned-trust signature network.** Every instance may subscribe read-only. Contribution requires an earned reporter-trust score or NoMercy curation. Poisoning the feed must not be a viable attack. |
 | **SD4** | **One subsystem.** Chat spam, follow/view-bot detection, and hate-raid burst detection ship in the same spec — they share the trust model, the account-risk scorer, the signature feed, and the action pipeline. |
@@ -136,7 +136,9 @@ stacks two mediums for the crime of having been quiet. They are recorded, they s
 explanation, and they move nothing. A ten-year lurker's first word is scored exactly like a
 regular's thousandth.
 
-They earn their keep in one place only: **corroboration**.
+They earn their keep in one place only: **corroboration**. Where a content signal has *already*
+fired, they can raise a Low to Medium — which per SD1 means a reversible delete queued for review,
+not an action against the account. Silence never bans anyone.
 
 #### L1.2 — Positive standing, checked first (SD11)
 
@@ -174,17 +176,17 @@ the person every other system gets wrong.
 is bad. Ours shares who is *good* — cross-channel mod/VIP/sub standing and corroborated
 legitimacy — because a shared bad-list makes false positives contagious, while a shared good-list
 makes them rarer everywhere at once. Positive entries need no quarantine; they can only ever
-reduce enforcement. Where a content signal has *already*
-fired, they can raise a Medium to High — which per SD1 means a `Hold` into the review queue, not
-an action. Silence never bans anyone.
+reduce enforcement.
 
 ### L2 — Content Signals
 
 Evaluated against the L0 skeleton.
 
-- **Cosmetic-abuse presence** — any codepoint stripped in L0 steps 2–3. Per **SD2** this is a
-  standalone high-confidence signal at every trust tier. There is no legitimate reason to put a
-  zero-width joiner in a chat message.
+- **Cosmetic-abuse presence** — any codepoint stripped in L0 steps 2–3. Per **SD2** this fires as
+  a standalone high-confidence signal, because there is no legitimate reason to put a zero-width
+  joiner in a chat message. It is still bounded by the standing ceilings: Established → flag only
+  (SD8), Semi-Trusted → delete + flag (SD11). "At every tier" means every *earnable* tier, never an
+  override of the immunities.
 - **Intra-token script mixing** — a single token containing codepoints from two scripts
   (`ѕtream`: Cyrillic ѕ + Latin). Near-zero false-positive rate; explicitly **not** the same as
   a message being wholly in another script.
@@ -691,7 +693,8 @@ afterwards.
 1. L0 Normalizer + its corpus tests. Standalone, zero dependencies, immediately useful — wiring
    it into the existing `ChatFilterService` alone kills most current evasion.
 2. L1 Account Risk onto `UserTrustScore`.
-3. L4 tiers + capability table + `TrustTierPolicy`, with L5 `Hold` into the review queue.
+3. L4 tiers + capability table + `TrustTierPolicy` + `ViewerStanding`, with L5's reversible
+   delete-and-queue into the review queue, and dry run (§6.2) working before anything can act.
    **The SD8 short-circuit and its table-driven invariant test land here, in the same slice as
    the scorer** — never as a follow-up. An engine that can act before it can be immune has a
    window in which it will hurt someone.
