@@ -126,6 +126,15 @@ public sealed record WidgetSettingsChangedEvent : DomainEventBase
     public required Guid WidgetId { get; init; }
 }
 
+// NEW — moderation retraction: pull content off-screen that must no longer be shown
+public sealed record OverlayContentRetractedEvent : DomainEventBase
+{
+    public string? SourceMessageId { get; init; }   // platform message id, when the trigger was one message
+    public Guid? AuthorUserId { get; init; }        // set for timeout/ban — retract everything from this author
+    public required string Reason { get; init; }    // message_deleted | user_timeout | user_ban | mod_retract
+    public Guid? RetractedByUserId { get; init; }   // null when automated
+}
+
 // NEW — gallery review lifecycle (platform plane, BroadcasterId null = global)
 public sealed record WidgetGalleryItemStatusChangedEvent : DomainEventBase
 {
@@ -136,6 +145,40 @@ public sealed record WidgetGalleryItemStatusChangedEvent : DomainEventBase
     public required Guid ChangedByUserId { get; init; }
 }
 ```
+
+### 2a. Moderation retraction — deleted content leaves the screen
+
+A message deleted in chat is still on stream if an overlay is showing it or the TTS surface is
+reading it. The deletion is invisible to the audience and the payload lands anyway. **Every
+moderation removal must reach the overlays, immediately.**
+
+`OverlayModerationRetractionHandler` (`Infrastructure/Widgets/EventHandlers/`) subscribes to the
+moderation events — message deleted, user timed out, user banned, network-nuke batch — publishes
+`OverlayContentRetractedEvent`, and pushes `IOverlayClient.Retract` to the channel's overlay group.
+
+```csharp
+public sealed record RetractPayload(
+    Guid BroadcasterId,
+    string? SourceMessageId,   // retract content from this one message
+    string? AuthorUserId,      // retract everything from this author (timeout/ban)
+    string Reason);            // message_deleted | user_timeout | user_ban | mod_retract
+```
+
+Every surface honours it, and each surface's obligation is explicit:
+
+| Surface | On retract |
+|---|---|
+| **TTS** | Stop playback **mid-sentence**, drop matching queued utterances (`tts.md` §3.4a) |
+| **Chat** | Remove the message node; remove all of the author's on removal by author |
+| **Alert** | Cancel the alert if it is on-screen or queued |
+| **Sound** | Stop a clip that this message triggered |
+| **Custom widgets** | Receive the same event through the widget SDK (`widget-sdk.md`) and are expected to handle it; the SDK's chat/alert helpers do it automatically |
+
+**Correlation is by `SourceMessageId`**, which every surface must retain on anything it renders
+from a chat message — a widget that discards it cannot retract, so the SDK's helpers keep it.
+
+Retraction is pushed on the **same connection** as the content it cancels, so it can never
+overtake it. Retracting something already gone is a no-op, never an error.
 
 ---
 
@@ -452,6 +495,7 @@ public interface IOverlayClient
     Task WidgetCompileFailed(WidgetCompileFailedDto error);  // NEW — editor surfaces build error
     Task TtsSpeak(TtsSpeakPayload payload);                  // NEW — server-sent utterance; consumed by the system TTS surface (§1.2; tts.md §6.2)
     Task PlaySound(PlaySoundPayload payload);                // NEW — server-sent sound-clip play; consumed by the system Sound surface (§1.2; sound-system.md play_sound)
+    Task Retract(RetractPayload payload);                    // NEW — moderation retraction; every surface pulls matching content (§2a)
 }
 ```
 Hub server methods (extend `OverlayHub`): keep `JoinWidget`/`LeaveWidget`/`WidgetReady`; add `Task ReportRuntimeError(string widgetId, string error)` → `IWidgetService.RecordRuntimeErrorAsync`. Connect-time auth stays OverlayToken-only (validate `Channels.OverlayToken`; abort on mismatch) — **never** the user JWT. Add `WidgetCompileFailedDto(string WidgetId, int VersionNumber, string BuildError)` to `Hubs/Dtos/HubResponseDtos.cs`.

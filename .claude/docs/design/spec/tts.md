@@ -135,6 +135,18 @@ public sealed record TtsUtteranceRejectedEvent : DomainEventBase
     public required string Reason { get; init; }     // disabled | role_floor | bits_floor | too_long | empty_after_censor
 }
 
+/// <summary>
+/// A dispatched utterance must be retracted — its source message was deleted, or its author was
+/// timed out / banned. Consumed by the overlay/TTS clients to stop playback mid-sentence and drop
+/// anything still queued.
+/// </summary>
+public sealed record TtsUtteranceRetractedEvent : DomainEventBase
+{
+    public required Guid UtteranceId { get; init; }
+    public required string Reason { get; init; }     // message_deleted | user_timeout | user_ban | mod_retract
+    public Guid? RetractedByUserId { get; init; }    // null when automated
+}
+
 /// <summary>Per-channel TTS configuration changed.</summary>
 public sealed record TtsConfigUpdatedEvent : DomainEventBase
 {
@@ -242,6 +254,15 @@ public interface ITtsDispatchService
 
     /// <summary>Lists pending approval-queue entries for the moderator UI, newest-first, paged.</summary>
     Task<Result<PagedList<TtsQueueEntryDto>>> GetPendingQueueAsync(Guid broadcasterId, int page, int pageSize, CancellationToken ct = default);
+
+    /// <summary>
+    /// Retracts everything that originated from <paramref name="sourceMessageId"/> (or, when null, every
+    /// pending/in-flight utterance from <paramref name="authorUserId"/>): drops matching pending queue
+    /// entries as rejected, and dispatches IOverlayClient.TtsRetract to stop playback mid-sentence and
+    /// clear anything still queued client-side. Emits TtsUtteranceRetractedEvent per affected utterance.
+    /// Idempotent — retracting an already-finished utterance is Success with zero affected.
+    /// </summary>
+    Task<Result<int>> RetractAsync(Guid broadcasterId, string? sourceMessageId, Guid? authorUserId, string reason, CancellationToken ct = default);
 }
 
 // records live in Application/Contracts/Tts (see §4)
@@ -263,6 +284,25 @@ public sealed record TtsSegment(string Text, TtsVoiceMode VoiceMode, string? Voi
 public enum TtsDispatchDisposition { Dispatched, Queued }
 public sealed record TtsDispatchOutcome(TtsDispatchDisposition Disposition, Guid? QueueEntryId, string? ContentHash);
 ```
+
+#### 3.4a Moderation retraction — TTS must un-say what was deleted
+
+A deleted message that is still being read aloud is worse than the message: the deletion is
+invisible to anyone listening, and the payload lands anyway. **Any moderation action that removes
+a message must silence its audio, and a timeout/ban must silence everything still pending from
+that author.**
+
+`TtsModerationRetractionHandler` (`Infrastructure/Tts/EventHandlers/`) subscribes to the
+moderation events — message deleted, user timed out, user banned, and the network-nuke batch —
+and calls `RetractAsync` with the matching `SourceMessageId` (already carried on `TtsSpeakRequest`)
+or the author's user id.
+
+Ordering: retraction is dispatched on the **same hub connection** as the original `TtsSpeak`, so a
+retraction can never overtake the utterance it cancels. An utterance whose audio has already
+finished is a no-op, reported as zero affected rather than an error.
+
+Applies to every entry point equally — chat TTS, channel-point redemptions, pipeline `tts_speak`,
+and approved queue entries.
 
 ### 3.5 `ITtsProfanityCensor` (Application — NEW)
 `Application/Contracts/Tts/ITtsProfanityCensor.cs`. The opt-out light swear filter — deliberately thin (AutoMod upstream is the real filter; do not duplicate it).
