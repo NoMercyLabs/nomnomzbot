@@ -61,6 +61,20 @@ stable — without dropping the planned requirements behind them.
   the class of bug that caused the loss) would not be caught. Done-when: a TestServer round-trip saves a
   pipeline graph and reads it back with steps intact.
 
+- **S-RICH-PICKERS** (owner, 2026-08-25) "item pickers get a rich item list and not just a template
+  string or something not easily understandable." S045 shipped the picker KINDS (`reward`, `widget`,
+  `voice`, `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`); this makes the
+  OPTIONS themselves recognisable. Every picker option must carry: a human label, secondary context that
+  identifies it (reward cost + whether it is paused, voice locale + gender + provider, sound clip
+  duration, Discord channel's category/type, widget kind, user's display name + login), an image/icon
+  where the source has one, and its live state with a REASON when unselectable. NEVER a bare ULID, a raw
+  snowflake, or a template string. Options come from the real provider data — never fabricated
+  ([[no fake/seed data]]). Done-when: every picker kind in the catalogue returns a rich option shape
+  proven by a test per kind (assert the fields, not a non-empty list); the dashboard renders label +
+  secondary + state for each; a picker whose source is unavailable says so instead of showing an empty
+  list; and a guard test fails if a NEW picker kind is added without a rich option provider — enumerate
+  the kinds from the enum, do not hand-list them.
+
 - **S-SCHEMA-I18N** (systemic, found by S058b) Widget-settings schema field labels and help text have
   NO i18n mechanism at all — `WidgetSettingsSchemaProvider.cs` serves backend-authored plain English
   straight to the dashboard form renderer, entirely outside the `strings.xml` en/nl pipeline. Every
