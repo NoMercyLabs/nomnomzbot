@@ -21,9 +21,7 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
 
-- **S008c-read-b** The pipeline run history is readable over the API (S008c-read-a, f33eb5e0) but no dashboard surface
-  shows it, so a streamer debugging a misbehaving command still cannot see why it failed. Done-when: the dashboard lists
-  runs (paged, failures filterable) and shows the failing step + its error for a `PartiallyFailed` run.
+*(empty — all Phase 0 slices closed as of 2026-08-24)*
 
 ## Phase 1 — runtime stability of EXISTING plumbing
 
