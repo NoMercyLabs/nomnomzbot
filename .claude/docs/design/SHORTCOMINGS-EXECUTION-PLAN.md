@@ -196,6 +196,19 @@ stable — without dropping the planned requirements behind them.
   without clobbering deliberate overrides (a seeder that only inserts would leave live channels stale and
   fix nothing).
 
+- **S047b** (follow-up; MUST wait for S-PIPE-TREE-c to land) Dry-run cannot yet report a step that WOULD
+  fail and keep reporting the remaining steps: `PipelineEngine` is fail-closed and `break`s on a failed
+  step (~PipelineEngine.cs:357), so nothing after a failure is run or logged. The dry-run's value for a
+  nested pipeline depends on seeing the whole shape including the failing step. Done-when: a test-run
+  reports a would-fail step WITH its reason and continues reporting subsequent steps, while a REAL run
+  keeps today's fail-closed behaviour (prove both — the dry-run must not change live semantics).
+  Note S047 itself was found ALREADY BUILT (endpoint + `PipelineTestRunService` + `CaptureSink` +
+  `TestRunResultDto` + openapi + 5 tests); commit 4ecea704 adds the destructive-action proof
+  (`Captures_a_destructive_moderation_action_without_ever_calling_the_chat_provider`). The sink is
+  default-deny: every `ICommandAction` is wrapped in `CapturingCommandAction` except a 4-item passthrough
+  allowlist (`set_variable`, `stop`, `pick_from_list`, `check_balance`) — re-check that allowlist when the
+  engine rewrite lands, since a passthrough action that gains a side effect would silently execute it.
+
 - **S055b** (follow-up to S055 58121707, needed for a truthful Discord picker) The Discord picker's
   disabled reasons cannot be honest yet: `DiscordGuildChannel`/`DiscordGuildRole` DTOs carry NO "bot can
   post here" / "bot can assign this role" flag, so the channel picker disables by TYPE only and a role
