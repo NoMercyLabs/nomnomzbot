@@ -55,11 +55,7 @@ public sealed class AzureTtsProvider : ITtsProvider
             return EmptyResult(voiceId);
         }
 
-        string ssml = $"""
-            <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
-              <voice name='{voiceId}'>{System.Security.SecurityElement.Escape(text)}</voice>
-            </speak>
-            """;
+        string ssml = BuildSsml(text, voiceId);
 
         string url = $"https://{_region}.tts.speech.microsoft.com/cognitiveservices/v1";
 
@@ -144,6 +140,21 @@ public sealed class AzureTtsProvider : ITtsProvider
             return [];
         }
     }
+
+    /// <summary>
+    /// Builds the SSML document sent to Azure. Both <paramref name="text"/> and <paramref name="voiceId"/> are
+    /// caller-supplied and must be XML-escaped before interpolation — an unescaped <paramref name="voiceId"/>
+    /// (e.g. containing <c>'&gt;&lt;speak&gt;</c>) would otherwise break out of the attribute and let a caller
+    /// inject arbitrary SSML/prosody markup into the outbound synthesis request.
+    /// </summary>
+    internal static string BuildSsml(string text, string voiceId) =>
+        $"""
+            <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
+              <voice name='{System.Security.SecurityElement.Escape(
+                voiceId
+            )}'>{System.Security.SecurityElement.Escape(text)}</voice>
+            </speak>
+            """;
 
     private static TtsSynthesisResult EmptyResult(string voiceId) =>
         new()

@@ -515,12 +515,19 @@ public sealed class EdgeTtsProvider : ITtsProvider
         return $"X-RequestId:{requestId}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:{timestamp}\r\nPath:ssml\r\n\r\n{ssml}";
     }
 
-    private static string BuildSsml(string text, string voiceId)
+    /// <summary>
+    /// Builds the SSML document sent over the Edge TTS WebSocket. Both <paramref name="text"/> and
+    /// <paramref name="voiceId"/> are caller-supplied and must be XML-escaped before interpolation — an
+    /// unescaped <paramref name="voiceId"/> would otherwise let a caller break out of the attribute and
+    /// inject arbitrary SSML markup.
+    /// </summary>
+    internal static string BuildSsml(string text, string voiceId)
     {
         string escaped = System.Security.SecurityElement.Escape(text) ?? text;
+        string escapedVoiceId = System.Security.SecurityElement.Escape(voiceId) ?? voiceId;
         return $"""
             <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
-              <voice name='{voiceId}'>
+              <voice name='{escapedVoiceId}'>
                 <prosody rate='+0%' pitch='+0Hz'>{escaped}</prosody>
               </voice>
             </speak>

@@ -49,13 +49,20 @@ internal static class WebhookAdapterHelpers
         return result;
     }
 
+    /// <summary>
+    /// Hard ceiling on flatten recursion — a deeply nested (or adversarially crafted) inbound payload must not
+    /// be able to grow the call stack unbounded. Branches at or below this depth are truncated: the container
+    /// itself is recorded as its serialized JSON instead of being recursed into further.
+    /// </summary>
+    private const int MaxFlattenDepth = 32;
+
     /// <summary>Flattens a JSON document into a dotted-key string→string bag; malformed JSON yields an empty bag.</summary>
     public static Dictionary<string, string> FlattenJson(string json)
     {
         Dictionary<string, string> variables = new(StringComparer.Ordinal);
         try
         {
-            Flatten(JToken.Parse(json), string.Empty, variables);
+            Flatten(JToken.Parse(json), string.Empty, variables, 0);
         }
         catch (JsonException)
         {
@@ -64,8 +71,20 @@ internal static class WebhookAdapterHelpers
         return variables;
     }
 
-    private static void Flatten(JToken token, string prefix, Dictionary<string, string> variables)
+    private static void Flatten(
+        JToken token,
+        string prefix,
+        Dictionary<string, string> variables,
+        int depth
+    )
     {
+        if (depth >= MaxFlattenDepth)
+        {
+            if (prefix.Length != 0)
+                variables[prefix] = token.ToString(Formatting.None);
+            return;
+        }
+
         switch (token)
         {
             case JObject obj:
@@ -73,12 +92,13 @@ internal static class WebhookAdapterHelpers
                     Flatten(
                         property.Value,
                         prefix.Length == 0 ? property.Name : $"{prefix}.{property.Name}",
-                        variables
+                        variables,
+                        depth + 1
                     );
                 break;
             case JArray array:
                 for (int i = 0; i < array.Count; i++)
-                    Flatten(array[i], $"{prefix}.{i}", variables);
+                    Flatten(array[i], $"{prefix}.{i}", variables, depth + 1);
                 break;
             default:
                 if (prefix.Length != 0)
