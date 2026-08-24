@@ -46,6 +46,35 @@ Read this block first. It is the only summary; everything below is detail.
 
 ---
 
+## BLOCKED ON THE OWNER — cannot be solved from this side
+
+These are not "not done"; they are done-as-far-as-code-can-go and need a real-world action or a call
+only Stoney can make. Do not burn agent time trying to work around them.
+
+1. **Deploy.** Nothing this session is pushed or deployed (`tdd-local-no-ci`: local test-first, no CI,
+   deploy only on the owner's call). The deployed box is a DIFFERENT SYSTEM from this tree — every
+   "verified" below means verified at a commit in a throwaway worktree, never on the live instance.
+2. **Discord, for tomorrow's stream** — needs the owner in his own server:
+   - NomNomzBot must be INSTALLED in the guild and hold **Manage Roles**.
+   - The bot's own highest role must sit **ABOVE** role `1388128843147120761` in Server Settings > Roles.
+     Streamcord working proves nothing here: ours is a separate member with its own role, which lands at
+     the bottom by default.
+   - His Discord account must be LINKED to his channel so the bot can resolve which member to mark live.
+   - **Streamcord overlap:** it already drives that role and posts go-live announcements. Running both
+     double-posts and has two bots fighting over the same role. He must disable Streamcord's live-role +
+     announcement for his channel, or point ours at a different role while testing.
+   - Friends' channels need an ACCEPTED LINK each (separate tenants); no shortcut exists that preserves
+     tenant isolation.
+3. **End-to-end Discord verification is impossible from here.** Unit tests prove the add/remove-role call
+   is made with the right arguments against a FAKE handler. They can never prove Discord accepted it,
+   that the token is valid, that the hierarchy is right, or that the resolved member is really him.
+4. **Open call for him:** S-BUDGETS classifies *registering a command* as near-free -> abuse floor, not a
+   paid ceiling, per his own stated reason (recover real cost, never manufacture upsell). He cited
+   commands as an example of a tier limit, so he may want to overrule. Files/TTS/CPU/bandwidth are
+   cost-driving either way.
+
+---
+
 ## DO NEXT — owner directives, 2026-08-24 (ahead of phase order)
 
 Owner: move the **stream-facing** work forward — commands and overlays, easier to use and more
