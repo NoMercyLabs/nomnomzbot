@@ -151,17 +151,25 @@ whole time, only the API instance behind it changes.
 ```
 
 The script works out which colour is currently live from `docker ps` (never take its word for
-it — it always re-derives this), pulls the new image, starts the **idle** colour alongside the
-live one, waits for the idle colour to pass its own `/health/ready`, and only then stops the old
-colour with a stop timeout long enough for it to drain in-flight requests (SIGTERM → up to 30s →
-SIGKILL). If the idle colour never becomes ready, the script stops it, leaves the old colour
-serving, and exits non-zero — there is never a moment with zero healthy instances. Re-running the
-script is safe; it converges from whatever state it finds.
+it — it always re-derives this), then acquires the new image for the **idle** colour: if
+`API_IMAGE` resolves to a registry ref (e.g. `ghcr.io/nomercylabs/nomnomzbot:latest`, the Proxmox
+box's setup) it **pulls**; if it resolves to a bare local tag (the default
+`nomnomzbot-api:local` that `docker compose up -d --build` produces, which was never pushed
+anywhere and can't be pulled) it **builds** instead — pass `-Build` to force the build path
+regardless of the configured tag. A real pull failure (network down, bad credentials, missing tag)
+still aborts the script before anything is touched, the same as before. It then starts the idle
+colour alongside the live one, waits for the idle colour to pass its own `/health/ready`, and only
+then stops the old colour with a stop timeout long enough for it to drain in-flight requests
+(SIGTERM → up to 30s → SIGKILL). If the idle colour never becomes ready, the script stops it,
+leaves the old colour serving, and exits non-zero — there is never a moment with zero healthy
+instances. Re-running the script is safe; it converges from whatever state it finds.
 
-By default it targets the local compose stack (`docker-compose.yml` in the repo root). Point it at
-a remote host the same way `ship.ps1` does, by setting `NOMNOMZ_DEPLOY_SSH` (`user@host`),
+By default it targets the local compose stack (`docker-compose.yml` in the repo root) and uses
+whatever image `.env`'s `API_IMAGE` resolves to (unset → local build path). Point it at a remote
+host the same way `ship.ps1` does, by setting `NOMNOMZ_DEPLOY_SSH` (`user@host`),
 `NOMNOMZ_DEPLOY_KEY` (SSH key path), and optionally `NOMNOMZ_DEPLOY_DIR` (default
-`/opt/nomnomzbot`).
+`/opt/nomnomzbot`) — set `API_IMAGE` in that host's `.env` to the registry ref to use the pull path
+there.
 
 **Do not** point `watchtower` (or any other auto-updater) at `api-blue`/`api-green` — its
 stop-then-start update is exactly the downtime this setup removes, and it does not know how to

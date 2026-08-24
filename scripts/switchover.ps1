@@ -8,14 +8,16 @@
 #  SPDX-License-Identifier: AGPL-3.0-or-later
 # -----------------------------------------------------------------------------
 #
-# switchover.ps1 — the blue/green deploy step: pull the new image, start the IDLE colour
-# alongside the live one, wait for it to pass /health/ready, and only then stop the old colour
-# (letting it drain). The port (Caddy, docker-compose.yml) is never dark: it is fronted by TWO
-# api-* services and Caddy only routes to whichever currently passes health — this script just
-# decides which one that should be.
+# switchover.ps1 — the blue/green deploy step: acquire the new image (pull if API_IMAGE points at
+# a registry, build if it's a bare local tag — see step 2), start the IDLE colour alongside the
+# live one, wait for it to pass /health/ready, and only then stop the old colour (letting it
+# drain). The port (Caddy, docker-compose.yml) is never dark: it is fronted by TWO api-* services
+# and Caddy only routes to whichever currently passes health — this script just decides which one
+# that should be.
 #
 #   .\scripts\switchover.ps1                       # local compose stack (repo root)
-#   .\scripts\switchover.ps1 -ReadyTimeoutSec 180   # slower box / cold image pull
+#   .\scripts\switchover.ps1 -ReadyTimeoutSec 180   # slower box / cold image pull or build
+#   .\scripts\switchover.ps1 -Build                 # force a local rebuild regardless of API_IMAGE
 #
 # Remote host (same convention as ship.ps1) — set both, or the script runs against the LOCAL
 # compose stack in this repo instead:
@@ -34,7 +36,8 @@
 
 param(
     [int]$ReadyTimeoutSec = 120,
-    [int]$DrainSec = 35 # >= the app's ~30s /health/ready drain window (see Program.cs shutdown).
+    [int]$DrainSec = 35, # >= the app's ~30s /health/ready drain window (see Program.cs shutdown).
+    [switch]$Build # force a local rebuild instead of pulling, regardless of API_IMAGE
 )
 
 $ErrorActionPreference = "Stop"
@@ -104,8 +107,29 @@ $liveColor = if ($greenUp) { "green" } elseif ($blueUp) { "blue" } else { "blue"
 $idleColor = if ($liveColor -eq "blue") { "green" } else { "blue" }
 Write-Host "SWITCHOVER: live = api-$liveColor, deploying to idle = api-$idleColor"
 
-# ── 2. Pull the new image, start the idle colour alongside the live one ──────
-Invoke-Target "docker compose pull -q api-$idleColor"
+# ── 2. Acquire the new image, start the idle colour alongside the live one ───
+# API_IMAGE selects the path: a registry ref (e.g. ghcr.io/nomercylabs/nomnomzbot:latest, used on
+# the Proxmox box) is PULLED — a real pull failure (network down, bad creds, tag missing) must
+# still abort here via Invoke-Target's normal Fail(), same as before, so a stale image is never
+# served silently. A bare local tag (the default `nomnomzbot-api:local` from `docker compose up -d
+# --build`, no registry/namespace segment) was never pushed anywhere, so pulling it always fails
+# hard even though the image is right there — that's the defect this branch fixes. -Build forces
+# the local-build path regardless of the configured tag.
+# `docker compose config --images <service>` scopes to that service plus its dependency closure
+# (api-* depends_on postgres + redis), so it comes back as 3 lines, not 1 — filter out the known
+# infra images rather than assume ordering.
+$imageLines = (Invoke-Target "docker compose config --images api-$idleColor") -split "`r?`n"
+$resolvedImage = ($imageLines | Where-Object { $_ -and $_ -notmatch "^(postgres|redis):" } | Select-Object -First 1)
+if (-not $resolvedImage) { Fail "could not resolve the image for api-$idleColor from 'docker compose config --images'" }
+$resolvedImage = $resolvedImage.Trim()
+$isLocalTag = $resolvedImage -notmatch "/"
+if ($Build -or $isLocalTag) {
+    Write-Host "SWITCHOVER: image '$resolvedImage' is a local-build tag - building instead of pulling"
+    Invoke-Target "docker compose build api-$idleColor"
+}
+else {
+    Invoke-Target "docker compose pull -q api-$idleColor"
+}
 Invoke-Target "docker compose up -d api-$idleColor"
 
 # ── 3. Wait for the idle colour to pass its OWN /health/ready (in-container, not through Caddy —
