@@ -8,14 +8,15 @@ const nnz = (window as any).NomNomz
 // Channel-point redemption popup. Binds "reward_redeemed" (RewardRedeemedBroadcastHandler:
 // RewardRedeemedDto — { rewardId, rewardTitle, userDisplayName, cost, userInput, avatarUrl, ... }).
 // One card at a time, queued like the alerts widget.
-// No `sound` field: the overlay SDK's audio bus is server-driven only (a broadcaster-wide PlaySound push
-// from the host, e.g. the play_sound pipeline action) — a widget has no client-callable "play this clip"
-// API, so a per-widget sound-clip setting here could never actually trigger playback. Removed rather than
-// shipped inert (widget-quality-audit §1).
+// `soundClipId` is display-only config here: RewardRedeemedBroadcastHandler resolves the configured clip and
+// pushes a real PlaySound to the shared overlay audio bus alongside the WidgetEvent (S058b) — the SDK's audio
+// bus already plays any PlaySound broadcast (see overlay/sdk.js), so this widget does not need to touch
+// <audio> itself. Blank = the handler skips playback entirely; no client-side fallback is needed.
 interface RedemptionConfig {
   rewards: string[]     // per-reward enable: reward ids or titles; empty = every reward
   textTemplate: string  // {user} {reward} {cost} {input}; empty = default copy
   durationMs: number
+  soundClipId: string
   accentColor: string
 }
 
@@ -23,6 +24,7 @@ const cfg = reactive<RedemptionConfig>({
   rewards: [],
   textTemplate: '',
   durationMs: 6000,
+  soundClipId: '',
   accentColor: '#9146ff',
 })
 
@@ -51,15 +53,15 @@ function headline(card: RedemptionCard): string {
   return card.user + ' redeemed ' + card.reward + '!'
 }
 
-function onRedeemed(d: any): void {
-  const data: any = d || {}
-  if (!enabled(data)) return
+function onRedeemed(data: any): void {
+  const d: any = data || {}
+  if (!enabled(d)) return
   queue.push({
-    user: data.userDisplayName || 'Someone',
-    reward: data.rewardTitle || 'a reward',
-    cost: Number(data.cost) || 0,
-    input: data.userInput || '',
-    avatarUrl: data.avatarUrl || '',
+    user: d.userDisplayName || 'Someone',
+    reward: d.rewardTitle || 'a reward',
+    cost: Number(d.cost) || 0,
+    input: d.userInput || '',
+    avatarUrl: d.avatarUrl || '',
   })
   if (!current.value) showNext()
 }
@@ -85,6 +87,7 @@ onMounted(() => {
     if (Array.isArray(s.rewards)) cfg.rewards = s.rewards.slice()
     if (typeof s.textTemplate === 'string') cfg.textTemplate = s.textTemplate
     if (isFinite(Number(s.durationMs))) cfg.durationMs = Number(s.durationMs)
+    if (typeof s.soundClipId === 'string') cfg.soundClipId = s.soundClipId
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
   nnz.on('reward_redeemed', onRedeemed)

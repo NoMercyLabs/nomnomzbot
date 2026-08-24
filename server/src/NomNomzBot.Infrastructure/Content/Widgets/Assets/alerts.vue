@@ -45,19 +45,22 @@ function tierText(tier: string | undefined): string {
   return tier ? 'Tier 1' : ''
 }
 
+// Supporter events carry the amount in minor units (SupporterAlertPayload.amountMinor, cents) — divide down
+// for display, same as every other currency-formatting spot in the codebase.
 function money(d: any): string {
-  const amount: number = Number(d.amount) || 0
+  const amount: number = (Number(d.amountMinor) || 0) / 100
   const currency: string = d.currency || ''
-  return currency ? amount + ' ' + currency : String(amount)
+  return currency ? amount.toFixed(2) + ' ' + currency : amount.toFixed(2)
 }
 
 // The wire DTOs (AlertDtos.cs, camelCase) name their subject field differently per event type: FollowAlertDto/
 // SubscriptionAlertDto/ResubAlertDto/CheerAlertDto use `displayName`; GiftSubAlertDto (no subscriber identity —
-// only the gifter) uses `gifterDisplayName`; RaidAlertDto uses `fromDisplayName`. Supporter.* events have no
-// confirmed first-party DTO yet, so they keep the generic `user`/`amount` shape they always used.
+// only the gifter) uses `gifterDisplayName`; RaidAlertDto uses `fromDisplayName`. The real supporter.* payload
+// (SupporterWidgetEventHandler: SupporterAlertPayload) uses `supporterDisplayName`.
 function nameOf(type: string, d: any): string {
   if (type === 'gift') return d.gifterDisplayName || 'Someone'
   if (type === 'raid') return d.fromDisplayName || 'Someone'
+  if (type.indexOf('supporter.') === 0) return d.supporterDisplayName || 'Someone'
   return d.displayName || d.user || 'Someone'
 }
 
@@ -65,12 +68,15 @@ function nameOf(type: string, d: any): string {
 function passesThreshold(type: string, d: any): boolean {
   if (type === 'cheer') return (Number(d.bits) || 0) >= cfg.minBits
   if (type === 'gift') return (Number(d.count) || 0) >= cfg.minGiftCount
-  if (type.indexOf('supporter.') === 0) return (Number(d.amount) || 0) >= cfg.minAmount
+  if (type.indexOf('supporter.') === 0) return (Number(d.amountMinor) || 0) / 100 >= cfg.minAmount
   return true
 }
 
 function applyTemplate(type: string, d: any): string {
-  const amount: number = type === 'cheer' ? Number(d.bits) || 0 : type === 'gift' ? Number(d.count) || 0 : Number(d.amount) || 0
+  const amount: number = type === 'cheer' ? Number(d.bits) || 0
+    : type === 'gift' ? Number(d.count) || 0
+    : type.indexOf('supporter.') === 0 ? (Number(d.amountMinor) || 0) / 100
+    : 0
   return cfg.textTemplate
     .replace(/\{user\}/g, nameOf(type, d))
     .replace(/\{amount\}/g, String(amount))
@@ -89,10 +95,10 @@ function cardFor(type: string, d: any): AlertCard | null {
     case 'gift': return { title: user + ' gifted ' + (d.count || 1) + ' sub' + (Number(d.count) === 1 ? '' : 's') + '!', detail: tierText(d.tier) }
     case 'cheer': return { title: user + ' cheered ' + (d.bits || 0) + ' bits!', detail: '' }
     case 'raid': return { title: user + ' is raiding!', detail: (d.viewerCount || 0) + ' viewers incoming' }
-    case 'supporter.tip': return { title: user + ' tipped ' + money(d), detail: d.message || '' }
-    case 'supporter.membership': return { title: user + ' joined as a member!', detail: d.message || '' }
-    case 'supporter.merch': return { title: user + ' bought merch!', detail: d.message || '' }
-    case 'supporter.charity': return { title: user + ' donated ' + money(d) + ' to charity!', detail: d.message || '' }
+    case 'supporter.tip': return { title: user + ' tipped ' + money(d), detail: d.messageText || '' }
+    case 'supporter.membership': return { title: user + ' joined as a member!', detail: (tierText(d.tier) + (d.quantity ? ' · ' + d.quantity + ' mo' : '')).trim() }
+    case 'supporter.merch': return { title: user + ' bought merch!', detail: d.quantity ? d.quantity + ' item' + (Number(d.quantity) === 1 ? '' : 's') : '' }
+    case 'supporter.charity': return { title: user + ' donated ' + money(d) + ' to charity!', detail: d.messageText || '' }
     default: return null
   }
 }

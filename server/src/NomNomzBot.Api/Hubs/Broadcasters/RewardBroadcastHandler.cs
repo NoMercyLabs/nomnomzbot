@@ -10,30 +10,39 @@
 
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
-/// <summary>Broadcasts channel-point reward redemptions to the dashboard AND, identically, to overlay widgets + the feed.</summary>
+/// <summary>
+/// Broadcasts channel-point reward redemptions to the dashboard AND, identically, to overlay widgets + the feed —
+/// and, when a subscribed <c>redemption_alert</c> widget has a sound clip configured (its <c>soundClipId</c>
+/// setting), pushes that clip to the shared overlay audio bus alongside the alert (S058b — the setting was
+/// removed rather than shipped inert until <c>OverlayHub</c> reopened; it does not touch off-limits Pipeline code).
+/// </summary>
 public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeemedEvent>
 {
     private readonly IDashboardNotifier _notifier;
     private readonly IHubUserEnricher _enricher;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly ISoundClipService _soundClips;
 
     public RewardRedeemedBroadcastHandler(
         IDashboardNotifier notifier,
         IHubUserEnricher enricher,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        ISoundClipService soundClips
     )
     {
         _notifier = notifier;
         _enricher = enricher;
         _db = db;
         _widgets = widgets;
+        _soundClips = soundClips;
     }
 
     public async Task HandleAsync(RewardRedeemedEvent @event, CancellationToken ct = default)
@@ -70,6 +79,14 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
             @event.BroadcasterId,
             "reward_redeemed",
             dto,
+            ct
+        );
+
+        await RedemptionAlertSoundDispatch.PlayConfiguredSoundAsync(
+            _db,
+            _soundClips,
+            _widgets,
+            @event.BroadcasterId,
             ct
         );
     }

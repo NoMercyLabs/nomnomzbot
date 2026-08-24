@@ -246,6 +246,7 @@ public static class FirstPartyWidgetCatalogue
                 ["rewards"] = new List<string>(),
                 ["textTemplate"] = "",
                 ["durationMs"] = 6000,
+                ["soundClipId"] = "",
                 ["accentColor"] = "#9146ff",
             },
             DefaultEventSubscriptions: ["reward_redeemed"]

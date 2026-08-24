@@ -11,6 +11,8 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
@@ -20,7 +22,9 @@ namespace NomNomzBot.Api.Tests.Hubs;
 /// <summary>
 /// Proves <see cref="RewardRedeemedBroadcastHandler"/> carries the GAP E3-2 hub-broadcast-layer enrichment
 /// additively on <see cref="RewardRedeemedDto"/> — populated when the enricher has data, and <c>null</c> (never
-/// a crash) when it doesn't — AND fans the SAME decorated dto to the overlays as a "reward_redeemed" event.
+/// a crash) when it doesn't — fans the SAME decorated dto to the overlays as a "reward_redeemed" event — and
+/// (S058b) plays a subscribed widget's configured alert sound on the shared overlay audio bus, or stays silent
+/// without error when none is configured.
 /// </summary>
 public sealed class RewardRedeemedBroadcastHandlerTests
 {
@@ -42,12 +46,13 @@ public sealed class RewardRedeemedBroadcastHandlerTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        ISoundClipService soundClips = Substitute.For<ISoundClipService>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         enricher
             .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
             .Returns(new HubUserEnrichment("Stoney", "https://cdn/avatar.png", "she/her", "Vip"));
-        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets, soundClips);
 
         await handler.HandleAsync(Event(channel));
 
@@ -70,12 +75,13 @@ public sealed class RewardRedeemedBroadcastHandlerTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        ISoundClipService soundClips = Substitute.For<ISoundClipService>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         enricher
             .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
             .Returns((HubUserEnrichment?)null);
-        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets, soundClips);
 
         await handler.HandleAsync(Event(channel));
 
@@ -96,6 +102,7 @@ public sealed class RewardRedeemedBroadcastHandlerTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        ISoundClipService soundClips = Substitute.For<ISoundClipService>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         enricher
@@ -112,7 +119,7 @@ public sealed class RewardRedeemedBroadcastHandlerTests
         db.Widgets.Add(widget);
         await db.SaveChangesAsync();
 
-        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets, soundClips);
 
         await handler.HandleAsync(Event(channel));
 
@@ -137,6 +144,98 @@ public sealed class RewardRedeemedBroadcastHandlerTests
                     evt.EventType == "reward_redeemed"
                     && evt.Data is RewardRedeemedDto
                     && ((RewardRedeemedDto)evt.Data!).CommunityStanding == "Vip"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Redemption_with_no_sound_configured_stays_silent_without_error()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        ISoundClipService soundClips = Substitute.For<ISoundClipService>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        enricher
+            .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
+            .Returns((HubUserEnrichment?)null);
+        Widget widget = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = channel,
+            Name = "Redemption alert",
+            IsEnabled = true,
+            EventSubscriptions = ["reward_redeemed"],
+            Settings = new() { ["soundClipId"] = "" },
+        };
+        db.Widgets.Add(widget);
+        await db.SaveChangesAsync();
+
+        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets, soundClips);
+
+        await handler.HandleAsync(Event(channel));
+
+        await soundClips
+            .DidNotReceive()
+            .ResolveForPlaybackAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<int?>(),
+                Arg.Any<CancellationToken>()
+            );
+        await widgets
+            .DidNotReceive()
+            .PlaySoundAsync(
+                Arg.Any<string>(),
+                Arg.Any<PlaySoundPayload>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Redemption_with_a_configured_sound_pushes_the_resolved_clip_to_the_overlay_audio_bus()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        ISoundClipService soundClips = Substitute.For<ISoundClipService>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        enricher
+            .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
+            .Returns((HubUserEnrichment?)null);
+        Widget widget = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = channel,
+            Name = "Redemption alert",
+            IsEnabled = true,
+            EventSubscriptions = ["reward_redeemed"],
+            Settings = new() { ["soundClipId"] = "hydrate-ding" },
+        };
+        db.Widgets.Add(widget);
+        await db.SaveChangesAsync();
+        Guid clipId = Guid.CreateVersion7();
+        soundClips
+            .ResolveForPlaybackAsync(channel, "hydrate-ding", null, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(new SoundPlaybackDto(clipId, "/sounds/clip.mp3?token=abc", 80, 1500))
+            );
+
+        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets, soundClips);
+
+        await handler.HandleAsync(Event(channel));
+
+        await widgets
+            .Received(1)
+            .PlaySoundAsync(
+                channel.ToString(),
+                Arg.Is<PlaySoundPayload>(p =>
+                    p.PlaybackUrl == "/sounds/clip.mp3?token=abc"
+                    && p.Volume == 80
+                    && p.Handle == null
                 ),
                 Arg.Any<CancellationToken>()
             );

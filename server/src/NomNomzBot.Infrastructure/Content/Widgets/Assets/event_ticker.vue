@@ -25,18 +25,20 @@ let offset = 0
 let raf = 0
 let last = 0
 
+// Supporter events carry the amount in minor units (SupporterAlertPayload.amountMinor, cents).
 function money(d: any): string {
-  const amount: number = Number(d.amount) || 0
-  return d.currency ? amount + ' ' + d.currency : String(amount)
+  const amount: number = (Number(d.amountMinor) || 0) / 100
+  return d.currency ? amount.toFixed(2) + ' ' + d.currency : amount.toFixed(2)
 }
 
 // The wire DTOs (AlertDtos.cs, camelCase) name their subject field differently per event type: FollowAlertDto/
 // SubscriptionAlertDto/ResubAlertDto/CheerAlertDto use `displayName`; GiftSubAlertDto uses `gifterDisplayName`
-// (no subscriber identity, only the gifter); RaidAlertDto uses `fromDisplayName`. Supporter.* events have no
-// confirmed first-party DTO yet, so they keep the generic `user` shape they always used.
+// (no subscriber identity, only the gifter); RaidAlertDto uses `fromDisplayName`. The real supporter.* payload
+// (SupporterWidgetEventHandler: SupporterAlertPayload) uses `supporterDisplayName`.
 function nameOf(type: string, d: any): string {
   if (type === 'gift') return d.gifterDisplayName || 'Someone'
   if (type === 'raid') return d.fromDisplayName || 'Someone'
+  if (type.indexOf('supporter.') === 0) return d.supporterDisplayName || 'Someone'
   return d.displayName || d.user || 'Someone'
 }
 
@@ -51,9 +53,9 @@ function chipFor(type: string, data: any): Chip | null {
     case 'cheer': return { id: ++seq, icon: '◆', text: user + ' cheered ' + (d.bits || 0) }
     case 'raid': return { id: ++seq, icon: '⚑', text: user + ' raided ' + (d.viewerCount || 0) }
     case 'supporter.tip': return { id: ++seq, icon: '♥', text: user + ' tipped ' + money(d) }
-    case 'supporter.membership': return { id: ++seq, icon: '♥', text: user + ' membership' }
-    case 'supporter.merch': return { id: ++seq, icon: '♥', text: user + ' merch' }
-    case 'supporter.charity': return { id: ++seq, icon: '♥', text: user + ' charity ' + money(d) }
+    case 'supporter.membership': return { id: ++seq, icon: '♥', text: user + ' became a member' + (d.quantity ? ' (' + d.quantity + 'mo)' : '') }
+    case 'supporter.merch': return { id: ++seq, icon: '♥', text: user + ' bought merch' + (d.quantity ? ' x' + d.quantity : '') }
+    case 'supporter.charity': return { id: ++seq, icon: '♥', text: user + ' donated ' + money(d) + ' to charity' }
     default: return null
   }
 }

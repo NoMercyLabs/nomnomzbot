@@ -296,6 +296,14 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                     "Optional override for the popup copy."
                 ),
                 NumberField(d, "durationMs", "On-screen time (ms)", Behaviour, min: 0, step: 100),
+                Text(
+                    d,
+                    "soundClipId",
+                    "Alert sound",
+                    Behaviour,
+                    "Plays this clip from your Sound Clips library every time the alert fires — enter the "
+                        + "clip's id or name. Leave blank and the alert stays silent."
+                ),
                 Accent(d),
             ],
             "countdown_timer" =>
