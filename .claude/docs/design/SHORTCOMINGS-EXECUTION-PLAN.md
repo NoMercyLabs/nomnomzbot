@@ -47,10 +47,19 @@ stable — without dropping the planned requirements behind them.
   are requirements. Done-when: the model + editor express every behaviour in that analysis's gap list
   without a bespoke block, proven by round-tripping his real imported pipelines.
 
-- **S-PIPE-BLANK** (bug, stream-facing) Opening an existing pipeline shows an EMPTY editor although
-  the steps exist in the database — the owner's imported legacy pipelines. Done-when: a pipeline with
-  steps round-trips through the real GET endpoint to the client with every step, action and condition
-  intact, plus a regression test pinning the legacy/imported shape.
+- **S-PIPE-WRITE-SYMMETRY** (from the S-PIPE-BLANK post-mortem) Pipeline writes and reads use two
+  representations that can silently diverge: `GetAsync` falls back to normalized `PipelineStep` rows,
+  but `CreateAsync`/`UpdateAsync` write ONLY `GraphJsonCache` (zero step-row writes). That asymmetry is
+  what turned the wire-name bug into UNRECOVERABLE loss — dashboard-saved pipelines had an empty cache
+  and no rows to rebuild from. Done-when: the two representations provably cannot diverge (a guard test
+  that fails if either write path is skipped), removals included; or, if the cache is genuinely
+  authoritative, the misleading "only a performance cache" comment is corrected and a write can never
+  leave both empty.
+
+- **S-PIPE-BLANK-b** An HTTP-level round-trip test through the pipelines controller — the `f275fdf7`
+  proof is unit-level only, so a future binding/serialization regression at the controller seam (exactly
+  the class of bug that caused the loss) would not be caught. Done-when: a TestServer round-trip saves a
+  pipeline graph and reads it back with steps intact.
 
 - **S-CODE-EDITOR** The code-scripts surface gets a **VS Code-for-web grade editor that functions like
   one** — Monaco-class: completion, hover types, go-to-definition, diagnostics, multi-file — loading a
