@@ -453,16 +453,16 @@ public class SystemController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Setup marked complete." });
     }
 
-    // Setup is "complete" once explicitly finalized, or once the system is ready (a RECORDED Twitch app
-    // decision — BYOC or explicit shared-app choice, the secret is optional — plus the platform bot
-    // authorized). After that, credential overwrites require a platform admin — closing the standing
-    // hosted-mode hole where anyone could repoint the platform's app.
+    // Setup is "complete" ONLY once explicitly finalized via POST setup/complete (the wizard's finish step,
+    // driven by SetupController.finish() on the frontend). It must NOT be inferred from "Twitch decided + a
+    // bot exists" — both facts can be true while the operator is still mid-wizard on the optional steps
+    // (Spotify/Discord/YouTube), and inferring completion from them slams the bootstrap window shut while
+    // the wizard is still asking for things (the owner-facing 403 this guards against). After the explicit
+    // flag is set, credential overwrites require a platform admin — closing the standing hosted-mode hole
+    // where anyone could repoint the platform's app.
     private async Task<bool> IsSetupCompleteAsync(CancellationToken ct)
     {
-        if (await GetSystemConfig("system.setup_complete", ct) == "true")
-            return true;
-        SetupState st = await ComputeSetupStateAsync(ct);
-        return st is { HasTwitchDecision: true, HasPlatformBot: true };
+        return await GetSystemConfig("system.setup_complete", ct) == "true";
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
