@@ -27,7 +27,8 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Deployment;
 public sealed class PostgresRunOnceGuardTests
 {
     // Matches the local dev Postgres container (docker-compose.yml `postgres` service / .env defaults).
-    private static readonly string ConnectionString =
+    // Internal so PostgresFactAttribute can probe the same target these tests connect to.
+    internal static readonly string ConnectionString =
         Environment.GetEnvironmentVariable("NNZ_TEST_PG_CONNECTION")
         ?? "Host=localhost;Port=5432;Database=nomnomzbot;Username=nomnomzbot;Password="
             + (Environment.GetEnvironmentVariable("POSTGRES_PASSWORD") ?? "nomnomzbot_dev");
@@ -45,7 +46,7 @@ public sealed class PostgresRunOnceGuardTests
             NullLogger<PostgresRunOnceGuard>.Instance
         );
 
-    [Fact]
+    [PostgresFact]
     public async Task Two_separate_guard_instances_contend_for_the_same_resource_and_exactly_one_wins()
     {
         string resourceName = $"z3-contend-{Guid.NewGuid():N}";
@@ -80,7 +81,7 @@ public sealed class PostgresRunOnceGuardTests
         }
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task Disposing_the_holder_releases_the_lease_for_the_other_instance_to_acquire()
     {
         string resourceName = $"z3-release-{Guid.NewGuid():N}";
