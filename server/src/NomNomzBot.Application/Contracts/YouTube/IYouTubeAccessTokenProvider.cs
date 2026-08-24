@@ -13,9 +13,9 @@ namespace NomNomzBot.Application.Contracts.YouTube;
 /// <summary>
 /// The single custody path for a broadcaster's YouTube OAuth bearer — every YouTube surface that calls
 /// the Data API on the user's own token (music manage, live-chat read) resolves it here instead of
-/// re-implementing vault lookup + refresh. Reads the channel's enabled <c>Service</c> row
-/// (Name = "youtube"), unprotects the stored token, and transparently refreshes it against Google when
-/// it is expiring, persisting the rotated token back to the vault.
+/// re-implementing vault lookup + refresh. Reads the broadcaster's non-revoked <c>IntegrationConnection</c>
+/// (Provider = "youtube") from <c>IIntegrationTokenVault</c>, decrypts the stored token, and transparently
+/// refreshes it against Google when it is expiring, persisting the refreshed token back to the vault.
 /// </summary>
 public interface IYouTubeAccessTokenProvider
 {

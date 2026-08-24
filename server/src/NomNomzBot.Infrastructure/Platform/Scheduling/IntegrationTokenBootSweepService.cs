@@ -104,11 +104,15 @@ public sealed class IntegrationTokenBootSweepService : IHostedService
         IYouTubeAccessTokenProvider youTube =
             services.GetRequiredService<IYouTubeAccessTokenProvider>();
 
+        // S036c-b — YouTube candidates come from the vault now, not the legacy Service row.
         List<Guid> broadcasterIds = await db
-            .Services.Where(s =>
-                s.Name == AuthEnums.Platform.YouTube && s.Enabled && s.BroadcasterId != null
+            .IntegrationConnections.Where(c =>
+                c.Provider == AuthEnums.IntegrationProvider.YouTube
+                && c.Status == AuthEnums.IntegrationStatus.Connected
+                && c.BroadcasterId != null
             )
-            .Select(s => s.BroadcasterId!.Value)
+            .Select(c => c.BroadcasterId!.Value)
+            .Distinct()
             .ToListAsync(ct);
 
         foreach (Guid broadcasterId in broadcasterIds)

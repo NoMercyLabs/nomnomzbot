@@ -118,6 +118,31 @@ internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
         return connection.Id;
     }
 
+    /// <summary>Seeds a usable, non-expiring YouTube connection + token pair for a broadcaster (S036c-b),
+    /// exactly as a real OAuth connect (or the S036c-a backfill) would leave the vault. Returns the
+    /// connection id for tests that need to mutate it directly.</summary>
+    public Guid SeedConnectedYouTube(
+        Guid broadcasterId,
+        string accessToken = "test-access-token",
+        string? refreshToken = null,
+        IReadOnlyList<string>? scopes = null,
+        DateTime? expiresAt = null
+    )
+    {
+        IntegrationConnection connection = new()
+        {
+            BroadcasterId = broadcasterId,
+            Provider = AuthEnums.IntegrationProvider.YouTube,
+            Status = AuthEnums.IntegrationStatus.Connected,
+            Scopes = scopes is null ? [] : [.. scopes],
+        };
+        _db.IntegrationConnections.Add(connection);
+        _db.SaveChangesAsync(CancellationToken.None).GetAwaiter().GetResult();
+
+        _tokens[connection.Id] = (accessToken, refreshToken, expiresAt);
+        return connection.Id;
+    }
+
     /// <summary>Marks a previously-seeded connection's token dead: expired with no refresh token on
     /// file — the vault equivalent of "GetTokenAsync resolves to null for every Spotify call".</summary>
     public void MakeUnrefreshable(Guid connectionId)
@@ -347,17 +372,19 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
 /// <summary>
 /// Builds a real <see cref="YouTubeMusicProvider"/> over the shared test HTTP handler, an in-memory
 /// <c>YouTube:ApiKey</c>, and a vault-backing <see cref="IApplicationDbContext"/> — mirrors the runtime
-/// DI shape (named HttpClient + IConfiguration + db + token protector). A null <paramref name="apiKey"/>
-/// leaves the provider unconfigured (search/resolve degrade to empty/null); pass a <paramref name="db"/>
-/// holding a connected "youtube" <c>Service</c> to exercise the §3.10 manage surface (else an empty db =
-/// the unconnected/<c>MISSING_SCOPE</c> path).
+/// DI shape (named HttpClient + IConfiguration + db + vault). A null <paramref name="apiKey"/> leaves the
+/// provider unconfigured (search/resolve degrade to empty/null); pass a <paramref name="vault"/> with a
+/// <see cref="FakeIntegrationTokenVault.SeedConnectedYouTube"/> connection for <paramref name="db"/> to
+/// exercise the §3.10 manage surface (else an unconnected db = the MISSING_SCOPE path — S036c-b, the
+/// real custody path is <c>IIntegrationTokenVault</c>, not the legacy <c>Service</c> row).
 /// </summary>
 internal static class YouTubeProviderFactory
 {
     public static YouTubeMusicProvider Create(
         string? apiKey = null,
         HttpMessageHandler? handler = null,
-        IApplicationDbContext? db = null
+        IApplicationDbContext? db = null,
+        FakeIntegrationTokenVault? vault = null
     )
     {
         IConfiguration configuration = new ConfigurationBuilder()
@@ -375,10 +402,11 @@ internal static class YouTubeProviderFactory
             );
 
         // The REAL shared custody path over the same db/handler — manage-surface tests keep proving the
-        // Service-row lookup + refresh behavior end to end, now through the extracted provider.
+        // vault-lookup + refresh behavior end to end, now through the extracted provider (S036c-b).
         YouTubeAccessTokenProvider accessTokens = new(
             database,
-            new PassthroughProtector(),
+            vault ?? new FakeIntegrationTokenVault(database),
+            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance),
             TimeProvider.System,
             factory,
             NullLogger<YouTubeAccessTokenProvider>.Instance,

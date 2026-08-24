@@ -272,7 +272,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         );
         await worker.TickAsync(CancellationToken.None); // → live, IsLive stamped
 
-        db.Services.Remove(db.Services.Single());
+        db.IntegrationConnections.Remove(db.IntegrationConnections.Single());
         await db.SaveChangesAsync();
         await worker.TickAsync(CancellationToken.None); // connection gone → drop + un-stamp
 
@@ -567,13 +567,15 @@ public sealed class YouTubeLiveChatPollWorkerTests
                 BillingTierKey = "free",
             }
         );
-        db.Services.Add(
+        // S036c-b — the poller's candidate discovery reads the vault (IntegrationConnection), not the
+        // legacy Service row; the actual token value itself is faked below via FixedTokenProvider.
+        db.IntegrationConnections.Add(
             new()
             {
-                Name = "youtube",
-                Enabled = true,
                 BroadcasterId = Broadcaster,
-                AccessToken = "sealed-envelope",
+                Provider = AuthEnums.IntegrationProvider.YouTube,
+                ProviderAccountId = "yt-poller-candidate",
+                Status = AuthEnums.IntegrationStatus.Connected,
             }
         );
         await db.SaveChangesAsync();

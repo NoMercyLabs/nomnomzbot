@@ -13,40 +13,33 @@ using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Common.Interfaces;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.YouTube;
-using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Integrations.YouTube;
 
 /// <summary>
-/// <see cref="IYouTubeAccessTokenProvider"/> over the vaulted <c>Service</c> row (Name = "youtube") —
-/// extracted from <c>YouTubeMusicProvider</c>'s private token logic so the music manage surface and the
-/// live-chat poller share ONE custody path. Refreshes against Google's token endpoint with the stored
-/// per-channel client credentials when the token expires within 5 minutes; Google does not rotate the
-/// refresh token on a refresh grant, so only the access token + expiry are re-protected and saved.
-///
-/// <para>
-/// <b>S036b — deliberate second custody path (not migrated to <c>IIntegrationTokenVault</c>).</b>
-/// Twitch/Kick/Spotify vault their OAuth tokens as <c>IntegrationConnection</c> rows; YouTube alone
-/// still lives on the legacy flat <c>Service</c> table (predates the vault). Folding it into
-/// <c>IIntegrationTokenVault</c> is the right end state, but it is a DATA migration, not a code
-/// change: every reader/writer of the YouTube <c>Service</c> row (this provider,
-/// <c>YouTubeMusicProvider</c>, the OAuth callback that creates the row, the integrations-status
-/// surface, and any admin/support tooling that queries <c>Services</c> directly) would need to move
-/// in lockstep with a one-time backfill of existing rows into <c>IntegrationConnection</c> — a
-/// decision beyond this slice's scope. Until that migration lands, this provider closes the SAME
-/// concurrent-refresh race Twitch/Kick/Spotify close (see the <see cref="_refreshGate"/> use below),
-/// just keyed to the <c>Service</c> row's identity instead of a vault connection id.
-/// </para>
+/// <see cref="IYouTubeAccessTokenProvider"/> over the vaulted YouTube connection (S036c-b): the
+/// non-revoked <c>IntegrationConnection</c> for <c>(BroadcasterId, Provider=youtube)</c> is the sole
+/// custody path — no reader anywhere reaches into the legacy <c>Service</c> row any more (S036c-a's
+/// seeder backfilled every pre-existing row into the vault). An expiring token refreshes against
+/// Google's token endpoint using the channel's resolved (BYOC-or-system) app credentials; Google does
+/// NOT rotate the refresh token on a refresh grant, so only the access token + expiry are re-vaulted —
+/// the stored refresh token is left untouched (<c>StoreTokensDto.RefreshToken: null</c> is a no-op write
+/// for that field, per <see cref="IIntegrationTokenVault.StoreTokensAsync"/>).
 /// </summary>
 public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
 {
-    private const string ProviderName = "youtube";
     private const string GoogleTokenEndpoint = "https://oauth2.googleapis.com/token";
+    private static readonly TimeSpan RefreshMargin = TimeSpan.FromMinutes(5);
 
     private readonly IApplicationDbContext _db;
-    private readonly ITokenProtector _tokenProtector;
+    private readonly IIntegrationTokenVault _vault;
+    private readonly IChannelCredentialsResolver _channelCredentials;
     private readonly TimeProvider _timeProvider;
     private readonly HttpClient _http;
     private readonly ILogger<YouTubeAccessTokenProvider> _logger;
@@ -54,7 +47,8 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
 
     public YouTubeAccessTokenProvider(
         IApplicationDbContext db,
-        ITokenProtector tokenProtector,
+        IIntegrationTokenVault vault,
+        IChannelCredentialsResolver channelCredentials,
         TimeProvider timeProvider,
         IHttpClientFactory httpClientFactory,
         ILogger<YouTubeAccessTokenProvider> logger,
@@ -62,9 +56,10 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
     )
     {
         _db = db;
-        _tokenProtector = tokenProtector;
+        _vault = vault;
+        _channelCredentials = channelCredentials;
         _timeProvider = timeProvider;
-        _http = httpClientFactory.CreateClient(ProviderName);
+        _http = httpClientFactory.CreateClient(AuthEnums.IntegrationProvider.YouTube);
         _logger = logger;
         _refreshGate = refreshGate;
     }
@@ -74,117 +69,106 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
         CancellationToken cancellationToken = default
     )
     {
-        Service? service = await _db.Services.FirstOrDefaultAsync(
-            s =>
-                s.BroadcasterId == broadcasterId
-                && s.Name == ProviderName
-                && s.Enabled
-                && s.AccessToken != null,
-            cancellationToken
-        );
-
-        if (service is null)
+        Guid? connectionId = await ResolveConnectionIdAsync(broadcasterId, cancellationToken);
+        if (connectionId is null)
         {
             _logger.LogDebug(
-                "No YouTube service found for broadcaster {BroadcasterId}",
+                "No YouTube connection vaulted for broadcaster {BroadcasterId}",
                 broadcasterId
             );
             return null;
         }
 
-        // Refresh if expiring within 5 minutes.
-        if (
-            service.TokenExpiry.HasValue
-            && service.TokenExpiry.Value <= _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(5)
-        )
-            return await RefreshTokenAsync(service, cancellationToken);
+        Result<DecryptedTokenDto> access = await _vault.GetAccessTokenAsync(
+            connectionId.Value,
+            cancellationToken
+        );
+        if (access.IsFailure)
+            return null;
 
-        return service.AccessToken is not null
-            ? await _tokenProtector.TryUnprotectAsync(
-                service.AccessToken,
-                new(service.BroadcasterId?.ToString() ?? "_platform", ProviderName, "access"),
-                cancellationToken
-            )
-            : null;
+        bool expiring =
+            access.Value.IsExpired
+            || (
+                access.Value.ExpiresAt is { } expiresAt
+                && expiresAt <= _timeProvider.GetUtcNow().UtcDateTime.Add(RefreshMargin)
+            );
+        if (!expiring)
+            return access.Value.Value;
+
+        return await RefreshTokenAsync(broadcasterId, connectionId.Value, cancellationToken);
     }
 
-    private async Task<string?> RefreshTokenAsync(
-        Service service,
+    private async Task<Guid?> ResolveConnectionIdAsync(
+        Guid broadcasterId,
         CancellationToken cancellationToken
     )
     {
-        if (service.RefreshToken is null)
-            return null;
+        var connection = await _db
+            .IntegrationConnections.Where(c =>
+                c.BroadcasterId == broadcasterId
+                && c.Provider == AuthEnums.IntegrationProvider.YouTube
+                && c.Status != AuthEnums.IntegrationStatus.Revoked
+            )
+            .OrderByDescending(c => c.ConnectedAt)
+            .Select(c => new { c.Id })
+            .FirstOrDefaultAsync(cancellationToken);
+        return connection?.Id;
+    }
 
-        // S036 — serialize refreshes of the SAME YouTube service row. Google does not invalidate the prior
+    private async Task<string?> RefreshTokenAsync(
+        Guid broadcasterId,
+        Guid connectionId,
+        CancellationToken cancellationToken
+    )
+    {
+        // S036 — serialize refreshes of the SAME YouTube connection. Google does not invalidate the prior
         // refresh token on a refresh grant, but two concurrent callers still each burn a quota-limited
-        // request and could interleave the SaveChangesAsync writes; gate them to exactly one HTTP call.
+        // request and could interleave the vault writes; gate them to exactly one HTTP call.
         using IDisposable gate = await _refreshGate.AcquireAsync(
-            $"youtube:{service.Id}",
+            $"youtube:{connectionId}",
             cancellationToken
         );
 
-        // Re-check under the gate against the CURRENT row: another caller may already have refreshed it
-        // while we waited. AsNoTracking + a detached read on purpose — it must NOT replace the tracked
-        // `service` instance below, which the HTTP-refresh path mutates and saves in place.
-        Service? current = await _db
-            .Services.AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == service.Id, cancellationToken);
+        // Re-check under the gate: another caller may already have refreshed this connection while we waited.
+        Result<DecryptedTokenDto> current = await _vault.GetAccessTokenAsync(
+            connectionId,
+            cancellationToken
+        );
         if (
-            current is not null
-            && current.TokenExpiry.HasValue
-            && current.TokenExpiry.Value > _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(5)
-            && current.AccessToken is not null
+            current is { IsSuccess: true, Value: { IsExpired: false, ExpiresAt: { } expiresAt } }
+            && expiresAt > _timeProvider.GetUtcNow().UtcDateTime.Add(RefreshMargin)
         )
-        {
-            return await _tokenProtector.TryUnprotectAsync(
-                current.AccessToken,
-                new(current.BroadcasterId?.ToString() ?? "_platform", ProviderName, "access"),
-                cancellationToken
-            );
-        }
+            return current.Value.Value;
 
-        string subjectId = service.BroadcasterId?.ToString() ?? "_platform";
-
-        string? refreshToken = await _tokenProtector.TryUnprotectAsync(
-            service.RefreshToken,
-            new(subjectId, ProviderName, "refresh"),
+        Result<DecryptedTokenDto> refresh = await _vault.GetRefreshTokenAsync(
+            connectionId,
             cancellationToken
         );
-        if (refreshToken is null)
+        if (refresh.IsFailure)
             return null;
 
-        string? clientId = service.ClientId is not null
-            ? await _tokenProtector.TryUnprotectAsync(
-                service.ClientId,
-                new(subjectId, ProviderName, "client_id"),
-                cancellationToken
-            )
-            : null;
-        string? clientSecret = service.ClientSecret is not null
-            ? await _tokenProtector.TryUnprotectAsync(
-                service.ClientSecret,
-                new(subjectId, ProviderName, "client_secret"),
-                cancellationToken
-            )
-            : null;
-
-        if (clientId is null || clientSecret is null)
+        Result<SystemAppCredentials> appResult = await _channelCredentials.ResolveAsync(
+            broadcasterId,
+            AuthEnums.IntegrationProvider.YouTube,
+            cancellationToken
+        );
+        if (appResult.IsFailure)
         {
             _logger.LogWarning(
                 "YouTube credentials not configured for broadcaster {BroadcasterId}",
-                service.BroadcasterId
+                broadcasterId
             );
             return null;
         }
+        SystemAppCredentials app = appResult.Value;
 
         FormUrlEncodedContent form = new(
             new Dictionary<string, string>
             {
                 ["grant_type"] = "refresh_token",
-                ["refresh_token"] = refreshToken,
-                ["client_id"] = clientId,
-                ["client_secret"] = clientSecret,
+                ["refresh_token"] = refresh.Value.Value,
+                ["client_id"] = app.ClientId,
+                ["client_secret"] = app.ClientSecret,
             }
         );
 
@@ -197,9 +181,14 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
             );
             if (!response.IsSuccessStatusCode)
             {
+                await _vault.MarkRefreshFailureAsync(
+                    connectionId,
+                    $"YouTube refresh failed ({(int)response.StatusCode})",
+                    cancellationToken
+                );
                 _logger.LogWarning(
                     "YouTube token refresh failed for {BroadcasterId}: {Status}",
-                    service.BroadcasterId,
+                    broadcasterId,
                     response.StatusCode
                 );
                 return null;
@@ -212,19 +201,21 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
             if (json is null)
                 return null;
 
-            service.AccessToken = await _tokenProtector.ProtectAsync(
-                json.AccessToken,
-                new(subjectId, ProviderName, "access"),
+            // Google does not rotate refresh tokens on a refresh grant — RefreshToken: null leaves the
+            // vaulted one untouched; only the access token + expiry are re-sealed.
+            await _vault.StoreTokensAsync(
+                connectionId,
+                new(
+                    json.AccessToken,
+                    RefreshToken: null,
+                    AppToken: null,
+                    _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(json.ExpiresIn)
+                ),
+                grantedScopes: null,
                 cancellationToken
             );
-            service.TokenExpiry = _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(json.ExpiresIn);
-            // Google does not rotate refresh tokens on a refresh grant — the stored one stays valid.
-            await _db.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation(
-                "Refreshed YouTube token for {BroadcasterId}",
-                service.BroadcasterId
-            );
+            _logger.LogInformation("Refreshed YouTube token for {BroadcasterId}", broadcasterId);
             return json.AccessToken;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -232,7 +223,7 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
             _logger.LogError(
                 ex,
                 "Exception refreshing YouTube token for {BroadcasterId}",
-                service.BroadcasterId
+                broadcasterId
             );
             return null;
         }

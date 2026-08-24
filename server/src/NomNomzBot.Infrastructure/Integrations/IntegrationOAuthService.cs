@@ -272,13 +272,14 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         if (store.IsFailure)
             return store.WithValue<OAuthCallbackResultDto>(null!);
 
-        // NOTE (token-store bridge): the vault above is the CANONICAL store, but the music providers
-        // (SpotifyMusicProvider / YouTubeMusicProvider) and IntegrationsController.ListIntegrations still read the
-        // legacy `Service` token store, which nothing else writes for these providers — so without this mirror a
-        // connected Spotify/YouTube reads back as disconnected and the dashboard loops on "reconnect". Mirror the
-        // just-vaulted tokens + the app credentials the providers' refresh path needs into that `Service` row
-        // (no-op for non-music providers). This is a bridge, not a replacement: the real long-term fix is
-        // migrating those consumers to read the vault directly and retiring the Service-table token store.
+        // NOTE (token-store bridge): the vault above is the CANONICAL store for every provider. Spotify
+        // alone still needs a mirror — SpotifyMusicProvider and IntegrationsController.ListIntegrations's
+        // Spotify auth-status read still consult the legacy `Service` token store, which nothing else
+        // writes for it — so without this mirror a connected Spotify reads back as disconnected and the
+        // dashboard loops on "reconnect". YouTube was migrated off this bridge in S036c-b: its readers
+        // (YouTubeAccessTokenProvider, YouTubeMusicProvider, the live-chat poller, IntegrationStatusService)
+        // all resolve the vault directly now, so mirroring a YouTube grant here would be a second, dead
+        // copy of the token. MirrorAsync is a no-op for every non-mirrored provider (including YouTube).
         await _musicTokenMirror.MirrorAsync(
             entry.BroadcasterId,
             provider,

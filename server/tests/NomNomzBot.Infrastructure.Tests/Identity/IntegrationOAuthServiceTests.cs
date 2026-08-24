@@ -525,8 +525,11 @@ public sealed class IntegrationOAuthServiceTests
     }
 
     [Fact]
-    public async Task HandleCallback_ForYouTube_MirrorsTokensIntoServiceRow()
+    public async Task HandleCallback_ForYouTube_VaultsTokens_AndWritesNoLegacyServiceRow()
     {
+        // S036c-b — YouTube was migrated OFF the Service-row mirror; the vault write in
+        // HandleCallbackAsync (IIntegrationTokenVault.StoreTokensAsync, exercised for every provider) is
+        // now the ONLY custody path for a YouTube grant.
         StubHandler handler = new()
         {
             TokenJson =
@@ -549,21 +552,35 @@ public sealed class IntegrationOAuthServiceTests
         );
         callback.IsSuccess.Should().BeTrue();
 
-        NomNomzBot.Domain.Platform.Entities.Service row = await db
-            .Services.AsNoTracking()
-            .SingleAsync(s => s.BroadcasterId == Tenant && s.Name == "youtube");
-        row.Enabled.Should().BeTrue();
-        row.AccessToken.Should().NotBeNullOrEmpty();
-
-        ITokenProtector reader = AuthTestBuilder.RealTokenProtector(db, out _);
-        (
-            await reader.TryUnprotectAsync(
-                row.AccessToken,
-                new(Tenant.ToString(), "youtube", "access")
-            )
-        )
+        // No legacy Service row for YouTube — the mirror is Spotify-only now.
+        (await db.Services.AnyAsync(s => s.BroadcasterId == Tenant && s.Name == "youtube"))
             .Should()
-            .Be("yt-access");
+            .BeFalse("YouTube must no longer write the legacy Service token store");
+
+        // The vault holds the connection + tokens, decryptable back to the exact plaintext exchanged.
+        IntegrationConnection connection = await db
+            .IntegrationConnections.AsNoTracking()
+            .SingleAsync(c =>
+                c.BroadcasterId == Tenant && c.Provider == AuthEnums.IntegrationProvider.YouTube
+            );
+        connection.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
+
+        IntegrationTokenVault vault = new(
+            db,
+            AuthTestBuilder.RealTokenProtector(db, out ISubjectKeyService keys),
+            keys,
+            new PassthroughScopeGrant(),
+            new RecordingEventBus(),
+            TimeProvider.System,
+            NullLogger<IntegrationTokenVault>.Instance
+        );
+        Result<DecryptedTokenDto> access = await vault.GetAccessTokenAsync(connection.Id);
+        access.IsSuccess.Should().BeTrue();
+        access.Value.Value.Should().Be("yt-access");
+
+        Result<DecryptedTokenDto> refresh = await vault.GetRefreshTokenAsync(connection.Id);
+        refresh.IsSuccess.Should().BeTrue();
+        refresh.Value.Value.Should().Be("yt-refresh");
     }
 
     [Fact]

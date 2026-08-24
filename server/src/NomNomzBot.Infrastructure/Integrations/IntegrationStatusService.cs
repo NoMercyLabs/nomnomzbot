@@ -14,14 +14,16 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Integrations.Dtos;
 using NomNomzBot.Application.Integrations.Services;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Integrations;
 
 /// <summary>
 /// Resolves the connection state of every known integration for a channel from the stored service
-/// tokens (<c>Service</c>) and Discord guild connections. Owns the integration catalogue and the
-/// connection detection; the request-specific OAuth connect URLs are layered on by the integrations
-/// controller. Shared by the integrations list endpoint and the dashboard render manifest.
+/// tokens (<c>Service</c>), the crypto vault (<c>IntegrationConnection</c> — YouTube, S036c-b), and
+/// Discord guild connections. Owns the integration catalogue and the connection detection; the
+/// request-specific OAuth connect URLs are layered on by the integrations controller. Shared by the
+/// integrations list endpoint and the dashboard render manifest.
 /// </summary>
 public sealed class IntegrationStatusService : IIntegrationStatusService
 {
@@ -73,6 +75,19 @@ public sealed class IntegrationStatusService : IIntegrationStatusService
 
         if (discordConnected && !connectedServiceNames.Contains("discord"))
             connectedServiceNames.Add("discord");
+
+        // S036c-b — YouTube's custody moved to the vault; it no longer writes the legacy Service row,
+        // so its connectivity is resolved from IntegrationConnection instead of connectedServiceNames.
+        bool youtubeConnected = await _db.IntegrationConnections.AnyAsync(
+            c =>
+                c.BroadcasterId == broadcasterId
+                && c.Provider == AuthEnums.IntegrationProvider.YouTube
+                && c.Status == AuthEnums.IntegrationStatus.Connected,
+            cancellationToken
+        );
+        connectedServiceNames.Remove("youtube");
+        if (youtubeConnected)
+            connectedServiceNames.Add("youtube");
 
         // Twitch is always connected when the channel exists.
         var channel = await _db

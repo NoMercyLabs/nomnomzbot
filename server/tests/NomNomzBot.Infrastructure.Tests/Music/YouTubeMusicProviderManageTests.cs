@@ -68,6 +68,58 @@ public sealed class YouTubeMusicProviderManageTests
     }
 
     [Fact]
+    public async Task Rate_track_uses_the_VAULT_bearer_even_when_a_stale_legacy_Service_row_disagrees()
+    {
+        // S036c-b — the vault is the SOLE custody path now: a leftover legacy Service row (e.g. from
+        // before the S036c-a backfill, or simply never cleaned up) holding a DIFFERENT access token must
+        // never reach an outbound call. Proven on the wire, not on non-null: the fake HTTP handler only
+        // answers a request carrying the vault's bearer — if the stale Service value leaked through, the
+        // request would 404 and the call would fail.
+        MusicTestDbContext db = new(
+            new DbContextOptionsBuilder<MusicTestDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options
+        );
+        db.Services.Add(
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = "youtube",
+                BroadcasterId = ChannelId,
+                Enabled = true,
+                AccessToken = "stale-legacy-service-token-must-never-be-used",
+            }
+        );
+        db.SaveChanges();
+
+        FakeIntegrationTokenVault vault = new(db);
+        vault.SeedConnectedYouTube(ChannelId, BearerToken);
+
+        RecordingHttpHandler handler = new();
+        handler.RespondWhen(
+            r => r.Method == HttpMethod.Post && IsBearer(r) && IsPath(r, "/videos/rate"),
+            HttpStatusCode.NoContent
+        );
+
+        YouTubeMusicProvider youtube = YouTubeProviderFactory.Create(
+            apiKey: "test-key",
+            handler: handler,
+            db: db,
+            vault: vault
+        );
+        MusicProviderManageApi api = new([youtube]);
+
+        Result result = await api.RateTrackAsync(ChannelId, "youtube", VideoId, MusicRating.Like);
+
+        result
+            .IsSuccess.Should()
+            .BeTrue("the vault's token, not the stale Service row, must authorize the call");
+        handler
+            .RequestUrls.Should()
+            .ContainSingle(url => url.Contains($"/videos/rate?id={VideoId}"));
+    }
+
+    [Fact]
     public async Task Rate_track_with_an_unparseable_video_fails_validation_without_a_call()
     {
         (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
@@ -643,26 +695,16 @@ public sealed class YouTubeMusicProviderManageTests
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
+        FakeIntegrationTokenVault vault = new(db);
         if (connectYouTube)
-        {
-            db.Services.Add(
-                new()
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Name = "youtube",
-                    BroadcasterId = ChannelId,
-                    Enabled = true,
-                    AccessToken = BearerToken,
-                }
-            );
-            db.SaveChanges();
-        }
+            vault.SeedConnectedYouTube(ChannelId, BearerToken);
 
         RecordingHttpHandler handler = new();
         YouTubeMusicProvider youtube = YouTubeProviderFactory.Create(
             apiKey: "test-key",
             handler: handler,
-            db: db
+            db: db,
+            vault: vault
         );
 
         MusicProviderManageApi api = new([youtube]);

@@ -20,22 +20,29 @@ namespace NomNomzBot.Infrastructure.Music;
 
 /// <summary>
 /// Mirrors a connected music-provider OAuth grant into the legacy <see cref="Service"/> token store that
-/// <c>SpotifyMusicProvider</c> / <c>YouTubeMusicProvider</c> (and <c>IntegrationsController.ListIntegrations</c>)
-/// read from. It seals the tokens + client credentials under the exact
-/// <see cref="TokenProtectionContext"/> those providers unseal — <c>(broadcasterId, provider, field)</c> for
+/// <c>SpotifyMusicProvider</c> (and <c>IntegrationsController.ListIntegrations</c>'s Spotify auth-status
+/// read) still reads from. It seals the tokens + client credentials under the exact
+/// <see cref="TokenProtectionContext"/> that provider unseals — <c>(broadcasterId, provider, field)</c> for
 /// fields <c>access</c> / <c>refresh</c> / <c>client_id</c> / <c>client_secret</c> — so once the row exists the
-/// providers' own refresh-on-demand + rotation path takes over. See <see cref="IMusicProviderTokenMirror"/>
-/// for why this bridge exists (canonical store is the crypto vault; this is a mirror until the providers read
+/// provider's own refresh-on-demand + rotation path takes over. See <see cref="IMusicProviderTokenMirror"/>
+/// for why this bridge exists (canonical store is the crypto vault; this is a mirror until Spotify reads
 /// the vault directly).
+///
+/// <para>
+/// <b>S036c-b — YouTube migrated OFF this mirror.</b> Every YouTube token reader now resolves through
+/// <see cref="NomNomzBot.Application.Identity.Services.IIntegrationTokenVault"/> directly
+/// (<c>YouTubeAccessTokenProvider</c>), so mirroring YouTube's OAuth grant into the legacy <c>Service</c>
+/// row would only create a second, silently-drifting copy of a token nothing reads any more — YouTube is
+/// deliberately excluded from <see cref="MusicProviders"/>.
+/// </para>
 /// </summary>
 public sealed class MusicProviderTokenMirror : IMusicProviderTokenMirror
 {
-    // The providers whose tokens live in the Service store (the generic OAuth registry's music providers).
-    // A non-music connect (nothing here reads the Service row for it) is a no-op.
+    // The providers whose tokens live in the Service store. YouTube is deliberately absent (S036c-b) —
+    // it reads the vault directly and nothing consumes a mirrored Service row for it any more.
     private static readonly HashSet<string> MusicProviders = new(StringComparer.OrdinalIgnoreCase)
     {
         AuthEnums.IntegrationProvider.Spotify,
-        AuthEnums.IntegrationProvider.YouTube,
     };
 
     private readonly IApplicationDbContext _db;

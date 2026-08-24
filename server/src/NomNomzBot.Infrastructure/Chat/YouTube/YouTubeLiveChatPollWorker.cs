@@ -110,13 +110,16 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        // Every channel with an enabled YouTube connection is a poll candidate; a disconnect drops its
-        // state so a stale live session never keeps polling a revoked token.
+        // Every channel with a connected YouTube vault entry is a poll candidate (S036c-b); a disconnect
+        // drops its state so a stale live session never keeps polling a revoked token.
         List<Guid> connected = await db
-            .Services.Where(s =>
-                s.Name == "youtube" && s.Enabled && s.AccessToken != null && s.BroadcasterId != null
+            .IntegrationConnections.Where(c =>
+                c.Provider == AuthEnums.IntegrationProvider.YouTube
+                && c.Status == AuthEnums.IntegrationStatus.Connected
+                && c.BroadcasterId != null
             )
-            .Select(s => s.BroadcasterId!.Value)
+            .Select(c => c.BroadcasterId!.Value)
+            .Distinct()
             .ToListAsync(ct);
 
         foreach (Guid gone in _states.Keys.Where(id => !connected.Contains(id)).ToList())

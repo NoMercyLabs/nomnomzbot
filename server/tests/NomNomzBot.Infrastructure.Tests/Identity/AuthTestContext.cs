@@ -357,6 +357,12 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<NomNomzBot.Domain.Platform.Entities.Service>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Platform.Entities.Service>().Ignore(e => e.Channel);
 
+        // DiscordGuildConnection: mapped scalar-only (nav ignored) so IntegrationStatusService tests can
+        // exercise its "any non-deleted guild connection" existence check through this harness.
+        b.Entity<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection>()
+            .Ignore(e => e.Channel);
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
         // getter bodies, then tries to map their jsonb-of-complex-type columns (unsupported on InMemory).
         // Ignore every entity these tests do not exercise so the model stays minimal and provider-agnostic.
@@ -443,7 +449,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         // BotAccount is scalar-only (no navigation properties at all), so it materializes on InMemory as-is.
         // Mapped so BotJoinOnOnboardingHandler tests can seed/query the shared platform bot through this harness.
         b.Entity<BotAccount>().HasKey(e => e.Id);
-        b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection>();
+        // DiscordGuildConnection is mapped above (not ignored here) so IntegrationStatusService tests
+        // can exercise its Discord existence check through this harness.
         b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig>();
         b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole>();
         b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn>();
@@ -589,7 +596,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<BotAccount> BotAccounts => Set<BotAccount>();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => Set<IpcDevModeKey>();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection> DiscordGuildConnections =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection>();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationConfig> DiscordNotificationConfigs =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole> DiscordNotificationRoles =>

@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Contracts.Kick;
 using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Platform.Scheduling;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -26,7 +27,8 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Scheduling;
 /// proactive refresh pass so an already-expiring connection doesn't wait for its first caller after
 /// restart to pay the refresh latency. Proves the sweep is exhaustive over the provider list: Twitch's
 /// existing periodic sweep is invoked, every Kick-connected channel is asked for a token, and every
-/// enabled YouTube service row is asked for a token — asserted per provider, not just "it ran".
+/// connected YouTube vault connection (S036c-b — no longer the legacy Service row) is asked for a token
+/// — asserted per provider, not just "it ran".
 /// </summary>
 public sealed class IntegrationTokenBootSweepServiceTests
 {
@@ -55,23 +57,23 @@ public sealed class IntegrationTokenBootSweepServiceTests
                 OwnerUserId = Guid.NewGuid(),
             }
         );
-        db.Services.Add(
+        db.IntegrationConnections.Add(
             new()
             {
-                Id = Guid.NewGuid().ToString(),
                 BroadcasterId = YouTubeBroadcaster,
-                Name = AuthEnums.Platform.YouTube,
-                Enabled = true,
+                Provider = AuthEnums.IntegrationProvider.YouTube,
+                ProviderAccountId = "yt-ext-1",
+                Status = AuthEnums.IntegrationStatus.Connected,
             }
         );
-        // A disabled YouTube row must NOT be swept.
-        db.Services.Add(
+        // A revoked YouTube connection must NOT be swept.
+        db.IntegrationConnections.Add(
             new()
             {
-                Id = Guid.NewGuid().ToString(),
                 BroadcasterId = Guid.NewGuid(),
-                Name = AuthEnums.Platform.YouTube,
-                Enabled = false,
+                Provider = AuthEnums.IntegrationProvider.YouTube,
+                ProviderAccountId = "yt-ext-2",
+                Status = AuthEnums.IntegrationStatus.Revoked,
             }
         );
         await db.SaveChangesAsync();
