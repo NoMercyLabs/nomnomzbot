@@ -47,6 +47,28 @@ interface IntegrationsApi {
 
     /** Disconnect Discord — severs every linked guild for this channel (legacy IntegrationsController). */
     suspend fun disconnectDiscord(channelId: String): ApiResult<Unit>
+
+    /**
+     * The channel's own Spotify BYOC credentials (client id + whether a secret is configured — never the
+     * secret itself). Gate-2 `integration:read`.
+     */
+    suspend fun spotifyCredentials(channelId: String): ApiResult<ChannelSpotifyCredentials>
+
+    /**
+     * Save the channel's own Spotify BYOC credentials, so `!sr` song requests resolve against THIS channel's
+     * app rather than the app-level default. Gate-2 `integration:write`.
+     */
+    suspend fun saveSpotifyCredentials(
+        channelId: String,
+        clientId: String,
+        clientSecret: String,
+    ): ApiResult<ChannelSpotifyCredentials>
+
+    /**
+     * Clear the channel's own Spotify BYOC credentials, falling back to the app-level default (if any).
+     * Gate-2 `integration:write`.
+     */
+    suspend fun clearSpotifyCredentials(channelId: String): ApiResult<ChannelSpotifyCredentials>
 }
 
 class RestIntegrationsApi(private val client: ApiClient) : IntegrationsApi {
@@ -73,4 +95,20 @@ class RestIntegrationsApi(private val client: ApiClient) : IntegrationsApi {
 
     override suspend fun disconnectDiscord(channelId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/integrations/discord")
+
+    override suspend fun spotifyCredentials(channelId: String): ApiResult<ChannelSpotifyCredentials> =
+        client.getEnvelope("api/v1/channels/$channelId/integrations/spotify/credentials")
+
+    override suspend fun saveSpotifyCredentials(
+        channelId: String,
+        clientId: String,
+        clientSecret: String,
+    ): ApiResult<ChannelSpotifyCredentials> =
+        client.putEnvelope(
+            "api/v1/channels/$channelId/integrations/spotify/credentials",
+            SetChannelSpotifyCredentialsBody(clientId = clientId, clientSecret = clientSecret),
+        )
+
+    override suspend fun clearSpotifyCredentials(channelId: String): ApiResult<ChannelSpotifyCredentials> =
+        client.deleteEnvelope("api/v1/channels/$channelId/integrations/spotify/credentials")
 }

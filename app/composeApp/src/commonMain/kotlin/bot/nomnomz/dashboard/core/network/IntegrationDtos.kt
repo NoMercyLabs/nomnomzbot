@@ -89,3 +89,22 @@ data class IntegrationStatus(
     val grantedScopeSets: List<String> = emptyList(),
     val needsReauth: Boolean = false,
 )
+
+/**
+ * A channel's stored Spotify BYOC read-model (`GET …/integrations/spotify/credentials` →
+ * StatusResponseDto<ChannelSpotifyCredentialsDto>). [clientId] is safe to show (null when the channel has no
+ * own client registered — it then runs on the app-level default); the secret is NEVER returned, only whether
+ * one is configured.
+ */
+@Serializable
+data class ChannelSpotifyCredentials(
+    val clientId: String? = null,
+    val hasClientSecret: Boolean = false,
+)
+
+/** The write body for a channel's own Spotify BYOC credentials (`SetChannelSpotifyCredentialsDto`). */
+@Serializable
+data class SetChannelSpotifyCredentialsBody(
+    val clientId: String,
+    val clientSecret: String,
+)

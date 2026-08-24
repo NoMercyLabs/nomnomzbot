@@ -17,6 +17,7 @@ import bot.nomnomz.dashboard.core.network.BlockedTrack
 import bot.nomnomz.dashboard.core.network.BlockedTrackPage
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials
 import bot.nomnomz.dashboard.core.network.IntegrationStatus
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
@@ -622,6 +623,18 @@ private class FakeIntegrationsApiForMusic(private val statuses: List<Integration
         error("not exercised by the Music controller")
 
     override suspend fun disconnectDiscord(channelId: String): ApiResult<Unit> =
+        error("not exercised by the Music controller")
+
+    override suspend fun spotifyCredentials(channelId: String): ApiResult<ChannelSpotifyCredentials> =
+        error("not exercised by the Music controller")
+
+    override suspend fun saveSpotifyCredentials(
+        channelId: String,
+        clientId: String,
+        clientSecret: String,
+    ): ApiResult<ChannelSpotifyCredentials> = error("not exercised by the Music controller")
+
+    override suspend fun clearSpotifyCredentials(channelId: String): ApiResult<ChannelSpotifyCredentials> =
         error("not exercised by the Music controller")
 }
 

@@ -426,4 +426,21 @@ private object NoSignalIntegrationsApi : IntegrationsApi {
 
     override suspend fun disconnectDiscord(channelId: String): ApiResult<Unit> =
         ApiResult.Failure(bot.nomnomz.dashboard.core.network.ApiError(status = 501, code = "UNSUPPORTED", message = "Not wired."))
+
+    override suspend fun spotifyCredentials(
+        channelId: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> =
+        ApiResult.Failure(bot.nomnomz.dashboard.core.network.ApiError(status = 501, code = "UNSUPPORTED", message = "Not wired."))
+
+    override suspend fun saveSpotifyCredentials(
+        channelId: String,
+        clientId: String,
+        clientSecret: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> =
+        ApiResult.Failure(bot.nomnomz.dashboard.core.network.ApiError(status = 501, code = "UNSUPPORTED", message = "Not wired."))
+
+    override suspend fun clearSpotifyCredentials(
+        channelId: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> =
+        ApiResult.Failure(bot.nomnomz.dashboard.core.network.ApiError(status = 501, code = "UNSUPPORTED", message = "Not wired."))
 }

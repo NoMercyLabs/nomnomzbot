@@ -823,6 +823,19 @@ private class FakeIntegrationsApi(
         disconnectedDiscord = true
         return ApiResult.Ok(Unit)
     }
+
+    override suspend fun spotifyCredentials(channelId: String): ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> =
+        error("not exercised by the Integrations controller")
+
+    override suspend fun saveSpotifyCredentials(
+        channelId: String,
+        clientId: String,
+        clientSecret: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> =
+        error("not exercised by the Integrations controller")
+
+    override suspend fun clearSpotifyCredentials(channelId: String): ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> =
+        error("not exercised by the Integrations controller")
 }
 
 // Drives the authorize-URL provider with a fixed loopback redirect (as the desktop launcher would) and

@@ -46,6 +46,7 @@ class ApiContractTest {
             DeviceLoginPoll.serializer() to "DeviceLoginPollDto",
             DeviceBotPoll.serializer() to "DeviceBotPollDto",
             IntegrationStatus.serializer() to "IntegrationStatusDto",
+            ChannelSpotifyCredentials.serializer() to "ChannelSpotifyCredentialsDto",
             OAuthStart.serializer() to "OAuthStartDto",
             SystemChecks.serializer() to "SystemChecks",
             SystemStatus.serializer() to "SystemStatusDto",
