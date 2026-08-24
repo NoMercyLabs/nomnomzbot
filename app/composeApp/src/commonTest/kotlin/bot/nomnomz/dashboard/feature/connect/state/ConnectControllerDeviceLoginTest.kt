@@ -43,9 +43,13 @@ import bot.nomnomz.dashboard.core.network.SystemStatus
 import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
 // Proves the no-secret Device Code Flow login the Connect screen drives: clicking "Connect with Twitch"
@@ -332,6 +336,82 @@ class ConnectControllerDeviceLoginTest {
         assertEquals("acc", session.accessToken())
     }
 
+    // ── The browser-back trap on the web redirect wait (owner-reported): clicking "Continue with Twitch"
+    // navigates away; on web, [ConnectLauncher.authorizeStreamer] never resolves — the session arrives on
+    // reload instead. Hitting browser Back must never leave the operator stuck on a permanent spinner with
+    // no way to try the device-code flow or cancel. ──
+
+    @Test
+    fun starting_the_device_flow_escapes_a_pending_redirect_wait() = runTest {
+        // The redirect launcher hangs forever (the real web behaviour after a browser Back). The operator
+        // taps "use a device code instead" — that must succeed and leave the waiting condition, not be
+        // refused because a login is already "in progress".
+        val launcher = FakeConnectLauncher(streamerResult = null) // null ⇒ authorizeStreamer never returns
+        val authApi =
+            FakeAuthApi(
+                poll =
+                    ApiResult.Ok(
+                        DeviceLoginPoll("authorized", AuthPayload(accessToken = "acc", refreshToken = "ref"))
+                    )
+            )
+        val controller =
+            controller(
+                FakeSystemApi(ready = true, twitchConfigured = true),
+                authApi,
+                connectLauncher = launcher,
+            )
+        controller.onBaseUrlChange("http://localhost:5080")
+
+        val redirectAttempt: Job = launch { controller.connect() }
+        runCurrent()
+        assertEquals(ConnectStatus.AwaitingRedirect, controller.status.value)
+
+        // The escape hatch: start the device-code flow explicitly instead of waiting on the dead redirect.
+        controller.connect(forceDevice = true)
+
+        val session: SessionStore = sessionOf(controller)
+        assertEquals(SessionPhase.Connected, session.phase.value)
+        assertEquals("acc", session.accessToken())
+        assertEquals(ConnectStatus.Idle, controller.status.value)
+        redirectAttempt.cancel()
+    }
+
+    @Test
+    fun cancelling_a_pending_redirect_wait_returns_the_card_to_idle() = runTest {
+        // Explicit "never mind" — the operator dismisses the stuck wait without picking a new flow. Both
+        // sign-in options must be available again (i.e. the card is back to plain Idle, not still busy).
+        val launcher = FakeConnectLauncher(streamerResult = null)
+        val controller =
+            controller(FakeSystemApi(ready = true, twitchConfigured = true), connectLauncher = launcher)
+        controller.onBaseUrlChange("http://localhost:5080")
+
+        val redirectAttempt: Job = launch { controller.connect() }
+        runCurrent()
+        assertEquals(ConnectStatus.AwaitingRedirect, controller.status.value)
+
+        controller.cancelPendingLogin()
+        runCurrent()
+
+        assertEquals(ConnectStatus.Idle, controller.status.value)
+        assertEquals(true, redirectAttempt.isCompleted)
+    }
+
+    @Test
+    fun a_redirect_wait_that_never_returns_times_out_with_an_honest_error() = runTest {
+        // No browser Back at all — the operator just never comes back (a dead redirect: unregistered URI,
+        // a Twitch 502, ...). The wait must resolve on its own bound instead of spinning forever.
+        val launcher = FakeConnectLauncher(streamerResult = null)
+        val controller =
+            controller(FakeSystemApi(ready = true, twitchConfigured = true), connectLauncher = launcher)
+        controller.onBaseUrlChange("http://localhost:5080")
+
+        controller.connect()
+
+        val status: ConnectStatus = controller.status.value
+        assertEquals(true, status is ConnectStatus.Error)
+        assertEquals(ConnectError.RedirectTimedOut, (status as ConnectStatus.Error).error)
+    }
+
     // ── Reconnect: broadcaster re-auth uses the redirect flow, never a device banner ──
 
     @Test
@@ -594,6 +674,57 @@ class ConnectControllerDeviceLoginTest {
     }
 
     @Test
+    fun restore_session_retries_a_cookie_refresh_that_fails_transiently_instead_of_expiring_it() = runTest {
+        // A boot right as the backend/reverse proxy is warming up: the HttpOnly cookie is perfectly valid, but
+        // the very first refresh 504s (a gateway/network blip — status 0/5xx), not a real 401 rejection. This
+        // must NOT be treated as an expired session — a retry recovers it and the operator lands on the shell,
+        // never bounced to the login screen for a transient hiccup.
+        val vault = InMemoryVault()
+        val profiles = InMemoryProfileStore()
+        profiles.write(rememberedProfile) // web: no JS token, only the profile — cookie custody
+        val authApi =
+            FakeAuthApi(
+                meResults = listOf(ApiResult.Ok(CurrentUser("u1", "eagle", "Eagle"))),
+                refreshResults =
+                    listOf(
+                        ApiResult.Failure(ApiError(504, "GATEWAY", "proxy could not reach the backend")),
+                        ApiResult.Ok(AuthPayload(accessToken = "cookie-acc", refreshToken = null)),
+                    ),
+            )
+        val controller =
+            controller(FakeSystemApi(ready = true), authApi, vault = vault, profiles = profiles)
+
+        val restored: Boolean = controller.restoreSession()
+
+        val session: SessionStore = sessionOf(controller)
+        assertEquals(true, restored)
+        assertEquals(SessionPhase.Connected, session.phase.value)
+        assertEquals("cookie-acc", session.accessToken())
+        assertEquals(2, authApi.refreshCallCount)
+    }
+
+    @Test
+    fun restore_session_does_not_retry_a_definitive_401_rejection() = runTest {
+        // A real dead/revoked refresh token must fail FAST — retrying a genuine rejection only delays the
+        // (correct) fall-through to the login screen.
+        val vault = InMemoryVault()
+        val profiles = InMemoryProfileStore()
+        profiles.write(rememberedProfile)
+        val authApi =
+            FakeAuthApi(
+                refreshResults = listOf(ApiResult.Failure(ApiError(401, "REFRESH", "refresh rejected"))),
+            )
+        val controller =
+            controller(FakeSystemApi(ready = true), authApi, vault = vault, profiles = profiles)
+
+        val restored: Boolean = controller.restoreSession()
+
+        assertEquals(false, restored)
+        assertEquals(1, authApi.refreshCallCount)
+        assertEquals(SessionPhase.NotConnected, sessionOf(controller).phase.value)
+    }
+
+    @Test
     fun restore_session_is_a_no_op_when_no_session_was_remembered() = runTest {
         val controller = controller(FakeSystemApi(ready = true))
 
@@ -707,8 +838,16 @@ private class FakeAuthApi(
         listOf(ApiResult.Ok(CurrentUser(id = "u1", username = "eagle", displayName = "Eagle"))),
     private val refreshResult: ApiResult<AuthPayload> =
         ApiResult.Failure(ApiError(401, "REFRESH", "no refresh configured")),
+    // Successive refresh() results — restoreSession's transient-failure retry calls refresh() more than once;
+    // the last entry repeats once exhausted. Defaults to a single [refreshResult] so existing callers (which
+    // only ever hit refresh() once) are unaffected.
+    private val refreshResults: List<ApiResult<AuthPayload>>? = null,
 ) : AuthApi {
     private var meCall: Int = 0
+
+    /** How many times [refresh] was actually called — proves a retry ran (or correctly didn't). */
+    var refreshCallCount: Int = 0
+        private set
 
     /** Wired by a test to the session's base-URL provider, to prove the client was aimed before [refresh]. */
     var baseUrlProbe: (() -> String?)? = null
@@ -735,7 +874,10 @@ private class FakeAuthApi(
 
     override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> {
         baseUrlAtRefresh = baseUrlProbe?.invoke()
-        return refreshResult
+        val results: List<ApiResult<AuthPayload>> = refreshResults ?: listOf(refreshResult)
+        val index: Int = minOf(refreshCallCount, results.lastIndex)
+        refreshCallCount++
+        return results[index]
     }
 
     /** Records that logout hit the backend — the fix that revokes the session + clears the HttpOnly cookie. */
@@ -750,7 +892,11 @@ private class FakeAuthApi(
 
 /** A fake [ConnectLauncher] — records whether the streamer redirect login ran, and returns a canned result. */
 private class FakeConnectLauncher(
-    private val streamerResult: ApiResult<SessionTokens> =
+    // Null models the REAL web behaviour of a redirect wait that never resolves in-page (the browser
+    // navigated away — [ConnectLauncher.authorizeStreamer]'s own contract) — including a browser Back that
+    // resumes the frozen page without the call ever completing. Tests drive it forward with an explicit
+    // cancel or a timeout rather than a returned result.
+    private val streamerResult: ApiResult<SessionTokens>? =
         ApiResult.Failure(ApiError(0, "NO_LAUNCH", "redirect login not expected in this test")),
 ) : ConnectLauncher {
     var authorizeStreamerCalled: Boolean = false
@@ -758,7 +904,7 @@ private class FakeConnectLauncher(
 
     override suspend fun authorizeStreamer(baseUrl: String): ApiResult<SessionTokens> {
         authorizeStreamerCalled = true
-        return streamerResult
+        return streamerResult ?: awaitCancellation()
     }
 
     override suspend fun authorizeProvider(

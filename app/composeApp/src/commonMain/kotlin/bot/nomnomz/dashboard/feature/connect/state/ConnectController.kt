@@ -23,6 +23,7 @@ import bot.nomnomz.dashboard.core.connection.SavedConnection
 import bot.nomnomz.dashboard.core.connection.SavedConnectionsRepository
 import bot.nomnomz.dashboard.core.connection.TokenVault
 import bot.nomnomz.dashboard.core.connection.savedConnectionsStore
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.AuthPayload
@@ -574,7 +575,11 @@ class ConnectController(
 
         // 2. Renew — native sends the refresh token it holds; web sends null and the backend reads its
         //    HttpOnly cookie. Either way this gets a fresh access token without another device-code dance.
-        when (val refreshed: ApiResult<AuthPayload> = authApi.refresh(stored?.refreshToken)) {
+        //    A transient failure (status 0/network, or a 5xx — a proxy/backend still warming up on boot, the
+        //    exact 504 observed live behind the dev webpack proxy) is retried a few times before giving up: it
+        //    is NOT proof the cookie is dead, and treating it as one bounced a perfectly valid session to the
+        //    login screen for what was really a momentary blip.
+        when (val refreshed: ApiResult<AuthPayload> = refreshWithTransientRetry(stored?.refreshToken)) {
             is ApiResult.Ok -> {
                 val renewed: SessionTokens =
                     SessionTokens(
@@ -595,6 +600,27 @@ class ConnectController(
         sessionStore.clearActiveSession()
         return false
     }
+
+    /**
+     * [AuthApi.refresh], retried when the failure looks transient (status 0 — no response reached the client
+     * at all, e.g. a network/proxy blip — or a 5xx — the backend itself errored, e.g. still starting up). A
+     * definitive rejection (401/403 — the cookie/refresh token really is dead) is never retried: retrying that
+     * only delays the correct, immediate fall-through to the login screen.
+     */
+    private suspend fun refreshWithTransientRetry(
+        refreshToken: String?,
+    ): ApiResult<AuthPayload> {
+        var attempt = 0
+        var result: ApiResult<AuthPayload> = authApi.refresh(refreshToken)
+        while (result is ApiResult.Failure && isTransientFailure(result.error) && attempt < RESTORE_REFRESH_MAX_RETRIES) {
+            delay(RESTORE_REFRESH_RETRY_DELAY_MS)
+            attempt++
+            result = authApi.refresh(refreshToken)
+        }
+        return result
+    }
+
+    private fun isTransientFailure(error: ApiError): Boolean = error.status == 0 || error.status >= 500
 
     /**
      * Arm [tokens] onto the session (so the shared client sends them), prove them via `/me`, and commit the
@@ -642,6 +668,12 @@ class ConnectController(
 
     private companion object {
         const val DEFAULT_BASE_URL: String = "http://localhost:5080"
+
+        // Boot-restore cookie-refresh retry (a transient network/proxy/cold-start blip, not a dead session):
+        // a couple of quick retries covers a backend/reverse-proxy still warming up without stalling the
+        // splash for long.
+        const val RESTORE_REFRESH_MAX_RETRIES: Int = 2
+        const val RESTORE_REFRESH_RETRY_DELAY_MS: Long = 300L
 
         // The backend's advertised login-handshake tokens (LoginProviderDto.Flows) — a redirect flow means a
         // full-page authorize; device-code means the poll loop.
