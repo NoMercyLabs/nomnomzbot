@@ -26,7 +26,10 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.connection.SessionPhase
 import bot.nomnomz.dashboard.core.connection.SessionUser
+import bot.nomnomz.dashboard.core.connection.servedOriginProfile
 import bot.nomnomz.dashboard.core.di.AppGraph
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.SystemStatus
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.designsystem.theme.Scheme
@@ -102,6 +105,24 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                 }
             delay(SPLASH_HOLD_MS)
             restore?.join()
+
+            // Self-host BYOC-first gate: before the operator ever sees a Twitch sign-in affordance
+            // (Landing's "Get started" -> Connect's login button), find out whether the bot's Twitch app
+            // is even configured. A fresh self-host has no client id yet, so its login can't work at
+            // all — probe readiness now (web is single-origin: servedOriginProfile() is exactly the
+            // backend that served this page) and route straight to the Setup wizard instead of ever
+            // rendering the sign-in affordance. Native's multi-origin picker has no fixed backend to probe
+            // here, so it still falls through to Connect where the operator types one first.
+            if (graph.sessionStore.phase.value == SessionPhase.NotConnected) {
+                val servedProfile = servedOriginProfile()
+                if (servedProfile != null) {
+                    graph.sessionStore.pin(servedProfile)
+                    when (val result: ApiResult<SystemStatus> = graph.systemApi.status()) {
+                        is ApiResult.Ok -> if (!result.value.ready) graph.sessionStore.enterSetup(servedProfile)
+                        is ApiResult.Failure -> Unit
+                    }
+                }
+            }
             booting = false
         }
 

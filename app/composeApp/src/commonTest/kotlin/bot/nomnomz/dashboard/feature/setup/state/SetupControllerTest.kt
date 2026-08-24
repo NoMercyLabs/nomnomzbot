@@ -92,6 +92,66 @@ class SetupControllerTest {
     }
 
     @Test
+    fun with_no_client_id_the_credentials_form_shows_and_no_signin_affordance_is_reachable() = runTest {
+        // BYOC-before-login (owner requirement): with no Twitch client id stored, the wizard renders the
+        // credentials input on step 0 and the required, incomplete twitch_app step blocks canAdvance — so
+        // no sign-in/login affordance (Next past this step, or the review step's Finish) is reachable.
+        val api = FakeSystemApi(wizard = wizard(twitch = false, bot = false), ready = false)
+        val controller = controller(api)
+
+        controller.load()
+
+        val steps: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertEquals(0, steps.currentStep)
+        assertEquals("twitch_app", steps.currentBackendStep?.key)
+        assertFalse(steps.canAdvance)
+        assertFalse(steps.ready)
+    }
+
+    @Test
+    fun saving_a_client_id_alone_unblocks_advancing_past_the_twitch_step_without_a_secret() = runTest {
+        // Saving the client id with the secret left BLANK is enough to complete the twitch_app step and
+        // unblock advancing past it — proving the secret is not required to reach the sign-in path.
+        val api = FakeSystemApi(wizard = wizard(twitch = false, bot = false), ready = false)
+        val controller = controller(api)
+        controller.load()
+        val twitch: SetupStep = (controller.state.value as SetupState.Steps).steps.first { it.key == "twitch_app" }
+
+        controller.onFieldChange("twitch_app", "clientId", "abc123")
+        api.wizardAfter = wizard(twitch = true, bot = false)
+        controller.saveCredentials(twitch)
+
+        assertEquals("abc123", api.savedTwitchClientId)
+        assertEquals("", api.savedTwitchClientSecret)
+        val steps: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertTrue(steps.steps.first { it.key == "twitch_app" }.complete)
+        assertTrue(steps.canAdvance)
+    }
+
+    @Test
+    fun with_a_client_id_already_stored_the_form_never_re_asks_and_a_reload_keeps_it_that_way() = runTest {
+        // Once the backend reports the Twitch app step complete (a client id is already stored), the wizard
+        // must never re-present the credentials form — it reads the DONE state straight from the backend
+        // (never an optimistic client flag) and stays that way across a reload, not just the first load.
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        val controller = controller(api)
+
+        controller.load()
+        val afterLoad: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertTrue(afterLoad.steps.first { it.key == "twitch_app" }.complete)
+        assertTrue(afterLoad.canAdvance)
+        assertTrue(afterLoad.ready)
+
+        // A later reload (e.g. a fresh page/app boot re-reading the wizard) reflects the SAME backend truth —
+        // the step stays complete and the sign-in path stays reachable, not reset to asking again.
+        controller.load()
+        val afterReload: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertTrue(afterReload.steps.first { it.key == "twitch_app" }.complete)
+        assertTrue(afterReload.canAdvance)
+        assertTrue(afterReload.ready)
+    }
+
+    @Test
     fun load_renders_the_backend_steps_and_is_not_ready_when_the_twitch_app_is_missing() = runTest {
         val api = FakeSystemApi(wizard = wizard(twitch = false, bot = false), ready = false)
         val controller = controller(api)
