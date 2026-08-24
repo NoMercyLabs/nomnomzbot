@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Music;
@@ -254,6 +255,7 @@ public sealed class SongRequestQueuePersistenceTests
         services.AddSingleton<ISongRequestQueueStore, SongRequestQueueStore>();
         RecordingEventBus bus = new();
         services.AddSingleton<IEventBus>(bus);
+        services.AddSingleton<IRunOnceGuard>(new SharedFakeRunOnceGuard());
         using ServiceProvider provider = services.BuildServiceProvider();
 
         SongRequestQueueRestoreHostedService sut = new(

@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -22,9 +23,21 @@ namespace NomNomzBot.Infrastructure.Platform;
 /// Populates the in-memory <see cref="IChannelRegistry"/> from the database on startup.
 /// Without this the registry starts empty and commands/timers never fire until the channel
 /// is evicted and re-registered — which effectively means they never fire at all.
+///
+/// Gated by <see cref="IRunOnceGuard"/> so that when two API instances start against one database
+/// (zero-downtime deploy overlap) only one of them runs the bootstrap pass — a duplicate pass is
+/// harmless to each instance's own registry (<c>GetOrCreateAsync</c> is idempotent) but doubles the
+/// startup log noise and DB load for no benefit, so the lease keeps it to one pass. A non-holder is
+/// a clean no-op: no throw, no error log — overlap is normal.
 /// </summary>
 public sealed class ChannelRegistryBootstrapService : IHostedService
 {
+    private static readonly TimeSpan LeaseTtl = TimeSpan.FromMinutes(5);
+
+    // Internal (not private) so tests can pre-hold the same lease to simulate an overlapping instance —
+    // InternalsVisibleTo(NomNomzBot.Infrastructure.Tests) is already wired for exactly this seam.
+    internal const string LeaseResourceName = "channel-registry-bootstrap";
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IChannelRegistry _registry;
     private readonly ILogger<ChannelRegistryBootstrapService> _logger;
@@ -43,6 +56,15 @@ public sealed class ChannelRegistryBootstrapService : IHostedService
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
+        IRunOnceGuard guard = scope.ServiceProvider.GetRequiredService<IRunOnceGuard>();
+        await using IAsyncDisposable? lease = await guard.TryAcquireAsync(
+            LeaseResourceName,
+            LeaseTtl,
+            cancellationToken
+        );
+        if (lease is null)
+            return; // another instance is bootstrapping the registry this startup.
+
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 

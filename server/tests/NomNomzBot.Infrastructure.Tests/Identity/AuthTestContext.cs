@@ -206,6 +206,41 @@ internal sealed class RecordingEventBus : IEventBus
 }
 
 /// <summary>
+/// A deterministic, controllable <see cref="IRunOnceGuard"/> test double simulating one shared
+/// lease store (the "one database") backing two API instances. Two instances of this type built
+/// over the SAME <paramref name="backingStore"/> mimic two overlapping processes racing the same
+/// named resource: whichever calls <see cref="TryAcquireAsync"/> first holds the lease until its
+/// lease is disposed; the other is refused (returns <c>null</c>) for as long as the first holds it —
+/// giving a test full control over which instance "wins" a given tick without depending on real
+/// async timing.
+/// </summary>
+internal sealed class SharedFakeRunOnceGuard(ConcurrentDictionary<string, byte> backingStore)
+    : IRunOnceGuard
+{
+    public SharedFakeRunOnceGuard()
+        : this(new ConcurrentDictionary<string, byte>()) { }
+
+    public Task<IAsyncDisposable?> TryAcquireAsync(
+        string resourceName,
+        TimeSpan ttl,
+        CancellationToken cancellationToken = default
+    ) =>
+        Task.FromResult<IAsyncDisposable?>(
+            backingStore.TryAdd(resourceName, 0) ? new Lease(backingStore, resourceName) : null
+        );
+
+    private sealed class Lease(ConcurrentDictionary<string, byte> backingStore, string resourceName)
+        : IAsyncDisposable
+    {
+        public ValueTask DisposeAsync()
+        {
+            backingStore.TryRemove(resourceName, out _);
+            return ValueTask.CompletedTask;
+        }
+    }
+}
+
+/// <summary>
 /// Focused EF context over the auth/integration entities. Maps only what the services under test touch;
 /// every other <see cref="IApplicationDbContext"/> member throws, since the tests never reach them.
 /// </summary>
@@ -342,6 +377,14 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         // (navs ignored) so the reward-sync tests can prove the Twitch read path through this harness.
         b.Entity<NomNomzBot.Domain.Rewards.Entities.Reward>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Rewards.Entities.Reward>().Ignore(e => e.Channel);
+
+        // SoundClip: mapped scalar-only (Channel/CreatedByUser navs ignored) so ChannelRegistry's
+        // sound-trigger cache load (LoadSoundTriggersAsync) runs cleanly through this harness — reached
+        // by the channel-registry bootstrap run-once tests, which drive the real GetOrCreateAsync path.
+        b.Entity<NomNomzBot.Domain.Sound.Entities.SoundClip>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Sound.Entities.SoundClip>()
+            .Ignore(e => e.Channel)
+            .Ignore(e => e.CreatedByUser);
         b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubSubscription>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduit>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard>();
@@ -731,7 +774,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion> CodeScriptVersions =>
         Set<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion>();
     public DbSet<NomNomzBot.Domain.Sound.Entities.SoundClip> SoundClips =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Sound.Entities.SoundClip>();
     public DbSet<NomNomzBot.Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource> CustomDataSources =>

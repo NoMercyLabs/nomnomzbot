@@ -11,6 +11,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -23,6 +24,12 @@ namespace NomNomzBot.Infrastructure.Music;
 /// since before <see cref="FreshnessWindow"/>) is deliberately NOT restored — a queue frozen mid-stream
 /// days ago is worse than starting empty — and is told instead via a logged warning and a published
 /// <see cref="SongRequestQueueRestoreDiscardedEvent"/>.
+///
+/// Gated by <see cref="IRunOnceGuard"/> so that when two API instances start against one database
+/// (zero-downtime deploy overlap) only one of them replays the persisted queue and publishes the
+/// discarded-queue events — otherwise a second instance racing the same startup window would double
+/// every restored channel's queue and double the discarded-queue notification. A non-holder is a
+/// clean no-op: no throw, no error log — overlap is normal.
 /// </summary>
 public sealed class SongRequestQueueRestoreHostedService : IHostedService
 {
@@ -32,6 +39,12 @@ public sealed class SongRequestQueueRestoreHostedService : IHostedService
     /// that a queue from a stream days ago never resurfaces as if it were still pending.
     /// </summary>
     public static readonly TimeSpan FreshnessWindow = TimeSpan.FromHours(4);
+
+    private static readonly TimeSpan LeaseTtl = TimeSpan.FromMinutes(5);
+
+    // Internal (not private) so tests can pre-hold the same lease to simulate an overlapping instance —
+    // InternalsVisibleTo(NomNomzBot.Infrastructure.Tests) is already wired for exactly this seam.
+    internal const string LeaseResourceName = "song-request-queue-restore";
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<SongRequestQueueRestoreHostedService> _logger;
@@ -48,6 +61,15 @@ public sealed class SongRequestQueueRestoreHostedService : IHostedService
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
+        IRunOnceGuard guard = scope.ServiceProvider.GetRequiredService<IRunOnceGuard>();
+        await using IAsyncDisposable? lease = await guard.TryAcquireAsync(
+            LeaseResourceName,
+            LeaseTtl,
+            cancellationToken
+        );
+        if (lease is null)
+            return; // another instance is restoring the queue this startup.
+
         ISongRequestQueuePersistence persistence =
             scope.ServiceProvider.GetRequiredService<ISongRequestQueuePersistence>();
         ISongRequestQueueStore store =
