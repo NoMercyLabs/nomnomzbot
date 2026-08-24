@@ -61,7 +61,26 @@ public class CommandService : ICommandService
                 "VALIDATION_FAILED"
             );
 
-        string nameNormalized = request.Name.ToLowerInvariant();
+        Result<string> normalizedName = await NormalizeAndValidateNameAsync(
+            broadcaster,
+            request.Name,
+            request.PrefixMode,
+            request.CustomPrefix,
+            cancellationToken
+        );
+        if (normalizedName.IsFailure)
+            return normalizedName.ToTyped<CommandDto>();
+
+        string name = normalizedName.Value;
+        string nameNormalized = name.ToLowerInvariant();
+
+        Result templateOk = ValidateTemplateResponses(
+            request.Tier,
+            request.TemplateResponse,
+            request.TemplateResponses
+        );
+        if (templateOk.IsFailure)
+            return templateOk.ToTyped<CommandDto>();
 
         bool exists = await _db.Commands.AnyAsync(
             c => c.BroadcasterId == broadcaster && c.NameNormalized == nameNormalized,
@@ -69,7 +88,7 @@ public class CommandService : ICommandService
         );
 
         if (exists)
-            return Errors.AlreadyExists("command", request.Name).ToTyped<CommandDto>();
+            return Errors.AlreadyExists("command", name).ToTyped<CommandDto>();
 
         // Tier quotas (monetization-billing §3.3): the command count and the per-trigger variation list
         // are both capped by the plan; -1 (self-host / unseeded) is unlimited.
@@ -101,7 +120,7 @@ public class CommandService : ICommandService
         Command command = new()
         {
             BroadcasterId = broadcaster,
-            Name = request.Name,
+            Name = name,
             NameNormalized = nameNormalized,
             Tier = request.Tier,
             MinPermissionLevel = request.MinPermissionLevel,
@@ -150,6 +169,19 @@ public class CommandService : ICommandService
 
         if (command is null)
             return Errors.NotFound<CommandDto>("Command", commandName);
+
+        // Validated against the FULLY MERGED state BEFORE any mutation — the tracked `command` entity must
+        // never be left mutated on a rejected update (this DbContext's identity map would keep returning that
+        // unsaved, invalid in-memory state to later reads even though nothing was ever persisted). A template
+        // command's responses can be emptied by clearing TemplateResponses while leaving TemplateResponse
+        // untouched-but-already-null, and that combination must be caught here too, not just on create.
+        Result templateOk = ValidateTemplateResponses(
+            request.Tier ?? command.Tier,
+            request.TemplateResponse ?? command.TemplateResponse,
+            request.TemplateResponses ?? command.TemplateResponses
+        );
+        if (templateOk.IsFailure)
+            return templateOk.ToTyped<CommandDto>();
 
         if (request.Tier is not null)
             command.Tier = request.Tier;
@@ -374,6 +406,97 @@ public class CommandService : ICommandService
 
         return Result.Success(response ?? string.Empty);
     }
+
+    /// <summary>
+    /// Guards a data-integrity defect confirmed on the live database: a user typed the channel's own command
+    /// prefix into the Name field (e.g. <c>"!so"</c>). With <c>PrefixMode=Default</c> the dispatcher builds the
+    /// trigger as <c>channelPrefix + Name</c> (<c>ChatMessageHandler.ResolveAuthoredCommand</c>), so a name that
+    /// already starts with its own effective prefix can never match — the saved command is permanently dead and,
+    /// because unrecognised input is silent by design, the author never finds out why. Strips one leading
+    /// occurrence of the command's OWN effective prefix (chosen over rejecting: typing "!so" unambiguously means
+    /// the "so" command, so silently saving the sane form is friendlier — the caller sees the corrected name come
+    /// back in the response DTO, so the correction is never a surprise) and then validates what remains: empty or
+    /// whitespace-containing names are rejected outright, since neither can ever match a single-token chat command.
+    /// </summary>
+    private async Task<Result<string>> NormalizeAndValidateNameAsync(
+        Guid broadcaster,
+        string rawName,
+        string prefixMode,
+        string? customPrefix,
+        CancellationToken cancellationToken
+    )
+    {
+        string trimmed = rawName.Trim();
+        if (trimmed.Length == 0)
+            return Errors.ValidationFailed("Command name cannot be empty.").ToTyped<string>();
+
+        if (trimmed.Any(char.IsWhiteSpace))
+            return Errors
+                .ValidationFailed(
+                    "Command name cannot contain spaces — a name with a space can never match a single-token chat command."
+                )
+                .ToTyped<string>();
+
+        string channelPrefix = await ResolveChannelPrefixAsync(broadcaster, cancellationToken);
+        string effectivePrefix = EffectivePrefix(prefixMode, customPrefix, channelPrefix);
+
+        string stripped =
+            effectivePrefix.Length > 0
+            && trimmed.StartsWith(effectivePrefix, StringComparison.Ordinal)
+                ? trimmed[effectivePrefix.Length..]
+                : trimmed;
+
+        return stripped.Length == 0
+            ? Errors
+                .ValidationFailed(
+                    $"Command name is only the command prefix ('{effectivePrefix}') — the prefix is added automatically when the command fires, so the name itself must not include it."
+                )
+                .ToTyped<string>()
+            : Result.Success(stripped);
+    }
+
+    /// <summary>Mirrors <c>ChatMessageHandler.ResolveAuthoredCommand</c>'s trigger-prefix resolution exactly, so
+    /// the name saved here is guaranteed to match what the dispatcher will build at runtime.</summary>
+    private static string EffectivePrefix(
+        string prefixMode,
+        string? customPrefix,
+        string channelPrefix
+    ) =>
+        prefixMode switch
+        {
+            "Custom" => customPrefix ?? string.Empty,
+            "None" => string.Empty,
+            _ => channelPrefix,
+        };
+
+    private async Task<string> ResolveChannelPrefixAsync(Guid broadcaster, CancellationToken ct)
+    {
+        string? prefix = await _db
+            .Channels.Where(c => c.Id == broadcaster)
+            .Select(c => c.CommandPrefix)
+            .FirstOrDefaultAsync(ct);
+
+        return string.IsNullOrWhiteSpace(prefix) ? "!" : prefix;
+    }
+
+    /// <summary>
+    /// A <c>template</c>-tier command with no response fires and sends nothing — a second silent-failure mode
+    /// found alongside the prefix defect (the same live row that motivated this fix also had
+    /// <c>TemplateResponses=[]</c>). Rejected outright rather than allowed through, since an empty template
+    /// command can never do anything useful and the author gets no other signal that it is broken.
+    /// </summary>
+    private static Result ValidateTemplateResponses(
+        string tier,
+        string? templateResponse,
+        List<string>? templateResponses
+    ) =>
+        tier == "template"
+        && string.IsNullOrWhiteSpace(templateResponse)
+        && templateResponses is not { Count: > 0 }
+            ? Errors.ValidationFailed(
+                "A template command needs at least one response — set TemplateResponse or add a TemplateResponses entry."
+            )
+            : Result.Success();
 
     /// <summary>The per-trigger variation cap (<c>response_variations_per_trigger</c>) — -1 is unlimited.</summary>
     private async Task<Result> CheckVariationCapAsync(

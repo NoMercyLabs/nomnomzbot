@@ -53,16 +53,16 @@ public sealed class TierQuotaEnforcementTests
         CommandsTestDbContext db = CommandsTestDbContext.New();
         CommandService sut = Commands(db, TestTiers.WithLimit("custom_commands", 2));
 
-        (await sut.CreateAsync(Channel.ToString(), new() { Name = "one" }))
+        (await sut.CreateAsync(Channel.ToString(), new() { Name = "one", TemplateResponse = "hi" }))
             .IsSuccess.Should()
             .BeTrue();
-        (await sut.CreateAsync(Channel.ToString(), new() { Name = "two" }))
+        (await sut.CreateAsync(Channel.ToString(), new() { Name = "two", TemplateResponse = "hi" }))
             .IsSuccess.Should()
             .BeTrue();
 
         Result<CommandDto> third = await sut.CreateAsync(
             Channel.ToString(),
-            new() { Name = "three" }
+            new() { Name = "three", TemplateResponse = "hi" }
         );
 
         third.ErrorCode.Should().Be("QUOTA_EXCEEDED");
@@ -80,18 +80,26 @@ public sealed class TierQuotaEnforcementTests
 
         Result<CommandDto> over = await sut.CreateAsync(
             Channel.ToString(),
-            new() { Name = "multi", TemplateResponses = ["a", "b", "c"] }
+            new()
+            {
+                Name = "multi",
+                TemplateResponse = "hi",
+                TemplateResponses = ["a", "b", "c"],
+            }
         );
         over.ErrorCode.Should().Be("QUOTA_EXCEEDED");
 
         (
             await sut.CreateAsync(
                 Channel.ToString(),
-                new() { Name = "multi", TemplateResponses = ["a", "b"] }
+                new()
+                {
+                    Name = "multi",
+                    TemplateResponse = "hi",
+                    TemplateResponses = ["a", "b"],
+                }
             )
-        )
-            .IsSuccess.Should()
-            .BeTrue();
+        ).IsSuccess.Should().BeTrue();
 
         Result<CommandDto> updated = await sut.UpdateAsync(
             Channel.ToString(),
@@ -188,11 +196,14 @@ public sealed class TierQuotaEnforcementTests
             (
                 await sut.CreateAsync(
                     Channel.ToString(),
-                    new() { Name = $"cmd{i}", TemplateResponses = ["a", "b", "c", "d"] }
+                    new()
+                    {
+                        Name = $"cmd{i}",
+                        TemplateResponse = "hi",
+                        TemplateResponses = ["a", "b", "c", "d"],
+                    }
                 )
-            )
-                .IsSuccess.Should()
-                .BeTrue();
+            ).IsSuccess.Should().BeTrue();
     }
 
     // ─── seeder backfill ─────────────────────────────────────────────────────

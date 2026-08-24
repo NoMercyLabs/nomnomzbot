@@ -39,7 +39,8 @@ public sealed class CommandServiceTests
         return (new(db, pipelineEngine, registry, bus, Billing.TestTiers.Unlimited()), bus);
     }
 
-    private static CreateCommandDto Req(string name = "hello") => new() { Name = name };
+    private static CreateCommandDto Req(string name = "hello") =>
+        new() { Name = name, TemplateResponse = "hi there" };
 
     [Fact]
     public async Task Create_publishes_ChannelConfigChangedEvent_for_the_commands_domain()
@@ -189,6 +190,7 @@ public sealed class CommandServiceTests
         CreateCommandDto request = new()
         {
             Name = "greet",
+            TemplateResponse = "hi there",
             PrefixMode = "Custom",
             CustomPrefix = "?",
             MatchMode = "Regex",
@@ -259,6 +261,7 @@ public sealed class CommandServiceTests
             new()
             {
                 Name = "greet",
+                TemplateResponse = "hi there",
                 PrefixMode = "Custom",
                 CustomPrefix = "?",
             }

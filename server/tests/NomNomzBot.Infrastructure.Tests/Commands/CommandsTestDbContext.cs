@@ -56,6 +56,7 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
     public DbSet<DomainTimer> Timers => Set<DomainTimer>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
         Set<NomNomzBot.Domain.Platform.Entities.Record>();
+    public DbSet<Channel> Channels => Set<Channel>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -74,6 +75,15 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
                     JsonValueConverter.Converter<List<string>>()!,
                     JsonValueConverter.Comparer<List<string>>()
                 );
+        });
+
+        b.Entity<Channel>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.User);
+            e.Ignore(c => c.Moderators);
+            e.Ignore(c => c.Streams);
+            e.Ignore(c => c.Events);
         });
 
         b.Entity<DomainTimer>(e =>
@@ -98,6 +108,7 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
     [
         typeof(Command),
         typeof(DomainTimer),
+        typeof(Channel),
         typeof(NomNomzBot.Domain.Platform.Entities.Record),
     ];
 
@@ -118,7 +129,6 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
-    public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Service> Services => throw new NotSupportedException();
     public DbSet<Reward> Rewards => throw new NotSupportedException();
