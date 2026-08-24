@@ -461,7 +461,8 @@ public sealed class SpotifyMusicProviderReadTests
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
             NullSystemCredentialsProvider.Instance,
-            new ConnectionRefreshGate()
+            new ConnectionRefreshGate(),
+            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance)
         );
 
         string? token = await spotify.GetEmbeddedPlaybackTokenAsync(ChannelId);
@@ -504,7 +505,8 @@ public sealed class SpotifyMusicProviderReadTests
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
             NullSystemCredentialsProvider.Instance,
-            new ConnectionRefreshGate()
+            new ConnectionRefreshGate(),
+            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance)
         );
 
         string? token = await spotify.GetEmbeddedPlaybackTokenAsync(ChannelId);
@@ -564,7 +566,8 @@ public sealed class SpotifyMusicProviderReadTests
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
             NullSystemCredentialsProvider.Instance,
-            new ConnectionRefreshGate()
+            new ConnectionRefreshGate(),
+            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance)
         );
 
         return (spotify, handler);

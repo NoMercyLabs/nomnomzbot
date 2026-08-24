@@ -77,7 +77,7 @@ public sealed class SpotifyMusicProvider
     private readonly IApplicationDbContext _db;
     private readonly IIntegrationTokenVault _vault;
     private readonly ISystemCredentialsProvider _credentials;
-    private readonly IChannelCredentialsResolver? _channelCredentials;
+    private readonly IChannelCredentialsResolver _channelCredentials;
     private readonly IIntegrationCapabilityStore _capabilities;
     private readonly ILastActiveSpotifyDeviceTracker _lastActiveDevice;
     private readonly HttpClient _http;
@@ -95,7 +95,7 @@ public sealed class SpotifyMusicProvider
         ILogger<SpotifyMusicProvider> logger,
         ISystemCredentialsProvider credentials,
         Identity.IConnectionRefreshGate refreshGate,
-        IChannelCredentialsResolver? channelCredentials = null
+        IChannelCredentialsResolver channelCredentials
     )
     {
         _db = db;
@@ -1454,18 +1454,15 @@ public sealed class SpotifyMusicProvider
     /// <summary>
     /// Resolves the app credentials for this broadcaster's Spotify refresh: the channel's own client id +
     /// secret (BYOC) when configured, else the platform's app-level credentials — the single resolution seam
-    /// every Spotify OAuth path shares (<see cref="IChannelCredentialsResolver"/>). When no resolver is
-    /// wired (older callers that construct this provider directly), resolution falls back unchanged to the
-    /// app-level-only path this member always used.
+    /// every Spotify OAuth path shares (<see cref="IChannelCredentialsResolver"/>). The resolver is a
+    /// required dependency (no silent app-level-only fallback) — a streamer's BYOC credentials must never
+    /// be skipped because of a missing wire.
     /// </summary>
     private async Task<SystemAppCredentials?> ResolveAppCredentialsAsync(
         Guid broadcasterId,
         CancellationToken cancellationToken
     )
     {
-        if (_channelCredentials is null)
-            return await _credentials.GetAsync(ProviderName, cancellationToken);
-
         Result<SystemAppCredentials> resolved = await _channelCredentials.ResolveAsync(
             broadcasterId,
             ProviderName,

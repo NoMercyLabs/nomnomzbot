@@ -139,7 +139,8 @@ public sealed class MusicServiceDuplicateRequestTests
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
             NullSystemCredentialsProvider.Instance,
-            new ConnectionRefreshGate()
+            new ConnectionRefreshGate(),
+            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance)
         );
 
         MusicService sut = new(

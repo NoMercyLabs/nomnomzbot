@@ -256,6 +256,30 @@ internal sealed class NullSystemCredentialsProvider : ISystemCredentialsProvider
     ) => Task.FromResult<string?>(null);
 }
 
+/// <summary>Layers over <see cref="NullSystemCredentialsProvider"/> the way the real
+/// <c>ChannelCredentialsResolver</c> layers over <c>ISystemCredentialsProvider</c>: no channel ever has its
+/// own stored credentials here, so resolution always falls through to the app-level provider and fails with
+/// <c>PROVIDER_NOT_CONFIGURED</c> when that is null too — these tests aren't exercising BYOC, they need a
+/// resolver dependency that behaves exactly like "nothing configured" without a real DB round-trip.</summary>
+internal sealed class NullChannelCredentialsResolver(ISystemCredentialsProvider systemCredentials)
+    : IChannelCredentialsResolver
+{
+    public async Task<Result<SystemAppCredentials>> ResolveAsync(
+        Guid channelId,
+        string provider,
+        CancellationToken cancellationToken = default
+    )
+    {
+        SystemAppCredentials? credentials = await systemCredentials.GetAsync(
+            provider,
+            cancellationToken
+        );
+        return credentials is not null
+            ? Result.Success(credentials)
+            : Result.Failure<SystemAppCredentials>("PROVIDER_NOT_CONFIGURED");
+    }
+}
+
 /// <summary>
 /// Records every request a music provider sends (method + absolute URL, plus the JSON body when
 /// present) and answers from registered routes; anything unrouted gets a 404 so a test can prove an

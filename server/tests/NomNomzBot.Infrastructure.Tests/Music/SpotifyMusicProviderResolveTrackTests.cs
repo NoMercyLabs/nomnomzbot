@@ -158,7 +158,8 @@ public sealed class SpotifyMusicProviderResolveTrackTests
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
             NullSystemCredentialsProvider.Instance,
-            new ConnectionRefreshGate()
+            new ConnectionRefreshGate(),
+            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance)
         );
         return (provider, handler);
     }

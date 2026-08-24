@@ -183,7 +183,8 @@ public sealed class MusicProviderManageApiTests
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
             NullSystemCredentialsProvider.Instance,
-            new ConnectionRefreshGate()
+            new ConnectionRefreshGate(),
+            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance)
         );
         YouTubeMusicProvider youtube = YouTubeProviderFactory.Create();
 

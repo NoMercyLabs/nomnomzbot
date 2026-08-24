@@ -130,7 +130,8 @@ public sealed class MusicServiceQueueSnapshotTests
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
             NullSystemCredentialsProvider.Instance,
-            new ConnectionRefreshGate()
+            new ConnectionRefreshGate(),
+            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance)
         );
 
         RecordingEventBus bus = new();

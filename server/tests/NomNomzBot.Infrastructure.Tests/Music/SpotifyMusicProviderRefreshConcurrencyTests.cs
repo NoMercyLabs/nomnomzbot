@@ -167,7 +167,8 @@ public sealed class SpotifyMusicProviderRefreshConcurrencyTests
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
             new FixedSpotifyCredentialsProvider(),
-            gate
+            gate,
+            new NullChannelCredentialsResolver(new FixedSpotifyCredentialsProvider())
         );
     }
 
