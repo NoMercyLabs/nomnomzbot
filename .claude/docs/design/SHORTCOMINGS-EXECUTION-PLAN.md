@@ -27,13 +27,6 @@ Slice IDs are stable; the order is the queue.
 
 - **S035** SignalR hardening — `WithStatefulReconnect()`; OverlayHub many-widgets-per-connection;
   overlay token out of the query string + throttle (U·B5/B7). 🔒 backplane for multi-replica.
-- **S036c** YouTube token custody is still a SECOND custody path — S036b (005273c7) closed the Spotify half
-  (refresh now goes through `ConnectionRefreshGate`, proven by a two-concurrent-callers test) and documented in place
-  why YouTube was not moved: `YouTubeAccessTokenProvider` keeps custody on the legacy flat `Service` table, and moving
-  it needs a backfill of existing `Service` rows into `IntegrationConnection` coordinated across every reader/writer of
-  that table. Done-when: YouTube custody reads and writes through `IIntegrationTokenVault`, existing rows are migrated,
-  and no `Service`-table token read remains on that path.
-
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
 - **S021** Chat router by origin — `IChatProvider` platform-keyed, reply/send target = message
