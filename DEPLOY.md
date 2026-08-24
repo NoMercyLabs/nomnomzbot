@@ -15,6 +15,9 @@ One script per operating system drives every scenario:
 
 Run yours with no arguments any time to see this guide's short form.
 
+Iterating on the dashboard's UI instead of deploying a build? `./start.sh` (repo root) runs the
+API and the dashboard in development mode with hot reload, no Docker — see its `--help`.
+
 ## Which scenario am I?
 
 | You want… | Scenario | Linux / macOS | Windows (PowerShell) |
