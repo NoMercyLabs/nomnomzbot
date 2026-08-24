@@ -22,6 +22,7 @@ using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.PipelineActions;
+using NomNomzBot.Infrastructure.Moderation.PipelineActions;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
 using NomNomzBot.Infrastructure.Platform.Pipeline.CoreActions;
 using NomNomzBot.Infrastructure.Tts.PipelineActions;
@@ -76,6 +77,7 @@ public sealed class PipelineTestRunServiceTests
             new SendMessageAction(chat, resolver),
             new PlayTtsAction(resolver, tts),
             new SetVariableAction(),
+            new BanAction(chat),
         ];
         ICommandCondition[] conditions = [new ComparisonCondition(resolver)];
 
@@ -265,6 +267,30 @@ public sealed class PipelineTestRunServiceTests
 
         result.Success.Should().BeTrue();
         result.Log.Should().Contain(l => l.Contains("set_variable") && l.Contains("skipped"));
+    }
+
+    [Fact]
+    public async Task Captures_a_destructive_moderation_action_without_ever_calling_the_chat_provider()
+    {
+        // Destructive actions (ban/timeout/role-remove) must be captured, never executed — the real ban
+        // seam (IChatProvider.BanUserAsync) must never fire during a dry-run.
+        PipelineTestRunDbContext db = NewDb();
+        Harness h = Build(db);
+        await SeedPipelineAsync(
+            db,
+            Step(0, "ban", """{"type":"ban","user_id":"12345","reason":"test"}""")
+        );
+
+        TestRunResultDto result = (await h.Sut.RunAsync(PipelineId, Request())).Value;
+
+        result.Success.Should().BeTrue();
+        await h.Chat.DidNotReceiveWithAnyArgs().BanUserAsync(default, default!, default, default);
+        result
+            .CapturedEffects.Select(e => e.Name)
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be("ban");
     }
 
     [Fact]
