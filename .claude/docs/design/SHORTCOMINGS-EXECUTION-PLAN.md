@@ -67,8 +67,6 @@ stable — without dropping the planned requirements behind them.
 
 ## Phase 1 — runtime stability of EXISTING plumbing
 
-- **S035** SignalR hardening — `WithStatefulReconnect()`; OverlayHub many-widgets-per-connection;
-  overlay token out of the query string + throttle (U·B5/B7). 🔒 backplane for multi-replica.
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
 - **S022** `Provider` on every canonical community/monetization event; Kick/YouTube supporter events
