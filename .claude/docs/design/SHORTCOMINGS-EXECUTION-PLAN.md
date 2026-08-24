@@ -25,12 +25,6 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 1 — runtime stability of EXISTING plumbing
 
-- **S044** Kick token refresh has no `needs_reauth` guard — `KickAccessTokenProvider.GetAsync` refreshes on the
-  routine cadence regardless of connection status, the same shape that produced 4653 consecutive failures against a
-  dead Spotify connection on the deployed box before 07f60a1c fixed the Spotify path. Done-when: a `needs_reauth`
-  Kick connection is skipped by the routine refresher (no upstream call, proven by test) and repeated failures back
-  off, mirroring `SpotifyMusicProvider.ShouldAttemptRefreshAsync`.
-
 - **S035** SignalR hardening — `WithStatefulReconnect()`; OverlayHub many-widgets-per-connection;
   overlay token out of the query string + throttle (U·B5/B7). 🔒 backplane for multi-replica.
 - **S036c** YouTube token custody is still a SECOND custody path — S036b (005273c7) closed the Spotify half
