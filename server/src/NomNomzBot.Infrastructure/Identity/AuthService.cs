@@ -633,8 +633,22 @@ public sealed class AuthService : IAuthService
             context,
             cancellationToken
         );
+        // Twitch already authorized this device code — from here the flow must never fall back to an HTTP
+        // failure. The KMP poll loop tolerates any non-200 response silently for up to the code's full 30-
+        // minute expiry window (a transient network blip must not abort a real approval), so a genuinely
+        // terminal post-authorization failure (Helix user lookup down, DB write rejected, …) has to surface
+        // as a terminal DeviceLoginStatus.Error poll result (still HTTP 200) instead — exactly like the
+        // transport-level terminal statuses (expired/denied) already do. Without this, the operator approves
+        // on twitch.tv and the dashboard just keeps showing "waiting for approval" forever.
         if (session.IsFailure)
-            return session.WithValue<DeviceLoginPollDto>(null!);
+        {
+            _logger.LogWarning(
+                "Device login authorized by Twitch but session establishment failed: {Error} ({Code})",
+                session.ErrorMessage,
+                session.ErrorCode
+            );
+            return Result.Success(new DeviceLoginPollDto(DeviceLoginStatus.Error));
+        }
 
         return Result.Success(new DeviceLoginPollDto(DeviceLoginStatus.Authorized, session.Value));
     }
@@ -656,11 +670,17 @@ public sealed class AuthService : IAuthService
             outcome.Tokens.AccessToken,
             cancellationToken
         );
+        // Same terminal-vs-transient distinction as the streamer poll above: once Twitch has authorized the
+        // device code, a failure fetching the bot's identity or establishing the shared bot must still surface
+        // as a terminal DeviceLoginStatus.Error poll result (HTTP 200) — never a Result.Failure the controller
+        // turns into a non-200 the poll loop tolerates silently until the code expires.
         if (botUser is null)
-            return Result.Failure<DeviceBotPollDto>(
-                "Failed to fetch bot user info.",
-                "USER_FETCH_FAILED"
+        {
+            _logger.LogWarning(
+                "Bot device login authorized by Twitch but the Helix user lookup failed."
             );
+            return Result.Success(new DeviceBotPollDto(DeviceLoginStatus.Error));
+        }
 
         Result<BotStatusDto> bot = await EstablishSharedBotAsync(
             botUser,
@@ -668,7 +688,14 @@ public sealed class AuthService : IAuthService
             cancellationToken
         );
         if (bot.IsFailure)
-            return bot.WithValue<DeviceBotPollDto>(null!);
+        {
+            _logger.LogWarning(
+                "Bot device login authorized by Twitch but establishing the shared bot failed: {Error} ({Code})",
+                bot.ErrorMessage,
+                bot.ErrorCode
+            );
+            return Result.Success(new DeviceBotPollDto(DeviceLoginStatus.Error));
+        }
 
         return Result.Success(new DeviceBotPollDto(DeviceLoginStatus.Authorized, bot.Value));
     }

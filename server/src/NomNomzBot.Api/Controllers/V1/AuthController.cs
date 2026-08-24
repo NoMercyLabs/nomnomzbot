@@ -827,8 +827,13 @@ public class AuthController : BaseController
             BuildAuthContext(),
             ct
         );
+        // Same fix as the Twitch device poll: once the provider authorized the device code, a failure
+        // establishing the local session must still surface as a terminal poll status (HTTP 200) — a
+        // non-200 here is silently tolerated by the client's poll loop until the device code expires.
         if (login.IsFailure)
-            return ResultResponse(login);
+            return Ok(
+                new StatusResponseDto<DeviceLoginPollDto> { Data = new(DeviceLoginStatus.Error) }
+            );
 
         DeviceLoginPollDto dto = new(DeviceLoginStatus.Authorized, login.Value);
         if (
