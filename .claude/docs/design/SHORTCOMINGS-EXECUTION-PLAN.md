@@ -21,10 +21,9 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
 
-- **S008c-read** Nothing can READ the pipeline execution history — S008b (75519b88) persists runs with per-step logs and
-  retention, but no API or dashboard surface exposes them, so a streamer debugging a misbehaving command still cannot see
-  why it failed. Done-when: a run history endpoint exists (paged, tenant-scoped, failures filterable) and the dashboard shows
-  the failing step for a `PartiallyFailed` run.
+- **S008c-read-b** The pipeline run history is readable over the API (S008c-read-a, f33eb5e0) but no dashboard surface
+  shows it, so a streamer debugging a misbehaving command still cannot see why it failed. Done-when: the dashboard lists
+  runs (paged, failures filterable) and shows the failing step + its error for a `PartiallyFailed` run.
 
 ## Phase 1 — runtime stability of EXISTING plumbing
 
@@ -46,8 +45,10 @@ Slice IDs are stable; the order is the queue.
   ordering on `EventResponse(BroadcasterId, EventType)`; builtin-name + alias collision checks;
   chat-trigger order column + `continue` on cooldown (S·F7/F9/F10, U·B1). Done-when: duplicate
   response rows impossible; alias hijack rejected at save.
-- **S041** Small caps — SSML-escape voiceId; TTS per-channel volume cap; webhook flatten depth cap
-  (S·F14–F16).
+- **S041b** TTS has NO per-channel volume cap because there is no volume field at all (S041, 8832a68e, closed the SSML
+  escape + webhook flatten-depth halves; the volume clamp had nothing to clamp). Done-when: a per-channel TTS volume
+  exists end to end (entity, DTO, dashboard control, overlay payload) and is clamped to a safe baseline at the service
+  boundary. Also: `ElevenLabsTtsProvider` interpolates `voiceId` into the URL path unescaped — different bug class, fix here.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
