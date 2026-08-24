@@ -59,19 +59,42 @@ if ($remoteMode -and -not $sshKey) {
 
 # Run one shell command against whichever target is active (remote host over SSH, or the local
 # compose stack in this repo) and return its stdout. Non-zero exit -> Fail with the command shown.
+# Runs a native command and judges success ONLY by $LASTEXITCODE, never by the presence of stderr
+# output. Under Windows PowerShell 5.1, merging a native command's stderr into the pipeline via
+# `2>&1` while $ErrorActionPreference = "Stop" is in effect turns ANY stderr write (docker's normal
+# build/pull progress, warnings, etc.) into a terminating NativeCommandError, aborting the script
+# before the exit code is ever checked — even on a successful command. PowerShell 7 doesn't have
+# this problem, which is why a previous "verified" run (under pwsh) didn't catch it. The fix:
+# temporarily relax $ErrorActionPreference to "Continue" for the duration of the native call (so a
+# stderr write is just a stream write, not a terminating error), let stdout+stderr interleave to
+# the host for readability, and decide pass/fail from $LASTEXITCODE alone afterwards.
+function Invoke-NativeCommand([string]$cmd) {
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $out = Invoke-Expression "$cmd 2>&1" | Out-String
+    }
+    finally {
+        $ErrorActionPreference = $previousEap
+    }
+    return @{ Output = $out.TrimEnd("`r", "`n"); ExitCode = $LASTEXITCODE }
+}
+
 function Invoke-Target([string]$cmd) {
     if ($remoteMode) {
         $full = "cd $deployDir && $cmd"
-        $out = ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget $full 2>&1
-        if ($LASTEXITCODE -ne 0) { Fail "remote command failed (`"$cmd`"): $out" }
-        return $out
+        $result = Invoke-NativeCommand "ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget `"$full`""
+        if ($result.ExitCode -ne 0) { Fail "remote command failed (`"$cmd`"): $($result.Output)" }
+        Write-Host $result.Output
+        return $result.Output
     }
     else {
         Push-Location $repoRoot
         try {
-            $out = Invoke-Expression $cmd 2>&1
-            if ($LASTEXITCODE -ne 0) { Fail "local command failed (`"$cmd`"): $out" }
-            return $out
+            $result = Invoke-NativeCommand $cmd
+            if ($result.ExitCode -ne 0) { Fail "local command failed (`"$cmd`"): $($result.Output)" }
+            Write-Host $result.Output
+            return $result.Output
         }
         finally { Pop-Location }
     }
@@ -81,11 +104,12 @@ function Invoke-Target([string]$cmd) {
 # yet" / "not running yet" is an expected, retried outcome, not a hard error.
 function Invoke-TargetSoft([string]$cmd) {
     if ($remoteMode) {
-        return ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget "cd $deployDir && $cmd" 2>&1
+        $full = "cd $deployDir && $cmd"
+        return (Invoke-NativeCommand "ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget `"$full`"").Output
     }
     else {
         Push-Location $repoRoot
-        try { return Invoke-Expression $cmd 2>&1 }
+        try { return (Invoke-NativeCommand $cmd).Output }
         finally { Pop-Location }
     }
 }
